@@ -252,7 +252,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                 succeeded = false;
         }
         for(Long idItemGroup : deleteItemGroupsList) {
-            if (existsItemGroup(settings, idItemGroup)) {
+            if (existsItemGroup(settings, idItemGroup, logRequests)) {
                 ServerLoggers.importLogger.info("Loya: deleting goodGroup " + idItemGroup);
                 if (!deleteItemGroup(context, settings, idItemGroup, logRequests))
                     succeeded = false;
@@ -272,7 +272,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("description", goodGroup.description == null ? "" : goodGroup.description);
         requestBody.put("limits", discountLimits);
 
-        if (existsItemGroup(settings, goodGroup.id)) {
+        if (existsItemGroup(settings, goodGroup.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying goodGroup " + goodGroup.id);
             return modifyItemGroup(context, settings, goodGroup.id, itemGroupObject, requestBody, logRequests);
         } else {
@@ -289,8 +289,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private boolean existsItemGroup(SettingsLoya settings, Long idItemGroup) throws IOException {
-        HttpGet getRequest = new HttpGet(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
+    private boolean existsItemGroup(SettingsLoya settings, Long idItemGroup, boolean logRequests) throws IOException {
+        String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
+        if(logRequests) {
+            ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
+        }
+        HttpGet getRequest = new HttpGet(requestURL);
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
@@ -360,7 +364,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("name", brand.name);
         requestBody.put("description", brand.name);
 
-        if(existsBrand(settings, brand.id)) {
+        if(existsBrand(settings, brand.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying brand " + brand.name);
             return modifyBrand(context, settings, brand.id, requestBody, logRequests);
         } else {
@@ -369,8 +373,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private boolean existsBrand(SettingsLoya settings, Integer idBrand) throws IOException {
-        HttpGet getRequest = new HttpGet(settings.url + "brand/" + idBrand);
+    private boolean existsBrand(SettingsLoya settings, Integer idBrand, boolean logRequests) throws IOException {
+        String requestURL = settings.url + "brand/" + idBrand;
+        if(logRequests) {
+            ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
+        }
+        HttpGet getRequest = new HttpGet(requestURL);
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
@@ -425,7 +433,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("limits", discountLimits);
         requestBody.put("state", "active");
 
-        if (existsCategory(settings, category.overId)) {
+        if (existsCategory(settings, category.overId, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying category " + category.overId);
             return modifyCategory(context, settings, category.overId, requestBody, logRequests);
         } else {
@@ -434,8 +442,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private boolean existsCategory(SettingsLoya settings, Long idCategory) throws IOException {
-        HttpGet getRequest = new HttpGet(settings.url + "category/" + settings.partnerId + "/" + idCategory);
+    private boolean existsCategory(SettingsLoya settings, Long idCategory, boolean logRequests) throws IOException {
+        String requestURL = settings.url + "category/" + settings.partnerId + "/" + idCategory;
+        if(logRequests) {
+            ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
+        }
+        HttpGet getRequest = new HttpGet(requestURL);
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
@@ -487,7 +499,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("dimension", item.split ? "weight" : "piece");
         requestBody.put("limits", discountLimits);
 
-        if (existsItem(settings, item.id)) {
+        if (existsItem(settings, item.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying good " + item.id);
             return modifyItem(context, settings, item.id, requestBody, logRequests);
         } else {
@@ -505,8 +517,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private boolean existsItem(SettingsLoya settings, String idItem) throws IOException {
-        HttpGet getRequest = new HttpGet(settings.url + "good/" + settings.partnerId + "/" + idItem);
+    private boolean existsItem(SettingsLoya settings, String idItem, boolean logRequests) throws IOException {
+        String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
+        if(logRequests) {
+            ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
+        }
+        HttpGet getRequest = new HttpGet(requestURL);
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
