@@ -166,7 +166,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         List<Item> itemsList = new ArrayList<>();
         Map<DataObject, GoodGroup> itemGroupsMap = new HashMap<>();
         Map<Long, List<GoodGroupLink>> itemItemGroupsMap = new HashMap<>();
-        List<Long> deleteItemGroupsList = new ArrayList<>();
+        Map<DataObject, Long> deleteItemGroupsList = new HashMap<>();
 
         KeyExpr groupExpr = new KeyExpr("loyaItemGroup");
         KeyExpr skuExpr = new KeyExpr("sku");
@@ -217,12 +217,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         //get loya groups without items and not active for deletion
         KeyExpr emptyGroupExpr = new KeyExpr("loyaItemGroup");
         QueryBuilder<Object, Object> emptyQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "loyaItemGroup", emptyGroupExpr));
-        emptyQuery.addProperty("idLoyaItemGroup", findProperty("id[LoyaItemGroup]").getExpr(emptyGroupExpr));
-        emptyQuery.addProperty("nameLoyaItemGroup", findProperty("name[LoyaItemGroup]").getExpr(emptyGroupExpr));
-        emptyQuery.addProperty("descriptionLoyaItemGroup", findProperty("description[LoyaItemGroup]").getExpr(emptyGroupExpr));
-        emptyQuery.addProperty("empty", findProperty("empty[LoyaItemGroup]").getExpr(emptyGroupExpr));
-        emptyQuery.addProperty("active", findProperty("active[LoyaItemGroup]").getExpr(emptyGroupExpr));
+        String[] emptyGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup", "empty", "active"};
+        LCP[] emptyGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]", "empty[LoyaItemGroup]",
+                "active[LoyaItemGroup]");
+        for (int i = 0; i < emptyGroupProperties.length; i++) {
+            emptyQuery.addProperty(emptyGroupNames[i], emptyGroupProperties[i].getExpr(emptyGroupExpr));
+        }
         emptyQuery.and(findProperty("empty[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().or(findProperty("active[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().not()));
+        emptyQuery.and(findProperty("deleted[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere().not());
         emptyQuery.and(findProperty("name[LoyaItemGroup]").getExpr(emptyGroupExpr).getWhere());
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emptyResult = emptyQuery.executeClasses(context);
@@ -237,13 +239,13 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             if(active && empty)
                 itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
-                deleteItemGroupsList.add(idLoyaItemGroup);
+                deleteItemGroupsList.put(groupObject, idLoyaItemGroup);
         }
         return new SynchronizeData(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList);
     }
 
     private boolean uploadItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
-                                     List<Long> deleteItemGroupsList, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+                                     Map<DataObject, Long> deleteItemGroupsMap, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean succeeded = true;
         for (Map.Entry<DataObject, GoodGroup> entry : itemGroupsMap.entrySet()) {
             DataObject itemGroupObject = entry.getKey();
@@ -251,10 +253,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             if (!uploadItemGroup(context, settings, itemItemGroupsMap, itemGroupData, itemGroupObject, discountLimits, logRequests))
                 succeeded = false;
         }
-        for(Long idItemGroup : deleteItemGroupsList) {
+        for(Map.Entry<DataObject, Long> deleteItemGroup : deleteItemGroupsMap.entrySet()) {
+            Long idItemGroup = deleteItemGroup.getValue();
             if (existsItemGroup(settings, idItemGroup, logRequests)) {
                 ServerLoggers.importLogger.info("Loya: deleting goodGroup " + idItemGroup);
-                if (!deleteItemGroup(context, settings, idItemGroup, logRequests))
+                if (!deleteItemGroup(context, settings, deleteItemGroup.getKey(), idItemGroup, logRequests))
                     succeeded = false;
             }
         }
@@ -331,7 +334,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded ? new JSONObject(responseMessage).getLong("id") : null;
     }
 
-    private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, Long idItemGroup, boolean logRequests) throws IOException {
+    private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, DataObject itemGroupObject, Long idItemGroup, boolean logRequests) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         String requestBody = "[" + idItemGroup + "]";
         if(logRequests) {
@@ -341,8 +344,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         deleteRequest.setEntity(new StringEntity(requestBody));
         HttpResponse response = executeRequest(deleteRequest, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
+        if (succeeded) {
+            try (ExecutionContext.NewSession newContext = context.newSession()) {
+                findProperty("deleted[LoyaItemGroup]").change(true, newContext, itemGroupObject);
+                newContext.apply();
+            }
+        } else {
             context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Delete ItemGroup Error"));
+        }
         return succeeded;
     }
 
@@ -657,9 +666,9 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         public List<Item> itemsList;
         public Map<DataObject, GoodGroup> itemGroupsMap;
         public Map<Long, List<GoodGroupLink>> itemItemGroupsMap;
-        public List<Long> deleteItemGroupsList;
+        public Map<DataObject, Long> deleteItemGroupsList;
 
-        public SynchronizeData(List<Item> itemsList, Map<DataObject, GoodGroup> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, List<Long> deleteItemGroupsList) {
+        public SynchronizeData(List<Item> itemsList, Map<DataObject, GoodGroup> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, Long> deleteItemGroupsList) {
             this.itemsList = itemsList;
             this.itemGroupsMap = itemGroupsMap;
             this.itemItemGroupsMap = itemItemGroupsMap;

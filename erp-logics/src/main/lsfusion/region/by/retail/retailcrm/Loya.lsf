@@ -58,6 +58,11 @@ in (SkuGroup skuGroup) = GROUP SUM in(skuGroup, LoyaItemGroup loyaItemGroup) IF 
 
 empty 'Без товаров' (LoyaItemGroup g) = g IS LoyaItemGroup AND NOT (GROUP SUM 1 IF in(Sku sku, g));
 
+deleted 'Удалена в Loya' = DATA BOOLEAN (LoyaItemGroup);
+WHEN SETCHANGED (active(LoyaItemGroup g)) DO {
+    deleted(g) <- NULL;
+}
+
 synchronizeLoya 'Синхронизировать'  INTERNAL  'lsfusion.erp.region.by.ukm.SynchronizeLoyaActionProperty' ();
 disableSynchronizeItemsLoya 'Отключить синхронизацию товаров' = DATA BOOLEAN ();
 deleteInactiveItemGroupsLoya 'Удалять неактивные группы товаров' = DATA BOOLEAN ();
@@ -241,7 +246,7 @@ FORM loya 'Группы товаров Loya'
     FILTERS priceList(d) == p
                     
     OBJECTS g=LoyaItemGroup
-    PROPERTIES(g) READONLY active CHANGEABLE, id SHOWIF showIDs(), createdDate, fromDateTime, toDateTime,  name, description
+    PROPERTIES(g) READONLY active CHANGEABLE, id SHOWIF showIDs(), createdDate, fromDateTime, toDateTime,  name, description, deleted
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
     FILTERGROUP active
         FILTER 'Активные' active(g) 'F5' 
