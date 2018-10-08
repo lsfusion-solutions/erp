@@ -537,6 +537,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 case Cell.CELL_TYPE_STRING:
                 default:
                     result = (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
+                    if(importColumnDetail.isBoolean) {
+                        result = parseBoolean(result);
+                    }
                     break;
             }
             return result;
