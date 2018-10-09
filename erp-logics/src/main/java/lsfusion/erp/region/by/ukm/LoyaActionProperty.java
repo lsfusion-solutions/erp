@@ -88,20 +88,6 @@ public class LoyaActionProperty extends ScriptingActionProperty {
         return response.getStatusLine().getStatusCode() == 200;
     }
 
-    protected void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (ExecutionContext.NewSession newContext = context.newSession()) {
-            findProperty("id[LoyaItemGroup]").change(id, newContext, itemGroupObject);
-            newContext.apply();
-        }
-    }
-
-    protected void setIdLoyaBrand(ExecutionContext context, DataObject brandObject, Integer idLoyaBrand) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (ExecutionContext.NewSession newContext = context.newSession()) {
-            findProperty("idLoya[Brand]").change(idLoyaBrand, newContext, brandObject);
-            newContext.apply();
-        }
-    }
-
     protected SettingsLoya login(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException, IOException {
         Integer partnerId = null;
         String sessionKey = null;
@@ -143,5 +129,14 @@ public class LoyaActionProperty extends ScriptingActionProperty {
             }
         }
         return new SettingsLoya(url, partnerId, sessionKey, error);
+    }
+
+    //as in ukm4mysqlhandler
+    protected Long parseGroup(String idItemGroup) {
+        try {
+            return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replaceAll("[^0-9]", ""));
+        } catch (Exception e) {
+            return (long) 0;
+        }
     }
 }

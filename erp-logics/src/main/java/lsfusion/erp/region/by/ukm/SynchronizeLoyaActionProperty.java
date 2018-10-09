@@ -334,6 +334,13 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded ? new JSONObject(responseMessage).getLong("id") : null;
     }
 
+    private void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            findProperty("id[LoyaItemGroup]").change(id, newContext, itemGroupObject);
+            newContext.apply();
+        }
+    }
+
     private boolean deleteItemGroup(ExecutionContext context, SettingsLoya settings, DataObject itemGroupObject, Long idItemGroup, boolean logRequests) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         String requestBody = "[" + idItemGroup + "]";
@@ -420,6 +427,13 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Create Brand Error"));
         }
         return succeeded;
+    }
+
+    private void setIdLoyaBrand(ExecutionContext context, DataObject brandObject, Integer idLoyaBrand) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            findProperty("idLoya[Brand]").change(idLoyaBrand, newContext, brandObject);
+            newContext.apply();
+        }
     }
 
     private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList, Map<String, Integer> discountLimits, boolean logRequests) throws IOException, JSONException {
@@ -514,15 +528,6 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         } else {
             ServerLoggers.importLogger.info("Loya: creating good " + item.id);
             return createItem(context, settings.url, settings.sessionKey, requestBody, logRequests);
-        }
-    }
-
-    //as in ukm4mysqlhandler
-    protected Long parseGroup(String idItemGroup) {
-        try {
-            return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replaceAll("[^0-9]", ""));
-        } catch (Exception e) {
-            return (long) 0;
         }
     }
 
