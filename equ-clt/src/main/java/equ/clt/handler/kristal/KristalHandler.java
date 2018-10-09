@@ -403,7 +403,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 cal.add(Calendar.DATE, 1);
                 String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
 
-                String exchangeDirectory = directory + (exportPrefixPath == null ? "/export" : exportPrefixPath) + "/request/";
+                String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export" : exportPrefixPath) + "/request/";
 
                 if (makeDirsIfNeeded(exchangeDirectory)) {
                     Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
