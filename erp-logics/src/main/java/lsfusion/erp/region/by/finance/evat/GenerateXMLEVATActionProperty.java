@@ -134,6 +134,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
             String dateCancelled = formatDate((Date) findProperty("dateCancelled[EVAT]").read(context, evatObject));
             boolean allowZeroVAT = findProperty("allowZeroVAT[EVAT]").read(context, evatObject) != null;
+            boolean exportProviderTaxes = findProperty("exportProviderTaxes[EVAT]").read(context, evatObject) != null;
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
@@ -172,7 +173,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                     String declarationCustomer = trim((String) findProperty("declarationCustomer[EVAT]").read(context, evatObject));
 //                    if(declarationCustomer == null)
 //                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для покупателя\n", number);
-                    rootElement.addContent(createProviderElement(context, evatObject, declarationSupplier, namespace));
+                    rootElement.addContent(createProviderElement(context, evatObject, declarationSupplier, namespace, exportProviderTaxes));
                     rootElement.addContent(createRecipientElement(context, evatObject, declarationCustomer, namespace));
                     boolean skipDeliveryCondition = findProperty("skipDeliveryCondition[EVAT]").read(context, evatObject) != null;
                     if(!skipDeliveryCondition) {
@@ -290,7 +291,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createProviderElement(ExecutionContext context, DataObject evatObject, String declaration, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createProviderElement(ExecutionContext context, DataObject evatObject, String declaration, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusSupplier[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonSupplier[EVAT]").read(context, evatObject) != null;
@@ -308,8 +309,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         //String dateInvoiceVendor = formatDate((Date) findProperty("dateInvoiceVendor[EVAT]").read(context, evatObject));
         String dateRelease = formatDate((Date) findProperty("dateReleaseSupplier[EVAT]").read(context, evatObject));
         String dateActualExport = formatDate((Date) findProperty("dateActualExportSupplier[EVAT]").read(context, evatObject));
-        //String numberTaxes = trim((String) findProperty("numberTaxesSupplier[EVAT]").read(context, evatObject));
-        //String dateTaxes = formatDate((Date) findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject));
+        String numberTaxes = trim((String) findProperty("numberTaxesSupplier[EVAT]").read(context, evatObject));
+        String dateTaxes = formatDate((Date) findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject));
 
         Element providerElement = new Element("provider");
         addStringElement(namespace, providerElement, "providerStatus",  getProviderStatus(legalEntityStatus, "SELLER"));
@@ -328,9 +329,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addStringElement(namespace, providerElement, "declaration", declaration);
         addStringElement(namespace, providerElement, "dateRelease", dateRelease);
         addStringElement(namespace, providerElement, "dateActualExport", dateActualExport);
-        //Поле 14."Реквизиты заявления о ввозе товаров и уплате косвенных налогов" должно быть пустым (Правило-25)
-        //if(numberTaxes != null)
-        //    providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        if(numberTaxes != null && exportProviderTaxes) {
+            providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        }
         providerElement.setNamespace(namespace);
         return providerElement;
     }
