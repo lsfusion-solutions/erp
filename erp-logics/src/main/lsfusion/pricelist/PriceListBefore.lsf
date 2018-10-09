@@ -63,7 +63,14 @@ DESIGN operation {
 }
 
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, fromPriceBefore, ' с (Цена до)');
-@deriveDocumentHeaderTimePrefix(UserPriceList, fromPriceBefore);
+WHEN LOCAL SET(UserPriceList o IS UserPriceList) DO {
+    IF o IS UserPriceList AND NOT fromPriceBeforeDate(o) THEN fromPriceBeforeDate(o) <- currentDate();
+    IF o IS UserPriceList AND NOT fromPriceBeforeTime(o) THEN fromPriceBeforeTime(o) <- currentTime();
+};
+skipChangeFromPriceBeforeTime = ABSTRACT BOOLEAN (PriceList);
+WHEN LOCAL CHANGED(fromPriceBeforeDate(UserPriceList o)) AND NOT CHANGED(fromPriceBeforeTime(o)) AND NOT skipChangeFromPriceBeforeTime(o) DO {
+    fromPriceBeforeTime(o) <- IF fromPriceBeforeDate(o) > currentDate() THEN 00:00 ELSE currentTime();
+} 
 
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceBefore, ' по (Цена до)');
 @deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceBefore);
@@ -79,9 +86,10 @@ CONSTRAINT showPriceBefore(UserPriceList p) AND isPosted(p) AND NOT skipConstrai
 CONSTRAINT showPriceBefore(userPriceList(UserPriceListDetail d)) AND isPosted(userPriceList(d))
             AND NOT skipConstraintPriceBefore(operation(d)) AND NOT priceBefore(d)
     MESSAGE 'Цена до должна быть задана для строки прайса.';
-    
+
+backgroundPriceBeforeTime = ABSTRACT COLOR (PriceList);
 EXTEND FORM userPriceList
-    PROPERTIES (p) SHOWIF showPriceBefore(p) fromPriceBeforeDate, fromPriceBeforeTime, toPriceBeforeDate, toPriceBeforeTime
+    PROPERTIES (p) SHOWIF showPriceBefore(p) fromPriceBeforeDate, fromPriceBeforeTime BACKGROUND backgroundPriceBeforeTime(p), toPriceBeforeDate, toPriceBeforeTime
 ;
 
 DESIGN userPriceList{
