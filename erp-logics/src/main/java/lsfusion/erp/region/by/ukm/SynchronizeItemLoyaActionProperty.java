@@ -46,7 +46,7 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 String caption = StringUtils.trimToEmpty((String) findProperty("nameAttribute[Item]").read(context, itemObject));
                 String idUOM = (String) findProperty("idUOM[Item]").read(context, itemObject);
                 boolean split = findProperty("split[Item]").read(context, itemObject) != null;
-                String idSkuGroup = trim((String) findProperty("idSkuGroup[Item]").read(context, itemObject));
+                String idSkuGroup = trim((String) findProperty("overIdSkuGroup[Item]").read(context, itemObject));
                 Integer idLoyaBrand = (Integer) findProperty("idLoyaBrand[Item]").read(context, itemObject);
                 Item item = new Item(id, caption, idUOM, split, idSkuGroup, idLoyaBrand);
                 uploadItem(context, settings, item, discountLimits, logRequests);
