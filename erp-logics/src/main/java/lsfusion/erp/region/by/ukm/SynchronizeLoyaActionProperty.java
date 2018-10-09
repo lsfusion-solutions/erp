@@ -310,9 +310,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
-        if (succeeded)
-            setIdLoyaItemGroup(context, itemGroupObject, new JSONObject(getResponseMessage(response)).getLong("id"));
-        else
+        if (succeeded) {
+            Long newIdItemGroup = new JSONObject(getResponseMessage(response)).getLong("id");
+            if(!idItemGroup.equals(newIdItemGroup)) {
+                setIdLoyaItemGroup(context, itemGroupObject, newIdItemGroup);
+            }
+        } else
             context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Modify ItemGroup Error"));
         return succeeded;
     }
