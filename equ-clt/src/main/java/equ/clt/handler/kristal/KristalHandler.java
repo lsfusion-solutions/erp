@@ -91,6 +91,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
                 Integer importGroupType = kristalSettings != null ? kristalSettings.getImportGroupType() : null;
                 boolean noRestriction = kristalSettings != null && kristalSettings.getNoRestriction() != null && kristalSettings.getNoRestriction();
+                boolean zeroesInItemGroup = kristalSettings != null && kristalSettings.isZeroesInItemGroup();
 
                 Map<String, String> directoriesMap = new HashMap<>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
@@ -122,8 +123,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                                String idItemGroup = importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0" :
-                                        importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
+                                String idItemGroup = zeroesInItemGroup ? "1|00|00|00|00"
+                                        : importGroupType == null || importGroupType.equals(0) ? "0|0|0|0|0"
+                                        : importGroupType.equals(1) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup, false)
                                         : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
                                         : importGroupType.equals(3) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
