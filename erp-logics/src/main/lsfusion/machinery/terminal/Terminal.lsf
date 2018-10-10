@@ -685,3 +685,54 @@ clearApplicationLog () + {
 	    }
 	}
 }
+
+//-------------------------------------------------- Импорт поставленного кол-ва --------------------------------------------------
+
+META defineAddToDetailDialogTerminal (object, skuProp, stockProp, NS)
+    @defineAddToDetailDialogTerminalInner (object, ###object, skuProp, stockProp, NS);
+END
+
+META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS)
+    skipCreateDetailAddToDetailDialogTerminal 'Не создавать строки при импорте поставленного кол-ва из ТСД' = DATA BOOLEAN();
+    
+    EXTEND FORM options
+        PROPERTIES() NS##skipCreateDetailAddToDetailDialogTerminal = skipCreateDetailAddToDetailDialogTerminal
+    ;
+    
+    DESIGN options {
+        invoice##NS {
+            MOVE PROPERTY(NS##skipCreateDetailAddToDetailDialogTerminal);
+        }
+    }
+    
+    inAdd = ABSTRACT BOOLEAN (TerminalDocumentType, class);
+
+    addDetailDialogTerminalTo##class##Detail 'Импорт из ТСД' (class object)  { 
+        in(TerminalDocumentType t) <- inAdd(t, object);
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
+                include(td) <- TRUE;
+            }
+            used(TerminalDocument t) <- TRUE WHERE include(t);
+                
+            LOCAL quantity = NUMERIC[16,5] (Sku);
+            quantity(Sku sku) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);
+            FOR invoice(class##Detail o) == object DO {
+                shipmentQuantity(o) <- OVERRIDE quantity(sku(o)), 0.0;
+            }
+            IF NOT skipCreateDetailAddToDetailDialogTerminal() THEN {
+                FOR quantity(Sku sku) AND NOT (GROUP SUM 1 IF invoice(class##Detail o) == object AND sku(o) == sku) NEW d = UserInvoiceDetail DO {
+                    userInvoice(d) <- userInvoice;
+                    sku(d) <- sku;
+                    quantity(d) <- quantity(sku);
+                }
+                FOR INTEGER n == (GROUP SUM 1 IF barcode(TerminalDocumentDetail tdd) AND NOT skuProp(tdd) AND include(terminalDocument(tdd))) DO {
+                    MESSAGE 'В системе не найдено ' + n + ' товаров со шрихкодами: ' +
+                        (GROUP CONCAT barcode(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND NOT skuProp(tdd),', ' ORDER barcode(tdd), tdd);
+                }
+            }
+                
+            include(TerminalDocument t) <- NULL;
+        }  
+    } TOOLBAR;        
+END
