@@ -1,0 +1,77 @@
+MODULE ProductionConsumptionSkuLedger;
+
+REQUIRE ProductionConsumption;
+
+NAMESPACE Production;
+
+// Списание сырья по заказу
+
+
+//---------------------- По товару ----------------//
+CLASS ConsumptionSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger; //-- агрегированный объект
+TABLE consumptionSkuLedger (ConsumptionSkuLedger);
+TABLE consumptionSkuLedgerSku(Consumption, Sku);
+
+quantityConsumptionDetail 'Кол-во' = GROUP SUM quantity(ConsumptionDetail d) IF isPosted(d) AND NOT batch(d)
+    BY consumption(d), sku(d) MATERIALIZED;
+sumConsumptionDetail 'Сумма' = GROUP SUM sum(ConsumptionDetail d) IF isPosted(d) AND NOT batch(d)
+    BY consumption(d), sku(d) MATERIALIZED;
+countConsumptionDetail = GROUP SUM 1 IF isPosted(ConsumptionDetail d)  AND NOT batch(d)
+    BY consumption(d), sku(d) MATERIALIZED;
+
+
+consumptionSkuLedger = AGGR ConsumptionSkuLedger WHERE countConsumptionDetail(Consumption consumption, Sku sku) MATERIALIZED;
+INDEX sku(ConsumptionSkuLedger ledger);
+INDEX consumptionSkuLedger(Consumption consumption, Sku sku);
+
+dateTime[DataSkuLedger] (ConsumptionSkuLedger ledger) += dateTime(consumption(ledger));
+isPosted[DataSkuLedger] (ConsumptionSkuLedger ledger) += isPosted(consumption(ledger));
+isClosed[DataSkuLedger] (ConsumptionSkuLedger ledger) += isClosed(consumption(ledger));
+sku[DataSkuLedger] (ConsumptionSkuLedger ledger) += sku(ledger);
+stock[DataSkuLedger] (ConsumptionSkuLedger ledger) += stock(consumption(ledger));
+description[DataSkuLedger] (ConsumptionSkuLedger ledger) += VARSTRING[200](CONCAT '', description(consumption(ledger)), ' (общий по товару)');
+
+//skip[SkuLedger] (ConsumptionSkuLedger ledger) += date(zReport(ledger)) < startDateGroupCashRegister(departmentStore(zReport(ledger))) OR
+//                           skuType(sku(ledger)) == SkuType.skuTypeCharge;
+
+quantity[OutFIFOSkuLedger] (ConsumptionSkuLedger ledger) += quantityConsumptionDetail(consumption(ledger), sku(ledger));
+sum[OutSkuLedger] (ConsumptionSkuLedger ledger) += sumConsumptionDetail(consumption(ledger), sku(ledger));
+    
+edit(ConsumptionSkuLedger d) + {  edit(consumption(d)); }
+show[SkuLedger](ConsumptionSkuLedger d) + {  show(consumption(d)); }
+stockDocumentLedger(ConsumptionSkuLedger ledger) += consumption(ledger); 
+
+//---------------------- По партии ----------------//
+CLASS ConsumptionBatchSkuLedger'Продажа за день (общ.)' : OutFIFOSkuLedger; //-- агрегированный объект
+TABLE consumptionBatchSkuLedger (ConsumptionBatchSkuLedger);
+TABLE consumptionBatchSkuLedgerBatch(Consumption, Batch);
+
+quantityConsumptionDetail 'Кол-во' = GROUP SUM quantity(ConsumptionDetail d) IF isPosted(d) 
+    BY consumption(d), batch(d) MATERIALIZED;
+sumConsumptionDetail 'Сумма' = GROUP SUM sum(ConsumptionDetail d) IF isPosted(d) 
+    BY consumption(d), batch(d) MATERIALIZED;
+countConsumptionDetail = GROUP SUM 1 IF isPosted(ConsumptionDetail d)  
+    BY consumption(d), batch(d) MATERIALIZED;
+
+
+consumptionBatchSkuLedger = AGGR ConsumptionBatchSkuLedger WHERE countConsumptionDetail(Consumption consumption, Batch batch) MATERIALIZED;
+INDEX batch(ConsumptionBatchSkuLedger ledger);
+INDEX consumptionBatchSkuLedger(Consumption consumption, Batch batch);
+
+dateTime[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += dateTime(consumption(ledger));
+isPosted[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += isPosted(consumption(ledger));
+isClosed[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += isClosed(consumption(ledger));
+sku[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += sku(batch(ledger));
+stock[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += stock(consumption(ledger));
+description[DataSkuLedger] (ConsumptionBatchSkuLedger ledger) += VARSTRING[200](CONCAT '', description(consumption(ledger)), ' (общий по партии)');
+
+//skip[SkuLedger] (ConsumptionSkuLedger ledger) += date(zReport(ledger)) < startDateGroupCashRegister(departmentStore(zReport(ledger))) OR
+//                           skuType(sku(ledger)) == SkuType.skuTypeCharge;
+
+quantity[OutFIFOSkuLedger] (ConsumptionBatchSkuLedger ledger) += quantityConsumptionDetail(consumption(ledger), batch(ledger));
+sum[OutSkuLedger] (ConsumptionBatchSkuLedger ledger) += sumConsumptionDetail(consumption(ledger), batch(ledger));
+    
+edit(ConsumptionBatchSkuLedger d) + {  edit(consumption(d)); }
+show[SkuLedger](ConsumptionBatchSkuLedger d) + {  show(consumption(d)); }
+batch[SkuLedger](ConsumptionBatchSkuLedger ledger) += batch(ledger);
+stockDocumentLedger(ConsumptionBatchSkuLedger ledger) += consumption(ledger); 

@@ -293,13 +293,27 @@ sumItem (Consumption ledger) += OVERRIDE sumItemOutStockDocumentLedger(ledger), 
 sumContainer (Consumption ledger) += sumContainerConsumptionDetail(ledger);
 close[StockDocumentLedger](Consumption l) + {  close(l); }
 
-// Проводим по регистру
-@implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock);
-quantity[OutFIFOSkuLedger] (ConsumptionDetail ledger) += quantity(ledger);
-batch[SkuLedger](ConsumptionDetail ledger) += batch(ledger);
-@implementSkuLedgerOutFIFOBatchBalance(ConsumptionDetail, stock);
-sum[OutSkuLedger] (ConsumptionDetail ledger) += sum(ledger);
-stockDocumentLedger(ConsumptionDetail ledger) += consumption(ledger); 
+//// Проводим по регистру
+//@implementSkuLedgerOutFIFO(ConsumptionDetail, sku, stock){
+//    EXTEND CLASS ConsumptionDetail : OutFIFOSkuLedger;
+//    @implementSkuLedger(ConsumptionDetail, sku, stock){
+//    dateTime[DataSkuLedger] (ConsumptionDetail ledger) += dateTime(ledger);
+//    isPosted[DataSkuLedger] (ConsumptionDetail ledger) += isPosted(ledger);
+//    isClosed[DataSkuLedger] (ConsumptionDetail ledger) += isClosed(ledger);
+//    sku[DataSkuLedger] (ConsumptionDetail ledger) += sku(ledger);
+//    stock[DataSkuLedger] (ConsumptionDetail ledger) += stock(ledger);
+//    description[DataSkuLedger] (ConsumptionDetail ledger) += description(ledger);
+//};
+//};
+//quantity[OutFIFOSkuLedger] (ConsumptionDetail ledger) += quantity(ledger);
+//batch[SkuLedger](ConsumptionDetail ledger) += batch(ledger);
+//@implementSkuLedgerOutFIFOBatchBalance(ConsumptionDetail, stock){
+//    @implementSkuLedgerOutFIFOBatchBalancePostfix(ConsumptionDetail, stock, ){
+//    changed(ConsumptionDetail ledger) += CHANGED(batch(ledger));
+//};
+//};
+//sum[OutSkuLedger] (ConsumptionDetail ledger) += sum(ledger);
+//stockDocumentLedger(ConsumptionDetail ledger) += consumption(ledger); 
 
 // Создание агрегированного списания
 
@@ -500,7 +514,7 @@ show(UserConsumptionDetail d)  {
 }
 
 show(UserConsumptionDetail d) + {  show(d); }
-show[SkuLedger](ConsumptionDetail batch) + {  show(batch); }
+//show[SkuLedger](ConsumptionDetail batch) + {  show(batch); }
                        
 show(ComponentDetail d)  { 
 	NEWSESSION {
@@ -955,3 +969,13 @@ useBatchSkuAllFIFO 'Заполнить партии (ФИФО)'(Order o)   {
 EXTEND FORM order
     PROPERTIES useBatchSkuAllFIFO(o) TOOLBAR TODRAW cd
 ;
+show 'Просмотреть'  ABSTRACT MULTI ( Consumption) TOOLBAR;
+
+show 'Просмотреть' (UserConsumption c)  { 
+	NEWSESSION {
+	    SHOW userConsumption OBJECTS o = c DOCKED READONLY ;
+	}
+} TOOLBAR;
+
+show[Consumption](UserConsumption c) + {show(c);};
+show[Consumption](OrderConsumption c) + {show(order(c));};
