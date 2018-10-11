@@ -1,6 +1,6 @@
 MODULE Loya;
 
-REQUIRE System, Item, PriceListOperation;
+REQUIRE System, Item, PriceListOperation, Store;
 
 PRIORITY PriceList;
 
@@ -51,7 +51,21 @@ in 'Вкл.' (Item s, LoyaItemGroup g) = OVERRIDE dataIn(s, g), [GROUP SUM 1 IF 
                                        
 CONSTRAINT isData(LoyaItemGroup g) AND in(Item i, g) AND quantity(i, g) <= 0.0 
     MESSAGE 'Количество товара должно быть положительным.';
-    
+
+idLoya 'Id Loya'= DATA INTEGER (DepartmentStore);
+
+EXTEND FORM departmentStore 
+    PROPERTIES (d) idLoya;
+DESIGN departmentStore {
+    headerMainParams{
+        MOVE PROPERTY (idLoya(d));
+    }
+}
+
+useMinPrice 'Выгружать минимальные цены' = DATA BOOLEAN ();
+
+loyaMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4](Item, DepartmentStore);
+currentLoyaMinPrice 'Минимальная цена в LOYA' = DATA NUMERIC[16,4](Item, DepartmentStore) TABLE extraSkuStock;
     
 in (SkuGroup skuGroup, LoyaItemGroup loyaItemGroup) = GROUP SUM 1 IF isParent(skuGroup, Sku sku) AND in(sku, loyaItemGroup);
 in (SkuGroup skuGroup) = GROUP SUM in(skuGroup, LoyaItemGroup loyaItemGroup) IF active(loyaItemGroup);
@@ -194,9 +208,15 @@ FORM loyaItemGroup 'Группа товаров Loya'
     OBJECTS i=Item
     PROPERTIES(i) READONLY id, idBarcode, nameAttribute
     PROPERTIES (i, g) READONLYIF NOT dataIn(i, g) in SHOWIF isData(g) BEFORE id(i), quantity
-    PROPERTIES (g) TODRAW i SHOWIF isData(g) addItems, importXls
-                                                                    
-    FILTERS in(i, g)  
+    PROPERTIES (g) TODRAW i SHOWIF isData(g) addItems, importXls                                                                
+    FILTERS in(i, g)
+      
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) SHOWIF useMinPrice() READONLY id, name
+    PROPERTIES (i, ds) SHOWIF useMinPrice() READONLY loyaMinPrice, currentLoyaMinPrice
+     
+    FILTERS idLoya(ds)
+    
     EDIT LoyaItemGroup OBJECT g
 ;
 
@@ -215,6 +235,7 @@ DESIGN loyaItemGroup {
             MOVE PROPERTY (toDateTime(g));
         }
         MOVE BOX(i);
+        MOVE BOX (ds);
     }
 }
 
@@ -259,6 +280,12 @@ FORM loya 'Группы товаров Loya'
     PROPERTIES() synchronizeLoya TOOLBAR
                                                                     
     FILTERS in(i, g)        
+    
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) SHOWIF useMinPrice() READONLY id, name
+    PROPERTIES (i, ds) SHOWIF useMinPrice() READONLY loyaMinPrice, currentLoyaMinPrice
+     
+    FILTERS idLoya(ds)
 ;
 
 DESIGN loya {
@@ -274,7 +301,12 @@ DESIGN loya {
         NEW itemGroups {
             caption = 'Группы товаров Loya';
             MOVE BOX(g);
-            MOVE BOX(i);
+            NEW items{
+                type = CONTAINERH;
+                fill = 1;
+                MOVE BOX(i);
+                MOVE BOX (ds);
+            }
             MOVE PROPERTY(synchronizeLoya());
         }
     }
@@ -283,7 +315,7 @@ DESIGN loya {
 
 EXTEND FORM integrationData
     PROPERTIES() ipLoya, portLoya, emailLoya, passwordLoya, apiKeyLoya, idPartnerLoya, 
-                 maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya, logRequestsLoya, useBarcodeAsIdLoya
+                 maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, disableSynchronizeItemsLoya, deleteInactiveItemGroupsLoya, logRequestsLoya, useBarcodeAsIdLoya, useMinPrice
 ;
 
 DESIGN integrationData {
@@ -303,6 +335,7 @@ DESIGN integrationData {
             MOVE PROPERTY(deleteInactiveItemGroupsLoya());
             MOVE PROPERTY(logRequestsLoya());
             MOVE PROPERTY(useBarcodeAsIdLoya());
+            MOVE PROPERTY(useMinPrice());
         }
     }
 }
