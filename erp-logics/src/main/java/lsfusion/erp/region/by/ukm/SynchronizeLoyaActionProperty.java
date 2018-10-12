@@ -52,6 +52,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya[]").read(context) != null;
             boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
             boolean useBarcodeAsId = findProperty("useBarcodeAsIdLoya[]").read(context) != null;
+            boolean useMinPrice = findProperty("useMinPrice[]").read(context) != null;
             Map<String, Integer> discountLimits = getDiscountLimits(context);
 
             boolean succeeded = true;
@@ -69,11 +70,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
                 if(succeeded) {
 
-                    SynchronizeData data = readItems(context, deleteInactiveItemGroups, useBarcodeAsId);
+                    SynchronizeData data = readItems(context, deleteInactiveItemGroups, useBarcodeAsId, useMinPrice);
                     List<Category> categoriesList = readCategories(context);
 
                     if ((disableSynchronizeItems || uploadCategories(context, settings, categoriesList, discountLimits, logRequests)) &&
-                            (disableSynchronizeItems || uploadItems(context, settings, data.itemsList, discountLimits, logRequests)) &&
+                            (disableSynchronizeItems || uploadItems(context, settings, data.itemsList, discountLimits, data.minPriceLimitsMap, logRequests)) &&
                             uploadItemGroups(context, settings, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList, discountLimits, logRequests) &&
                             uploadItemItemGroups(context, settings, data.itemItemGroupsMap, logRequests))
                         context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
@@ -162,7 +163,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return result;
     }
 
-    private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups, boolean useBarcodeAsId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private SynchronizeData readItems(ExecutionContext<ClassPropertyInterface> context, boolean deleteInactiveItemGroups, boolean useBarcodeAsId, boolean useMinPrice) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Item> itemsList = new ArrayList<>();
         Map<DataObject, GoodGroup> itemGroupsMap = new HashMap<>();
         Map<Long, List<GoodGroupLink>> itemItemGroupsMap = new HashMap<>();
@@ -241,7 +242,41 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
                 deleteItemGroupsList.put(groupObject, idLoyaItemGroup);
         }
-        return new SynchronizeData(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList);
+        return new SynchronizeData(itemsList, itemGroupsMap, itemItemGroupsMap, deleteItemGroupsList, useMinPrice ? readMinPriceLimitsMap(context) : null);
+    }
+
+    private Map<String, List<MinPriceLimit>> readMinPriceLimitsMap(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, List<MinPriceLimit>> result = new HashMap<>();
+
+        KeyExpr skuExpr = new KeyExpr("sku");
+        KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
+
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "sku", skuExpr, "departmentStore", departmentStoreExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
+        query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
+        query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr));
+        query.and(findProperty("id[Sku]").getExpr(skuExpr).getWhere());
+        query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
+        query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr).getWhere());
+
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> queryResult = query.executeClasses(context);
+        for (int i = 0; i < queryResult.size(); i++) {
+            ImMap<Object, ObjectValue> valueEntry = queryResult.getValue(i);
+
+            String idSku = trim((String) valueEntry.get("idSku").getValue());
+            Integer idLoyaDepartmentStore = (Integer) valueEntry.get("idLoyaDepartmentStore").getValue();
+            BigDecimal minPrice = (BigDecimal) valueEntry.get("loyaMinPrice").getValue();
+
+            List<MinPriceLimit> minPriceLimits = result.get(idSku);
+            if(minPriceLimits == null) {
+                minPriceLimits = new ArrayList<>();
+            }
+            minPriceLimits.add(new MinPriceLimit(idLoyaDepartmentStore, minPrice));
+
+            result.put(idSku, minPriceLimits);
+        }
+        return result;
     }
 
     private boolean uploadItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
@@ -503,16 +538,17 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return succeeded;
     }
 
-    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<Item> itemsList, Map<String, Integer> discountLimits, boolean logRequests) throws IOException, JSONException {
+    private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<Item> itemsList, Map<String, Integer> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap, boolean logRequests) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Item item : itemsList) {
-            if (!uploadItem(context, settings, item, discountLimits, logRequests))
+            List<MinPriceLimit> minPriceLimits = minPriceLimitsMap != null ? minPriceLimitsMap.get(item.id) : null;
+            if (!uploadItem(context, settings, item, discountLimits, minPriceLimits, logRequests))
                 succeeded = false;
         }
         return succeeded;
     }
 
-    protected boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException {
+    protected boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ServerLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
@@ -525,12 +561,40 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("dimension", item.split ? "weight" : "piece");
         requestBody.put("limits", discountLimits);
 
+        if(minPriceLimits != null && !minPriceLimits.isEmpty()) {
+            JSONArray limitByLocationsArray = new JSONArray();
+            for (MinPriceLimit minPriceLimit : minPriceLimits) {
+                JSONObject limitByLocation = new JSONObject();
+                limitByLocation.put("locationId", minPriceLimit.idDepartmentStore);
+                JSONObject limits = new JSONObject();
+                limits.put("maxDiscount", minPriceLimit.minPrice);
+                limits.put("maxDiscountType", "percent");
+                limitByLocation.put("limits", limits);
+            }
+            requestBody.put("limitByLocations", limitByLocationsArray);
+        }
+
         if (existsItem(settings, item.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying good " + item.id);
-            return modifyItem(context, settings, item.id, requestBody, logRequests);
+            boolean succeeded = modifyItem(context, settings, item.id, requestBody, logRequests);
+            if(succeeded && minPriceLimits != null) {
+                for (MinPriceLimit minPriceLimit : minPriceLimits) {
+                    setCurrentLoyaMinPrice(context, item.id, minPriceLimit);
+                }
+            }
+            return succeeded;
         } else {
             ServerLoggers.importLogger.info("Loya: creating good " + item.id);
             return createItem(context, settings.url, settings.sessionKey, requestBody, logRequests);
+        }
+    }
+
+    private void setCurrentLoyaMinPrice(ExecutionContext context, String idSku, MinPriceLimit minPriceLimit) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (ExecutionContext.NewSession newContext = context.newSession()) {
+            ObjectValue itemObject = findProperty("sku[VARSTRING[100]]").readClasses(context, new DataObject(idSku));
+            ObjectValue departmentStoreObject = findProperty("departmentStoreIdLoya[INTEGER]").readClasses(context, new DataObject(idSku));
+            findProperty("currentLoyaMinPrice[Item,DepartmentStore]").change(minPriceLimit.minPrice, context, (DataObject) itemObject, (DataObject) departmentStoreObject);
+            newContext.apply();
         }
     }
 
@@ -675,12 +739,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         public Map<DataObject, GoodGroup> itemGroupsMap;
         public Map<Long, List<GoodGroupLink>> itemItemGroupsMap;
         public Map<DataObject, Long> deleteItemGroupsList;
+        public Map<String, List<MinPriceLimit>> minPriceLimitsMap;
 
-        public SynchronizeData(List<Item> itemsList, Map<DataObject, GoodGroup> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, Long> deleteItemGroupsList) {
+        public SynchronizeData(List<Item> itemsList, Map<DataObject, GoodGroup> itemGroupsMap, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, Long> deleteItemGroupsList,
+                               Map<String, List<MinPriceLimit>> minPriceLimitsMap) {
             this.itemsList = itemsList;
             this.itemGroupsMap = itemGroupsMap;
             this.itemItemGroupsMap = itemItemGroupsMap;
             this.deleteItemGroupsList = deleteItemGroupsList;
+            this.minPriceLimitsMap = minPriceLimitsMap;
         }
     }
 
@@ -745,6 +812,16 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         public GoodGroupLink(String sku, BigDecimal quantity) {
             this.sku = sku;
             this.quantity = quantity;
+        }
+    }
+
+    private class MinPriceLimit {
+        Integer idDepartmentStore;
+        BigDecimal minPrice;
+
+        public MinPriceLimit(Integer idDepartmentStore, BigDecimal minPrice) {
+            this.idDepartmentStore = idDepartmentStore;
+            this.minPrice = minPrice;
         }
     }
 }
