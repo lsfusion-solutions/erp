@@ -727,10 +727,17 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     protected Map<String, Integer> getDiscountLimits(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        return getDiscountLimits(
+                (Integer) findProperty("maxDiscountLoya[]").read(context),
+                (Integer) findProperty("maxAllowBonusLoya[]").read(context),
+                (Integer) findProperty("maxAwardBonusLoya[]").read(context));
+    }
+
+    protected Map<String, Integer> getDiscountLimits(Integer maxDiscount, Integer maxAllowBonus, Integer maxAwardBonus) {
         Map<String, Integer> limitsMap = new HashMap<>();
-        limitsMap.put("maxDiscount", (Integer) findProperty("maxDiscountLoya[]").read(context));
-        limitsMap.put("maxAllowBonus", (Integer) findProperty("maxAllowBonusLoya[]").read(context));
-        limitsMap.put("maxAwardBonus", (Integer) findProperty("maxAwardBonusLoya[]").read(context));
+        limitsMap.put("maxDiscount", maxDiscount);
+        limitsMap.put("maxAllowBonus", maxAllowBonus);
+        limitsMap.put("maxAwardBonus", maxAwardBonus);
         return limitsMap;
     }
 

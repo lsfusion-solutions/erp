@@ -35,7 +35,13 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
 
             SettingsLoya settings = login(context);
             if (settings.error == null) {
-                Map<String, Integer> discountLimits = getDiscountLimits(context);
+
+                boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[ItemGroup]").read(context, itemGroupObject) != null;
+                Integer maxDiscount = nearestForbidPromotion ? 0 : (Integer) findProperty("maxDiscountLoya[]").read(context);
+                Integer maxAllowBonus = (Integer) findProperty("maxAllowBonusLoya[]").read(context);
+                Integer maxAwardBonus = (Integer) findProperty("maxAwardBonusLoya[]").read(context);
+
+                Map<String, Integer> discountLimits = getDiscountLimits(maxDiscount, maxAllowBonus, maxAwardBonus);
                 Long overId = parseGroup((String) findProperty("overId[ItemGroup]").read(context, itemGroupObject));
                 String name = trimToEmpty((String) findProperty("name[ItemGroup]").read(context, itemGroupObject));
                 Long idParent = parseGroup((String) findProperty("idParent[ItemGroup]").read(context, itemGroupObject));

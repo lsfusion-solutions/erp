@@ -38,8 +38,12 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
             SettingsLoya settings = login(context);
             if (settings.error == null) {
 
-                Map<String, Integer> discountLimits = getDiscountLimits(context);
+                boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[Item]").read(context, itemObject) != null;
+                Integer maxDiscount = nearestForbidPromotion ? 0 : (Integer) findProperty("maxDiscountLoya[]").read(context);
+                Integer maxAllowBonus = (Integer) findProperty("maxAllowBonusLoya[]").read(context);
+                Integer maxAwardBonus = (Integer) findProperty("maxAwardBonusLoya[]").read(context);
 
+                Map<String, Integer> discountLimits = getDiscountLimits(maxDiscount, maxAllowBonus, maxAwardBonus);
                 String idSku = (String) findProperty("id[Item]").read(context, itemObject);
                 String barcode = (String) findProperty("idBarcode[Item]").read(context, itemObject);
                 String id = useBarcodeAsId ? barcode : idSku;
