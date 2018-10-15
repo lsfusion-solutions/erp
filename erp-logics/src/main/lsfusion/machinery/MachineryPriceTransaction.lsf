@@ -813,8 +813,9 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
     OBJECTS gm = GroupMachinery 
     PROPERTIES(gm) include 
     PROPERTIES(gm) READONLY npp, name, ports, objectClassName
-    FILTERS stock(gm) == st,
-            active(gm)
+    FILTERS active(gm)
+    FILTERGROUP isStock
+        FILTER 'По складу' stock(gm) == st DEFAULT 
             
     OBJECTS m = Machinery
     PROPERTIES(m)          selected
@@ -842,30 +843,32 @@ DESIGN options {
 createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
-	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
+	        FOR [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](Stock stk) DO {
+	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stk AND NOT include(gm);
 	            
-	            createMachineryPriceTransaction(Sku sku) <-  currentBalance(sku, stock) OR sum(DATE(dateTimeLastMoved(sku, stock)), countSendAllMovedDays()) > currentDate();
+	            createMachineryPriceTransaction(Sku sku) <-  currentBalance(sku, stk) OR sum(DATE(dateTimeLastMoved(sku, stk)), countSendAllMovedDays()) > currentDate();
 	            createMachineryPriceTransactionComment() <- 'Выборочная загрузка остатков по группе оборудования';
 	            createMachineryPriceTransactionAll() <- TRUE;
-	            createMachineryPriceTransaction(stock);
-	            apply();
+	            createMachineryPriceTransaction(stk);
+	            APPLY NESTED (include[GroupMachinery]);
 	        }
+	        include(GroupMachinery g) <- NULL;
 	}
 } IN snapshotMachineryPrice;
 
 createSelectMachineryPriceTransaction 'Все товары'(Stock stock)  { 
 	NEWSESSION {
 	    DIALOG selectGroupMachinery OBJECTS st = stock DO
-	        IF [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
-	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
+	        FOR [ GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](Stock stk) DO {
+	            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stk AND NOT include(gm);
 	            
 	            createMachineryPriceTransaction(Sku sku) <- TRUE;
 	            createMachineryPriceTransactionComment() <- 'Выборочная загрузка товаров по группе оборудования';
 	            createMachineryPriceTransactionAll() <- TRUE;
-	            createMachineryPriceTransaction(stock);
-	            apply();
+	            createMachineryPriceTransaction(stk);
+	            APPLY NESTED (include[GroupMachinery]);
 	        }
+	        include(GroupMachinery g) <- NULL;
 	}
 } IN snapshotMachineryPrice;
 
