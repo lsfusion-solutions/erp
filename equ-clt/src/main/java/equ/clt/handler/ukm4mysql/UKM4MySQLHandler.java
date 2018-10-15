@@ -256,7 +256,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             try (Statement statement = conn.createStatement()) {
                 statement.execute(String.format("INSERT INTO taxes (id, name, priority, version, deleted) VALUES (%s, %s, %s, %s, %s) " +
-                        "ON DUPLICATE KEY UPDATE name=VALUES(name), priority=VALUES(priority), deleted=VALUES(deleted)", 1, "НДС", 1, version, 0));
+                        "ON DUPLICATE KEY UPDATE name=VALUES(name), priority=VALUES(priority), deleted=VALUES(deleted)", 1, "'НДС'", 1, version, 0));
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
