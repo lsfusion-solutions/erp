@@ -87,7 +87,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                             int globalError = 0;
                             List<String> localErrors = new ArrayList<>();
 
-                            UDPPort port = new UDPPort(scales.port, 1111, 1000);
+                            UDPPort port = new UDPPort(scales.port, 1111, 10000);
 
                             String ip = scales.port;
                             if (ip != null) {
