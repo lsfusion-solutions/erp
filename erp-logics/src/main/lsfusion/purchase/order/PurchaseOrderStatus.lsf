@@ -96,11 +96,12 @@ EXTEND FORM orders
     PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
 ;
 
-fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () CHARWIDTH 30; 
+fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () CHARWIDTH 30;
+notUseUserEmail 'Не использовать E-mail пользователя' = DATA BOOLEAN ();  
 messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
 
 EXTEND FORM options
-    PROPERTIES() fromEmailOrders, messageEmailOrders
+    PROPERTIES() fromEmailOrders, messageEmailOrders, notUseUserEmail
 ;
 
 DESIGN options{
@@ -109,6 +110,7 @@ DESIGN options{
             caption = 'Почта';
             fill = 1;
             MOVE PROPERTY(fromEmailOrders());
+            MOVE PROPERTY(notUseUserEmail());
             MOVE PROPERTY(messageEmailOrders()) {
                 fill = 1;
                 panelCaptionAbove = TRUE;
@@ -125,7 +127,7 @@ FORM messageOrders 'Сообщение'
 ;
 
 calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { EMAIL
-    FROM OVERRIDE email(createdUser(order)), fromEmailOrders()
+    FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
     INLINE messageOrders OBJECTS o=order
