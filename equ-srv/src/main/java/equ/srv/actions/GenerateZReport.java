@@ -21,6 +21,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -80,6 +81,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                         if ((departmentStore != null) && (!departmentStoreList.contains(departmentStore)))
                             departmentStoreList.add(departmentStore);
                         BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock").getValue();
+                        priceSkuStock = priceSkuStock.setScale(2, RoundingMode.HALF_DOWN); //на случай, если цена имеет больше 2 знаков после запятой
                         String barcodeItem = (String) resultValues.get("idBarcode").getValue();
                         boolean splitItem = resultValues.get("split").getValue() != null;
                         itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, splitItem, departmentStore));
@@ -165,8 +167,9 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                                             sumCash = safeAdd(sumCash, sumReceiptDetail);
                                         else
                                             sumCard = safeAdd(sumCard, sumReceiptDetail);
-                                        BigDecimal discountSumReceiptDetail = r.nextDouble() > 0.8 ? safeDivide(safeMultiply(sumReceiptDetail, r.nextInt(10)), 100) : BigDecimal.ZERO;
+                                        BigDecimal discountSumReceiptDetail = r.nextDouble() > 0.8 ? safeDivide(safeMultiply(sumReceiptDetail, r.nextInt(10)), 100, 2) : BigDecimal.ZERO;
                                         discountSum = safeAdd(discountSum, discountSumReceiptDetail);
+                                        sumReceiptDetail = safeSubtract(sumReceiptDetail, discountSumReceiptDetail);
                                         receiptSalesInfoList.add(new SalesInfo(false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
                                                 numberZReport, date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO,
                                                 BigDecimal.ZERO, BigDecimal.ZERO, item.barcode, null, null, null, quantityReceiptDetail,
