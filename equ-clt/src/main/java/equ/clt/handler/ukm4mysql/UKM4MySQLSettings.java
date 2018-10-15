@@ -19,6 +19,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Boolean appendBarcode;
     private Integer lastDaysCashDocument;
     private boolean useShiftNumberAsNumberZReport;
+    private boolean exportTaxes;
 
     public UKM4MySQLSettings() {
     }
@@ -119,5 +120,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUseShiftNumberAsNumberZReport(boolean useShiftNumberAsNumberZReport) {
         this.useShiftNumberAsNumberZReport = useShiftNumberAsNumberZReport;
+    }
+
+    public boolean isExportTaxes() {
+        return exportTaxes;
+    }
+
+    public void setExportTaxes(boolean exportTaxes) {
+        this.exportTaxes = exportTaxes;
     }
 }

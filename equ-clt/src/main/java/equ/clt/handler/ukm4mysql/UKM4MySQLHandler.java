@@ -62,6 +62,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+                boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
 
                 Map<Integer, Long> versionTransactionMap = new HashMap<>();
                 Integer version = null;
@@ -118,8 +119,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         exportClassif(conn, transaction, version);
                                     }
 
+                                    if(exportTaxes) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table taxes", transaction.id));
+                                        exportTaxes(conn, transaction, version);
+                                        exportTaxGroups(conn, transaction, version);
+                                    }
+
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table items", transaction.id));
-                                    exportItems(conn, transaction, useBarcodeAsId, appendBarcode, version);
+                                    exportItems(conn, transaction, useBarcodeAsId, appendBarcode, exportTaxes, version);
 
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
                                     exportItemsStocks(conn, transaction, section/*departmentNumber*/, version);
@@ -244,15 +251,58 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
+    private void exportTaxes(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
-                                "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
-                                "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)");
+            try (Statement statement = conn.createStatement()) {
+                statement.execute(String.format("INSERT INTO taxes (id, name, priority, version, deleted) VALUES (%s, %s, %s, %s, %s) " +
+                        "ON DUPLICATE KEY UPDATE name=VALUES(name), priority=VALUES(priority), deleted=VALUES(deleted)", 1, "НДС", 1, version, 0));
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    private void exportTaxGroups(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO taxgroup (id, tax_id, percent, version, deleted) VALUES (?, ?, ?, ?, ?)" +
+                            "ON DUPLICATE KEY UPDATE percent=VALUES(percent), deleted=VALUES(deleted)")) {
+
+                Set<Integer> usedVAT = new HashSet<>();
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    Integer vat = getTax(item);
+                    if (vat != 0 && !usedVAT.contains(vat)) {
+                        ps.setInt(1, vat); //id
+                        ps.setInt(2, 1); //tax_id
+                        ps.setString(3, vat + "%"); //percent
+                        ps.setInt(4, version); //version
+                        ps.setInt(5, 0); //deleted
+                        ps.addBatch();
+                        usedVAT.add(vat);
+                    }
+                }
+
+                ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, boolean exportTaxes, int version) throws SQLException {
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement(exportTaxes ?
+                    "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted, tax) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+                            "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
+                            "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted), tax=VALUES(tax)" :
+                    "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
+                            "ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif)," +
+                            "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //id
@@ -267,6 +317,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.setDate(9, item.expiryDate); //exp_date
                     ps.setInt(10, version); //version
                     ps.setInt(11, 0); //deleted
+                    if (exportTaxes) {
+                        ps.setInt(12, getTax(item));
+                    }
                     ps.addBatch();
                 }
 
@@ -274,11 +327,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
+    }
+
+    private int getTax(CashRegisterItemInfo item) {
+        return item.vat != null ? item.vat.intValue() : 0;
     }
 
     private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
