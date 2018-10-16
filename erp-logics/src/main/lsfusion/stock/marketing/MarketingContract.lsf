@@ -273,6 +273,9 @@ CLASS ConditionType 'Вид маркетинга' {
 TABLE conditionType (ConditionType);
 name 'Наименование' (ConditionType t) = staticCaption(t) IF t IS ConditionType IN id;
 
+notShowIf = ABSTRACT BOOLEAN (ConditionList, ConditionType);
+showIf (ConditionList l, ConditionType t) = NOT notShowIf(l, t);
+    
 conditionType  = DATA ConditionType(MarketingCondition);
 nameConditionType 'Вид маркетинга' (MarketingCondition c) = staticCaption(conditionType(c));
 
@@ -447,9 +450,7 @@ META defineConditionTypeMarketing(nameType, captionType)
         nameType ''###captionType
     }
     
-    notShow###nameType = ABSTRACT BOOLEAN (ContractMarketing);
-    show###nameType (ContractMarketing c) = NOT notShow###nameType(c);
-    show###nameType (ConditionList l) = show###nameType(contractMarketing(l));
+    show###nameType (ConditionList l) = showIf(l, ConditionType.nameType);
     
     nameCalcBase###nameType 'База расчета' (ConditionList l) = name(calcBase(l, ConditionType.nameType));
     
@@ -472,7 +473,7 @@ META defineConditionTypeMarketing(nameType, captionType)
                     caption = 'Параметры договора';
                     MOVE PROPERTY (nameCalcBase###nameType(l));
                 }
-                showIf = show###nameType(c);
+                showIf = show###nameType(l);
             }
         }
     }
@@ -496,7 +497,7 @@ META defineConditionTypeMarketing(nameType, captionType)
                     caption = 'Параметры договора';
                     MOVE PROPERTY (nameCalcBase###nameType(l));
                 }
-                showIf = show###nameType(c);
+                showIf = show###nameType(l);
             }
         }
     }
