@@ -137,6 +137,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
                                     exportPriceList(conn, transaction, nppGroupMachinery, version);
 
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype", transaction.id));
+                                    exportPriceType(conn, version);
+
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
                                     exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
@@ -500,6 +503,17 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.close();
             }
         }
+    }
+
+    private void exportPriceType(Connection conn, int version) throws SQLException {
+            conn.setAutoCommit(false);
+            try (Statement statement = conn.createStatement()) {
+                statement.execute(String.format("INSERT INTO pricetype (id, name, version, deleted) VALUES (%s, %s, %s, %s) " +
+                        "ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)", 123, "'fusion'", version, 0));
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
     }
 
     private void exportPriceTypeStorePriceList(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, String departmentNumber, int version) throws SQLException {
