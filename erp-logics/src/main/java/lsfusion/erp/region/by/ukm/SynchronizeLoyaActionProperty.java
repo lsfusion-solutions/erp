@@ -577,11 +577,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         if (existsItem(settings, item.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying good " + item.id);
             boolean succeeded = modifyItem(context, settings, item.id, requestBody, logRequests);
-            if(succeeded && minPriceLimits != null) {
+            /*if(succeeded && minPriceLimits != null) {
                 for (MinPriceLimit minPriceLimit : minPriceLimits) {
                     setCurrentLoyaMinPrice(context, item.id, minPriceLimit);
                 }
-            }
+            }*/
             return succeeded;
         } else {
             ServerLoggers.importLogger.info("Loya: creating good " + item.id);
@@ -589,14 +589,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private void setCurrentLoyaMinPrice(ExecutionContext context, String idSku, MinPriceLimit minPriceLimit) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+/*    private void setCurrentLoyaMinPrice(ExecutionContext context, String idSku, MinPriceLimit minPriceLimit) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             ObjectValue itemObject = findProperty("sku[VARSTRING[100]]").readClasses(context, new DataObject(idSku));
             ObjectValue departmentStoreObject = findProperty("departmentStoreIdLoya[INTEGER]").readClasses(context, new DataObject(idSku));
             findProperty("currentLoyaMinPrice[Item,DepartmentStore]").change(minPriceLimit.minPrice, context, (DataObject) itemObject, (DataObject) departmentStoreObject);
             newContext.apply();
         }
-    }
+    }*/
 
     private boolean existsItem(SettingsLoya settings, String idItem, boolean logRequests) throws IOException {
         String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
@@ -822,7 +822,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         }
     }
 
-    private class MinPriceLimit {
+    protected class MinPriceLimit {
         Integer idDepartmentStore;
         BigDecimal minPrice;
 
