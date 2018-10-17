@@ -450,6 +450,7 @@ public class FiscalVMK {
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(true);
         String result = Native.toString(buffer, "cp1251");
+        simpleLogAction("received ksainfo: " + result);
         return Integer.parseInt(result.split(",")[1]);
     }
 
