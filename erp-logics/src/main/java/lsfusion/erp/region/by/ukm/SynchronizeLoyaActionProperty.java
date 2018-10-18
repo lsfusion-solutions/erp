@@ -257,6 +257,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
         query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr));
         query.and(findProperty("id[Sku]").getExpr(skuExpr).getWhere());
+        query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr).getWhere());
 

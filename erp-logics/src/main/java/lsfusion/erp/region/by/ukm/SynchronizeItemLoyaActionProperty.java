@@ -78,6 +78,7 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
         QueryBuilder<String, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
         query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(itemObject.getExpr(), departmentStoreExpr));
+        query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(itemObject.getExpr(), departmentStoreExpr).getWhere());
         ImOrderMap<ImMap<String, DataObject>, ImMap<Object, ObjectValue>> queryResult = query.executeClasses(context);
