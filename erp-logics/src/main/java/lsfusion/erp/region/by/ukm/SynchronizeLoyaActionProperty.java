@@ -569,7 +569,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
                 limitByLocation.put("locationId", minPriceLimit.idDepartmentStore);
                 JSONObject limits = new JSONObject();
                 limits.put("maxDiscount", minPriceLimit.minPrice);
-                limits.put("maxDiscountType", "percent");
+                limits.put("maxDiscountType", "fixprice");
                 limitByLocation.put("limits", limits);
                 limitByLocationsArray.put(limitByLocation);
             }
