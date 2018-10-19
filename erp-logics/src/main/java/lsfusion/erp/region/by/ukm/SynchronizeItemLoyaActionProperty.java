@@ -62,7 +62,8 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 String idSkuGroup = trim((String) findProperty("overIdSkuGroup[Item]").read(context, itemObject));
                 Integer idLoyaBrand = (Integer) findProperty("idLoyaBrand[Item]").read(context, itemObject);
                 Item item = new Item(id, caption, idUOM, split, idSkuGroup, idLoyaBrand);
-                uploadItem(context, settings, item, discountLimits, useMinPrice ? readMinPriceLimits(context, itemObject) : null, logRequests);
+                String result = uploadItem(context, settings, item, discountLimits, useMinPrice ? readMinPriceLimits(context, itemObject) : null, logRequests);
+                findProperty("synchronizeItemResult[]").change(result, context);
 
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
         } catch (Exception e) {

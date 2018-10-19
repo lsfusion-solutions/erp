@@ -543,13 +543,13 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         boolean succeeded = true;
         for (Item item : itemsList) {
             List<MinPriceLimit> minPriceLimits = minPriceLimitsMap != null ? minPriceLimitsMap.get(item.id) : null;
-            if (!uploadItem(context, settings, item, discountLimits, minPriceLimits, logRequests))
+            if (uploadItem(context, settings, item, discountLimits, minPriceLimits, logRequests) != null)
                 succeeded = false;
         }
         return succeeded;
     }
 
-    protected boolean uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String uploadItem(ExecutionContext context, SettingsLoya settings, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean logRequests) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ServerLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
@@ -575,29 +575,16 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             requestBody.put("limitByLocations", limitByLocationsArray);
         }
 
+        String result;
         if (existsItem(settings, item.id, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying good " + item.id);
-            boolean succeeded = modifyItem(context, settings, item.id, requestBody, logRequests);
-            /*if(succeeded && minPriceLimits != null) {
-                for (MinPriceLimit minPriceLimit : minPriceLimits) {
-                    setCurrentLoyaMinPrice(context, item.id, minPriceLimit);
-                }
-            }*/
-            return succeeded;
+            result = modifyItem(context, settings, item.id, requestBody, logRequests);
         } else {
             ServerLoggers.importLogger.info("Loya: creating good " + item.id);
-            return createItem(context, settings.url, settings.sessionKey, requestBody, logRequests);
+            result = createItem(context, settings.url, settings.sessionKey, requestBody, logRequests);
         }
+        return result;
     }
-
-/*    private void setCurrentLoyaMinPrice(ExecutionContext context, String idSku, MinPriceLimit minPriceLimit) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (ExecutionContext.NewSession newContext = context.newSession()) {
-            ObjectValue itemObject = findProperty("sku[VARSTRING[100]]").readClasses(context, new DataObject(idSku));
-            ObjectValue departmentStoreObject = findProperty("departmentStoreIdLoya[INTEGER]").readClasses(context, new DataObject(idSku));
-            findProperty("currentLoyaMinPrice[Item,DepartmentStore]").change(minPriceLimit.minPrice, context, (DataObject) itemObject, (DataObject) departmentStoreObject);
-            newContext.apply();
-        }
-    }*/
 
     private boolean existsItem(SettingsLoya settings, String idItem, boolean logRequests) throws IOException {
         String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
@@ -608,30 +595,34 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
-    private boolean modifyItem(ExecutionContext context, SettingsLoya settings, String idItem, JSONObject requestBody, boolean logRequests) throws IOException {
+    private String modifyItem(ExecutionContext context, SettingsLoya settings, String idItem, JSONObject requestBody, boolean logRequests) throws IOException {
+        String result = null;
         String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
         if(logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
         HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
-        boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
-            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Modify Item Error"));
-        return succeeded;
+        if (!requestSucceeded(response)) {
+            result = getResponseMessage(response);
+            context.delayUserInteraction(new MessageClientAction(result, "Loya: Modify Item Error"));
+        }
+        return result;
     }
 
-    private boolean createItem(ExecutionContext context, String url, String sessionKey, JSONObject requestBody, boolean logRequests) throws IOException {
+    private String createItem(ExecutionContext context, String url, String sessionKey, JSONObject requestBody, boolean logRequests) throws IOException {
+        String result = null;
         String requestURL = url + "good";
         if(logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
         HttpPut putRequest = new HttpPut(requestURL);
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
-        boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
-            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Create Item Error"));
-        return succeeded;
+        if (!requestSucceeded(response)) {
+            result = getResponseMessage(response);
+            context.delayUserInteraction(new MessageClientAction(result, "Loya: Create Item Error"));
+        }
+        return result;
     }
 
     private boolean uploadItemItemGroups(ExecutionContext context, SettingsLoya settings, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, boolean logRequests) throws IOException {
