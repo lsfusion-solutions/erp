@@ -65,7 +65,10 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 String result = uploadItem(context, settings, item, discountLimits, useMinPrice ? readMinPriceLimits(context, itemObject) : null, logRequests);
                 findProperty("synchronizeItemResult[]").change(result, context);
 
-            } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+            } else {
+                findProperty("synchronizeItemResult[]").change(settings.error, context);
+                context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+            }
         } catch (Exception e) {
             ServerLoggers.importLogger.error(failCaption, e);
             context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
@@ -78,10 +81,10 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
         ImRevMap<String, KeyExpr> keys = MapFact.singletonRev("departmentStore", departmentStoreExpr);
         QueryBuilder<String, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
-        query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(itemObject.getExpr(), departmentStoreExpr));
+        query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), itemObject.getExpr(), departmentStoreExpr));
         query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
-        query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(itemObject.getExpr(), departmentStoreExpr).getWhere());
+        query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), itemObject.getExpr(), departmentStoreExpr).getWhere());
         ImOrderMap<ImMap<String, DataObject>, ImMap<Object, ObjectValue>> queryResult = query.executeClasses(context);
         for (int i = 0; i < queryResult.size(); i++) {
             ImMap<Object, ObjectValue> valueEntry = queryResult.getValue(i);

@@ -255,11 +255,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
-        query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr));
+        query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), skuExpr, departmentStoreExpr));
         query.and(findProperty("id[Sku]").getExpr(skuExpr).getWhere());
         query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
-        query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(skuExpr, departmentStoreExpr).getWhere());
+        query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), skuExpr, departmentStoreExpr).getWhere());
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> queryResult = query.executeClasses(context);
         for (int i = 0; i < queryResult.size(); i++) {
