@@ -48,7 +48,7 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
             if (settings.error == null) {
 
                 boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[Item]").read(context, itemObject) != null;
-                Integer maxDiscount = nearestForbidPromotion ? 0 : (Integer) findProperty("maxDiscountLoya[]").read(context);
+                Integer maxDiscount = (Integer) (nearestForbidPromotion ? 0 : findProperty("maxDiscountLoya[]").read(context));
                 Integer maxAllowBonus = (Integer) findProperty("maxAllowBonusLoya[]").read(context);
                 Integer maxAwardBonus = (Integer) findProperty("maxAwardBonusLoya[]").read(context);
 
