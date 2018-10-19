@@ -68,8 +68,7 @@ DESIGN departmentStore {
 
 useMinPrice 'Выгружать минимальные цены' = DATA BOOLEAN ();
 
-loyaMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4](Item, DepartmentStore);
-currentLoyaMinPrice 'Минимальная цена в LOYA' = DATA NUMERIC[16,4](Item, DepartmentStore) TABLE extraSkuStock;
+loyaMinPrice 'Минимальная цена' = DATA LOCAL NUMERIC[16,4](Item, DepartmentStore);
     
 in (SkuGroup skuGroup, LoyaItemGroup loyaItemGroup) = GROUP SUM 1 IF isParent(skuGroup, Sku sku) AND in(sku, loyaItemGroup);
 in (SkuGroup skuGroup) = GROUP SUM in(skuGroup, LoyaItemGroup loyaItemGroup) IF active(loyaItemGroup);
@@ -214,13 +213,7 @@ FORM loyaItemGroup 'Группа товаров Loya'
     PROPERTIES (i, g) READONLYIF NOT dataIn(i, g) in SHOWIF isData(g) BEFORE id(i), quantity
     PROPERTIES (g) TODRAW i SHOWIF isData(g) addItems, importXls                                                                
     FILTERS in(i, g)
-      
-    OBJECTS ds = DepartmentStore
-    PROPERTIES (ds) SHOWIF useMinPrice() READONLY id, name
-    PROPERTIES (i, ds) SHOWIF useMinPrice() READONLY loyaMinPrice, currentLoyaMinPrice
      
-    FILTERS idLoya(ds)
-    
     EDIT LoyaItemGroup OBJECT g
 ;
 
@@ -239,7 +232,6 @@ DESIGN loyaItemGroup {
             MOVE PROPERTY (toDateTime(g));
         }
         MOVE BOX(i);
-        MOVE BOX (ds);
     }
 }
 
@@ -284,12 +276,6 @@ FORM loya 'Группы товаров Loya'
     PROPERTIES() synchronizeLoya TOOLBAR
                                                                     
     FILTERS in(i, g)        
-    
-    OBJECTS ds = DepartmentStore
-    PROPERTIES (ds) SHOWIF useMinPrice() READONLY id, name
-    PROPERTIES (i, ds) SHOWIF useMinPrice() READONLY loyaMinPrice, currentLoyaMinPrice
-     
-    FILTERS idLoya(ds)
 ;
 
 DESIGN loya {
@@ -309,7 +295,6 @@ DESIGN loya {
                 type = CONTAINERH;
                 fill = 1;
                 MOVE BOX(i);
-                MOVE BOX (ds);
             }
             MOVE PROPERTY(synchronizeLoya());
         }
