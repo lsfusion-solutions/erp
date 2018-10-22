@@ -35,7 +35,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                     Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 2, fiscalVMKReportTop));
                     if (result instanceof Integer) {
                         if ((Integer) result != 0)
-                            findProperty("number[ZReport]").change(String.valueOf(result), context, zReportObject);
+                            findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
                     } else if (result instanceof String) {
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                     }
@@ -46,7 +46,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                         result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 7, fiscalVMKReportTop));
                         if (result instanceof Integer) {
                             if ((Integer) result != 0)
-                                findProperty("number[ZReport]").change(String.valueOf(result), context, zReportObject);
+                                findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
                         } else if (result instanceof String) {
                             context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                         }

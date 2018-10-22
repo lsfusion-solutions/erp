@@ -1094,10 +1094,13 @@ closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister)  {
     apply();
 } CONFIRM IN receiptZReport;
 
+fiscalNumber = DATA LOCAL VARSTRING[28] (ZReport);
 closeCurrentZReport 'Закрыть Z-отчет'()  { 
-    cancel();
+    CANCEL NESTED(fiscalNumber[ZReport]);
     time(ZReport z) <- currentTime() WHERE z == currentZReport();
     //dateZReport(z) <- currentDate() WHERE z == currentZReport();
+    IF fiscalNumber(currentZReport()) THEN
+        number(ZReport z) <- fiscalNumber(z) WHERE z == currentZReport();
     overClose(currentZReport());
     zReport(CashRegister cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
     apply();
