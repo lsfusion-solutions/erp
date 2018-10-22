@@ -24,9 +24,7 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty {
     private final ClassPropertyInterface receiptInterface;
@@ -80,6 +78,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 }
                 
                 BigDecimal sumDisc = null;
+
+                TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
                 BigDecimal sumGiftCard = null;
@@ -90,16 +90,20 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("idTypeRegister", findProperty("idTypeRegister[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                    Integer idTypeRegister = (Integer) paymentValues.get("idTypeRegister");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     if(sumPayment != null) {
-                        //DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClass("PaymentMeans")).getDataObject("paymentMeansGiftCard");
-                        if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                        if(idTypeRegister != null) {
+                            BigDecimal sum = paymentSumMap.get(idTypeRegister);
+                            paymentSumMap.put(idTypeRegister, safeAdd(sum, sumPayment));
+                        } else if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
@@ -165,7 +169,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(logPath, ip, comPort, baudRate, placeNumber,
-                            operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
+                            operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
@@ -187,5 +191,11 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
     private double getDouble(BigDecimal value, boolean negate) {
         return value == null ? 0 : (negate ? value.negate() : value).doubleValue();
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }

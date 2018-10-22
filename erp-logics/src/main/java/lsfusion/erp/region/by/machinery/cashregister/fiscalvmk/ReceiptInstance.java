@@ -3,9 +3,11 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.TreeMap;
 
 public class ReceiptInstance implements Serializable {
     public BigDecimal sumDisc;
+    public TreeMap<Integer, BigDecimal> paymentSumMap;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public BigDecimal sumGiftCard;
@@ -15,9 +17,10 @@ public class ReceiptInstance implements Serializable {
     public List<ReceiptItem> receiptSaleList;
     public List<ReceiptItem> receiptReturnList;
 
-    public ReceiptInstance(BigDecimal sumDisc, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, 
+    public ReceiptInstance(BigDecimal sumDisc, TreeMap<Integer, BigDecimal> paymentSumMap, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard,
                            BigDecimal sumTotal, String numberDiscountCard, List<ReceiptItem> receiptSaleList, List<ReceiptItem> receiptReturnList) {
         this.sumDisc = sumDisc;
+        this.paymentSumMap = paymentSumMap;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.sumGiftCard = sumGiftCard;

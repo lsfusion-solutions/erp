@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.List;
+import java.util.Map;
 
 
 public class FiscalVMKPrintReceiptClientAction implements ClientAction {
@@ -195,6 +196,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
             FiscalVMK.printFiscalText(receiptBottom);
 
+            for (Map.Entry<Integer, BigDecimal> payment : receipt.paymentSumMap.descendingMap().entrySet()) { //итерируемся в порядке уменьшения
+                if (!FiscalVMK.total(payment.getKey(), payment.getValue())) {
+                    return null;
+                }
+            }
             if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
                 return null;
             if (!FiscalVMK.totalCard(receipt.sumCard))

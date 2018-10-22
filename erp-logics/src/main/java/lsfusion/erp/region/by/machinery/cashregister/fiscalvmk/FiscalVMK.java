@@ -251,6 +251,14 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
     }
 
+    public static boolean total(Integer type, BigDecimal sum) {
+        if (sum == null)
+            return true;
+        double sumValue = sum.abs().doubleValue();
+        logAction("vmk_oplat", type, sumValue, 0);
+        return vmkDLL.vmk.vmk_oplat(type, sumValue, 0/*"00000000"*/);
+    }
+
     public static boolean total(BigDecimal sumPayment, Integer typePayment) {
         double sumPaymentValue = sumPayment.abs().doubleValue();
         logAction("vmk_oplat", typePayment, sumPaymentValue, 0);
