@@ -1,0 +1,106 @@
+MODULE PurchaseSaleOrderDashboard;
+
+REQUIRE PurchaseOrder, SaleOrder, PurchaseSaleOperation;
+
+NAMESPACE Purchase;
+
+include 'Отм.' = DATA LOCAL NESTED BOOLEAN (Order); 
+minSelectedOrder = GROUP MIN Order o IF include(o); 
+
+saleOrderDetail = DATA OrderDetail (Sale.UserOrderDetail) INDEXED;
+countSaleOrderDetail (Order o) = GROUP SUM 1 BY order(saleOrderDetail(Sale.UserOrderDetail d)) MATERIALIZED;
+
+count (Order o, Sale.UserOrder so) = GROUP SUM 1 BY order(saleOrderDetail(Sale.UserOrderDetail d)), order(d);
+
+purchaseOrders 'Заказы' (Sale.Order sale) =  GROUP CONCAT seriesNumber(Purchase.Order purchase) IF count(purchase, sale), ', ' CHARWIDTH 10;
+
+createSaleOrder 'Создать заказ на продажу' ()   { 
+
+    IF (GROUP SUM 1 IF ([ GROUP SUM 1 IF include(Order order) BY supplierStock(order)](Stock fromStock))) > 1 OR 
+       (GROUP SUM 1 IF ([ GROUP SUM 1 IF include(Order order) BY customerStock(order)](Stock toStock))) > 1 THEN {
+        MESSAGE 'Выберите заказы с одним складом поставщика и покупателя';
+    } ELSE {
+        NEWSESSION NESTED (include[Purchase.Order]) {
+            NEW o = Sale.UserOrder {
+                Sale.shipmentDate(o) <- shipmentDate(minSelectedOrder());
+                Sale.shipmentTime(o)  <- shipmentTime(minSelectedOrder());
+                agreement(o)  <- agreement(minSelectedOrder());
+                Sale.supplier(o)  <- supplier(minSelectedOrder());
+                Sale.customer(o)  <- customer(minSelectedOrder());
+                Sale.supplierStock(o)  <- supplierStock(minSelectedOrder());
+                Sale.customerStock(o)  <- customerStock(minSelectedOrder());
+                Sale.note(o)  <- note(minSelectedOrder());
+                Sale.currency(o)  <- currency(minSelectedOrder());
+                Sale.operation(o)  <- saleOperation(operation(minSelectedOrder()));
+                priceListType(o)  <- defaultPriceListType(Sale.operation(o));                        
+            
+                FOR quantity(Purchase.OrderDetail detail) IF include(Purchase.order(detail)) NEW d = Sale.UserOrderDetail DO {
+                    userOrder(d) <- o;            
+
+                    Sale.sku(d) <- sku(detail);
+                    Sale.quantity(d) <- min(quantity(detail), prevAvailableQuantity(sku(d), stock(d)) IF prevAvailableQuantity(sku(d), stock(d)) > 0);
+                }
+                
+                SHOW Sale.userOrder OBJECTS o = o DOCKED;
+            }
+        }
+        include(Order o) <- NULL;
+    }
+} TOOLBAR IMAGE 'add.png';
+
+FORM purchaseSaleOrderDashboard 'Обработка внутренних заказов'
+    OBJECTS dt = DATE PANEL 
+    PROPERTIES (dt) VALUE 
+    
+    OBJECTS o = Order GRID
+    PROPERTIES(o) include
+    PROPERTIES(o) READONLY isPosted, isClosed, number, date, shipmentDate, nameSupplierStock, 
+                  nameCustomer, nameCustomerStock, nameOperation, grossWeightOrderDetail, quantityOrderDetail,
+                  sumOrderDetail, invoiceSumOrderDetail, note, createdNameUser
+
+    FILTERS isPosted (o)
+    FILTERS isCompany(supplierStock(o))     
+    FILTERGROUP toInvoice FILTER 'Не созданы' NOT countSaleOrderDetail(o) 'ctrl F6' DEFAULT
+    FILTERGROUP opened  FILTER 'Открыт' NOT isClosed(o) 'F4' DEFAULT
+    FILTERGROUP filters FILTER 'Текущие заказы' date(o) <= dt 'F5' DEFAULT
+                        FILTER 'Будущие заказы' date(o) > dt 'F6'       
+                        
+    PROPERTIES () createSaleOrder TODRAW o SHOWIF GROUP SUM 1 IF include(Order order)
+            
+    OBJECTS d = OrderDetail GRID
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameBatch, quantity,
+                  price, sum, VATSum, invoiceSum
+    FILTERS order(d) == o    
+       
+    OBJECTS so = Sale.UserOrder GRID
+    PROPERTIES(so) READONLY Sale.isPosted, Sale.number, Sale.date, Sale.shipmentDate, Sale.nameSupplierStock, 
+                            Sale.nameCustomer, Sale.nameCustomerStock, Sale.nameOperation, grossWeightOrderDetail, Sale.quantityUserOrderDetail,
+                            Sale.sumUserOrderDetail, Sale.invoiceSumUserOrderDetail, Sale.note, purchaseOrders, Sale.isClosed
+                  
+    PROPERTIES (so) NEWSESSION NEW, EDIT, DELETE  
+
+    FILTERGROUP openedS FILTER 'Открыт' NOT Sale.isClosed(so) 'F4' DEFAULT
+    FILTERGROUP filtersS FILTER 'Текущие заказы' Sale.date(so)<=dt 'F5' DEFAULT
+                         FILTER 'Будущие заказы' Sale.date(so)>dt 'F6'       
+    
+    FILTERS isCompany(customerStock(o))     
+;
+DESIGN purchaseSaleOrderDashboard {
+    OBJECTS {
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(so);
+            MOVE BOX(d) {
+                fill = 1;
+                caption = 'Детализация';
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    saleDashboardNavigator {
+        NEW purchaseSaleOrderDashboard;
+    }
+}
