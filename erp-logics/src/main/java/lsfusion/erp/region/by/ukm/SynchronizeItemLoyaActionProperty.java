@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.ukm;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -17,11 +18,13 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.commons.lang.StringUtils;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.trim;
 
@@ -57,7 +60,9 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 String idSku = (String) findProperty("id[Item]").read(context, itemObject);
                 String barcode = (String) findProperty("idBarcode[Item]").read(context, itemObject);
                 String id = useBarcodeAsId ? barcode : idSku;
-                String caption = StringUtils.trimToEmpty((String) findProperty("nameAttribute[Item]").read(context, itemObject));
+                String caption = BaseUtils.trimToEmpty((String) findProperty("nameAttribute[Item]").read(context, itemObject));
+                if(caption.length() > 254)
+                    caption = caption.substring(0, 254);
                 String idUOM = (String) findProperty("idUOM[Item]").read(context, itemObject);
                 boolean split = findProperty("split[Item]").read(context, itemObject) != null;
                 String idSkuGroup = trim((String) findProperty("overIdSkuGroup[Item]").read(context, itemObject));
