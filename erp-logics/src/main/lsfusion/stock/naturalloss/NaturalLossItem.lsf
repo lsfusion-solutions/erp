@@ -33,14 +33,20 @@ EXTEND FORM items
 
 @defineItemDefaultValue(subNaturalLossGroup, 'Группа естественной убыли (по умолчанию)', SubNaturalLossGroup, nameSubNaturalLossGroup, country);
 
+assignNaturalLossGroupItems 'Назначить всем товарам группы' (Country c, ItemGroup group)  { 
+	NEWSESSION {
+	    subNaturalLossGroup(c, Item i) <- prevSubNaturalLossGroup(c, group) WHERE isParent(group, i);
+	    APPLY;
+	}
+} TOOLBAR CONFIRM;
 
 EXTEND FORM itemGroup
     OBJECTS tc=Country 
     PROPERTIES(tc)   READONLY name
     PROPERTIES(tc, g) prevNameSubNaturalLossGroup
+    PROPERTIES(tc, g) assignNaturalLossGroupItems TODRAW tc
     FILTERGROUP isResident
         FILTER 'Отечественный производитель' resident(tc) OR defaultCountry()==tc DEFAULT 
-    
 ;    
 
 DESIGN itemGroup {
@@ -51,9 +57,6 @@ DESIGN itemGroup {
 
 WHEN LOCAL CHANGED(itemGroup(Item item)) AND Country country = defaultCountry() AND NOT subNaturalLossGroup(country, item) DO
     subNaturalLossGroup(country, item) <- subNaturalLossGroup(country, itemGroup(item));
-
-WHEN LOCAL CHANGED(subNaturalLossGroup(defaultCountry(), itemGroup(Item item))) DO
-    subNaturalLossGroup(Country c, item) <- subNaturalLossGroup(c, itemGroup(item)) WHERE c == defaultCountry();
 
 EXTEND CLASS NaturalLossGroup : Group;
 EXTEND CLASS SubNaturalLossGroup : Group;
