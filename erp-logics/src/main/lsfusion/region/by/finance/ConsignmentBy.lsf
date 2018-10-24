@@ -567,11 +567,24 @@ overSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDet
 dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
 overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 roundPack 'Количество знаков после запятой для грузовых мест' = ABSTRACT INTEGER (ConsignmentDetail);
-packQuantity 'Количество грузовых мест' (ConsignmentDetail d) = OVERRIDE dataPackQuantity(d), overPackQuantity(d);
+packQuantity 'Количество грузовых мест' (ConsignmentDetail d) = OVERRIDE overPackQuantity(d),
+                                                                                     dataPackQuantity(d);
+changePackQuantity (ConsignmentDetail d)  {    
+    INPUT s = NUMERIC[21,6]  DO {
+        dataPackQuantity(d) <- s;
+    }        
+}
+
 notPrintGr 'Не писать прописью граммы в ТТН' = ABSTRACT BOOLEAN (Consignment);
 dataGrossWeight 'Масса груза, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 overGrossWeight 'Масса груза, кг.' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
-grossWeight 'Масса груза, кг.' (ConsignmentDetail d) = OVERRIDE dataGrossWeight(d), overGrossWeight(d);
+grossWeight 'Масса груза, кг.' (ConsignmentDetail d) = OVERRIDE overGrossWeight(d),
+                                                                               dataGrossWeight(d);                                                                         
+changeGrossWeight (ConsignmentDetail d)  {    
+    INPUT s = NUMERIC[16,5]  DO {
+        dataGrossWeight(d) <- s;
+    }        
+}
 
 grossWeightTon 'Масса груза, т.' (ConsignmentDetail d) = round6(NUMERIC[17,6](grossWeight(d)) / 1000);
 
@@ -1105,7 +1118,7 @@ FORM consignment 'Атрибуты накладной'
 
     PROPERTIES(d) order, index, nameSku READONLY, shortNameUOM READONLY, quantity, price,
                   sum, vat, sumVAT, sumInvoice,
-                  packQuantity, grossWeight, note, extraDescription READONLY
+                  packQuantity ON CHANGE changePackQuantity(d), grossWeight ON CHANGE changeGrossWeight(d), note, extraDescription READONLY
     ORDER order(d), index(d)  
 
     FILTERS consignment(d) == c,
