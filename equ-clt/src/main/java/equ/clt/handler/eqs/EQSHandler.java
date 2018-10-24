@@ -155,6 +155,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.addBatch();
                 }
 
+                //todo: временный лог
+                processTransactionLogger.info("query:" + ps.toString());
+
                 ps.executeBatch();
                 conn.commit();
             } catch (Exception e) {
