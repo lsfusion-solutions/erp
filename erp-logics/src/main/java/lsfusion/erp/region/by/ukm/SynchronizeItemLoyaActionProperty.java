@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.ukm;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -71,7 +72,11 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
             }
         } catch (Exception e) {
             ServerLoggers.importLogger.error(failCaption, e);
-            context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            try {
+                findProperty("synchronizeItemResult[]").change(String.valueOf(e), context);
+            } catch (ScriptingErrorLog.SemanticErrorException e1) {
+                throw Throwables.propagate(e1);
+            } context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
         }
     }
 

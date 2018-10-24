@@ -478,13 +478,13 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     private boolean uploadCategories(ExecutionContext context, SettingsLoya settings, List<Category> categoriesList, Map<String, Integer> discountLimits, boolean logRequests) throws IOException, JSONException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
-            if (!uploadCategory(context, settings, category, discountLimits, logRequests))
+            if (uploadCategory(context, settings, category, discountLimits, logRequests) != null)
                 succeeded = false;
         }
         return succeeded;
     }
 
-    protected boolean uploadCategory(ExecutionContext context, SettingsLoya settings, Category category, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException {
+    protected String uploadCategory(ExecutionContext context, SettingsLoya settings, Category category, Map<String, Integer> discountLimits, boolean logRequests) throws JSONException, IOException {
 
         ServerLoggers.importLogger.info("Loya: synchronizing category " + category.overId + " started");
         JSONObject requestBody = new JSONObject();
@@ -495,13 +495,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("limits", discountLimits);
         requestBody.put("state", "active");
 
+        String result;
         if (existsCategory(settings, category.overId, logRequests)) {
             ServerLoggers.importLogger.info("Loya: modifying category " + category.overId);
-            return modifyCategory(context, settings, category.overId, requestBody, logRequests);
+            result = modifyCategory(context, settings, category.overId, requestBody, logRequests);
         } else {
             ServerLoggers.importLogger.info("Loya: creating category " + category.overId);
-            return createCategory(context, settings.url, settings.sessionKey, requestBody, logRequests);
+            result = createCategory(context, settings.url, settings.sessionKey, requestBody, logRequests);
         }
+        return result;
     }
 
     private boolean existsCategory(SettingsLoya settings, Long idCategory, boolean logRequests) throws IOException {
@@ -513,7 +515,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return requestSucceeded(executeRequest(getRequest, settings.sessionKey));
     }
 
-    private boolean modifyCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, JSONObject requestBody, boolean logRequests) throws IOException {
+    private String modifyCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, JSONObject requestBody, boolean logRequests) throws IOException {
+        String result = null;
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
         if(logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -521,12 +524,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         HttpPost postRequest = new HttpPost(requestURL);
         HttpResponse response = executeRequest(postRequest, requestBody, settings.sessionKey);
         boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
-            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Modify Category Error"));
-        return succeeded;
+        if (!succeeded) {
+            result = getResponseMessage(response);
+            context.delayUserInteraction(new MessageClientAction(result, "Loya: Modify Category Error"));
+        }
+        return result;
     }
 
-    private boolean createCategory(ExecutionContext context, String url, String sessionKey, JSONObject requestBody, boolean logRequests) throws IOException {
+    private String createCategory(ExecutionContext context, String url, String sessionKey, JSONObject requestBody, boolean logRequests) throws IOException {
+        String result = null;
         String requestURL = url + "category";
         if(logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -534,9 +540,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         HttpPut putRequest = new HttpPut(url + "category");
         HttpResponse response = executeRequest(putRequest, requestBody, sessionKey);
         boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
+        if (!succeeded) {
+            result = getResponseMessage(response);
             context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Create Category Error"));
-        return succeeded;
+        }
+        return result;
     }
 
     private boolean uploadItems(ExecutionContext context, SettingsLoya settings, List<Item> itemsList, Map<String, Integer> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap, boolean logRequests) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
