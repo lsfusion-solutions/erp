@@ -182,7 +182,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         query.addProperty("barcode", findProperty("idBarcode[Sku]").getExpr(skuExpr));
         query.addProperty("captionItem", findProperty("nameAttribute[Item]").getExpr(skuExpr));
         query.addProperty("idUOMItem", findProperty("idUOM[Item]").getExpr(skuExpr));
-        query.addProperty("splitItem", findProperty("split[Item]").getExpr(skuExpr));
+        query.addProperty("splitItem", findProperty("passScales[Item]").getExpr(skuExpr));
         query.addProperty("idSkuGroup", findProperty("overIdSkuGroup[Item]").getExpr(skuExpr));
         query.addProperty("idLoyaBrand", findProperty("idLoyaBrand[Item]").getExpr(skuExpr));
         query.and(findProperty("active[LoyaItemGroup]").getExpr(groupExpr).getWhere());
