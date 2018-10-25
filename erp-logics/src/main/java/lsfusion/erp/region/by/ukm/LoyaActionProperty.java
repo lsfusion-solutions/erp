@@ -2,7 +2,6 @@ package lsfusion.erp.region.by.ukm;
 
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -88,47 +87,57 @@ public class LoyaActionProperty extends ScriptingActionProperty {
         return response.getStatusLine().getStatusCode() == 200;
     }
 
-    protected SettingsLoya login(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException, IOException {
-        Integer partnerId = null;
-        String sessionKey = null;
+    protected SettingsLoya login(ExecutionContext context, boolean relogin) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException, IOException {
         String error = null;
-
         String url = getURL(context);
-        if (url == null)
+        if (url == null) {
             error = "IP не задан";
-        else {
-            partnerId = (Integer) findProperty("idPartnerLoya[]").read(context);
-            if (partnerId == null)
-                error = "Собственный ID не задан";
-            else {
-                String email = (String) findProperty("emailLoya[]").read(context);
-                String password = (String) findProperty("passwordLoya[]").read(context);
-                String apiKey = (String) findProperty("apiKeyLoya[]").read(context);
-                if(email != null && password != null && apiKey != null) {
-                    String sha1Password = DigestUtils.shaHex(password);
+        }
+        Integer partnerId = (Integer) findProperty("idPartnerLoya[]").read(context);
+        if (partnerId == null) {
+            error = "Собственный ID не задан";
+        }
 
-                    HttpPost postRequest = new HttpPost(url + "login");
-                    JSONObject keyArg = new JSONObject();
-                    keyArg.put("email", email);
-                    keyArg.put("password", sha1Password);
-                    keyArg.put("apikey", apiKey);
-                    StringEntity input = new StringEntity(keyArg.toString(), "utf-8");
+        String sessionKey = relogin ? null : (String) findProperty("sessionKey[]").read(context);
+        if (sessionKey == null) {
 
-                    postRequest.addHeader("content-type", "application/json");
-                    postRequest.setEntity(input);
+            String email = (String) findProperty("emailLoya[]").read(context);
+            String password = (String) findProperty("passwordLoya[]").read(context);
+            String apiKey = (String) findProperty("apiKeyLoya[]").read(context);
+            if (email != null && password != null && apiKey != null) {
+                String sha1Password = DigestUtils.shaHex(password);
 
-                    HttpResponse response = new DefaultHttpClient().execute(postRequest);
+                HttpPost postRequest = new HttpPost(url + "login");
+                JSONObject keyArg = new JSONObject();
+                keyArg.put("email", email);
+                keyArg.put("password", sha1Password);
+                keyArg.put("apikey", apiKey);
+                StringEntity input = new StringEntity(keyArg.toString(), "utf-8");
 
-                    int statusCode = response.getStatusLine().getStatusCode();
-                    sessionKey = getCookieResponse(response, statusCode);
-                    if (sessionKey == null)
-                        error = getResponseMessage(response);
+                postRequest.addHeader("content-type", "application/json");
+                postRequest.setEntity(input);
+
+                HttpResponse response = new DefaultHttpClient().execute(postRequest);
+
+                int statusCode = response.getStatusLine().getStatusCode();
+                sessionKey = getCookieResponse(response, statusCode);
+                if (sessionKey == null) {
+                    error = getResponseMessage(response);
                 } else {
-                    error = "Не задан email / пароль / api key";
+                    try (ExecutionContext.NewSession newContext = context.newSession()) {
+                        findProperty("sessionKey[]").change(sessionKey, newContext);
+                        newContext.apply();
+                    }
                 }
+            } else {
+                error = "Не задан email / пароль / api key";
             }
         }
         return new SettingsLoya(url, partnerId, sessionKey, error);
+    }
+
+    protected boolean authenticationFailed(String response) {
+        return response != null && response.equals("Authentication failed");
     }
 
     //as in ukm4mysqlhandler

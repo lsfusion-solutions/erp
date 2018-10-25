@@ -33,9 +33,15 @@ public class SynchronizeBrandLoyaActionProperty extends SynchronizeLoyaActionPro
             String name = (String) findProperty("name[Brand]").read(context, brandObject);
             Brand brand = new Brand(id, name, brandObject);
 
-            SettingsLoya settings = login(context);
+            SettingsLoya settings = login(context, false);
             if (settings.error == null) {
-                uploadBrand(context, settings, brand, logRequests);
+                String result = uploadBrand(context, settings, brand, logRequests, false);
+                if(authenticationFailed(result)) {
+                    settings = login(context, true);
+                    if(settings.error == null) {
+                        uploadBrand(context, settings, brand, logRequests, true);
+                    }
+                }
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
         } catch (Exception e) {
             ServerLoggers.importLogger.error(failCaption, e);

@@ -35,7 +35,7 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
 
             DataObject itemGroupObject = context.getDataKeyValue(itemGroupInterface);
 
-            SettingsLoya settings = login(context);
+            SettingsLoya settings = login(context, false);
             if (settings.error == null) {
 
                 boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[ItemGroup]").read(context, itemGroupObject) != null;
@@ -48,7 +48,13 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
                 String name = trimToEmpty((String) findProperty("name[ItemGroup]").read(context, itemGroupObject));
                 Long idParent = parseGroup((String) findProperty("idParent[ItemGroup]").read(context, itemGroupObject));
                 Category category = new Category(overId, name, overId == 0 ? null : idParent);
-                String result = uploadCategory(context, settings, category, discountLimits, logRequests);
+                String result = uploadCategory(context, settings, category, discountLimits, logRequests, false);
+                if(authenticationFailed(result)) {
+                    settings = login(context, true);
+                    if(settings.error == null) {
+                        result = uploadCategory(context, settings, category, discountLimits, logRequests, true);
+                    }
+                }
                 findProperty("synchronizeItemResult[]").change(result, context);
             } else {
                 findProperty("synchronizeItemResult[]").change(settings.error, context);

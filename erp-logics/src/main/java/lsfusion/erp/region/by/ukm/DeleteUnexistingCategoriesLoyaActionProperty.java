@@ -35,7 +35,7 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
-            SettingsLoya settings = login(context);
+            SettingsLoya settings = login(context, true);
             if (settings.error == null) {
 
                 Set<Long> existingCategories = readExistingCategories(context);
