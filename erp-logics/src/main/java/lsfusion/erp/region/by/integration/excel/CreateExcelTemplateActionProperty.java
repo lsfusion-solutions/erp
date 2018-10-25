@@ -26,30 +26,37 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
     public abstract Map<String, byte[]> createFile() throws IOException, WriteException;
 
     public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
-        File file = File.createTempFile(fileName, ".xls");
-        WorkbookSettings ws = new WorkbookSettings();
-        ws.setGCDisabled(true);
-        WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
-        WritableSheet sheet = workbook.createSheet("List 1", 0);
-        CellView cv = new CellView();
-        cv.setAutosize(true);
+        Map<String, byte[]> result = new HashMap<>();
+        File file = null;
+        try {
+            file = File.createTempFile(fileName, ".xls");
 
-        for (int i = 0; i < columns.size(); i++) {
-            sheet.addCell(new jxl.write.Label(i, 0, columns.get(i)));
-            sheet.setColumnView(i, cv);
-        }
+            WorkbookSettings ws = new WorkbookSettings();
+            ws.setGCDisabled(true);
+            WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
+            WritableSheet sheet = workbook.createSheet("List 1", 0);
+            CellView cv = new CellView();
+            cv.setAutosize(true);
 
-        for (int j = 0; j < defaultRows.size(); j++)
-            for (int i = 0; i < defaultRows.get(j).size(); i++) {
-                sheet.addCell(new jxl.write.Label(i, j + 1, defaultRows.get(j).get(i)));
+            for (int i = 0; i < columns.size(); i++) {
+                sheet.addCell(new jxl.write.Label(i, 0, columns.get(i)));
+                sheet.setColumnView(i, cv);
             }
 
-        workbook.write();
-        workbook.close();
+            for (int j = 0; j < defaultRows.size(); j++)
+                for (int i = 0; i < defaultRows.get(j).size(); i++) {
+                    sheet.addCell(new jxl.write.Label(i, j + 1, defaultRows.get(j).get(i)));
+                }
 
-        Map<String, byte[]> result = new HashMap<>();
-        result.put(fileName + ".xls", IOUtils.getFileBytes(file));
-        file.delete();
+            workbook.write();
+            workbook.close();
+
+            result.put(fileName + ".xls", IOUtils.getFileBytes(file));
+        } finally {
+            if (file != null && !file.delete()) {
+                file.deleteOnExit();
+            }
+        }
         return result;
     }
 
