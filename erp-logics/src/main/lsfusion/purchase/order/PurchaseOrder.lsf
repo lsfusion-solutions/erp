@@ -247,4 +247,14 @@ CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractS
     
 skipSalePrice = ABSTRACT BOOLEAN (UserOrderDetail);    
 CONSTRAINT  isPosted(UserOrderDetail d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d) 
-    MESSAGE 'Для строки заказа (закупка) должна быть задана цена';   
+    MESSAGE 'Для строки заказа (закупка) должна быть задана цена';
+
+
+EXTEND FORM userOrder
+    FILTERS NOT banPurchase(ks);
+    
+CONSTRAINT (SET (isPosted(OrderDetail d)) OR SETCHANGED(sku(d))) AND isPosted(d) AND banPurchase(sku(d))
+        MESSAGE 'В заказ включены товары запрещенные к закупке';
+
+CONSTRAINT (SET (isPosted(Order o)) OR SETCHANGED(supplier(o))) AND isPosted(o) AND banPurchase(supplier(o))
+    MESSAGE 'Ассортимент поставщика запрещен к закупке';
