@@ -16,7 +16,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -41,13 +40,18 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
 
         try {
 
-            boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
-            boolean onlyBarcode = findProperty("onlyBarcode[]").read(context) != null;
+            String mainPage = (String) findProperty("captionMainPage[]").read(context);
+            if(mainPage != null) {
+                boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
+                boolean onlyBarcode = findProperty("onlyBarcode[]").read(context) != null;
 
-            List<List<Object>> data = getItemsInfo(context, useTor, onlyBarcode);
-            if(!data.isEmpty()) {
-                importItems(context, data, onlyBarcode);
-                context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
+                List<List<Object>> data = getItemsInfo(context, mainPage, useTor, onlyBarcode);
+                if(!data.isEmpty()) {
+                    importItems(context, data, onlyBarcode);
+                    context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён.\nКоличество обновлённых товаров: " + data.size(), "Импорт товаров Евроопт"));
+                }
+            } else {
+                context.delayUserInteraction(new MessageClientAction("Не выбрана главная страница", "Ошибка"));
             }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
@@ -157,7 +161,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         }
     }
 
-    private List<List<Object>> getItemsInfo(ExecutionContext context, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+    private List<List<Object>> getItemsInfo(ExecutionContext context, String mainPage, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> itemsList = new ArrayList<>();
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
@@ -168,7 +172,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
             int i = 1;
             for (String itemURL : itemURLs) {
                 ServerLoggers.importLogger.info(String.format(logPrefix + "parsing item page #%s of %s: %s", i, itemURLs.size(), (useTor ? mainPage : "") + itemURL));
-                Document doc = getDocument(lowerNetLayer, itemURL);
+                Document doc = getDocument(lowerNetLayer, mainPage, itemURL);
                 if (doc != null) {
                     String title = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
                     Elements descriptionElement = doc.getElementsByClass("description");
@@ -269,7 +273,7 @@ public class ImportItemsInfoEurooptActionProperty extends EurooptActionProperty 
         return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
     }
 
-    private List<String> getItemURLs(ExecutionContext context) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<String> getItemURLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemURLs = new ArrayList<>();
         KeyExpr itemExpr = new KeyExpr("eurooptItem");
         ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "eurooptItem", itemExpr);

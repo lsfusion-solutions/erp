@@ -2,22 +2,36 @@ MODULE ImportEuroopt;
 
 REQUIRE System, Item, ItemDescription, ItemNutrition, ImportUserPriceList, PurchasePack;
 
+CLASS MainPage 'Главная страница' {
+    edostavka 'https://e-dostavka.by',
+    gipermall 'https://gipermall.by'
+}
+FORM mainPages
+    OBJECTS m = MainPage
+    PROPERTIES(m) READONLY staticCaption
+    LIST MainPage OBJECT m
+;
+
 CLASS EurooptItemGroup 'Группа товаров';
 TABLE eurooptItemGroup (EurooptItemGroup);
 
 title 'Заголовок' = DATA VARSTRING[100] (EurooptItemGroup);
+mainPage 'Главная страница' = DATA MainPage (EurooptItemGroup);
 url 'URL' = DATA VARSTRING[255] (EurooptItemGroup) INDEXED;
 in 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemGroup);
-eurooptItemGroup = GROUP AGGR EurooptItemGroup e BY url(e); 
+eurooptItemGroup = GROUP AGGR EurooptItemGroup e BY url(e);
+delete (EurooptItemGroup g, MainPage m) = g IS EurooptItemGroup AND mainPage(g) == m;
 
 CLASS EurooptItemList 'Список товаров';
 TABLE eurooptItemList (EurooptItemList);
 
 eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList);
 url 'URL' = DATA VARSTRING[255] (EurooptItemList) INDEXED;
+mainPage(EurooptItemList l) = mainPage(eurooptItemGroup(l));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemList);
 in 'Вкл.'(EurooptItemList e) = OVERRIDE dataIn(e), in(eurooptItemGroup(e));
 eurooptItemList = GROUP AGGR EurooptItemList e BY url(e); 
+delete (EurooptItemList l, MainPage m) = l IS EurooptItemList AND mainPage(l) == m;
 
 CLASS EurooptItem 'Товар';
 TABLE eurooptItem (EurooptItem);
@@ -28,21 +42,53 @@ noBarcode 'Без штрихкода' (EurooptItem e) = DATA BOOLEAN(EurooptItem
 sku(EurooptItem e) = skuBarcode(idBarcode(e));
 name 'Наименование' (EurooptItem e) = name(sku(e));
 url 'URL' = DATA VARSTRING[255] (EurooptItem) INDEXED;
+mainPage(EurooptItem e) = mainPage(eurooptItemList(e));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItem);
 in 'Вкл.'(EurooptItem e) = OVERRIDE dataIn(e), in(eurooptItemList(e));
 eurooptItem = GROUP AGGR EurooptItem e BY url(e);
+delete (EurooptItem e, MainPage m) = e IS EurooptItem AND mainPage(e) == m;
 
 useTor 'Использовать Tor' = DATA BOOLEAN();
-synchronizeItemsAction 'Синхронизировать списки товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptActionProperty' ();
-importItemsInfoAction 'Импортировать информацию о товарах'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportItemsInfoEurooptActionProperty' ();
+mainPage 'Главная страница' = DATA LOCAL MainPage();
+captionMainPage() = staticCaption(mainPage());
+
+synchronizeItems 'Синхронизировать списки товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptActionProperty' ();
+synchronizeItemsEdostavka 'Синхронизировать списки товаров E-dostavka' () {
+    mainPage() <- MainPage.edostavka;
+    synchronizeItems();
+}
+synchronizeItemsGipermall 'Синхронизировать списки товаров Gipermall' () {
+    mainPage() <- MainPage.gipermall;
+    synchronizeItems();
+}
+
 onlyBarcode 'Импортировать только штрихкоды' = DATA BOOLEAN();
-importImageAndPriceAction 'Импортировать изображения и цены товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportImageAndPriceEurooptActionProperty' ();
+importItemsInfo 'Импортировать информацию о товарах'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportItemsInfoEurooptActionProperty' ();
+importItemsInfoEdostavka 'Импортировать информацию о товарах E-dostavka' () {
+    mainPage() <- MainPage.edostavka;
+    importItemsInfo();
+}
+importItemsInfoGipermall 'Импортировать информацию о товарах Gipermall' () {
+    mainPage() <- MainPage.gipermall;
+    importItemsInfo();
+}
+
 importImages 'Импортировать изображения' = DATA BOOLEAN();
 importPrices 'Импортировать цены' = DATA BOOLEAN();
+importImageAndPrice 'Импортировать изображения и цены товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportImageAndPriceEurooptActionProperty' ();
+importImageAndPriceEdostavka 'Импортировать изображения и цены товаров E-dostavka' () {
+    mainPage() <- MainPage.edostavka;
+    importImageAndPrice();
+}
+importImageAndPriceGipermall 'Импортировать изображения и цены товаров Gipermall' () {
+    mainPage() <- MainPage.gipermall;
+    importImageAndPrice();
+}
 
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
 
 FORM exportEuroopt 'Экспорт товаров'
+    OBJECTS mp = MainPage PANEL
     OBJECTS i = EurooptItem
     PROPERTIES READONLY titleItemGroup 'Заголовок' = title(eurooptItemGroup(eurooptItemList(i))), 
                         urlItemGroup 'URL группы' = url(eurooptItemGroup(eurooptItemList(i))),
@@ -51,10 +97,15 @@ FORM exportEuroopt 'Экспорт товаров'
                         noBarcode 'Без штрихкода' = 1 IF noBarcode(i),
                         idBarcode = idBarcode(i)
     ORDER urlItemGroup, urlItemList, url
+    FILTERS mainPage(i) == mp
 ;
 
-exportEuroopt 'Экспорт товаров (xls)' ()  { 
-    PRINT exportEuroopt XLS;
+exportEdostavka 'Экспорт товаров E-dostavka (xls)' ()  { 
+    PRINT exportEuroopt OBJECTS mp = MainPage.edostavka XLS;
+}
+
+exportGipermall 'Экспорт товаров Gipermall (xls)' ()  { 
+    PRINT exportEuroopt OBJECTS mp = MainPage.gipermall XLS;
 }
 
 importEuroopt 'Импорт товаров (xls)' ()  { 
@@ -77,6 +128,7 @@ importEuroopt 'Импорт товаров (xls)' ()  {
         FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemGroup(ii))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
             url(eig) <- urlItemGroup(i);
             title(eig) <- titleItemGroup(i);
+            mainPage(eig) <- mainPage();
         }
         apply();
         
@@ -96,35 +148,61 @@ importEuroopt 'Импорт товаров (xls)' ()  {
     }
 }
 
+importEdostavka 'Импорт товаров E-dostavka (xls)' ()  { 
+    mainPage() <- MainPage.edostavka;
+    importEuroopt();
+}
+
+importGipermall 'Импорт товаров Gipermall (xls)' ()  { 
+    mainPage() <- MainPage.gipermall;
+    importEuroopt();
+}
+
+resetSelection() {
+    in(EurooptItemGroup g) <- NULL;
+    dataIn(EurooptItemList g) <- NULL;
+    dataIn(EurooptItem g) <- NULL;
+}
+
 EXTEND FORM integrationData
-    PROPERTIES() synchronizeItemsAction, onlyBarcode, importItemsInfoAction, importImages, importPrices, importImageAndPriceAction, useTor,
-                 exportEuroopt, importEuroopt
-    OBJECTS eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
+    OBJECTS mp = MainPage ON CHANGE resetSelection() PANEL, eig = EurooptItemGroup, eil = EurooptItemList, ei = EurooptItem
+    PROPERTIES(mp) staticCaption SELECTOR
+    PROPERTIES() SHOWIF (mp == MainPage.edostavka) synchronizeItemsEdostavka, importItemsInfoEdostavka, importImageAndPriceEdostavka, exportEdostavka, importEdostavka
+    PROPERTIES() SHOWIF (mp == MainPage.gipermall) synchronizeItemsGipermall, importItemsInfoGipermall, importImageAndPriceGipermall, exportGipermall, importGipermall                
+    PROPERTIES() onlyBarcode, importImages, importPrices, useTor
     PROPERTIES(eig) READONLY in CHANGEABLE, title, url
     PROPERTIES(eil) in, url READONLY
     PROPERTIES(ei) READONLY in CHANGEABLE, url, noBarcode, idBarcode, name
-    FILTERS eurooptItemGroup(eil) == eig, eurooptItemList(ei) == eil          
+    FILTERS eurooptItemGroup(eil) == eig, eurooptItemList(ei) == eil, mainPage(eig) == mp          
 ;
 DESIGN integrationData {
     pane {
         NEW euroopt {
             caption = 'Евроопт';
+            MOVE PROPERTY(staticCaption(mp)) {
+                caption = 'Главная страница';
+            }
             MOVE PROPERTY(useTor());          
-            MOVE PROPERTY(synchronizeItemsAction());
+            MOVE PROPERTY(synchronizeItemsEdostavka());
+            MOVE PROPERTY(synchronizeItemsGipermall());
             NEW items {
                 caption = 'Импорт товаров';
                 MOVE PROPERTY(onlyBarcode());      
-                MOVE PROPERTY(importItemsInfoAction());                             
+                MOVE PROPERTY(importItemsInfoEdostavka());                             
+                MOVE PROPERTY(importItemsInfoGipermall());                             
             }
             NEW prices {
                 caption = 'Импорт изображений и цен';
                 MOVE PROPERTY(importImages());
                 MOVE PROPERTY(importPrices());
-                MOVE PROPERTY(importImageAndPriceAction());
+                MOVE PROPERTY(importImageAndPriceEdostavka());
+                MOVE PROPERTY(importImageAndPriceGipermall());
             }
             NEW xls {
-                MOVE PROPERTY(exportEuroopt());
-                MOVE PROPERTY(importEuroopt());
+                MOVE PROPERTY(exportEdostavka());
+                MOVE PROPERTY(exportGipermall());
+                MOVE PROPERTY(importEdostavka());
+                MOVE PROPERTY(importGipermall());
             }
             MOVE BOX(eig);
             MOVE BOX(eil);

@@ -6,11 +6,12 @@ import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.silvertunnel_ng.netlib.api.NetLayer;
@@ -18,6 +19,7 @@ import org.silvertunnel_ng.netlib.api.NetLayer;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty {
 
@@ -29,19 +31,27 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
 
         try {
 
-            boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
-            List<List<Object>> data = getItems(useTor ? getNetLayer() : null);
-            synchronizeItems(context, data);
+            ObjectValue mainPageObject = findProperty("mainPage[]").readClasses(context);
+            if(mainPageObject instanceof DataObject) {
+                String mainPage = (String) findProperty("captionMainPage[]").read(context);
+                String itemGroupPattern = Pattern.quote(mainPage) + "\\/catalog\\/\\d{4}\\.html";
+                String itemPattern = Pattern.quote(mainPage) + "\\/catalog\\/item_\\d+\\.html";
+                boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
 
-            context.delayUserInteraction(new MessageClientAction("Cинхронизация успешно завершёна", "Синхронизация товаров Евроопт"));
+                List<List<Object>> data = getItems(useTor ? getNetLayer() : null, mainPage, itemGroupPattern, itemPattern);
+                synchronizeItems(context, data, (DataObject) mainPageObject);
 
+                context.delayUserInteraction(new MessageClientAction("Cинхронизация успешно завершёна", "Синхронизация товаров Евроопт"));
+            } else {
+                context.delayUserInteraction(new MessageClientAction("Не выбрана главная страница", "Ошибка"));
+            }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void synchronizeItems(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void synchronizeItems(ExecutionContext context, List<List<Object>> data, DataObject mainPageObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -53,6 +63,8 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
         keys.add(eurooptItemGroupKey);
         props.add(new ImportProperty(urlEurooptItemGroupField, findProperty("url[EurooptItemGroup]").getMapping(eurooptItemGroupKey)));
         fields.add(urlEurooptItemGroupField);
+
+        props.add(new ImportProperty(mainPageObject, findProperty("mainPage[EurooptItemGroup]").getMapping(eurooptItemGroupKey)));
 
         ImportField titleEurooptItemGroupField = new ImportField(findProperty("title[EurooptItemGroup]"));
         props.add(new ImportProperty(titleEurooptItemGroupField, findProperty("title[EurooptItemGroup]").getMapping(eurooptItemGroupKey)));
@@ -77,9 +89,9 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
         fields.add(urlEurooptItemField);
 
         List<ImportDelete> deletes = new ArrayList<>();
-        deletes.add(new ImportDelete(eurooptItemGroupKey, LM.is(findClass("EurooptItemGroup")).getMapping(eurooptItemGroupKey), false));
-        deletes.add(new ImportDelete(eurooptItemListKey, LM.is(findClass("EurooptItemList")).getMapping(eurooptItemListKey), false));
-        deletes.add(new ImportDelete(eurooptItemKey, LM.is(findClass("EurooptItem")).getMapping(eurooptItemKey), false));
+        deletes.add(new ImportDelete(eurooptItemGroupKey, findProperty("delete[EurooptItemGroup, MainPage]").getMapping(eurooptItemGroupKey, mainPageObject), false));
+        deletes.add(new ImportDelete(eurooptItemListKey, findProperty("delete[EurooptItemList, MainPage]").getMapping(eurooptItemListKey, mainPageObject), false));
+        deletes.add(new ImportDelete(eurooptItemKey, findProperty("delete[EurooptItem, MainPage]").getMapping(eurooptItemKey, mainPageObject), false));
 
         ImportTable table = new ImportTable(fields, data);
 
@@ -90,10 +102,10 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
         }
     }
 
-    private List<List<Object>> getItems(NetLayer lowerNetLayer) throws IOException {
+    private List<List<Object>> getItems(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern, String itemPattern) throws IOException {
         List<List<Object>> itemsList = new ArrayList<>();
         int count = 0;
-        Set<String> itemGroups = getItemGroupURLSet(lowerNetLayer);
+        Set<String> itemGroups = getItemGroupURLSet(lowerNetLayer, mainPage, itemGroupPattern);
         for (String itemGroupURL : itemGroups) {
             count++;
             int page = 1;
@@ -110,7 +122,7 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
                     String stepHash = "";
                     String stepUrl = itemGroupURL + "?page=" + page + "&lazy_steep=" + step;
                     ServerLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, count, itemGroups.size()));
-                    Document doc = getDocument(lowerNetLayer, stepUrl);
+                    Document doc = getDocument(lowerNetLayer, mainPage, stepUrl);
                     if (doc != null) {
                         String itemGroupTitle = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
                         for (Element item : doc.getElementsByTag("a")) {
@@ -141,11 +153,11 @@ public class SynchronizeItemsEurooptActionProperty extends EurooptActionProperty
         return itemsList;
     }
 
-    private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer) throws IOException {
+    private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern) throws IOException {
         Set<String> itemGroupsSet = new HashSet<>();
         String mainUrl = lowerNetLayer == null ? mainPage + "/" : "/catalog/";
         ServerLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
-        Document doc = getDocument(lowerNetLayer, mainUrl);
+        Document doc = getDocument(lowerNetLayer, mainPage, mainUrl);
         if (doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");

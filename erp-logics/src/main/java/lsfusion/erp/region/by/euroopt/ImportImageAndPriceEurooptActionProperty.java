@@ -19,7 +19,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -43,22 +42,27 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
         try {
 
-            boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
-            boolean importImages = findProperty("importImages[]").read(context) != null;
-            boolean importPrices = findProperty("importPrices[]").read(context) != null;
+            String mainPage = (String) findProperty("captionMainPage[]").read(context);
+            if(mainPage != null) {
+                boolean useTor = findProperty("ImportEuroopt.useTor[]").read(context) != null;
+                boolean importImages = findProperty("importImages[]").read(context) != null;
+                boolean importPrices = findProperty("importPrices[]").read(context) != null;
 
-            if (importImages || importPrices) {
-                List<List<List<Object>>> data = getData(context, useTor, importImages, importPrices);
-                if (!data.get(0).isEmpty() || !data.get(1).isEmpty()) {
-                    if (importImages)
-                        importImages(context, data.get(0));
-                    if (importPrices)
-                        importPrices(context, data.get(1));
+                if (importImages || importPrices) {
+                    List<List<List<Object>>> data = getData(context, mainPage, useTor, importImages, importPrices);
+                    if (!data.get(0).isEmpty() || !data.get(1).isEmpty()) {
+                        if (importImages)
+                            importImages(context, data.get(0));
+                        if (importPrices)
+                            importPrices(context, data.get(1));
 
-                    context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
+                        context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
+                    }
+                } else {
+                    context.delayUserInteraction(new MessageClientAction("Выберите хотя бы одну из опций импорта", "Ошибка"));
                 }
             } else {
-                context.delayUserInteraction(new MessageClientAction("Выберите хотя бы одну из опций импорта", "Ошибка"));
+                context.delayUserInteraction(new MessageClientAction("Не выбрана главная страница", "Ошибка"));
             }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
@@ -166,13 +170,16 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         }
     }
 
-    private List<List<List<Object>>> getData(ExecutionContext context, boolean useTor, boolean importImages, boolean importPrices)
+    private List<List<List<Object>>> getData(ExecutionContext context, String mainPage, boolean useTor, boolean importImages, boolean importPrices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         List<List<Object>> imagesList = new ArrayList<>();
         List<List<Object>> userPriceListsList = new ArrayList<>();
 
+        String id = mainPage.contains("gipermall") ? "gipermall" : "edostavka";
+        String name = mainPage.contains("gipermall") ? "Гипермолл" : "Е-доставка";
+
         NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
-        String idPriceList = "euroopt" + String.valueOf(Calendar.getInstance().getTimeInMillis());
+        String idPriceList = id + String.valueOf(Calendar.getInstance().getTimeInMillis());
         Pair<List<String>, Map<String, String>> itemListData = getItemListData(context);
         List<String> itemListURLList = itemListData.first;
         Map<String, String> barcodeMap = itemListData.second;
@@ -183,7 +190,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
             int i = 1;
             for (String itemListURL : itemListURLList) {
                 ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s of %s: %s", i, itemListURLList.size(), (useTor ? mainPage : "") + itemListURL));
-                Document doc = getDocument(lowerNetLayer, itemListURL);
+                Document doc = getDocument(lowerNetLayer, mainPage, itemListURL);
                 if (doc != null) {
 
                     for (Element productCard : doc.getElementsByClass("products_card")) {
@@ -198,7 +205,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
                                     if (importImages) {
                                         String image = productCard.getElementsByClass("img").get(0).getElementsByClass("retina_redy").get(0).attr("src");
-                                        byte[] imageBytes = getImage(lowerNetLayer, idBarcode, image);
+                                        byte[] imageBytes = getImage(lowerNetLayer, idBarcode, mainPage, image);
                                         if (imageBytes != null)
                                             imagesList.add(Arrays.asList((Object) idBarcode, imageBytes));
                                     }
@@ -208,11 +215,11 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                                         if (prices.size() >= 1) {
                                             BigDecimal price1 = prices.get(0);
                                             if (price1 != null)
-                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, true, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price1, true));
+                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, true, id, idPriceList + "/" + idPriceListDetail, idBarcode, id + "_p", name + "(акция)", price1, true));
                                             if (prices.size() >= 2) {
                                                 BigDecimal price2 = prices.get(1);
                                                 if (price2 != null)
-                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, true, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price2, true));
+                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, true, id, idPriceList + "/" + idPriceListDetail, idBarcode, id, name, price2, true));
                                             }
                                             idPriceListDetail++;
                                         }
@@ -235,10 +242,10 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return Arrays.asList(imagesList, userPriceListsList);
     }
 
-    private byte[] getImage(NetLayer lowerNetLayer, String barcode, String smallImage) {
+    private byte[] getImage(NetLayer lowerNetLayer, String barcode, String mainPage, String smallImage) {
         File imageItem = null;
         try {
-            imageItem = readImage(lowerNetLayer, smallImage);
+            imageItem = readImage(lowerNetLayer, mainPage, smallImage);
             byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
             ServerLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : smallImage == null ? "no image found" : "image read failed") + " for barcode " + barcode);
             return imageBytes;
@@ -275,7 +282,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return value == null || value.isEmpty() ? null : new BigDecimal(value.replace("р", "").replace("к.", ""));
     }
 
-    protected File readImage(NetLayer lowerNetLayer, String url) throws IOException {
+    protected File readImage(NetLayer lowerNetLayer, String mainPage, String url) throws IOException {
         if (url != null) {
             int count = 3;
             while (count > 0) {
@@ -295,7 +302,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                         output.close();
                         return file;
                     } else {
-                        URLConnection urlConnection = getTorConnection(lowerNetLayer, url);
+                        URLConnection urlConnection = getTorConnection(lowerNetLayer, mainPage, url);
                         try (InputStream responseBodyIS = urlConnection.getInputStream()) {
                             file = File.createTempFile("image", ".tmp");
                             try (FileOutputStream outputStream = new FileOutputStream(file)) {

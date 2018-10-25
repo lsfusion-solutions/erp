@@ -24,9 +24,6 @@ import java.sql.SQLException;
 
 public class EurooptActionProperty extends DefaultImportActionProperty {
 
-    String mainPage = "https://e-dostavka.by";
-    String itemGroupPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/\\d{4}\\.html";
-    String itemPattern = "https:\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
     String logPrefix = "Import Euroopt: ";
@@ -38,14 +35,14 @@ public class EurooptActionProperty extends DefaultImportActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected NetLayer getNetLayer() throws IOException {
+    protected NetLayer getNetLayer() {
         NetLayer lowerNetLayer = NetFactory.getInstance().getNetLayerById(NetLayerIDs.TOR);
         // wait until TOR is ready (optional):
         lowerNetLayer.waitUntilReady();
         return lowerNetLayer;
     }
 
-    protected Document getDocument(NetLayer lowerNetLayer, String url) throws IOException {
+    protected Document getDocument(NetLayer lowerNetLayer, String mainPage, String url) throws IOException {
         int count = 3;
         while (count > 0) {
             try {
@@ -56,7 +53,7 @@ public class EurooptActionProperty extends DefaultImportActionProperty {
                     connection.userAgent(userAgent);
                     return connection.get();
                 } else {
-                    URLConnection urlConnection = getTorConnection(lowerNetLayer, url);
+                    URLConnection urlConnection = getTorConnection(lowerNetLayer, mainPage, url);
                     try (InputStream responseBodyIS = urlConnection.getInputStream()) {
                         return Jsoup.parse(responseBodyIS, "utf-8", "");
                     }
@@ -72,7 +69,7 @@ public class EurooptActionProperty extends DefaultImportActionProperty {
         return null;
     }
 
-    protected URLConnection getTorConnection(NetLayer lowerNetLayer, String url) throws IOException {
+    protected URLConnection getTorConnection(NetLayer lowerNetLayer, String mainPage, String url) throws IOException {
         // prepare URL handling on top of the lowerNetLayer
         NetlibURLStreamHandlerFactory factory = new NetlibURLStreamHandlerFactory(false);
         // the following method could be called multiple times
