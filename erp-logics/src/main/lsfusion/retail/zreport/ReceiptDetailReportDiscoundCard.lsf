@@ -1,0 +1,20 @@
+MODULE ReceiptDetailReportDiscoundCard;
+
+REQUIRE ReceiptDetailReport, ZReportDiscountCard;
+
+NAMESPACE ZReport;
+
+saleDiscountCard  = DATA LOCAL DiscountCard ();
+numberDiscountCard 'Дисконтная карта' = seriesNumber(saleDiscountCard());
+nameDiscountCard 'Наименование дисконтной карты' (ReceiptDetail receiptDetail) = name(discountCard(receipt(receiptDetail)));
+
+EXTEND FORM receiptDetailReport
+    PROPERTIES() numberDiscountCard
+    PROPERTIES(rd) READONLY AFTER nameEmployee(rd) numberDiscountCard, nameLegalEntityDiscountCard, nameDiscountCard
+    FILTERS numberDiscountCard(rd) == numberDiscountCard() OR NOT numberDiscountCard()
+;
+DESIGN receiptDetailReport {
+    operationContainer{
+        MOVE PROPERTY(numberDiscountCard()) AFTER PROPERTY(nameFilterDepartmentStore()) ;
+    }
+}
