@@ -767,8 +767,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
                 boolean checkIdTerminal = terminalHandlerLM.findProperty("checkIdTerminal[]").read(session) != null;
+                ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
                 if(checkIdTerminal) {
-                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
                      if(terminalObject instanceof DataObject) {
                         return terminalHandlerLM.findProperty("blocked[Terminal]").read(session, terminalObject) == null;
                     } else {
@@ -785,6 +785,19 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 ServerLoggers.systemLogger.error(String.format("Terminal IsActive error: %s, terminal %s", applyMessage, idTerminal));
                         }
                          return false;
+                    }
+                } else if (terminalObject instanceof NullValue) {
+                    ObjectValue defaultGroup = terminalHandlerLM.findProperty("defaultGroupTerminal[]").readClasses(session);
+                    if (defaultGroup instanceof DataObject) {
+                        terminalObject = session.addObject((ConcreteCustomClass) terminalHandlerLM.findClass("Terminal"));
+                        terminalHandlerLM.findProperty("groupTerminal[Terminal]").change(defaultGroup, session, (DataObject) terminalObject);
+                        terminalHandlerLM.findProperty("id[Terminal]").change(idTerminal, session, (DataObject) terminalObject);
+                        Integer npp = (Integer) terminalHandlerLM.findProperty("maxNpp[]").read(session);
+                        terminalHandlerLM.findProperty("npp[Terminal]").change(npp == null ? 1 : (npp + 1), session, (DataObject) terminalObject);
+                        terminalHandlerLM.findProperty("blocked[Terminal]").change(true, session, (DataObject) terminalObject);
+                        String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
+                        if (applyMessage != null)
+                            ServerLoggers.systemLogger.error(String.format("Terminal IsActive error: %s, terminal %s", applyMessage, idTerminal));
                     }
                 }
             }
