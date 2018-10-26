@@ -208,7 +208,6 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     dateOrder 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN id;
     dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN id;
-    INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
     
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
     isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) MATERIALIZED INDEXED;
@@ -248,6 +247,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     customerStock(scheduleOrderDetail) = DATA Stock (ScheduleOrderDetail);
     nameCustomerStock 'Склад покупателя' (ScheduleOrderDetail scheduleOrderDetail) = name(customerStock(scheduleOrderDetail)) IN id;
+
+    INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
     
     countDetails (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP SUM 1
         BY  scheduleOrder(ScheduleOrderDetail d), dateSupply(d), dateOrder(d), customerStock(d);   
