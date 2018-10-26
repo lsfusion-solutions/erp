@@ -509,6 +509,8 @@ overCreateDeclarationInvoiceDetail  ABSTRACT LIST ( Declaration);
 // скрипт для проставления старых
 //sumDeclarationInvoiceDetail(dd) <- sumGroupDeclaration(declarationDeclarationInvoiceDetail(dd), nameCustomsDeclarationInvoiceDetail(dd), UOMDeclarationInvoiceDetail(dd), customsGroupDeclarationInvoiceDetail(dd), VATCustomsExceptionDeclarationInvoiceDetail(dd), countryDeclarationInvoiceDetail(dd), priceDeclarationInvoiceDetail(dd));
 
+indexDeclaration(UserInvoiceDetail d) = PARTITION SUM 1 ORDER d BY declaration(d) IF currency(d) == currency(declaration(d));
+
 createDeclarationInvoiceDetail 'Создать позиции'(Declaration declaration)  { 
     IF NOT filterUserInvoiceDetail(declaration) THEN {
         DELETE DeclarationInvoiceDetail d WHERE declaration(d) == declaration;
@@ -555,7 +557,7 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
 
         LOCAL index = INTEGER (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
         index(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
-            [ GROUP MAX index(UserInvoiceDetail d)
+            [ GROUP MAX indexDeclaration(UserInvoiceDetail d)
                                            BY declaration(d),
                                               dNameCustoms(d),
                                               dUOM(d),
