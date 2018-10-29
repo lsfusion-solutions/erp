@@ -17,19 +17,20 @@ blocked 'Заблокирован' = DATA BOOLEAN (Terminal);
 lastConnectionTime 'Последнее подключение' = DATA DATETIME (Terminal);
 lastUser 'Пользователь' = DATA CustomUser (Terminal);
 shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(lastUser(terminal));
+nameStockLastUser 'Склад пользователя' (Terminal terminal) = nameStock(lastUser(terminal));
 
 maxNpp () = GROUP MAX npp(Terminal t) IF t IS Terminal;
-defaultGroupTerminal() = GROUP MIN groupTerminal(Terminal terminal) IF NOT stock(groupTerminal(terminal));
+defaultGroupTerminal() = GROUP MIN GroupTerminal gt IF gt IS GroupTerminal AND NOT stock(gt);
 
 manufacturer = ABSTRACT LegalEntity (Item);
 nameManufacturer (Barcode barcode) = name(manufacturer(skuBarcode(id(barcode))));
 
 color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
 
-EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser;
+EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
-    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser;
+    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
 
 
 hostTerminalServer 'Хост' = DATA VARSTRING[30] ();
