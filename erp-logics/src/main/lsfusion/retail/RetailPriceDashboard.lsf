@@ -52,18 +52,31 @@ GROUP retailPrice 'Значения по умолчанию Форма "Розн
 defaultRetailOperation  = DATA PriceList.Operation();
 nameDefaultRetailOperation 'Операция' () = name(defaultRetailOperation()) IN retailPrice;
 
-comparePriceListType  = DATA LedgerPriceListType();
-nameComparePriceListtype 'Вид цен для сравнения' () = name(comparePriceListType()) IN retailPrice;
+inCompare 'Для сравнения цен конкурента' = DATA BOOLEAN (LedgerPriceListType);
+comparePriceListTypes 'Виды цен для сравнения' = GROUP CONCAT name(LedgerPriceListType t) IF inCompare(t), ', ' IN retailPrice;
+
+FORM dialogComparePriceListTypes 'Виды цен для сравнения'
+    OBJECTS t = LedgerPriceListType
+    PROPERTIES inCompare(t)
+    PROPERTIES (t) READONLY id SHOWIF showIDs(), name, nameCurrency, nameRoundCondition, objectClassName
+;
+
+changeComparePriceListTypes () {
+    SHOW dialogComparePriceListTypes;
+}
 
 compareStock  = DATA Stock();
 nameCompareStock 'Магазин для сравнения' () = name(compareStock()) IN retailPrice;
 
 EXTEND FORM options
-    PROPERTIES () nameDefaultRetailOperation, nameComparePriceListtype, nameCompareStock
+    PROPERTIES () nameDefaultRetailOperation, nameCompareStock, comparePriceListTypes ON CHANGE changeComparePriceListTypes()
 ;
 DESIGN options {
     price {
-        MOVE GROUP(retailPrice) {type = CONTAINERH;}
+        MOVE GROUP(retailPrice) {
+            caption = 'Сравнение цен конкурентов';
+            type = CONTAINERV;
+        }
     }
 
 }
@@ -96,12 +109,13 @@ createPriceList 'Создать прайс (отм.)' (DATETIME dt)  {
 }
 backgroundPromotion(Sku sku, Stock stock, DATETIME dt) =  RGB(216,224,255) IF promotionPriceListDetailA(sku, stock, dt);
 
-currentCompare 'Цена конкурента' (Sku sku, DATETIME dt) = priceA[LedgerPriceListType,Sku,Stock,DATETIME](comparePriceListType(), sku, compareStock(), dt);
+comparePriceA 'Цена конкурентра' (LedgerPriceListType t, Sku sk, DATETIME dt) = priceA(t, sk, compareStock(), dt);
 currentOwn (Sku sk, Stock d, DATETIME dt) = OVERRIDE currentCalcM(ledgerPriceListType(retailPriceListType(d)), sk, d,dt), currentCalc(retailCalcPriceListType(d), sk, d, dt);
-backgroundCompare (Sku sk, Stock d, DATETIME dt) = CASE
-    WHEN currentOwn(sk,d,dt) <= currentCompare(sk,dt) THEN RGB(204,255,204)
-    WHEN currentOwn(sk,d,dt) > currentCompare(sk,dt) THEN RGB(255, 117, 117);
- 
+
+backgroundCompare (LedgerPriceListType t, Sku sk, Stock d, DATETIME dt) = CASE
+    WHEN currentOwn(sk,d,dt) <= comparePriceA(t,sk,dt) THEN RGB(204,255,204)
+    WHEN currentOwn(sk,d,dt) > comparePriceA(t,sk,dt) THEN RGB(255,117,117);
+    
 filter0= DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);   
 filter1 = DATA LOCAL NESTED BOOLEAN (CalcPriceListType);
 filter2 = DATA LOCAL NESTED BOOLEAN (LedgerPriceListType);
@@ -158,7 +172,9 @@ FORM retailPriceDashboard 'Розничные цены'
     PROPERTIES currentMarkupM(pt2,pt0,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('Надбавка, упр., % '+name(pt2)) BACKGROUND backgroundRetail(pt2,d)
     PROPERTIES currentCalcM(pt2,sk,d,dt) COLUMNS 'f'  (pt2) HEADER ('РЦ, упр. '+name(pt2)) ON CHANGE changeRetailPriceM(pt2,sk,d,dt) BACKGROUND backgroundRetail(pt2,d)
     //-- конкуренты
-    PROPERTIES READONLY currentCompare(sk,dt)  BACKGROUND backgroundCompare(sk,d,dt)    
+    OBJECTS lplt = LedgerPriceListType
+    PROPERTIES READONLY comparePriceA(lplt, sk, dt) COLUMNS (lplt) HEADER name(lplt) BACKGROUND backgroundCompare(lplt,sk,d,dt)
+    FILTERS inCompare(lplt)
     
     PROPERTIES (sk)  editSk = EDIT NEWSESSION
     PROPERTIES createPriceList(dt) TOOLBAR TODRAW sk
