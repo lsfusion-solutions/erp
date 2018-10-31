@@ -12,6 +12,7 @@ public class ArtixSettings implements Serializable{
     private boolean exportClients;
     private boolean exportSoftCheckItem;
     private Integer maxFilesCount;
+    private Integer maxFilesDirectoryCount;
     private boolean bonusesInDiscountPositions; //появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
 
     public ArtixSettings() {
@@ -79,6 +80,14 @@ public class ArtixSettings implements Serializable{
 
     public void setMaxFilesCount(Integer maxFilesCount) {
         this.maxFilesCount = maxFilesCount;
+    }
+
+    public Integer getMaxFilesDirectoryCount() {
+        return maxFilesDirectoryCount;
+    }
+
+    public void setMaxFilesDirectoryCount(Integer maxFilesDirectoryCount) {
+        this.maxFilesDirectoryCount = maxFilesDirectoryCount;
     }
 
     public boolean isBonusesInDiscountPositions() {

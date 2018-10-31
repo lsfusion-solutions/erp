@@ -593,6 +593,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
+        Integer maxFilesDirectoryCount = artixSettings == null ? null : artixSettings.getMaxFilesDirectoryCount();
 
         Map<String, Timestamp> result = new HashMap<>();
         softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
@@ -612,9 +613,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             });
             if (filesList != null) {
+                int directoryFilesCount = 0;
                 for (File file : filesList) {
-                    if (maxFilesCount == null || files.size() <= maxFilesCount)
+                    if ((maxFilesCount == null || files.size() <= maxFilesCount) && (maxFilesDirectoryCount == null || directoryFilesCount < maxFilesDirectoryCount)) {
                         files.add(file);
+                        directoryFilesCount++;
+                    }
                     else
                         break;
                 }
