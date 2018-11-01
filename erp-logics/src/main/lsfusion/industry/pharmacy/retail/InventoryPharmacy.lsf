@@ -19,8 +19,8 @@ CONSTRAINT isRetailPharmacy(inventory(ListInventory li)) AND countPageInventory(
 CONSTRAINT isRetailPharmacy(Inventory li) AND countListInventory(li)>1.0
     MESSAGE 'В инвентаризации по аптеке должна быть только 1 опись';
 
-currentPrice 'Розничная цена' = DATA LOCAL NESTED NUMERIC[16,4] (Sku, PageInventory);
-calcCurrentPrice 'Розничная цена' (Sku sku, PageInventory li) = prevAccountPriceB(sku, stock(listInventory(li)), dateTime(listInventory(li)));
+//currentPrice 'Розничная цена' = DATA LOCAL NESTED NUMERIC[16,4] (Sku, PageInventory);
+//calcCurrentPrice 'Розничная цена' (Sku sku, PageInventory li) = prevAccountPriceB(sku, stock(listInventory(li)), dateTime(listInventory(li)));
 
 TABLE batchPageInventory (Batch, PageInventory);    
 currentPrice 'Розничная цена' = DATA LOCAL NESTED NUMERIC[16,4] (Batch, PageInventory);
@@ -254,14 +254,14 @@ fillLocal(PageInventory page)  {
     quantity(page, Sku sk, NUMERIC[16,4] n) <- NULL;
     
     currentPrice(Batch bt, page) <- NULL;
-    currentPrice(Sku sku, page) <- NULL;
+//    currentPrice(Sku sku, page) <- NULL;
     prevBalanceB (Batch bt, page) <- NULL; 
     prevBalanceB (Batch bt, page, NUMERIC[16,4] n) <- NULL;   
     prevBalanceB (Sku sku, page, NUMERIC[16,4] n) <- NULL;   
     quantityPurchase (Batch bt, page, NUMERIC[16,4] n) <- NULL;   
     quantityPurchase (Sku sku, page, NUMERIC[16,4] n) <- NULL;       
     
-    currentPrice(Sku sku, page) <- calcCurrentPrice(sku, page) WHERE calcCurrentPrice(sku, page);
+//    currentPrice(Sku sku, page) <- calcCurrentPrice(sku, page) WHERE calcCurrentPrice(sku, page);
     currentPrice(Batch bt, page) <- calcCurrentPrice(bt, page) WHERE calcCurrentPrice(bt, page);
     prevBalanceB(Batch bt, page) <- calcPrevBalanceB(bt, page) WHERE calcPrevBalanceB(bt, page);
     prevBalanceB (Batch bt, page, NUMERIC[16,4] n) <- calcPrevBalanceB(bt, page, n) WHERE calcPrevBalanceB(bt, page, n);
@@ -269,9 +269,9 @@ fillLocal(PageInventory page)  {
     quantityPurchase (Batch bt, page, NUMERIC[16,4] n) <- calcQuantityPurchase(bt, page, n) WHERE calcQuantityPurchase(bt, page, n);
     quantityPurchase (Sku sku, page, NUMERIC[16,4] n) <- calcQuantityPurchase(sku, page, n) WHERE calcQuantityPurchase(sku, page, n);    
     
-    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
-    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
-    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page) WHERE currentPrice(sk, page)==n;
+    quantityBatchInSku(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch batch, PageInventory li) BY sku(batch), currentPrice(batch,li), li](sk,n,page);// WHERE currentPrice(sk, page)==n;
+    quantityBatchInSkuOst(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND prevBalanceB(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page);// WHERE currentPrice(sk, page)==n;
+    quantityBatchInSkuDvi(Sku sk, NUMERIC[16,4] n, page) <- [ GROUP SUM 1 IF currentPrice(Batch bt, PageInventory li) AND countLedger(bt, li) AND currentPrice(bt, li) BY sku(bt), currentPrice(bt,li), li](sk,n,page);// WHERE currentPrice(sk, page)==n;
     
     quantity(page, Batch bt) <- (OVERRIDE [ GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
         BY pageInventory(pageInventoryDetail), batch(pageInventoryDetail)](page,bt), 0.0) WHERE currentPrice(bt,page);
