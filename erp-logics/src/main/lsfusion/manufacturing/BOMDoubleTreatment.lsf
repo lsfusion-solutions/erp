@@ -26,13 +26,13 @@ netWeight (Component c)=  OVERRIDE overNetWeight(c), 1.0 IF c IS Component;
 changeWastageCold1 (Component c)  { 
     INPUT n = NUMERIC[10,5] DO {
         wastageCold1(c) <- n;
-        bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));
+        bruttoQuantity(c) <-  round(NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c)),roundBrutto());
     }
 }
 changeWastageCold2 (Component c)  { 
     INPUT n = NUMERIC[10,5] DO {
         wastageCold2(c) <- n;
-        bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));    
+        bruttoQuantity(c) <-  round(NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c)),roundBrutto());    
     }
 }
 changeWastageHeat1 (Component c)  { 
@@ -49,7 +49,7 @@ changeWastageHeat2 (Component c)  {
 }
 changeOverBruttoNetWeight (Component c)  { 
     INPUT n = NUMERIC[16,5] DO {
-        bruttoQuantity(c) <-  NUMERIC[16,5](n / netWeight(c));  
+        bruttoQuantity(c) <-  round(NUMERIC[16,5](n / netWeight(c)),roundBrutto());  
         wastageCold1(c) <- NUMERIC[10,5]((overBruttoNetWeight(c) (-) (middleWeight(c)/(100.0 (-) wastageCold2(c)) *100.0))/overBruttoNetWeight(c)*100.0);
     }
 }
@@ -64,7 +64,7 @@ changeMiddleWeight (Component c)  {
     INPUT n = NUMERIC[16,5] DO {
         middleWeight(c) <- n;
         IF NOT calculatePercWastage(c) THEN {
-            bruttoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c));
+            bruttoQuantity(c) <-  round(NUMERIC[16,5]((middleWeight(c)*10000.0 / (100.0 (-) wastageCold1(c))/ (100.0 (-) wastageCold2(c))) / netWeight(c)),roundBrutto());
             nettoQuantity(c) <-  NUMERIC[16,5]((middleWeight(c)/10000.0 * (100.0 (-) wastageHeat1(c))* (100.0 (-) wastageHeat2(c))) / netWeight(c));
         } ELSE {
             wastageCold1(c) <- NUMERIC[10,5]((overBruttoNetWeight(c) (-)middleWeight(c))/overBruttoNetWeight(c)*100.0);
@@ -141,7 +141,7 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
     OBJECTS b=BOM PANEL 
     PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
     PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompanyD, shortNameOwnershipCompany, recipes, extractYearFromDate,
-                  actQuantity, nameActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProductD, date, netWeightProductDD, overNettoNetWeightComponentGr   
+                  actQuantity, nameActStock, addressActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProductD, date, netWeightProductDD, overNettoNetWeightComponentGr   
    
     PROPERTIES(b,dt) firstShortNameChief, namePositionChief
     PROPERTIES nameSkusD(b)

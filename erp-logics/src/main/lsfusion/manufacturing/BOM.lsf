@@ -337,19 +337,32 @@ wastage '% потерь' (Component component, DATE date) = [ (1.0-(X*(100.0-Y)/
 
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
+
+dataRoundBrutto 'До скольки знаков округлять вес брутто в спецификации Производство' = DATA INTEGER ();  
+EXTEND FORM options
+    PROPERTIES () dataRoundBrutto
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (dataRoundBrutto());
+    }
+}
+
+
+roundBrutto = OVERRIDE dataRoundBrutto(), 5;     
             
 changeNettoQuantity(Component component)  { 
     INPUT n = NUMERIC[16,5] DO {
         nettoQuantity(component) <- n;
         IF n THEN
-            bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE wastage(component)/100,0 IF component IS Component))); 
+            bruttoQuantity(component) <- round(NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE wastage(component)/100,0 IF component IS Component))),roundBrutto()); 
     }
 }   
 overChangeWastage  ABSTRACT LIST ( Component);                                                                                                                                                                                                                                                                                                                                                    
 changeWastage(Component component)  { 
     INPUT n = NUMERIC[8,3] DO {
         wastage(component) <- n;   
-        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE n/100,0 IF component IS Component))); 
+        bruttoQuantity(component) <- round(NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE n/100,0 IF component IS Component))),roundBrutto()); 
         overChangeWastage(component);
     }
 }                                                                                                                                                                                                                                                                                                                                                      
@@ -946,7 +959,7 @@ nameCompany 'Компания' (BOM BOM) = name(company(BOM)) IN documentPrm;
 actQuantity 'Кол-во для акта' = DATA NUMERIC[16,5] (BOM);
 actStock  = DATA Stock (BOM);
 nameActStock 'Склад для акта' (BOM b) = name(actStock(b));
-
+addressActStock 'Адресс склада для акта' (BOM b) = address(actStock(b));
 
 CONSTRAINT  company(BOM BOM) AND NOT isCompany(company(BOM)) CHECKED BY company[BOM]
     MESSAGE 'Для спецификации выбрана организация, которая не является компанией';
