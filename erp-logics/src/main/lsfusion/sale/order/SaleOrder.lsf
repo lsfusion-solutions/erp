@@ -87,14 +87,18 @@ FORM emailOrder 'Заказ'
     FILTERS order(d) == o
 ;
 
-emailCustomer 'Выслать подтвержденный заказ покупателю' (Order order)  { EMAIL
+emailCustomer 'Выслать подтвержденный заказ покупателю' (Order order)  { 
+    
+    LOCAL file = FILE ();
+    PRINT emailOrder OBJECTS o=order PDF TO file;
+    
+    EMAIL
     FROM email(supplier(order))
     SUBJECT 'Подтверждение заказа №' + seriesNumber(order) + ' от '  + date(order)
     TO email(customer(order))
     INLINE emailOrder OBJECTS o=order
-    ATTACH PDF
+    ATTACH file()
            NAME 'Заказ №' + seriesNumber(order) + ' от ' + date(order)
-           emailOrder OBJECTS o=order
 ; }
 
 //WHEN isPostedOrder(order) AND emailLegalEntity(customerOrder(order)) DO EXEC emailCustomerOrder(order);

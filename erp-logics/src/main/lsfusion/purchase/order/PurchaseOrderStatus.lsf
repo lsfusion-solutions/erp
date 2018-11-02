@@ -126,14 +126,18 @@ FORM messageOrders 'Сообщение'
     PROPERTIES () messageEmailOrders TODRAW o
 ;
 
-calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { EMAIL
+calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { 
+    
+    LOCAL file = FILE ();
+    PRINT printOrderXLS OBJECTS o=order XLSX TO file;
+    
+    EMAIL
     FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
     INLINE messageOrders OBJECTS o=order
-    ATTACH XLSX 
+    ATTACH file() 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
-           printOrderXLS OBJECTS o=order
 ; }
 
 overEmailList = ABSTRACT VARSTRING[800](Order);
