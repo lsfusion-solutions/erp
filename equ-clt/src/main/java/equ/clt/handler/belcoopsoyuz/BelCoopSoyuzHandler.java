@@ -47,6 +47,8 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
     String charset = "cp1251";
 
+    private static String logPrefix = "BelCoopSoyuz: ";
+
     public BelCoopSoyuzHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
     }
@@ -724,6 +726,8 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
                 }
             }
+        } catch (Exception e) {
+            sendSalesLogger.error(logPrefix + "ReadSalesFile failed", e);
         }
         return salesInfoList;
     }
