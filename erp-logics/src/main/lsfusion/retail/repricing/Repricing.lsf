@@ -495,7 +495,7 @@ FORM repricing 'Акт переоценки (печать)'
                shortNameEmployeeCommittee
 
 
-    OBJECTS d = RepricingDetail
+    OBJECTS d = RepricingDetail SUBREPORT reportFileDetail(p)
     PROPERTIES (d)  index, idBarcodeSku, nameSku, nameBatch, shortNameUOMSku, quantity,
                curPrice, curSum,
                curMarkup, curMarkupSum,
@@ -507,7 +507,6 @@ FORM repricing 'Акт переоценки (печать)'
                retailPrice, retailSum,
                diffSum, diffMarkupSum, diffVATSum,
                diffRetailSum
-    REPORTFILES d reportFileDetail(p)
     
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
@@ -546,7 +545,7 @@ reportFileRepricingD () = 'Repricing_repricing_d.jrxml';
 reportFileRepricingE () = 'Repricing_repricing_e.jrxml';
 
 FORM repricingPeriod 'Акт переоценки (печать)'
-    OBJECTS dd = (df=DATE, dt=DATE, st = Store) SUBREPORT 
+    OBJECTS dd = (df=DATE, dt=DATE, st = Store) SUBREPORT reportFileRepricingP() 
 
     OBJECTS p = Repricing 
     PROPERTIES (p)  SELECTOR isPosted
@@ -565,7 +564,7 @@ FORM repricingPeriod 'Акт переоценки (печать)'
     FILTERS date(p) >= df, date(p) <= dt, store(departmentStore(p)) ==st, isPosted(p)
     ORDER date(p), number(p)
     
-    OBJECTS d = RepricingDetail
+    OBJECTS d = RepricingDetail SUBREPORT reportFileRepricingD() 
     PROPERTIES (d)  index, idBarcodeSku, nameSku, shortNameUOMSku, quantity,
                curPrice, curSum,
                curMarkup, curMarkupSum,
@@ -578,7 +577,7 @@ FORM repricingPeriod 'Акт переоценки (печать)'
                diffSum, diffMarkupSum, diffVATSum,
                diffRetailSum
 
-    OBJECTS e=Employee
+    OBJECTS e=Employee SUBREPORT reportFileRepricingE()
     PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
 
     FILTERS    repricing(d) == p,
@@ -587,9 +586,6 @@ FORM repricingPeriod 'Акт переоценки (печать)'
                (diffMarkupSum(d) AND diffMarkupSum(d)!=0.0) OR
                (diffVATSum(d) AND diffVATSum(d)!=0.0) OR
                (diffRetailSum(d) AND diffRetailSum(d)!=0.0)
-    REPORTFILES dd reportFileRepricingP()
-    REPORTFILES d reportFileRepricingD()
-    REPORTFILES e reportFileRepricingE()
 ;
 
 
