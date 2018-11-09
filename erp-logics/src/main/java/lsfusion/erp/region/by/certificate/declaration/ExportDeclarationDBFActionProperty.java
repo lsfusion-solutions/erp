@@ -323,7 +323,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         nameValueFieldMap.put("G05", declaration.count);
         nameValueFieldMap.put("G222", declaration.sum);
 
-        nameValueFieldMap.put("NOM_GUID", null);
+        if (nameValueFieldMap.containsKey("NOM_GUID"))
+            nameValueFieldMap.put("NOM_GUID", null);
 
         dbfwriter.addRecord(nameValueFieldMap.values().toArray());
         dbfwriter.close();
