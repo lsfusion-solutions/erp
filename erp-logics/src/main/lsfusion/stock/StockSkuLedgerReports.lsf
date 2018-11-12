@@ -147,10 +147,18 @@ costVATSum 'Сумма поставщика с НДС' (VARSTRING[255] g1, VARST
 markup 'Торговая надбавка' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
 quantity 'Количество' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
 
+inBackSheetGroup () = GROUP CONCAT name(Group g) IF dataInSession(g) ,';';
+
+inBackSheetOperation () = GROUP CONCAT name(Operation.Operation o) IF inSession(o) OR inReturn(o),';';
+
+dFrom = DATA LOCAL DATE ();
+dTo = DATA LOCAL DATE ();
+
 FORM printGroupOperationNew 'Отчет по операциям'   
     PROPERTIES inBackSheetStocks()
 
     PROPERTIES() countGroup
+    PROPERTIES() inBackSheetGroup, inBackSheetOperation, dFrom, dTo 
     
     OBJECTS d = (g1 = VARSTRING[255], g2 = VARSTRING[255], g3 = VARSTRING[255]) SUBREPORT
     PROPERTIES nameGroup1 = VALUE(g1), nameGroup2 = VALUE(g2), nameGroup3 = VALUE(g3)
@@ -173,6 +181,9 @@ printGroupOperation 'Отчет по операциям' (DATE dateFrom, DATE da
         MESSAGE 'Не задана группа';
         RETURN;
     }
+    dFrom()<-dateFrom;
+    dTo()<-dateTo;
+    
     fillReportGroupOperationFromTo(gt, dateFrom, dateTo);
     IF isPrintGroupOperationNew() THEN {PRINT printGroupOperationNew;} ELSE PRINT printGroupOperation;
 }  IMAGE 'print.png' IN print;
@@ -244,6 +255,40 @@ changeStocksBackSheet(GroupType gt, DATE df, DATE dt)  {
     }
 }
 
+CLASS SettingOperations 'Настройка операций';
+TABLE settingOperations(SettingOperations);
+
+name 'Наименование' = DATA VARISTRING[100](SettingOperations);
+inSession 'Отм.' = DATA BOOLEAN (SettingOperations,Operation.Operation);
+inReturn 'Возврат' = DATA BOOLEAN (SettingOperations, Operation.Operation);
+
+
+FORM settingOperations 'Настройка операций'
+    OBJECTS s = SettingOperations
+    PROPERTIES(s) READONLY name
+    PROPERTIES(s) deletes=DELETE
+    LIST SettingOperations OBJECT s
+    
+;
+
+name1 'Наименование' = DATA LOCAL VARSTRING[15] ();
+a'Сохранить операции' (){
+        NEW so = SettingOperations {
+            name(so)<-name1() WHERE so IS SettingOperations;
+            inSession(so, Operation.Operation o)<-inSession(o) WHERE so IS SettingOperations;
+            inReturn(so, Operation.Operation o)<-inReturn(o) WHERE so IS SettingOperations;
+            name1()<-NULL  WHERE so IS SettingOperations;
+        }
+    APPLY;
+}
+
+b'Востановить операции' (){
+    DIALOG settingOperations OBJECTS s INPUT DO {
+            inSession(Operation.Operation o)<-inSession(s, o) WHERE s IS SettingOperations;
+            inReturn(Operation.Operation o)<-inReturn(s, o) WHERE s IS SettingOperations;
+    }
+}
+
 FORM reportGroupOperation 'Отчет по операциям'
     OBJECTS df=DATE PANEL
     PROPERTIES dateFrom = VALUE(df)
@@ -255,6 +300,7 @@ FORM reportGroupOperation 'Отчет по операциям'
     PROPERTIES(gt) SELECTOR name
     
     PROPERTIES inBackSheetStocks() ON CHANGE changeStocksBackSheet(gt, df, dt)
+    PROPERTIES name1(), a(), b()
     
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk) BACKGROUND backgroundInSession(sk)
@@ -350,6 +396,11 @@ DESIGN reportGroupOperation {
             
         }      
     MOVE TOOLBARBOX;
+    TOOLBAR (o){
+        MOVE PROPERTY (name1());
+        MOVE PROPERTY (a());
+        MOVE PROPERTY (b());
+    }
 }
 
 NAVIGATOR {
