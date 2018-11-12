@@ -30,6 +30,8 @@ minOperation = GROUP MIN Operation operation IF [ GROUP SUM 1 IF selected(Order 
 
 @defineOption(groupSkuSaleOrderReplace, 'Группировать строки по товару при объединении заказов (продажа)', optionsContainer);
 
+replace ABSTRACT (OrderDetail, OrderDetail);
+
 replace 'Объединить'(UserOrder order)  { 
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
@@ -37,7 +39,9 @@ replace 'Объединить'(UserOrder order)  {
                 IF (NOT countSelectedSupplier()==1) OR (NOT countSelectedCustomer() == 1) OR (NOT countSelectedSupplierStock() ==1) OR (NOT countSelectedCustomerStock()==1) OR (NOT countSelectedOperation()==1) THEN {
                     MESSAGE 'Отмечены заказы с разными операциями, покупателями, поставщиками или их складами';               
                 } ELSE {                  
-                    IF (NOT minSupplier() == supplier[Order](order)) OR (NOT minSupplierStock() == supplierStock[Order](order)) OR (NOT minCustomer() == customer[Order](order)) OR (NOT minCustomerStock() == customerStock[Order](order)) OR (NOT minOperation() == operation[Order](order)) THEN {
+                    IF (NOT minSupplier() == supplier[Order](order)) OR (NOT minSupplierStock() == supplierStock[Order](order)) OR 
+                        (NOT minCustomer() == customer[Order](order)) OR (NOT minCustomerStock() == customerStock[Order](order)) OR 
+                        (NOT minOperation() == operation[Order](order)) THEN {
                         MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
                     } ELSE {  
                         IF NOT groupSkuSaleOrderReplace() THEN {
@@ -51,7 +55,8 @@ replace 'Объединить'(UserOrder order)  {
                                 priceListType(d) <- priceListType(detail);      
                                 shipmentDataDate(d) <- shipmentDataDate(detail);         
                                 shipmentDataTime(d) <- shipmentDataTime(detail);        
-                                closeDataDate(d) <- closeDataDate(detail);                                         
+                                closeDataDate(d) <- closeDataDate(detail);
+                                replace(d, detail);                                         
                             }
                         } ELSE {
                             selected(order) <- TRUE;
