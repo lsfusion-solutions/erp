@@ -22,10 +22,11 @@ public class ItemInfo implements Serializable {
     public String nameItemGroup;
     public String idUOM;
     public String shortNameUOM;
+    public String info;
     
     public ItemInfo(Map<String, Integer> stockPluNumberMap, String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
                     Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, String idItemGroup,
-                    String nameItemGroup, String idUOM, String shortNameUOM) {
+                    String nameItemGroup, String idUOM, String shortNameUOM, String info) {
         this.stockPluNumberMap = stockPluNumberMap;
         this.idItem = idItem;
         this.idBarcode = idBarcode;
@@ -42,5 +43,6 @@ public class ItemInfo implements Serializable {
         this.nameItemGroup = nameItemGroup;
         this.idUOM = idUOM;
         this.shortNameUOM = shortNameUOM;
+        this.info = info;
     }
 }

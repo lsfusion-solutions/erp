@@ -456,7 +456,7 @@ public class MassaKRL10Handler extends ScalesHandler {
         bytes.put((byte) (item.splitItem ? 0 : 1));
 
         //GoodsGroupCode - Код группы товаров, 2 bytes
-        short idItemGroup = item.idItemGroup == null ? 0 : Short.parseShort(item.idItemGroup);
+        short idItemGroup = 0; //item.idItemGroup == null ? 0 : Short.parseShort(item.idItemGroup);
         bytes.putShort(idItemGroup);
 
         // AdditionPercent - Процент содержания примеси в товаре (используется при заморозке) От 0 до 99, 1 byte

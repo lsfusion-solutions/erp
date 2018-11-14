@@ -244,7 +244,7 @@ public class StopListEquipmentServer {
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
+                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, null));
         }
         return stopListItemList;
     }

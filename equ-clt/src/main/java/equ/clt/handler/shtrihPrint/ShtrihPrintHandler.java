@@ -132,7 +132,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         String firstName = nameItem.substring(0, len < 28 ? len : 28);
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
                                                         Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
-                                                        Integer groupCode = item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
+                                                        Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
                                                         int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
                                                         int start = 0;
@@ -301,7 +301,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
                                                         shtrihActiveXComponent.setProperty("NameSecond", new Variant(secondName));
                                                         shtrihActiveXComponent.setProperty("ShelfLife", new Variant(shelfLife)); //срок хранения в днях
-                                                        String groupCode = item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
+                                                        String groupCode = null; //item.idItemGroup == null ? null : item.idItemGroup.replace("_", "");
                                                         shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                                                         shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));

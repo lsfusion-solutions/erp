@@ -485,7 +485,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
-                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand,
+                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, null, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
                                 balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
                         cashRegisterItemInfoList.add(c);
@@ -564,7 +564,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
-                        
+
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
                         BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
@@ -573,7 +573,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent,
+                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, null, extraPercent,
                                 retailPrice));
                     }
 
@@ -624,7 +624,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         
                         priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split, 
-                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null));
+                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
                     }
                     
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
@@ -684,7 +684,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
 
                         terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry, 
-                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null));
+                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
                     }
 
                     List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
