@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.RawFileData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -40,7 +41,7 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
             for (int i = 0; i < 64; i++) {
 
                 DataObject currentObject = new DataObject(i);
-                findProperty("thumbnailImage[INTEGER]").change((byte[]) null, context, currentObject);
+                findProperty("thumbnailImage[INTEGER]").change((RawFileData) null, context, currentObject);
                 findProperty("urlImage[INTEGER]").change((String)null, context, currentObject);
                 findProperty("sizeImage[INTEGER]").change((String)null, context, currentObject);
             }

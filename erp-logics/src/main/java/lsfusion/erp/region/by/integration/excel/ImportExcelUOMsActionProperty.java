@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UOM;
@@ -29,27 +30,21 @@ public class ImportExcelUOMsActionProperty extends ImportExcelActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы таблиц", "xls");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы таблиц", "xls");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                ImportData importData = new ImportData();
 
-                for (byte[] file : fileList) {
+                importData.setUOMsList(importUOMs((RawFileData) objectValue.getValue()));
 
-                    ImportData importData = new ImportData();
-
-                    importData.setUOMsList(importUOMs(file));
-
-                    new ImportActionProperty(LM).makeImport(importData, context);
-
-                }
+                new ImportActionProperty(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    protected static List<UOM> importUOMs(byte[] file) throws IOException, BiffException, ParseException {
+    protected static List<UOM> importUOMs(RawFileData file) throws IOException, BiffException, ParseException {
 
         Sheet sheet = getSheet(file, 3);
 

@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -31,7 +32,7 @@ public class ExportExcelAllActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Map<String, byte[]> files = new HashMap<>();
+            Map<String, RawFileData> files = new HashMap<>();
             files.putAll(new ExportExcelGeneralLedgerActionProperty(LM, dateFromInterface, dateToInterface).createFile(context));
             files.putAll(new ExportExcelLegalEntitiesActionProperty(LM).createFile(context));
             files.putAll(new ExportExcelItemsActionProperty(LM).createFile(context));

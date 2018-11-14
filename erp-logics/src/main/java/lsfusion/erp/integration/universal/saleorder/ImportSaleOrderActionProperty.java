@@ -5,7 +5,7 @@ import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
-import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -85,9 +85,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
+                        Map<String, RawFileData> fileList = valueClass.getMultipleNamedFiles(objectValue.getValue());
 
-                        for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
+                        for (Map.Entry<String, RawFileData> file : fileList.entrySet()) {
 
                             try {
                                 makeImport(context, orderObject, importColumns, file.getValue(), settings, fileExtension,
@@ -112,7 +112,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = context.getBL().getModule("SaleManufacturingPrice");
@@ -335,7 +335,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Long orderObject, Map<String, ImportColumnDetail> importColumns,
-                                                            byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
+                                                            RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
@@ -373,9 +373,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return orderDetailsList;
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
-                                                            String primaryKeyType, boolean checkExistence,  String secondaryKeyType, boolean keyIsDigit,
+    private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -388,7 +388,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
         ws.setGCDisabled(true);
-        Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+        Workbook wb = Workbook.getWorkbook(importFile.getInputStream(), ws);
         Sheet sheet = wb.getSheet(0);
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
@@ -439,8 +439,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, String primaryKeyType, boolean checkExistence, 
+    private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, String primaryKeyType, boolean checkExistence,
                                                             String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Long orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
@@ -450,7 +450,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
+        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream()));
         String line;
         
         List<String[]> valuesList = new ArrayList<>();
@@ -507,9 +507,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
-                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
+    private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
+                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                              Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -519,7 +519,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
-        XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
+        XSSFWorkbook Wb = new XSSFWorkbook(importFile.getInputStream());
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
@@ -570,9 +570,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
-                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, 
+    private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
+                                                            String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
@@ -586,7 +586,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         DBF file = null;
         try {
             tempFile = File.createTempFile("saleOrder", ".dbf");
-            IOUtils.putFileBytes(tempFile, importFile);
+            importFile.write(tempFile);
 
             file = new DBF(tempFile.getPath());
             String charset = getDBFCharset(tempFile);

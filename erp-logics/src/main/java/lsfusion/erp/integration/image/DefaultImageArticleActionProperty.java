@@ -2,6 +2,7 @@ package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.utils.geo.JsonReader;
 import lsfusion.server.classes.ValueClass;
@@ -65,7 +66,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                         File file = readImage(thumbnailUrl);
                         if (file != null && imageUrl != null) {
                             DataObject currentObject = new DataObject(start * pageSize + i);
-                            findProperty("thumbnailImage[INTEGER]").change(IOUtils.getFileBytes(file), context, currentObject);
+                            findProperty("thumbnailImage[INTEGER]").change(new RawFileData(file), context, currentObject);
                             findProperty("urlImage[INTEGER]").change(imageUrl, context, currentObject);
                             findProperty("sizeImage[INTEGER]").change(width + "x" + height, context, currentObject);
                             file.delete();
@@ -100,7 +101,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                         JSONObject jsonObject = objectCollection.getJSONObject(i);
                         File file = readImage(jsonObject.getString("url"));
                         if (file != null) {
-                            findProperty("image[Article]").change(IOUtils.getFileBytes(file), context, articleObject);
+                            findProperty("image[Article]").change(new RawFileData(file), context, articleObject);
                             file.delete();
                             break;
                         }

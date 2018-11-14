@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.ItemGroup;
@@ -28,29 +29,23 @@ public class ImportExcelGroupItemsActionProperty extends ImportExcelActionProper
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы таблиц", "xls");
+            
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( "Файлы таблиц", "xls");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                ImportData importData = new ImportData();
 
-                for (byte[] file : fileList) {
+                importData.setParentGroupsList(importGroupItems((RawFileData) objectValue.getValue(), true));
+                importData.setItemGroupsList(importGroupItems((RawFileData) objectValue.getValue(), false));
 
-                    ImportData importData = new ImportData();
-
-                    importData.setParentGroupsList(importGroupItems(file, true));
-                    importData.setItemGroupsList(importGroupItems(file, false));
-
-                    new ImportActionProperty(LM).makeImport(importData, context);
-
-                }
+                new ImportActionProperty(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static List<ItemGroup> importGroupItems(byte[] file, Boolean parents) throws IOException, BiffException, ParseException {
+    public static List<ItemGroup> importGroupItems(RawFileData file, Boolean parents) throws IOException, BiffException, ParseException {
 
         Sheet sheet = getSheet(file, 3);
 

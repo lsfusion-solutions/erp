@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -46,16 +47,12 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
 
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы XML", "xml");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы XML", "xml");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
                 DataObject declarationObject = context.getDataKeyValue(declarationInterface);
-                for (byte[] file : fileList) {
-
                     SAXBuilder builder = new SAXBuilder();
-                    Document document = builder.build(new ByteArrayInputStream(file));
+                    Document document = builder.build(((RawFileData)objectValue.getValue()).getInputStream());
 
                     Declaration declaration = getDeclaration(document);
                     if (declaration != null) {
@@ -138,7 +135,6 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                         findProperty("isExported[Declaration]").change(true, context, declarationObject);
                     } else
                         context.delayUserInteraction(new MessageClientAction("Структура документа не соответствует ожидаемой", "Ошибка"));
-                }
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | JDOMException e) {
             throw Throwables.propagate(e);

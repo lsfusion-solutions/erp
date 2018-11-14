@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -90,7 +91,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
 
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
 
-            Map<String, byte[]> files = new HashMap<>();
+            Map<String, RawFileData> files = new HashMap<>();
             File fileTSware = File.createTempFile("TSware", ".csv");
             PrintWriter writerTSware = new PrintWriter(
                     new OutputStreamWriter(
@@ -275,11 +276,11 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
             writerTSmarkings.close();
             writerTSDocs44.close();
 
-            files.put("TSware.csv", IOUtils.getFileBytes(fileTSware));
+            files.put("TSware.csv", new RawFileData(fileTSware));
             fileTSware.delete();
-            files.put("TSmarkings.csv", IOUtils.getFileBytes(fileTSMarkings));
+            files.put("TSmarkings.csv", new RawFileData(fileTSMarkings));
             fileTSMarkings.delete();
-            files.put("TSDocs44.csv", IOUtils.getFileBytes(fileTSDocs44));
+            files.put("TSDocs44.csv", new RawFileData(fileTSDocs44));
             fileTSDocs44.delete();
             context.delayUserInterfaction(new ExportFileClientAction(files));
 

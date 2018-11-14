@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import jxl.*;
 import jxl.read.biff.BiffException;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
@@ -22,10 +23,10 @@ public class ImportExcelActionProperty extends DefaultImportActionProperty {
         super(LM);
     }
 
-    protected static Sheet getSheet(byte[] file, int columnsCount) throws IOException, BiffException {
+    protected static Sheet getSheet(RawFileData file, int columnsCount) throws IOException, BiffException {
         WorkbookSettings ws = new WorkbookSettings();
         ws.setGCDisabled(true);
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file), ws);
+        Workbook Wb = Workbook.getWorkbook(file.getInputStream(), ws);
         Sheet sheet = Wb.getSheet(0);
         if(sheet.getRows() > 0 && sheet.getRow(0).length < columnsCount)
             throw new RuntimeException(String.format("Недостаточно колонок для импорта (%s при необходимых %s)", sheet.getRow(0).length, columnsCount));

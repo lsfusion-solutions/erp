@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -36,7 +37,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
 
             File file = readImage((String) urlObject.object);
             if (file != null) {
-                findProperty("image[Article]").change(IOUtils.getFileBytes(file), context, articleObject);
+                findProperty("image[Article]").change(new RawFileData(file), context, articleObject);
                 file.delete();
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {

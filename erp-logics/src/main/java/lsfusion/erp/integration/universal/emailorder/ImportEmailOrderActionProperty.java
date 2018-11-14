@@ -1,7 +1,8 @@
 package lsfusion.erp.integration.universal.emailorder;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.BaseUtils;
+import lsfusion.base.FileData;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -21,11 +22,9 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -45,7 +44,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         Map<DataObject, List<Object>> attachmentMap = readAttachmentMap(context);
 
         for (Map.Entry<DataObject, List<Object>> attachment : attachmentMap.entrySet()) {
-            byte[] file = (byte[]) attachment.getValue().get(0);
+            RawFileData file = (RawFileData) attachment.getValue().get(0);
             String fileName = (String) attachment.getValue().get(1);
             try {
                 importOrder(context, file);
@@ -86,7 +85,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
                     ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
                     DataObject attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
-                    byte[] fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
+                    RawFileData fileAttachment = ((FileData) emailEntryValue.get("fileAttachmentEmail").getValue()).getRawFile();
                     String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                     if (nameAttachmentEmail != null) {
                         if (nameAttachmentEmail.toLowerCase().endsWith(".xls") || nameAttachmentEmail.toLowerCase().endsWith(".xlsx")) {
@@ -101,7 +100,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         return attachmentMap;
     }
 
-    private void importOrder(ExecutionContext context, byte[] file) throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importOrder(ExecutionContext context, RawFileData file) throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow[]").read(context);
         String numberCell = (String) findProperty("importEmailOrderNumberCell[]").read(context);
@@ -161,7 +160,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         }
     }
 
-    private List<List<Object>> importOrderFromXLSX(byte[] file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {
+    private List<List<Object>> importOrderFromXLSX(RawFileData file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {
 
         List<List<Object>> result = new ArrayList<>();
 
@@ -175,7 +174,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
             Integer quantityColumn = getCellIndex(quantityColumnValue);
 
-            XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(file));
+            XSSFWorkbook Wb = new XSSFWorkbook(file.getInputStream());
             XSSFSheet sheet = Wb.getSheetAt(0);
 
             int recordCount = sheet.getLastRowNum();

@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.Pair;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
@@ -201,11 +202,11 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         }
     }
 
-    HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file) throws IOException {
+    HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file) throws IOException {
         return sendRequest(host, port, login, password, url, xml, file, false);
     }
 
-    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, byte[]> file, boolean preemptiveAuthentication) throws IOException {
+    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file, boolean preemptiveAuthentication) throws IOException {
         // Send post request
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
@@ -220,7 +221,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", Charset.forName("UTF-8")))).build());
-            FormBodyPart part = FormBodyPartBuilder.create(file.first, new ByteArrayBody(file.second, file.first)).build();
+            FormBodyPart part = FormBodyPartBuilder.create(file.first, new ByteArrayBody(file.second.getBytes(), file.first)).build();
             part.addField("Content-Id", file.first);
             builder.addPart(part);
             entity = builder.build();

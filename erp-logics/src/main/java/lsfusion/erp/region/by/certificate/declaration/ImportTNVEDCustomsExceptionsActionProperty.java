@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -19,7 +20,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -43,14 +43,11 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-                for (byte[] file : fileList) {
-                    importVATException(context, file);
-                }
+                importVATException(context, (RawFileData) objectValue.getValue());
             }
 
         } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
@@ -58,7 +55,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         }
     }
 
-    private void importVATException(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
+    private void importVATException(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
 
         List<List<Object>> data = importVATExceptionFromDBF(context, fileBytes);
 
@@ -109,7 +106,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         }
     }
 
-    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         Map<String, List<Object>> dataVATMap = new HashMap<>();
@@ -119,7 +116,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         DBF dbfFile = null;
         try {
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, fileBytes);
+            fileBytes.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             int recordCount = dbfFile.getRecordCount();

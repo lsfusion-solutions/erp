@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.userpricelist;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -75,7 +76,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                                     try {
 
                                         boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
-                                                userPriceListObject, settings, priceColumns, importColumns.get(0), importColumns.get(1), IOUtils.getFileBytes(f),
+                                                userPriceListObject, settings, priceColumns, importColumns.get(0), importColumns.get(1), new RawFileData(f),
                                                 true);
 
                                         if (importResult)

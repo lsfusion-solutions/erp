@@ -5,6 +5,7 @@ import by.avest.crypto.pkcs11.provider.ProviderFactory;
 import by.avest.edoc.client.*;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
+import lsfusion.base.RawFileData;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
@@ -82,18 +83,18 @@ public class EVATHandler {
                                   String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
             throws Exception {
         List<Object> result;
-        byte[] file = (byte[]) fileNumberEntry.get(0);
+        RawFileData file = (RawFileData) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
         try {
             logger.info(String.format("EVAT %s: save file before sending", number));
             File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
-            FileUtils.writeByteArrayToFile(originalFile, file);
+            file.write(originalFile);
 
             // Создание электронного документа
             AvEDoc eDoc = service.createEDoc();
 
             // Загрузка электронной счет-фактуры НДС
-            eDoc.getDocument().load(file);
+            eDoc.getDocument().load(file.getBytes());
 
             // Проверка счет-фактуры НДС на соответствие XSD схеме
             byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));

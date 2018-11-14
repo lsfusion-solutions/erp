@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -77,7 +78,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                                 try(ExecutionContext.NewSession newContext = context.newSession()) {
                                     try {
                                         boolean importResult = new ImportProductionOrderActionProperty(LM).makeImport(newContext, null,
-                                                importColumns, IOUtils.getFileBytes(f), settings, fileExtension, operationObject);
+                                                importColumns, new RawFileData(f), settings, fileExtension, operationObject);
 
                                         if (importResult)
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.mila;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.BaseUtils;
-import lsfusion.base.IOUtils;
+import lsfusion.base.FileData;
+import lsfusion.base.RawFileData;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -59,7 +59,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                     ServerLoggers.importLogger.error(errMsg);
                 }
                 saveResult(tmpFile);
-                findProperty("importMilaFile[]").change(BaseUtils.mergeFileAndExtension(IOUtils.getFileBytes(tmpFile), "json".getBytes()), context);
+                findProperty("importMilaFile[]").change(new FileData(new RawFileData(tmpFile), "json"), context);
             } finally {
                 tmpFile.deleteOnExit();
             }

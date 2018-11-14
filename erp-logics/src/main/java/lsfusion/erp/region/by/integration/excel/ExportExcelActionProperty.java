@@ -7,6 +7,7 @@ import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
@@ -24,9 +25,9 @@ import java.util.Map;
 
 public abstract class ExportExcelActionProperty extends DefaultIntegrationActionProperty {
     
-    public abstract Map<String, byte[]> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
+    public abstract Map<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 
-    public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> rows) throws IOException, WriteException {
+    public static Map<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> rows) throws IOException, WriteException {
         File file = File.createTempFile(fileName, ".xls");
         WorkbookSettings ws = new WorkbookSettings();
         ws.setGCDisabled(true);
@@ -48,8 +49,8 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         workbook.write();
         workbook.close();
 
-        Map<String, byte[]> result = new HashMap<>();
-        result.put(fileName + ".xls", IOUtils.getFileBytes(file));
+        Map<String, RawFileData> result = new HashMap<>();
+        result.put(fileName + ".xls", new RawFileData(file));
         file.delete();
 
         return result;

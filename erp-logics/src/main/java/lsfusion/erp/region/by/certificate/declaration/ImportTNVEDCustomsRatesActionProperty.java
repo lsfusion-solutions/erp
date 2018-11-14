@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -18,7 +19,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -41,20 +41,16 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-                for (byte[] file : fileList) {
+                List<List<List<Object>>> data = importDutiesFromDBF(context, (RawFileData) objectValue.getValue());
 
-                    List<List<List<Object>>> data = importDutiesFromDBF(context, file);
-
-                    if (data.size() >= 1)
-                        importDuty(context, data.get(0));
-                    if (data.size() >= 2)
-                        importVAT(context, data.get(1));
-                }
+                if (data.size() >= 1)
+                    importDuty(context, data.get(0));
+                if (data.size() >= 2)
+                    importVAT(context, data.get(1));
             }
 
         } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
@@ -170,7 +166,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         }
     }
 
-    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, byte[] fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
         Map<String, BigDecimal> registrationMap = new HashMap<>();
@@ -183,7 +179,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         try {
 
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, fileBytes);
+            fileBytes.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             int recordCount = dbfFile.getRecordCount();

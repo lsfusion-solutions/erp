@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ public class CreateExcelTemplateUserInvoicesActionProperty extends CreateExcelTe
     }
 
     @Override
-    public Map<String, byte[]> createFile() throws IOException, WriteException {
+    public Map<String, RawFileData> createFile() throws IOException, WriteException {
         return createFile("importUserInvoicesTemplate",
                 Arrays.asList("Серия", "Номер", "Дата", "Код товара", "Кол-во", "Поставщик", "Склад покупателя",
                         "Склад поставщика", "Цена", "Цена услуг", "Розничная цена", "Розничная надбавка", "Сертификат"),

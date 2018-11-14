@@ -7,6 +7,7 @@ import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -23,10 +24,10 @@ import java.util.Map;
 
 public abstract class CreateExcelTemplateActionProperty extends ScriptingActionProperty {
 
-    public abstract Map<String, byte[]> createFile() throws IOException, WriteException;
+    public abstract Map<String, RawFileData> createFile() throws IOException, WriteException;
 
-    public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
-        Map<String, byte[]> result = new HashMap<>();
+    public static Map<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
+        Map<String, RawFileData> result = new HashMap<>();
         File file = null;
         try {
             file = File.createTempFile(fileName, ".xls");
@@ -51,7 +52,7 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
             workbook.write();
             workbook.close();
 
-            result.put(fileName + ".xls", IOUtils.getFileBytes(file));
+            result.put(fileName + ".xls", new RawFileData(file));
         } finally {
             if (file != null && !file.delete()) {
                 file.deleteOnExit();

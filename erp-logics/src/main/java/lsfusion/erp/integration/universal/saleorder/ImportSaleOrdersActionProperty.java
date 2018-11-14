@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.saleorder;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -85,7 +86,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                         try {
 
                                             boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(
-                                                    newContext, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                                    newContext, orderObject, importColumns, new RawFileData(f), settings,
                                                     fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
                                                     customerStockObject);
 

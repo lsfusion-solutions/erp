@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
+import lsfusion.base.RawFileData;
 import lsfusion.interop.action.OpenFileClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -26,7 +27,7 @@ public class FiscalEpsonElectronicJournalToFileActionProperty extends ScriptingA
             if (offsetBefore != null) {
                String result = (String)context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(9, comPort, baudRate, offsetBefore));
                 if (result != null) {
-                    context.requestUserInteraction(new OpenFileClientAction(result.getBytes(), "epson", "txt"));
+                    context.requestUserInteraction(new OpenFileClientAction(new RawFileData(result.getBytes()), "epson", "txt"));
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

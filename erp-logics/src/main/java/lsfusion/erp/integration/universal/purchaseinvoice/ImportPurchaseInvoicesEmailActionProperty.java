@@ -5,10 +5,7 @@ import com.github.junrar.exception.RarException;
 import com.github.junrar.impl.FileVolumeManager;
 import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
-import lsfusion.base.BaseUtils;
-import lsfusion.base.ExceptionUtils;
-import lsfusion.base.IOUtils;
-import lsfusion.base.Pair;
+import lsfusion.base.*;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -131,9 +128,9 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         }
 
                         if (matches) {
-                            byte[] fileAttachment = null;
+                            RawFileData fileAttachment = null;
                             try {
-                                fileAttachment = BaseUtils.getFile((byte[]) emailEntryValue.get("fileAttachmentEmail").getValue());
+                                fileAttachment = ((FileData) emailEntryValue.get("fileAttachmentEmail").getValue()).getRawFile();
                             } catch (Exception e) {
                                 errors.add(e.getLocalizedMessage());
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
@@ -141,7 +138,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             }
                             if(fileAttachment != null) {
 
-                                List<Pair<String, byte[]>> files = new ArrayList<>();
+                                List<Pair<String, RawFileData>> files = new ArrayList<>();
                                 if (nameAttachmentEmail != null) {
                                     if (nameAttachmentEmail.toLowerCase().endsWith(".rar")) {
                                         files = unpackRARFile(fileAttachment, fileExtension);
@@ -160,7 +157,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                 }
 
                                 boolean imported = true;
-                                for (Pair<String, byte[]> file : files) {
+                                for (Pair<String, RawFileData> file : files) {
                                     try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                                         DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
 
@@ -173,7 +170,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             if(invoiceObject != null) {
-                                                findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file.second, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), newContext, invoiceObject);
+                                                findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file.second, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);
                                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);
                                             }
 
@@ -256,16 +253,14 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         }
     }
     
-    private List<Pair<String, byte[]>> unpackRARFile(byte[] fileBytes, String extensionFilter) {
+    private List<Pair<String, RawFileData>> unpackRARFile(RawFileData fileBytes, String extensionFilter) {
 
-        List<Pair<String, byte[]>> result = new ArrayList<>();
+        List<Pair<String, RawFileData>> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
             inputFile = File.createTempFile("email", ".rar");
-            try (FileOutputStream stream = new FileOutputStream(inputFile)) {
-                stream.write(fileBytes);
-            }
+            fileBytes.write(inputFile);
 
             List<File> dirList = new ArrayList<>();
             File outputDirectory = new File(inputFile.getParent() + "/" + getFileName(inputFile));
@@ -288,7 +283,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         }
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
-                            result.add(Pair.create(fileName, IOUtils.getFileBytes(outputFile)));
+                            result.add(Pair.create(fileName, new RawFileData(outputFile)));
                         if(!outputFile.delete())
                             outputFile.deleteOnExit();
                     }
@@ -312,16 +307,14 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
         return result;
     }
     
-    private List<Pair<String, byte[]>> unpackZIPFile(byte[] fileBytes, String extensionFilter) {
+    private List<Pair<String, RawFileData>> unpackZIPFile(RawFileData fileBytes, String extensionFilter) {
 
-        List<Pair<String, byte[]>> result = new ArrayList<>();
+        List<Pair<String, RawFileData>> result = new ArrayList<>();
         File inputFile = null;
         File outputFile = null;
         try {
             inputFile = File.createTempFile("email", ".zip");
-            try (FileOutputStream stream = new FileOutputStream(inputFile)) {
-                stream.write(fileBytes);
-            }
+            fileBytes.write(inputFile);
 
             byte[] buffer = new byte[1024];
             Set<File> dirList = new HashSet<>();
@@ -348,7 +341,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                         outputStream.close();
                         String outExtension = BaseUtils.getFileExtension(outputFile);
                         if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
-                            result.add(Pair.create(fileName, IOUtils.getFileBytes(outputFile)));
+                            result.add(Pair.create(fileName, new RawFileData(outputFile)));
                         if(!outputFile.delete())
                             outputFile.deleteOnExit();
                     }

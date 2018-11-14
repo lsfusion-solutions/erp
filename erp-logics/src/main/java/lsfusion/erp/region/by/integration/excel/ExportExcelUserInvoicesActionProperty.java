@@ -2,12 +2,12 @@ package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
-import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
@@ -45,7 +45,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
     }
 
     @Override
-    public Map<String, byte[]> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException {
+    public Map<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException {
         return createFile("exportUserInvoices", getTitles(), getRows(context));
 
     }

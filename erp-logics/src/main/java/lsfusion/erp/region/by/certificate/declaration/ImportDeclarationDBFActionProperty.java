@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -47,27 +48,20 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файл G47.DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( "Файл G47.DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
 
             if (objectValue != null) {
-
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
-                for (byte[] entry : fileList) {
-
-                    importDeclaration(context, declarationObject, entry);
-
-                }
+                importDeclaration(context, declarationObject, (RawFileData) objectValue.getValue());
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclaration(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = readDeclarationsFromDBF(context, declarationObject, entry);
 
@@ -113,14 +107,14 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         }
     }
 
-    private Map<String, List<List<Object>>> readDeclarationsFromDBF(ExecutionContext context, DataObject declarationObject, byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
+    private Map<String, List<List<Object>>> readDeclarationsFromDBF(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = new HashMap<>();
         File tempFile = null;
         DBF dbfFile = null;
         try {
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, entry);
+            entry.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             int recordCount = dbfFile.getRecordCount();

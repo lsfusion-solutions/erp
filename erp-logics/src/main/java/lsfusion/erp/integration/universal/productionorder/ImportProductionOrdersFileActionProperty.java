@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal.productionorder;
 
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -48,19 +49,14 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                        new ImportProductionOrderActionProperty(LM).makeImport(context, null, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension, operationObject);
 
-                        for (byte[] file : fileList) {
-
-                            new ImportProductionOrderActionProperty(LM).makeImport(context, null, importColumns, file, settings, fileExtension, operationObject);
-
-                            context.apply();
-                            
-                            findAction("formRefresh[]").execute(context);
-                        }
+                        context.apply();
+                        
+                        findAction("formRefresh[]").execute(context);
                     }
                 }
             }

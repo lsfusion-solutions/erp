@@ -41,7 +41,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
                 Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
-                findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                 findProperty("timeChangedImage[Article]").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
                 imageFile.delete();
 

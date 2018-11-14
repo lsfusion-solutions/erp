@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.read.biff.BiffException;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -31,9 +32,9 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы таблиц", "xls");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
+                Map<String, RawFileData> fileList = valueClass.getMultipleNamedFiles(objectValue.getValue());
 
-                for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
+                for (Map.Entry<String, RawFileData> file : fileList.entrySet()) {
 
                     ImportData importData = new ImportData();
 

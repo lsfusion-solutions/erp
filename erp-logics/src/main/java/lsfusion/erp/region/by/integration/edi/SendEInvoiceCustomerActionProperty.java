@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
@@ -55,7 +56,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
 
             if (signerPathEDI != null && outputEDI != null && certificateEDI != null && passwordEDI != null) {
 
-                List<byte[]> xmls = new ArrayList<>();
+                List<RawFileData> xmls = new ArrayList<>();
 
                 DataObject eInvoiceObject = context.getDataKeyValue(eInvoiceInterface);
 
@@ -108,12 +109,12 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
                 } else {
 
                     //создаём BLRAPN и BLRWBR
-                    byte[] blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
+                    RawFileData blrapn = createBLRAPN(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer);
                     if (blrapn == null)
                         return;
                     xmls.add(blrapn);
                     if (!isCancel) {
-                        byte[] blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
+                        RawFileData blrwbr = createBLRWBR(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock);
                         if (blrwbr == null)
                             return;
                         xmls.add(blrwbr);
@@ -185,7 +186,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
         }
     }
 
-    protected byte[] createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected RawFileData createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -239,7 +240,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
             if (error.isEmpty()) {
                 tmpFile = File.createTempFile("invoice", ".xml");
                 outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), charset), charset);
-                return IOUtils.getFileBytes(tmpFile);
+                return new RawFileData(tmpFile);
 
             } else {
                 context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
@@ -321,7 +322,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
         return result;
     }
 
-    protected byte[] createBLRWBR(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected RawFileData createBLRWBR(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -419,7 +420,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
             if (error.isEmpty()) {
                 tmpFile = File.createTempFile("evat", ".xml");
                 outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), charset), charset);
-                return IOUtils.getFileBytes(tmpFile);
+                return new RawFileData(tmpFile);
 
             } else {
                 context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));

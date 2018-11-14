@@ -2,8 +2,8 @@ package lsfusion.erp.integration.universal.userpricelist;
 
 import com.hexiong.jdbf.DBFReader;
 import com.hexiong.jdbf.JDBFException;
-import lsfusion.base.BaseUtils;
-import lsfusion.base.IOUtils;
+import lsfusion.base.FileData;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -27,7 +27,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -84,16 +83,10 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 String fileExtension = priceListSettings.getFileExtension();
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
-                        for (byte[] file : fileList) {
-
-                            importData(context, userPriceListObject, priceListSettings, priceColumns, importColumns.get(0), importColumns.get(1), file, false);
-
-                        }
+                        importData(context, userPriceListObject, priceListSettings, priceColumns, importColumns.get(0), importColumns.get(1), (RawFileData) objectValue.getValue(), false);
                     }
                 }
             }
@@ -105,8 +98,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         }
     }
 
-    public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns, 
-                              Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, byte[] file, boolean apply)
+    public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns,
+                              Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, RawFileData file, boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, UniversalImportException, SQLHandledException, JDBFException {
 
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
@@ -153,8 +146,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 && (settings.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, settings.getStockObject(), settings.getItemKeyType(), apply));
 
 
-        findProperty("original[UserPriceList]").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()),
-                DynamicFormatFileClass.get(false, false)), context, userPriceListObject);
+        findProperty("original[UserPriceList]").change(new DataObject(new FileData(file, fileExtension),
+                DynamicFormatFileClass.get()), context, userPriceListObject);
         if(apply)
             context.apply();
         
@@ -682,15 +675,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return false;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLS(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
-                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
-                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
+    private List<UserPriceListDetail> importUserPriceListsFromXLS(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
+                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns,
+                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields,
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
-        HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        HSSFWorkbook wb = new HSSFWorkbook(importFile.getInputStream());
         FormulaEvaluator formulaEvaluator = new HSSFFormulaEvaluator(wb);
         HSSFSheet sheet = wb.getSheetAt(0);
 
@@ -757,15 +750,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromCSV(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
-                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
-                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
+    private List<UserPriceListDetail> importUserPriceListsFromCSV(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
+                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns,
+                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields,
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
+        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream()));
         String line;
 
         List<String[]> valuesList = new ArrayList<>();
@@ -838,15 +831,15 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromXLSX(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
-                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
-                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
+    private List<UserPriceListDetail> importUserPriceListsFromXLSX(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
+                                                                   Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns,
+                                                                   Map<String, ImportColumnDetail> customColumns, List<String> stringFields,
                                                                    List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
-        XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
+        XSSFWorkbook Wb = new XSSFWorkbook(importFile.getInputStream());
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = settings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
@@ -912,16 +905,16 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         return userPriceListDetailList;
     }
 
-    private List<UserPriceListDetail> importUserPriceListsFromDBF(byte[] importFile, DataObject userPriceListObject, ImportPriceListSettings settings, 
-                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns, 
-                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields, 
+    private List<UserPriceListDetail> importUserPriceListsFromDBF(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
+                                                                  Map<DataObject, String[]> priceColumns, Map<String, ImportColumnDetail> defaultColumns,
+                                                                  Map<String, ImportColumnDetail> customColumns, List<String> stringFields,
                                                                   List<String> bigDecimalFields, List<String> dateFields, Date dateFromDocument)
             throws IOException, UniversalImportException, JDBFException {
 
         List<UserPriceListDetail> userPriceListDetailList = new ArrayList<>();
 
         File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
-        IOUtils.putFileBytes(tempFile, importFile);
+        importFile.write(tempFile);
 
         DBFReader dbfReader = new DBFReader(new FileInputStream(tempFile));
         String charset = getDBFCharset(tempFile);

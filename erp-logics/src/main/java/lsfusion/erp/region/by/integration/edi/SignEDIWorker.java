@@ -1,17 +1,19 @@
 package lsfusion.erp.region.by.integration.edi;
 
+import lsfusion.base.RawFileData;
+
 import javax.swing.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 class SignEDIWorker {
-   List<byte[]> files;
+   List<RawFileData> files;
    String signerPath;
    String outputDir;
    String certificate;
    String password;
 
-   SignEDIWorker(final List<byte[]> files, String signerPath, String outputDir, String certificate, String password) {
+   SignEDIWorker(final List<RawFileData> files, String signerPath, String outputDir, String certificate, String password) {
       this.files = files;
       this.signerPath = signerPath;
       this.outputDir = outputDir;

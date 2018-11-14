@@ -4,9 +4,7 @@ import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
-import lsfusion.base.BaseUtils;
-import lsfusion.base.IOUtils;
-import lsfusion.base.Pair;
+import lsfusion.base.*;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -95,62 +93,57 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                        RawFileData file = (RawFileData) objectValue.getValue();
+                        List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, 
+                                userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence, file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
 
-                        for (byte[] file : fileList) {
-
-                            List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, 
-                                    userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, checkInvoiceExistence,
-                                    file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
-
-                            boolean needToApply = false;
-                            if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) {
-                                if(notNullNorEmpty(userInvoiceDetailData.get(0)))
-                                    needToApply = true;
-                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(0), context, importColumns.get(0),
-                                        importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(), importSettings.getCountryKeyType(),
-                                        operationObject, supplierObject, supplierStockObject, customerObject,
-                                        customerStockObject, false);
-                                if(userInvoiceObject == null && result.second != null)
-                                    userInvoiceObject = result.second;
-                            }
-                            
-                            if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) {
-                                if(notNullNorEmpty(userInvoiceDetailData.get(1)))
-                                    needToApply = true;
-                                Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(1), context, importColumns.get(0),
-                                        importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(), importSettings.getCountryKeyType(),
-                                        operationObject, supplierObject, supplierStockObject, customerObject,
-                                        customerStockObject, false);
-                                if(userInvoiceObject == null && result.second != null)
-                                    userInvoiceObject = result.second;
-                            }
-
-                            if(userInvoiceObject != null) {
-                                findProperty("original[Purchase.Invoice]").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, false)), context, userInvoiceObject);
-                                findProperty("currentInvoice[]").change(userInvoiceObject, session);
-                            }
-
-                            boolean cancelSession = false;
-                            String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
-                            if(script != null && !script.isEmpty()) {
+                        boolean needToApply = false;
+                        if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 1) {
+                            if(notNullNorEmpty(userInvoiceDetailData.get(0)))
                                 needToApply = true;
-                                findAction("executeScript[ImportType]").execute(context, importTypeObject);
-                                cancelSession = findProperty("cancelSession[]").read(session) != null;
-                            }
-
-                            if(needToApply) {
-                                if(cancelSession)
-                                    context.cancel(SetFact.<SessionDataProperty>EMPTY());
-                                else 
-                                    context.apply();
-                            }
-
-                            findAction("formRefresh[]").execute(context);
+                            Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(0), context, importColumns.get(0),
+                                    importColumns.get(1), userInvoiceObject, importSettings.getPrimaryKeyType(), importSettings.getCountryKeyType(),
+                                    operationObject, supplierObject, supplierStockObject, customerObject,
+                                    customerStockObject, false);
+                            if(userInvoiceObject == null && result.second != null)
+                                userInvoiceObject = result.second;
                         }
+                        
+                        if (userInvoiceDetailData != null && userInvoiceDetailData.size() >= 2) {
+                            if(notNullNorEmpty(userInvoiceDetailData.get(1)))
+                                needToApply = true;
+                            Pair<Integer, DataObject> result = importUserInvoices(userInvoiceDetailData.get(1), context, importColumns.get(0),
+                                    importColumns.get(1), userInvoiceObject, importSettings.getSecondaryKeyType(), importSettings.getCountryKeyType(),
+                                    operationObject, supplierObject, supplierStockObject, customerObject,
+                                    customerStockObject, false);
+                            if(userInvoiceObject == null && result.second != null)
+                                userInvoiceObject = result.second;
+                        }
+
+                        if(userInvoiceObject != null) {
+                            findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file, fileExtension), DynamicFormatFileClass.get()), context, userInvoiceObject);
+                            findProperty("currentInvoice[]").change(userInvoiceObject, session);
+                        }
+
+                        boolean cancelSession = false;
+                        String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
+                        if(script != null && !script.isEmpty()) {
+                            needToApply = true;
+                            findAction("executeScript[ImportType]").execute(context, importTypeObject);
+                            cancelSession = findProperty("cancelSession[]").read(session) != null;
+                        }
+
+                        if(needToApply) {
+                            if(cancelSession)
+                                context.cancel(SetFact.<SessionDataProperty>EMPTY());
+                            else 
+                                context.apply();
+                        }
+
+                        findAction("formRefresh[]").execute(context);
                     }
                 }
             }
@@ -163,7 +156,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     }
 
     public int makeImport(ExecutionContext<ClassPropertyInterface> context, DataObject userInvoiceObject,
-                          DataObject importTypeObject, byte[] file, String fileExtension, ImportDocumentSettings importSettings,
+                          DataObject importTypeObject, RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
                           String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate)
             throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException,
@@ -845,9 +838,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     }
 
     protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataObject userInvoiceObject,
-                                                                           Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
+                                                                           Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                            Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
-                                                                           byte[] file, String fileExtension, ImportDocumentSettings importSettings,
+                                                                           RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
                                                                            String staticNameImportType, String staticCaptionImportType)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
 
@@ -899,9 +892,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return userInvoiceDetailsList;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+                                                                        List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                         boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
@@ -918,7 +911,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         ws.setGCDisabled(true);
         Workbook wb;
         try {
-            wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
+            wb = Workbook.getWorkbook(importFile.getInputStream(), ws);
         } catch (Exception e) {
             String error = "Файл неизвестного либо устаревшего формата";
             context.requestUserInteraction(new MessageClientAction(error, "Ошибка при открытии файла"));
@@ -1032,11 +1025,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
-                                                                        List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+                                                                        List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
-                                                                        boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject, 
+                                                                        boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                         String staticNameImportType, String staticCaptionImportType)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -1046,7 +1039,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
         
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "cp1251"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream(), "cp1251"));
         String line;
 
         currentTimestamp = getCurrentTimestamp();
@@ -1160,9 +1153,9 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, byte[] importFile, 
-                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, 
-                                                                         List<String> stringFields, List<String> bigDecimalFields,  List<String> dateFields, List<String> timeFields,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, RawFileData importFile,
+                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
+                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                          Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
                                                                          boolean checkInvoiceExistence, ImportDocumentSettings importSettings, DataObject userInvoiceObject,
                                                                          String staticNameImportType, String staticCaptionImportType)
@@ -1174,7 +1167,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         String primaryKeyColumn = getItemKeyColumn(importSettings.getPrimaryKeyType());
         String secondaryKeyColumn = getItemKeyColumn(importSettings.getSecondaryKeyType());
 
-        XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
+        XSSFWorkbook Wb = new XSSFWorkbook(importFile.getInputStream());
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         currentTimestamp = getCurrentTimestamp();
@@ -1283,7 +1276,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, byte[] importFile, 
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1302,7 +1295,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         try {
 
             tempFile = File.createTempFile("purchaseInvoice", ".dbf");
-            IOUtils.putFileBytes(tempFile, importFile);
+            importFile.write(tempFile);
 
             file = new DBF(tempFile.getPath());
             String charset = getDBFCharset(tempFile);

@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -23,7 +24,7 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Map<String, byte[]> files = new HashMap<>();
+            Map<String, RawFileData> files = new HashMap<>();
             files.putAll(new CreateExcelTemplateUOMsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateItemsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateGroupItemsActionProperty(LM).createFile());

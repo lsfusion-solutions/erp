@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
+import lsfusion.base.RawFileData;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
@@ -29,14 +30,14 @@ public class SignEDIHandler {
         }
     }
 
-    public List<Object> sign(List<byte[]> files, String signerPath, String outputDir, String cert, String password) throws IOException {
+    public List<Object> sign(List<RawFileData> files, String signerPath, String outputDir, String cert, String password) throws IOException {
 
         logger.info("EDI: client action sign");
 
         StringBuilder filesString = new StringBuilder();
         for (int i = 0; i < files.size(); i++) {
             File file = new File("sign" + i + ".xml");
-            FileUtils.writeByteArrayToFile(file, files.get(i));
+            files.get(i).write(file);
             filesString.append(String.format("%s\"%s\"", filesString.length() == 0 ? "" : " ", file.getAbsolutePath()));
         }
 

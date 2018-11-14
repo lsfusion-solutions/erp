@@ -1,6 +1,7 @@
 package lsfusion.erp.integration;
 
 import jxl.*;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -97,20 +98,20 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
         }
     }
 
-    protected Map<String, byte[]> getXLSImageMap(Sheet sheet) {
-        Map<String, byte[]> imageMap = new HashMap<>();
+    protected Map<String, RawFileData> getXLSImageMap(Sheet sheet) {
+        Map<String, RawFileData> imageMap = new HashMap<>();
         int count = sheet.getNumberOfImages();
         for (int i = 0; i < count; i++) {
             Image image = sheet.getDrawing(i); 
             try {
-            imageMap.put(String.valueOf((int) image.getRow() + "-" + (int) image.getColumn()), image.getImageData());
+            imageMap.put(String.valueOf((int) image.getRow() + "-" + (int) image.getColumn()), new RawFileData(image.getImageData()));
             } catch (ArrayIndexOutOfBoundsException ignored) {               
             }
         }
         return imageMap;
     }
 
-    protected byte[] getXLSImageFieldValue(Map<String, byte[]> imageMap, Integer row, Integer column) throws UniversalImportException {
+    protected RawFileData getXLSImageFieldValue(Map<String, RawFileData> imageMap, Integer row, Integer column) throws UniversalImportException {
         if (row == null || column == null)
             return null;
         else

@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ public class CreateExcelTemplateLegalEntitiesActionProperty extends CreateExcelT
     }
 
     @Override
-    public Map<String, byte[]> createFile() throws IOException, WriteException {
+    public Map<String, RawFileData> createFile() throws IOException, WriteException {
         return createFile("importLegalEntitiesTemplate",
                 Arrays.asList("Код организации", "Код группы организаций", "Название", "Адрес", "Телефон", "E-mail", "Рассчётный счёт",
                         "Код банка", "Страна", "Является поставщиком", "Является компанией", "Является покупателем", "УНП", "ОКПО"),

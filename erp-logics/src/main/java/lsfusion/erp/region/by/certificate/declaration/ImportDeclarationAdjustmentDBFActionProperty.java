@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.DefaultImportDBFActionProperty;
 import lsfusion.interop.action.ChooseObjectClientAction;
 import lsfusion.interop.action.MessageClientAction;
@@ -40,27 +41,20 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
 
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файл G47.DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файл G47.DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
 
             if (objectValue != null) {
-
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
-                for (byte[] entry : fileList) {
-
-                    importDeclarationAdjustments(context, declarationObject, entry);
-
-                }
+                importDeclarationAdjustments(context, declarationObject, (RawFileData) objectValue.getValue());
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void importDeclarationAdjustments(ExecutionContext context, DataObject declarationObject, byte[] entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclarationAdjustments(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationAdjustmentsMap = readDeclarationAdjustmentsFromDBF(entry);
 
@@ -107,14 +101,14 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
         }
     }
 
-    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
+    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(RawFileData entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = new HashMap<>();
         File tempFile = null;
         DBF dbfFile = null;
         try {
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, entry);
+            entry.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             int recordCount = dbfFile.getRecordCount();

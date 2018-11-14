@@ -56,7 +56,7 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                     if (imageFile.exists()) {
                         Timestamp timeChangedImageArticle = (Timestamp) findProperty("timeChangedImage[Article]").read(context, articleObject);
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
-                            findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                            findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                             findProperty("timeChangedImage[Article]").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
                         }
                     }

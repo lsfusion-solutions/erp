@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -49,7 +50,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
-                context.delayUserInterfaction(new ExportFileClientAction("export.dbf", IOUtils.getFileBytes(file)));
+                context.delayUserInterfaction(new ExportFileClientAction("export.dbf", new RawFileData(file)));
                 if(!file.delete())
                     file.deleteOnExit();
             }

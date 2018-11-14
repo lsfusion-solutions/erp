@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
+import lsfusion.base.RawFileData;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
@@ -9,13 +10,13 @@ import java.util.concurrent.ExecutionException;
 
 public class SignEDIClientAction implements ClientAction {
 
-    List<byte[]> files;
+    List<RawFileData> files;
     String signerPath;
     String outputDir;
     String certificate;
     String password;
 
-    public SignEDIClientAction(List<byte[]> files, String signerPath, String outputDir, String certificate, String password) {
+    public SignEDIClientAction(List<RawFileData> files, String signerPath, String outputDir, String certificate, String password) {
         this.files = files;
         this.signerPath = signerPath;
         this.outputDir = outputDir;

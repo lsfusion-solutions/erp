@@ -5,6 +5,7 @@ import equ.api.terminal.*;
 import equ.srv.TerminalEquipmentServer;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -151,7 +152,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public byte[] readBase(DataSession session, DataObject userObject) throws SQLException {
+    public RawFileData readBase(DataSession session, DataObject userObject) throws SQLException {
         Connection connection = null;
         File file = null;
         File zipFile = null;
@@ -210,7 +211,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 fis.close();
                 zos.close();
 
-                return IOUtils.getFileBytes(zipFile);
+                return new RawFileData(zipFile);
             } else return null;
 
         } catch (Exception e) {

@@ -1,6 +1,7 @@
 package equ.srv.terminal;
 
 import equ.srv.EquipmentLoggers;
+import lsfusion.base.RawFileData;
 import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.lifecycle.MonitorServer;
@@ -210,7 +211,7 @@ public class TerminalServer extends MonitorServer {
 
                 String result = null;
                 List<String> itemInfo = null;
-                byte[] fileBytes = null;
+                RawFileData fileData = null;
                 byte errorCode = 0;
                 String errorText = null;
                 String sessionId;
@@ -382,8 +383,8 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    fileBytes = readBase(userInfo.user);
-                                    if (fileBytes == null) {
+                                    fileData = readBase(userInfo.user);
+                                    if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
                                         errorText = GET_ALL_BASE_ERROR_TEXT;
                                     }
@@ -470,7 +471,8 @@ public class TerminalServer extends MonitorServer {
                             }
                             break;
                         case GET_ALL_BASE:
-                            if (fileBytes != null) {
+                            if (fileData != null) {
+                                byte[] fileBytes = fileData.getBytes();
                                 write(outToClient, String.valueOf(fileBytes.length));
                                 writeByte(outToClient, etx);
                                 write(outToClient, fileBytes);
@@ -478,7 +480,7 @@ public class TerminalServer extends MonitorServer {
                     }
                 }
 
-                if (fileBytes == null)
+                if (fileData == null)
                     writeByte(outToClient, etx);
                 logger.info(String.format("Command %s: answer sent", command));
                 Thread.sleep(1000);
@@ -608,7 +610,7 @@ public class TerminalServer extends MonitorServer {
         return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
-    protected byte[] readBase(DataObject userObject) throws RemoteException, SQLException {
+    protected RawFileData readBase(DataObject userObject) throws RemoteException, SQLException {
         return terminalHandlerInterface.readBase(createSession(), userObject);
     }
 

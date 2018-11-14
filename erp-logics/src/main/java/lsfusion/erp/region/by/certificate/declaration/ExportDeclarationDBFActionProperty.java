@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -59,46 +60,46 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             Declaration declaration = exportDeclaration(context, declarationObject);
             G44 g44 = exportG44ToList(context, declarationObject);
 
-                Map<String, byte[]> outputFiles = new HashMap<>();
+                Map<String, RawFileData> outputFiles = new HashMap<>();
 
-                Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
-                for (Map.Entry<String, byte[]> entry : fileList.entrySet()) {
+                Map<String, RawFileData> fileList = valueClass.getMultipleNamedFiles(objectValue.getValue());
+                for (Map.Entry<String, RawFileData> entry : fileList.entrySet()) {
 
                     Map<Field, Object> dbfFields = readDBFFields(entry.getValue());
 
                     if (entry.getKey().toLowerCase().equals("decl02.dbf") && declaration != null)
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportDECL02(dbfFields, declaration)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportDECL02(dbfFields, declaration)));
 
                     if (entry.getKey().toLowerCase().equals("dobl.dbf") && declaration != null)
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportDOBL(dbfFields, declaration)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportDOBL(dbfFields, declaration)));
 
                     if (entry.getKey().toLowerCase().equals("g18.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG18(dbfFields)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG18(dbfFields)));
 
                     if (entry.getKey().toLowerCase().equals("g20.dbf") && declaration != null)
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG20(dbfFields, declaration)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG20(dbfFields, declaration)));
 
                     if (entry.getKey().toLowerCase().equals("g21.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG21(dbfFields)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG21(dbfFields)));
 
                     if (entry.getKey().toLowerCase().equals("g40.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG40(dbfFields)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG40(dbfFields)));
 
                     if (entry.getKey().toLowerCase().equals("g44.dbf")) {
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG44(dbfFields, g44)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG44(dbfFields, g44)));
                     }
 
                     if (entry.getKey().toLowerCase().equals("g47.dbf") && declaration != null)
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG47(dbfFields, declaration)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG47(dbfFields, declaration)));
 
                     if (entry.getKey().toLowerCase().equals("g313.dbf") && declaration != null)
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG313(dbfFields, declaration)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG313(dbfFields, declaration)));
 
                     if (entry.getKey().toLowerCase().equals("gb.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportGB(dbfFields)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportGB(dbfFields)));
 
                     if (entry.getKey().toLowerCase().equals("g316.dbf"))
-                        outputFiles.put(entry.getKey(), IOUtils.getFileBytes(exportG316(dbfFields)));
+                        outputFiles.put(entry.getKey(), new RawFileData(exportG316(dbfFields)));
 
                 }
                 if(outputFiles.size() > 0)
@@ -574,7 +575,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         return dbfFile;
     }
 
-    private Map<Field, Object> readDBFFields(byte[] fileBytes) throws IOException, xBaseJException, ParseException {
+    private Map<Field, Object> readDBFFields(RawFileData rawFileData) throws IOException, xBaseJException, ParseException {
 
         Map<Field, Object> fieldMap = new LinkedHashMap<>();
 
@@ -582,7 +583,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         DBF dbfFile = null;
         try {
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, fileBytes);
+            rawFileData.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             String charset = getDBFCharset(tempFile);

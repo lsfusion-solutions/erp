@@ -71,7 +71,7 @@ public class FiscalEpsonCheckOpenZReportActionProperty extends ScriptingActionPr
             
             result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(7, comPort, baudRate));
             if (result instanceof Integer) {
-                findProperty("fiscalEpsonElectronicJournalReadOffset[ZReport]").change(result, context, zReportObject);
+                findProperty("fiscalEpsonElectronicJournalReadOffset[ZReport]").change((Integer)result, context, zReportObject);
             } else
                 throw new RuntimeException("Ошибка записи начала отчёта:" + result);
 

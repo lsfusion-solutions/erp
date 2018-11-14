@@ -2,7 +2,8 @@ package lsfusion.erp.region.by.finance.evat;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.IOUtils;
+import lsfusion.base.FileData;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -194,11 +195,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             if (error.isEmpty()) {
                 tmpFile = File.createTempFile("evat", "xml");
                 outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
-                byte[] fileData = IOUtils.getFileBytes(tmpFile);
+                RawFileData fileData = new RawFileData(tmpFile);
                 if (choosePath)
                     context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
-                if (saveToLocal)
-                    findProperty("generatedXML[]").change(BaseUtils.mergeFileAndExtension(fileData, "xml".getBytes()), context);
+                if (saveToLocal) findProperty("generatedXML[]").change(new FileData(fileData, "xml"), context);
                 return Arrays.asList((Object) fileData, documentNumber);
 
             } else {

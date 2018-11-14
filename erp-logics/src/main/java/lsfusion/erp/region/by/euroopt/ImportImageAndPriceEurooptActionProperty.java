@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.euroopt;
 import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
 import lsfusion.base.Pair;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -205,7 +206,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
                                     if (importImages) {
                                         String image = productCard.getElementsByClass("img").get(0).getElementsByClass("retina_redy").get(0).attr("src");
-                                        byte[] imageBytes = getImage(lowerNetLayer, idBarcode, mainPage, image);
+                                        RawFileData imageBytes = getImage(lowerNetLayer, idBarcode, mainPage, image);
                                         if (imageBytes != null)
                                             imagesList.add(Arrays.asList((Object) idBarcode, imageBytes));
                                     }
@@ -242,11 +243,11 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return Arrays.asList(imagesList, userPriceListsList);
     }
 
-    private byte[] getImage(NetLayer lowerNetLayer, String barcode, String mainPage, String smallImage) {
+    private RawFileData getImage(NetLayer lowerNetLayer, String barcode, String mainPage, String smallImage) {
         File imageItem = null;
         try {
             imageItem = readImage(lowerNetLayer, mainPage, smallImage);
-            byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
+            RawFileData imageBytes = imageItem == null ? null : new RawFileData(imageItem);
             ServerLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : smallImage == null ? "no image found" : "image read failed") + " for barcode " + barcode);
             return imageBytes;
         } catch (IOException e) {

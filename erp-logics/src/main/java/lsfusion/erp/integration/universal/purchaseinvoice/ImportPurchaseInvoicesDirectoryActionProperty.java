@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -77,7 +78,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                             findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(newContext, invoiceObject,
-                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
+                                                    importTypeObject, new RawFileData(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
                                                     completeIdItemAsEAN, false, false);
 
                                             if (importResult != IMPORT_RESULT_ERROR)

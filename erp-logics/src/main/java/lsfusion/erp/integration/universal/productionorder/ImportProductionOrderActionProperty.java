@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -71,19 +72,14 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                        makeImport(context, orderObject, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension, operationObject);
 
-                        for (byte[] file : fileList) {
-
-                            makeImport(context, orderObject, importColumns, file, settings, fileExtension, operationObject);
-
-                            context.apply();
-                            
-                            findAction("formRefresh[]").execute(context);
-                        }
+                        context.apply();
+                        
+                        findAction("formRefresh[]").execute(context);
                     }
                 }
             }
@@ -95,7 +91,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
+    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
             throws ParseException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
@@ -284,8 +280,8 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return false;
     }
 
-    public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns, 
-                                                                  byte[] file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
+    public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
+                                                            RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
             throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList;
@@ -318,14 +314,14 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return orderDetailsList;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromXLS(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+    private List<ProductionOrderDetail> importOrdersFromXLS(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
 
-        HSSFWorkbook wb = new HSSFWorkbook(new ByteArrayInputStream(importFile));
+        HSSFWorkbook wb = new HSSFWorkbook(importFile.getInputStream());
         FormulaEvaluator formulaEvaluator = new HSSFFormulaEvaluator(wb);
         HSSFSheet sheet = wb.getSheetAt(0);
 
@@ -355,14 +351,14 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromCSV(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+    private List<ProductionOrderDetail> importOrdersFromCSV(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                            List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         
-        BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "utf-8"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream(), "utf-8"));
         String line;
         
         List<String[]> valuesList = new ArrayList<>();
@@ -396,14 +392,14 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromXLSX(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
-                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, 
+    private List<ProductionOrderDetail> importOrdersFromXLSX(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                              Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         
-        XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
+        XSSFWorkbook Wb = new XSSFWorkbook(importFile.getInputStream());
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
@@ -432,7 +428,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         return result;
     }
 
-    private List<ProductionOrderDetail> importOrdersFromDBF(byte[] importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<ProductionOrderDetail> importOrdersFromDBF(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, DataObject orderObject) throws IOException, xBaseJException, UniversalImportException {
 
@@ -443,7 +439,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         try {
 
             tempFile = File.createTempFile("productionOrder", ".dbf");
-            IOUtils.putFileBytes(tempFile, importFile);
+            importFile.write(tempFile);
 
             file = new DBF(tempFile.getPath());
             String charset = getDBFCharset(tempFile);

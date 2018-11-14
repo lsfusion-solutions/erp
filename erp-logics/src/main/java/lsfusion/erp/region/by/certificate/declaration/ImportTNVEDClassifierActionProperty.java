@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.IOUtils;
+import lsfusion.base.RawFileData;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.DateClass;
@@ -14,7 +15,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
@@ -43,22 +43,18 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
                 context.apply();
             }
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
-
-                for (byte[] file : fileList) {
-                    importGroups(context, file);
-                    importParents(context, file);
-                }
+                importGroups(context, (RawFileData) objectValue.getValue());
+                importParents(context, (RawFileData) objectValue.getValue());
             }
         } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void importGroups(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importGroups(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
 
@@ -67,7 +63,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         try {
 
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, fileBytes);
+            fileBytes.write(tempFile);
 
             dbfFile = new DBF(tempFile.getPath());
             int recordCount = dbfFile.getRecordCount();
@@ -129,14 +125,14 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         }
     }
 
-    private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importParents(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         File tempFile = null;
         DBF file = null;
         try {
             tempFile = File.createTempFile("tempTnved", ".dbf");
-            IOUtils.putFileBytes(tempFile, fileBytes);
+            fileBytes.write(tempFile);
 
             file = new DBF(tempFile.getPath());
 

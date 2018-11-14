@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
+import lsfusion.base.RawFileData;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
@@ -80,13 +81,13 @@ public class EVATActiveXHandler {
     private List<Object> sendFile(List<Object> fileNumberEntry, Long evat, Dispatch service, File archiveDir, String xsdPath)
             throws Exception {
         List<Object> result = null;
-        byte[] file = (byte[]) fileNumberEntry.get(0);
+        RawFileData file = (RawFileData) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
         File originalFile = null;
         try {
             logger.info(String.format("EVAT %s: save file before sending", number));
             originalFile = archiveDir == null ? File.createTempFile("EVAT", ".xml") : new File(archiveDir, "EVAT" + evat + ".xml");
-            FileUtils.writeByteArrayToFile(originalFile, file);
+            file.write(originalFile);
 
             // Создание электронного документа
             Dispatch invVatXml = Dispatch.get(service, "createEDoc").toDispatch();

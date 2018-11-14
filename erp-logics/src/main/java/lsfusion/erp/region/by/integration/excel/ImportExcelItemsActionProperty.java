@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
+import lsfusion.base.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Item;
@@ -34,29 +35,23 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы таблиц", "xls");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы таблиц", "xls");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
-                List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                ImportData importData = new ImportData();
 
-                for (byte[] file : fileList) {
+                boolean onlyEAN = findProperty("importItemsOnlyEAN[]").read(context) != null;
 
-                    ImportData importData = new ImportData();
+                importData.setItemsList(importItems((RawFileData) objectValue.getValue(), onlyEAN));
 
-                    boolean onlyEAN = findProperty("importItemsOnlyEAN[]").read(context) != null;
-
-                    importData.setItemsList(importItems(file, onlyEAN));
-
-                    new ImportActionProperty(LM).makeImport(importData, context);
-
-                }
+                new ImportActionProperty(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException| ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    protected static List<Item> importItems(byte[] file, boolean onlyEAN) throws IOException, BiffException, ParseException {
+    protected static List<Item> importItems(RawFileData file, boolean onlyEAN) throws IOException, BiffException, ParseException {
 
         Sheet sheet = getSheet(file, 21);
 

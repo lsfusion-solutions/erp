@@ -1,5 +1,6 @@
 package equ.srv.terminal;
 
+import lsfusion.base.RawFileData;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.session.DataSession;
@@ -18,7 +19,7 @@ public interface TerminalHandlerInterface {
 
     String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException;
 
-    byte[] readBase(DataSession session, DataObject userObject) throws RemoteException, SQLException;
+    RawFileData readBase(DataSession session, DataObject userObject) throws RemoteException, SQLException;
 
     String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin) throws RemoteException, SQLException;
 

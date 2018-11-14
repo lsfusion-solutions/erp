@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.RawFileData;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ public class CreateExcelTemplateItemsActionProperty extends CreateExcelTemplateA
     }
 
     @Override
-    public Map<String, byte[]> createFile() throws IOException, WriteException {
+    public Map<String, RawFileData> createFile() throws IOException, WriteException {
         return createFile("importItemsTemplate",
                 Arrays.asList("Код товара", "Код группы", "Наименование",
                         "Код ед.изм.", "Название бренда", "Код бренда", "Страна", "Штрихкод", "Дата", "Весовой",
