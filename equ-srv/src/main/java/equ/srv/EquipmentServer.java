@@ -574,7 +574,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, null, extraPercent,
-                                retailPrice));
+                                retailPrice, null));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,

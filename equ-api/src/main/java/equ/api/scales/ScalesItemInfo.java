@@ -12,12 +12,13 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer descriptionNumber;
     public BigDecimal extraPercent;
     public BigDecimal retailPrice;
+    public Integer imagesCount;
 
     public ScalesItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem,
                           Integer daysExpiry, Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
                           Integer flags, String idItemGroup, String canonicalNameSkuGroup, Integer hoursExpiry,
                           Integer labelFormat, String description, Integer descriptionNumber, String idUOM,
-                          String shortNameUOM, String info, BigDecimal extraPercent, BigDecimal retailPrice) {
+                          String shortNameUOM, String info, BigDecimal extraPercent, BigDecimal retailPrice, Integer imagesCount) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags,
                 idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info);
         this.hoursExpiry = hoursExpiry;
@@ -26,5 +27,6 @@ public class ScalesItemInfo extends ItemInfo {
         this.descriptionNumber = descriptionNumber;
         this.extraPercent = extraPercent;
         this.retailPrice = retailPrice;
+        this.imagesCount = imagesCount;
     }
 }
