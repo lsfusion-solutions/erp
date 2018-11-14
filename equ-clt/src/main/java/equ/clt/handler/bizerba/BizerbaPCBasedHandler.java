@@ -1,5 +1,6 @@
 package equ.clt.handler.bizerba;
 
+import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.StopListInfo;
@@ -11,18 +12,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class BizerbaBSHandler extends BizerbaHandler {
+public class BizerbaPCBasedHandler extends BizerbaHandler {
 
-    protected String charset = "cp866";
-    protected boolean encode = true;
+    protected String charset = "utf-8";
+    protected boolean encode = false;
 
-    public BizerbaBSHandler(FileSystemXmlApplicationContext springContext) {
+    public BizerbaPCBasedHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext);
     }
 
     @Override
     protected String getModel() {
-        return "bizerbabs";
+        return "bizerbapc";
     }
 
     @Override
@@ -36,7 +37,7 @@ public class BizerbaBSHandler extends BizerbaHandler {
     }
 
     @Override
-    protected String getPricesCommand(int price, int retailPrice, boolean notInvertPrices) {
-        return notInvertPrices ? super.getPricesCommand(price, retailPrice, true) : ("GPR1" + price + separator + "EXPR" + retailPrice + separator);
+    protected String getIdItemGroup(ItemInfo item) {
+        return item.idItemGroup;
     }
 }

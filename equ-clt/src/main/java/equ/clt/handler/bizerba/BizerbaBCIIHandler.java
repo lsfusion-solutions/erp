@@ -22,8 +22,9 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
         super(springContext);
     }
 
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return getGroupId(springContext, transactionInfo, "bizerbabcii");
+    @Override
+    protected String getModel() {
+        return "bizerbabcii";
     }
 
     @Override

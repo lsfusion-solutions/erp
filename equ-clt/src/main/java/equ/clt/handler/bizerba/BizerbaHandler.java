@@ -41,7 +41,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected static final int[] encoders1 = new int[]{65, 192, 66, 193, 194, 69, 195, 197, 198, 199, 75, 200, 77, 72, 79, 201, 80, 67, 84, 202, 203, 88, 208, 209, 210, 211, 212, 213, 215, 216, 217, 218, 97, 224, 236, 225, 226, 101, 227, 229, 230, 231, 237, 232, 238, 239, 111, 233};
     protected static final int[] encoders2 = new int[]{112, 99, 253, 234, 235, 120, 240, 241, 242, 243, 244, 245, 247, 248, 249, 250};
 
-    private static int BIZERBABS_Group = 1;
     protected static char separator = '\u001b';
     protected static String endCommand = separator + "BLK " + separator;
 
@@ -51,7 +50,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
         this.springContext = springContext;
     }
 
-    protected String getGroupId(FileSystemXmlApplicationContext springContext, TransactionScalesInfo transactionInfo, String model) {
+    @Override
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
+        String model = getModel();
         ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
         boolean allowParallel = bizerbaSettings == null || bizerbaSettings.isAllowParallel();
         if (allowParallel) {
@@ -394,7 +395,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         processStopListLogger.info(String.format("Bizerba: clearing plu %s", plu));
         String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
                 + "PNUM" + plu + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
-                + "GPR10" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + plu + separator
+                + "GPR10" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + plu + separator
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
                 + endCommand;
         clearReceiveBuffer(port);
@@ -541,7 +542,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
             Integer tareWeight = 0;
             Integer tarePercent = getTarePercent(item);
-            command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
+            command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + idBarcode
                     + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
                     + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
             if (!command2.isEmpty()) {
@@ -563,8 +564,14 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return price == null ? 0 : price.multiply(BigDecimal.valueOf(100)).intValue();
     }
 
+    protected abstract String getModel();
+
     public Integer getTarePercent(ScalesItemInfo item) {
         return 0;
+    }
+
+    protected String getIdItemGroup(ItemInfo item) {
+        return "1";
     }
 
     private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {

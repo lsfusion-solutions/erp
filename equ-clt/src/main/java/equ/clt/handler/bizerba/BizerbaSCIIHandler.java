@@ -20,8 +20,9 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
         super(springContext);
     }
 
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return getGroupId(springContext, transactionInfo, "bizerbascii");
+    @Override
+    protected String getModel() {
+        return "bizerbascii";
     }
 
     @Override
