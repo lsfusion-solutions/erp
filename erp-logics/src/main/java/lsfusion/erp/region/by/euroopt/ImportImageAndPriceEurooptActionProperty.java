@@ -118,7 +118,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
         ImportField idOperationField = new ImportField(findProperty("id[PriceList.Operation]"));
         ImportKey<?> operationKey = new ImportKey((CustomClass) findClass("PriceList.Operation"),
-                findProperty("operation[VARISTRING[100]]").getMapping(idOperationField));
+                findProperty("PriceList.operation[VARISTRING[100]]").getMapping(idOperationField));
         keys.add(operationKey);
         props.add(new ImportProperty(idOperationField, findProperty("operation[PriceList]").getMapping(userPriceListKey),
                 object(findClass("PriceList.Operation")).getMapping(operationKey)));
