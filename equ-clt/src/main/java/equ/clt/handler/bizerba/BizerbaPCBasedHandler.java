@@ -49,7 +49,7 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
         if(item.imagesCount != null) {
             for (int i = 1; i <= item.imagesCount; i++) {
                 Integer pluNumber = getPluNumber(item);
-                String image = String.valueOf(pluNumber) + i + ".jpg";
+                String image = item.idItem + "_" + i + ".jpg"; //String.valueOf(pluNumber) + i + ".jpg";
                 String message = "MDST  " + separator + getCancelFlag(0) + separator + "MDK1" + pluNumber + separator + "MDK2" + 1 + separator + "MDK3" + 1
                         + separator + "TABB" + "PLST" + separator + "MDLN" + i + separator + "MTYP" + 1 + separator + "MDAT" + image + endCommand;
                 clearReceiveBuffer(port);
