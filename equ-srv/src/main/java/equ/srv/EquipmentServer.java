@@ -365,6 +365,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
                     skuQuery.addProperty("extraPercent", scalesItemLM.findProperty("extraPercent[MachineryPriceTransaction, Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("imagesCount", scalesItemLM.findProperty("imagesCount[Barcode]").getExpr(barcodeExpr));
                 }
                 
                 if (machineryPriceTransactionStockTaxLM != null) {
@@ -570,11 +571,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
 
                         BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
+                        Integer imagesCount = (Integer) row.get("imagesCount");
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, null, extraPercent,
-                                retailPrice, null));
+                                retailPrice, imagesCount));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
