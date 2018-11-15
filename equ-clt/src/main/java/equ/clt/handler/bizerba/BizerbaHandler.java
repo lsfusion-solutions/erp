@@ -31,6 +31,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     //Таблица ATST – список всех доп.текстов
     //Таблица ETST – общие настройки этикеток.
     //Таблица FOST – этикетки BLD.
+    //Таблица MDST - изображения
 
     //Errors
     //1615: кончилась память под состав. Очистить и записать заново
@@ -262,7 +263,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return result;
     }
 
-    private void clearReceiveBuffer(TCPPort port) {
+    protected void clearReceiveBuffer(TCPPort port) {
         while (true) {
             try {
                 if (port.getBisStream().available() > 0) {
@@ -324,7 +325,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }*/
 
-    private Integer getPluNumber(ItemInfo itemInfo) {
+    protected Integer getPluNumber(ItemInfo itemInfo) {
         return getPluNumber(null, itemInfo);
     }
 
@@ -337,7 +338,11 @@ public abstract class BizerbaHandler extends ScalesHandler {
         }
     }
 
-    private void sendCommand(List<String> errors, TCPPort port, String command, String charset, String ip, boolean encode) throws CommunicationException, IOException {
+    protected String getCancelFlag(Integer flag) {
+        return "WALO" + flag; //Cancel flag: 0= record is modified or created; 1= record is deleted
+    }
+
+    protected void sendCommand(List<String> errors, TCPPort port, String command, String charset, String ip, boolean encode) {
         try {
             byte[] commandBytes = command.getBytes(charset);
             if(encode)
@@ -383,7 +388,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     }
 
     private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber, String charset, boolean encode) throws CommunicationException, IOException {
-        String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator + "ATNU" + messageNumber + endCommand;
+        String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator + "ATNU" + messageNumber + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, scales.port, encode);
         String result = receiveReply(errors, port, charset, scales.port);
@@ -393,7 +398,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
     public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
         Integer plu = getPluNumber(scales, item);
         processStopListLogger.info(String.format("Bizerba: clearing plu %s", plu));
-        String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + "WALO1" + separator
+        String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator
                 + "PNUM" + plu + separator + "ABNU1" + separator + "ANKE0" + separator + "KLAR1" + separator
                 + "GPR10" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + plu + separator
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
@@ -408,7 +413,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
             messageText = messageText == null ? "" : messageText;
-            String message = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
+            String message = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
             clearReceiveBuffer(port);
             sendCommand(errors, port, message, charset, ip, encode);
             String result = receiveReply(errors, port, charset, ip);
@@ -417,7 +422,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 return result;
             }
         }
-        return "0";
+        return null;
     }
 
     private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
@@ -472,88 +477,92 @@ public abstract class BizerbaHandler extends ScalesHandler {
         boolean manualWeight = false;
 
         Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, charset, encode);
-        String messagesResult = loadPLUMessages(errors, port, scales, messageMap, item, charset, scales.port, encode);
-        if(!messagesResult.equals("0")) {
-            return messagesResult;
-        } else {
-            int i = 0;
-            String altCommand = "";
-            for (Integer messageNumber : messageMap.keySet()) {
-                if (i < 4) {
-                    altCommand += "ALT" + (i + 1) + messageNumber + separator;
-                }
-                if (i < 10) {
-                    command2 += "@" + makeString(messageNumber);
-                }
-                i++;
-            }
-
-            for (int count = i; count < 10; count++) {
-                command2 += "@00@00@00@00";
-            }
-
-            byte priceOverflow = 0;
-            int price = getPrice(item.price);
-            if (price > 999999) {
-                price = Math.round((float) (price / 10));
-                priceOverflow = 1;
-            }
-            if (price > 999999 || price < 0) {
-                logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
-            }
-
-            int retailPrice = getPrice(item.retailPrice);
-            if (retailPrice > 999999) {
-                retailPrice = Math.round((float) (retailPrice / 10));
-            }
-            if (retailPrice > 999999 || retailPrice < 0) {
-                logError(errors, String.format("Bizerba: IP %s PLU retail price is invalid. Retail price is %s (item: %s)", scales.port, retailPrice, item.idItem));
-            } else if(retailPrice == 0)
-                retailPrice = price;
-
-            if (pluNumber <= 0 || pluNumber > 999999) {
-                return "0";
-            }
-
-            if (item.daysExpiry == null)
-                item.daysExpiry = 0;
-
-            if (item.daysExpiry > 999 || item.daysExpiry < 0) {
-                item.daysExpiry = 0;
-//            logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
-//          пока временно не грузим
-            }
-
-            String command1 = "PLST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
-            boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
-            if (!manualWeight) {
-                if (nonWeight) {
-                    command1 = command1 + "KLAR1" + separator;
-                } else {
-                    command1 = command1 + "KLAR0" + separator;
-                }
-            } else {
-                command1 = command1 + "KLAR4" + separator;
-            }
-
-            command1+= getPricesCommand(price, retailPrice, notInvertPrices);
-
-            String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
-            String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
-            Integer tareWeight = 0;
-            Integer tarePercent = getTarePercent(item);
-            command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + idBarcode
-                    + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
-                    + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
-            if (!command2.isEmpty()) {
-                command1 = command1 + command2 + separator;
-            }
-
-            command1 = command1 + "BLK " + separator;
-            clearReceiveBuffer(port);
-            sendCommand(errors, port, command1, charset, scales.port, encode);
-            return receiveReply(errors, port, charset, scales.port);
+        String result = loadPLUMessages(errors, port, scales, messageMap, item, charset, scales.port, encode);
+        if(result != null) {
+            return result;
         }
+        result = loadImages(errors, scales, port, item);
+        if(result != null) {
+            return result;
+        }
+
+        int i = 0;
+        String altCommand = "";
+        for (Integer messageNumber : messageMap.keySet()) {
+            if (i < 4) {
+                altCommand += "ALT" + (i + 1) + messageNumber + separator;
+            }
+            if (i < 10) {
+                command2 += "@" + makeString(messageNumber);
+            }
+            i++;
+        }
+
+        for (int count = i; count < 10; count++) {
+            command2 += "@00@00@00@00";
+        }
+
+        byte priceOverflow = 0;
+        int price = getPrice(item.price);
+        if (price > 999999) {
+            price = Math.round((float) (price / 10));
+            priceOverflow = 1;
+        }
+        if (price > 999999 || price < 0) {
+            logError(errors, String.format("Bizerba: IP %s PLU price is invalid. Price is %s (item: %s)", scales.port, price, item.idItem));
+        }
+
+        int retailPrice = getPrice(item.retailPrice);
+        if (retailPrice > 999999) {
+            retailPrice = Math.round((float) (retailPrice / 10));
+        }
+        if (retailPrice > 999999 || retailPrice < 0) {
+            logError(errors, String.format("Bizerba: IP %s PLU retail price is invalid. Retail price is %s (item: %s)", scales.port, retailPrice, item.idItem));
+        } else if(retailPrice == 0)
+            retailPrice = price;
+
+        if (pluNumber <= 0 || pluNumber > 999999) {
+            return "0";
+        }
+
+        if (item.daysExpiry == null)
+            item.daysExpiry = 0;
+
+        if (item.daysExpiry > 999 || item.daysExpiry < 0) {
+            item.daysExpiry = 0;
+            //logError(errors, String.format("PLU expired is invalid. Expired is %s (item: %s)", item.daysExpiry, item.idItem));
+            //пока временно не грузим
+        }
+
+        String command1 = "PLST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
+        boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+        if (!manualWeight) {
+            if (nonWeight) {
+                command1 = command1 + "KLAR1" + separator;
+            } else {
+                command1 = command1 + "KLAR0" + separator;
+            }
+        } else {
+            command1 = command1 + "KLAR4" + separator;
+        }
+
+        command1+= getPricesCommand(price, retailPrice, notInvertPrices);
+
+        String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
+        String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
+        Integer tareWeight = 0;
+        Integer tarePercent = getTarePercent(item);
+        command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + getIdItemGroup(item) + separator + "ECO1" + idBarcode
+                + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
+                + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
+        if (!command2.isEmpty()) {
+            command1 = command1 + command2 + separator;
+        }
+
+        command1 = command1 + "BLK " + separator;
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, command1, charset, scales.port, encode);
+        return receiveReply(errors, port, charset, scales.port);
     }
 
     protected String getPricesCommand(int price, int retailPrice, boolean notInvertPrices) {
@@ -572,6 +581,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
     protected String getIdItemGroup(ItemInfo item) {
         return "1";
+    }
+
+    protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItemInfo item) throws CommunicationException {
+        return null;
     }
 
     private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
