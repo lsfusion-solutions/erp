@@ -58,7 +58,7 @@ importArticleXLS 'Импорт (xlsx)' (PromotionCondition c)  {
     LOCAL price = NUMERIC[16,4] (INTEGER);
     
     INPUT f = EXCELFILE DO {
-        IMPORT XLS FROM f AS EXCELFILE TO article = A, price = B;
+        IMPORT XLS NOHEADER FROM f AS EXCELFILE TO article = A, price = B;
         FOR imported(INTEGER r) DO {
             in(c, Article a) <- TRUE WHERE id(a) == article(r);
             resultPrice(c, Sku s) <- price(r) WHERE id(article(s)) == article(r) AND price(r) > 0.0;
@@ -74,7 +74,7 @@ removeArticleXLS 'Исключить из акции (xlsx)' (PromotionCondition
     LOCAL count = INTEGER(); 
     
     INPUT f = EXCELFILE DO {
-        IMPORT XLS FROM f AS EXCELFILE TO article = A;
+        IMPORT XLS NOHEADER FROM f AS EXCELFILE TO article = A;
         count() <- (GROUP SUM 1 IF in(c, article(article(INTEGER r))) AND imported(r));
 
         FOR imported(INTEGER r) DO {
