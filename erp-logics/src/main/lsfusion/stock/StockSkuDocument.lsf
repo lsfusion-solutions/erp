@@ -455,10 +455,20 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         FILTERS stringEqualsAll(a),
                 stockGroup(ts) == sg
         FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+        
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
         ORDER order(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+        OBJECTS gt = GroupType PANEL
+        PROPERTIES(gt) SELECTOR name
+
+        TREE skuTreeX sx = Group PARENT parent
+        PROPERTIES order(sx) READONLY, name(sx)
+        ORDER order(sx), name(sx)
+        FILTERS groupType(sx) == gt
+        FILTERGROUP inactiveX FILTER 'Активные' active(sx) 'F5' DEFAULT
 
         OBJECTS           sst=Stock
         OBJECTS           sts=(st=Stock, ks=Sku) GRID
@@ -489,6 +499,8 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
     DESIGN form {
         REMOVE BOX(sst);
         mainTabbed {
+            REMOVE BOX(TREE skuTreeX);
+            REMOVE BOX(gt);
             NEW itemBox {
                 caption = 'Подбор';
                 type = SPLITH;
