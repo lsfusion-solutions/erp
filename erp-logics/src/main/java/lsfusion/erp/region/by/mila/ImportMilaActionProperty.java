@@ -130,9 +130,13 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
         for (int i = 1; i <= n2; ++i) {
             if ((maxPage > 0) && (i > maxPage)) break;
             c_url = url + "?PAGEN_1=" + Integer.toString(i);
-            ServerLoggers.importLogger.info(c_url);
-            lRet = getGoods(c_url, i, tmpFile);
-            if (!lRet) break;
+            int attempt = 0;
+            do {
+                attempt++;
+                if (attempt > 10) break;
+                ServerLoggers.importLogger.info(c_url);
+                lRet = getGoods(c_url, i, tmpFile);
+            } while (!lRet);
         }
         return lRet;
     }
