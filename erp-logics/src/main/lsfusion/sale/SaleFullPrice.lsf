@@ -27,12 +27,10 @@ recalculateDiscountPrice(UserOrderDetail d)  {
 // заполнение полной цены 
 fullPrevList (priceListType, userOrderDetail) = ABSTRACT CASE NUMERIC[16,4] (PriceListType, UserOrderDetail); 
 fullPrevList (PriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN priceListType IS PriceListType AND sku(userOrderDetail) THEN  
-                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
-                                                        sku(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
+                                                     prevPriceB(priceListType, sku(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
 
 fullPrevList (PriceListType priceListType, UserOrderDetail userOrderDetail) += WHEN priceListType IS PriceListType AND batch(userOrderDetail) THEN
-                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
-                                                        batch(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
+                                                     prevPriceB(priceListType, batch(userOrderDetail), priceStock(userOrderDetail), dateTime(userOrderDetail));
                                                         
 disableUpdateOrderFullPrice = ABSTRACT VALUE BOOLEAN (UserOrderDetail);                                                        
 
@@ -62,17 +60,6 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
     recalculateDiscountPrice(d);
 }
 
-// заполнение % скидки из соглашения
-WHEN LOCAL FORMS userOrder CHANGED(agreement(UserOrder o)) AND NOT CHANGED(percDiscount(o)) AND CalcPriceListType pt == priceListType(agreement(o)) DO {
-    percDiscount(o) <- -nearestMarkup(pt, itemGroup('all'));
-}
-WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]  
-        (CHANGED(sku(UserOrderDetail d)) OR CHANGED(agreement(d))) AND isItem(sku(d)) 
-        AND NOT CHANGED(dataPercDiscount(d)) 
-        AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
-    dataPercDiscount(d) <- -dataMarkup(pt,sku(d)); 
-}
-
 // при изменении % скидки пересчитывается цена 
 WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail] 
         (CHANGED(percDiscount(UserOrderDetail d)))
@@ -97,9 +84,9 @@ overRecalculateFullPrice  ABSTRACT LIST ( UserOrderDetail);
 
 recalculateFullPriceUserOrderDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserOrderDetail d) AND isItem(sku(d)) AND [ FILTER userOrder.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), priceStock(d), dateTime(d))); 
+        fullPrice(d) <- IF prevPriceB(pt, sku(d), customerStock(d), dateTime(d)) 
+                    THEN round2(prevPriceB(pt, sku(d), customerStock(d), dateTime(d)))
+                    ELSE round2(prevPriceB(pt, sku(d), priceStock(d), dateTime(d))); 
         overRecalculateFullPrice(d);               
     }
 } ASON CONTEXTMENU fullPrice[UserOrderDetail];
@@ -118,8 +105,6 @@ EXTEND FORM userOrder
 EXTEND FORM orders
     PROPERTIES (d) READONLY  SHOWIF showFullPrice(o) BEFORE price(d) fullPrice, percDiscount
 ;
-
-skipSetAgreement(UserOrder o) += priceListType(agreement(o)) IS CalcPriceListType;
 
 overCopy (UserOrder o, UserOrder order) + { 
     percDiscount(order) <- percDiscount(o);  
@@ -154,12 +139,10 @@ recalculateDiscountPrice(UserInvoiceDetail d)  {
 // заполнение полной цены 
 fullPrevList = ABSTRACT CASE NUMERIC[16,4] (PriceListType, UserInvoiceDetail); 
 fullPrevList (PriceListType priceListType, UserInvoiceDetail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
-                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
-                                                        sku(detail), supplierStock(detail), dateTime(detail));
+                                                     prevPriceB(priceListType, sku(detail), supplierStock(detail), dateTime(detail));
 
 fullPrevList (PriceListType priceListType, UserInvoiceDetail detail) += WHEN priceListType IS PriceListType AND batch(detail) THEN
-                                                     prevPriceB((OVERRIDE basePriceListType(priceListType), priceListType), 
-                                                        batch(detail), supplierStock(detail), dateTime(detail));
+                                                     prevPriceB(priceListType, batch(detail), supplierStock(detail), dateTime(detail));
                                                         
 disableUpdateInvoiceFullPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);                                                        
 
@@ -182,7 +165,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail]
 }
 
 // при изменении полной цены пересчитывается цена 
-WHEN LOCAL //FORMS userInvoice 
+WHEN LOCAL FORMS userInvoice 
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
@@ -190,20 +173,8 @@ WHEN LOCAL //FORMS userInvoice
     recalculateDiscountPrice(d);
 }
 
-// заполнение % скидки из соглашения
-WHEN LOCAL FORMS userInvoice CHANGED(agreement(UserInvoice o)) AND NOT CHANGED(percDiscount(o)) AND CalcPriceListType pt == priceListType(agreement(o)) DO {
-    percDiscount(o) <- -nearestMarkup(pt, itemGroup('all'));
-}
-WHEN LOCAL //FORMS userInvoice 
-        GOAFTER valueVAT[UserOrderDetail] 
-        (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(agreement(d))) AND isItem(sku(d)) 
-        AND NOT CHANGED(dataPercDiscount(d)) 
-        AND CalcPriceListType pt == priceListType(d) AND isItem(sku(d)) NOINLINE (pt) DO {
-    dataPercDiscount(d) <- -dataMarkup(pt,sku(d)); 
-}
-
 // при изменении % скидки пересчитывается цена 
-WHEN LOCAL //FORMS userInvoice 
+WHEN LOCAL FORMS userInvoice 
         GOAFTER fullPrice[UserInvoiceDetail] 
         (CHANGED(percDiscount(UserInvoiceDetail d)))
          AND NOT CHANGED(price(d)) 
@@ -227,9 +198,9 @@ overRecalculateFullPrice  ABSTRACT LIST ( UserInvoiceDetail);
 
 recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [ FILTER userInvoice.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- IF prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB((OVERRIDE basePriceListType(pt), pt), sku(d), supplierStock(d), dateTime(d)));    
+        fullPrice(d) <- IF prevPriceB(pt, sku(d), customerStock(d), dateTime(d)) 
+                    THEN round2(prevPriceB(pt, sku(d), customerStock(d), dateTime(d)))
+                    ELSE round2(prevPriceB(pt, sku(d), supplierStock(d), dateTime(d)));    
         overRecalculateFullPrice(d);               
     }
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
@@ -249,8 +220,6 @@ skipEqualAgreements = ABSTRACT BOOLEAN (UserInvoice);
 
 CONSTRAINT agreement(Order o) != agreement(UserInvoice i) AND include(o,i) AND NOT skipEqualAgreements(i)
     CHECKED BY agreement[UserInvoice] MESSAGE 'Соглашения в заказе и накладной должны совпадать';
-
-skipSetAgreement(UserInvoice i) += priceListType(agreement(i)) IS CalcPriceListType;
 
 overFill (UserInvoice i, Order o) + { 
     percDiscount(i) <- percDiscount(o);
