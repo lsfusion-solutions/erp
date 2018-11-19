@@ -254,7 +254,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return "-1";
     }
 
-    private String zeroedInt(int value, int len) {
+    protected String zeroedInt(int value, int len) {
         String result = String.valueOf(value);
         if (result.length() > len)
             result = result.substring(0, len);
