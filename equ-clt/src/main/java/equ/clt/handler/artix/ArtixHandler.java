@@ -605,6 +605,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
         //так что пока ищем во всех подпапках + в подпапках в папке online.
         //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
+        int totalFilesCount = 0;
         for (File dir : getSoftCheckDirectories(directorySet)) {
             File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
@@ -613,6 +614,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             });
             if (filesList != null) {
+                totalFilesCount += filesList.length;
+                Arrays.sort(filesList, new Comparator<File>() {
+                    public int compare(File f1, File f2) {
+                        return Long.compare(f1.lastModified(), f2.lastModified());
+                    }
+                });
                 int directoryFilesCount = 0;
                 for (File file : filesList) {
                     if ((maxFilesCount == null || files.size() <= maxFilesCount) && (maxFilesDirectoryCount == null || directoryFilesCount < maxFilesDirectoryCount)) {
@@ -628,9 +635,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         readFiles = new HashSet<>(files);
 
         if (files.isEmpty())
-            softCheckLogger.info(logPrefix + "No soft check files found");
+            softCheckLogger.info(logPrefix + "No sale files found");
         else {
-            softCheckLogger.info(String.format(logPrefix + "found %s soft check file(s)", files.size()));
+            softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, files.size()));
 
             for (File file : files) {
                 if (!Thread.currentThread().isInterrupted()) {
