@@ -9,15 +9,17 @@ NAMESPACE Stock;
 VAT 'НДС' = ABSTRACT Range (Sku, Country);
 valueVAT 'НДС, %' (Sku sku, Country country, DATE date) = valueRate(VAT(sku, country), date);
 
+valueVAT (Sku sku, Country country) = valueRate(VAT(sku, country)) MATERIALIZED;
+
 VAT 'НДС' (Sku s, Stock st) = VAT(s, country(st));
 valueVAT 'НДС, %' (Sku s, Stock st, DATE d) = valueVAT(s, country(st), d);
 
-valueVAT 'НДС, %' (Sku s, Stock st) = valueVAT(s, st, currentDate()); 
+valueVAT 'НДС, %' (Sku s, Stock st) = valueVAT(s, country(st)); 
 
 VAT 'НДС' (Sku s) = VAT(s, defaultCountry()) MATERIALIZED;
 
 valueVAT 'НДС, %' (Sku s, DATE date) = valueRate(VAT(s), date);
-valueVAT 'НДС, %' (Sku s) = valueVAT(s, currentDate());
+valueVAT 'НДС, %' (Sku s) = valueVAT(s, defaultCountry()) MATERIALIZED;
 
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp,  skuProp, stockProp)
     prefixP##VAT(###concrete##Detail detail) <- VAT (skuProp(detail), country(stockProp(detail)))

@@ -379,8 +379,8 @@ META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp, dateTimePro
     price 'Цена' (Sku sku, Stock stock, ###object object) = viewPrice(sku, stock, object);
 
     updateViewPrice (Sku sku, Stock stock, ###object object)  { 
-        FOR PriceListType pt == priceListType(object, sku) AND stock IS Stock NOINLINE (pt) DO
-            viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTimeProp(object));
+        FOR PriceListType pt == priceListType(object, sku) AND (Stock st = IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock) AND stock IS Stock AND DATETIME dt = dateTimeProp(object) NOINLINE (pt, st, dt) DO
+            viewPrice(sku, stock, object) <- prevPriceB(pt, sku, st, dt);
     }
 END
 META defineDocumentSkuStockPriceListTypeSystemLedger(object, stockProp)

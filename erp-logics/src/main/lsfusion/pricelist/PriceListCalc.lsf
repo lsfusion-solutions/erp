@@ -81,9 +81,6 @@ markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
     
 multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) MATERIALIZED;
 
-VAT(CalcPriceListType type, Sku sku, DATE date) = IF addVAT(type) THEN (100.0 + valueVAT(sku, country(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
-
-
 //-- Условие округления
 dataRoundCondition = DATA RoundCondition (CalcPriceListType, Group);
 nameDataRoundCondition 'Условие округления' (CalcPriceListType type, Group group) = name(dataRoundCondition(type, group));
@@ -110,10 +107,11 @@ nameRoundCondition 'Условие округления' (CalcPriceListType type
         
 // --------------- Расчет значения цены --------------- //
 
+multiplierVAT (CalcPriceListType type, Sku sku) = multiplier(type, sku) * (IF addVAT(type) THEN (100.0 + valueVAT(sku, country(type))) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType) MATERIALIZED;
 priceB(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
-    round(priceB(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
+    round(priceB(base, sku, stock, dateTime) * multiplierVAT(type, sku), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
 priceA(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
-    round(priceA(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
+    round(priceA(base, sku, stock, dateTime) * multiplierVAT(type, sku), roundCondition(type, sku)) COMPLEX CHARWIDTH 7;
 
 priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     priceB(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
@@ -121,9 +119,9 @@ priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
     priceA(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
 
 priceB(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    round(priceB(basePriceListType(type), batch, stock, dateTime) * multiplier(type, sku(batch)) * VAT(type, sku(batch), DATE(dateTime)), roundCondition(type, sku(batch))) COMPLEX;
+    round(priceB(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, sku(batch)), roundCondition(type, sku(batch))) COMPLEX;
 priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    round(priceA(basePriceListType(type), batch, stock, dateTime) * multiplier(type, sku(batch)) * VAT(type, sku(batch), DATE(dateTime)) , roundCondition(type, sku(batch))) COMPLEX;
+    round(priceA(basePriceListType(type), batch, stock, dateTime) * multiplierVAT(type, sku(batch)), roundCondition(type, sku(batch))) COMPLEX;
 
 priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
 priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
