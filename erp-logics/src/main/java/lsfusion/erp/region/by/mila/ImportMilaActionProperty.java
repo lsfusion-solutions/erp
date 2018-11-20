@@ -169,7 +169,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                     if (c_class.equals("price-left")) {
                         addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",");
-                        addKeyValue("","price3","0,00",",");
+                        addKeyValue("","price3","0.00",",");
                     } else {
                         addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",");
                         addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",");
@@ -203,7 +203,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             if (c1.length() == 0) {
                 addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
                 addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 0), ",");
-                addKeyValue("", "price3","0,00",",");
+                addKeyValue("", "price3","0.00",",");
             } else {
                 addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
                 addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 1), ",");
@@ -233,10 +233,8 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
     
     private String getPriceValue(Element item, String cExpr, String cAtr, Integer nIndex) {
         String result = getItemValue(item, cExpr, cAtr, nIndex);
-        if (result != null)
-            result = result.replace('.', ',').trim();
         if (result == null || result.isEmpty())
-            result = "0,00";
+            result = "0.00";
         return result;
     }
 
@@ -246,13 +244,13 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 
     //  Возвращает выражение цены
     private String getPrice(String price) {
-        String cRet = "0,00";
+        String cRet = "0.00";
         if (price.contains("руб.")) price = price.substring(0, price.length() - 5);
         price = price.trim();
         if (price.length() > 2)
-            cRet = price.substring(0, price.length() - 2) + "," + price.substring(price.length() - 2);
+            cRet = price.substring(0, price.length() - 2) + "." + price.substring(price.length() - 2);
         if (cRet.isEmpty())
-            cRet = "0,00";
+            cRet = "0.00";
         return cRet.trim();
     }
 
