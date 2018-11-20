@@ -84,9 +84,11 @@ overRecalculateFullPrice  ABSTRACT LIST ( UserOrderDetail);
 
 recalculateFullPriceUserOrderDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserOrderDetail d) AND isItem(sku(d)) AND [ FILTER userOrder.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- IF prevPriceB(pt, sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB(pt, sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB(pt, sku(d), priceStock(d), dateTime(d))); 
+        IF includeVAT(pt) THEN
+            fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));
+        ELSE
+            fullPrice(d) <- fullPrevList(pt, d);
+
         overRecalculateFullPrice(d);               
     }
 } ASON CONTEXTMENU fullPrice[UserOrderDetail];
@@ -165,7 +167,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail]
 }
 
 // при изменении полной цены пересчитывается цена 
-WHEN LOCAL FORMS userInvoice 
+WHEN LOCAL //FORMS userInvoice 
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
@@ -198,9 +200,11 @@ overRecalculateFullPrice  ABSTRACT LIST ( UserInvoiceDetail);
 
 recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  { 
     FOR PriceListType pt == priceListType(UserInvoiceDetail d) AND isItem(sku(d)) AND [ FILTER userInvoice.d](d) NOINLINE (pt) DO {
-        fullPrice(d) <- IF prevPriceB(pt, sku(d), customerStock(d), dateTime(d)) 
-                    THEN round2(prevPriceB(pt, sku(d), customerStock(d), dateTime(d)))
-                    ELSE round2(prevPriceB(pt, sku(d), supplierStock(d), dateTime(d)));    
+        IF includeVAT(pt) THEN
+            fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));
+        ELSE
+            fullPrice(d) <- fullPrevList(pt, d);
+
         overRecalculateFullPrice(d);               
     }
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
