@@ -34,12 +34,11 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
-            SettingsLoya settings = login(context, true);
+            settings = login(context, true);
             if (settings.error == null) {
 
                 Set<Long> existingCategories = readExistingCategories(context);
-                if ((deleteUnexistingCategories(context, settings, existingCategories, logRequests)))
+                if ((deleteUnexistingCategories(context, existingCategories)))
                     context.delayUserInteraction(new MessageClientAction("Удаление несуществующих категорий завершено", "Loya"));
 
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
@@ -67,31 +66,29 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
         return itemGroupSet;
     }
 
-    protected boolean deleteUnexistingCategories(ExecutionContext context, SettingsLoya settings, Set<Long> existingCategories, boolean logRequests) throws IOException, JSONException {
+    protected boolean deleteUnexistingCategories(ExecutionContext context, Set<Long> existingCategories) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
 
         ServerLoggers.importLogger.info("Loya: deleting unexisting categories started");
-        List<Long> categories = getLoyaCategories(context, settings, logRequests);
+        List<Long> categories = getLoyaCategories(context);
         boolean succeeded = true;
         for (Long category : categories) {
-            if (!existingCategories.contains(category) && !deleteCategory(context, settings, category, logRequests)) {
+            if (!existingCategories.contains(category) && !deleteCategory(context, category)) {
                 succeeded = false;
             }
         }
         return succeeded;
     }
 
-    private List<Long> getLoyaCategories(ExecutionContext context, SettingsLoya settings, boolean logRequests) throws IOException, JSONException {
+    private List<Long> getLoyaCategories(ExecutionContext context) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         String requestURL = settings.url + "category";
-        if (logRequests) {
+        if (settings.logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
         }
         HttpGet getRequest = new HttpGet(requestURL);
-        HttpResponse response = executeRequest(getRequest, settings.sessionKey);
-        boolean succeeded = requestSucceeded(response);
-        String responseMessage = getResponseMessage(response);
+        LoyaResponse response = executeRequestWithRelogin(context, getRequest);
         List<Long> categories = new ArrayList<>();
-        if (succeeded) {
-            JSONArray categoriesArray = new JSONArray(responseMessage);
+        if (response.succeeded) {
+            JSONArray categoriesArray = new JSONArray(response.message);
             ServerLoggers.importLogger.info(String.format("Loya: found %s categories", categoriesArray.length()));
             for (int i = 0; i < categoriesArray.length(); i++) {
                 JSONObject category = categoriesArray.getJSONObject(i);
@@ -100,24 +97,23 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
                 }
             }
         } else {
-            context.delayUserInteraction(new MessageClientAction(responseMessage, "Loya: Get Categories Error"));
+            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Get Categories Error"));
         }
         return categories;
     }
 
-    private boolean deleteCategory(ExecutionContext context, SettingsLoya settings, Long categoryId, boolean logRequests) throws IOException {
+    private boolean deleteCategory(ExecutionContext context, Long categoryId) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         ServerLoggers.importLogger.info(String.format("Loya: deleting category %s", categoryId));
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
         String requestBody = "[" + categoryId + "]";
-        if (logRequests) {
+        if (settings.logRequests) {
             ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
         HttpDeleteWithBody request = new HttpDeleteWithBody(requestURL);
         request.setEntity(new StringEntity(requestBody));
-        HttpResponse response = executeRequest(request, settings.sessionKey);
-        boolean succeeded = requestSucceeded(response);
-        if (!succeeded)
-            context.delayUserInteraction(new MessageClientAction(getResponseMessage(response), "Loya: Delete Category Error"));
-        return succeeded;
+        LoyaResponse response = executeRequestWithRelogin(context, request);
+        if (!response.succeeded)
+            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Delete Category Error"));
+        return response.succeeded;
     }
 }

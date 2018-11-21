@@ -26,20 +26,18 @@ public class SynchronizeBrandLoyaActionProperty extends SynchronizeLoyaActionPro
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
-
             DataObject brandObject = context.getDataKeyValue(brandInterface);
             Integer id = (Integer) findProperty("idLoya[Brand]").read(context, brandObject);
             String name = (String) findProperty("name[Brand]").read(context, brandObject);
             Brand brand = new Brand(id, name, brandObject);
 
-            SettingsLoya settings = login(context, false);
+            settings = login(context, false);
             if (settings.error == null) {
-                String result = uploadBrand(context, settings, brand, logRequests, false);
+                String result = uploadBrand(context, brand, false);
                 if(authenticationFailed(result)) {
                     settings = login(context, true);
                     if(settings.error == null) {
-                        uploadBrand(context, settings, brand, logRequests, true);
+                        uploadBrand(context, brand, true);
                     }
                 }
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));

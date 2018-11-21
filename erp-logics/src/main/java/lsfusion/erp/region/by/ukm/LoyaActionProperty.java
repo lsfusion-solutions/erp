@@ -26,6 +26,8 @@ import java.sql.SQLException;
 
 public class LoyaActionProperty extends ScriptingActionProperty {
 
+    protected SettingsLoya settings = null;
+
     public LoyaActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
@@ -44,18 +46,32 @@ public class LoyaActionProperty extends ScriptingActionProperty {
         return ip == null ? null : String.format("http://%s:%s/api/1.0/", ip, port == null ? "" : port);
     }
 
-    protected HttpResponse executeRequest(HttpEntityEnclosingRequestBase request, JSONObject requestBody, String sessionKey) throws IOException {
-        return executeRequest(request, requestBody.toString(), sessionKey);
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpEntityEnclosingRequestBase request, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+        return executeRequestWithRelogin(context, request, requestBody.toString());
     }
 
-    protected HttpResponse executeRequest(HttpEntityEnclosingRequestBase request, String requestBody, String sessionKey) throws IOException {
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpEntityEnclosingRequestBase request, String requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         request.setEntity(new StringEntity(requestBody, "utf-8"));
-        return executeRequest(request, sessionKey);
+        return executeRequestWithRelogin(context, request);
+    }
+
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpRequestBase request) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+        assert settings != null;
+        HttpResponse response = executeRequest(request, settings.sessionKey);
+        String responseMessage = getResponseMessage(response);
+        if(authenticationFailed(responseMessage)) {
+            settings = login(context, true);
+            if(settings.error == null) {
+                response = executeRequest(request, settings.sessionKey);
+                responseMessage = getResponseMessage(response);
+            }
+        }
+        return new LoyaResponse(responseMessage, requestSucceeded(response));
     }
 
     protected HttpResponse executeRequest(HttpRequestBase request, String sessionKey) throws IOException {
-        request.addHeader("content-type", "application/json");
-        request.addHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
+        request.setHeader("content-type", "application/json");
+        request.setHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
         return new DefaultHttpClient().execute(request);
     }
 
@@ -98,6 +114,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
             error = "Собственный ID не задан";
         }
 
+        boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
         String sessionKey = relogin ? null : (String) findProperty("sessionKey[]").read(context);
         if (sessionKey == null) {
 
@@ -133,7 +150,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
                 error = "Не задан email / пароль / api key";
             }
         }
-        return new SettingsLoya(url, partnerId, sessionKey, error);
+        return new SettingsLoya(url, partnerId, sessionKey, logRequests, error);
     }
 
     protected boolean authenticationFailed(String response) {
@@ -146,6 +163,16 @@ public class LoyaActionProperty extends ScriptingActionProperty {
             return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replaceAll("[^0-9]", ""));
         } catch (Exception e) {
             return (long) 0;
+        }
+    }
+
+    protected class LoyaResponse {
+        String message;
+        boolean succeeded;
+
+        public LoyaResponse(String message, boolean succeeded) {
+            this.message = message;
+            this.succeeded = succeeded;
         }
     }
 }

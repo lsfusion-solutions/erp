@@ -31,11 +31,9 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
-
             DataObject itemGroupObject = context.getDataKeyValue(itemGroupInterface);
 
-            SettingsLoya settings = login(context, false);
+            settings = login(context, false);
             if (settings.error == null) {
 
                 boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[ItemGroup]").read(context, itemGroupObject) != null;
@@ -48,11 +46,11 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
                 String name = trimToEmpty((String) findProperty("name[ItemGroup]").read(context, itemGroupObject));
                 Long idParent = parseGroup((String) findProperty("idParent[ItemGroup]").read(context, itemGroupObject));
                 Category category = new Category(overId, name, overId == 0 ? null : idParent);
-                String result = uploadCategory(context, settings, category, discountLimits, logRequests, false);
+                String result = uploadCategory(context, category, discountLimits, false);
                 if(authenticationFailed(result)) {
                     settings = login(context, true);
                     if(settings.error == null) {
-                        result = uploadCategory(context, settings, category, discountLimits, logRequests, true);
+                        result = uploadCategory(context, category, discountLimits, true);
                     }
                 }
                 findProperty("synchronizeItemResult[]").change(result, context);

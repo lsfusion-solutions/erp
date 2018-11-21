@@ -42,13 +42,12 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            boolean logRequests = findProperty("logRequestsLoya[]").read(context) != null;
             boolean useBarcodeAsId = findProperty("useBarcodeAsIdLoya[]").read(context) != null;
             boolean useMinPrice = findProperty("useMinPrice[]").read(context) != null;
 
             DataObject itemObject = context.getDataKeyValue(itemInterface);
 
-            SettingsLoya settings = login(context, false);
+            settings = login(context, false);
             if (settings.error == null) {
 
                 boolean nearestForbidPromotion = findProperty("nearestForbidPromotion[Item]").read(context, itemObject) != null;
@@ -69,11 +68,11 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 Integer idLoyaBrand = (Integer) findProperty("idLoyaBrand[Item]").read(context, itemObject);
                 Item item = new Item(id, caption, idUOM, split, idSkuGroup, idLoyaBrand);
                 List<MinPriceLimit> minPriceLimits = useMinPrice ? readMinPriceLimits(context, itemObject) : null;
-                String result = uploadItem(context, settings, item, discountLimits, minPriceLimits, logRequests, false);
+                String result = uploadItem(context, item, discountLimits, minPriceLimits, false);
                 if(authenticationFailed(result)) {
                     settings = login(context, true);
                     if(settings.error == null) {
-                        result = uploadItem(context, settings, item, discountLimits, minPriceLimits, logRequests, true);
+                        result = uploadItem(context, item, discountLimits, minPriceLimits, true);
                     }
                 }
                 findProperty("synchronizeItemResult[]").change(result, context);
