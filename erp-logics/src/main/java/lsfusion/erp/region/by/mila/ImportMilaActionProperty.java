@@ -81,8 +81,8 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
         String c_class, c_url;
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
-        addKeyValue("{", "title", oRS.doc.title(), ",");
-        addKeyValue("", "groups", "", "[\n");
+        addKeyValue("{", "title", oRS.doc.title(), ",", true);
+        addKeyValue("", "groups", "", "[\n", true);
         int i = 0;
         for (Element item : oRS.doc.getElementsByTag("li")) {
             c_class = getItemValue(item, "li", "class", null);
@@ -92,9 +92,9 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             c_url = baseUrl + c_url;
             i += 1;
             if (i > 1) cResult.append(",\n");
-            addKeyValue("{", "gname", item.text(), ",");
-            addKeyValue("", "url", c_url, ",");
-            addKeyValue("", "goods", "", "[\n");
+            addKeyValue("{", "gname", item.text(), ",", true);
+            addKeyValue("", "url", c_url, ",", true);
+            addKeyValue("", "goods", "", "[\n", true);
             saveResult(tmpFile);
             // вызываем поиск максимального количеста страниц, принадлежащих группе
             lRet = getPagesGoods(c_url, tmpFile); // c_url
@@ -163,20 +163,20 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                     if (lRet) saveResult(tmpFile);
                 } else {
                     i += 0;
-                    addKeyValue("{", "tname", getItemValue(item, "span[class=middle]", "", null), ",");
-                    addKeyValue("", "tcode", " ", ",");
+                    addKeyValue("{", "tname", getItemValue(item, "span[class=middle]", "", null), ",", true);
+                    addKeyValue("", "tcode", " ", ",", true);
                     c_class = getItemValue(item, "div", "class", 4);
                     if (c_class.equals("price-left")) {
-                        addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",");
-                        addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",");
-                        addKeyValue("","price3","0.00",",");
+                        addKeyValue("", "price1", getPrice(getItemValue(item, "span[class=pr]", "", 0)), ",", false);
+                        addKeyValue("", "price2", getPrice(getItemValue(item, "span[class=pr]", "", 1)), ",", false);
+                        addKeyValue("","price3","0.00",",", true);
                     } else {
-                        addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",");
-                        addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",");
-                        addKeyValue("", "price3", getPriceValue(item,"div[class=dashed-price]","",null), ",");
+                        addKeyValue("", "price1", getPrice(getItemValue(item, "a[class=price]", "",null)), ",", false);
+                        addKeyValue("", "price2", getPrice(getItemValue(item, "a[class=price]", "", null)), ",", false);
+                        addKeyValue("", "price3", getPriceValue(item,"div[class=dashed-price]","",null), ",", false);
                     }
-                    addKeyValue("", "picture", " ", ",");
-                    addKeyValue("", "url", c_url, "}");
+                    addKeyValue("", "picture", " ", ",", true);
+                    addKeyValue("", "url", c_url, "}", true);
                     saveResult(tmpFile);
                 }
             } else {
@@ -198,19 +198,19 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             c_pic = getItemValue(item, "a", "href", null);
             if (c_pic.length() > 0) c_pic = baseUrl + c_pic;
             c1 = getItemValue(item,"div[class=price dashed]","",null).trim();
-            addKeyValue("{","tname",getItemValue(item,"div[class=short-desc]","",null),",");
-            addKeyValue("","tcode",getItemValue(item,"div[class=num]","",null),",");
+            addKeyValue("{","tname",getItemValue(item,"div[class=short-desc]","",null),",", true);
+            addKeyValue("","tcode",getItemValue(item,"div[class=num]","",null),",", true);
             if (c1.length() == 0) {
-                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 0), ",");
-                addKeyValue("", "price3","0.00",",");
+                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",", false);
+                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 0), ",", false);
+                addKeyValue("", "price3","0.00",",", false);
             } else {
-                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 1), ",");
-                addKeyValue("", "price3", getPriceValue(item, "div[class=value]", "", 0), ",");
+                addKeyValue("", "price1", getPriceValue(item, "div[class=value]", "", 1), ",", false);
+                addKeyValue("", "price2", getPriceValue(item, "div[class=value]", "", 1), ",", false);
+                addKeyValue("", "price3", getPriceValue(item, "div[class=value]", "", 0), ",", false);
             }
-            addKeyValue("","picture",c_pic,",");
-            addKeyValue("","url",url,"}");
+            addKeyValue("","picture",c_pic,",", true);
+            addKeyValue("","url",url,"}", true);
         }
         return true;
     }
@@ -255,12 +255,14 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
     }
 
     //  Конструктур JSON выражений
-    private void addKeyValue(String ch1, String key, String value, String ch2) {
+    private void addKeyValue(String ch1, String key, String value, String ch2, boolean quote) {
         cResult.append(ch1);
         cResult.append("\"").append(key).append("\":");
         if (value.length() > 0) {
             value = value.replace("\"", "'");
-            cResult.append("\"").append(value).append("\"");
+            if (quote) cResult.append("\"");
+            cResult.append(value);
+            if (quote) cResult.append("\"");
         }
         cResult.append(ch2);
     }
