@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.RawFileData;
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.classes.ImageClass;
 import lsfusion.server.classes.ValueClass;
@@ -41,7 +42,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
                 Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
-                findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
+                findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                 findProperty("timeChangedImage[Article]").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
                 imageFile.delete();
 

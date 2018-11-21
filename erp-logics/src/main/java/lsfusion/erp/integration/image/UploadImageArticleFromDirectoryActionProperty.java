@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.image;
 
+import lsfusion.base.RawFileData;
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.classes.ImageClass;
 import lsfusion.server.classes.ValueClass;
@@ -56,7 +57,7 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                     if (imageFile.exists()) {
                         Timestamp timeChangedImageArticle = (Timestamp) findProperty("timeChangedImage[Article]").read(context, articleObject);
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
-                            findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
+                            findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                             findProperty("timeChangedImage[Article]").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
                         }
                     }
