@@ -17,7 +17,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -181,7 +180,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         query.addProperty("barcode", findProperty("idBarcode[Sku]").getExpr(skuExpr));
         query.addProperty("captionItem", findProperty("nameAttribute[Item]").getExpr(skuExpr));
         query.addProperty("idUOMItem", findProperty("idUOM[Item]").getExpr(skuExpr));
-        query.addProperty("splitItem", findProperty("passScales[Item]").getExpr(skuExpr));
+        query.addProperty("shortNameUOM", findProperty("shortNameUOM[Item]").getExpr(skuExpr));
+        query.addProperty("passScales", findProperty("passScales[Item]").getExpr(skuExpr));
         query.addProperty("idSkuGroup", findProperty("overIdSkuGroup[Item]").getExpr(skuExpr));
         query.addProperty("idLoyaBrand", findProperty("idLoyaBrand[Item]").getExpr(skuExpr));
         query.and(findProperty("active[LoyaItemGroup]").getExpr(groupExpr).getWhere());
@@ -202,10 +202,11 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             String id = useBarcodeAsId ? barcode : idSku;
             String captionItem = trimToEmpty((String) valueEntry.get("captionItem").getValue());
             String idUOMItem = trim((String) valueEntry.get("idUOMItem").getValue());
-            Boolean splitItem = valueEntry.get("splitItem").getValue() != null;
+            String shortNameUOM = trim((String) valueEntry.get("shortNameUOM").getValue());
+            boolean passScales = valueEntry.get("passScales").getValue() != null;
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
             Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
-            itemsList.add(new Item(id, captionItem, idUOMItem, splitItem, idSkuGroup, idLoyaBrand));
+            itemsList.add(new Item(id, captionItem, idUOMItem, isWeight(passScales, shortNameUOM), idSkuGroup, idLoyaBrand));
             itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
@@ -564,7 +565,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("name", item.caption);
         requestBody.put("measurement", item.idUOM);
         requestBody.put("margin", 0);
-        requestBody.put("dimension", item.split ? "weight" : "piece");
+        requestBody.put("dimension", item.isWeight ? "weight" : "piece");
         requestBody.put("limits", discountLimits);
 
         if(minPriceLimits != null && !minPriceLimits.isEmpty()) {
@@ -731,6 +732,10 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         return limitsMap;
     }
 
+    protected boolean isWeight(boolean passScales, String shortNameUOM) {
+        return passScales && (shortNameUOM == null || !shortNameUOM.toUpperCase().startsWith("ШТ")); //as in ukm4mysqlhandler
+    }
+
     private class SynchronizeData {
         public List<Item> itemsList;
         public Map<DataObject, GoodGroup> itemGroupsMap;
@@ -776,15 +781,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         String id;
         String caption;
         String idUOM;
-        Boolean split;
+        boolean isWeight;
         String idSkuGroup;
         Integer idLoyaBrand;
 
-        public Item(String id, String caption, String idUOM, Boolean split, String idSkuGroup, Integer idLoyaBrand) {
+        public Item(String id, String caption, String idUOM, boolean isWeight, String idSkuGroup, Integer idLoyaBrand) {
             this.id = id;
             this.caption = caption;
             this.idUOM = idUOM;
-            this.split = split;
+            this.isWeight = isWeight;
             this.idSkuGroup = idSkuGroup;
             this.idLoyaBrand = idLoyaBrand;
         }

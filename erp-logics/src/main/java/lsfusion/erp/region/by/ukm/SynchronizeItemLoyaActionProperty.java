@@ -63,10 +63,11 @@ public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProp
                 if(caption.length() > 254)
                     caption = caption.substring(0, 254);
                 String idUOM = (String) findProperty("idUOM[Item]").read(context, itemObject);
-                boolean split = findProperty("passScales[Item]").read(context, itemObject) != null;
+                String shortNameUOM = (String) findProperty("shortNameUOM[Item]").read(context, itemObject);
+                boolean passScales = findProperty("passScales[Item]").read(context, itemObject) != null;
                 String idSkuGroup = trim((String) findProperty("overIdSkuGroup[Item]").read(context, itemObject));
                 Integer idLoyaBrand = (Integer) findProperty("idLoyaBrand[Item]").read(context, itemObject);
-                Item item = new Item(id, caption, idUOM, split, idSkuGroup, idLoyaBrand);
+                Item item = new Item(id, caption, idUOM, isWeight(passScales, shortNameUOM), idSkuGroup, idLoyaBrand);
                 List<MinPriceLimit> minPriceLimits = useMinPrice ? readMinPriceLimits(context, itemObject) : null;
                 String result = uploadItem(context, item, discountLimits, minPriceLimits, false);
                 if(authenticationFailed(result)) {
