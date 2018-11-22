@@ -233,7 +233,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
     
     private String getPriceValue(Element item, String cExpr, String cAtr, Integer nIndex) {
         String result = getItemValue(item, cExpr, cAtr, nIndex);
-        if (result == null || result.isEmpty())
+        if (result == null || result.trim().isEmpty())
             result = "0.00";
         return result;
     }
@@ -256,15 +256,15 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 
     //  Конструктур JSON выражений
     private void addKeyValue(String ch1, String key, String value, String ch2, boolean quote) {
-        cResult.append(ch1);
-        cResult.append("\"").append(key).append("\":");
         if (value.length() > 0) {
+            cResult.append(ch1);
+            cResult.append("\"").append(key).append("\":");
             value = value.replace("\"", "'");
             if (quote) cResult.append("\"");
             cResult.append(value);
             if (quote) cResult.append("\"");
+            cResult.append(ch2);
         }
-        cResult.append(ch2);
     }
 
     //  Переводит строку в Integer
