@@ -177,16 +177,27 @@ calcNetEnergyGramsQuantity'Энергетическая ценность в ре
     netProteinsGramsQuantity(p,d)*4 (+)
     netFatsGramsQuantity(p,d)*9 (+)
     netCarbohydratesGramsQuantity(p,d)*4;
-    
-//fillNutrition 'Записать энерг.ценность' (BOM BOM)  { 
-//    FOR BOM(Product p) == BOM DO {
-//        proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
-//        fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
-//        carbohydrates(Item item)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())) WHERE item == sku(p); 
-//        energy(Item item)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate())) WHERE item == sku(p); 
-//        percentHumidity(Item item) <- NUMERIC[8,2](gramsQuantityComponents(p)) WHERE item == sku(p); 
-//    }
-//} TOOLBAR; 
+ 
+netProteinsGramsQuantityRound  'Белки в рецепте' (Product p,DATE d) = humidityParamsRound(NUMERIC[18,5](netProteinsGramsQuantity(p,d)));
+netFatsGramsQuantityRound  'Жиры в рецепте' (Product p,DATE d) = humidityParamsRound(NUMERIC[18,5](netFatsGramsQuantity(p,d)));
+netCarbohydratesGramsQuantityRound 'Углеводы в рецепте' (Product p,DATE d) = humidityParamsRound(NUMERIC[18,5](netCarbohydratesGramsQuantity(p,d))); 
+netEnergyGramsQuantityRound 'Энергетическая ценность в рецепте' (Product p,DATE d) = energyParamsRound(NUMERIC[18,5](netEnergyGramsQuantity(p,d)));
+
+calcNetEnergyGramsQuantityRound'Энергетическая ценность в рецепте' (Product p,DATE d) = 
+    energyParamsRound(NUMERIC[18,5]( netProteinsGramsQuantityRound(p,d)*4 (+) netFatsGramsQuantityRound(p,d)*9 (+) netCarbohydratesGramsQuantityRound(p,d)*4));    
+
+fillHumidityItem 'Заполнять энерг.ценность и в карточку товара из спецификации'  = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () fillHumidityItem
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (fillHumidityItem());
+    }
+}
+
+notFillHumidityItem() = TRUE IF NOT fillHumidityItem();
 
 fillNutritionItem 'Записать в карточку товара' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
@@ -202,23 +213,42 @@ fillNutritionItem 'Записать в карточку товара' (BOM BOM) 
     }
 } TOOLBAR; 
 
-overFillNutrition ABSTRACT LIST (Product);
+WHEN LOCAL FORMS BOM CHANGED(proteins(Product p))  AND fillHumidityItem() AND showNutrition(BOM(p)) DO {
+    proteins(Item item)<- proteins(p) WHERE item == sku(p);
+}
+WHEN LOCAL FORMS BOM CHANGED(fats(Product p))  AND fillHumidityItem() AND showNutrition(BOM(p)) DO {
+    fats(Item item)<- fats(p) WHERE item == sku(p);
+}
+WHEN LOCAL FORMS BOM CHANGED(carbohydrates(Product p)) AND fillHumidityItem() AND showNutrition(BOM(p)) DO {
+    carbohydrates(Item item)<- carbohydrates(p) WHERE item == sku(p);
+}
+WHEN LOCAL FORMS BOM CHANGED(energy(Product p)) AND fillHumidityItem() AND showNutrition(BOM(p)) DO {
+    energy(Item item)<- energy(p) WHERE item == sku(p);
+}
+WHEN LOCAL FORMS BOM CHANGED(percentHumidity(Product p))  AND fillHumidityItem() AND showHumidity(BOM(p)) DO {
+    percentHumidity(Item item)<- percentHumidity(p) WHERE item == sku(p);
+}
 
-fillNutrition 'Записать в изделие' (BOM BOM)  { 
+overFillNutrition ABSTRACT LIST (Product);
+isFillNutrition = ABSTRACT BOOLEAN (Product);
+
+fillNutrition 'Рассчитать ценность' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
         IF showNutrition(BOM) THEN {
-            proteins(p)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate()));
-            fats(p)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate()));     
-            carbohydrates(p)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())); 
-            energy(p)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate()));
-            overFillNutrition(p);
+            IF NOT isFillNutrition(p) THEN { //чтобы избежать двойного округления
+                proteins(p)<- NUMERIC[8,2](netProteinsGramsQuantityRound(p,currentDate()));
+                fats(p)<- NUMERIC[8,2](netFatsGramsQuantityRound(p,currentDate()));     
+                carbohydrates(p)<- NUMERIC[8,2](netCarbohydratesGramsQuantityRound(p,currentDate())); 
+                energy(p)<- NUMERIC[8,2](calcNetEnergyGramsQuantityRound(p,currentDate()));            
+            } ELSE {
+                overFillNutrition(p);            
+            }
         }
         IF showHumidity(BOM) THEN {
             percentHumidity(p) <-  NUMERIC[8,2](round2(gramsQuantityComponents(p)));    
         } 
     }
-} TOOLBAR; 
-   
+} TOOLBAR;    
 
 FORM nutritionalValue 'Пищевая ценность'
     OBJECTS dt=DATE PANEL SUBREPORT
@@ -269,7 +299,7 @@ EXTEND FORM BOM
     PROPERTIES(cc) BACKGROUND  background(cc) SHOWIF showHumidity(b) percentHumidity ON CHANGE  changePercentHumidity(cc),
                    percentDryness ON CHANGE changePercentDryness(cc)
                    
-    PROPERTIES(b) TOOLBAR  DRAW pp fillNutrition, fillNutritionItem                       
+    PROPERTIES(b) TOOLBAR  DRAW pp fillNutrition, fillNutritionItem SHOWIF notFillHumidityItem()                      
 ;
 
 DESIGN BOM {

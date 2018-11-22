@@ -1622,13 +1622,15 @@ expiryDays(Item i) += expiryDays(i);
 expiryMonth 'Срок годности в месяцах' = DATA INTEGER (Item) IN itemExpiry;
 expiryMonth(Item i) += expiryMonth(i);
 
+hoursExpiryPack 'Срок годности в часах' = DATA INTEGER (Item) IN itemExpiry;
+
 expiry 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
 @defineItemAttribute(expiry, 'Срок годности', itemExpiry);
 
 EXTEND FORM itemGroup PROPERTIES(g) userShowExpiry;
 EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showExpiry BACKGROUND backgroundShowExpiry(g);
-EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) expiryDays, expiryMonth;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) expiryDays, expiryMonth;
+EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) hoursExpiryPack, expiryDays, expiryMonth;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) hoursExpiryPack, expiryDays, expiryMonth;
 DESIGN item {
     itemPrimaryColumn2 {
         MOVE GROUP(itemExpiry,i) {
@@ -1743,6 +1745,7 @@ copyDataItem(Item item, Item i)  {
     inactive(i) <- inactive(item);
     expiryDays(i) <- expiryDays(item);
     expiryMonth(i) <- expiryMonth(item);
+    hoursExpiryPack(i) <- hoursExpiryPack(item);
 
     FOR sku(Barcode barcode) == item AND toCopy(barcode) DO {
         NEW b = Barcode {

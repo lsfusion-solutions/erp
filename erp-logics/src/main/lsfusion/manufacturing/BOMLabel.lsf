@@ -1,0 +1,142 @@
+MODULE BOMLabel;
+REQUIRE Label, BOMStorage, BOMNutrition, ProductionOrder;
+
+NAMESPACE BOM;
+
+// Ценники СП    
+lastProduct (Sku s,Stock st)= GROUP LAST Product p 
+        ORDER fromDate(BOM(p)), p 
+        WHERE in(BOM(p),st) AND sku(p) == s AND isActive(BOM(p));   
+        
+lastOrderProduct (Sku s,Stock st)= GROUP LAST product(ProductDetail d)
+        ORDER date(d), d 
+        WHERE sku(d) == s AND productsStock(d)==st AND date(d) <= currentDate();     
+        
+productOver (Sku s, Stock st) = OVERRIDE  lastOrderProduct(s,st), lastProduct(s,st); 
+numberProduct 'Спецификация (номер)' (Sku s,Stock st) = number(BOM(productOver(s,st)));
+seriesProduct 'Спецификация (серия)' (Sku s,Stock st) = series(BOM(productOver(s,st)));
+
+manufactureDate 'Дата изготовления (СП)' = DATA DATE (Sku,Stock) TABLE skuStock;
+manufactureTime 'Время изготовления (СП)' = DATA TIME (Sku,Stock) TABLE skuStock;
+manufactureDateTime 'Дата/время изготовления (СП)' (Sku s,Stock st) = dateTimeToDateTime(manufactureDate(s,st), manufactureTime(s,st));
+
+expiryDate 'Дата годен до (СП)' = DATA DATE (Sku,Stock) TABLE skuStock;
+expiryTime 'Время годен до (СП)' = DATA TIME (Sku,Stock) TABLE skuStock;
+expiryDateTime 'Дата/время годен до' (Sku s,Stock st) = dateTimeToDateTime(expiryDate(s,st), expiryTime(s,st));
+
+expiryDateTimeCalc  (Sku s,Stock st) = IF hoursExpiryPack(s) 
+    THEN (sumMinutes(manufactureDateTime(s,st), 60*hoursExpiryPack(s)))
+    ELSE (sumMinutes(manufactureDateTime(s,st), 60*24*expiryDays(s))) ;
+
+selectLabel 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku,Stock);
+changeManufactureDate (Sku s, Stock st)  {
+    INPUT dt = DATE DO {
+        manufactureDate(s,st) <- dt;
+        expiryDate(s,st) <- DATE(expiryDateTimeCalc(s,st)) ;
+        expiryTime(s,st) <- TIME(expiryDateTimeCalc(s,st)) ;    
+    }
+}
+changeManufactureTime (Sku s, Stock st)  {
+    INPUT dt = TIME DO {
+        manufactureTime(s,st) <- dt;
+        expiryDate(s,st) <- DATE(expiryDateTimeCalc(s,st)) ;
+        expiryTime(s,st) <- TIME(expiryDateTimeCalc(s,st)) ;    
+    }
+}
+createSelectedSkuStockLabelTransaction 'Распечатать ценники'(DepartmentStore ds)  { 
+    APPLY;// NESTED (selectLabel[Sku,Stock]);    
+    select(Sku sku, Stock stock) <- NULL;
+    select(Sku sku, ds) <- selectLabel(sku,ds);
+    createSelectedSkuStockLabelTransaction();
+    selectLabel(Sku sku, Stock stock) <- NULL;
+} TOOLBAR;
+
+createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' (DepartmentStore ds) {
+    APPLY;// NESTED (selectLabel[Sku,Stock]);    
+    select(Sku sku, Stock stock) <- NULL;
+    select(Sku sku, ds) <- selectLabel(sku,ds);
+    createSelectedSkuStockSnapshotLabelTransaction();
+    selectLabel(Sku sku, Stock stock) <- NULL;
+} TOOLBAR; 
+
+FORM LabelProduct 'Печать ценников СП' 
+    OBJECTS ds = DepartmentStore PANEL    
+    PROPERTIES name(ds) SELECTOR
+    
+    OBJECTS s = Sku
+    PROPERTIES selectLabel(s,ds)
+    PROPERTIES(s) READONLY id, name, idBarcode, expiryDays, hoursExpiryPack 
+    PROPERTIES(s,ds)  seriesProduct READONLY, numberProduct READONLY,manufactureDate ON CHANGE changeManufactureDate(s,ds), 
+                      manufactureTime ON CHANGE changeManufactureTime(s,ds),
+                      expiryDate, 
+                      expiryTime             
+    
+    FILTERS (GROUP SUM 1 IF in(BOM(Product p),ds) AND sku(p) == s), active(s)         
+    FILTERGROUP select FILTER 'Отм.' selectLabel(s,ds) 'F9'   
+    PROPERTIES (ds) DRAW s createSelectedSkuStockLabelTransaction, createSelectedSkuStockSnapshotLabelTransaction 
+;
+//----------------------------
+nameComponentsStock 'Цех' (LabelTransactionDetail d) = name(departmentStore(d));
+addressLegalEntityStock 'Юр. адрес' (LabelTransactionDetail d) = address(legalEntity(departmentStore(d)));
+addressComponentsStock 'Цех (адрес)' (LabelTransactionDetail d) = address(departmentStore(d));
+
+product (LabelTransactionDetail d) = productOver(sku(d),departmentStore(d));                                                              
+
+textFastLabel (Sku p) = CONCAT ' ', 'Белки: '+VARSTRING[10](round1(OVERRIDE proteins(p), 0.0 )) +'г.',
+                                                    'Жиры: '+VARSTRING[10](round1(OVERRIDE fats(p), 0.0 )) +'г.',
+                                                    'Углеводы: '+VARSTRING[10](round1(OVERRIDE carbohydrates(p), 0.0 )) +'г.';
+textFastLabel (Product p) = CONCAT ' ', 'Белки: '+VARSTRING[10](round1(OVERRIDE proteins(p), 0.0 )) +'г.',
+                                                    'Жиры: '+VARSTRING[10](round1(OVERRIDE fats(p), 0.0 )) +'г.',
+                                                    'Углеводы: '+VARSTRING[10](round1(OVERRIDE carbohydrates(p), 0.0 )) +'г.';
+                                                    
+textFastLabelCalc 'Жиры' (LabelTransactionDetail d) = IF product(d) THEN textFastLabel(product(d)) ELSE textFastLabel(sku(d));
+
+textEnergyLabel (Sku p) = CONCAT ' ', VARSTRING[10](INTEGER(energy(p) )) +' ккал /',
+                                                           VARSTRING[10](INTEGER(energyParamsRound(energy(p)*4.184))) +' кДж.';                                                                                                                                                                                                                                             
+textEnergyLabel (Product p) = CONCAT ' ', VARSTRING[10](INTEGER(energy(p) )) +' ккал /',
+                                                           VARSTRING[10](INTEGER(energyParamsRound(energy(p)*4.184))) +' кДж.';            
+textEnergyLabelCalc 'Ценность' (LabelTransactionDetail d) = IF product(d) THEN textEnergyLabel(product(d)) ELSE textEnergyLabel(sku(d)); 
+                                                       
+numberStateStandart 'ТНПА' = DATA VARSTRING[100] (LabelTransactionDetail);
+manufactureDateTime 'Дата/время изготовления'  = DATA DATETIME (LabelTransactionDetail);
+expiryDateTime 'Дата/время годен до'  = DATA DATETIME (LabelTransactionDetail);
+conditionsText 'Условия хранения' = DATA VARISTRING[100](LabelTransactionDetail);
+expiryText 'Срок хранения' = DATA VARISTRING[100](LabelTransactionDetail);
+descriptionItem 'Описание' = DATA TEXT(LabelTransactionDetail);
+textFastLabel 'Жиры' = DATA VARISTRING[100](LabelTransactionDetail);
+textEnergyLabel 'Калорийность' = DATA VARISTRING[100](LabelTransactionDetail);
+
+
+createAttribute(LabelTransactionDetail d) + { 
+    manufactureDateTime(d) <- manufactureDateTime(sku(d),departmentStore(d)); 
+    expiryDateTime(d) <- expiryDateTime(sku(d),departmentStore(d)); 
+     
+    conditionsText(d) <- OVERRIDE nameExpiryCondition(product(d)), conditionsText(sku(d)); 
+    expiryText(d) <- OVERRIDE nameExpiryStorage(product(d)), expiryText(sku(d)); 
+    descriptionItem(d) <- OVERRIDE BOMNutrition.description(product(d)), description(sku(d));             
+    textFastLabel(d) <- textFastLabelCalc(d); 
+    textEnergyLabel(d) <- textEnergyLabelCalc(d);     
+    numberStateStandart(d) <- numberStateStandart(product(d));
+}
+
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameComponentsStock, addressLegalEntityStock, addressComponentsStock, numberStateStandart, 
+            conditionsText, expiryText, descriptionItem, textFastLabel, textEnergyLabel, manufactureDateTime, expiryDateTime;
+EXTEND FORM customLabelTransaction PROPERTIES(d) nameComponentsStock, addressLegalEntityStock, addressComponentsStock, numberStateStandart,
+            conditionsText, expiryText, descriptionItem, textFastLabel, textEnergyLabel, manufactureDateTime, expiryDateTime;
+
+EXTEND FORM labelTransactions 
+    PROPERTIES(dt) READONLY nameComponentsStock, addressLegalEntityStock, addressComponentsStock, conditionsText, expiryText, descriptionItem, numberStateStandart,
+            textFastLabel, textEnergyLabel, manufactureDateTime, expiryDateTime
+    PROPERTIES(dts) READONLY nameComponentsStock, addressLegalEntityStock, addressComponentsStock, conditionsText, expiryText, descriptionItem, numberStateStandart,
+            textFastLabel, textEnergyLabel, manufactureDateTime, expiryDateTime
+;
+
+NAVIGATOR {
+    manufacturingDocuments {
+        NEW LabelProduct;
+    }
+}
+
+
+

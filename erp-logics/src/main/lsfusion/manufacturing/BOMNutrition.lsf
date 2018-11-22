@@ -1,6 +1,6 @@
 MODULE BOMNutrition;
 
-REQUIRE BOM, ItemNutrition;
+REQUIRE BOM, ItemNutrition, ItemDescription;
 
 
 // ------------------------------------------------------------------- //
@@ -45,6 +45,17 @@ proteins 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
 energy 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
 productYield 'Выход' = DATA VARSTRING[100] (Product) CHARWIDTH 20;
 
+//-- округление по (ТР ТС 022/2011)     
+humidityParamsRound (NUMERIC[18,5] nu) = CASE 
+    WHEN nu > 10.0 THEN NUMERIC[8,1](INTEGER (nu))
+    WHEN nu >= 0.5 THEN NUMERIC[8,1](INTEGER(nu/0.5)*0.5)
+    WHEN nu <0.5 THEN NUMERIC[8,1](floor(nu*10.0)/10.0);      
+energyParamsRound (NUMERIC[18,5] nu) = CASE 
+    WHEN nu > 100.0 THEN NUMERIC[8,1](INTEGER (nu/10.0)*10.0)
+    WHEN nu > 5.0 THEN NUMERIC[8,1](INTEGER(nu/5.0)*5.0)
+    WHEN nu > 1.0 THEN NUMERIC[8,1](INTEGER(nu))
+    ELSE 1.0;  
+
 fatsItem 'Жиры 100г, г (товар)' (Product p) = fats(sku(p));
 carbohydratesItem 'Углеводы 100г, г (товар)' (Product p) = carbohydrates(sku(p));
 proteinsItem 'Белки 100г, г (товар)' (Product p) = proteins(sku(p));
@@ -59,6 +70,14 @@ changeComposition 'Записать в товар'(Product product)  {
         composition[Item](item) <- VARSTRING[255](composition(product));
     }
 } ASON CONTEXTMENU composition[Product];
+
+description 'Описание' = DATA TEXT(Product);
+changeDescription 'Записать в товар'(Product product)  { 
+    FOR sku(product) == Sku item DO {
+        description[Item](item) <- description(product);
+    }
+} ASON CONTEXTMENU description[Product];
+fullDescription 'Описание (полное)' = DATA TEXT (Product);
 
 //------------------------------- СТБ -------------------------------------//
 CLASS StateStandart 'СТБ';
@@ -108,10 +127,55 @@ backgroundEnergy (Product p) = IF (energy(p) OR energyItem(p)) AND NOT energyIte
 // Расширяем формы
 showNutritionBOM = ABSTRACT VALUE BOOLEAN (BOM);
 showNutritionBOM(BOM b) += showNutrition(b);
+
+fillDescriptionItem 'Заполнять описание в карточку товара из спецификации'  = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () fillDescriptionItem
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (fillDescriptionItem());
+    }
+}
+
+description1 = ABSTRACT TEXT(Component);
+description2 = ABSTRACT TEXT(Component);
+descriptionOver 'Описание' (Component c) = OVERRIDE description1(c), description2(c), TEXT (name(sku(c)));
+
+
+descriptionCalc 'Описание' (BOM) = GROUP CONCAT descriptionOver(Component component), ', '
+                                       ORDER overNettoNetWeight(component), component
+                                       BY BOM(component);
+                                       
+fullDescriptionOver 'Описание (полное)' (Component c) = CONCAT ' ', '<b>'+(descriptionOver(c))+'</b>', 
+                                                                    ( ('('+description(sku(c))+')' ) IF material(c) IS Product);   
+
+    
+fullDescriptionCalc 'Описание' (BOM) = GROUP CONCAT fullDescriptionOver(Component component), ', '
+                                       ORDER overNettoNetWeight(component), component
+                                       BY BOM(component);
+                                       
+fillDescription 'Заполнить описание' (BOM BOM)  { 
+    FOR BOM(Product p) == BOM DO {
+        description(p) <-  descriptionCalc(BOM);   
+        fullDescription(p) <-  TEXT('<b>'+'Состав: '+'</b>'+fullDescriptionCalc(BOM));
+    }
+} TOOLBAR;    
+fillDescriptionItem 'Записать описание в карточку товара' (BOM BOM)  { 
+    FOR BOM(Product p) == BOM DO {
+        description(Item i) <-  description(p) WHERE sku(p)==i;   
+    }
+} TOOLBAR;
+
+
+WHEN LOCAL FORMS BOM CHANGED(description(Product p)) AND fillDescriptionItem() DO {
+    description(Item item)<- description(p) WHERE item == sku(p);
+}
+
 EXTEND FORM BOM
     PROPERTIES(b) showNutrition
-    PROPERTIES(b) recipes, numberStateStandart //SHOWIF showNutritionBOM(b)
-    
+    PROPERTIES(b) recipes, numberStateStandart //SHOWIF showNutritionBOM(b)    
     
     OBJECTS pp = Product
     PROPERTIES(pp) index 
@@ -132,6 +196,23 @@ EXTEND FORM BOM
                 
     PROPERTIES(cc) SHOWIF showNutrition(b) BACKGROUND background(cc) fats ON CHANGE changeFats(cc), carbohydrates ON CHANGE changeCarbohydrates(cc), 
                   proteins ON CHANGE changeProteins(cc), energy ON CHANGE changeEnergy(cc)
+                  
+    OBJECTS ppp = Product
+    PROPERTIES(ppp) index 
+    PROPERTIES(ppp) READONLY idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM     
+    
+    PROPERTIES(ppp) READONLY quantity, overNettoNetWeight, pricePercent, calcPriceCoeff
+    PROPERTIES (ppp) PANEL description , fullDescription
+    PROPERTIES fillDescription(b) DRAW ppp, fillDescriptionItem(b) DRAW ppp SHOWIF (TRUE IF NOT fillDescriptionItem())
+    FILTERS       BOM(ppp) == b
+                  
+    OBJECTS ccc = Component
+    PROPERTIES(ccc) READONLY BACKGROUND background(ccc) index 
+    PROPERTIES(ccc) READONLY BACKGROUND background(ccc) idBarcodeSku, id SHOWIF showIDs(), nameMaterial, shortNameUOM 
+    PROPERTIES(ccc) READONLY BACKGROUND background(ccc) nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight
+    PROPERTIES (ccc) READONLY descriptionOver, fullDescriptionOver
+    ORDER index(ccc)
+    FILTERS       BOM(ccc) == b        
 ;
 
 DESIGN BOM {
@@ -143,6 +224,33 @@ DESIGN BOM {
             type = SPLITV;
             MOVE BOX(pp);
             MOVE BOX (cc);
+        }
+        NEW description {
+            fill = 1;
+            caption = 'Описание';
+            type = SPLITV;
+            NEW descriptionPPP{
+                fill = 1;
+                type = CONTAINERH;
+                MOVE BOX(ppp){fill = 2.5;}
+
+                NEW descriptionPPP1{
+                    fill = 1;
+                    type = TABBED;
+                    NEW descriptionPPP11{
+                        fill = 1;
+                        caption = 'Описание';
+                        MOVE PROPERTY (description(ppp)) {caption = ''; fill = 1;}                         
+                    }
+                    NEW descriptionPPP12{
+                        fill = 1;
+                        caption = 'Описание (полное)';
+                        MOVE PROPERTY (fullDescription(ppp)) {caption = ''; fill = 1;}                     
+                    }                    
+
+                }
+            }
+            MOVE BOX (ccc);        
         }
     }
     kitchen {

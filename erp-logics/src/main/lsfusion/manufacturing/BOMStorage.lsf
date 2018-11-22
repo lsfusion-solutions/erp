@@ -1,23 +1,131 @@
 MODULE BOMStorage;
 
-REQUIRE System, BOM;
+REQUIRE System, BOM, ItemStorage;
 
 NAMESPACE BOM;
 
 showExpiry 'Сроки хранения' = DATA BOOLEAN(BOM) IN documentPrm;
-
+//-- грохнуть, как только пройдет migratedStorage() Гиппо
 expiryText 'Срок хранения' = DATA  VARISTRING[100] (Product);
 conditionsText 'Условия хранения' = DATA  VARISTRING[100] (Product);
 
+//--------------------
+CLASS ExpiryStorage 'Срок хранения';
+TABLE expiryStorage(ExpiryStorage);
+
+@defineExternalizable(expiryStorage, VARSTRING[100]);
+
+name 'Наименование' = DATA VARISTRING[100](ExpiryStorage);
+expiryStorageName = GROUP NAGGR ExpiryStorage t BY name(t);
+
+
+FORM expiryStorage 'Срок хранения'
+    OBJECTS t=ExpiryStorage PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs()
+    EDIT ExpiryStorage OBJECT t
+;
+DESIGN expiryStorage{
+    PROPERTY (name(t)) {fill = 1; alignment = STRETCH;}
+}
+
+FORM expiryStorages 'Сроки хранения'
+    OBJECTS t=ExpiryStorage
+    PROPERTIES(t) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE 
+    PROPERTIES(t) NEWSESSION NEW, EDIT
+    ORDER name(t)
+    LIST ExpiryStorage OBJECT t
+;
+DESIGN expiryStorages { BOX { size = (600, 400); } }
+
+//--------------------
+CLASS ExpiryCondition 'Условия хранения';
+TABLE expiryCondition(ExpiryCondition);
+@defineExternalizable(expiryCondition, VARSTRING[100]);
+
+name 'Наименование' = DATA VARISTRING[100](ExpiryCondition);
+expiryConditionName = GROUP NAGGR ExpiryCondition t BY name(t);
+
+
+FORM expiryCondition 'Условия хранения'
+    OBJECTS t=ExpiryCondition PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs()
+    EDIT ExpiryCondition OBJECT t
+;
+DESIGN expiryCondition{
+    PROPERTY (name(t)) {fill = 1; alignment = STRETCH;}
+}
+
+FORM expiryConditions 'Условия хранения'
+    OBJECTS t=ExpiryCondition
+    PROPERTIES(t) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE 
+    PROPERTIES(t) NEWSESSION NEW, EDIT
+    ORDER name(t)
+    LIST ExpiryCondition OBJECT t
+;
+DESIGN expiryConditions { BOX { size = (600, 400); } }
+
+//---
+
+expiryStorage = DATA  ExpiryStorage (Product);
+nameExpiryStorage 'Срок хранения'  (Product p) = name(expiryStorage(p)) CHARWIDTH 30;
+
+expiryCondition  = DATA  ExpiryCondition (Product);
+nameExpiryCondition 'Условия хранения'  (Product p) = name(expiryCondition(p)) CHARWIDTH 30;
+
 EXTEND FORM BOM 
     PROPERTIES(b) showExpiry
-    PROPERTIES(p) SHOWIF showExpiry(b) BEFORE deletep expiryText, conditionsText
+    PROPERTIES(p) SHOWIF showExpiry(b) BEFORE deletep nameExpiryStorage, nameExpiryCondition
 ;
 DESIGN BOM {
-//    BOX(b) {
-//        NEW b.nutrition {type = CONTAINERV;}
-//    }
     kitchen {
         MOVE PROPERTY(showExpiry(b));
+    }
+}
+fillExpiryItem 'Заполнять срок и условия хранения в карточку товара из спецификации'  = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () fillExpiryItem
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (fillExpiryItem());
+    }
+}
+fillExpiryItem 'Записать срок и условия хранения в карточку товара' (BOM BOM)  { 
+    FOR BOM(Product p) == BOM DO {
+        expiryText(Item i) <-  nameExpiryStorage(p) WHERE sku(p)==i;   
+        conditionsText(Item i) <-  nameExpiryCondition(p) WHERE sku(p)==i;   
+    }
+} TOOLBAR;
+
+
+WHEN LOCAL FORMS BOM CHANGED(expiryStorage(Product p)) AND fillExpiryItem() AND showExpiry(BOM(p)) DO {
+    expiryText(Item item)<- nameExpiryStorage(p) WHERE item == sku(p);
+}
+WHEN LOCAL FORMS BOM CHANGED(expiryCondition(Product p)) AND fillExpiryItem() AND showExpiry(BOM(p)) DO {
+    conditionsText(Item item)<- nameExpiryCondition(p) WHERE item == sku(p);
+}
+
+EXTEND FORM BOM
+    PROPERTIES(b) fillExpiryItem DRAW p SHOWIF (showExpiry(b) AND NOT fillExpiryItem())
+;
+
+migratedStorage = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedStorage() THEN {
+        FOR [GROUP SUM 1 BY expiryText(Product p)](VARISTRING[100] str) AND NOT expiryStorageName(str) DO {
+            NEW d = ExpiryStorage {
+                name(d) <- str;
+                expiryStorage(Product p) <- d WHERE expiryText(p) == str AND expiryStorage(p);
+            }
+        }
+        FOR [GROUP SUM 1 BY conditionsText(Product p)](VARISTRING[100] str) AND NOT expiryConditionName(str) DO {
+            NEW d = ExpiryCondition {
+                name(d) <- str;
+                expiryCondition(Product p) <- d WHERE conditionsText(p) == str AND NOT expiryCondition(p);
+            }
+        }    
+        migratedStorage() <- TRUE;
+        APPLY;
     }
 }
