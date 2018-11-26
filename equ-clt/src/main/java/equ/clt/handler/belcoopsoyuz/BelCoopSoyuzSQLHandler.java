@@ -1,6 +1,7 @@
 package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
+import equ.api.RequestExchange;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
@@ -15,6 +16,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.*;
 import java.sql.Date;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.*;
@@ -161,7 +164,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         try {
             Class.forName("oracle.jdbc.driver.OracleDriver");
             if (directory == null) {
-                sendSalesLogger.error(logPrefix + "No connectionString in BelcoopsoyuzSettings found");
+                sendSalesLogger.error(logPrefix + "No connectionString found");
             } else {
 
                 Locale defaultLocale = Locale.getDefault();
@@ -181,6 +184,48 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         return salesBatch;
     }
 
+    @Override
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList,
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+        for (RequestExchange entry : requestExchangeList) {
+            Connection conn = null;
+            Statement statement = null;
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+
+                for (String directory : getDirectorySet(entry)) {
+                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", directory));
+                    conn = DriverManager.getConnection(directory);
+
+                    String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(entry.dateTo);
+                    cal.add(Calendar.DATE, 1);
+                    sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                    String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                    sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+
+                    statement = conn.createStatement();
+                    String query = String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\10') WHERE TEDOCINS >= TO_DATE('%s','yyyy-MM-dd') AND TEDOCINS <= TO_DATE('%s','yyyy-MM-dd')", dateFrom, dateTo);
+                    sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                    statement.execute(query);
+                    succeededRequests.add(entry.requestExchange);
+                }
+            } catch (Exception e) {
+                failedRequests.put(entry.requestExchange, e);
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (statement != null)
+                        statement.close();
+                    if (conn != null)
+                        conn.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }
+    }
+
     private BelCoopSoyuzSQLSalesBatch readSalesInfoFromSQL(Connection conn, Map<String, CashRegisterInfo> sectionCashRegisterMap, String connectionString, String directory) {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
@@ -188,7 +233,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
-                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL != '0000000000000000000000001' ORDER BY CEUNIREF0, CEDOCCOD, CEUNIKEY";
+                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
             Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
@@ -241,7 +286,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail, sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
-                                sendSalesLogger.error(logPrefix + "unknown section: " + section);
+                                sendSalesLogger.error(logPrefix + String.format("unknown section: %s (zreport %s, receipt %s)", section, numberZReport, numberReceipt));
                                 error = true;
                             }
                             break;
@@ -297,16 +342,17 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
                 Locale defaultLocale = Locale.getDefault();
                 try {
+                    sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
                     conn = DriverManager.getConnection(directory);
                     conn.setAutoCommit(false);
 
                     int i = 0;
-                    int blockSize = 100000; //TODO: пока что ошибка ORA-01031: insufficient privileges
+                    int blockSize = 1000; //ограничение сервера
                     StringBuilder in = new StringBuilder();
                     for (String record : readRecordSet) {
                         if(i >= blockSize) {
                             statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = '0000000000000000000000001' WHERE CEUNIKEY IN (%s)", in.toString()));
+                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
                             in = new StringBuilder();
                             i = 0;
                         }
@@ -314,7 +360,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         i++;
                     }
                     statement = conn.createStatement();
-                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = '0000000000000000000000001' WHERE CEUNIKEY IN (%s)", in.toString()));
+                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
                     conn.commit();
 
                 } catch (SQLException e) {
