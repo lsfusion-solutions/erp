@@ -14,6 +14,7 @@ public class ArtixSettings implements Serializable{
     private Integer maxFilesCount;
     private Integer maxFilesDirectoryCount;
     private boolean bonusesInDiscountPositions; //появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
+    private boolean giftCardPriceInCertificatePositions; //берём цену сертификата из certificatePositions (введено для Ostrov)
 
     public ArtixSettings() {
     }
@@ -96,5 +97,13 @@ public class ArtixSettings implements Serializable{
 
     public void setBonusesInDiscountPositions(boolean bonusesInDiscountPositions) {
         this.bonusesInDiscountPositions = bonusesInDiscountPositions;
+    }
+
+    public boolean isGiftCardPriceInCertificatePositions() {
+        return giftCardPriceInCertificatePositions;
+    }
+
+    public void setGiftCardPriceInCertificatePositions(boolean giftCardPriceInCertificatePositions) {
+        this.giftCardPriceInCertificatePositions = giftCardPriceInCertificatePositions;
     }
 }

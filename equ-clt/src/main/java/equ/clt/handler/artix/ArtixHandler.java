@@ -928,6 +928,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
         String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
         boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
+        boolean giftCardPriceInCertificatePositions = artixSettings != null && artixSettings.isGiftCardPriceInCertificatePositions();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1034,6 +1035,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         BigDecimal sumGiftCard = BigDecimal.ZERO;
                                         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
 
+                                        Map<String, BigDecimal> certificatePriceMap = new HashMap<>();
+                                        if(giftCardPriceInCertificatePositions) {
+                                            JSONArray certificatePositionsArray = documentObject.getJSONArray("certificatePositions");
+                                            for (int i = 0; i < certificatePositionsArray.length(); i++) {
+                                                JSONObject certificatePosition = certificatePositionsArray.getJSONObject(i);
+                                                String certificateNumber = certificatePosition.getString("number");
+                                                BigDecimal sum = BigDecimal.valueOf(certificatePosition.getDouble("sum"));
+                                                certificatePriceMap.put(certificateNumber, sum);
+                                            }
+                                        }
+
                                         JSONArray moneyPositionsArray = documentObject.getJSONArray("moneyPositions");
 
                                         for (int i = 0; i < moneyPositionsArray.length(); i++) {
@@ -1053,12 +1065,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         break;
                                                     case 6:
                                                     case 7:
-                                                        String numberGiftCard = appendCheckDigitToBarcode(BaseUtils.trimToNull(moneyPosition.getString("cardnum")), 11, appendBarcode);
+                                                        String certificate = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
+                                                        String numberGiftCard = appendCheckDigitToBarcode(certificate, 11, appendBarcode);
+                                                        BigDecimal price = certificatePriceMap.get(certificate);
+                                                        price = sum != null && price != null ? price : sum;
                                                         if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
                                                             sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
-                                                            sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, sum);
+                                                            sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, price);
                                                         } else
-                                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, sum));
+                                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, price));
                                                         break;
                                                     default:
                                                         sumCash = HandlerUtils.safeAdd(sumCash, sum);
