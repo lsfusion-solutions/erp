@@ -71,6 +71,7 @@ loadLookup (VARSTRING[100] id, TEXT json)  {
         stringToFile('\{ "version": "' + lpad(TEXT([ FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
         LOCAL result = FILE();
 //        WRITE 'file://d:/temp/test.json' FROM resultFile(); 
+        EXTERNAL HTTP DELETE 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id TO result; 
         EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultFile() TO result; 
         printToLog('' + currentDateTime() + 'Ended Load lookup ' + id);
     }
