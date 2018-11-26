@@ -222,7 +222,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
-    scheduleOrder 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NONULL DELETE INDEXED;
+    scheduleOrder 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NONULL DELETE;
+    INDEX scheduleOrder(ScheduleOrderDetail d), date(o);
     scheduleOrder(ScheduleOrderDetail d) += scheduleOrder(d);
     
     operation = DATA Operation (ScheduleOrder);
@@ -278,6 +279,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         LOCAL toDate = DATE ();    
         toDate() <- OVERRIDE endDate(scheduleOrder), sum(currentDate(), countDaysPreOrders());
+        
+        logToFile('order', 'Генерирация точек заказа для графика ' + (CONCAT ' - ', nameSupplier(scheduleOrder), nameCustomer(scheduleOrder)));
     
         // генерация через N дней
         IF type(scheduleOrder) == GenType.genDays THEN {
@@ -380,9 +383,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     addScheduleOrderDetail()  { 
 
-        FOR [GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
-            FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
-                EXEC create(o);
+        FOR [GROUP SUM 1 IF ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) >= currentDate() AND NOT countDetailsCurrent(o))) BY supplier(o)](LegalEntity l) DO NEWSESSION {
+            FOR ScheduleOrder o IS ScheduleOrder AND ((NOT endDate(o)) OR (endDate(o) >= currentDate() AND NOT countDetailsCurrent(o))) AND supplier(o) == l DO {
+                create(o);
             }             
             APPLY;
         }                	    
