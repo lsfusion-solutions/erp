@@ -1271,23 +1271,29 @@ takeData 'Сформировать отчет' (Snapshot snapshot)  {
     }
 }
 
+extraFilterMove = ABSTRACT CASE BOOLEAN (Sku, Stock, Snapshot);
 filterMove (Sku s, Stock st, Snapshot r) = balanceB(s,st,r) OR balanceA(s,st,r) OR 
                                         inQuantity(s,st,r) OR outQuantity(s,st,r) OR
                                         sumB(s,st,r) OR sumA(s,st,r) OR 
-                                        inSum(s,st,r) OR outSum(s,st,r)MATERIALIZED;
-                                        
+                                        inSum(s,st,r) OR outSum(s,st,r)
+                                        OR extraFilterMove(s,st,r) MATERIALIZED;
+
+extraFilterMove = ABSTRACT CASE BOOLEAN (Sku, Stock, Snapshot, DATE);
 filterMove (Sku s, Stock st, Snapshot r, DATE d) = balanceB(s,st,r,d) OR balanceA(s,st,r,d) OR 
                                         inQuantity(s,st,r,d) OR outQuantity(s,st,r,d) OR
                                         sumB(s,st,r,d) OR sumA(s,st,r,d) OR 
-                                        inSum(s,st,r,d) OR outSum(s,st,r,d) MATERIALIZED;  
+                                        inSum(s,st,r,d) OR outSum(s,st,r,d)
+                                        OR extraFilterMove(s,st,r,d) MATERIALIZED;  
                                         
 filterMove (Snapshot r, DATE d) = GROUP SUM 1 IF filterMove (Sku s, Stock st, r, d);                                        
 filterMove (Stock st, Snapshot r, DATE d) = GROUP SUM 1 IF filterMove (Sku s, st, r, d);                                       
-                                                                              
+
+extraFilterMove = ABSTRACT CASE BOOLEAN (Batch, Stock, Snapshot);
 filterMove (Batch bt,Stock ss,Snapshot r)= balanceB(bt,ss,r) OR balanceA(bt,ss,r) OR 
                                         inQuantity(bt,ss,r) OR outQuantity(bt,ss,r) OR 
                                         sumB(bt,ss,r) OR sumA(bt,ss,r) OR 
-                                        inSum(bt,ss,r) OR outSum(bt,ss,r) MATERIALIZED;
+                                        inSum(bt,ss,r) OR outSum(bt,ss,r)
+                                        OR extraFilterMove(bt,ss,r) MATERIALIZED;
 
 //-- SHOWIF
 isQuantityBalanceB = isQuantity(Snapshot snapshot) AND isBalanceB(snapshot);

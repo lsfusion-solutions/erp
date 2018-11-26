@@ -115,8 +115,12 @@ DESIGN snapshotType {
 EXTEND FORM snapshotTypes
     PROPERTIES (t) READONLY  isPurchase
 ;
-@deriveDocumentSnapshotProperty(isPurchase);      
-                 
+@deriveDocumentSnapshotProperty(isPurchase);
+
+extraFilterMove(Sku s, Stock st, Snapshot r) += WHEN purchaseQuantity(s,st,r) OR purchaseSum(s,st,r) THEN TRUE;
+extraFilterMove(Sku s, Stock st, Snapshot r, DATE d) += WHEN purchaseQuantity(s,st,r,d) OR purchaseSum(s,st,r,d) THEN TRUE;
+extraFilterMove(Batch bt,Stock ss,Snapshot r) += WHEN purchaseQuantity(bt,ss,r) OR purchaseSum(bt,ss,r) THEN TRUE;
+
 //-- Расширяем ACTION  
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
     IF isPurchase(snapshot) THEN {
