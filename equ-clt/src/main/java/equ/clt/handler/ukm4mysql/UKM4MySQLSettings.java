@@ -20,6 +20,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Integer lastDaysCashDocument;
     private boolean useShiftNumberAsNumberZReport;
     private boolean exportTaxes;
+    private boolean zeroPaymentForZeroSumReceipt; //при 100% скидке создаём платёж с нулевой суммой (для hoddabi)
 
     public UKM4MySQLSettings() {
     }
@@ -128,5 +129,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setExportTaxes(boolean exportTaxes) {
         this.exportTaxes = exportTaxes;
+    }
+
+    public boolean isZeroPaymentForZeroSumReceipt() {
+        return zeroPaymentForZeroSumReceipt;
+    }
+
+    public void setZeroPaymentForZeroSumReceipt(boolean zeroPaymentForZeroSumReceipt) {
+        this.zeroPaymentForZeroSumReceipt = zeroPaymentForZeroSumReceipt;
     }
 }
