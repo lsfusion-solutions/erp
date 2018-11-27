@@ -93,19 +93,20 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 //                }
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement("MERGE INTO cl1_bks.l9sk34 dest " +
-                                "USING(SELECT ? CEUNIKEY, ? CEUNIREF0, ? CEDOCCOD, ? CEOBIDE, ? CEOBMEA, ? MEOBNAM, ? NERECOST, ? NEOPPRIC, ? TEDOCACT, ? CESUCOD FROM DUAL) src " +
+                                "USING(SELECT ? CEUNIKEY, ? CEUNIREF0, ? CEDOCCOD, ? CEOBIDE, ? CEOBMEA, ? MEOBNAM, ? NERECOST, ? NEOPPRIC, ? TEDOCACT FROM DUAL) src " +
                                 "ON (dest.CEUNIKEY = src.CEUNIKEY) " +
                                 "WHEN MATCHED THEN " +
-                                "UPDATE SET dest.CEUNIREF0=src.CEUNIREF0, dest.CEDOCCOD=src.CEDOCCOD, dest.CEOBIDE=src.CEOBIDE, dest.CEOBMEA=src.CEOBMEA, dest.MEOBNAM=src.MEOBNAM, dest.NERECOST=src.NERECOST, dest.NEOPPRIC=src.NEOPPRIC, dest.TEDOCACT=src.TEDOCACT, dest.CESUCOD=src.CESUCOD " +
+                                "UPDATE SET dest.CEUNIREF0=src.CEUNIREF0, dest.CEDOCCOD=src.CEDOCCOD, dest.CEOBIDE=src.CEOBIDE, dest.CEOBMEA=src.CEOBMEA, dest.MEOBNAM=src.MEOBNAM, dest.NERECOST=src.NERECOST, dest.NEOPPRIC=src.NEOPPRIC, dest.TEDOCACT=src.TEDOCACT " +
                                 "WHEN NOT MATCHED THEN " +
-                                "INSERT (CEUNIKEY, CEUNIREF0, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM, NERECOST, NEOPPRIC, TEDOCACT, CESUCOD) " +
-                                "VALUES (src.CEUNIKEY, src.CEUNIREF0, src.CEDOCCOD, src.CEOBIDE, src.CEOBMEA, src.MEOBNAM, src.NERECOST, src.NEOPPRIC, src.TEDOCACT, src.CESUCOD)"
+                                "INSERT (CEUNIKEY, CEUNIREF0, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM, NERECOST, NEOPPRIC, TEDOCACT) " +
+                                "VALUES (src.CEUNIKEY, src.CEUNIREF0, src.CEDOCCOD, src.CEOBIDE, src.CEOBMEA, src.MEOBNAM, src.NERECOST, src.NEOPPRIC, src.TEDOCACT)"
                 );
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = appendBarcode(item.idBarcode);
                     ps.setString(1, appendSpaces(barcode, 25)); //CEUNIKEY (type NCHAR 25), уникальный ключ записи в базе данных
-                    ps.setString(2, trim(transaction.idDepartmentStoreGroupCashRegister, 25)); //CEUNIREF0, УНП предприятия
+                    String ceuniref0 = item.section != null && item.section.contains(" ") ? item.section.split(" ")[0] : null;
+                    ps.setString(2, trim(ceuniref0, 25)); //CEUNIREF0, УНП предприятия
                     ps.setString(3, "ПРАЙС"); //CEDOCCOD, тип записи
                     ps.setString(4, trim(barcode, 25)); //CEOBIDE, Штрих-код товара
                     ps.setString(5, trim(item.shortNameUOM, 25)); //CEOBMEA, единица измерения
@@ -113,7 +114,6 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     ps.setDouble(7, item.price.doubleValue()); //NERECOST, роз.цена
                     ps.setDouble(8, item.price.doubleValue()); //NEOPPRIC, роз.цена
                     ps.setTimestamp(9, new java.sql.Timestamp(transaction.date.getTime())); //TEDOCACT, дата и время вступления прайса в силу
-                    ps.setString(10, item.section); //CESUCOD, Идентификатор секции
                     ps.addBatch();
                 }
 
