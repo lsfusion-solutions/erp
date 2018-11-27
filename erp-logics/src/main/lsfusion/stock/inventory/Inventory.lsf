@@ -348,7 +348,10 @@ collationSheet 'Сличительная ведомость по складу и
 collationSheet(ListInventory listInventory) = collationSheet(stock(listInventory), inventory(listInventory));
 nameCollationSheet 'Название сл. ведомости' (ListInventory listInventory) = name(collationSheet(listInventory));
 
-collationSheet (PageInventoryDetail pageInventoryDetail) = collationSheet(listInventory(pageInventoryDetail)) MATERIALIZED INDEXED;
+collationSheet (PageInventoryDetail pageInventoryDetail) = collationSheet(listInventory(pageInventoryDetail)) MATERIALIZED;
+
+INDEX collationSheet(PageInventoryDetail d), sku(d);
+INDEX collationSheet(PageInventoryDetail d), batch(d);
 
 typeOfAddition(CollationSheet collationSheet)= typeOfAddition(stock(collationSheet), inventory(collationSheet));
 nameTypeOfAddition 'Тип сличительной ведомости' (CollationSheet collationSheet) = staticCaption(typeOfAddition(collationSheet)) IN base CHARWIDTH 20;
@@ -628,14 +631,14 @@ quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet cs, 
          
 //quantityPageInventoryDetail 'Кол-во по описям' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
 //    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
-pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE [GROUP MAX price(PageInventoryDetail d) BY collationSheet(listInventory(d)), batch(d)](collationSheet, batch), 
+pricePageInventoryDetail 'Цена по описям' (CollationSheet collationSheet, Batch batch) = OVERRIDE [GROUP MAX price(PageInventoryDetail d) BY collationSheet(d), batch(d)](collationSheet, batch), 
     priceBalance(collationSheet, batch);
     
 priceMaxPageInventoryDetail 'Цена по описям' (collationSheet, batch) = GROUP MAX price(PageInventoryDetail d) 
-    BY collationSheet(listInventory(d)), batch(d);   
+    BY collationSheet(d), batch(d);   
         
 priceMinPageInventoryDetail 'Цена по описям' (collationSheet, batch) = GROUP MIN price(PageInventoryDetail d) 
-    BY collationSheet(listInventory(d)), batch(d);   
+    BY collationSheet(d), batch(d);   
 //sumPageInventoryDetail 'Сумма по описям' (collationSheet, batch) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
 //    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
 
@@ -1507,21 +1510,32 @@ EXTEND FORM listInventory
 
 
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumPageInventoryDetail(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku) MATERIALIZED;
+    SUM sumPageInventoryDetail(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);
 sumBalance 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumBalance(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku) MATERIALIZED;    
+    SUM sumBalance(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);    
 sumShortage 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumShortage(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku) MATERIALIZED;    
+    SUM sumShortage(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);    
     
 sumPageInventoryDetailBatches  (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumPageInventoryDetail(cs,Batch b) IF isParent(group, b) AND include(cs,b) MATERIALIZED;
+    SUM sumPageInventoryDetail(cs,Batch b) IF isParent(group, b) AND include(cs,b);
 sumBalanceBatches  (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumBalance(cs,Batch b) IF isParent(group, b) AND include(cs,b) MATERIALIZED;
+    SUM sumBalance(cs,Batch b) IF isParent(group, b) AND include(cs,b);
 sumShortageBatches  (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumShortage(cs,Batch b) IF isParent(group, b) AND include(cs,b) MATERIALIZED;
+    SUM sumShortage(cs,Batch b) IF isParent(group, b) AND include(cs,b);
+
 overSumPageInventoryDetail 'Сумма по описям' = IF isBatch(CollationSheet cs) THEN sumPageInventoryDetailBatches(cs,SkuGroup g) ELSE sumPageInventoryDetail(cs,g);
 overSumBalance 'Сумма по остаткам' = IF isBatch(CollationSheet cs) THEN sumBalanceBatches(cs,SkuGroup g) ELSE sumBalance(cs,g);
 overSumShortage 'Сумма недостачи / излишка' = IF isBatch(CollationSheet cs) THEN sumShortageBatches(cs,SkuGroup g) ELSE sumShortage(cs,g);
+
+sumPageInventoryDetail 'Сумма по описям' = DATA LOCAL NUMERIC[18,4] (SkuGroup);
+sumBalance 'Сумма по остаткам' = DATA LOCAL NUMERIC[18,4] (SkuGroup);
+sumShortage 'Сумма недостачи / излишка' = DATA LOCAL NUMERIC[18,4] (SkuGroup);
+
+fillGroupSums 'Заполнить суммы' (CollationSheet cs) {
+    sumPageInventoryDetail(SkuGroup g) <- overSumPageInventoryDetail(cs, g);
+    sumBalance(SkuGroup g) <- overSumBalance(cs, g);
+    sumShortage(SkuGroup g) <- overSumShortage(cs, g);
+}
 
 saved 'Сохранена' (Inventory i) = PREV(i IS Inventory);
 
@@ -1598,7 +1612,8 @@ FORM inventory 'Инвентаризация'
 
 
     TREE treeGroup g=SkuGroup PARENT parent
-    PROPERTIES READONLY order(g), name(g), overSumPageInventoryDetail(cs,g), overSumBalance(cs,g), overSumShortage(cs,g)
+    PROPERTIES READONLY order(g), name(g), sumPageInventoryDetail(g), sumBalance(g), sumShortage(g)
+    PROPERTIES(cs) fillGroupSums DRAW g TOOLBAR
     ORDER order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
