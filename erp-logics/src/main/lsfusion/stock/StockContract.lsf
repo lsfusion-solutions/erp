@@ -56,11 +56,6 @@ END
 CLASS ABSTRACT ContractSku 'Договор на поставку' : Contract;
 TABLE contractSku(ContractSku);
 
-word 'Файл договора'  = ABSTRACT WORDFILE (ContractSku);
-saveWord 'Загрузить файл договора' (ContractSku contractSku)  { INPUT =word(contractSku) CHANGE; }
-openWord 'Просмотреть файл договора' (ContractSku contractSku)  { open(word(contractSku)); }
-word(ContractSku contract) += word(contract);
-
 id 'Код' = ABSTRACT VARSTRING[100] (ContractSku) IN id CHARWIDTH 10;
 id(ContractSku c) += id(c);
 
@@ -77,9 +72,22 @@ series (ContractSku contract) += series(contract);
 @defineNumeratedDefault(UserContractSku, 'Договоры', 'ДП');
 
 word 'Файл договора' (UserContractSku) = DATA WORDFILE (UserContractSku);
-saveWord 'Загрузить файл договора' (UserContractSku userContractSku)  { INPUT =word(userContractSku) CHANGE; }
-openWord 'Просмотреть файл договора' (UserContractSku userContractSku)  { open(word(userContractSku)); }
-word(UserContractSku contract) += word(contract);
+file 'Файл договора' = DATA FILE (UserContractSku);
+
+saveFile 'Загрузить файл договора' (UserContractSku userContractSku)  { INPUT =file(userContractSku) CHANGE; }
+openFile 'Просмотреть файл договора' (UserContractSku userContractSku)  { open(file(userContractSku)); }
+
+migratedFileContractSku = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedFileContractSku() THEN {
+        NEWSESSION {
+            setNoCancelInTransaction();
+            migratedFileContractSku() <- TRUE;
+            file(UserContractSku s) <- FILE (word(s));
+            APPLY;
+        }    
+    }
+}
 
 supplier = DATA LegalEntity (ContractSku);
 nameSupplier 'Поставщик' (ContractSku contract) = name(supplier(contract)) IN id CHARWIDTH 20;
@@ -150,7 +158,7 @@ FORM userContractSku 'Договор на поставку товаров'
     PROPERTIES(c) nameSupplier, nameCustomer, isDataDefault, nameType,
                   nameNumerator, number, series, dateFrom, dateTo,
                   nameCurrency,  nameTypeExchange, descriptionPaymentCondition,
-                  note, saveWord, openWord, id SHOWIF showIDs()
+                  note, saveFile, openFile, id SHOWIF showIDs()
 
         TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
         PROPERTIES READONLY VALUE(a),name(sg)
@@ -215,8 +223,8 @@ DESIGN userContractSku {
     NEW text {
         type = CONTAINERH;
         caption = 'Содержание';
-        MOVE PROPERTY(saveWord(c));
-        MOVE PROPERTY(openWord(c));
+        MOVE PROPERTY(saveFile(c));
+        MOVE PROPERTY(openFile(c));
     }
     NEW tabContainer{
         fill = 1;
