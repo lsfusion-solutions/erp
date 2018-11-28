@@ -287,17 +287,19 @@ TABLE paymentGiftCard(PaymentGiftCard);
 
 @defineExternalizable(paymentGiftCard, VARSTRING[100]);
 
-giftCard = DATA GiftCard (PaymentGiftCard);
+giftCard = DATA GiftCard (PaymentGiftCard) INDEXED;
 seriesNumberGiftCard 'Серия/номер' (PaymentGiftCard payment) = seriesNumber(giftCard(payment));
+
+receiptPayment(PaymentGiftCard pgc) = receipt[Payment](pgc) IF pgc IS PaymentGiftCard MATERIALIZED INDEXED;
 
 //имплемент в GiftCardLedger
 giftCard(PaymentGiftCard payment) += giftCard(payment);
-dateTime(PaymentGiftCard payment) += dateTime(receipt(payment)) IF payment IS PaymentGiftCard;
-date(PaymentGiftCard payment) += date(receipt(payment)) IF payment IS PaymentGiftCard;
+dateTime(PaymentGiftCard payment) += dateTime(receiptPayment(payment)) IF payment IS PaymentGiftCard;
+date(PaymentGiftCard payment) += date(receiptPayment(payment)) IF payment IS PaymentGiftCard;
 sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
 description(PaymentGiftCard payment) += 'Погашение' IF payment IS PaymentGiftCard;
-numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS PaymentGiftCard;
-departmentStore(PaymentGiftCard payment) += departmentStore(receipt(payment)) IF payment IS PaymentGiftCard;
+numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receiptPayment(payment))) IF payment IS PaymentGiftCard;
+departmentStore(PaymentGiftCard payment) += departmentStore(receiptPayment(payment)) IF payment IS PaymentGiftCard;
 
 edit(PaymentGiftCard d) + { 
     IF d IS PaymentGiftCard THEN {
