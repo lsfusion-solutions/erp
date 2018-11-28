@@ -73,7 +73,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
                     if ((disableSynchronizeItems || uploadCategories(context, categoriesList, discountLimits)) &&
                             (disableSynchronizeItems || uploadItems(context, data.itemsList, discountLimits, data.minPriceLimitsMap)) &&
-                            uploadItemGroups(context, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList, discountLimits) &&
+                            uploadItemGroups(context, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList) &&
                             uploadItemItemGroups(context, data.itemItemGroupsMap))
                         context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
 
@@ -172,10 +172,16 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
         ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "loyaItemGroup", groupExpr, "sku", skuExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("idLoyaItemGroup", findProperty("id[LoyaItemGroup]").getExpr(groupExpr));
-        query.addProperty("nameLoyaItemGroup", findProperty("name[LoyaItemGroup]").getExpr(groupExpr));
+
+        String[] loyaItemGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup",
+                "maxDiscountLoyaItemGroup", "maxAllowBonusLoyaItemGroup", "maxAwardBonusLoyaItemGroup"};
+        LCP[] loyaItemGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]",
+                "overMaxDiscountLoyaItemGroup[LoyaItemGroup]", "overMaxAllowBonusLoyaItemGroup[LoyaItemGroup]", "overMaxAwardBonusLoyaItemGroup[LoyaItemGroup]");
+        for (int i = 0; i < loyaItemGroupProperties.length; i++) {
+            query.addProperty(loyaItemGroupNames[i], loyaItemGroupProperties[i].getExpr(groupExpr));
+        }
+
         query.addProperty("quantity", findProperty("quantity[Item, LoyaItemGroup]").getExpr(skuExpr, groupExpr));
-        query.addProperty("descriptionLoyaItemGroup", findProperty("description[LoyaItemGroup]").getExpr(groupExpr));
         query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
         query.addProperty("barcode", findProperty("idBarcode[Sku]").getExpr(skuExpr));
         query.addProperty("captionItem", findProperty("nameAttribute[Item]").getExpr(skuExpr));
@@ -197,6 +203,9 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             String nameItemGroup = trim((String) valueEntry.get("nameLoyaItemGroup").getValue());
             BigDecimal quantity = (BigDecimal) valueEntry.get("quantity").getValue();
             String descriptionItemGroup = trim((String) valueEntry.get("descriptionLoyaItemGroup").getValue());
+            Integer maxDiscountItemGroup = (Integer) valueEntry.get("maxDiscountLoyaItemGroup").getValue();
+            Integer maxAllowBonusItemGroup = (Integer) valueEntry.get("maxAllowBonusLoyaItemGroup").getValue();
+            Integer maxAwardBonusItemGroup = (Integer) valueEntry.get("maxAwardBonusLoyaItemGroup").getValue();
             String idSku = trim((String) valueEntry.get("idSku").getValue());
             String barcode = trim((String) valueEntry.get("barcode").getValue());
             String id = useBarcodeAsId ? barcode : idSku;
@@ -207,7 +216,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
             Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
             itemsList.add(new Item(id, captionItem, idUOMItem, isWeight(passScales, shortNameUOM), idSkuGroup, idLoyaBrand));
-            itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
+            itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup, getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup)));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
                 skuList = new ArrayList<>();
@@ -218,9 +227,9 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         //get loya groups without items and not active for deletion
         KeyExpr emptyGroupExpr = new KeyExpr("loyaItemGroup");
         QueryBuilder<Object, Object> emptyQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "loyaItemGroup", emptyGroupExpr));
-        String[] emptyGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup", "empty", "active"};
+        String[] emptyGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup", "empty", "active", "maxDiscountLoyaItemGroup", "maxAllowBonusLoyaItemGroup", "maxAwardBonusLoyaItemGroup"};
         LCP[] emptyGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]", "empty[LoyaItemGroup]",
-                "active[LoyaItemGroup]");
+                "active[LoyaItemGroup]", "overMaxDiscountLoyaItemGroup[LoyaItemGroup]", "overMaxAllowBonusLoyaItemGroup[LoyaItemGroup]", "overMaxAwardBonusLoyaItemGroup[LoyaItemGroup]");
         for (int i = 0; i < emptyGroupProperties.length; i++) {
             emptyQuery.addProperty(emptyGroupNames[i], emptyGroupProperties[i].getExpr(emptyGroupExpr));
         }
@@ -235,10 +244,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             Long idLoyaItemGroup = (Long) valueEntry.get("idLoyaItemGroup").getValue();
             String nameItemGroup = trim((String) valueEntry.get("nameLoyaItemGroup").getValue());
             String descriptionItemGroup = trim((String) valueEntry.get("descriptionLoyaItemGroup").getValue());
+            Integer maxDiscountItemGroup = (Integer) valueEntry.get("maxDiscountLoyaItemGroup").getValue();
+            Integer maxAllowBonusItemGroup = (Integer) valueEntry.get("maxAllowBonusLoyaItemGroup").getValue();
+            Integer maxAwardBonusItemGroup = (Integer) valueEntry.get("maxAwardBonusLoyaItemGroup").getValue();
             boolean empty = valueEntry.get("empty").getValue() != null;
             boolean active = valueEntry.get("active").getValue() != null;
             if(active && empty)
-                itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup));
+                itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup,
+                        getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup)));
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
                 deleteItemGroupsList.put(groupObject, idLoyaItemGroup);
         }
@@ -281,12 +294,12 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private boolean uploadItemGroups(ExecutionContext context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
-                                     Map<DataObject, Long> deleteItemGroupsMap, Map<String, Integer> discountLimits) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+                                     Map<DataObject, Long> deleteItemGroupsMap) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean succeeded = true;
         for (Map.Entry<DataObject, GoodGroup> entry : itemGroupsMap.entrySet()) {
             DataObject itemGroupObject = entry.getKey();
             GoodGroup itemGroupData = entry.getValue();
-            if (uploadItemGroup(context, itemItemGroupsMap, itemGroupData, itemGroupObject, discountLimits) != null)
+            if (uploadItemGroup(context, itemItemGroupsMap, itemGroupData, itemGroupObject) != null)
                 succeeded = false;
         }
         for(Map.Entry<DataObject, Long> deleteItemGroup : deleteItemGroupsMap.entrySet()) {
@@ -301,7 +314,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     private String uploadItemGroup(ExecutionContext context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap,
-                                    GoodGroup goodGroup, DataObject itemGroupObject, Map<String, Integer> discountLimits)
+                                    GoodGroup goodGroup, DataObject itemGroupObject)
             throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ServerLoggers.importLogger.info("Loya: synchronizing goodGroup " + goodGroup.id + " started");
         JSONObject requestBody = new JSONObject();
@@ -309,7 +322,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         requestBody.put("id", goodGroup.id);
         requestBody.put("name", goodGroup.name == null ? "" : goodGroup.name);
         requestBody.put("description", goodGroup.description == null ? "" : goodGroup.description);
-        requestBody.put("limits", discountLimits);
+        requestBody.put("limits", goodGroup.discountLimits);
 
         if (existsItemGroup(context, goodGroup.id)) {
             ServerLoggers.importLogger.info("Loya: modifying goodGroup " + goodGroup.id);
@@ -799,11 +812,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         Long id;
         String name;
         String description;
+        Map<String, Integer> discountLimits;
 
-        public GoodGroup(Long id, String name, String description) {
+
+        public GoodGroup(Long id, String name, String description, Map<String, Integer> discountLimits) {
             this.id = id;
             this.name = name;
             this.description = description;
+            this.discountLimits = discountLimits;
         }
     }
 
