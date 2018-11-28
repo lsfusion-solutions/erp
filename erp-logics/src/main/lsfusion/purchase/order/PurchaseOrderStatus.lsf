@@ -131,11 +131,14 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
     LOCAL file = FILE ();
     PRINT printOrderXLS OBJECTS o=order XLSX TO file;
     
+    LOCAL inlineFile = FILE ();
+    PRINT messageOrders OBJECTS o=order HTML TO inlineFile;
+    
     EMAIL
     FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
     TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
-    INLINE messageOrders OBJECTS o=order
+    INLINE inlineFile()
     ATTACH file() 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
 ; }

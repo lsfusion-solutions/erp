@@ -195,20 +195,22 @@ DESIGN options {
 
 emailNotificationStart 'Отправить' (CustomUser u, Task t)  { 
     
+    LOCAL inlineFile = FILE ();
+    PRINT notification OBJECTS r = notificationStart(t) HTML TO inlineFile;
     IF hasAttachment(t) THEN {
         generateAttachment(t);
         EMAIL 
             FROM emailTask()
             SUBJECT (OVERRIDE subjectNotificationStart(t), 'Уведомление по задаче от ' + dateStart(t))
             TO email(u)
-            INLINE notification OBJECTS r = notificationStart(t)
+            INLINE inlineFile()
             ATTACH attachment(t) NAME attachmentName(t);
     } ELSE
         EMAIL 
             FROM emailTask()
             SUBJECT (OVERRIDE subjectNotificationStart(t), 'Уведомление по задаче от ' + dateStart(t))
             TO email(u)
-            INLINE notification OBJECTS r = notificationStart(t);
+            INLINE inlineFile();
     
 }
 
