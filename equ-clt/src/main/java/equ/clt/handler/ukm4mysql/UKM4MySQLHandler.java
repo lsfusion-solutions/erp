@@ -947,7 +947,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Connection conn = null;
 
                 try {
-                    sendSalesLogger.info(String.format("UKM4: connecting to %s", params.connectionString));
+                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments,
@@ -1061,7 +1061,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean indexExists = rs.getInt(1) > 0;
                 if (!indexExists) {
                     try(Statement createStatement = conn.createStatement()) {
-                        createStatement.execute(String.format("CREATE INDEX %s ON %s(%s);", indexName, tableName, fields));
+                        String command = String.format("CREATE INDEX %s ON %s(%s);", indexName, tableName, fields);
+                        sendSalesLogger.info(logPrefix + command);
+                        createStatement.execute(command);
                     }
                 }
             }
@@ -1175,7 +1177,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
             }
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(String.format("UKM4: found %s records", salesInfoList.size()));
+                sendSalesLogger.info(String.format(logPrefix + "found %s records", salesInfoList.size()));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         } finally {
@@ -1201,7 +1203,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(requestExchange.dateTo);
                         cal.add(Calendar.DATE, 1);
-                        sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
+                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
                         Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, false);
@@ -1217,7 +1219,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         statement = conn.createStatement();
                         String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
                                 (cashIdWhere == null ? "" : cashIdWhere.toString());
-                        sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
+                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
                         statement.execute(query);
                         succeededRequests.add(requestExchange.requestExchange);
                     }
