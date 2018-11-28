@@ -1049,7 +1049,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         checkIndex(conn, "ext_processed_index", "receipt", "ext_processed");
         checkIndex(conn, "receipt", "receipt_item", "cash_id, receipt_header");
         checkIndex(conn, "item", "receipt_item_properties", "cash_id, receipt_item");
-        checkIndex(conn, "receipt", "receipt_payment", "cash_id, receipt_item");
+        checkIndex(conn, "receipt", "receipt_payment", "cash_id, receipt_header");
     }
 
     private void checkIndex(Connection conn, String indexName, String tableName, String fields) throws SQLException {
