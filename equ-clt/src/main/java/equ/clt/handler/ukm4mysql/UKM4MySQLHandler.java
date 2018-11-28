@@ -1046,25 +1046,25 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private void checkIndices(Connection conn) throws SQLException {
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
-            String query = "SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='receipt' AND index_name='ext_processed_index'";
-            ResultSet rs = statement.executeQuery(query);
+        checkIndex(conn, "ext_processed_index", "receipt", "ext_processed");
+        checkIndex(conn, "receipt", "receipt_item", "cash_id, receipt_header");
+        checkIndex(conn, "item", "receipt_item_properties", "cash_id, receipt_item");
+        checkIndex(conn, "receipt", "receipt_payment", "cash_id, receipt_item");
+    }
+
+    private void checkIndex(Connection conn, String indexName, String tableName, String fields) throws SQLException {
+        try(Statement selectStatement = conn.createStatement()) {
+            String query = String.format("SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='%s' AND index_name='%s'", tableName, indexName);
+            ResultSet rs = selectStatement.executeQuery(query);
 
             while (rs.next()) {
                 boolean indexExists = rs.getInt(1) > 0;
                 if (!indexExists) {
-                    statement = conn.createStatement();
-                    statement.execute("CREATE INDEX ext_processed_index ON receipt(ext_processed);");
+                    try(Statement createStatement = conn.createStatement()) {
+                        createStatement.execute(String.format("CREATE INDEX %s ON %s(%s);", indexName, tableName, fields));
+                    }
                 }
             }
-
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
