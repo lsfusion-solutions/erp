@@ -1,0 +1,55 @@
+MODULE PricingPurchaseSupplierCalc;
+
+REQUIRE PricingPurchase, PricingPriceList;
+
+NAMESPACE Pricing;
+
+legalEntity = DATA LegalEntity (CalcPriceListType);
+nameLegalEntity 'Поставщик' (CalcPriceListType t) = name(legalEntity(t));
+
+CONSTRAINT legalEntity(CalcPriceListType t) AND NOT isSupplier(legalEntity(t))
+    CHECKED BY legalEntity[CalcPriceListType]
+    MESSAGE 'Для расчетного вида цены выбрана организация, которая не является поставщиком';
+
+
+calcPriceListType (l) = GROUP AGGR CalcPriceListType t WHERE t IS CalcPriceListType BY legalEntity(t);
+nameCalcPriceListType 'Наценки (розничные)' (LegalEntity l) = name(calcPriceListType(l));
+
+EXTEND FORM calcPriceListType
+    PROPERTIES nameLegalEntity(c)
+;
+DESIGN calcPriceListType {
+    GROUP(,c) {
+        type = COLUMNS ;
+        columns = 4;
+        MOVE PROPERTY(nameCurrency(c));
+        MOVE PROPERTY(nameRoundCondition(c));        
+    }
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) nameCalcPriceListType
+;
+
+DESIGN legalEntity {
+    BOX {
+        BOX(l) {
+            column2 {
+                NEW caclPriceListType{
+                    caption = 'Наценки';
+                    columns = 1;
+                    MOVE PROPERTY(nameCalcPriceListType(l)); 
+                }
+            } 
+        } 
+    }  
+}
+
+extraCalcRetailCalcPriceListType (UserInvoiceDetail d)+= WHEN markup(calcPriceListType(supplier(d)), sku(d)) THEN calcPriceListType(supplier(d));
+
+overSetMarkupManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
+    IF d IS DepartmentStore THEN
+        managementRetailPrice (Sku sku) <- priceA(calcPriceListType(supplierLastOrderBatch(sku, d)), sku, d, dt) 
+            WHERE managementRetailPrice(sku) AND markup(calcPriceListType(supplierLastOrderBatch(sku, d)), sku);
+}
+
