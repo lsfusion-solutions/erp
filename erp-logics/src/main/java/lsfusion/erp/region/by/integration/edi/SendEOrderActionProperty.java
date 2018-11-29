@@ -73,10 +73,12 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 error += String.format("EOrder %s: Не задан GLN склада покупателя", documentNumber);
             String nameCustomerStock = (String) findProperty("nameCustomerStock[EOrder]").read(context, eOrderObject);
             String note = (String) findProperty("note[EOrder]").read(context, eOrderObject);
+            boolean isCancel = findProperty("isCancel[EOrder]").read(context, eOrderObject) != null;
 
             if (error.isEmpty()) {
                 String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
-                        GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note, outputDir);
+                        GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note,
+                        isCancel, outputDir);
 
                 Element rootElement = new Element("Envelope", soapenvNamespace);
                 rootElement.setNamespace(soapenvNamespace);
@@ -130,7 +132,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                         context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: неизвестная ошибка", provider, documentNumber), "Экспорт"));
                 }
             } else {
-                ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены");
+                ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены. " + error);
                 context.delayUserInterfaction(new MessageClientAction(error, provider + " Заказ не выгружен: Не все поля заполнены"));
             }
         } else {
@@ -140,7 +142,8 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
     private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
                                      String deliveryDate, String GLNSupplierStock, String nameSupplier, String nameCustomer,
-                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note, String outputDir)
+                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note, boolean isCancel,
+                                     String outputDir)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("ORDERS");
         Document doc = new Document(rootElement);
@@ -148,7 +151,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
         addStringElement(rootElement, "documentNumber", documentNumber);
         addStringElement(rootElement, "documentDate", documentDate);
-        addStringElement(rootElement, "documentType", "9");
+        addStringElement(rootElement, "documentType", isCancel ? "1" : "9"); //9 =  Оригинал, 1 = Отмена
         addStringElement(rootElement, "buyerGLN", GLNCustomer);
         addStringElement(rootElement, "buyerName", nameCustomer);
         addStringElement(rootElement, "destinationGLN", GLNCustomerStock);
