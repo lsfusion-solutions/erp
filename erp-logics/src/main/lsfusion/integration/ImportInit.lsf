@@ -10,22 +10,20 @@ newItem 'Создавать новый товар' = DATA LOCAL NESTED BOOLEAN (
 inputStock = DATA LOCAL NESTED Stock();
 nameInputStock 'Склад' () = name(inputStock());
 useConstraint 'Сохранять, даже если есть ограничения' = DATA LOCAL NESTED BOOLEAN ();
+importBatch 'Сохранить коды партий' = DATA LOCAL NESTED BOOLEAN ();
 
 date 'Дата ТТН' = DATA LOCAL NESTED DATE (INTEGER);
 num 'Номер ТТН' = DATA LOCAL NESTED VARSTRING[28](INTEGER);
 series 'Серия ТТН' = DATA LOCAL NESTED VARSTRING[2](INTEGER);
-seriesNumber 'Серия/номер ТТН'(INTEGER i) = CONCAT '', series(i), num(i);
+seriesNumber 'Серия/номер ТТН'(INTEGER i) = OVERRIDE (CONCAT '', series(i), num(i)), 'nodoc' IF imported(i);
 
 idSupplier 'Код поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
 UNPSupplier 'УНП поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
 
-supplier (INTEGER i) = OVERRIDE legalEntityUNP(UNPSupplier(i)) IF useUNP(), legalEntity(idSupplier(i));
 idSupplierStock 'Код склада поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-supplierStock (INTEGER i) = stock(idSupplierStock(i));
 idCustomerStock 'Код склада покупателя'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-customerStock (INTEGER i) = OVERRIDE inputStock() IF supplier(i), stock(idCustomerStock(i));
 idOperation 'Код операции'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-operation (INTEGER i) = OVERRIDE inputOperation() IF supplier(i), Purchase.operation(idOperation(i));
+operation (INTEGER i) = OVERRIDE inputOperation() IF inputOperation(), Purchase.operation(idOperation(i));
 
 idSku 'Код товара'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
 barcode 'Штрихкод товара'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
@@ -52,6 +50,8 @@ shipPrice 'Цена учетная розничная ' = DATA LOCAL NESTED NUME
 shipSum 'Учетная сумма' = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 expiry 'Годен до (дата)'= DATA LOCAL NESTED DATE (INTEGER);
 
+mapField = ABSTRACT VARSTRING[15](Sku);
+
 FORM exportInit 'Экспорт'
     OBJECTS st = Stock PANEL SUBREPORT 
     
@@ -70,7 +70,7 @@ FORM exportInit 'Экспорт'
                 nameUOM = name(UOM(sku(bt))),
                 idSkuGroup = id(skuGroup(sku(bt))),
                 splitSku = (IF (passScales(sku(bt)) OR split(sku(bt)))  THEN '1' ELSE '0') , 
-                part = id(bt),
+                part = (OVERRIDE id(bt), VARSTRING[100](bt)),
                 quantity = currentBalance(bt,st),
                 price = priceA(SystemLedgerPriceListType.supplierPricingPriceListType, sku(bt), st,currentDateTime()),
                 manPrice = priceA(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, sku(bt), st,currentDateTime()),
@@ -79,7 +79,7 @@ FORM exportInit 'Экспорт'
                 shipPrice = priceA(SystemLedgerPriceListType.accountPriceListType, sku(bt), st,currentDateTime()),
                 shipSum = sumB(bt,st,currentDateTime()),
                 expiry = expiryDate(bt),
-                skuMapping = (VARSTRING[10]('') IF bt IS Batch)                       
+                skuMapping = (OVERRIDE mapField(sku(bt)), VARSTRING[15]('') IF bt IS Batch)                       
                 
     FILTERS currentBalance(bt,st)
     
@@ -118,8 +118,12 @@ resetLoc () {
 }
 
 importInitCustom 'Импорт остатков' ()  {
-    idCustomerStock(INTEGER r) <- id(customerStock(r)) WHERE supplier(r); 
-    idSupplier(INTEGER r) <- id(supplier(r)) WHERE supplier(r); 
+    idCustomerStock(INTEGER r) <- id(inputStock()) WHERE imported(r) AND inputStock(); 
+    idSupplier(INTEGER r) <- 'nosup' WHERE imported(r) AND NOT idSupplier(r);
+    date(INTEGER r) <- 2018_01_01 WHERE imported(r) AND NOT date(r);
+     
+    LOCAL supplier = LegalEntity(INTEGER );
+    supplier(INTEGER r) <- OVERRIDE IF useUNP() THEN supplierUNP(UNPSupplier(r)) ELSE legalEntity(idSupplier(r)) WHERE imported(r); 
 
     LOCAL incl =  BOOLEAN (Purchase.UserInvoiceDetail);
                    
@@ -183,17 +187,17 @@ importInitCustom 'Импорт остатков' ()  {
     }    
     
     //шапки
-    FOR [GROUP MIN INTEGER r IF supplier(r) AND sku(r) BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
+    FOR [GROUP MIN INTEGER r  BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
         AND NOT Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) 
         NEW i = Purchase.UserInvoice DO {
         
         id(i) <- CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num);
     }
-    FOR INTEGER r == [GROUP MIN INTEGER ir IF supplier(ir) AND  sku(ir) BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
+    FOR INTEGER r == [GROUP MIN INTEGER ir BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
         AND Purchase.UserInvoice i == Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) DO {
         
-        supplier(i) <- legalEntity(idSupplier(r));
-        supplierStock(i) <- stock(idSupplierStock(r)) WHERE stock(idSupplierStock(r)) AND legalEntity(idSupplier(r)) == legalEntity(stock(idSupplierStock(r)));
+        supplier(i) <- OVERRIDE supplier(r), legalEntity(stock(idCustomerStock(r)));
+        supplierStock(i) <- IF supplier(r) THEN minStock(supplier(r)) ELSE stock(idCustomerStock(r));
         customer(i) <- legalEntity(stock(idCustomerStock(r)));
         customerStock(i) <- stock(idCustomerStock(r));
         number(i) <- num(r);
@@ -207,7 +211,7 @@ importInitCustom 'Импорт остатков' ()  {
     }
     
     //строки
-    FOR sku(INTEGER r) AND NOT Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r)) NEW d = Purchase.UserInvoiceDetail DO {
+    FOR imported(INTEGER r) AND NOT Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r)) NEW d = Purchase.UserInvoiceDetail DO {
         id(d) <- CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r);
     }
         
@@ -222,36 +226,32 @@ importInitCustom 'Импорт остатков' ()  {
         price(d) <- price(r);
         manufacturingPrice(d) <- manPrice(r);
              
-        retailPrice(d) <- shipPrice(r) IF customerStock(r) IS DepartmentStore;
+        retailPrice(d) <- shipPrice(r) IF customerStock(d) IS DepartmentStore;
         
         shipmentPrice(d) <-CASE 
                             WHEN shipPrice(r) THEN shipPrice(r) 
-                            WHEN customerStock(r) IS DepartmentStore THEN retailPrice(d)
+                            WHEN customerStock(d) IS DepartmentStore THEN retailPrice(d)
                             ELSE price(r);
         shipmentSum(d) <- shipSum(r);
-        idBatch(d) <- part(r) IF indexBatch(r) == 1;
+        idBatch(d) <- part(r) IF indexBatch(r) == 1 WHERE importBatch();
         expiryDate(d) <- expiry(r);
         incl(d) <- TRUE;
     }
-    FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(INTEGER r), idSupplier(r), seriesNumber(r), item(r), part(r)) AND indexBatch(r) > 1 DO {
+    FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(INTEGER r), idSupplier(r), seriesNumber(r), item(r), part(r)) AND indexBatch(r) > 1  AND importBatch() DO {
         batch(d) <- batch(part(r));
     }
-    FOR [GROUP SUM 1 IF imported(INTEGER in)  BY operation(in),customerStock(in)](Purchase.Operation o, Stock st) DO {
-        quantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);
-        shipmentQuantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);
-        shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == customerStock(d) AND NOT incl(d);     
+    FOR [GROUP SUM 1 IF imported(INTEGER in) BY operation(in), idCustomerStock(in)](Purchase.Operation o, VARSTRING[100] st) DO {
+        quantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
+        shipmentQuantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
+        shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);     
     } 
         
-    LOCAL NESTED closeDate = DATE (Stock);
-    closeDate (Stock st) <- documentsClosedDate(st) WHERE (GROUP SUM 1 IF sku(INTEGER in) AND customerStock(in) == st);
-    documentsClosedDate(Stock st) <- NULL WHERE closeDate(st);
     disableDocumentLog() <- TRUE;
     IF useConstraint() THEN {
         setNoCancelInTransaction();             
     }     
     APPLY;
-    
-    documentsClosedDate(Stock st) <- closeDate(st) WHERE closeDate(st);
+
     disableDocumentLog() <- NULL;	    
     APPLY;    
 } 
@@ -287,7 +287,7 @@ EXTEND FORM integrationData
     FILTERS isCompany(ww)
     PROPERTIES exportInit(ww)
 
-    PROPERTIES () useUNP, nameInputStock, nameInputOperation, newItem, importInit, importInitXLSX, useConstraint
+    PROPERTIES () useUNP, nameInputStock, nameInputOperation, newItem, importInit, importInitXLSX, useConstraint, importBatch
 ;
 DESIGN integrationData {
     pane {
@@ -311,9 +311,13 @@ DESIGN integrationData {
                 MOVE PROPERTY (nameInputOperation());  
                 MOVE PROPERTY (nameInputStock());  
                 MOVE PROPERTY (newItem());
+                MOVE PROPERTY (importBatch());                 
                 MOVE PROPERTY (useConstraint());                 
                 MOVE PROPERTY (importInit());            
             }            
         }    
     }
 }
+
+EXTEND FORM userInvoice 
+PROPERTIES (d) READONLY id;
