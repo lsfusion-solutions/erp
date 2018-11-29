@@ -87,7 +87,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = staticCaption(type(scheduleOrder)) IN base;
     type(ScheduleOrder o) <- defaultGenType() WHEN SET(o IS ScheduleOrder);
     
-    supplier 'Поставщик (ИД)' = DATA LegalEntity(ScheduleOrder);
+    supplier 'Поставщик (ИД)' = DATA LegalEntity(ScheduleOrder) INDEXED;
     nameSupplier 'Поставщик' (ScheduleOrder scheduleOrder) = name(supplier(scheduleOrder)) IN id;
     fullNameSupplier 'Поставщик' (ScheduleOrder scheduleOrder) = fullName(supplier(scheduleOrder)) IN base;    
 
@@ -199,6 +199,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)), 
                                                                         0 IF d IS ScheduleOrderTime;
 
+    INDEX scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);
     shipmentScheduleOrderTime = GROUP AGGR ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d); 
 
     toShowGenDay (ScheduleOrder scheduleOrder) = type(scheduleOrder) == GenType.genDays;
@@ -249,6 +250,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameCustomerStock 'Склад покупателя' (ScheduleOrderDetail scheduleOrderDetail) = name(customerStock(scheduleOrderDetail)) IN id;
 
     INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
+    INDEX scheduleOrder(ScheduleOrderDetail d), customerStock(d), dateSupply(d);
     
     countDetails (scheduleOrder, dateSupply, dateOrder, customerStock)= GROUP SUM 1
         BY  scheduleOrder(ScheduleOrderDetail d), dateSupply(d), dateOrder(d), customerStock(d);   
@@ -273,7 +275,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     overCreate  ABSTRACT LIST ( ScheduleOrderDetail); 
     
     lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
-    lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d);
+    lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d) MATERIALIZED;
 
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         LOCAL toDate = DATE ();    
