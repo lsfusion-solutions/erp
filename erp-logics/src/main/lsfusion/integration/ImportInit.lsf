@@ -37,7 +37,7 @@ sku (INTEGER i) = OVERRIDE sku(skuMapping(i)),
                                   sku(idSku(i)), 
                                   skuBarcode(barcode(i)) IF NOT charLength(barcode(i)) > 7, 
                                   sku(barcode(i));
-item (INTEGER i) = OVERRIDE skuMapping(i), idSku(i), barcode(i);
+item (INTEGER i) = OVERRIDE idSku(i), barcode(i), skuMapping(i);
 
 part 'Код партии'=  DATA LOCAL NESTED VARSTRING[100](INTEGER );
 indexBatch(INTEGER i) =PARTITION SUM 1 ORDER idCustomerStock(i), i BY part(i);
@@ -187,7 +187,7 @@ importInitCustom 'Импорт остатков' ()  {
     }    
     
     //шапки
-    FOR [GROUP MIN INTEGER r  BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
+    FOR [GROUP MIN INTEGER r IF r > 0 BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
         AND NOT Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) 
         NEW i = Purchase.UserInvoice DO {
         
@@ -211,7 +211,7 @@ importInitCustom 'Импорт остатков' ()  {
     }
     
     //строки
-    FOR imported(INTEGER r) AND NOT Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r)) NEW d = Purchase.UserInvoiceDetail DO {
+    FOR imported(INTEGER r) AND r > 0 AND NOT Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r)) NEW d = Purchase.UserInvoiceDetail DO {
         id(d) <- CONCAT '_', idCustomerStock(r), idSupplier(r), seriesNumber(r), item(r), part(r);
     }
         
@@ -243,7 +243,9 @@ importInitCustom 'Импорт остатков' ()  {
     FOR [GROUP SUM 1 IF imported(INTEGER in) BY operation(in), idCustomerStock(in)](Purchase.Operation o, VARSTRING[100] st) DO {
         quantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
         shipmentQuantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
-        shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);     
+        shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d); 
+        
+        DELETE Purchase.UserInvoiceDetail d WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d) AND NOT sku(d);    
     } 
         
     disableDocumentLog() <- TRUE;
