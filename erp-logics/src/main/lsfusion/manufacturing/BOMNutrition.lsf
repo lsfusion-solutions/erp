@@ -67,7 +67,7 @@ composition(Product product) <- components(product) WHEN CHANGED(components(prod
 
 changeComposition 'Записать в товар'(Product product)  { 
     FOR sku(product) == Sku item DO {
-        composition[Item](item) <- VARSTRING[255](composition(product));
+        composition[Item](item) <- VARSTRING[1000](composition(product));
     }
 } ASON CONTEXTMENU composition[Product];
 
@@ -146,15 +146,16 @@ descriptionOver 'Описание' (Component c) = OVERRIDE description1(c), des
 
 
 descriptionCalc 'Описание' (BOM) = GROUP CONCAT descriptionOver(Component component), ', '
-                                       ORDER overNettoNetWeight(component), component
+                                       ORDER DESC overNettoNetWeight(component), component
                                        BY BOM(component);
                                        
-fullDescriptionOver 'Описание (полное)' (Component c) = CONCAT ' ', '<b>'+(descriptionOver(c))+'</b>', 
+fullDescriptionOver 'Описание (полное)' (Component c) = CONCAT ' ', '<b>'+(descriptionOver(c))+'</b>',
+                                                                        TEXT('('+composition(sku(c))+')' ),
                                                                     ( ('('+description(sku(c))+')' ) IF material(c) IS Product);   
 
     
 fullDescriptionCalc 'Описание' (BOM) = GROUP CONCAT fullDescriptionOver(Component component), ', '
-                                       ORDER overNettoNetWeight(component), component
+                                       ORDER DESC overNettoNetWeight(component), component
                                        BY BOM(component);
                                        
 fillDescription 'Заполнить описание' (BOM BOM)  { 
