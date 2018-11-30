@@ -65,6 +65,8 @@ needToRepricingSaleStore 'Фильтр' (InvoiceDetail d, Stock department, DATE
     shipmentDateTime(d) <= timeTo 
 ; 
 
+overRepricingDetailSaleStoreOver  ABSTRACT LIST ( UserRepricingDetail, InvoiceDetail);
+
 createRepricingSaleStoreOver 'Создать переоценку'(Invoice i)  { 
     NEW r = UserRepricing {
         departmentStore(r) <-  supplierStock(i);
@@ -86,7 +88,8 @@ createRepricingSaleStoreOver 'Создать переоценку'(Invoice i)  {
             curRetailPrice(rd) <- prevRetailPricingPriceB(detail);
 
             //price(rd) <- price(detail);
-            retailPrice(rd) <- shipmentPrice(detail);                          
+            retailPrice(rd) <- shipmentPrice(detail);       
+            overRepricingDetailSaleStoreOver(rd, detail);                   
         }    
         repricingSaleStore(i) <- r ;       
     }   
