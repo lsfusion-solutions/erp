@@ -54,13 +54,13 @@ in 'Вкл.' (Item s, LoyaItemGroup g) = OVERRIDE dataIn(s, g), [GROUP SUM 1 IF 
 CONSTRAINT isData(LoyaItemGroup g) AND in(Item i, g) AND quantity(i, g) <= 0.0 
     MESSAGE 'Количество товара должно быть положительным.';
 
-maxDiscountLoyaItemGroup 'Максимальный процент скидки для группы товаров' = DATA INTEGER (LoyaItemGroup);
-maxAllowBonusLoyaItemGroup 'Максимальный процент начисления для группы товаров' = DATA INTEGER (LoyaItemGroup);
-maxAwardBonusLoyaItemGroup 'Максимальный процент списания бонусов для группы товаров' = DATA INTEGER (LoyaItemGroup);
+maxDiscountLoya 'Максимальный процент скидки для группы товаров' = DATA INTEGER (LoyaItemGroup);
+maxAllowBonusLoya 'Максимальный процент начисления для группы товаров' = DATA INTEGER (LoyaItemGroup);
+maxAwardBonusLoya 'Максимальный процент списания бонусов для группы товаров' = DATA INTEGER (LoyaItemGroup);
 
-overMaxDiscountLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxDiscountLoyaItemGroup(ig), maxDiscountLoya();
-overMaxAllowBonusLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxAllowBonusLoyaItemGroup(ig), maxAllowBonusLoya();
-overMaxAwardBonusLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxAwardBonusLoyaItemGroup(ig), maxAwardBonusLoya();
+overMaxDiscountLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxDiscountLoya(ig), maxDiscountLoya();
+overMaxAllowBonusLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxAllowBonusLoya(ig), maxAllowBonusLoya();
+overMaxAwardBonusLoyaItemGroup (LoyaItemGroup ig) = OVERRIDE maxAwardBonusLoya(ig), maxAwardBonusLoya();
 
 enabledLoya 'Вкл. Loya' = DATA LOCAL BOOLEAN (DepartmentStore);
 enabledLoya 'Вкл. Loya' = GROUP MAX enabledLoya(DepartmentStore d);
@@ -217,7 +217,7 @@ importXls 'Импорт из XLS'(LoyaItemGroup g)  {
 //формы
 FORM loyaItemGroup 'Группа товаров Loya'
     OBJECTS g=LoyaItemGroup PANEL
-    PROPERTIES(g) active, isData, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description, maxDiscountLoyaItemGroup, maxAllowBonusLoyaItemGroup, maxAwardBonusLoyaItemGroup
+    PROPERTIES(g) active, isData, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description, maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya
    
     OBJECTS i=Item
     PROPERTIES(i) READONLY id, idBarcode, nameAttribute
@@ -236,9 +236,9 @@ DESIGN loyaItemGroup {
             MOVE PROPERTY (id(g));
             MOVE PROPERTY (name(g));
             MOVE PROPERTY (description(g));
-            MOVE PROPERTY (maxDiscountLoyaItemGroup(g));
-            MOVE PROPERTY (maxAllowBonusLoyaItemGroup(g));
-            MOVE PROPERTY (maxAwardBonusLoyaItemGroup(g));
+            MOVE PROPERTY (maxDiscountLoya(g));
+            MOVE PROPERTY (maxAllowBonusLoya(g));
+            MOVE PROPERTY (maxAwardBonusLoya(g));
         }
         NEW dates {
             type = CONTAINERH;
@@ -251,7 +251,7 @@ DESIGN loyaItemGroup {
 
 FORM loyaItemGroups 'Группы товаров Loya'
     OBJECTS g=LoyaItemGroup
-    PROPERTIES(g) READONLY active, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description, maxDiscountLoyaItemGroup, maxAllowBonusLoyaItemGroup, maxAwardBonusLoyaItemGroup
+    PROPERTIES(g) READONLY active, id SHOWIF showIDs(), fromDateTime, toDateTime, name, description, maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya
     FILTERGROUP active
         FILTER 'Активные' active(g) 'F5' DEFAULT
     FILTERS NOT isData(g)
@@ -280,7 +280,7 @@ FORM loya 'Группы товаров Loya'
                     
     OBJECTS g=LoyaItemGroup
     PROPERTIES(g) READONLY active CHANGEABLE, id SHOWIF showIDs(), createdDate, fromDateTime, toDateTime,  name, description, 
-                    maxDiscountLoyaItemGroup, maxAllowBonusLoyaItemGroup, maxAwardBonusLoyaItemGroup, deleted
+                    maxDiscountLoya, maxAllowBonusLoya, maxAwardBonusLoya, deleted
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
     FILTERGROUP active
         FILTER 'Активные' active(g) 'F5' 
