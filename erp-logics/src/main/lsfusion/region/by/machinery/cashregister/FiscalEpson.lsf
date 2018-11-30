@@ -96,3 +96,14 @@ EXTEND FORM groupCashRegister
 
 cardTypeCurrentCashRegister 'Код платежа картой' = cardType(currentCashRegister());
 giftCardTypeCurrentCashRegister 'Код платежа подарочным сертификатом' = giftCardType(currentCashRegister());
+
+quantityCancelReceipt 'Кол-во аннулированых чеков' (zReport) = GROUP SUM 1 IF skip(Receipt detail) BY zReport(detail);
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY quantityCancelReceipt  BEFORE quantityReceiptDetail(z)
+    PROPERTIES(b) READONLY cancel 'Аннулированый чек'= skip BEFORE date(b)
+;
+
+EXTEND FORM zReport
+    PROPERTIES(b) READONLY cancel 'Аннулированый чек'= skip BEFORE date(b)
+;
