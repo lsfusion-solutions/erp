@@ -73,7 +73,8 @@ DESIGN integrationData {
 
 sendTopBy 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEOrderTopByActionProperty' (EOrder);
 
-send(EOrder o) + {  IF EDIProvider(supplier(o)) == EDIProvider.topBy THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendTopBy(o); }
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendTopBy(o); }
+cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.topBy AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE sendTopBy(o);}
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252') THEN TRUE ;
 
