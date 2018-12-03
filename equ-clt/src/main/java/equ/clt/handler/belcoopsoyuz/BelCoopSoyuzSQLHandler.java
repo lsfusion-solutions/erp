@@ -83,13 +83,13 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         if (transaction.itemsList != null) {
             PreparedStatement ps = null;
             try {
-                if(transaction.snapshot) {
-                    conn.setAutoCommit(true);
-                    try(Statement truncateStatement = conn.createStatement()) {
-                        truncateStatement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
-                        //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
-                    }
+
+                conn.setAutoCommit(true);
+                try (Statement truncateStatement = conn.createStatement()) {
+                    truncateStatement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
+                    //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
                 }
+
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement("MERGE INTO cl1_bks.l9sk34 dest " +
                                 "USING(SELECT ? CEUNIKEY, ? CEUNIREF0, ? CEDOCCOD, ? CEOBIDE, ? CEOBMEA, ? MEOBNAM, ? NERECOST, ? NEOPPRIC, ? TEDOCACT, ? CECUCOD FROM DUAL) src " +
