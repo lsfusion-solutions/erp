@@ -118,7 +118,11 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
                 switch (requestResult) {
                     case OK:
-                        findProperty("exported[EOrder]").change(true, context, eOrderObject);
+                        if(isCancel) {
+                            findProperty("exportedCanceled[EOrder]").change(true, context, eOrderObject);
+                        } else {
+                            findProperty("exported[EOrder]").change(true, context, eOrderObject);
+                        }
 
                         ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
                         context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s выгружен", provider, documentNumber), "Экспорт"));
@@ -231,7 +235,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     @Override
     public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
         try {
-            return getChangeProps((CalcProperty) findProperty("exported[EOrder]").property);
+            return getChangeProps(findProperty("exported[EOrder]").property, findProperty("exportedCanceled[EOrder]").property);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             return null;
         }
