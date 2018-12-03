@@ -112,7 +112,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     ps.setString(6, trim(item.name, 100)); //MEOBNAM, Наименование товара
                     ps.setDouble(7, item.price.doubleValue()); //NERECOST, роз.цена
                     ps.setDouble(8, item.price.doubleValue()); //NEOPPRIC, роз.цена
-                    ps.setTimestamp(9, new java.sql.Timestamp(transaction.date.getTime())); //TEDOCACT, дата и время вступления прайса в силу
+                    ps.setTimestamp(9, new java.sql.Timestamp(transaction.date.getTime() + 1000*60*5)); //TEDOCACT, дата и время вступления прайса в силу
                     ps.setString(10, item.section); //CECUCOD, секция
                     ps.addBatch();
                 }
