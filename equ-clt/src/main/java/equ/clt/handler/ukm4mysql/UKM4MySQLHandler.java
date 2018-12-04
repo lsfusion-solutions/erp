@@ -37,7 +37,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         String groupId = null;
         for (CashRegisterInfo cashRegister : transactionInfo.machineryInfoList) {
             if (cashRegister.directory != null) {
-                groupId = cashRegister.directory;
+                String connectionString = new UKM4MySQLConnectionString(cashRegister.directory, 0).connectionString;
+                groupId = connectionString != null ? connectionString : cashRegister.directory;
             }
         }
         return "ukm4MySql" + groupId;
