@@ -171,7 +171,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
         String[] eOrderDetailNames = new String[]{"GTINBarcode", "idSku", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
         LCP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "idSku[EOrderDetail]", "nameSku[EOrderDetail]",
-                "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
+                "extraCodeUOMSku[EOrderDetail]", "overQuantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
         for (int j = 0; j < eOrderDetailProperties.length; j++) {
             eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(context.getModifier(), eOrderDetailExpr));
         }
