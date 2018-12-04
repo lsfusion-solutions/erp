@@ -20,7 +20,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
     date() <- dTo;
     
     WHILE date() >= dFrom DO {
-        logToFile('druid', '' + currentDateTime() + ' Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
+        logToFile('druid', 'Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
             EXPORT CSV ',' HEADER FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
@@ -34,7 +34,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
                                 quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                    WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
         }
-        logToFile('druid', '' + currentDateTime() + ' Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
+        logToFile('druid', 'Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
 
         ingestBatch('turnover', date());
 
