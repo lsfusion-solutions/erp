@@ -713,6 +713,8 @@ exclude = DATA LOCAL BOOLEAN (GroupMachinery);
 supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
 skipChangePrice = ABSTRACT VALUE BOOLEAN (Barcode);
 
+inMachineryPriceTransaction 'Создовать пустую транзакцию' = DATA LOCAL NESTED BOOLEAN (); 
+
 createMachineryPriceTransaction 'Создать транзакцию'(Stock stock)  { 
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
@@ -743,8 +745,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         countBarcode() <- (GROUP SUM 1 IF in(Barcode barcode));
         LOCAL countSku = INTEGER();
         countSku() <- (GROUP SUM 1 IF [ GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku));        
-        
-        IF countBarcode() THEN {
+        IF countBarcode() OR inMachineryPriceTransaction() THEN {
             addedTransaction() <- NULL;
             createMachineryPriceTransaction(groupMachinery);
             FOR MachineryPriceTransaction t == addedTransaction() DO {
@@ -798,6 +799,16 @@ createPriceMachineryPriceTransaction 'Все товары'(Stock stock)  {
 	NEWSESSION {
 	    createMachineryPriceTransaction(Sku sku) <- TRUE;
 	    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
+	    createMachineryPriceTransaction(stock);
+	    apply();
+	}
+} CONFIRM IN incrementMachineryPrice;
+
+createPriceSnapshotMachineryPriceTransaction'Все товары (целиком)'(Stock stock)  { 
+	NEWSESSION {
+	    createMachineryPriceTransaction(Sku sku) <- TRUE;
+	    createMachineryPriceTransactionComment() <- 'Загрузка все товары (целиком)';
+        createMachineryPriceTransactionAll() <- TRUE;
 	    createMachineryPriceTransaction(stock);
 	    apply();
 	}
