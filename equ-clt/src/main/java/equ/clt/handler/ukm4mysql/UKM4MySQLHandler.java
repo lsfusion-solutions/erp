@@ -546,6 +546,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
             try {
+
+                checkIndex(conn, "var", "item", "item");
+
                 ps = conn.prepareStatement(
                         "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                 "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
