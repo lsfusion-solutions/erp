@@ -547,7 +547,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             PreparedStatement ps = null;
             try {
 
-                checkIndex(conn, "var", "item", "item");
+                checkIndex(conn, "item", "var", "item");
 
                 ps = conn.prepareStatement(
                         "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
