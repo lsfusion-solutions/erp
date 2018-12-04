@@ -240,10 +240,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction"};
+                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction", "priorityMPT", "filterMPT"};
             LCP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
                     "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
-                    "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]");
+                    "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]",
+                    "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]");
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
             }
@@ -251,7 +252,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
 
             logger.info(String.format("Starting to read top %s transactions", selectTop));
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session, selectTop);
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session.sql, MapFact.toOrderMap("priorityMPT", true, "filterMPT", false), selectTop, session.baseClass, session.env);
+
             List<Object[]> transactionObjects = new ArrayList<>();
             for (int i = 0, size = result.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> value = result.getValue(i);

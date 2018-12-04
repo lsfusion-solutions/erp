@@ -18,6 +18,9 @@ inactive 'Неактивный' = DATA BOOLEAN (GroupCashRegister);
 active 'Активный' (GroupCashRegister group) = group IS GroupCashRegister AND NOT inactive(group);
 inactive(GroupCashRegister g) += inactive(g);
 
+priority 'Приоритет' = DATA INTEGER (GroupCashRegister);
+priority(GroupCashRegister g) += priority(g);
+
 pieceCode 'Код для штучных товаров' = DATA STRING[2] (GroupCashRegister) IN base;
 weightCode 'Код для весовых товаров' = DATA STRING[2] (GroupCashRegister) IN base;
 allowReceiptsAfterDocumentsClosedDate 'Разрешить приём реализации по закрытым документам' = DATA BOOLEAN (GroupCashRegister);
@@ -172,7 +175,7 @@ FORM groupCashRegister 'Группа касс'
                     filterSku, showFilterSku SHOWIF filterSku(grc),
                     namePriceListType, nameModel, 
                     directory SHOWIF notIgnoreCashRegisterServerCashRegisterModel(grc) ON CHANGE changeDirectory(grc),
-                    startDate, notDetailed, inactive, section SHOWIF showSection(grc)
+                    startDate, notDetailed, inactive, priority, section SHOWIF showSection(grc)
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachinery, npp, shortDescription, description, port SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
@@ -211,6 +214,7 @@ DESIGN groupCashRegister{
             MOVE PROPERTY(startDate(grc));
             MOVE PROPERTY(notDetailed(grc));
             MOVE PROPERTY(inactive(grc));
+            MOVE PROPERTY(priority(grc));
             MOVE PROPERTY(section(grc));
     }
     NEW tabContainer {
@@ -248,6 +252,7 @@ copy 'Копировать'(GroupCashRegister old)  {
 	        startDate(new) <- startDate(old);
 	        notDetailed(new) <- notDetailed(old);
 	        inactive(new) <- inactive(old);
+	        priority(new) <- priority(old);
 	        section(new) <- section(old);
 	        
 	        overCopy(old, new);
