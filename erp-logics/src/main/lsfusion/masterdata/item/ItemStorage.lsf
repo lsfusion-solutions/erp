@@ -8,3 +8,47 @@ expiryText 'Срок хранения' = DATA  VARISTRING[100] (Item) IN itemExp
 conditionsText 'Условия хранения' = DATA  VARISTRING[100] (Item) IN itemExpiry;
 
 EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) expiryText, conditionsText;
+
+divItem = FORMULA 'div($1,$2)';
+changeExpiryText 'Изменять Срок хранения'  = DATA BOOLEAN();
+EXTEND FORM options
+    PROPERTIES () changeExpiryText
+;
+DESIGN options{
+    items{
+        MOVE PROPERTY (changeExpiryText());
+    }
+}
+
+captionHourCustom(INTEGER h) = CASE 
+    WHEN (mod(h,10) >= 1 AND mod(h,10) <= 4) AND (divItem(h,10)==1) THEN 'часов'
+    WHEN mod(h,10) == 1 THEN 'час'
+    WHEN mod(h,10) >=2 AND mod(h,10) <=4 THEN 'часа'
+    WHEN (mod(h,10) >=5 AND mod(h,10) <=9) OR mod(h,10) == 0 THEN 'часов'
+    ELSE 'часов'
+;
+captionHour(INTEGER h) = IF divItem(h,100) >0 
+    THEN captionHourCustom(mod(h,100))
+    ELSE captionHourCustom(h);
+
+captionDaysCustom(INTEGER h) = CASE 
+    WHEN (mod(h,10) >= 1 AND mod(h,10) <= 4) AND (divItem(h,10)==1) THEN 'дней'
+    WHEN mod(h,10) == 1 THEN 'день'
+    WHEN mod(h,10) >=2 AND mod(h,10) <=4 THEN 'дня'
+    WHEN (mod(h,10) >=5 AND mod(h,10) <=9) OR mod(h,10) == 0 THEN 'дней'
+    ELSE 'дней'
+;
+captionDays(INTEGER h) = IF divItem(h,100) >0 
+    THEN captionDaysCustom(mod(h,100))
+    ELSE captionDaysCustom(h);
+    
+overChangeExpiryDays(Item i, INTEGER  int) + {
+    IF int IS INTEGER  AND changeExpiryText() THEN {
+        expiryText(i) <-  VARISTRING[100](VARISTRING[100](int)+' '+captionDays(int));   
+    }
+}
+overChangeHoursExpiryPack(Item i, INTEGER  int) + {
+    IF int IS INTEGER  AND changeExpiryText() THEN {
+        expiryText(i) <-  VARISTRING[100](VARISTRING[100](int)+' '+captionHour(int));   
+    }
+}
