@@ -85,6 +85,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             try {
 
                 Timestamp tedocact = new Timestamp(transaction.date.getTime() + 1000 * 60 * 5); //добавляем 5 минут
+                String tedocactString = new SimpleDateFormat("YYYY-MM-dd HH:mm:SS").format(tedocact);
 
                 conn.setAutoCommit(true);
                 try(Statement statement = conn.createStatement()) {
@@ -92,7 +93,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         statement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
                             //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
                     } else {
-                        statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = '%s'", tedocact));
+                        statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = TO_DATE('%s','YYYY-MM-DD HH:MI:SS')", tedocactString));
                     }
                 }
 
