@@ -65,128 +65,142 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
 
-                Map<Integer, Long> versionTransactionMap = new HashMap<>();
-                Integer version = null;
+                Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    Long failedTransaction = null;
-                    for (Map.Entry<Long, SendTransactionBatch> entry : sendTransactionBatchMap.entrySet()) {
-                        if (entry.getValue().exception != null) {
-                            failedTransaction = entry.getKey();
-                            break;
+                    String directory = null;
+                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                        if (cashRegister.directory != null) {
+                            directory = cashRegister.directory;
                         }
                     }
 
-                    if (failedTransaction != null) {
-                        String error = "One of previous transactions failed: " + failedTransaction;
-                        processTransactionLogger.error(logPrefix + error);
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(error)));
-                    } else {
+                    List<TransactionCashRegisterInfo> transactions = transactionsMap.get(directory);
+                    if(transactions == null) {
+                        transactions = new ArrayList<>();
+                    }
+                    transactions.add(transaction);
+                    transactionsMap.put(directory, transactions);
 
-                        String directory = null;
-                        for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                            if (cashRegister.directory != null) {
-                                directory = cashRegister.directory;
+                }
+
+                for (Map.Entry<String, List<TransactionCashRegisterInfo>> transactionsMapEntry : transactionsMap.entrySet()) {
+
+                    Map<Integer, Long> versionTransactionMap = new HashMap<>();
+                    Integer version = null;
+
+                    String directory = transactionsMapEntry.getKey();
+                    UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
+
+                    for (TransactionCashRegisterInfo transaction : transactionsMapEntry.getValue()) {
+
+                        Long failedTransaction = null;
+                        for (Map.Entry<Long, SendTransactionBatch> entry : sendTransactionBatchMap.entrySet()) {
+                            if (entry.getValue().exception != null) {
+                                failedTransaction = entry.getKey();
+                                break;
                             }
                         }
-                        UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
-                        if (params.connectionString == null)
-                            processTransactionLogger.error("No connectionString found");
-                        else {
-                            String weightCode = transaction.weightCodeGroupCashRegister;
 
-                            String section = null;
-                            for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                                if (cashRegister.section != null)
-                                    section = cashRegister.section;
-                            }
-                            //String departmentNumber = getDepartmentNumber(transaction, section);
-                            Integer nppGroupMachinery = transaction.departmentNumberGroupCashRegister != null ?
-                                    transaction.departmentNumberGroupCashRegister : transaction.nppGroupMachinery;
+                        if (failedTransaction != null) {
+                            String error = "One of previous transactions failed: " + failedTransaction;
+                            processTransactionLogger.error(logPrefix + error);
+                            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(new RuntimeException(error)));
+                        } else {
+                            if (params.connectionString == null)
+                                processTransactionLogger.error("No connectionString found");
+                            else {
+                                String weightCode = transaction.weightCodeGroupCashRegister;
 
-                            Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                                String section = null;
+                                for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                                    if (cashRegister.section != null)
+                                        section = cashRegister.section;
+                                }
+                                //String departmentNumber = getDepartmentNumber(transaction, section);
+                                Integer nppGroupMachinery = transaction.departmentNumberGroupCashRegister != null ?
+                                        transaction.departmentNumberGroupCashRegister : transaction.nppGroupMachinery;
 
-                            Exception exception = null;
-                            try {
+                                Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                                if (version == null)
-                                    version = getVersion(conn);
+                                Exception exception = null;
+                                try {
 
-                                if (!skipItems) {
+                                    if (version == null)
+                                        version = getVersion(conn);
+
+                                    if (!skipItems) {
+                                        version++;
+
+                                        if (!skipClassif) {
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table classif", transaction.id));
+                                            exportClassif(conn, transaction, version);
+                                        }
+
+                                        if (exportTaxes) {
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table taxes", transaction.id));
+                                            exportTaxes(conn, transaction, version);
+                                            exportTaxGroups(conn, transaction, version);
+                                        }
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table items", transaction.id));
+                                        exportItems(conn, transaction, useBarcodeAsId, appendBarcode, exportTaxes, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
+                                        exportItemsStocks(conn, transaction, section/*departmentNumber*/, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table stocks", transaction.id));
+                                        exportStocks(conn, transaction, section/*departmentNumber*/, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
+                                        exportPriceList(conn, transaction, nppGroupMachinery, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype", transaction.id));
+                                        exportPriceType(conn, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
+                                        exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
+                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id, "incr"));
+                                        exportSignals(conn, transaction, version, true, timeout, false);
+                                        versionTransactionMap.put(version, transaction.id);
+                                    }
+
                                     version++;
-
-                                    if (!skipClassif) {
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table classif", transaction.id));
-                                        exportClassif(conn, transaction, version);
+                                    if (!skipBarcodes) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_var", transaction.id));
+                                        exportPriceListVar(conn, transaction, nppGroupMachinery, weightCode, version);
                                     }
 
-                                    if(exportTaxes) {
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table taxes", transaction.id));
-                                        exportTaxes(conn, transaction, version);
-                                        exportTaxGroups(conn, transaction, version);
-                                    }
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_items", transaction.id));
+                                    exportPriceListItems(conn, transaction, nppGroupMachinery, useBarcodeAsId, appendBarcode, version);
 
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table items", transaction.id));
-                                    exportItems(conn, transaction, useBarcodeAsId, appendBarcode, exportTaxes, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
-                                    exportItemsStocks(conn, transaction, section/*departmentNumber*/, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table stocks", transaction.id));
-                                    exportStocks(conn, transaction, section/*departmentNumber*/, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist", transaction.id));
-                                    exportPriceList(conn, transaction, nppGroupMachinery, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype", transaction.id));
-                                    exportPriceType(conn, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricetype_store_pricelist", transaction.id));
-                                    exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
-                                    exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
-
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id, "incr"));
-                                    exportSignals(conn, transaction, version, true, timeout, false);
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id,
+                                            transaction.snapshot ? "cumm" : "incr"));
+                                    exportSignals(conn, transaction, version, false, timeout, false);
                                     versionTransactionMap.put(version, transaction.id);
+
+                                } catch (Exception e) {
+                                    exception = e;
+                                } finally {
+                                    if (conn != null)
+                                        conn.close();
                                 }
-
-                                version++;
-                                if (!skipBarcodes) {
-                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_var", transaction.id));
-                                    exportPriceListVar(conn, transaction, nppGroupMachinery, weightCode, version);
-                                }
-
-                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table pricelist_items", transaction.id));
-                                exportPriceListItems(conn, transaction, nppGroupMachinery, useBarcodeAsId, appendBarcode, version);
-
-                                processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id,
-                                        transaction.snapshot ? "cumm" : "incr"));
-                                exportSignals(conn, transaction, version, false, timeout, false);
-                                versionTransactionMap.put(version, transaction.id);
-
-                            } catch (Exception e) {
-                                exception = e;
-                            } finally {
-                                if (conn != null)
-                                    conn.close();
+                                sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                             }
-                            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
-                        }
 
-                        if (params.connectionString != null) {
-                            Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                            try {
-                                processTransactionLogger.info(logPrefix + String.format("export to table signal %s records", versionTransactionMap.size()));
-                                sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, transaction.id, timeout));
-                            } finally {
-                                if (conn != null)
-                                    conn.close();
-                            }
                         }
                     }
 
+                    if (params.connectionString != null) {
+                        try (Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
+                            processTransactionLogger.info(logPrefix + String.format("export to table signal %s records", versionTransactionMap.size()));
+                            sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
+                        }
+                    }
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -645,7 +659,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private Map<Long, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Long> versionMap, long transactionId, int timeout) {
+    private Map<Long, SendTransactionBatch> waitSignals(Connection conn, Map<Integer, Long> versionMap, int timeout) {
         Map<Long, SendTransactionBatch> batchResult = new HashMap<>();
         try {
             int count = 0;
@@ -653,7 +667,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 versionMap = waitForSignalsExecution(conn, versionMap);
                 if (!versionMap.isEmpty()) {
                     if (count > (timeout / 5)) {
-                        String message = String.format("UKM transaction %s: data was sent to db but signal record(s) %s was not deleted", transactionId, versionMap.keySet());
+                        String message = String.format("UKM transaction(s) %s: data was sent to db but signal record(s) %s was not deleted", versionMap.values(), versionMap.keySet());
                         processTransactionLogger.error(message);
                         for (Long transaction : versionMap.values()) {
                             batchResult.put(transaction, new SendTransactionBatch(new RuntimeException(message)));
@@ -661,7 +675,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         break;
                     } else {
                         count++;
-                        processTransactionLogger.info(String.format("UKM transaction %s: waiting for deletion of signal record(s) %s in base", transactionId, versionMap.keySet()));
+                        processTransactionLogger.info(String.format("UKM transaction(s) %s: waiting for deletion of signal record(s) %s in base", versionMap.values(), versionMap.keySet()));
                         Thread.sleep(5000);
                     }
                 }
