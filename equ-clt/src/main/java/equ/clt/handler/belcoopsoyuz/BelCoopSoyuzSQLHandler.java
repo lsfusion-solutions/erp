@@ -84,10 +84,16 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             PreparedStatement ps = null;
             try {
 
+                Timestamp tedocact = new Timestamp(transaction.date.getTime() + 1000 * 60 * 5); //добавляем 5 минут
+
                 conn.setAutoCommit(true);
-                try (Statement truncateStatement = conn.createStatement()) {
-                    truncateStatement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
-                    //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
+                try(Statement statement = conn.createStatement()) {
+                    if (transaction.snapshot) {
+                        statement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
+                            //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
+                    } else {
+                        statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = '%s'", tedocact));
+                    }
                 }
 
                 conn.setAutoCommit(false);
@@ -112,7 +118,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     ps.setString(6, trim(item.name, 100)); //MEOBNAM, Наименование товара
                     ps.setDouble(7, item.price.doubleValue()); //NERECOST, роз.цена
                     ps.setDouble(8, item.price.doubleValue()); //NEOPPRIC, роз.цена
-                    ps.setTimestamp(9, new java.sql.Timestamp(transaction.date.getTime() + 1000*60*5)); //TEDOCACT, дата и время вступления прайса в силу
+                    ps.setTimestamp(9, tedocact); //TEDOCACT, дата и время вступления прайса в силу
                     ps.setString(10, item.section); //CECUCOD, секция
                     ps.addBatch();
                 }
