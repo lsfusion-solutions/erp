@@ -243,6 +243,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
+            Set<String> unknownSections = new HashSet<>();
             Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
             Set<String> currentReadRecordSet = new HashSet<>();
@@ -293,7 +294,10 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail, sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
-                                sendSalesLogger.error(logPrefix + String.format("unknown section: %s (zreport %s, receipt %s)", section, numberZReport, numberReceipt));
+                                if(!unknownSections.contains(section)) {
+                                   unknownSections.add(section);
+                                   sendSalesLogger.error(logPrefix + String.format("unknown section: %s (zreport %s, receipt %s)", section, numberZReport, numberReceipt));
+                                }
                                 error = true;
                             }
                             break;
