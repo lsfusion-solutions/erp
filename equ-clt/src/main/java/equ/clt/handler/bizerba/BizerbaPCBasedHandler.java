@@ -11,6 +11,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,5 +63,10 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
             }
         }
         return null;
+    }
+
+    @Override
+    public Integer getTarePercent(ScalesItemInfo item) {
+        return item.extraPercent == null ? 0 : item.extraPercent.multiply(BigDecimal.valueOf(100)).intValue();
     }
 }
