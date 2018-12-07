@@ -213,7 +213,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         String xml = new XMLOutputter().outputString(doc);
         if (outputDir != null) {
             try {
-                FileUtils.writeStringToFile(new File(outputDir + "/" + documentNumber), xml);
+                FileUtils.writeStringToFile(new File(outputDir + "/" + documentNumber + (isCancel ? "c" : "")), xml);
             } catch (Exception e) {
                 ServerLoggers.importLogger.error("Archive file error: ", e);
             }
