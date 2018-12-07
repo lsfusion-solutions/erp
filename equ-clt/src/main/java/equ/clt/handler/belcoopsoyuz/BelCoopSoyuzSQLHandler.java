@@ -93,7 +93,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         statement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
                             //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
                     } else {
-                        statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = TO_DATE('%s','YYYY-MM-DD HH:MI:SS')", tedocactString));
+                        statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = TO_DATE('%s','YYYY-MM-DD HH24:MI:SS')", tedocactString));
                     }
                 }
 
