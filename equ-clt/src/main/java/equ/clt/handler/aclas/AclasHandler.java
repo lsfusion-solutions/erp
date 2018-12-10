@@ -12,6 +12,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -281,7 +282,8 @@ public class AclasHandler extends ScalesHandler {
         bytes.put((byte) 7);
 
         // UnitPrice, 4 bytes
-        bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(safeMultiply(item.price, 100).intValue()), 8)));
+        BigDecimal price = safeMultiply(item.price, 100);
+        bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(price == null ? 0 : price.intValue()), 8)));
 
         //weightUnit, 1 byte; 1 - весовой, 100(#4) - штучный (цена за кг))
         bytes.put(getWeightUnit(weightItem));
