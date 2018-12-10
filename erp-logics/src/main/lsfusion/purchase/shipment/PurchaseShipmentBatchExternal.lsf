@@ -1,0 +1,31 @@
+MODULE PurchaseShipmentBatchExternal;
+
+REQUIRE PurchaseShipment, SalePurchaseInvoice;
+
+NAMESPACE Purchase;
+
+@defineOperationProperty(showOriginalBatch, 'Показывать внешнюю партию', showContainer);
+
+originalBatch = ABSTRACT Batch (InvoiceDetail);
+nameOriginalBatch 'Партия (внешняя)' = name(originalBatch(InvoiceDetail d));
+originalBatch = DATA Batch (UserInvoiceDetail) INDEXED;
+nameOriginalBatch 'Партия (внешняя)' = name(originalBatch(UserInvoiceDetail d));
+originalBatch(UserInvoiceDetail d) += originalBatch(d);
+
+showOriginalBatch (Invoice i) = showOriginalBatch(operation(i));
+
+EXTEND FORM userInvoice
+   PROPERTIES (d) nameOriginalBatch SHOWIF showOriginalBatch(i)
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY nameOriginalBatch SHOWIF showOriginalBatch(i)
+;
+//-- Записывает всегда, надо скипать
+skipOriginalBatch = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+WHEN LOCAL (CHANGED(SalePurchaseInvoice.invoiceDetail(Purchase.UserInvoiceDetail d)) OR CHANGED(skipOriginalBatch(d))) AND NOT CHANGED(originalBatch(d)) DO {
+    IF skipOriginalBatch(d) THEN {
+        originalBatch(d) <- NULL;    
+    } ELSE {
+        originalBatch(d) <- batch(SalePurchaseInvoice.invoiceDetail(d));    
+    }
+}
