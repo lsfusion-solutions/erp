@@ -263,8 +263,8 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             if (quote) cResult.append("\"");
             cResult.append(value);
             if (quote) cResult.append("\"");
-            cResult.append(ch2);
         }
+        cResult.append(ch2);
     }
 
     //  Переводит строку в Integer
