@@ -256,9 +256,9 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
 
     //  Конструктур JSON выражений
     private void addKeyValue(String ch1, String key, String value, String ch2, boolean quote) {
+        cResult.append(ch1);
+        cResult.append("\"").append(key).append("\":");
         if (value.length() > 0) {
-            cResult.append(ch1);
-            cResult.append("\"").append(key).append("\":");
             value = value.replace("\"", "'");
             if (quote) cResult.append("\"");
             cResult.append(value);
