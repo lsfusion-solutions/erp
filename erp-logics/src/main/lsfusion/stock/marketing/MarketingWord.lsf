@@ -32,7 +32,7 @@ NAVIGATOR {
     }
 }
 
-toCharRus (NUMERIC[18,2] n) = replace(replace(TEXT (n), ',', ' '), '.', ',');
+toCharRus (NUMERIC[18,2] n) = replace(replace(TEXT (round2(n)), ',', ' '), '.', ',');
 toChar (object, format) = FORMULA TEXT 'to_char(($1),($2))'; 
 toText = FORMULA TEXT 'to_text($1,$2,$3)';
 numSpelled = FORMULA TEXT 'num_spelled($1,$2,string_to_array($3,\',\'),$4,string_to_array($5,\',\'),$6)';
@@ -129,13 +129,15 @@ createTask 'Задание и Акт' (MarketingInvoice i)  {
         value(TemplateEntry d) <- toCharRus(overMinSum(i)) WHERE key(d) = 'MIN_SUM_PURCHASE' AND template (d) == template(i);
         value(TemplateEntry d) <- TEXT (valueVAT(i)) WHERE key(d) = 'VALUE_VAT' AND template (d) == template(i);
         value(TemplateEntry d) <- toCharRus(VATSum(i)) WHERE key(d) = 'VAT_SUM_NUMERIC' AND template (d) == template(i);
-        value(TemplateEntry d) <- numSpelledRouble(VATSum(i), '00d') WHERE key(d) = 'VAT_SUM_WORDS' AND template (d) == template(i);
         value(TemplateEntry d) <- toCharRus(overSumVAT(i)) WHERE key(d) = 'SUM_VAT_NUMERIC' AND template (d) == template(i);
-        value(TemplateEntry d) <- numSpelledRouble(overSumVAT(i), '00d') WHERE key(d) = 'SUM_VAT_WORDS' AND template (d) == template(i);
-        value(TemplateEntry d) <- toCharRus(sum(i)) WHERE key(d) = 'SUM_WITHOUT_VAT_NUMERIC' AND template (d) == template(i);
-        value(TemplateEntry d) <- numSpelledRouble(sum(i), '00d') WHERE key(d) = 'SUM_WITHOUT_VAT_WORDS' AND template (d) == template(i);
         value(TemplateEntry d) <- toCharRus(overSumCalcBase(i)) WHERE key(d) = 'SUM_CALC_BASE_NUMERIC' AND template (d) == template(i);
-        value(TemplateEntry d) <- numSpelledRouble(overSumCalcBase(i), '00d') WHERE key(d) = 'SUM_CALC_BASE_WORDS' AND template (d) == template(i);
+        value(TemplateEntry d) <- toCharRus(sum(i)) WHERE key(d) = 'SUM_WITHOUT_VAT_NUMERIC' AND template (d) == template(i);
+        TRY {
+            value(TemplateEntry d) <- numSpelledRouble(VATSum(i), '00d') WHERE key(d) = 'VAT_SUM_WORDS' AND template (d) == template(i);
+            value(TemplateEntry d) <- numSpelledRouble(overSumVAT(i), '00d') WHERE key(d) = 'SUM_VAT_WORDS' AND template (d) == template(i);
+            value(TemplateEntry d) <- numSpelledRouble(sum(i), '00d') WHERE key(d) = 'SUM_WITHOUT_VAT_WORDS' AND template (d) == template(i);
+            value(TemplateEntry d) <- numSpelledRouble(overSumCalcBase(i), '00d') WHERE key(d) = 'SUM_CALC_BASE_WORDS' AND template (d) == template(i);
+        }
         value(TemplateEntry d) <- replace(TEXT (NUMERIC[7,2](overAverageMarketingPercent(i))), '.', ',') WHERE key(d) = 'MARKETING_PERCENT' AND template (d) == template(i);  
         value(TemplateEntry d) <- OVERRIDE (address(customer(i))), '' WHERE key(d) = 'ADDRESS_LE' AND template (d) == template(i);
         value(TemplateEntry d) <- OVERRIDE (number(account(customer(i)))), '' WHERE key(d) = 'IBAN_LE' AND template (d) == template(i);
