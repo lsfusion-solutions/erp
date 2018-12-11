@@ -37,7 +37,11 @@ public class AclasHandler extends ScalesHandler {
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "aclas";
+        StringBuilder groupId = new StringBuilder();
+        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+            groupId.append(scales.port).append(";");
+        }
+        return getLogPrefix() + groupId;
     }
 
     protected String getLogPrefix() {
