@@ -716,6 +716,7 @@ supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать соо�
 skipChangePrice = ABSTRACT VALUE BOOLEAN (Barcode);
 
 inMachineryPriceTransaction 'Создавать пустую транзакцию' = DATA LOCAL NESTED BOOLEAN (); 
+extraLoad = ABSTRACT BOOLEAN (Sku);
 
 createMachineryPriceTransaction 'Создать транзакцию'(Stock stock)  { 
     LOCAL message = TEXT();
@@ -734,7 +735,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
 
         in(Barcode barcode) <- NULL WHERE in(barcode) AND skip(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
 
-        in(Barcode barcode) <- NOT skuType(sku(barcode)) != SkuType.skuTypeItem WHERE in(barcode); // если это не товар
+        in(Barcode barcode) <- NOT skuType(sku(barcode)) != SkuType.skuTypeItem WHERE in(barcode)AND NOT extraLoad(sku(barcode)); // если это не товар
 
         in(Barcode barcode) <- TRUE IF price(barcode, groupMachinery) WHERE in(barcode); // если есть цена
 
@@ -780,7 +781,7 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
 
 createBalanceMachineryPriceTransaction 'Остатки'(Stock stock)  { 
 	NEWSESSION {
-	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
+	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock) OR extraLoad(sku);
 	    createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
 	    createMachineryPriceTransaction(stock);
 	    apply();
@@ -789,8 +790,8 @@ createBalanceMachineryPriceTransaction 'Остатки'(Stock stock)  {
 
 createBalanceSnapshotMachineryPriceTransaction 'Остатки (целиком)'(Stock stock)  { 
 	NEWSESSION {
-	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
-	    createMachineryPriceTransactionComment() <- 'Загрузка остатков (целиком)';
+	    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock) OR extraLoad(sku);
+    createMachineryPriceTransactionComment() <- 'Загрузка остатков (целиком)';
         createMachineryPriceTransactionAll() <- TRUE;
 	    createMachineryPriceTransaction(stock);
 	    apply();
