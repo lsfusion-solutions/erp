@@ -153,10 +153,10 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
             if (!c_class.equals("tabloid")) continue;
             i += 1;
             if ((maxGoods > 0) && (i > maxGoods)) break;
-            if ((i == 1) && (nPage > 1)) cResult.append(",\n");
-            if (i > 1) cResult.append(",\n");
             c_url = getItemValue(item, "a", "href", 1);
             if (c_url.length() > 0) {
+                if ((i == 1) && (nPage > 1)) cResult.append(",\n");
+                if (i > 1) cResult.append(",\n");
                 c_url = baseUrl + c_url;
                 if (fullInfo) {
                     lRet = getProduct(c_url); // расширенная информация по товару
