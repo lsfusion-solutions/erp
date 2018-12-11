@@ -1066,7 +1066,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     case 6:
                                                     case 7:
                                                         String certificate = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
-                                                        String numberGiftCard = appendCheckDigitToBarcode(certificate, 11, appendBarcode);
+                                                        String numberGiftCard = certificate != null && certificate.length() >= 11 ? appendCheckDigitToBarcode(certificate, 11, appendBarcode) : certificate;
                                                         BigDecimal price = certificatePriceMap.get(certificate);
                                                         price = sum != null && price != null ? price : sum;
                                                         if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
