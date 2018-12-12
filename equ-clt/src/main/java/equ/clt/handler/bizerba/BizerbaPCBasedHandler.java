@@ -49,20 +49,33 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
     protected String loadImages(List<String> errors, ScalesInfo scales, TCPPort port, ScalesItemInfo item) throws CommunicationException {
         if(item.imagesCount != null) {
             for (int i = 1; i <= item.imagesCount; i++) {
-                Integer pluNumber = getPluNumber(item);
-                String image = item.idItem + "_" + i + ".jpg";
-                String message = "MDST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "MDK1" + pluNumber + separator + "MDK2" + 1 + separator + "MDK3" + 0
-                        + separator + "TABB" + "PLST" + separator + "MDLN" + i + separator + "MTYP" + 1 + separator + "MDAT" + image + endCommand;
                 clearReceiveBuffer(port);
-                sendCommand(errors, port, message, charset, scales.port, encode);
+                sendCommand(errors, port, getLoadImageMessage(scales, item, i, 0), charset, scales.port, encode);
                 String result = receiveReply(errors, port, charset, scales.port);
                 if (!result.equals("0")) {
                     logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [image %s]", scales.port, result, item.idItem, i));
                     return result;
                 }
             }
+        } else {
+            //шлём удаление. Пока что рассчитано на то, что max imagesCount = 1
+            int i = 1;
+            clearReceiveBuffer(port);
+            sendCommand(errors, port, getLoadImageMessage(scales, item, i, 1), charset, scales.port, encode);
+            String result = receiveReply(errors, port, charset, scales.port);
+            if (!result.equals("0")) {
+                logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [image %s]", scales.port, result, item.idItem, i));
+                return result;
+            }
         }
         return null;
+    }
+
+    private String getLoadImageMessage(ScalesInfo scales, ScalesItemInfo item, int i, int cancelFlag) {
+        Integer pluNumber = getPluNumber(item);
+        String image = item.idItem + "_" + i + ".jpg";
+        return "MDST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(cancelFlag) + separator + "MDK1" + pluNumber + separator + "MDK2" + 1 + separator + "MDK3" + 0
+                + separator + "TABB" + "PLST" + separator + "MDLN" + i + separator + "MTYP" + 1 + separator + "MDAT" + image + endCommand;
     }
 
     @Override
