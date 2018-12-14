@@ -1,6 +1,6 @@
 MODULE SaleStatistics;
 
-REQUIRE System, Utils, Historizable, Stock, LegalEntity, SaleLedger, Sale, Integration;
+REQUIRE System, Utils, Historizable, Stock, LegalEntity, SaleLedger, Sale, Integration, Store;
 
 NAMESPACE Sale;
 
@@ -655,6 +655,14 @@ totalSumSoldBy 'Продано, руб.' (StatisticGroup group, legalEntity, reg
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isParent(group, sku)
     BY legalEntity(stock), region(stock);
 
+totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate (store(stock)) AND isParent(group, sku)
+    BY legalEntity(stock), region(stock);
+
+totalSumInternetSoldBy 'В интернет-магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (store(stock)) AND isParent(group, sku)
+    BY legalEntity(stock), region(stock);
+
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF resident (group, sku)
     BY legalEntity(stock), region(stock);
@@ -713,6 +721,14 @@ totalSumSoldBy 'Продано, руб.' (StatisticGroup group, Stock stock, DAT
 totalSumResidentSoldBy 'В т.ч.отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
     SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku);
+
+totalSumCorporateSoldBy 'В фирменных  магазинах, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    GROUP
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCorporate(store(stock)) AND isParent(group, sku);
+
+totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    GROUP
+    SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isInternet(store(stock)) AND isParent(group, sku);
 
 // суммовые показатели
 sumBalanceBBy 'Сумма остатка на начало, руб.' (StatisticGroup group, Stock stock, DATE dateFrom) =

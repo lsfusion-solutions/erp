@@ -12,6 +12,32 @@ caption (StatisticReport r)= CASE
     WHEN reportKind(r) == ReportKind.region THEN CONCAT ': ',staticCaption(reportKind(r)), nameRegion(r)
     WHEN reportKind(r) == ReportKind.consolidate THEN CONCAT ': ',staticCaption(reportKind(r)), consolidateStocks(r);
 
+FORM statisticReport1Print '1-торг (продажа)'
+
+    OBJECTS r = StatisticReport PANEL SUBREPORT 
+    PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock, 
+                   addressLegalEntityStock, addressStock,
+                   note, fromDate, toDate,   
+                   fromMonth, toMonth, caption
+                
+    PROPERTIES (r) READONLY countStatisticReportDetail
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE TOOLBAR  
+    PROPERTIES (r) READONLY  createdNameUser, createdTime, createdHostnameComputer 
+        
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup,   
+                   soldSum, soldSumCorporate, soldSumInternet, soldSumResident, balanceSum 
+    ORDER index(d)
+
+    FILTERS statisticReport(d) == r
+;
+statistic1Print '1-торг (продажа)' (StatisticReport r)  { PRINT statisticReport1Print OBJECTS r =r; }   IMAGE 'print.png' IN print;   
+excel1Print '1-торг (продажа) (xls)' (StatisticReport r)  { PRINT statisticReport1Print OBJECTS r =r XLSX; }  IMAGE 'print.png' IN print;   
+
+EXTEND FORM statisticReports
+    PROPERTIES  statistic1Print(r), excel1Print(r) 
+;
 
 FORM statisticReport4Print '4-торг (продажа)'
 
@@ -172,6 +198,117 @@ loadDefaultStStatisticReportTypeBy 'Загрузить стандартные с
     loadDefaultStatisticReportTypeDetail('4-торг', 73, 'Фармацевтические товары (47.73.10)', '64', '47.73.10', 'тыс.руб.', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 74, 'Парфюмерно-косметическая продукция и туалетные принадлежности (47.75)', '65', '47.75', 'тыс.руб.', 1);
 
-}
+    loadDefaultStatisticReportType ('1-торг', 'BYRTN', TRUE , 1000);
+    
+    loadDefaultStatisticReportTypeDetail('1-торг', 1, 'Всего (сумма строк 201 и 238)', '200', 'ВСЕ', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 2, '   пищевые продукты, включая напитки и табачные изделия (47.2) (сумма строк с 202 по 205, 209, 212, 215, 216, с 223 по 225, с 227 по 229, с 231 по 237)', '201', '47.2', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 3, '      свежие фрукты и орехи (47.21.11.100) ', '202', '47.21.11.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 4, '      свежие овощи и грибы  (47.21.11.300) ', '203', '47.21.11.300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 5, '      обработанные фрукты и овощи (47.21.12) ', '204', '47.21.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 6, '      мясо и мясные продукты (47.22.1) (сумма строк 206 и 207)  ', '205', '47.22.1', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 7, '         мясо, включая птицу и субпродукты пищевые (47.22.11) ', '206', '47.22.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 8, '         мясные продукты (47.22.12) ', '207', '47.22.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 9, '            из них консервы из мяса и субпродуктов  пищевых (47.22.12.210) ', '208', '47.22.12.210', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 10, '      рыба, ракообразные и моллюски (47.23.1) ', '209', '47.23.1', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 11, '         рыба и продукты из нее (47.23.11) ', '210', '47.23.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 12, '            из них консервы и пресервы из рыбы, икра и ее заменители (47.23.11.410) ', '211', '47.23.11.410', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 13, '      хлебобулочные и мучные кондитерские изделия (47.24.11) (сумма строк 213 и 214)', '212', '47.24.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 14, '         хлеб и хлебобулочные изделия (47.24.11.100)', '213', '47.24.11.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 15, '         мучные кондитерские изделия (47.24.11.200)', '214', '47.24.11.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 16, '      сахаристые кондитерские изделия (47.24.12)', '215', '47.24.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 17, '      алкогольные напитки (47.25.11) (сумма строк с 217 по 222', '216', '47.25.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 18, '         вино (47.25.11.100)', '217', '47.25.11.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 19, '         водка  (47.25.11.200) ', '218', '47.25.11.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 20, '         коньяк, коньячные напитки и бренди (47.25.11.300)', '219', '47.25.11.300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 21, '         пиво (47.25.11.400) ', '220', '47.25.11.400', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 22, '         ликеры и изделия ликеро-водочные (47.25.11.500)', '221', '47.25.11.500', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 23, '         слабоалкогольные напитки (47.25.11.900) ', '222', '47.25.11.900', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 24, '      безалкогольные напитки (47.25.12)', '223', '47.25.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 25, '      табачные изделия (47.26.10)', '224', '47.26.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 26, '      молочные продукты (47.29.11)', '225', '47.29.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 27, '         из них сыры (47.29.11.120)', '226', '47.29.11.120', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 28, '      яйца (47.29.12)', '227', '47.29.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 29, '      чай, кофе, какао и специи (47.29.21)', '228', '47.29.21', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 30, '      пищевые масла и жиры (47.29.22)', '229', '47.29.22', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 31, '         из них масло растительное (47.29.22.200)', '230', '47.29.22.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 32, '      гомогенизированные продукты и диетическое питание (47.29.23)', '231', '47.29.23', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 33, '      крупа (47.29.29.200)', '232', '47.29.29.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 34, '      сахар и сахарозаменители (47.29.29.400)', '233', '47.29.29.400', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 35, '      соль пищевая (47.29.29.600)', '234', '47.29.29.600', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 36, '      мука (47.29.29.700)', '235', '47.29.29.700', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 37, '      макаронные изделия (47.29.29.800)', '236', '47.29.29.800', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 38, '      продукты пищевые прочие, не включенные в другие группировки (47.29.29.900)', '237', '47.29.29.900', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 39, '   непродовольственные товары (47.200) (сумма строк с 239 по 244, 246, 248, 250, 251, с 258 по 262, с 265 по 279, 281, 282, 291, с 293 по 304, с 306 по 308)', '238', '47.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 40, '      легковые автомобили и грузовые автомобили весом не более 3,5 т (45.11.2)', '239', '45.11.2', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 41, '      детали и принадлежности для автотранспортных средств (45.32)', '240', '45.32', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 42, '      мотоциклы и относящиеся к ним детали и принадлежности (45.40.20)', '241', '45.40.20', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 43, '      моторное топливо и сопутствующие средства (47.30.10)', '242', '47.30.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 44, '      компьютеры, периферийные устройства и программное обеспечение (47.41.10)', '243', '47.41.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 45, '      телекоммуникационное оборудование (47.42.10)', '244', '47.42.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 46, '         из него телефоны для сотовой и прочей беспроводной связи (47.42.10.300)', '245', '47.42.10.300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 47, '      аудио- и видеоаппаратура (47.43.10)', '246', '47.43.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 48, '         из нее телевизоры (47.43.10.210)', '247', '47.43.10.210', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 49, '      ткани, пряжа, прочие текстильные изделия (47.51.11)', '248', '47.51.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 50, '         из них ткани (47.51.11.100)', '249', '47.51.11.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 51, '      галантерейные товары (47.51.12)', '250', '47.51.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 52, '      строительные материалы (47.52) (сумма строк с 252 по 257)', '251', '47.52', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 53, '         замочные, скобяные товары и ручной инструмент (47.52.11)', '252', '47.52.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 54, '         лакокрасочные материалы (47.52.12)', '253', '47.52.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 55, '         стекло (47.52.13)', '254', '47.52.13', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 56, '         материалы и оборудование для изготовления поделок в домашних условиях (47.52.14)', '255', '47.52.14', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 57, '         санитарно-техническое оборудование (47.52.15)', '256', '47.52.15', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 58, '         строительные материалы, не включенные в другие группировки (47.52.16)', '257', '47.52.16', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 59, '      портьеры и тюлевые занавеси (47.53.11)', '258', '47.53.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 60, '      обои (47.53.12.100)', '259', '47.53.12.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 61, '      напольные покрытия (47.53.12.200)', '260', '47.53.12.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 62, '      ковры и изделия ковровые (47.53.12.300)', '261', '47.53.12.300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 63, '      электробытовые приборы и инструменты (47.54.10)', '262', '47.54.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 64, '         холодильники и морозильники бытовые (47.54.10.100)', '263', '47.54.10.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 65, '         стиральные машины бытовые и машины для сушки одежды (47.54.10.200)', '264', '47.54.10.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 66, '      бытовая мебель (47.59.11)', '265', '47.59.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 67, '      осветительное оборудование (47.59.12)', '266', '47.59.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 68, '      бытовая утварь, столовые принадлежности, посуда, стеклянные, фарфоровые и керамические изделия (47.59.13)', '267', '47.59.13', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 69, '      изделия из дерева, пробки и плетеные изделия (47.59.14)', '268', '47.59.14', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 70, '      бытовые неэлектрические приборы (47.59.15)', '269', '47.59.15', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 71, '      музыкальные инструменты и партитуры (47.59.19.100)', '270', '47.59.19.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 72, '      офисная мебель (47.59.19.200)', '271', '47.59.19.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 73, '      офисные машины и оборудование (47.59.19.300)', '272', '47.59.19.300', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 74, '      чистящие и прочие средства бытовой химии (47.59.19.400)', '273', '47.59.19.400', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 75, '      прочие оборудование, принадлежности и изделия, не включенные в другие группировки (47.59.19.900)', '274', '47.59.19.900', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 76, '      книги (47.61.10)', '275', '47.61.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 77, '      газеты и журналы (47.62.11)', '276', '47.62.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 78, '      бумага, картон, изделия из бумаги и канцелярские товары (47.62.12)', '277', '47.62.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 79, '      музыкальные и видеозаписи (47.63.10)', '278', '47.63.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 80, '      товары для физической культуры, спорта и туризма, включая велосипеды и лодки (47.64.10)', '279', '47.64.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 81, '         из них велосипеды (47.64.10.100)', '280', '47.64.10.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 82, '      игры и игрушки (47.65.10)', '281', '47.65.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 83, '      одежда (47.71.10)', '282', '47.71.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 84, '         верхняя одежда (47.71.10.100)', '283', '47.71.10.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 85, '            одежда трикотажная (47.71.10.110)', '284', '47.71.10.110', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 86, '            одежда кожаная (47.71.10.130)', '285', '47.71.10.130', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 87, '            мех, меховая одежда и изделия (47.71.10.140)', '286', '47.71.10.140', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 88, '         нижнее белье (47.71.10.200)', '287', '47.71.10.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 89, '         чулочно-носочные изделия (47.71.10.600)', '288', '47.71.10.600', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 90, '         головные уборы (47.71.10.700)', '289', '47.71.10.700', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 91, '         аксессуары для одежды (47.71.10.800)', '290', '47.71.10.800', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 92, '      обувь (47.72.11)', '291', '47.72.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 93, '         из нее обувь кожаная (47.72.11.100)', '292', '47.72.11.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 94, '      дорожные принадлежности и прочие изделия из кожи (47.72.12)', '293', '47.72.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 95, '      фармацевтические товары  (47.73.10)', '294', '47.73.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 96, '      медицинские и ортопедические товары (47.74.10)', '295', '47.74.10', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 97, '      парфюмерно-косметическая продукция и туалетные принадлежности (47.75)', '296', '47.75', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 98, '      цветы, растения, семена и удобрения (47.76.11)', '297', '47.76.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 99, '      домашние животные (питомцы), корма, принадлежности для них и средства ухода за ними (47.76.12)', '298', '47.76.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 100, '      часы (47.77.10.100)', '299', '47.77.10.100', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 101, '      ювелирные изделия (47.77.10.200)', '300', '47.77.10.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 102, '      фотопринадлежности, оптические и точные приборы (47.78.11)', '301', '47.78.11', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 103, '      предметы искусства (47.78.12)', '302', '47.78.12', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 104, '      сувениры, изделия народных художественных промыслов, предметы культового и религиозного назначения (47.78.13)', '303', '47.78.13', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 105, '      бытовое жидкое топливо, газ в баллонах, уголь, древесное топливо (47.78.14)', '304', '47.78.14', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 106, '         из него газ в баллонах (47.78.14.200)', '305', '47.78.14.200', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 107, '      почтовые марки и монеты (47.78.16)', '306', '47.78.16', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 108, '      неподержанные непродовольственные товары, не включенные в другие группировки (47.78.19)', '307', '47.78.19', 'тысяч  рублей', 0);
+    loadDefaultStatisticReportTypeDetail('1-торг', 109, '      подержанные товары (47.79.1)', '308', '47.79.1', 'тысяч  рублей', 0);
+    }
 
 loadDefaultStStatisticReportType () + {  loadDefaultStStatisticReportTypeBy(); }

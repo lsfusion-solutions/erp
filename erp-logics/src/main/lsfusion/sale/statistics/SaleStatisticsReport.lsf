@@ -385,6 +385,8 @@ balance 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
 balanceResident 'Запас отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
 
 soldSum 'Продано всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
+soldSumCorporate 'Продано в фирменных  магазинах' = DATA NUMERIC[16,3] (StatisticReportDetail);
+soldSumInternet'Продано в интернет-магазинах' = DATA NUMERIC[16,3] (StatisticReportDetail);
 soldSumResident 'Продано отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
 balanceSum 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
   
@@ -492,6 +494,9 @@ overFillSumData1  ABSTRACT LIST ( StatisticReport);
 fillSumData 'Заполнить данные'(StatisticReport report)  { 
     soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+
     balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
     
     FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
@@ -499,26 +504,36 @@ fillSumData 'Заполнить данные'(StatisticReport report)  {
     
         soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, st, dFrom, dTo));
         soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, st, dFrom, dTo));
+        soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, st, dFrom, dTo));
+        soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, st, dFrom, dTo));
         balanceSum(d) <- NUMERIC[16,3](sumBalanceABy(s, st, dTo));
     }                                                                                                                  
     overFillSumData(report);
     
     soldSum(StatisticReportDetail d) <- NUMERIC[16,3](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- NUMERIC[16,3](soldSumCorporate(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- NUMERIC[16,3](soldSumInternet(d) / rate(report)) WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NUMERIC[16,3](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- NUMERIC[16,3](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                           
     
     soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- round(soldSumCorporate(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- round(soldSumInternet(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
         
     IF isPositiveReport(report) THEN {
         soldSum(StatisticReportDetail d) <- 0.0 WHERE soldSum(d) <0 AND statisticReport(d) == report;
         soldSumResident(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
+        soldSumCorporate(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
+        soldSumInternet(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
         balanceSum(StatisticReportDetail d) <- 0.0 WHERE balanceSum(d) <0 AND statisticReport(d) == report;  
         soldSumResident(StatisticReportDetail d) <- min(soldSumResident(d), soldSum(d)) WHERE statisticReport(d) == report;
     }
     
     soldSum(StatisticReportDetail d) <- (GROUP SUM soldSum(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
+    soldSumCorporate(StatisticReportDetail d) <- (GROUP SUM soldSumCorporate(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
+    soldSumInternet(StatisticReportDetail d) <- (GROUP SUM soldSumInternet(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
     soldSumResident(StatisticReportDetail d) <- (GROUP SUM soldSumResident(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
     balanceSum(StatisticReportDetail d) <- (GROUP SUM balanceSum(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
     overFillData3(report);
@@ -528,6 +543,8 @@ overFillSumRegionData  ABSTRACT LIST ( StatisticReport);
 overFillSumRegionData1  ABSTRACT LIST ( StatisticReport);
 fillSumRegionData 'Заполнить данные'(StatisticReport report)  { 
     soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
     
@@ -536,26 +553,36 @@ fillSumRegionData 'Заполнить данные'(StatisticReport report)  {
         NOINLINE DO {
     
         soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, r, dFrom, dTo));
+        soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, c, r, dFrom, dTo));
+        soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, c, r, dFrom, dTo));
         soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, c, r, dFrom, dTo));
         balanceSum(d) <- NUMERIC[16,3](sumBalanceABy(s, c, r, dTo));
     }
     overFillSumRegionData(report);
     
     soldSum(StatisticReportDetail d) <- NUMERIC[16,3](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- NUMERIC[16,3](soldSumCorporate(d)/ rate(report)) WHERE statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- NUMERIC[16,3](soldSumInternet(d)/ rate(report)) WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NUMERIC[16,3](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- NUMERIC[16,3](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                                                                                                         
    
     soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- round(soldSumCorporate(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- round(soldSumInternet(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
        
     IF isPositiveReport(report) THEN {
         soldSum(StatisticReportDetail d) <- 0.0 WHERE soldSum(d) <0 AND statisticReport(d) == report;
+        soldSumCorporate(StatisticReportDetail d) <- 0.0 WHERE soldSumCorporate(d) <0 AND statisticReport(d) == report;
+        soldSumInternet(StatisticReportDetail d) <- 0.0 WHERE soldSumInternet(d) <0 AND statisticReport(d) == report;
         soldSumResident(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
         balanceSum(StatisticReportDetail d) <- 0.0 WHERE balanceSum(d) <0 AND statisticReport(d) == report;  
         soldSumResident(StatisticReportDetail d) <- min(soldSumResident(d), soldSum(d)) WHERE statisticReport(d) == report;
     }
     soldSum(StatisticReportDetail d) <- (GROUP SUM soldSum(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
+    soldSumCorporate(StatisticReportDetail d) <- (GROUP SUM soldSumCorporate(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
+    soldSumInternet(StatisticReportDetail d) <- (GROUP SUM soldSumInternet(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
     soldSumResident(StatisticReportDetail d) <- (GROUP SUM soldSumResident(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);
     balanceSum(StatisticReportDetail d) <- (GROUP SUM balanceSum(StatisticReportDetail detail)  IF in(detail, d)) WHERE count(d) AND statisticReport(d) == report AND NOT skip(d);        
     overFillData3(report);
@@ -608,7 +635,7 @@ FORM statisticReport 'Статистический отчет'
     PROPERTIES (d) index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round, childNumbers READONLY SHOWIF showDD(r)
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
-    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum                
+    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, soldSumCorporate, soldSumInternet, balanceSum                
     PROPERTIES (d) NEW, deleteid=DELETE GRID
               
     PROPERTIES(r) TOOLBAR fillData DRAW d SHOWIF isStockThing(r) ,
@@ -865,7 +892,7 @@ FORM statisticReports 'Статистические отчеты'
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round, childNumbers
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
-    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
+    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumCorporate, soldSumInternet, soldSumResident, balanceSum
     ORDER index(d)
     FILTERS statisticReport(d) == r
                 
