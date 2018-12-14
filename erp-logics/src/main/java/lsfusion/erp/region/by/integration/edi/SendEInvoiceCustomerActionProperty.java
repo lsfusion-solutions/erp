@@ -1,6 +1,5 @@
 package lsfusion.erp.region.by.integration.edi;
 
-import lsfusion.base.IOUtils;
 import lsfusion.base.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.interop.action.MessageClientAction;
@@ -13,7 +12,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
 import org.jdom.Document;
@@ -54,7 +52,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
             String certificateEDI = (String) findProperty("certificateEDI[]").read(context);
             String passwordEDI = (String) findProperty("passwordEDI[]").read(context);
 
-            if (signerPathEDI != null && outputEDI != null && certificateEDI != null && passwordEDI != null) {
+            if (useEDSServiceForCustomer || (signerPathEDI != null && outputEDI != null && certificateEDI != null && passwordEDI != null)) {
 
                 List<RawFileData> xmls = new ArrayList<>();
 
