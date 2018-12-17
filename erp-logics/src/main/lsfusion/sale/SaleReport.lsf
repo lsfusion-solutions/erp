@@ -457,14 +457,14 @@ calcEmailSupplier 'Отправить акт поставщику' (SaleReport r
     LOCAL file = FILE ();
     PRINT detailSaleReport OBJECTS r=report XLSX TO file;
     
-    LOCAL inlineFile = FILE ();
-    PRINT messageSaleReports OBJECTS s=report HTML TO inlineFile;
+    LOCAL bodyFile = FILE ();
+    PRINT messageSaleReports OBJECTS s=report HTML TO bodyFile;
     
     EMAIL
     FROM OVERRIDE email(createdUser(report)) IF NOT notUseUserEmail(), fromEmailOrders()
     SUBJECT 'Акт реализации по ' + (OVERRIDE ('магазину ' + nameCompanyStock(report)), ('организации ' + nameCompany(report))) + ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
     TO email(supplier(report))
-    INLINE inlineFile()
+    BODY bodyFile()
     ATTACH file() 
            NAME number(report) + '/' + fromDate(report)+ '/' + toDate(report);// без кирилицы должно быть         
 }
