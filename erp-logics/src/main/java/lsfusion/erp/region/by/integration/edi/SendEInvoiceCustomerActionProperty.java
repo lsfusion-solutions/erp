@@ -81,8 +81,12 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
 
                     //создаём BLRAPN и BLRWBR, подписываем и отправляем
                     String blrapn = createBLRAPNString(context, eInvoiceObject, documentNumberBLRAPN, documentDate, referenceNumber, referenceDate, glnCustomer, outputDir);
-                    String blrwbr = isCancel ? null : createBLRWBRString(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock, outputDir);
-
+                    String blrwbr = null;
+                    if (!isCancel) {
+                        blrwbr = createBLRWBRString(context, eInvoiceObject, documentNumberBLRWBR, documentDate, referenceNumber, referenceDate, glnCustomer, glnCustomerStock, outputDir);
+                        if(blrwbr == null)
+                            return;
+                    }
                     String signedBLRAPN = signDocument("BLRAPN", referenceNumber, hostEDSService, portEDSService, blrapn, aliasEDSService, passwordEDSService, charset);
                     String signedBLRWBR = signDocument("BLRWBR", referenceNumber, hostEDSService, portEDSService, blrwbr, aliasEDSService, passwordEDSService, charset);
 
