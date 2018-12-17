@@ -65,7 +65,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         Exception exception = null;
                         try (Connection conn = DriverManager.getConnection(directory)) {
                             processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            //exportItems(conn, transaction);
+                            exportItems(conn, transaction);
                         } catch (Exception e) {
                             exception = e;
                         }
