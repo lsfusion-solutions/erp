@@ -65,7 +65,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         Exception exception = null;
                         try (Connection conn = DriverManager.getConnection(directory)) {
                             processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                            exportItems(conn, transaction);
+                            //exportItems(conn, transaction);
                         } catch (Exception e) {
                             exception = e;
                         }
@@ -240,7 +240,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
-                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCCOD, CEUNIKEY";
+                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
             Set<String> unknownSections = new HashSet<>();
