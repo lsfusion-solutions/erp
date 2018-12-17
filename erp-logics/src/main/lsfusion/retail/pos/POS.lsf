@@ -114,7 +114,7 @@ in (Receipt receipt, Promotion promotion) = inCalc(receipt, promotion) AND NOT s
 
 inReceiptSale (ReceiptDetail receiptDetail, PromotionCondition promotionCondition) =
     in(receipt(receiptDetail), promotion(promotionCondition))
-    AND in(promotionCondition, sku(receiptDetail));
+    AND in(promotionCondition, receiptDetail);
 
 //maxSalePriceReceiptSku (receipt, sku) = GROUP MAX priceReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), skuReceiptSaleDetail(detail);
 
@@ -123,7 +123,7 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
       ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
 // оптимизация
-possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
+possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, ReceiptSaleDetail detail) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
 beforeCalculatePromotions  ABSTRACT LIST ( Receipt);
 overCalculatePromotions  ABSTRACT LIST ( Receipt);
@@ -152,13 +152,13 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
             LOCAL quantity = NUMERIC[14,3] (PromotionCondition);
             quantity(PromotionCondition promotionCondition) <- (GROUP
                                                                      SUM leftQuantity(ReceiptSaleDetail detail)
-                                                                         IF in(promotionCondition, sku(detail))) IF
+                                                                         IF in(promotionCondition, detail)) IF
                                                                         promotion(promotionCondition) == promotion;
 
             LOCAL sum = NUMERIC[14,3] (PromotionCondition);
             sum(PromotionCondition promotionCondition) <- (GROUP
                                                                     SUM leftQuantity(ReceiptSaleDetail detail) * price(detail)
-                                                                    IF in(promotionCondition, sku(detail))) IF
+                                                                    IF in(promotionCondition, detail)) IF
                                                                        promotion(promotionCondition) == promotion;
 
             LOCAL count = INTEGER (PromotionCondition);
@@ -201,14 +201,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
                                
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, sku(detail))  
+                                                                                                         IF in(condition, detail)  
                                                                                                          AND isAppliedPromotion(detail, condition)
                                                                                                    ORDER leftSum(detail)/quantity(detail), detail
                                                                                                    BY condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, sku(detail))  
+                                                                                                             IF in(condition, detail)  
                                                                                                              AND isAppliedPromotion(detail, condition)
                                                                                                        ORDER leftSum(detail)/quantity(detail), detail
                                                                                                        BY condition);
@@ -218,14 +218,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
                     WHEN orderPromotionType(promotion) == OrderPromotionType.descending  THEN {                
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, sku(detail))  
+                                                                                                         IF in(condition, detail)  
                                                                                                          AND isAppliedPromotion(detail, condition)
                                                                                                    ORDER DESC leftSum(detail)/quantity(detail), detail
                                                                                                    BY condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, sku(detail))  
+                                                                                                             IF in(condition, detail)  
                                                                                                              AND isAppliedPromotion(detail, condition)
                                                                                                        ORDER DESC leftSum(detail)/quantity(detail), detail
                                                                                                        BY condition);
@@ -235,14 +235,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
                     WHEN orderPromotionType(promotion) == OrderPromotionType.index THEN {   
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
                                                                                                    LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, sku(detail))  
+                                                                                                         IF in(condition, detail)  
                                                                                                          AND isAppliedPromotion(detail, condition)
                                                                                                    ORDER detail
                                                                                                    BY condition);   
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, sku(detail))  
+                                                                                                             IF in(condition, detail)  
                                                                                                              AND isAppliedPromotion(detail, condition)
                                                                                                        ORDER detail
                                                                                                        BY condition);

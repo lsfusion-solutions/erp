@@ -31,4 +31,11 @@ namePromotionConditions 'Названия акций' (d) =
                                                       
 prevTotalSum 'Накопленная сумма' (Receipt receipt) = OVERRIDE [ PREV(totalSum(DiscountCard discountCard))](discountCard(receipt)), 0.00 IF receipt IS Receipt;
 totalSum (Receipt receipt, Promotion promotion) = IF useCurrentReceipt(promotion) THEN totalSum(discountCard(receipt))
-                                                                                         ELSE prevTotalSum (receipt);                                                  
+                                                                                         ELSE prevTotalSum (receipt);  
+                                                                                         
+overIn 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, ReceiptSaleDetail);
+excluded 'Исключить из условия' = ABSTRACT BOOLEAN (PromotionCondition, ReceiptSaleDetail);
+
+in 'В условии' (PromotionCondition c, ReceiptSaleDetail detail) = (OVERRIDE 
+    in(c,sku(detail)),
+    overIn(c, detail)) AND NOT excluded(c, detail);                                                                                                                                         
