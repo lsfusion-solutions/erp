@@ -8,10 +8,19 @@ managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NES
 inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch); 
 //assignAttributeBatch  ABSTRACT ( Stock, Operation, DATETIME);
 
+repricingLastOrderBatch 'Всегда переоценивать последнюю партию' = DATA BOOLEAN (); 
+EXTEND FORM options PROPERTIES() repricingLastOrderBatch;
+DESIGN options { rPanel { MOVE PROPERTY(repricingLastOrderBatch()); } }
+
 calculateDashboardManagementRepricingBatch 'По прайсам'(DepartmentStore d, PriceListType p, DATETIME dt)  { 
     managementRetailPrice(Batch batch) <- NULL;
     managementRetailPrice(Batch batch) <- prevPriceA(p, batch, d, dt) 
         WHERE currentBalance(batch, d) > 0 AND skipRepricing(sku(batch), d); // Берем только те товары, которые исключили из переоценки по товарам
+    
+    IF repricingLastOrderBatch() THEN {
+        managementRetailPrice(Batch batch) <- prevPriceA(p, batch, d, dt) 
+            WHERE batch = lastOrderBatch(sku(batch), d) AND skipRepricing(sku(batch), d);
+    }
     
     inDashboardRepricing(Batch batch) <- managementRetailPrice(batch) != prevPriceABatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt); 
     formRefresh();
