@@ -232,14 +232,26 @@ WHEN LOCAL FORMS BOM CHANGED(percentHumidity(Product p))  AND fillHumidityItem()
 overFillNutrition ABSTRACT LIST (Product);
 isFillNutrition = ABSTRACT BOOLEAN (Product);
 
+netGramsQuantity = DATA LOCAL NUMERIC[16,5](Item);          
+coeffGramsDrynessQuantity = DATA LOCAL NUMERIC[22,8]();
+
 fillNutrition 'Рассчитать ценность' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
         IF showNutrition(BOM) THEN {
+            netGramsQuantity(Item i) <- NULL;
+            coeffGramsDrynessQuantity() <- NULL;
+            netGramsQuantity(Item i) <- NUMERIC[16,5](recBruttoNetQuantity(BOM(p), i, currentDate())/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *100.0) WHERE recBruttoNetQuantity(BOM(p), i, currentDate());                  
+            coeffGramsDrynessQuantity() <- NUMERIC[22,8](gramsQuantityComponents(p)/(GROUP SUM netGramsQuantity(Item sku)* percentDryness(sku)/100.0));    
+                                                
             IF NOT isFillNutrition(p) THEN { //чтобы избежать двойного округления
-                proteins(p)<- NUMERIC[8,2](netProteinsGramsQuantityRound(p,currentDate()));
-                fats(p)<- NUMERIC[8,2](netFatsGramsQuantityRound(p,currentDate()));     
-                carbohydrates(p)<- NUMERIC[8,2](netCarbohydratesGramsQuantityRound(p,currentDate())); 
-                energy(p)<- NUMERIC[8,2](calcNetEnergyGramsQuantityRound(p,currentDate()));            
+                proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*proteins(sku)/100.0)*coeffGramsDrynessQuantity())));
+                fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*fats(sku)/100.0)*coeffGramsDrynessQuantity())));
+                carbohydrates(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*carbohydrates(sku)/100.0)*coeffGramsDrynessQuantity())));
+                energy(p)<- NUMERIC[8,2](energyParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*energy(sku)/100.0)*coeffGramsDrynessQuantity())));
+//                proteins(p)<- NUMERIC[8,2](netProteinsGramsQuantityRound(p,currentDate()));
+//                fats(p)<- NUMERIC[8,2](netFatsGramsQuantityRound(p,currentDate()));     
+//                carbohydrates(p)<- NUMERIC[8,2](netCarbohydratesGramsQuantityRound(p,currentDate())); 
+//                energy(p)<- NUMERIC[8,2](calcNetEnergyGramsQuantityRound(p,currentDate()));            
             } ELSE {
                 overFillNutrition(p);            
             }
