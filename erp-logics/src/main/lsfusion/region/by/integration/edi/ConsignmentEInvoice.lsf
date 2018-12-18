@@ -1,0 +1,82 @@
+MODULE ConsignmentEInvoice;
+
+REQUIRE InvoiceEInvoice, ConsignmentBy;
+
+NAMESPACE Consignment;
+
+UNPfullNamePayer (Invoice i) = CONCAT ', ', UNPPayer(i), fullNamePayer(i);
+UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[Consignment](i);
+addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[Consignment](i), addressSupplierStock[Consignment](i);
+infoCustomerBase (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i), shipmentBase(i);
+numberDate (Invoice i) = CONCAT ', ', number(i), toDateDDMMYY(date(i));
+
+FORM consignmentEInvoice 'РЕЕСТР'
+    OBJECTS i = Invoice PANEL SUBREPORT
+    PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
+                           date, nameTruck, overWaybill, nameDriver, trailer, number, numberDate, infoCustomerBase,
+                           grossWeightConsignmentDetail, overPackQuantityConsignmentDetail, sumVATConsignmentDetail,
+                           sumInvoiceConsignmentDetail, forwarder, overGoodsAccepted, numberEInvoice
+;
+
+FORM attachmentEInvoice 'Приложение'
+    OBJECTS i = Invoice PANEL SUBREPORT
+    PROPERTIES(i) READONLY number, date
+    
+    OBJECTS d = InvoiceDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price, sum, valueVAT, VATSum, invoiceSum,
+                           packQuantity, sumGrossWeight, idSku
+    FILTERS invoice(d) == i
+;
+
+printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i)  { 
+    PRINT consignmentEInvoice OBJECTS i = i;
+    PRINT attachmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEInvoice 'Реестр ТТН' (Invoice i)  { 
+    PRINT consignmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEAttachment 'Приложение' (Invoice i)  { 
+    PRINT consignmentEInvoice OBJECTS i = i;
+} IMAGE 'print.png';
+
+printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i)  { 
+    PRINT consignmentEInvoice OBJECTS i = i XLSX;
+} IMAGE 'print.png';
+
+include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
+countInclude() = GROUP SUM 1 IF include(Invoice i);
+maxInclude() = GROUP MAX Invoice i IF include(i);
+
+UNPfullNamePayer () = CONCAT ', ', UNPPayer(maxInclude()), fullNamePayer(maxInclude());
+addressPayer () = addressPayer(maxInclude());
+UNPfullNameSupplier () = CONCAT ', ', UNPSupplier(maxInclude()), fullNameSupplier[Consignment](maxInclude());
+addressSupplier () = addressSupplier[Consignment](maxInclude());
+date () = date(maxInclude());
+nameTruck () = nameTruck(maxInclude());
+overWaybill () = overWaybill(maxInclude());
+nameDriver () = nameDriver(maxInclude());
+forwarder () = forwarder(maxInclude());
+infoCustomer (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i);
+
+
+FORM consignmentEInvoices 'РЕЕСТР'
+    PROPERTIES() UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplier, date, nameTruck, overWaybill, nameDriver, forwarder
+    OBJECTS i = Invoice SUBREPORT
+    PROPERTIES(i) READONLY numberDate, infoCustomer, overGoodsAccepted
+    FILTERS include(i)
+;
+
+printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' ()  { 
+    PRINT consignmentEInvoices XLSX;
+    FOR include(Invoice i) DO {
+        PRINT attachmentEInvoice OBJECTS i = i XLSX;
+    }
+} IMAGE 'print.png';
+
+editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i)  { 
+	NEWSESSION {   
+	    SHOW eInvoice OBJECTS e = eInvoice(i) DOCKED; 
+	}
+} IMAGE 'edit.png';

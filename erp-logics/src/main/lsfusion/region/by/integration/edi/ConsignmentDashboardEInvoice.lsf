@@ -1,0 +1,38 @@
+MODULE ConsignmentDashboardEInvoice;
+
+REQUIRE ConsignmentEInvoice, ConsignmentDashboard;
+
+NAMESPACE Order;
+
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES READONLY PANEL numberEInvoice(i)
+    PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice[Invoice](i)), signAndSendSupplierEDI SHOWIF eInvoice[Invoice](i)
+    PROPERTIES(i) SHOWIF eInvoice[Invoice](i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+                  printConsignmentEAttachment, printConsignmentEAttachmentXLSX
+;
+
+DESIGN consignmentDashboard {
+    tabContainer {
+        NEW eInvoice {
+            caption = 'Электронная накладная';
+            NEW createEI {
+                type = CONTAINERH;
+                MOVE PROPERTY(numberEInvoice(i));
+                MOVE PROPERTY(createEInvoice(i));
+                MOVE PROPERTY(editAttributesEInvoice(i));
+                MOVE PROPERTY(signAndSendSupplierEDI(i));
+            }
+            NEW printEI {
+                type = CONTAINERH;
+                MOVE PROPERTY (printConsignmentEInvoiceAttachment(i));
+                MOVE PROPERTY (printConsignmentEInvoice(i));
+                MOVE PROPERTY (printConsignmentEAttachment(i));
+            }
+            NEW exportEI {
+                type = CONTAINERH;
+                MOVE PROPERTY (printConsignmentEAttachmentXLSX(i));
+            }
+        }
+    }
+}

@@ -1,0 +1,48 @@
+MODULE PurchaseReturnEInvoice;
+
+REQUIRE PurchaseReturnInvoice, InvoiceEInvoice, ConsignmentEInvoice;
+
+NAMESPACE PurchaseReturn;
+
+eInvoice = ABSTRACT EInvoice (Invoice);
+eInvoice = DATA EInvoice (UserInvoice);
+eInvoice(UserInvoice i) += eInvoice(i);
+
+EDI.eInvoice(Invoice i) += eInvoice(i);
+
+
+EXTEND FORM invoices
+    PROPERTIES READONLY PANEL numberEInvoice(i)
+    PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice[Invoice](i)), signAndSendSupplierEDI SHOWIF eInvoice[Invoice](i)
+    PROPERTIES(i) SHOWIF eInvoice[Invoice](i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+                  printConsignmentEAttachment, printConsignmentEAttachmentXLSX
+;
+
+DESIGN invoices {
+    printTabScroll {
+        NEW tabConsignment{
+            type = TABBED;
+            MOVE printTab {caption = 'Накладная';};
+            NEW eInvoice {
+                caption = 'Электронная накладная';
+                NEW createEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberEInvoice(i));
+                    MOVE PROPERTY(createEInvoice(i));
+                    MOVE PROPERTY(editAttributesEInvoice(i));
+                    MOVE PROPERTY(signAndSendSupplierEDI(i));
+                }
+                NEW printEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (printConsignmentEInvoiceAttachment(i));
+                    MOVE PROPERTY (printConsignmentEInvoice(i));
+                    MOVE PROPERTY (printConsignmentEAttachment(i));
+                }
+                NEW exportEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (printConsignmentEAttachmentXLSX(i));
+                }
+            }
+        }
+}    
+}

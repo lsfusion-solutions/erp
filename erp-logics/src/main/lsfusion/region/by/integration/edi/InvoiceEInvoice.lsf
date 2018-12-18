@@ -1,0 +1,87 @@
+MODULE InvoiceEInvoice;
+
+REQUIRE EDI, Invoice;
+
+PRIORITY Invoice;
+
+NAMESPACE EDI;
+
+eInvoice = ABSTRACT EInvoice (Invoice);
+
+invoice = GROUP AGGR Invoice i BY eInvoice(i);
+numberInvoice 'Номер накладной (продажа)' (EInvoice i) = number(invoice(i));
+
+numberEInvoice 'Номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+
+
+defaultNumeratorDeliveryNoteNumber = DATA Numerator ();
+nameDefaultNumeratorDeliveryNote 'DeliveryNoteNumber Накладные (продажа)' = name(defaultNumeratorDeliveryNoteNumber()) IN defaultNumerator;
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameSaleDefaultNumeratorDeliveryNote = nameDefaultNumeratorDeliveryNote
+;
+
+loadDefaultNumerators() + { 
+    NEW n = Numerator {
+        name(n) <- 'DeliveryNoteNumber Накладные (продажа)';
+        series(n) <- '';
+        minValue(n) <- 1L;
+        maxValue(n) <- 9999999999L;
+        stringLength(n) <- 10;
+
+        defaultNumeratorDeliveryNoteNumber() <- n;
+    }
+}
+
+generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  { 
+    deliveryNoteNumber(o) <- '001-' + GLN(supplier(o)) + '-' + curStringValue(defaultNumeratorDeliveryNoteNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
+    incrementValueSession(defaultNumeratorDeliveryNoteNumber());
+}
+
+createEInvoice 'Создать электронную накладную' (Invoice invoice)  { 
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        NEW ei = EInvoice {
+            eInvoice(invoice) <- ei;
+            number(ei) <- number(invoice);
+            dateTime(ei) <- dateTime(invoice);
+            deliveryNoteDateTime(ei) <- dateTime(invoice);
+            supplier(ei) <- from(invoice);
+            supplierStock(ei) <- fromStock(invoice);
+            customer(ei) <- to(invoice);
+            customerStock(ei) <- toStock(invoice);
+            contactCustomerStock(ei) <- '';
+            contractId(ei) <- seriesNumberContractSku(invoice);
+            contractDate(ei) <- dateFromContractSku(invoice);
+            currency(ei) <- shortNameCurrency(invoice);
+            generateSeriesNumber(ei);
+            
+            FOR invoice(InvoiceDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+                eInvoice(ed) <- ei;
+                lineItemID(ed) <- idBarcodeSku(detail);
+                lineItemBuyerID(ed) <- idSku(detail);
+                lineItemName(ed) <- nameSku(detail);
+                quantityDespatched(ed) <- quantity(detail);
+                valueVAT(ed) <- valueVAT(detail);
+                lineItemPrice(ed) <- price(detail);
+                lineItemAmountWithoutCharges(ed) <- sum(detail);
+                lineItemAmount(ed) <- sum(detail);
+                lineItemAmountCharges(ed) <- VATSum(detail);
+                grossWeightValue(ed) <- OVERRIDE NUMERIC[12,6](sumGrossWeight(detail)), 0.0;
+                lineItemQuantityUOM(ed) <- extraCodeUOM(UOM(sku(detail)));
+                despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 0.0;
+                taxRate(ed) <- numberVAT(detail);
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLY numberInvoice
+;
+
+signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i)  { 
+    in(EInvoice e) <- e = eInvoice(i);
+    signAndSendSupplierEDI();
+    in(EInvoice e) <- NULL;
+}

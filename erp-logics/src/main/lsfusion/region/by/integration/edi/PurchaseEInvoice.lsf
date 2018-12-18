@@ -1,6 +1,6 @@
 MODULE PurchaseEInvoice;
 
-REQUIRE EDI, PurchaseInvoice;
+REQUIRE InvoiceEInvoice, PurchaseInvoice;
 
 PRIORITY Purchase;
 
@@ -23,8 +23,7 @@ eInvoice = ABSTRACT EInvoice (Invoice);
 eInvoice = DATA EInvoice (UserInvoice);
 eInvoice(UserInvoice i) += eInvoice(i);
 
-invoice = GROUP AGGR Invoice i BY eInvoice(i);
-numberInvoice 'Номер накладной (закупка)' (EInvoice i) = number(invoice(i));
+EDI.eInvoice(Invoice i) += eInvoice(i);
 
 numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
@@ -120,7 +119,6 @@ CONSTRAINT isPosted(Invoice i) AND NOT receiver(i) AND eInvoice(i)
 
 EXTEND FORM eInvoices
     PROPERTIES (e) READONLY isReceived BEFORE dateTime(e)
-    PROPERTIES (e) READONLY numberInvoice
     FILTERGROUP isReceived FILTER 'Принятые' isReceived(e) 
 ;
 
