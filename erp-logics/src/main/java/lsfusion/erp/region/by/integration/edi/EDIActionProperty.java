@@ -217,7 +217,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         HttpEntity entity;
         if (file == null || file.second == null) {
             entity = new StringEntity(xml, StandardCharsets.UTF_8);
-            httpPost.addHeader("Content-type", "text/xml; charset=UTF-8");
+            httpPost.addHeader("Content-Type", "text/xml; charset=UTF-8");
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", Charset.forName("UTF-8")))).build());

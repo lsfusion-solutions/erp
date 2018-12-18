@@ -23,7 +23,7 @@ public class HttpUtils {
         HttpClient httpClient = HttpClientBuilder.create().build();
         HttpPost httpPost = new HttpPost(url);
         HttpEntity entity = new StringEntity(xml, "UTF-8");
-        httpPost.addHeader("Content-type", "text/xml");
+        httpPost.addHeader("Content-Type", "text/xml");
         httpPost.setEntity(entity);
         if (timeout != null) {
             RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(timeout).setSocketTimeout(timeout).build(); //15 minutes
