@@ -124,11 +124,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 }
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement(
-                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, cancelled, updecr, updscale)" +
-                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale)" +
+                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                 " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
                                 " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
-                                " energvalue=VALUES(energvalue), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
+                                " energvalue=VALUES(energvalue), qty=VALUES(qty), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
@@ -149,9 +149,10 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setInt(11, item.splitItem ? 0 : 1); //weight, Флаг штучного товара (1 – штучный, 0 – нет)
                     ps.setString(12, composition); //text, Текст состава
                     ps.setString(13, energValue); //energvalue, Энергетическая ценность
-                    ps.setInt(14, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
-                    ps.setLong(15, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
-                    ps.setLong(16, 9223372036854775807L); //UpdScale, Флаг обновления* весов
+                    ps.setBigDecimal(14, item.balance == null ? BigDecimal.ZERO : item.balance); //quantity, остаток
+                    ps.setInt(15, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
+                    ps.setLong(16, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
+                    ps.setLong(17, 9223372036854775807L); //UpdScale, Флаг обновления* весов
                     ps.addBatch();
                 }
 
