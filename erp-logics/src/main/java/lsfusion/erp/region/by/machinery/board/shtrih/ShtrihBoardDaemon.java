@@ -94,14 +94,14 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                     barcode = barcode.length() > 2 ? barcode.substring(2) : barcode;
                     byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);
-                    terminalLogger.info(String.format(getEventName() + " succeeded request ip %s, barcode %s, reply %s", ip, barcode, new String(message, 3, message.length - 3, charset)));
+                    priceCheckerLogger.info(String.format(getEventName() + " succeeded request ip %s, barcode %s, reply %s", ip, barcode, new String(message, 3, message.length - 3, charset)));
 
                 }
                 Thread.sleep(1000);
                 return null;
             } catch (SocketTimeoutException ignored) {
             } catch (Exception e) {
-                terminalLogger.error(getEventName() + " error: ", e);
+                priceCheckerLogger.error(getEventName() + " error: ", e);
             } finally {
                 try {
                     if (outToClient != null)
@@ -109,7 +109,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    terminalLogger.error(getEventName() + " error occurred: ", e);
+                    priceCheckerLogger.error(getEventName() + " error occurred: ", e);
                 }
             }
             return null;

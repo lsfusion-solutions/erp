@@ -26,7 +26,7 @@ import java.util.concurrent.Executors;
 
 public abstract class BoardDaemon extends MonitorServer implements InitializingBean {
     protected static final Logger startLogger = ServerLoggers.startLogger;
-    protected static final Logger terminalLogger = ERPLoggers.terminalLogger;
+    protected static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
 
     protected BusinessLogics businessLogics;
     protected DBManager dbManager;
@@ -93,7 +93,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
                         socket.setSoTimeout(30000);
                         executorService.submit(getCallable(socket));
                     } catch (IOException e) {
-                        terminalLogger.error("BoardDaemon Error: ", e);
+                        priceCheckerLogger.error("BoardDaemon Error: ", e);
                     }
                 }
         }

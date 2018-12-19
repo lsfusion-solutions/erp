@@ -98,13 +98,13 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     }
                     Result result = readMessage(barcode.toString(), ip);
                     outToClient.write(result.bytes);
-                    terminalLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode.toString(), new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
+                    priceCheckerLogger.info(String.format("%s succeeded request ip %s, barcode %s, reply %s", getEventName(), ip, barcode.toString(), new String(result.bytes, 3, result.bytes.length - 3, result.charset)));
                 }
                 Thread.sleep(1000);
                 return null;
             } catch (SocketTimeoutException ignored) {
             } catch (Exception e) {
-                terminalLogger.error("ShuttleBoard Error: ", e);
+                priceCheckerLogger.error("ShuttleBoard Error: ", e);
             } finally {
                 try {
                     if (outToClient != null)
@@ -112,14 +112,14 @@ public class ShuttleBoardDaemon extends BoardDaemon {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    terminalLogger.error("ShuttleBoard Error occurred: ", e);
+                    priceCheckerLogger.error("ShuttleBoard Error occurred: ", e);
                 }
             }
             return null;
         }
 
         private Result readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-            terminalLogger.info(String.format("Shuttle request ip %s, barcode %s", ip, idBarcode));
+            priceCheckerLogger.info(String.format("Shuttle request ip %s, barcode %s", ip, idBarcode));
             //хак. Иногда приходит штрихкод, начинающийся с F
             if(idBarcode.startsWith("F"))
                 idBarcode = idBarcode.substring(1);
