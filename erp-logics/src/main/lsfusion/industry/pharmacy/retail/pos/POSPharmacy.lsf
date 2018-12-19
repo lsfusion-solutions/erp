@@ -68,6 +68,8 @@ DESIGN options {
 //    }
 //}  
 
+overCreateReceiptSaleDetail ABSTRACT LIST (Batch, Receipt);
+
 changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n)   { 
     IF receipt IS Receipt AND blisterAmount(batch) AND n AND NOT trunc(n*blisterAmount(batch),0) == n*blisterAmount(batch) AND checkBlisterAmount() THEN {
         MESSAGE 'Количество блистеров должно быть целым';
@@ -91,6 +93,7 @@ changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n)   {
                     batch(d) <- batch;
                     quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
                     price(d) <- currentPOSPrice(batch, receipt);
+                    overCreateReceiptSaleDetail(batch, receipt);
                 }
             }
         }
@@ -188,6 +191,7 @@ changeBlisterQuantity(Batch batch, Receipt receipt)  {
                         quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), quantityPOSRoundCondition()));
                     }
                     price(d) <- currentPOSPrice(batch, receipt);
+                    overCreateReceiptSaleDetail(batch, receipt);
                 }
             }
         }
@@ -205,8 +209,23 @@ currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt
 
 pharmacyDescription 'Партия' (Batch batch) = CONCAT '', nameSku(batch), '/ ' + nameManufacturer(batch), '/ ' + nameCountry(batch);             
 
-filterBarcode 'Поиск по штрих коду' = DATA LOCAL NESTED VARISTRING[15]();
+filterBarcode 'Поиск по штрих коду' = DATA LOCAL NESTED VARISTRING[30]();
 filterBarcode 'Ввести штрих код' (Batch bt) = sku(barcode(filterBarcode()))==sku(bt) OR NOT filterBarcode();
+
+consumedChangeBarcodeReceipt = DATA LOCAL BOOLEAN();
+overChangeBarcode ABSTRACT LIST FIRST ( VARSTRING[30], Receipt);
+
+changeBarcode(Receipt receipt) {
+    INPUT s = VARSTRING[30] DO {
+        consumedChangeBarcodeReceipt() <- NULL;
+        LOCAL barcode = VARSTRING[30] ();
+        barcode() <- processedBarcode(s);
+        overChangeBarcode(barcode(), receipt);
+        IF NOT consumedChangeBarcodeReceipt() THEN {
+            filterBarcode() <- s;
+        }
+    }
+}
 
 //фильтр по цене
 filterPrice 'Поиск по цене' = DATA LOCAL NESTED NUMERIC[16,4]();
@@ -289,7 +308,7 @@ prevAvailableQuantity 'Доступное к-во (всего)' (ReceiptDetail r
 blisterPrice 'Цена за блистер' (ReceiptDetail receiptDetail) = price(receiptDetail) / blisterAmount(batch(receiptDetail));
            
 EXTEND FORM POS
-    PROPERTIES () SHOWIF currentZReport() filterBarcode EVENTID 'SCANNER', filterPrice, filterNameSku
+    PROPERTIES () SHOWIF currentZReport() filterBarcode ON CHANGE changeBarcode(r) EVENTID 'SCANNER', filterPrice, filterNameSku
     OBJECTS bt = Batch GRID
     PROPERTIES (bt) SHOWIF currentZReport() READONLY pharmacyDescription PANEL
     PROPERTIES (bt) SHOWIF currentZReport() READONLY prevNameSku BACKGROUND backgroundprevNameSku(bt, r), needPrescription, prescriptionMessage DRAW d PANEL SHOWIF needPrescription(bt)
