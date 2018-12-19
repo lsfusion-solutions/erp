@@ -107,8 +107,8 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
             String charCode = jsonObject.getString("Cur_Abbreviation");
 
             if (shortNameCurrency.equals(charCode)) {
-                String id = jsonObject.getString("Cur_ID");
-                BigDecimal scale = new BigDecimal(jsonObject.getString("Cur_Scale"));
+                String id = String.valueOf(jsonObject.getInt("Cur_ID"));
+                BigDecimal scale = jsonObject.getBigDecimal("Cur_Scale");
 
                 JSONArray exchangeDocument = readJsonFromUrl("http://www.nbrb.by/API/ExRates/Rates/Dynamics/" + id
                         + "?startDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateFrom)
@@ -118,7 +118,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
 
                     JSONObject exchangeNode = exchangeDocument.getJSONObject(j);
 
-                    BigDecimal rate = new BigDecimal(exchangeNode.getString("Cur_OfficialRate"));
+                    BigDecimal rate = exchangeNode.getBigDecimal("Cur_OfficialRate");
                     if(denominate)
                         rate = safeDivide(rate, 10000);
 
