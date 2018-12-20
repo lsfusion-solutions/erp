@@ -147,20 +147,38 @@ CONSTRAINT sku(ProductDetail productDetail) != sku(product(productDetail)) CHECK
     MESSAGE 'Sku изделия и строки изделия не соответствуют друг другу';
     
 expiryDate 'Годен до' = DATA DATE (ProductDetail);
+expiryTime 'Годен до' = DATA TIME (ProductDetail);
+expiryDateTime 'Годен до' (ProductDetail d) = dateTimeToDateTime(expiryDate(d), expiryTime(d));
 overManufactureDate = ABSTRACT DATE (ProductDetail);
 calcManufactureDate (ProductDetail d) = OVERRIDE 
     overManufactureDate(d),
     (IF expiryMonth(sku(d)) 
         THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
-        ELSE sum(expiryDate(d), -expiryDays(sku(d))));  
+        ELSE sum(expiryDate(d), -expiryDays(sku(d))));
+calcManufactureDateTime (ProductDetail d) = OVERRIDE
+    toDateTime(overManufactureDate(d)),
+    (IF hoursExpiryPack(sku(d))
+        THEN (sumMinutes(expiryDateTime(d), -60*hoursExpiryPack(sku(d))))
+        ELSE IF expiryMonth(sku(d))
+            THEN dateTimeToDateTime(sumMonth(expiryDateTime(d), -expiryMonth(sku(d))), expiryTime(d))
+            ELSE sumDay(expiryDateTime(d), -expiryDays(sku(d))));
      
-manufactureDate 'Дата изготовления' = DATA DATE (ProductDetail);    
+manufactureDate 'Дата изготовления' = DATA DATE (ProductDetail);
+manufactureTime 'Время изготовления' = DATA TIME (ProductDetail);
+manufactureDateTime 'Дата изготовления' (ProductDetail d) = dateTimeToDateTime(manufactureDate(d), manufactureTime(d));
 overExpiryDate = ABSTRACT DATE (ProductDetail);      
 calcExpiryDate (ProductDetail d) = OVERRIDE 
     overExpiryDate(d),
     (IF expiryMonth(sku(d)) 
         THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
         ELSE sum(manufactureDate(d), expiryDays(sku(d))));
+calcExpiryDateTime (ProductDetail d) = OVERRIDE
+    toDateTime(overExpiryDate(d)),
+    (IF hoursExpiryPack(sku(d))
+        THEN (sumMinutes(manufactureDateTime(d), 60*hoursExpiryPack(sku(d))))
+        ELSE IF expiryMonth(sku(d))
+            THEN dateTimeToDateTime(sumMonth(manufactureDateTime(d), expiryMonth(sku(d))), manufactureTime(d))
+            ELSE sumDay(manufactureDateTime(d), expiryDays(sku(d))));
     
 denyRepeatSkuOrder 'Запретить повтор изделий в производственном заказе' = DATA BOOLEAN ();
 
@@ -1142,7 +1160,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(o)   nameCalcPriceListType, nameProductsPriceListType, VATProduct, showBOMQuantity
     OBJECTS pd=ProductDetail
     PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, shortNameUOM, nameSupplier
-    PROPERTIES(pd) expiryDate, manufactureDate, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
+    PROPERTIES(pd) expiryDate, expiryTime, manufactureDate, manufactureTime, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
                    calcComponentsPrice READONLY, componentsPrice ON CHANGE changeComponentsPrice(pd),
                    costPrice
     PROPERTIES(pd) markup ON CHANGE changeMarkup(pd) BACKGROUND backgroundMarkup(pd),
@@ -1455,12 +1473,22 @@ WHEN LOCAL FORMS order CHANGED(product(ProductDetail d)) NOINLINE DO {
 } 
 
 
-WHEN LOCAL FORMS order (CHANGED(expiryDate(ProductDetail d)) OR CHANGED(sku(d))) AND expiryDate(d) DO {
-    manufactureDate(d) <- calcManufactureDate(d);            
-} 
-WHEN LOCAL FORMS order (CHANGED(manufactureDate(ProductDetail d)) OR CHANGED(sku(d))) AND manufactureDate(d) DO {
-    expiryDate(d) <- calcExpiryDate(d);            
-}  
+WHEN LOCAL FORMS order (CHANGED(expiryDate(ProductDetail d)) OR CHANGED(sku(d)) OR CHANGED(expiryTime(d))) AND expiryDate(d) DO {
+    IF expiryTime(d) THEN {
+        manufactureDate(d) <- toDate(calcManufactureDateTime(d));
+        manufactureTime(d) <- toTime(calcManufactureDateTime(d));
+    } ELSE {
+        manufactureDate(d) <- calcManufactureDate(d);
+    }
+}
+WHEN LOCAL FORMS order (CHANGED(manufactureDate(ProductDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufactureTime(d))) AND manufactureDate(d) DO {
+    IF manufactureTime(d) THEN {
+        expiryDate(d) <- toDate(calcExpiryDateTime(d));
+        expiryTime(d) <- toTime(calcExpiryDateTime(d));
+    } ELSE {
+        expiryDate(d) <- calcExpiryDate(d);
+    }
+}
 
 overShowEdit = ABSTRACT BOOLEAN (Order);
 overShowDelete = ABSTRACT BOOLEAN (Order);
