@@ -99,16 +99,16 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
                 conn.setAutoCommit(false);
                 ps = conn.prepareStatement("MERGE INTO cl1_bks.l9sk34 dest " +
-                                "USING(SELECT ? CEUNIKEY, ? CEUNIREF0, ? CEDOCCOD, ? CEOBIDE, ? CEOBMEA, ? MEOBNAM, ? NERECOST, ? NEOPPRIC, ? TEDOCACT, ? CECUCOD, ? NEOBREE, ? CESUCOD, ? MESUNAM FROM DUAL) src " +
+                                "USING(SELECT ? CEUNIKEY, ? CEUNIREF0, ? CEDOCCOD, ? CEOBIDE, ? CEOBMEA, ? MEOBNAM, ? NERECOST, ? NEOPPRIC, ? TEDOCACT, ? CECUCOD, ? NEOBFREE, ? CESUCOD, ? MESUNAM FROM DUAL) src " +
                                 "ON (dest.CEUNIKEY = src.CEUNIKEY) " +
                                 "WHEN MATCHED THEN " +
                                 "UPDATE SET dest.CEUNIREF0=src.CEUNIREF0, dest.CEDOCCOD=src.CEDOCCOD, dest.CEOBIDE=src.CEOBIDE, dest.CEOBMEA=src.CEOBMEA, " +
                                            "dest.MEOBNAM=src.MEOBNAM, dest.NERECOST=src.NERECOST, dest.NEOPPRIC=src.NEOPPRIC, dest.TEDOCACT=src.TEDOCACT, " +
-                                           "dest.CECUCOD=src.CECUCOD, dest.NEOBFREE=src.NEOBREE, dest.CESUCOD=src.CESUCOD, dest.MESUNAM=src.MESUNAM " +
+                                           "dest.CECUCOD=src.CECUCOD, dest.NEOBFREE=src.NEOBFREE, dest.CESUCOD=src.CESUCOD, dest.MESUNAM=src.MESUNAM " +
                                 "WHEN NOT MATCHED THEN " +
-                                "INSERT (CEUNIKEY, CEUNIREF0, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM, NERECOST, NEOPPRIC, TEDOCACT, CECUCOD, NEOBREE, CESUCOD, MESUNAM) " +
+                                "INSERT (CEUNIKEY, CEUNIREF0, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM, NERECOST, NEOPPRIC, TEDOCACT, CECUCOD, NEOBFREE, CESUCOD, MESUNAM) " +
                                 "VALUES (src.CEUNIKEY, src.CEUNIREF0, src.CEDOCCOD, src.CEOBIDE, src.CEOBMEA, src.MEOBNAM, src.NERECOST, src.NEOPPRIC, src.TEDOCACT, " +
-                                        "src.CECUCOD, src.NEOBREE, src.CESUCOD, src.MESUNAM)"
+                                        "src.CECUCOD, src.NEOBFREE, src.CESUCOD, src.MESUNAM)"
                 );
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
@@ -124,7 +124,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     ps.setDouble(8, item.price.doubleValue()); //NEOPPRIC, роз.цена
                     ps.setTimestamp(9, tedocact); //TEDOCACT, дата и время вступления прайса в силу
                     ps.setString(10, item.section); //CECUCOD, секция
-                    ps.setBigDecimal(11, item.balance != null ? item.balance : BigDecimal.ZERO); //NEOBREE, остаток
+                    ps.setBigDecimal(11, item.balance != null ? item.balance : BigDecimal.ZERO); //NEOBFREE, остаток
                     String[] itemInfo = item.info != null ? item.info.split("-") : null;
                     ps.setString(12, itemInfo != null ? itemInfo[0] : null); //CESUCOD, УНП поставщика последней партии
                     ps.setString(13, itemInfo != null && itemInfo.length > 1 ? itemInfo[1] : null); //MESUNAM, Наименование поставщика посл. партии
