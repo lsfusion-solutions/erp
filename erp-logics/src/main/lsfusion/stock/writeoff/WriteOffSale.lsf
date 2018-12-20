@@ -4,6 +4,29 @@ REQUIRE WriteOffReturn, SaleShipment, WriteOffPurchase, WriteOffShipment;
 
 PRIORITY Sale, WriteOffReturn; 
 
+//------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
-@defineShipmentWriteOffOperation(Sale);
+createPurchaseWriteOff 'Акт списания' = DATA BOOLEAN (Sale.Operation);
+
+EXTEND FORM Sale.operation
+    PROPERTIES(o) createPurchaseWriteOff
+;
+DESIGN Sale.operation {
+    createContainer {
+        MOVE PROPERTY(createPurchaseWriteOff(o));
+    }
+}
+
+writeOffOperation  = DATA WriteOff.Operation (Sale.Operation);
+nameWriteOffOperation 'Операция (списания)' (Sale.Operation operation)= name(writeOffOperation(operation));
+
+EXTEND FORM Sale.operation
+    PROPERTIES(o) nameWriteOffOperation
+;
+DESIGN Sale.operation {
+    createContainer {
+        MOVE PROPERTY(nameWriteOffOperation(o)) AFTER PROPERTY(createPurchaseWriteOff(o));
+    }
+}
+
 @defineShipmentWriteOff (supplier, batch, '(продажа)', Sale);
