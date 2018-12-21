@@ -184,6 +184,8 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
             Integer totalLineItem = (Integer) findProperty("totalLineItem[EInvoice]").read(context, eInvoiceObject);
             BigDecimal totalLineItemQuantity = (BigDecimal) findProperty("totalLineItemQuantity[EInvoice]").read(context, eInvoiceObject);
             BigDecimal totalGrossWeight = (BigDecimal) findProperty("totalGrossWeight[EInvoice]").read(context, eInvoiceObject);
+            if(totalGrossWeight == null)
+                error += "Не заполнено поле 'Всего масса груза в тоннах'\n";
             BigDecimal totalDespatchUnitQuantity = (BigDecimal) findProperty("totalDespatchUnitQuantity[EInvoice]").read(context, eInvoiceObject);
             BigDecimal totalAmountExcise = (BigDecimal) findProperty("totalAmountExcise[EInvoice]").read(context, eInvoiceObject);
 
