@@ -101,7 +101,7 @@ TABLE ePrescription(EPrescription);
 
 seriesNumber 'Серия и номер' = DATA VARSTRING[13] (EPrescription);
 
-client 'Клиент' = DATA Client(EPrescription);
+client 'Клиент' = DATA Client(EPrescription) NONULL DELETE;
 
 nameOrganization 'Наименование мед. учреждения' = DATA VARSTRING[255] (EPrescription);
 addressOrganization 'Адрес мед. учреждения' = DATA VARSTRING[255] (EPrescription);
@@ -174,6 +174,9 @@ FORM ePrescriptionClient 'Электронные рецепты'
                                   
     ORDER dateWritten(ep) DESC
     FILTERS client(ep) == c
+    
+    FILTERGROUP active
+        FILTER 'Действительные' status(ep) == MedicationPrescriptionStatus.active AND iterate(currentDate(),startValidityPeriod(ep),endValidityPeriod(ep)) 'F5' DEFAULT
     
     LIST EPrescription OBJECT ep
 ;
@@ -508,7 +511,7 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
         } CATCH {
             logToFile('EPrescription', messageCaughtException());
             logToFile('EPrescription', result());
-            MESSAGE 'Ошибка получения электронных рецептов';
+            MESSAGE 'Ошибка получения электронных рецептов, отображаемые рецепты могут содержать устаревшую информацию';
         }
     }
 }
@@ -637,8 +640,8 @@ filterEPrescription (Batch bt) = internationalNonproprietaryId(sku(bt)) == inter
                                             tradeId(sku(bt)) == tradeId(filterEPrescription()) OR NOT filterEPrescription();
 filterMedication = DATA LOCAL NESTED Medication();
 nameFilterMedication 'Фильтр' () = name(filterMedication()) CHARWIDTH 5;
-filterMedication(Batch bt) = CASE WHEN filterMedication() == Medication.trade THEN tradeId(sku(bt)) == tradeId(filterEPrescription())
-                                        WHEN filterMedication() == Medication.internationalNonproprietary THEN internationalNonproprietaryId(sku(bt)) == internationalNonproprietaryId(filterEPrescription())
+filterMedication(Batch bt) = CASE WHEN filterMedication() == Medication.trade AND filterEPrescription() THEN tradeId(sku(bt)) == tradeId(filterEPrescription())
+                                        WHEN filterMedication() == Medication.internationalNonproprietary AND filterEPrescription() THEN internationalNonproprietaryId(sku(bt)) == internationalNonproprietaryId(filterEPrescription())
                                         ELSE TRUE;
 
 WHEN LOCAL CHANGED(filterEPrescription()) DO {
@@ -701,7 +704,7 @@ incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescrip
 incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescription ep, r) AND dosageQuantity(ep,r) > quantityLeft(ep) BY ep](EPrescription p))
                                THEN TEXT('Заданное количество доз превышает остаток по рецепту ' + (GROUP CONCAT (CONCAT ' ', seriesNumber(EPrescription p), 'от ' + dateWritten(p)) IF [GROUP SUM 1 IF in(EPrescription ep, r) AND dosageQuantity(ep,r) > quantityLeft(ep) BY ep](p),', '));
 incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](EPrescription p))
-                               THEN TEXT('Не задано количество доз для товаров отпускаемых по рецепту ' + (GROUP CONCAT (CONCAT ' ', seriesNumber(EPrescription p), 'от ' + dateWritten(p)) IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](p),', '));
+                               THEN TEXT('Не задано количество доз для товаров, отпускаемых по рецепту ' + (GROUP CONCAT (CONCAT ' ', seriesNumber(EPrescription p), 'от ' + dateWritten(p)) IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](p),', '));
 
 isBrand(EPrescription ep, Receipt r) = TRUE IF (GROUP SUM 1 IF tradeId(ep) == tradeId(sku(ReceiptSaleDetail d)) AND receipt(d) == r);
 
@@ -789,7 +792,9 @@ postDispense 'Повторить регистрацию отпуска' (EPrescr
             IMPORT importBundle JSON FROM result();
             
             idMedicationDispense(ep,r) <- GROUP MAX idClient(INTEGER i) IF resourceType(i) == 'MedicationDispense';
+            status(ep) <- MedicationPrescriptionStatus.completed WHERE dosageQuantity(ep,r) == quantityLeft(ep);
             quantitySold(ep) <- quantitySold(ep) (+) dosageQuantity(ep,r);
+            
             APPLY;
             MESSAGE 'Операция регистрации отпуска по электронному рецепту ' + (CONCAT ' ', seriesNumber(ep), 'от ' + dateWritten(ep)) + ' проведена успешно';
             logToFile('EPrescription', result());
@@ -842,22 +847,58 @@ DESIGN POS {
     }
 }
 
+isCanceled 'Отменен' = DATA BOOLEAN (EPrescription, Receipt);
+
+postCancelDispense 'Отменить отпуск' (EPrescription ep, Receipt r) {
+    IF NOT isCanceled(ep,r) AND idMedicationDispense(ep,r) THEN {
+        getToken();
+        LOCAL result = FILE();
+        logToFile('EPrescription', 'POST: ' + urlAPI() + '/MedicationDispense/' + idMedicationDispense(ep,r) + '/$set-as-error');
+        TRY {
+            EXTERNAL HTTP POST urlAPI() + '/MedicationDispense/' + idMedicationDispense(ep,r) + '/$set-as-error' HEADERS httpHeadersDispense TO result;
+            IMPORT importBundle JSON FROM result();
+            
+            isCanceled(ep,r) <- TRUE IF idMedicationDispense(ep,r) == (GROUP MAX idClient(INTEGER i) IF resourceType(i) == 'MedicationDispense');
+            quantitySold(ep) <- quantitySold(ep) (-) dosageQuantity(ep,r);
+            status(ep) <- MedicationPrescriptionStatus.active;
+            APPLY;
+            MESSAGE 'Операция отметки об ошибочности отпуска по электронному рецепту ' + (CONCAT ' ', seriesNumber(ep), 'от ' + dateWritten(ep)) + ' проведена успешно';
+            logToFile('EPrescription', result());
+        }
+        CATCH {
+            logToFile('EPrescription', messageCaughtException());
+            logToFile('EPrescription', result());
+            MESSAGE 'Ошибка проведения операции отметки об ошибочности отпуска по электронному рецепту ' + (CONCAT ' ', seriesNumber(ep), 'от ' + dateWritten(ep));
+        }
+    }
+}
+
 nameSku 'Товар' (EPrescription ep, Receipt r) = GROUP CONCAT nameSku(ReceiptSaleDetail detail),', ' BY ePrescription(detail), receipt(detail) CHARWIDTH 20;
 
 
 FORM ePrescriptionDashboard 'Обработка электронных рецептов'
-    OBJECTS d = (r = Receipt, ep = EPrescription)
-    PROPERTIES READONLY dateTime(r), nameDepartmentStore(r), nameEmployee(r), nameSku(ep,r), dosageQuantity(ep,r),
-                        seriesNumber(ep), idCard = idCard(client(ep)) HEADER 'Номер карточки',
-                        family = family(client(ep)) HEADER 'Фамилия', given = given(client(ep)) HEADER 'Имя и отчество'
-    PROPERTIES postDispense(ep,r) TOOLBAR
-    FILTERS in(ep,r) AND NOT idMedicationDispense(ep,r)
+    OBJECTS d1 = (r1 = Receipt, ep1 = EPrescription)
+    PROPERTIES READONLY dateTime(r1), nameDepartmentStore(r1), nameEmployee(r1), nameSku(ep1,r1), dosageQuantity(ep1,r1),
+                        seriesNumber(ep1), idCard1 = idCard(client(ep1)) HEADER 'Номер карточки',
+                        family1 = family(client(ep1)) HEADER 'Фамилия', given1 = given(client(ep1)) HEADER 'Имя и отчество'
+    PROPERTIES postDispense(ep1,r1) TOOLBAR
+    ORDER dateTime(r1) DESC
+    FILTERS in(ep1,r1) AND NOT idMedicationDispense(ep1,r1)
+    
+    OBJECTS d2 = (r2 = Receipt, ep2 = EPrescription)
+    PROPERTIES READONLY dateTime(r2), nameDepartmentStore(r2), nameEmployee(r2), nameSku(ep2,r2), dosageQuantity(ep2,r2),
+                        seriesNumber(ep2), idCard2 = idCard(client(ep2)) HEADER 'Номер карточки',
+                        family2 = family(client(ep2)) HEADER 'Фамилия', given2 = given(client(ep2)) HEADER 'Имя и отчество'
+    PROPERTIES postCancelDispense(ep2,r2) TOOLBAR
+    ORDER dateTime(r2) DESC
+    FILTERS in(ep2,r2) AND idMedicationDispense(ep2,r2) AND NOT isCanceled(ep2,r2)
 ;
 
 DESIGN ePrescriptionDashboard {
     OBJECTS {
         type = TABBED;
-        BOX(d) { caption = 'Повторная регистрация отпуска по рецептам'; }
+        BOX(d1) { caption = 'Повторная регистрация отпуска по рецептам'; }
+        BOX(d2) { caption = 'Отмена отпуска по рецептам'; }
     }
 }
 
@@ -870,7 +911,23 @@ NAVIGATOR {
 EXTEND FORM ePrescriptions
     OBJECTS r = Receipt
     PROPERTIES READONLY dateTime(r), nameDepartmentStore(r), nameEmployee(r), nameSku(ep,r), dosageQuantity(ep,r),
-                        idMedicationDispense(ep,r)
-    PROPERTIES TOOLBAR postDispense(ep,r) SHOWIF NOT idMedicationDispense(ep,r)
+                        idMedicationDispense(ep,r), isCanceled(ep,r)
+    PROPERTIES TOOLBAR postDispense(ep,r) SHOWIF NOT idMedicationDispense(ep,r), postCancelDispense(ep,r) SHOWIF (NOT isCanceled(ep,r) AND idMedicationDispense(ep,r))
     FILTERS in(ep,r)
 ;
+
+CONSTRAINT DROPPED(Receipt r IS Receipt) AND (GROUP SUM 1 IF PREV(in(EPrescription ep,r)))
+    MESSAGE 'Запрещено удалять чек продажи товаров по электронным рецептам';
+CONSTRAINT DROPPED(ReceiptSaleDetail d IS ReceiptSaleDetail) AND (GROUP SUM 1 IF PREV(ePrescription(d)))
+    MESSAGE 'Запрещено удалять строку чека продажи товаров по электронным рецептам';
+CONSTRAINT DROPPED(Client c IS Client) AND (GROUP SUM 1 IF in(EPrescription ep, Receipt r) AND client(ep) == c)
+    MESSAGE 'Запрещено удалять клиента с продажами по электронным рецептам';
+CONSTRAINT DROPPED(EPrescription ep IS EPrescription) AND (GROUP SUM 1 IF PREV(in(ep, Receipt r)))
+    MESSAGE 'Запрещено удалять электронный рецепт с продажами';
+
+//действие очистки для планировщика
+clearEPrescription () {
+    DELETE EPrescription ep WHERE ep IS EPrescription AND NOT (GROUP SUM 1 IF in(ep, Receipt r));
+    DELETE Client c WHERE c IS Client AND NOT (GROUP SUM 1 IF in(EPrescription ep, Receipt r) AND client(ep) == c);
+    APPLY;
+}
