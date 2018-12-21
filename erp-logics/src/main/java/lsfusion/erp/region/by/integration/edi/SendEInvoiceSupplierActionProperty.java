@@ -154,6 +154,8 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                 error += "Не заполнено поле 'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя'\n";
 
             String addressCustomerStock = (String) findProperty("addressCustomerStock[EInvoice]").read(context, eInvoiceObject);
+            if(addressCustomerStock == null)
+                error += "Не заполнено поле 'Адрес пункта разгрузки (Адрес склада покупателя)' \n";
 
             String transportContact = (String) findProperty("transportContact[EInvoice]").read(context, eInvoiceObject);
             if(transportContact == null)
