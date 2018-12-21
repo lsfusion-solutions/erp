@@ -38,18 +38,18 @@ prev (GLAccount account, DimensionType type) = PARTITION PREV type IF order(acco
 namePrev 'Предок' (GLAccount account, DimensionType type) = name(prev(account, type));
 
 TABLE generalLedgerDimensionType(GeneralLedger, DimensionType);
-debit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED;
+debit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED INDEXED;
 nameDebit 'Субконто (дебет)' (GeneralLedger generalLedger,DimensionType dimensionType)= name(debit(generalLedger,dimensionType));
-debit = DATA Dimension (UserGeneralLedger, DimensionType);
+debit = DATA Dimension (UserGeneralLedger, DimensionType) INDEXED;
 nameDebit 'Субконто (дебет)' (UserGeneralLedger userGeneralLedger,DimensionType dimensionType)= name(debit(userGeneralLedger,dimensionType));
 debit(UserGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(debit(generalLedger,dimensionType)) THEN debit(generalLedger,dimensionType);
 CONSTRAINT debit(UserGeneralLedger userGeneralLedger,DimensionType dimensionType) IF NOT dimensionType(debit(userGeneralLedger,dimensionType)) == dimensionType
     CHECKED BY debit[UserGeneralLedger,DimensionType]
         MESSAGE 'Субконто (дебет) проводки должен соответствовать субконто';
 
-credit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED;
+credit = ABSTRACT CASE EXCLUSIVE Dimension (GeneralLedger, DimensionType) MATERIALIZED INDEXED;
 nameCredit 'Субконто (кредит)' (GeneralLedger generalLedger,DimensionType dimensionType)= name(credit(generalLedger,dimensionType));
-credit = DATA Dimension (UserGeneralLedger,DimensionType);
+credit = DATA Dimension (UserGeneralLedger,DimensionType) INDEXED;
 nameCredit 'Субконто (кредит)' (UserGeneralLedger userGeneralLedger,DimensionType dimensionType)= name(credit(userGeneralLedger,dimensionType));
 credit(UserGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(credit(generalLedger,dimensionType)) THEN credit(generalLedger,dimensionType);
 CONSTRAINT credit(UserGeneralLedger userGeneralLedger,DimensionType dimensionType) IF NOT dimensionType(credit(userGeneralLedger,dimensionType)) == dimensionType
