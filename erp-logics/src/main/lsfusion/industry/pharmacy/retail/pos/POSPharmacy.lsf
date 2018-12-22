@@ -467,3 +467,17 @@ DESIGN chooseBatchReceipt {
     PROPERTY(expiryDate(bt)) { font = '18'; charWidth = 7;}
 }
 
+//норма отпуска
+checkNormSale 'Контролировать норму отпуска' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() checkNormSale
+;
+DESIGN options {
+    pos {
+        MOVE PROPERTY(checkNormSale());
+    }
+}
+
+incorrectReceipt(Receipt r) += WHEN checkNormSale() AND (GROUP SUM 1 IF normSale(Sku s) AND [ GROUP SUM  quantity(ReceiptSaleDetail d) BY sku(d), receipt(d)](s, r) > normSale(s)) THEN 
+                                    TEXT('Продаваемое количество лекарственного средства ' + (GROUP CONCAT name(Sku s) IF normSale(s) AND [ GROUP SUM  quantity(ReceiptSaleDetail d) BY sku(d), receipt(d)](s, r) > normSale(s), ', ') + ' больше нормы');
