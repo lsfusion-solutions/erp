@@ -481,3 +481,28 @@ DESIGN options {
 
 incorrectReceipt(Receipt r) += WHEN checkNormSale() AND (GROUP SUM 1 IF normSale(Sku s) AND [ GROUP SUM  quantity(ReceiptSaleDetail d) BY sku(d), receipt(d)](s, r) > normSale(s)) THEN 
                                     TEXT('Продаваемое количество лекарственного средства ' + (GROUP CONCAT name(Sku s) IF normSale(s) AND [ GROUP SUM  quantity(ReceiptSaleDetail d) BY sku(d), receipt(d)](s, r) > normSale(s), ', ') + ' больше нормы');
+
+//обнуление строк поиска
+setNullFilters 'Обнулять строки поиска' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() setNullFilters
+;
+DESIGN options {
+    pos {
+        MOVE PROPERTY(setNullFilters());
+    }
+}
+
+WHEN LOCAL SET(filterBarcode()) AND setNullFilters() DO {
+    filterPrice() <- NULL;
+    filterNameSku() <- NULL;
+}
+WHEN LOCAL SET(filterPrice()) AND setNullFilters() DO {
+    filterBarcode() <- NULL;
+    filterNameSku() <- NULL;
+}
+WHEN LOCAL SET(filterNameSku()) AND setNullFilters() DO {
+    filterBarcode() <- NULL;
+    filterPrice() <- NULL;
+}
