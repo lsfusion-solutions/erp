@@ -20,7 +20,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.codec.binary.Base64;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -290,7 +289,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                     error += "Не заполнено поле 'Количество в грузовых местах'\n";
                     break;
                 }
-                addBigDecimalElement(lineItemElement, "TaxRate", detail.taxRate);
+                addBigDecimalElement(lineItemElement, "TaxRate", detail.valueVAT);
                 addStringElement(lineItemElement, "AdditionalInformation", detail.additionalInformation);
                 addBigDecimalElement(lineItemElement, "LineItemAmountWithoutCharges", detail.lineItemAmountWithoutCharges);
                 addBigDecimalElement(lineItemElement, "LineItemAmountCharges", detail.lineItemAmountCharges);
@@ -335,11 +334,11 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
 
         QueryBuilder<Object, Object> eInvoiceDetailQuery = new QueryBuilder<>(eInvoiceDetailKeys);
         String[] eInvoiceDetailNames = new String[]{"lineItemID", "lineItemName", "grossWeightValue", "quantityDespatched", "lineItemQuantityUOM",
-                "despatchUnitQuantityDespatched", "taxRate", "additionalInformation", "lineItemAmountWithoutCharges", "lineItemAmountCharges",
+                "despatchUnitQuantityDespatched", "valueVAT", "additionalInformation", "lineItemAmountWithoutCharges", "lineItemAmountCharges",
                 "lineItemAmount", "lineItemPrice", "lineItemAmountExcise"};
         LCP[] eInvoiceDetailProperties = findProperties("lineItemID[EInvoiceDetail]", "lineItemName[EInvoiceDetail]", "grossWeightValue[EInvoiceDetail]",
                 "quantityDespatched[EInvoiceDetail]", "lineItemQuantityUOM[EInvoiceDetail]", "despatchUnitQuantityDespatched[EInvoiceDetail]",
-                "taxRate[EInvoiceDetail]", "additionalInformation[EInvoiceDetail]", "lineItemAmountWithoutCharges[EInvoiceDetail]",
+                "valueVAT[EInvoiceDetail]", "additionalInformation[EInvoiceDetail]", "lineItemAmountWithoutCharges[EInvoiceDetail]",
                 "lineItemAmountCharges[EInvoiceDetail]", "lineItemAmount[EInvoiceDetail]", "lineItemPrice[EInvoiceDetail]", "lineItemAmountExcise[EInvoiceDetail]");
         for (int i = 0; i < eInvoiceDetailProperties.length; i++) {
             eInvoiceDetailQuery.addProperty(eInvoiceDetailNames[i], eInvoiceDetailProperties[i].getExpr(context.getModifier(), eInvoiceDetailExpr));
@@ -356,7 +355,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
             BigDecimal quantityDespatched = (BigDecimal) entry.get("quantityDespatched");
             String lineItemQuantityUOM = (String) entry.get("lineItemQuantityUOM");
             BigDecimal despatchUnitQuantityDespatched = (BigDecimal) entry.get("despatchUnitQuantityDespatched");
-            BigDecimal taxRate = (BigDecimal) entry.get("taxRate");
+            BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
             String additionalInformation = (String) entry.get("additionalInformation");
             BigDecimal lineItemAmountWithoutCharges = (BigDecimal) entry.get("lineItemAmountWithoutCharges");
             BigDecimal lineItemAmountCharges = (BigDecimal) entry.get("lineItemAmountCharges");
@@ -365,7 +364,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountExcise = (BigDecimal) entry.get("lineItemAmountExcise");
 
             result.add(new EInvoiceDetail(i + 1, lineItemID, lineItemName, grossWeightValue, quantityDespatched, lineItemQuantityUOM, despatchUnitQuantityDespatched,
-                    taxRate, additionalInformation, lineItemAmountWithoutCharges, lineItemAmountCharges, lineItemAmount, lineItemPrice, lineItemAmountExcise));
+                    valueVAT, additionalInformation, lineItemAmountWithoutCharges, lineItemAmountCharges, lineItemAmount, lineItemPrice, lineItemAmountExcise));
         }
         return result;
     }
@@ -382,7 +381,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
         private BigDecimal quantityDespatched;
         private String lineItemQuantityUOM;
         private BigDecimal despatchUnitQuantityDespatched;
-        private BigDecimal taxRate;
+        private BigDecimal valueVAT;
         private String additionalInformation;
         private BigDecimal lineItemAmountWithoutCharges;
         private BigDecimal lineItemAmountCharges;
@@ -391,7 +390,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
         private BigDecimal lineItemAmountExcise;
 
         public EInvoiceDetail(Integer lineItemNumber, String lineItemID, String lineItemName, BigDecimal grossWeightValue, BigDecimal quantityDespatched,
-                              String lineItemQuantityUOM, BigDecimal despatchUnitQuantityDespatched, BigDecimal taxRate, String additionalInformation,
+                              String lineItemQuantityUOM, BigDecimal despatchUnitQuantityDespatched, BigDecimal valueVAT, String additionalInformation,
                               BigDecimal lineItemAmountWithoutCharges, BigDecimal lineItemAmountCharges, BigDecimal lineItemAmount, BigDecimal lineItemPrice,
                               BigDecimal lineItemAmountExcise) {
             this.lineItemNumber = lineItemNumber;
@@ -401,7 +400,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
             this.quantityDespatched = quantityDespatched;
             this.lineItemQuantityUOM = lineItemQuantityUOM;
             this.despatchUnitQuantityDespatched = despatchUnitQuantityDespatched;
-            this.taxRate = taxRate;
+            this.valueVAT = valueVAT;
             this.additionalInformation = additionalInformation;
             this.lineItemAmountWithoutCharges = lineItemAmountWithoutCharges;
             this.lineItemAmountCharges = lineItemAmountCharges;
