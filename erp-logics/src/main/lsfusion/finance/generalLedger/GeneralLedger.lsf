@@ -1,6 +1,6 @@
 MODULE GeneralLedger;
 
-REQUIRE GLAccountType, Operation, EmployeeLegalEntity;
+REQUIRE GLAccountType, Operation, EmployeeLegalEntity, Service;
 
 CLASS ABSTRACT GLDocument 'Регистр-основание';
 TABLE GLDocument(GLDocument);
@@ -530,6 +530,21 @@ createGeneralLedger 'Создать проводки за отчетный пе�
     FOR isCompany(LegalEntity l) DO 
         createGeneralLedger(l, dateReportingGeneralLedger(), maxDateGeneralLedger());
 } IN generalLedger;
+
+countDaysClearGeneralLedger 'За сколько дней хранить пользовательские проводки' = DATA INTEGER (); 
+
+EXTEND FORM options PROPERTIES countDaysClearGeneralLedger();
+DESIGN options { log { MOVE PROPERTY(countDaysClearGeneralLedger());} } 
+
+clearApplicationLog () + { 
+	NEWSESSION {
+	    IF countDaysClearGeneralLedger() THEN {
+
+	        DELETE UserGeneralLedger t WHERE  t IS UserGeneralLedger AND  date(t)<= subtract(currentDate(), countDaysClearGeneralLedger());
+	        APPLY;
+	    }
+	}
+}
 
 //-- Для одного объекта
 
