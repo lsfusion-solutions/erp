@@ -90,6 +90,8 @@ active 'Активный' = DATA BOOLEAN (Client);
 FORM clients 'Клиенты'
     OBJECTS c = Client
     PROPERTIES(c) READONLY active, idCard, family, given, nameGender, birthday
+    
+    LIST Client OBJECT c
 ;
 
 //-------------- Электронный рецепт ------------
@@ -646,6 +648,11 @@ filterMedication(Batch bt) = CASE WHEN filterMedication() == Medication.trade AN
                                         WHEN filterMedication() == Medication.internationalNonproprietary AND filterEPrescription() THEN internationalNonproprietaryId(sku(bt)) == internationalNonproprietaryId(filterEPrescription())
                                         ELSE TRUE;
 
+WHEN LOCAL DROPPED(filterClient()) DO {
+    filterMedication() <- NULL;
+    filterEPrescription() <- NULL;
+}
+
 WHEN LOCAL CHANGED(filterEPrescription()) DO {
     filterMedication() <- IF filterEPrescription() THEN Medication.trade ELSE NULL;
 }
@@ -658,6 +665,12 @@ overChangeBarcode (VARSTRING[30] string, Receipt receipt) + {
         DIALOG ePrescriptionClient OBJECTS c = clientCard(string), ep = filterEPrescription() CHANGE;
         
         consumedChangeBarcodeReceipt() <- TRUE;
+    }
+}
+
+changeFilterClient () {
+    ASK 'Вы действительно хотите сбросить клинта?' DO {
+        filterClient() <- NULL;
     }
 }
 
@@ -817,10 +830,14 @@ postDispense (Receipt r) {
 }
 postPrint (Receipt receipt) + {
     postDispense(receipt);
+    filterClient() <- NULL;
+    filterEPrescription() <- NULL;
+    filterMedication() <- NULL;
+    
 }
 
 EXTEND FORM POS
-    PROPERTIES() SHOWIF filterClient() nameFilterClient READONLY, nameFilterEPrescription ON CHANGE changeFilterEPrescription(), nameFilterMedication
+    PROPERTIES() SHOWIF filterClient() nameFilterClient ON CHANGE changeFilterClient(), nameFilterEPrescription ON CHANGE changeFilterEPrescription(), nameFilterMedication
     FILTERS filterEPrescription(bt), filterMedication(bt)
     FILTERS filterEPrescription(bt1), filterMedication(bt1)
     PROPERTIES (bt,r) dosageQuantityReceiptGrid = dosageQuantity SHOWIF filterEPrescription() BEFORE currentPOSPrice(bt, r) BACKGROUND backgroundDosage(bt,r) ON CHANGE changeDosage(bt,r)
@@ -832,7 +849,7 @@ DESIGN POS {
         type = CONTAINERH;
         alignment = STRETCH;
         MOVE PROPERTY(nameFilterClient()) {
-            focusable = FALSE; font = 'bold 22'; panelCaptionAbove = TRUE; flex = 0;
+            focusable = FALSE; font = 'bold 22'; panelCaptionAbove = TRUE; flex = 0; changeKey = 'F8';
         }
         MOVE PROPERTY(nameFilterEPrescription()) {
             focusable = FALSE; font = '22'; panelCaptionAbove = TRUE; changeKey = 'F6';
