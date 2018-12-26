@@ -316,14 +316,21 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         case "ВСЕГО":
                         case "ВОЗВРАТ": {
                             if(!error) {
-                                boolean isSale = type.equals("ВСЕГО");
-                                for (SalesInfo salesInfo : currentSalesInfoList) {
-                                    salesInfo.sumCash = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
-                                    salesInfo.discountSumReceipt = safeAdd(salesInfo.discountSumReceipt, extraDiscountSum);
-                                    salesInfoList.add(salesInfo);
+                                if(currentSalesInfoList.isEmpty()) {
+                                    //временный лог, возможно, проблема в том, что сначала выгружается запись "всего", а потом уже строки.
+                                    String numberZReport = rs.getString("CEDOCNUM");
+                                    Integer numberReceipt = Integer.parseInt(rs.getString("CEDOCCOD"));
+                                    sendSalesLogger.error(logPrefix + String.format("total record without details: zreport %s, receipt %s", numberZReport, numberReceipt));
+                                } else {
+                                    boolean isSale = type.equals("ВСЕГО");
+                                    for (SalesInfo salesInfo : currentSalesInfoList) {
+                                        salesInfo.sumCash = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
+                                        salesInfo.discountSumReceipt = safeAdd(salesInfo.discountSumReceipt, extraDiscountSum);
+                                        salesInfoList.add(salesInfo);
+                                    }
+                                    readRecordSet.addAll(currentReadRecordSet);
+                                    readRecordSet.add(id);
                                 }
-                                readRecordSet.addAll(currentReadRecordSet);
-                                readRecordSet.add(id);
                             }
                             currentSalesInfoList = new ArrayList<>();
                             currentReadRecordSet = new HashSet<>();
