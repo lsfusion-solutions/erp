@@ -1,0 +1,477 @@
+MODULE SMSLine;
+
+REQUIRE DiscountCard;
+
+urlSMSLine 'SMSLine URL' = DATA VARSTRING[255]();
+urlSMSLineCallback 'URL для отправки статусов' = DATA VARSTRING[255]();
+usernameSMSLine 'Пользователь' = DATA VARSTRING[255]();
+passwordAPISMSLine 'Пароль для API' = DATA VARSTRING[255]() ECHO;
+
+EXTEND FORM integrationData
+    PROPERTIES() urlSMSLine, urlSMSLineCallback, usernameSMSLine, passwordAPISMSLine
+;
+
+DESIGN integrationData {
+    pane {
+        NEW smsLine {
+            caption = 'SMSLine';
+            type = CONTAINERV;
+            MOVE PROPERTY(urlSMSLine());
+            MOVE PROPERTY(urlSMSLineCallback());
+            MOVE PROPERTY(usernameSMSLine());
+            MOVE PROPERTY(passwordAPISMSLine());
+        }
+    }
+}
+
+//------------------------- База абонентов ----------------------------------//
+CLASS SubscriberBase 'База абонентов';
+TABLE subscriberBase (SubscriberBase);
+
+index 'Номер' (SubscriberBase b) = PARTITION SUM 1 ORDER b IF b IS SubscriberBase CHARWIDTH 4; 
+name 'Название' = DATA VARISTRING[255] (SubscriberBase);
+
+TABLE subscriberBaseDiscountCard (SubscriberBase, DiscountCard);
+in 'Вкл.' = DATA BOOLEAN (SubscriberBase, DiscountCard);
+
+countSubscribers 'Абоненты' (SubscriberBase b) = GROUP SUM 1 IF in(b, DiscountCard d);
+
+FORM subscriberBase 'База абонентов'
+    OBJECTS b = SubscriberBase PANEL
+    PROPERTIES(b) name
+    
+    OBJECTS d = DiscountCard
+    PROPERTIES(b,d) in
+    PROPERTIES(d) READONLY number, series, id SHOWIF showIDs(), phoneLegalEntity, nameLegalEntity, firstNameContact, lastNameContact
+    FILTERGROUP include FILTER 'Включены' in(b,d) 'F9' 
+    
+    EDIT SubscriberBase OBJECT b
+;
+
+FORM subscriberBases 'Базы абонентов'
+    OBJECTS b = SubscriberBase
+    PROPERTIES(b) READONLY index, name, countSubscribers
+    PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST SubscriberBase OBJECT b
+;
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW FOLDER smsLine 'СМС' {
+            NEW subscriberBases;
+        }
+    }
+}
+
+//------------------------- Черный список -----------------------------------//
+inBlackList 'Вкл' = DATA BOOLEAN (DiscountCard);
+
+isEditable 'Включить корректировку на форме' = DATA LOCAL NESTED BOOLEAN();
+isReadOnly 'Только чтение' () = TRUE AND NOT isEditable();
+
+FORM subscriberBlackList 'Черный список'
+    PROPERTIES isEditable() TOOLBAR
+    OBJECTS d = DiscountCard
+    PROPERTIES(d) READONLYIF isReadOnly() inBlackList
+    PROPERTIES(d) READONLY number, series, id SHOWIF showIDs(), phoneLegalEntity, nameLegalEntity, firstNameContact, lastNameContact
+    FILTERGROUP include FILTER 'В черном списке' inBlackList(d) 'F9' DEFAULT
+;
+
+DESIGN subscriberBlackList {
+    TOOLBARBOX {
+        MOVE PROPERTY(isEditable()) BEFORE TOOLBARRIGHT;
+    }
+}
+
+NAVIGATOR { 
+    smsLine {
+        NEW subscriberBlackList;
+    }
+}
+
+//----------------------------------- Рассылка --------------------------------//
+CLASS NumberService 'Номер сервиса';
+TABLE numberService (NumberService);
+
+name 'Наименование' = DATA VARSTRING[20] (NumberService);
+
+FORM numberService 'Номер сервиса'
+    OBJECTS n = NumberService PANEL
+    PROPERTIES(n) name
+    
+    EDIT NumberService OBJECT n
+;
+
+FORM numberServices 'Номера сервиса'
+    OBJECTS n = NumberService
+    PROPERTIES(n) READONLY name
+    PROPERTIES(n) DELETE GRID
+    PROPERTIES(n) NEWSESSION NEW, EDIT 
+    
+    LIST NumberService OBJECT n
+;
+
+CLASS CommunicationChannel 'Канал' {
+    sms 'SMS',
+    viber 'Viber',
+    viber_sms 'Viber + SMS'
+}
+
+FORM communicationChannel 'Канал'
+    OBJECTS c = CommunicationChannel
+    PROPERTIES(c) READONLY staticCaption
+    LIST CommunicationChannel OBJECT c
+;
+
+
+CLASS Dispatch 'Рассылка';
+TABLE dispatch (Dispatch);
+
+name 'Название' = DATA VARISTRING[255] (Dispatch) NONULL;
+communicationChannel 'Канал' = DATA CommunicationChannel (Dispatch) NONULL;
+nameCommunicationChannel 'Канал' (Dispatch d) = staticCaption(communicationChannel(d));
+numberService 'Номер сервиса' = DATA NumberService (Dispatch) NONULL;
+nameNumberService 'Номер сервиса' (Dispatch d) = name(numberService(d));
+subscriberBase 'База абонентов' = DATA SubscriberBase (Dispatch) NONULL;
+nameSubscriberBase 'База абонентов' (Dispatch d) = name(subscriberBase(d));
+
+isViber (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber OR communicationChannel(d) == CommunicationChannel.viber_sms;
+isSMS (Dispatch d) = communicationChannel(d) == CommunicationChannel.sms;// OR communicationChannel(d) == CommunicationChannel.viber_sms;
+
+messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA VARSTRING[1000] (Dispatch);
+CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND charLength(messageViber(d)) > 1000
+    MESSAGE 'Сообщение для Viber не должно превышать 1000 символов';
+CONSTRAINT isViber(Dispatch d) AND NOT messageViber(d)
+    MESSAGE 'Не задан текст сообщения Viber';
+messageSMS 'Текст сообщения SMS' = DATA TEXT (Dispatch);//DATA VARSTRING[71] (Dispatch);
+CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND charLength(messageSMS(d)) > 71
+    MESSAGE 'Сообщение для SMS не должно превышать 71 символ';
+CONSTRAINT isSMS(Dispatch d) AND NOT messageSMS(d)
+    MESSAGE 'Не задан текст сообщения SMS';
+
+lifetime 'Срок жизни сообщения (сек)' = DATA INTEGER (Dispatch);
+CONSTRAINT SETCHANGED(lifetime(Dispatch d)) AND NOT (lifetime(d) >= 120 AND lifetime(d) <= 86400)
+    MESSAGE 'Срок жизни сообщения должен быть в диапазоне от 120 до 86400';
+image 'Изображение (URL)' = DATA VARSTRING[255] (Dispatch);
+
+caption 'Заголовок' = DATA VARSTRING[20] (Dispatch);
+action 'Ссылка (URL)' = DATA VARSTRING[255] (Dispatch);
+CONSTRAINT caption(Dispatch d) AND NOT action(d)
+    MESSAGE 'Не задана ссылка (URL) для кнопки';
+CONSTRAINT action(Dispatch d) AND NOT caption(d)
+    MESSAGE 'Не задан заголовок для кнопки';
+
+date 'Дата' = DATA DATE (Dispatch) NONULL;
+CONSTRAINT SETCHANGED(date(Dispatch d)) AND date(d) <= currentDate()
+    MESSAGE 'Дата проведения не должна быть раньше текущей даты';
+timeFrom 'Время с' = DATA TIME (Dispatch) NONULL;
+timeTo 'Время по' = DATA TIME (Dispatch) NONULL;
+CONSTRAINT (SETCHANGED(timeTo(Dispatch d)) OR SETCHANGED (timeFrom(d)))  AND timeTo(d) < timeFrom(d)
+    MESSAGE 'Неверный интервал времени проведения';
+CONSTRAINT SETCHANGED(timeFrom(Dispatch d)) AND timeFrom(d) < toTime(toDateTimeFormat('20000101090000','YYYYMMDDHH24MISS'))
+    MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
+CONSTRAINT SETCHANGED(timeTo(Dispatch d)) AND timeTo(d) > toTime(toDateTimeFormat('20000101220000','YYYYMMDDHH24MISS'))
+    MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
+
+isSend 'Отправлено' = DATA BOOLEAN (Dispatch);
+
+FORM dispatch 'Рассылка'
+    OBJECTS d = Dispatch PANEL
+    PROPERTIES(d) isSend, name, nameCommunicationChannel, nameNumberService, nameSubscriberBase, date, timeFrom, timeTo
+    PROPERTIES(d) SHOWIF isViber(d) messageViber, lifetime, image, caption, action
+    PROPERTIES(d) SHOWIF isSMS(d) messageSMS
+    
+    EDIT Dispatch OBJECT d
+;
+
+DESIGN dispatch {
+    GROUP(,d) {
+        type = CONTAINERV;
+        MOVE PROPERTY(isSend(d));
+        MOVE PROPERTY(name(d));
+        NEW types {
+            type = CONTAINERH;
+            MOVE PROPERTY(nameCommunicationChannel(d));
+            MOVE PROPERTY(nameNumberService(d));
+        }
+        MOVE PROPERTY(nameSubscriberBase(d));
+        NEW date {
+            type = CONTAINERH;
+            caption = 'Дата проведения';
+            MOVE PROPERTY(date(d));
+            MOVE PROPERTY(timeFrom(d));
+            MOVE PROPERTY(timeTo(d));
+        }
+        NEW data {
+            type = CONTAINERV;
+            NEW viber {
+                type = CONTAINERV;
+                caption = 'Viber';
+                MOVE PROPERTY(messageViber(d));
+                MOVE PROPERTY(lifetime(d));
+                MOVE PROPERTY(image(d));
+                MOVE PROPERTY(caption(d));
+                MOVE PROPERTY(action(d));
+            }
+            NEW sms {
+                caption = 'SMS';
+                MOVE PROPERTY(messageSMS(d)) {
+                    charWidth = 55;
+                };
+                fill = 1;
+            }
+        }
+    }
+}
+
+//--------------- Oшибки --------------
+CLASS DispatchError 'Ошибка рассылки';
+TABLE dispatchError (DispatchError);
+
+code 'Код' = DATA VARSTRING[100] (DispatchError);
+message 'Ошибка' = DATA VARSTRING[255] (DispatchError);
+dateTime 'Время' = DATA DATETIME (DispatchError);
+
+TABLE dispatchDispatchError (Dispatch, DispatchError);
+in = DATA BOOLEAN (Dispatch, DispatchError);
+
+//----------------- Статусы ----------------
+state 'Код' = DATA VARSTRING[100] (Dispatch, DiscountCard);
+name 'Статус' = DATA VARSTRING[255] (Dispatch, DiscountCard);
+dateTime 'Время' = DATA DATETIME (Dispatch, DiscountCard);
+
+communicationChannelFilter = DATA LOCAL NESTED CommunicationChannel ();
+nameCommunicationChannelFilter 'Канал' () = staticCaption(communicationChannelFilter());
+dateFromFilter 'Дата с' () = DATA LOCAL NESTED DATE ();
+dateToFilter 'Дата по' () = DATA  LOCAL NESTED DATE ();
+
+FORM dispatches 'Рассылки'
+    PROPERTIES() nameCommunicationChannelFilter, dateFromFilter, dateToFilter
+
+    OBJECTS d = Dispatch
+    PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, nameNumberService, nameSubscriberBase, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    
+    FILTERS communicationChannel(d) == communicationChannelFilter() OR NOT communicationChannelFilter(),
+            date(d) >= dateFromFilter() OR NOT dateFromFilter(),
+            date(d) <= dateToFilter() OR NOT dateToFilter()
+    
+    OBJECTS c = DiscountCard
+    PROPERTIES(c) phoneLegalEntity
+    PROPERTIES(d,c) state, name, dateTime
+    FILTERS in(subscriberBase(d),c)
+    
+    OBJECTS e = DispatchError
+    PROPERTIES(e) READONLY code, message, dateTime
+    ORDER dateTime(e) DESC
+    FILTERS in(d,e)
+    
+    LIST Dispatch OBJECT d
+;
+
+DESIGN dispatches {
+    GROUP() {
+        type = CONTAINERH;
+    }
+    OBJECTS {
+        NEW tabs {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(c) {
+                caption = 'Статусы';
+            }
+            MOVE BOX(e) {
+                caption = 'Ошибки';
+            }
+        }
+    }
+}
+
+NAVIGATOR { 
+    smsLine {
+        NEW dispatches;
+    }
+}
+
+textDispatch (Dispatch d) =
+    IF communicationChannel(d) == CommunicationChannel.viber_sms THEN 
+        TEXT(CONCAT '', '\{',
+                            '"messages": [',
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                            '],',
+                            '"channels": [\{',
+                                '"target": "' + nameNumberService(d) + '",',
+                                '"text": "' + replace(messageViber(d),'\n','\\n') + '",',
+                                '"callback_url": "' + urlSMSLineCallback() + '",',
+                                '"options": \{',
+                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+                                '\}',
+                            '\}]',
+                         '\}')
+    ELSE 
+        TEXT(CONCAT '', '\{',
+                            '"target": "' + nameNumberService(d) + '",',
+                            '"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
+                            '"messages": [',
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                            '],',
+                            '"callback_url": "' + urlSMSLineCallback() + '",',
+                            '"options": \{',
+                                (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+                            '\}',
+                         '\}');
+
+urlCommunicationChannel (Dispatch d) = IF communicationChannel(d) == CommunicationChannel.viber_sms THEN '/messages/multi/bulk/' + getWord(staticName(communicationChannel(d)),'.',2)
+                                                                                                                      ELSE '/messages/bulk/' + getWord(staticName(communicationChannel(d)),'.',2);
+GROUP error;
+code = DATA LOCAL VARSTRING[100]();
+message = DATA LOCAL VARSTRING[255]();
+
+FORM importError
+    PROPERTIES() IN error code, message
+;
+
+GROUP state;
+external_id = DATA LOCAL VARSTRING[255](INTEGER);
+msisdn = DATA LOCAL VARSTRING[100](INTEGER);
+state = DATA LOCAL VARSTRING[100](INTEGER);
+name = DATA LOCAL VARSTRING[255](INTEGER);
+date_time = DATA LOCAL DATETIME(INTEGER);
+
+FORM importMessages
+    OBJECTS messages = INTEGER
+    PROPERTIES(messages) external_id, msisdn
+    PROPERTIES(messages) IN state state, name, date_time
+;
+GROUP message;
+GROUP stateMessage EXTID 'state': message;
+external_id = DATA LOCAL VARSTRING[255]();
+state = DATA LOCAL VARSTRING[100]();
+name = DATA LOCAL VARSTRING[255]();
+date_time = DATA LOCAL DATETIME();
+
+FORM importMessage
+    PROPERTIES() IN message external_id
+    PROPERTIES() IN stateMessage state, name, date_time
+;
+
+hashing (TEXT text, TEXT key, TEXT type1, TEXT type2) = FORMULA TEXT PG 'encode(hmac($1,$2,$3),$4)';
+
+signature = DATA LOCAL NESTED TEXT();
+createSignature 'Создать подпись' (Dispatch d) {
+    signature() <- NULL;
+    LOCAL text = TEXT ();
+    text() <- replace(urlCommunicationChannel(d),'/','') + textDispatch(d);
+    signature() <- hashing(text(), TEXT(passwordAPISMSLine()), TEXT('sha256'), TEXT('hex'));
+}
+
+httpHeaders(TEXT name) = CASE
+    WHEN name == 'Authorization-User' THEN TEXT(usernameSMSLine())
+    WHEN name == 'Authorization' THEN TEXT('Bearer ' + signature());
+
+sendDispatch 'Отправить рассылку' (Dispatch d) {
+    IF NOT isSend(d) THEN {
+        LOCAL file = TEXT();
+            
+        file() <- textDispatch(d);
+        stringToFile(file(),'UTF-8','json');
+        
+        LOCAL result = FILE();
+        createSignature(d);
+        
+        logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + urlCommunicationChannel(d) + '\n' + file());
+        TRY {
+            EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + urlCommunicationChannel(d) HEADERS httpHeaders PARAMS resultFile() TO result;
+            logToFile('SMSLine', result());
+            
+            external_id(INTEGER i) <- NULL;
+            msisdn(INTEGER i) <- NULL;
+            state(INTEGER i) <- NULL;
+            name(INTEGER i) <- NULL;
+            date_time(INTEGER i) <- NULL;
+            
+            IMPORT importMessages JSON FROM result();
+            //не возвращает external_id ищем по msisdn
+            //FOR TEXT(Dispatch dd) == getWord(external_id(INTEGER i),'_',1) AND TEXT(DiscountCard dc) == getWord(external_id(i),'_',2) DO {
+                //state(dd,dc) <- state(i);
+                //name(dd,dc) <- name(i);
+                //dateTime(dd,dc) <- date_time(i);
+            //}
+            FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(subscriberBase(d),c) BY j](INTEGER i) DO {
+                state(d,dc) <- state(i);
+                name(d,dc) <- name(i);
+                dateTime(d,dc) <- date_time(i);
+            }
+            isSend(d) <- TRUE;
+        } CATCH {
+            code() <- NULL;
+            message() <- NULL;
+            
+            logToFile('SMSLine', messageCaughtException());
+            logToFile('SMSLine', result());
+            IMPORT importError JSON FROM result();
+            IF code() THEN NEW e = DispatchError {
+                code(e) <- code();
+                message(e) <- message();
+                dateTime(e) <- currentDateTime();
+                in(d,e) <- TRUE;
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM dispatches
+    PROPERTIES(d) sendDispatch TOOLBAR SHOWIF NOT isSend(d)
+;
+
+getStatus (FILE file) {
+    fileToString(file, 'UTF-8');
+    logToFile('SMSLine', 'CALLBACK: ' + resultString());
+    external_id() <- NULL;
+    state() <- NULL;
+    name() <- NULL;
+    date_time() <- NULL;
+    IMPORT importMessage JSON FROM file;
+    FOR TEXT(Dispatch dd) == getWord(external_id(),'_',1) AND TEXT(DiscountCard dc) == getWord(external_id(),'_',2) DO {
+        state(dd,dc) <- state();
+        name(dd,dc) <- name();
+        dateTime(dd,dc) <- date_time();
+    }
+    APPLY;
+}
+
+//toDateFormat = FORMULA TEXT 'to_char(($1),($2))';
+//
+//getStatus 'Получить статусы' (DATE dFrom, DATE dTo) {
+//   
+//    LOCAL result = FILE();
+//    EXTERNAL HTTP 'https://' + usernameSMSLine() + ':' + passwordAPISMSLine() + '@' + urlSMSLine() + '/log?start_date=' + toDateFormat(dFrom,'YYYY-MM-DD') + '&end_date=' + toDateFormat(dTo,'YYYY-MM-DD') TO result;
+//    
+//    LOCAL msisdn = VARSTRING[12] (INTEGER);
+//    LOCAL target = VARSTRING[20] (INTEGER);
+//    LOCAL text = TEXT (INTEGER);
+//    LOCAL message_state = VARSTRING[100] (INTEGER);
+//    LOCAL dateTime = VARSTRING[19] (INTEGER);
+//    
+//    IMPORT JSON FROM result() TO msisdn = msisdn, target = target, text = text, message_state = message_state, dateTime = dateTime;
+//    
+//    FOR imported(INTEGER i) AND phoneLegalEntity(DiscountCard dc) == msisdn(i) AND nameNumberService(Dispatch dd) == target(i) AND (messageSMS(dd) == text(i) OR messageViber(dd) == text(i)) DO {
+//        state(dd,dc) <- message_state(i);
+//        dateTime(dd,dc) <- toDateTimeFormat(dateTime(i),'YYY-MM-DD HH:MM:SS');
+//    }
+//    
+//    open(result());
+//}
+//
+//EXTEND FORM integrationData
+//    OBJECTS dates = (dfs = DATE,dts = DATE) PANEL
+//    PROPERTIES 'Дата с' = VALUE(dfs), 'Дата по' = VALUE(dts)
+//    PROPERTIES(dfs,dts) getStatus
+//;
+//DESIGN integrationData {
+//    smsLine {
+//        MOVE BOX(dates);
+//    }
+//}
