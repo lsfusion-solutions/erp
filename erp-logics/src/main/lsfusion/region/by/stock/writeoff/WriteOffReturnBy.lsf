@@ -1,0 +1,44 @@
+MODULE WriteOffReturnBy;
+
+REQUIRE WriteOffReturn, LegalEntityBy;
+
+NAMESPACE WriteOffReturn;
+
+UNPLegalEntityStock 'УНП' (WriteOff writeOff) = UNP(legalEntityStock(writeOff));
+
+// --------------------------- Печатная форма ---------------------------------
+number 'Порядковый номер члены комиссии' (WriteOff w, Employee e) = number(writeOffCommittee(w),e);
+FORM printWriteOffBy 'Акт списания'
+    OBJECTS w=WriteOff PANEL //SUBREPORT
+    PROPERTIES (w)  SELECTOR number, series, fullNameStock, nameStock,
+                   date, time, nameReason, note, countWriteOffDetail, quantityWriteOffDetail,
+                   sumWriteOffDetail,
+                   nameLegalEntityStock, addressLegalEntity, nameWriteOffCommittee,
+                   nameEmployeeWriteOffCommittee, writeOffCommittee, UNPLegalEntityStock
+
+    OBJECTS d=WriteOffDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
+                   quantity, price, sum
+
+    OBJECTS e=Employee
+    PROPERTIES(e) SELECTOR   name[Contact], namePosition
+    PROPERTIES number(w,e)
+    ORDER number(w,e)
+    FILTERS in(w, d),
+            inWriteOffCommittee(w, e)
+;
+
+printBy 'Акт списания' (WriteOff writeOff)  { PRINT printWriteOffBy OBJECTS w = writeOff; }   IMAGE 'print.png' IN print;
+printByXLS 'Акт списания (xls)' (WriteOff writeOff)  { PRINT printWriteOffBy OBJECTS w = writeOff XLS; } IMAGE 'print.png' IN print;
+
+EXTEND FORM writeOffs
+
+    PROPERTIES (w)  printBy, printByXLS
+;
+
+DESIGN writeOffs{
+    printContainer{
+        MOVE PROPERTY(printBy(w));
+        MOVE PROPERTY(printByXLS(w));
+    }
+}

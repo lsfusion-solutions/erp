@@ -1,10 +1,10 @@
-MODULE WriteOffPurchasePricing;
+MODULE WriteOffPurchaseReturnPricing;
 
-REQUIRE PricingWriteOff, WriteOffPurchase, PricingPurchase;
+REQUIRE PricingWriteOffReturn, WriteOffPurchaseReturn, PricingPurchaseReturn;
 
-PRIORITY Purchase; 
+PRIORITY PurchaseReturn; 
 
-NAMESPACE WriteOff;
+NAMESPACE WriteOffReturn;
 
 // Создание акта расценки
 @defineDocumentInterfaceProperty (invoice, createWriteOffPricing, 'Создать акт расценки при списании веревок');
@@ -13,19 +13,19 @@ createPricing (ShipmentWriteOff shipmentWriteOff) += createWriteOffPricing(invoi
 @defineDocumentInterfaceOperationPrefix (invoice, shipmentWriteOffPricing, Pricing, ' (расценка при списании веревок)');
 pricingOperation (ShipmentWriteOff shipmentWriteOff) += shipmentWriteOffPricingOperation(invoice(shipment(shipmentWriteOff)));
 
-createWriteOffPricing 'Акт расценки при списании веревок' = DATA BOOLEAN (Purchase.Operation);
+createWriteOffPricing 'Акт расценки при списании веревок, возврат' = DATA BOOLEAN (Purchase.Operation);
 
 shipmentWriteOffPricingOperation  = DATA Pricing.Operation (Purchase.Operation);
-nameshipmentWriteOffPricingOperation 'Операция (расценка при списании веревок)' (Purchase.Operation operation)=
+nameshipmentWriteOffPricingOperation 'Операция (расценка при списании веревок), возврат' (Purchase.Operation operation)=
     name(shipmentWriteOffPricingOperation(operation));
 
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) createWriteOffPricing, nameshipmentWriteOffPricingOperation
+    PROPERTIES createWriteOffPricingR = createWriteOffPricing(o), nameshipmentWriteOffPricingOperationR = nameshipmentWriteOffPricingOperation(o)
 ;
 DESIGN Purchase.operation {
     createContainer {
-        MOVE PROPERTY(createWriteOffPricing(o));
-        MOVE PROPERTY(nameshipmentWriteOffPricingOperation(o)) AFTER PROPERTY(createWriteOffPricing(o));
+        MOVE PROPERTY(createWriteOffPricingR);
+        MOVE PROPERTY(nameshipmentWriteOffPricingOperationR) AFTER PROPERTY(createWriteOffPricingR);
     }
 }
 
@@ -37,7 +37,7 @@ WHEN LOCAL FORMS userInvoice CHANGED (createPricing(UserInvoice i)) AND NOT crea
     createWriteOffPricing (i) <- NULL;
 }
 
-retailMarkup (ShipmentWriteOffDetail d) += retailMarkup(invoiceDetail(shipmentDetail(d)));
+retailMarkup(ShipmentWriteOffDetail d) += retailMarkup(invoiceDetail(shipmentDetail(d)));
 supplierPrice (ShipmentWriteOffDetail d) += pricingPrice(invoiceDetail(shipmentDetail(d)));
 retailVAT (ShipmentWriteOffDetail d) += retailVAT(invoiceDetail(shipmentDetail(d)));
 valueRetailVAT (ShipmentWriteOffDetail d) += valueRetailVAT(invoiceDetail(shipmentDetail(d)));
@@ -68,3 +68,4 @@ DESIGN userInvoice {
         }
     }
 }
+
