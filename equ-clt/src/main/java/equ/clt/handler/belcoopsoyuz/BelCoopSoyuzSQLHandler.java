@@ -250,6 +250,9 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
+            String currentNumberZReport = null;
+            Integer currentNumberReceipt = null;
+
             Set<String> unknownSections = new HashSet<>();
             Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
@@ -259,22 +262,43 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             while (rs.next()) {
 
                 String id = rs.getString("CEUNIKEY");
-                BigDecimal sumReceiptDetail = rs.getBigDecimal("NEOPSUMCT");
+
+                //без этих полей считаем запись некорректной и помечаем как обработанную
+                String cedoccod = rs.getString("CEDOCCOD");
                 String type = rs.getString("CEOBTYP");
-                if(type != null) {
+                if(cedoccod != null && type != null) {
+
+                    Date dateReceipt = rs.getDate("TEDOCINS");
+                    Time timeReceipt = rs.getTime("TEDOCINS");
+
+                    String numberZReport = rs.getString("CEDOCNUM");
+
+                    Integer numberReceipt = Integer.parseInt(cedoccod);
+                    if (numberZReport != null && numberZReport.trim().equals("0")) {
+                        numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
+                    }
+
+                    if (currentNumberZReport == null && currentNumberReceipt == null) {
+                        //Начался новый чек, запоминаем его номер
+                        currentNumberZReport = numberZReport;
+                        currentNumberReceipt = numberReceipt;
+
+                    } else if (!isTheSameReceipt(currentNumberZReport, currentNumberReceipt, numberZReport, numberReceipt)) {
+                        //Номер чека изменился, хотя записи ВСЕГО/ВОЗВРАТ не было, сбрасываем предыдущие записи
+                        currentNumberZReport = numberZReport;
+                        currentNumberReceipt = numberReceipt;
+                        currentSalesInfoList = new ArrayList<>();
+                        currentReadRecordSet = new HashSet<>();
+                        extraDiscountSum = null;
+                        error = false;
+                    }
+
+                    BigDecimal sumReceiptDetail = rs.getBigDecimal("NEOPSUMCT");
+
                     switch (type) {
                         case "ТОВАР":
                         case "ТОВАР ВОЗВРАТ": {
                             boolean isSale = type.equals("ТОВАР");
-
-                            Date dateReceipt = rs.getDate("TEDOCINS");
-                            Time timeReceipt = rs.getTime("TEDOCINS");
-
-                            String numberZReport = rs.getString("CEDOCNUM");
-                            Integer numberReceipt = Integer.parseInt(rs.getString("CEDOCCOD"));
-                            if (numberZReport != null && numberZReport.trim().equals("0")) {
-                                numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
-                            }
 
                             String section = rs.getString("CESUCOD");
 
@@ -282,7 +306,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                             Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                            if(cashRegister != null) {
+                            if (cashRegister != null) {
                                 String barcodeItem = rs.getString("CEOBIDE");
                                 String idEmployee = rs.getString("CEOPDEV");
                                 BigDecimal quantityReceiptDetail = rs.getBigDecimal("NEOPEXP");
@@ -301,9 +325,9 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                 currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail, sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
-                                if(!unknownSections.contains(section)) {
-                                   unknownSections.add(section);
-                                   sendSalesLogger.error(logPrefix + String.format("unknown section: %s (zreport %s, receipt %s)", section, numberZReport, numberReceipt));
+                                if (!unknownSections.contains(section)) {
+                                    unknownSections.add(section);
+                                    sendSalesLogger.error(logPrefix + String.format("unknown section: %s (zreport %s, receipt %s)", section, numberZReport, numberReceipt));
                                 }
                                 error = true;
                             }
@@ -311,15 +335,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         }
                         case "БОНУС": {
                             extraDiscountSum = sumReceiptDetail;
+                            currentReadRecordSet.add(id);
                             break;
                         }
                         case "ВСЕГО":
                         case "ВОЗВРАТ": {
-                            if(!error) {
-                                if(currentSalesInfoList.isEmpty()) {
+                            if (!error) {
+                                if (currentSalesInfoList.isEmpty()) {
                                     //временный лог, возможно, проблема в том, что сначала выгружается запись "всего", а потом уже строки.
-                                    String numberZReport = rs.getString("CEDOCNUM");
-                                    Integer numberReceipt = Integer.parseInt(rs.getString("CEDOCCOD"));
                                     sendSalesLogger.error(logPrefix + String.format("total record without details: zreport %s, receipt %s", numberZReport, numberReceipt));
                                 } else {
                                     boolean isSale = type.equals("ВСЕГО");
@@ -332,6 +355,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                     readRecordSet.add(id);
                                 }
                             }
+                            currentNumberZReport = null;
+                            currentNumberReceipt = null;
                             currentSalesInfoList = new ArrayList<>();
                             currentReadRecordSet = new HashSet<>();
                             extraDiscountSum = null;
@@ -352,6 +377,10 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             throw Throwables.propagate(e);
         }
         return new BelCoopSoyuzSQLSalesBatch(salesInfoList, readRecordSet, directory);
+    }
+
+    private boolean isTheSameReceipt(String currentZReport, Integer currentReceipt, String zReport, Integer receipt) {
+        return currentZReport != null && currentReceipt != null && currentZReport.equals(zReport) && currentReceipt.equals(receipt);
     }
 
     @Override
