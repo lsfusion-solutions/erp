@@ -142,8 +142,10 @@ tradeProductForm 'Лекарственная форма' = DATA VARSTRING[100] (
 
 FORM ePrescriptions 'Электронные рецепты'
     OBJECTS ep = EPrescription
-    PROPERTIES(ep) READONLY nameStatus, seriesNumber, dateWritten, startValidityPeriod, endValidityPeriod, factor,
-                            nameOrganization, addressOrganization, namePractitioner, nameMedication,
+    PROPERTIES(ep) READONLY nameStatus, seriesNumber, dateWritten, startValidityPeriod, endValidityPeriod, factor 
+    PROPERTIES READONLY idCard1 = idCard(client(ep)) HEADER 'Номер карточки',
+                            family1 = family(client(ep)) HEADER 'Фамилия', given1 = given(client(ep)) HEADER 'Имя и отчество'                            
+    PROPERTIES(ep) READONLY nameOrganization, addressOrganization, namePractitioner, nameMedication,
                             internationalNonproprietaryId, internationalNonproprietaryName,
                             tradeId, tradeName, tradeProductForm, nameMedicamentType,
                             quantity, quantitySold, quantityLeft,
@@ -821,8 +823,8 @@ EXTEND FORM POS
     PROPERTIES() SHOWIF filterClient() nameFilterClient READONLY, nameFilterEPrescription ON CHANGE changeFilterEPrescription(), nameFilterMedication
     FILTERS filterEPrescription(bt), filterMedication(bt)
     FILTERS filterEPrescription(bt1), filterMedication(bt1)
-    PROPERTIES (bt,r) dosageQuantityReceiptGrid = dosageQuantity SHOWIF filterEPrescription() BEFORE expiryDate(bt) BACKGROUND backgroundDosage(bt,r) ON CHANGE changeDosage(bt,r)
-    PROPERTIES (d) dosageQuantityGrid = dosageQuantity BEFORE sumGrid BACKGROUND backgroundDosage(d) READONLYIF readOnlyDosage(d) 
+    PROPERTIES (bt,r) dosageQuantityReceiptGrid = dosageQuantity SHOWIF filterEPrescription() BEFORE currentPOSPrice(bt, r) BACKGROUND backgroundDosage(bt,r) ON CHANGE changeDosage(bt,r)
+    PROPERTIES (d) dosageQuantityGrid = dosageQuantity BEFORE priceGrid BACKGROUND backgroundDosage(d) READONLYIF readOnlyDosage(d) 
 ;
 DESIGN POS {
     NEW ePrescription AFTER north {
