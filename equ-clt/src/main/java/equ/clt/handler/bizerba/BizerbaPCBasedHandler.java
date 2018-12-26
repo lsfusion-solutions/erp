@@ -78,8 +78,8 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
                 + separator + "TABB" + "PLST" + separator + "MDLN" + i + separator + "MTYP" + 1 + separator + "MDAT" + image + endCommand;
     }
 
-    @Override
-    public Integer getTarePercent(ScalesItemInfo item) {
-        return item.extraPercent == null ? 0 : item.extraPercent.multiply(BigDecimal.valueOf(100)).intValue();
-    }
+//    @Override
+//    public Integer getTarePercent(ScalesItemInfo item) {
+//        return item.extraPercent == null ? 0 : item.extraPercent.multiply(BigDecimal.valueOf(100)).intValue();
+//    }
 }
