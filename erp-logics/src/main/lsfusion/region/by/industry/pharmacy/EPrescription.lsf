@@ -682,6 +682,18 @@ ePrescription = ABSTRACT EPrescription (ReceiptDetail) MATERIALIZED;
 ePrescription = DATA EPrescription (ReceiptSaleDetail);
 ePrescription(ReceiptSaleDetail detail) += ePrescription(detail);
 
+idEPrescription 'Электронный рецепт' (ReceiptDetail detail) = id(ePrescription(detail));
+idCardEPrescription 'Номер карты' (ReceiptDetail detail) = idCard(client(ePrescription(detail)));
+captionClient 'Клиент' (ReceiptDetail detail) = CONCAT ' ', family(client(ePrescription(detail))), given(client(ePrescription(detail))) CHARWIDTH 35; 
+ 
+EXTEND FORM zReport
+    PROPERTIES (d) AFTER nameBatch(d) idCardEPrescription, captionClient, idEPrescription
+;
+
+EXTEND FORM zReports
+    PROPERTIES (d) READONLY AFTER nameBatch(d) idCardEPrescription, captionClient, idEPrescription
+;
+
 dosageQuantity 'Кол-во доз' = ABSTRACT INTEGER (ReceiptDetail) MATERIALIZED;
 dosageQuantity 'Кол-во доз' (receiptDetail) = DATA INTEGER (ReceiptSaleDetail);
 dosageQuantity(ReceiptSaleDetail detail) += dosageQuantity(detail);
