@@ -468,10 +468,16 @@ FORM printListBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printListBackSheet 'Списком' (DATE dateFrom, DATE dateTo, GroupType gt) 
-    { PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
-xlsListBackSheet 'Списком (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) 
-    { PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt XLS; } IMAGE 'print.png' IN print;
+refreshLocalProp ABSTRACT LIST (DATE, DATE, GroupType);
+
+printListBackSheet 'Списком' (DATE dateFrom, DATE dateTo, GroupType gt) { 
+    refreshLocalProp(dateFrom,dateTo,gt);
+    PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; 
+}  IMAGE 'print.png' IN print;
+xlsListBackSheet 'Списком (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) { 
+    refreshLocalProp(dateFrom,dateTo,gt);
+    PRINT printListBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt XLS; 
+} IMAGE 'print.png' IN print;
 
 FORM printBackSheet 'Оборотная ведомость'
     OBJECTS df=DATE PANEL SUBREPORT
@@ -509,11 +515,15 @@ FORM printBackSheet 'Оборотная ведомость'
     FILTERS s IS Sku AND df IS DATE AND dt IS DATE // фильтр, чтобы сохранилась старая иерархия
 ;
 
-printBackSheet 'По группам' (DATE dateFrom, DATE dateTo, GroupType gt) 
-    { PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; }  IMAGE 'print.png' IN print;
+printBackSheet 'По группам' (DATE dateFrom, DATE dateTo, GroupType gt) { 
+    refreshLocalProp(dateFrom,dateTo,gt);
+    PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo, gt = gt; 
+}  IMAGE 'print.png' IN print;
 
-xlsBackSheet 'По группам (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) 
-    { PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo,  gt=gt XLS; } IMAGE 'print.png' IN print;
+xlsBackSheet 'По группам (XLS)' (DATE dateFrom, DATE dateTo, GroupType gt) { 
+    refreshLocalProp(dateFrom,dateTo,gt);
+    PRINT printBackSheet OBJECTS df = dateFrom, dt = dateTo,  gt=gt XLS; 
+} IMAGE 'print.png' IN print;
 
 fillDocumentReport 'Подбор документа'(GroupType gt, DATE df, DATE dt)  { 
     DIALOG documents DO {
