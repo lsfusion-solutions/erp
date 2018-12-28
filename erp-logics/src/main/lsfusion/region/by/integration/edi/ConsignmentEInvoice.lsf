@@ -4,6 +4,43 @@ REQUIRE InvoiceEInvoice, ConsignmentBy;
 
 NAMESPACE Consignment;
 
+createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        NEW ei = EInvoice {
+            eInvoice(invoice) <- ei;
+            number(ei) <- number(invoice);
+            dateTime(ei) <- dateTime[Invoice](invoice);
+            deliveryNoteDateTime(ei) <- dateTime[Invoice](invoice);
+            supplier(ei) <- supplier(invoice);
+            supplierStock(ei) <- supplierStock(invoice);
+            customer(ei) <- customer(invoice);
+            customerStock(ei) <- customerStock(invoice);
+            contactCustomerStock(ei) <- '';
+            contractId(ei) <- seriesNumberContractSku(invoice);
+            contractDate(ei) <- dateFromContractSku(invoice);
+            currency(ei) <- shortNameCurrency(invoice);
+            generateSeriesNumber(ei);
+            
+            FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+                eInvoice(ed) <- ei;
+                lineItemID(ed) <- id(barcode(sku(detail)));
+                lineItemBuyerID(ed) <- id(sku(detail));
+                lineItemName(ed) <- nameSku(detail);
+                quantityDespatched(ed) <- quantity(detail);
+                valueVAT(ed) <- vat(detail);
+                lineItemPrice(ed) <- price(detail);
+                lineItemAmountWithoutCharges(ed) <- sum(detail);
+                lineItemAmount(ed) <- sum(detail);
+                lineItemAmountCharges(ed) <- sumVAT(detail);
+                grossWeightValue(ed) <- OVERRIDE NUMERIC[12,6](grossWeightTon(detail)), 0.0;
+                lineItemQuantityUOM(ed) <- extraCodeUOM(UOM(sku(detail)));
+                despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 1.0;
+            }
+        }
+        APPLY;
+    }
+}
+
 UNPfullNamePayer (Invoice i) = CONCAT ', ', UNPPayer(i), fullNamePayer(i);
 UNPfullNameSupplier (Invoice i) = CONCAT ', ', UNPSupplier(i), fullNameSupplier[Consignment](i);
 addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[Consignment](i), addressSupplierStock[Consignment](i);
