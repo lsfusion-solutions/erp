@@ -74,7 +74,7 @@ TABLE client(Client);
 
 @defineExternalizable(client, VARSTRING[100]);
 
-idCard 'Номер карточки' = DATA VARSTRING[16] (Client) CHARWIDTH 16;
+idCard 'Номер карты' = DATA VARSTRING[16] (Client) CHARWIDTH 16;
 clientCard = GROUP AGGR Client client BY idCard(client);
 
 family 'Фамилия' = DATA VARSTRING[100] (Client);
@@ -145,7 +145,7 @@ tradeProductForm 'Лекарственная форма' = DATA VARSTRING[100] (
 FORM ePrescriptions 'Электронные рецепты'
     OBJECTS ep = EPrescription
     PROPERTIES(ep) READONLY nameStatus, seriesNumber, dateWritten, startValidityPeriod, endValidityPeriod, factor 
-    PROPERTIES READONLY idCard1 = idCard(client(ep)) HEADER 'Номер карточки',
+    PROPERTIES READONLY idCard1 = idCard(client(ep)) HEADER 'Номер карты',
                             family1 = family(client(ep)) HEADER 'Фамилия', given1 = given(client(ep)) HEADER 'Имя и отчество'                            
     PROPERTIES(ep) READONLY nameOrganization, addressOrganization, namePractitioner, nameMedication,
                             internationalNonproprietaryId, internationalNonproprietaryName,
@@ -520,7 +520,7 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
     }
 }
 
-card 'Номер карточки' = DATA LOCAL NESTED VARSTRING[16]();
+card 'Номер карты' = DATA LOCAL NESTED VARSTRING[16]();
 
 getPrescription 'Получить рецепты' () {
     getPrescription(card());
@@ -637,7 +637,7 @@ EXTEND FORM items
 
 //фильтр по клиенту и рецепту
 filterClient = DATA LOCAL NESTED Client();
-nameFilterClient 'Код карточки клиента' () = idCard(filterClient()) CHARWIDTH 16;
+nameFilterClient 'Код карты клиента' () = idCard(filterClient()) CHARWIDTH 16;
 filterEPrescription = DATA LOCAL NESTED EPrescription();
 nameFilterEPrescription 'Рецепт' () = CONCAT ', ', 'кол-во: ' + quantityLeft(filterEPrescription()), tradeName(filterEPrescription()), tradeProductForm(filterEPrescription());
 filterEPrescription (Batch bt) = internationalNonproprietaryId(sku(bt)) == internationalNonproprietaryId(filterEPrescription()) OR 
@@ -669,7 +669,7 @@ overChangeBarcode (VARSTRING[30] string, Receipt receipt) + {
 }
 
 changeFilterClient () {
-    ASK 'Вы действительно хотите сбросить клинта?' DO {
+    ASK 'Вы действительно хотите сбросить клиента?' DO {
         filterClient() <- NULL;
     }
 }
@@ -910,7 +910,7 @@ nameSku 'Товар' (EPrescription ep, Receipt r) = GROUP CONCAT nameSku(Receip
 FORM ePrescriptionDashboard 'Обработка электронных рецептов'
     OBJECTS d1 = (r1 = Receipt, ep1 = EPrescription)
     PROPERTIES READONLY dateTime(r1), nameDepartmentStore(r1), nameEmployee(r1), nameSku(ep1,r1), dosageQuantity(ep1,r1),
-                        seriesNumber(ep1), idCard1 = idCard(client(ep1)) HEADER 'Номер карточки',
+                        seriesNumber(ep1), idCard1 = idCard(client(ep1)) HEADER 'Номер карты',
                         family1 = family(client(ep1)) HEADER 'Фамилия', given1 = given(client(ep1)) HEADER 'Имя и отчество'
     PROPERTIES postDispense(ep1,r1) TOOLBAR
     ORDER dateTime(r1) DESC
@@ -918,7 +918,7 @@ FORM ePrescriptionDashboard 'Обработка электронных реце�
     
     OBJECTS d2 = (r2 = Receipt, ep2 = EPrescription)
     PROPERTIES READONLY dateTime(r2), nameDepartmentStore(r2), nameEmployee(r2), nameSku(ep2,r2), dosageQuantity(ep2,r2),
-                        seriesNumber(ep2), idCard2 = idCard(client(ep2)) HEADER 'Номер карточки',
+                        seriesNumber(ep2), idCard2 = idCard(client(ep2)) HEADER 'Номер карты',
                         family2 = family(client(ep2)) HEADER 'Фамилия', given2 = given(client(ep2)) HEADER 'Имя и отчество'
     PROPERTIES postCancelDispense(ep2,r2) TOOLBAR
     ORDER dateTime(r2) DESC
