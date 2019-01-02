@@ -747,6 +747,9 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
                 case Cell.CELL_TYPE_BOOLEAN:
                     result = xssfCell.getBooleanCellValue() ? "true" : null;
                     break;
+                case Cell.CELL_TYPE_ERROR:
+                    result = defaultValue;
+                    break;
                 case Cell.CELL_TYPE_STRING:
                 default:
                     result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(xssfCell.getStringCellValue());
