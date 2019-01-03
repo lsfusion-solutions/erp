@@ -278,6 +278,10 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
                     }
 
+                    //временный лог
+                    sendSalesLogger.info(logPrefix + String.format("Current zReport/receipt: %s/%s; now zReport/receipt: %s/%s, type %s",
+                            currentNumberZReport, currentNumberReceipt, numberZReport, numberReceipt, type));
+
                     if (currentNumberZReport == null && currentNumberReceipt == null) {
                         //Начался новый чек, запоминаем его номер
                         currentNumberZReport = numberZReport;
