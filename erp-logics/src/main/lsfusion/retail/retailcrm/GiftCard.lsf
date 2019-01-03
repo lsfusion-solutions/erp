@@ -39,6 +39,7 @@ dateTime 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
 date 'Дата' = ABSTRACT DATE (GiftCardLedger);
 seriesNumber 'Серия/Номер' (GiftCardLedger l) = seriesNumber(giftCard(l));
 sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger);
+signedSum 'Сумма' (GiftCardLedger ledger) = IF ledger IS UseGiftCard THEN -sum(ledger) ELSE sum(ledger);
 description 'Описание' = ABSTRACT VARSTRING[100] (GiftCardLedger);
 numberDocument 'Документ' = ABSTRACT VARSTRING[30](GiftCardLedger);
 departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
@@ -47,6 +48,11 @@ nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(depa
 show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
 namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
+
+currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);// MATERIALIZED;
+
+CONSTRAINT SET(currentBalance(GiftCard g) < 0.0) 
+    MESSAGE 'Сумма платежей сертификатом больше его номинала';
 
 //продажа подарочных сертификатов
 CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертификатов' : GiftCardLedger;
@@ -241,9 +247,12 @@ DESIGN giftCard {
     MOVE TOOLBARBOX;
 }
 
+allowPartiallyPayGiftCard 'Разрешить погашать сертификат частично' = DATA BOOLEAN ();
+
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
     PROPERTIES(g) READONLYIF isReadonly() inactive, number, series, id SHOWIF showIDs(), date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    PROPERTIES(g) READONLY currentBalance SHOWIF allowPartiallyPayGiftCard() 
     PROPERTIES generateGiftCards() DRAW g 
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR 
 
@@ -272,14 +281,17 @@ CLASS ABSTRACT UseGiftCard 'Гашение подарочных сертифик
 used = GROUP LAST UseGiftCard ledger  ORDER dateTime(ledger), ledger WHERE ledger IS UseGiftCard AND sum(ledger) > 0
         BY giftCard(ledger) MATERIALIZED;
 isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
-dateUsed 'Дата использования'(GiftCard g) = date(used(g));
-nameDepartmentStoreUsed 'Где использован' (GiftCard g) = nameDepartmentStore(used(g));
-numberReceiptUsed 'Номер чека (погашение)' (GiftCard g) = numberDocument(used(g));
+dateUsed 'Дата последнего использования'(GiftCard g) = date(used(g));
+nameDepartmentStoreUsed 'Где использован последний раз' (GiftCard g) = nameDepartmentStore(used(g));
+numberReceiptUsed 'Номер чека (последнее использование)' (GiftCard g) = numberDocument(used(g));
 
-WHEN SETCHANGED(giftCard(UseGiftCard l)) AND [GROUP SUM 1 IF UseGiftCard ledger IS UseGiftCard BY giftCard(ledger)](giftCard(l))>1 AND l IS UseGiftCard AND NOT isSumPaymentReceipt() DO {
+WHEN SETCHANGED(giftCard(UseGiftCard l)) AND [GROUP SUM 1 IF UseGiftCard ledger IS UseGiftCard BY giftCard(ledger)](giftCard(l))>1 AND l IS UseGiftCard AND NOT isSumPaymentReceipt() 
+    AND NOT allowPartiallyPayGiftCard() DO {
     MESSAGE 'Нельзя повторно использовать сертификат' NOWAIT;
     cancel();
 }    
+
+isUsedTotal 'Погашен полностью' (GiftCard giftCard) = TRUE IF used(giftCard) AND NOT currentBalance(giftCard) > 0.0;
 
 //использование подарочных сертификатов при оплате
 CLASS PaymentGiftCard : Payment, UseGiftCard;
@@ -316,8 +328,6 @@ show(PaymentGiftCard d)  {
 }
 show(PaymentGiftCard d) + {  show(d); }  
 
-allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
-
 sumGiftCard 'Сумма подарочных сертификатов в чеке' (receipt) =
     GROUP SUM sum[Payment](PaymentGiftCard payment) IF payment IS PaymentGiftCard
     BY receipt(payment);
@@ -340,7 +350,7 @@ DESIGN options {
 }
 
 CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) AND NOT allowPartiallyPayGiftCard() 
-    MESSAGE 'Сумма оплаты сертификатом должна быть равно цене сертификата';
+    MESSAGE 'Сумма оплаты сертификатом должна быть равна цене сертификата';
 
 expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard));
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
@@ -357,6 +367,8 @@ EXTEND FORM giftCards
         
     FILTERGROUP filter2
         FILTER 'Погашен' used(g) 'F8' 
+        FILTER 'Погашен полностью' isUsedTotal(g)  
+        FILTER 'Погашен частично' used(g) AND NOT isUsedTotal(g) 
         FILTER 'Не погашен' sold(g) AND NOT used(g) 'F7'                                                      
 ;
 
