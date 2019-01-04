@@ -733,8 +733,6 @@ incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescrip
 incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](EPrescription p))
                                THEN TEXT('Не задано количество доз для товаров, отпускаемых по рецепту ' + (GROUP CONCAT (CONCAT ' ', seriesNumber(EPrescription p), 'от ' + dateWritten(p)) IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](p),', '));
 
-isBrand(EPrescription ep, Receipt r) = TRUE IF (GROUP SUM 1 IF tradeId(ep) == tradeId(sku(ReceiptSaleDetail d)) AND receipt(d) == r);
-
 idEPrescription 'Код' = DATA VARSTRING[20] (LegalEntity) CHARWIDTH 15;
 
 EXTEND FORM legalEntity
@@ -760,19 +758,11 @@ textDispense(EPrescription ep, Receipt r) = '\{"resourceType": "Parameters", ' +
                                                     '"valueBoolean": ' + (IF dosageQuantity(ep,r) == quantityLeft(ep) THEN 'true' ELSE 'false') + ' \} ], ' +
                                                     '"contained": [ \{ ' +
                                                     '"resourceType": "Medication", ' +
-                                                    (IF isBrand(ep,r) THEN (
-                                                        '"id": "internalMedication1", ' +
-                                                        '"isBrand": true, ' +
-                                                        '"code": \{ "coding": [ \{ ' +
-                                                        '"system": "http://www.pharma.by/Справочник.Дозировка", ' +
-                                                        '"code": "' + tradeId(ep) + '" '
-                                                    ) ELSE (
-                                                        '"id": "internalMedication2", ' +
-                                                        '"isBrand": false, ' +
-                                                        '"code": \{ "coding": [ \{ ' +
-                                                        '"system": "http://www.pharma.by/Справочник.МеждународноеНаименование", ' +
-                                                        '"code": "' + internationalNonproprietaryId(ep) + '" '
-                                                    )) + ' \} ] \} \}, ' +
+                                                    '"id": "internalMedication1", ' +
+                                                    '"isBrand": true, ' +
+                                                    '"code": \{ "coding": [ \{ ' +
+                                                    '"system": "http://www.pharma.by/Справочник.Дозировка", ' +
+                                                    '"code": "' + tradeId(ep) + '" ' + ' \} ] \} \}, ' +
                                                     '\{ "resourceType": "Location", ' +
                                                     '"identifier": [ \{ ' +
                                                     '"system": "http://klass.belcmt.by/", ' +
@@ -796,7 +786,7 @@ textDispense(EPrescription ep, Receipt r) = '\{"resourceType": "Parameters", ' +
                                                     '"quantity": \{ ' +
                                                     '"value": ' + dosageQuantity(ep,r) + ' \}, ' +
                                                     '"medication": \{ ' +
-                                                    '"reference": "' + (IF isBrand(ep,r) THEN '#internalMedication1' ELSE '#internalMedication2') + '" \}, ' +
+                                                    '"reference": "' + '#internalMedication1' + '" \}, ' +
                                                     '"whenHandedOver": "' + toChar(date(r),'YYYY-MM-DD') + '" \} \} ] \}';
 
 httpHeadersDispense(TEXT name) = CASE
