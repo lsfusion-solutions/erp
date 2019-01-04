@@ -45,6 +45,8 @@ public abstract class BizerbaHandler extends ScalesHandler {
     protected static char separator = '\u001b';
     protected static String endCommand = separator + "BLK " + separator;
 
+    private static String logPrefix = "Bizerba: ";
+
     protected FileSystemXmlApplicationContext springContext;
 
     public BizerbaHandler(FileSystemXmlApplicationContext springContext) {
@@ -417,8 +419,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
             clearReceiveBuffer(port);
             sendCommand(errors, port, message, charset, ip, encode);
             String result = receiveReply(errors, port, charset, ip);
-            if (!result.equals("0")) {
-                logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [msgNo=%s]", ip, result, item.idItem, messageNumber));
+            String error = getError(result, ip, item.idItem, messageNumber);
+            if (error != null) {
+                logError(errors, error);
                 return result;
             }
         }
@@ -593,6 +596,16 @@ public abstract class BizerbaHandler extends ScalesHandler {
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, ip, encode);
         return receiveReply(errors, port, charset, ip, false);
+    }
+
+    private String getError(String result, String ip, String idItem, Integer messageNumber) {
+        String error = null;
+        if (result.equals("1615")) {
+            error = logPrefix + String.format("IP %s, item %s [msgNo=%s]. Кончилась память под состав. Очистить и записать заново [%s]", ip, idItem, messageNumber, result);
+        } else if (!result.equals("0")) {
+            error = logPrefix + String.format("IP %s, item %s [msgNo=%s]. Result is %s", ip, idItem, messageNumber, result);
+        }
+        return error;
     }
 
     protected void logError(List<String> errors, String errorText) {
