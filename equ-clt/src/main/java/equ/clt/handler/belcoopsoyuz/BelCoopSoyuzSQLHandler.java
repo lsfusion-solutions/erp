@@ -247,7 +247,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
-                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
+                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0 FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
             String currentNumberZReport = null;
@@ -262,6 +262,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             while (rs.next()) {
 
                 String id = rs.getString("CEUNIKEY");
+                String ceuniref0 = rs.getString("CEUNIREF0");
 
                 //без этих полей считаем запись некорректной и помечаем как обработанную
                 String cedoccod = rs.getString("CEDOCCOD");
@@ -278,9 +279,11 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
                     }
 
+                    if(ceuniref0.equals("100105017")) {
                     //временный лог
                     sendSalesLogger.info(logPrefix + String.format("Current zReport/receipt: %s/%s; now zReport/receipt: %s/%s, type %s",
                             currentNumberZReport, currentNumberReceipt, numberZReport, numberReceipt, type));
+                    }
 
                     if (currentNumberZReport == null && currentNumberReceipt == null) {
                         //Начался новый чек, запоминаем его номер
