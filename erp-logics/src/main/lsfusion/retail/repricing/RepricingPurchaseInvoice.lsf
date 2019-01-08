@@ -179,6 +179,12 @@ setNullShowDataSkipRepricing 'Снять признак для всех пото
     }
 } ASON CONTEXTMENU skipRepricing[SkuGroup] CONFIRM;
   
+createDraftRepricing 'Не проводить документы дооценки при создании' = DATA BOOLEAN () COMPLEX;
+
+EXTEND FORM options 
+    PROPERTIES() createDraftRepricing
+;
+  
 createExtraValuationStockTimeOperationNotForm ABSTRACT LIST ( UserRepricing);
 createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation)  { 
     LOCAL in = BOOLEAN (Invoice);
@@ -229,7 +235,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
                 departmentStore(r) <-  department;
                 operation(r) <- operation;
                 skipChangeLedger(r) <- TRUE;
-                isPosted(r) <- TRUE;
+                isPosted(r) <- TRUE IF NOT createDraftRepricing();
                 date(r) <-  DATE(timeTo);
                 time(r) <- currentTime();                
                 
@@ -348,6 +354,7 @@ DESIGN options {
                 MOVE PROPERTY(minQuantityToRepricing());
                 MOVE PROPERTY(toRepricingTimeTo());
                 MOVE PROPERTY(toRepricingCountDaysTo());                       
+                MOVE PROPERTY(createDraftRepricing());                       
                 MOVE PROPERTY(createExtraValuationAllStocks());
             }
         }
