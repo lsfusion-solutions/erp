@@ -7,7 +7,7 @@ NAMESPACE Consignment;
 createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
-            eInvoice(invoice) <- ei;
+            invoice(ei) <- invoice;
             number(ei) <- number(invoice);
             dateTime(ei) <- dateTime[Invoice](invoice);
             deliveryNoteDateTime(ei) <- dateTime[Invoice](invoice);
@@ -117,3 +117,44 @@ editAttributesEInvoice 'Заполнить атрибуты накладной' 
 	    SHOW eInvoice OBJECTS e = eInvoice(i) DOCKED; 
 	}
 } IMAGE 'edit.png';
+
+META defineInvoiceEinvoice (dumb)
+    EXTEND FORM invoices
+        PROPERTIES READONLY PANEL numberEInvoice(i)
+        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i)), 
+                      signAndSendSupplierEDI SHOWIF (eInvoice(i) AND NOT exportedSupplier(eInvoice(i))), 
+                      cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
+        PROPERTIES(i) SHOWIF eInvoice[Invoice](i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+                      printConsignmentEAttachment, printConsignmentEAttachmentXLSX
+    ;
+    
+    DESIGN invoices {
+        printTabScroll {
+            NEW tabConsignment{
+                type = TABBED;
+                MOVE printTab {caption = 'Накладная';};
+                NEW eInvoice {
+                    caption = 'Электронная накладная';
+                    NEW createEI {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(numberEInvoice(i));
+                        MOVE PROPERTY(createEInvoice(i));
+                        MOVE PROPERTY(editAttributesEInvoice(i));
+                        MOVE PROPERTY(signAndSendSupplierEDI(i));
+                        MOVE PROPERTY(cancelSignAndSendSupplierEDI(i));
+                    }
+                    NEW printEI {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (printConsignmentEInvoiceAttachment(i));
+                        MOVE PROPERTY (printConsignmentEInvoice(i));
+                        MOVE PROPERTY (printConsignmentEAttachment(i));
+                    }
+                    NEW exportEI {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (printConsignmentEAttachmentXLSX(i));
+                    }
+                }
+            }
+    }    
+    }
+END

@@ -6,9 +6,8 @@ PRIORITY Invoice;
 
 NAMESPACE EDI;
 
-eInvoice = ABSTRACT EInvoice (Invoice);
-
-invoice = GROUP AGGR Invoice i BY eInvoice(i);
+invoice = DATA Invoice(EInvoice);
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
 numberInvoice 'Номер накладной (продажа)' (EInvoice i) = number(invoice(i));
 
 numberEInvoice 'Номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
@@ -47,4 +46,14 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     in(EInvoice e) <- e = eInvoice(i);
     signAndSendSupplierEDI();
     in(EInvoice e) <- NULL;
+}
+
+cancelSignAndSendSupplierEDI 'Отменить (поставщик)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        exportedSupplier(EInvoice e) <- NULL WHERE e = eInvoice(i);
+        isCancel(EInvoice e) <- TRUE WHERE e = eInvoice(i);
+        signAndSendSupplierEDI();
+        IF (GROUP SUM 1 IF exportedSupplier(EInvoice e) AND in(e)) THEN APPLY;
+    }
 }

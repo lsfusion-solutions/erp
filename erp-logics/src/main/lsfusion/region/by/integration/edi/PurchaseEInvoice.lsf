@@ -19,11 +19,16 @@ DESIGN legalEntity {
     }
 } 
 
-eInvoice = ABSTRACT EInvoice (Invoice);
 eInvoice = DATA EInvoice (UserInvoice);
-eInvoice(UserInvoice i) += eInvoice(i);
 
-EDI.eInvoice(Invoice i) += eInvoice(i);
+migrateEInvoice = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateEInvoice() THEN {
+        invoice(EInvoice ei) <-  GROUP MAX UserInvoice i IF ei = eInvoice(i);
+        migrateEInvoice() <- TRUE;
+        APPLY;
+    }
+}
 
 numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
@@ -58,7 +63,7 @@ DESIGN selectEInvoice {
 }
 
 copyData(EInvoice ei, Invoice i)  { 
-    eInvoice(i) <- ei;
+    invoice(ei) <- i;
     number(i) <- deliveryNoteNumber(ei);
     series(i) <- NULL;
     operation(i) <- eOperation(supplier(ei)) WHERE eOperation(supplier(ei));
@@ -112,7 +117,7 @@ DESIGN userInvoice {
     }
 }
 
-skipNumberCheck(Invoice i) += IF eInvoice(i) THEN TRUE;
+skipNumberCheck(Invoice i) += IF eInvoice(i) AND i IS Invoice THEN TRUE;
 
 CONSTRAINT isPosted(Invoice i) AND NOT receiver(i) AND eInvoice(i)
         MESSAGE 'В накладной должен быть указан приёмщик';
