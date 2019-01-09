@@ -33,3 +33,57 @@ EXTEND FORM groupsScales
 skipSnapshot(ScalesPriceTransaction t) += ((groupScales(t) AND skipSnapshotMachinery(mainRole(currentUser()))) OR skipSnapshot(groupScales(t))) AND NOT allUserSnapshot(model(groupMachinery(t)));
 
 skipLastTransaction(GroupScales g) += g IS GroupScales;
+
+countDaysActiveScales 'Количество дней для неактивности' = DATA INTEGER ();
+
+closeInactiveScales 'Отключить загрузку в неактивные весы' () {
+    NEWSESSION {
+        inactive(Scales s) <- TRUE WHERE active(groupScales(s)) AND NOT  (GROUP MAX dateTimeSucceeded(s, ScalesPriceTransaction pt) ) > sumDay(currentDateTime(), -countDaysActiveScales());
+        
+        IF (GROUP SUM 1 IF CHANGED(inactive(Scales s)))  THEN {
+            MESSAGE 'Отключено ' + (GROUP SUM 1 IF CHANGED(inactive(Scales s) )) + ' весов' NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+openOldTransactions 'Открывть старые загрузки в оборудование при активации' = DATA BOOLEAN ();
+
+openInactiveScales 'Проверить неактивные весы на активность' () {
+    NEWSESSION {
+        FOR active(groupScales(Scales s)) AND inactive(s) AND (PARTITION SUM 1 BY port(s)) == 1 DO { //не проверяем задвоенные весы, возможно они переехали в другую модель оборудования
+            ping(port(s));
+            IF NOT pingError() THEN {
+                inactive(s) <- NULL;
+                FOR openOldTransactions() AND ScalesPriceTransaction pt == (GROUP LAST ScalesPriceTransaction ppt ORDER dateTimeSucceeded(s,  ppt)) DO {
+                    succeeded(ScalesPriceTransaction spt) <- NULL WHERE groupMachinery(spt) == groupMachinery(s) AND dateTime(spt) > dateTime(pt);
+                }
+            }
+        }
+        
+        IF (GROUP SUM 1 IF CHANGED(inactive(Scales s)))  THEN {
+            MESSAGE 'Включено ' + (GROUP SUM 1 IF CHANGED(inactive(Scales s) )) + ' весов' NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+closeOldTransactions 'Закрыть старые загрузки в оборудование' () {
+    succeeded(ScalesPriceTransaction t) <-TRUE WHERE process(t) AND date(t) <= subtract(currentDate(), countDaysActiveScales());
+}
+
+EXTEND FORM groupsScales 
+    PROPERTIES countDaysActiveScales(), closeOldTransactions(), closeInactiveScales(), openOldTransactions(), openInactiveScales();
+    
+DESIGN groupsScales {
+    actionContainer{
+        NEW options{
+            MOVE PROPERTY (countDaysActiveScales());
+            MOVE PROPERTY (openOldTransactions());
+            
+        }
+        MOVE PROPERTY (closeOldTransactions());
+        MOVE PROPERTY (closeInactiveScales());
+        MOVE PROPERTY (openInactiveScales());
+    }
+}
