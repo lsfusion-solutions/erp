@@ -279,7 +279,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
                     }
 
-                    if(ceuniref0.equals("100105017")) {
+                    if(ceuniref0.equals("100166374")) {
                     //временный лог
                     sendSalesLogger.info(logPrefix + String.format("Current zReport/receipt: %s/%s; now zReport/receipt: %s/%s, type %s",
                             currentNumberZReport, currentNumberReceipt, numberZReport, numberReceipt, type));
