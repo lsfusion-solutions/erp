@@ -19,11 +19,13 @@ DESIGN options {
     }
 }
 
+extraLoad = ABSTRACT BOOLEAN (Stock);
+
 createAttribute(MachineryPriceTransaction t, Stock stock) + {  
     IF NOT balanceToDate() THEN {
-        balance(t, Barcode barcode) <- OVERRIDE balance(barcode, stock), 0.0 WHERE in(t, barcode) AND NOT extraLoad(sku(barcode)); 
+        balance(t, Barcode barcode) <- OVERRIDE balance(barcode, stock), 0.0 WHERE in(t, barcode) AND NOT extraLoad(sku(barcode)) AND NOT extraLoad(stock); 
     } ELSE {
-        balance(t, Barcode barcode) <- OVERRIDE prevBalanceB(sku(barcode), stock, dateTime(t)), 0.0 WHERE in(t, barcode) AND NOT extraLoad(sku(barcode));  
+        balance(t, Barcode barcode) <- OVERRIDE prevBalanceB(sku(barcode), stock, dateTime(t)), 0.0 WHERE in(t, barcode) AND NOT extraLoad(sku(barcode)) AND NOT extraLoad(stock);  
     }
     
 }
