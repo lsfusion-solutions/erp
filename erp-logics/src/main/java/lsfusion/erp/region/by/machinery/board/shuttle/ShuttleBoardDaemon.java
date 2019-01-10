@@ -78,7 +78,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
         try (DataSession session = dbManager.createSession()) {
             String host = (String) LM.findProperty("hostShuttleBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShuttleBoard[]").read(session);
-            setupDaemon(host, port != null ? port : 9101);
+            setupDaemon(host != null ? host : "localhost", port != null ? port : 9101);
         } catch (IOException | SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
