@@ -245,6 +245,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         List<SalesInfo> salesInfoList = new ArrayList<>();
         Set<String> readRecordSet = new HashSet<>();
 
+        List<String> allowedTypes = Arrays.asList("ТОВАР", "ТОВАР ВОЗВРАТ", "БОНУС", "ВСЕГО", "ВОЗВРАТ");
+
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
                     "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0 FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
@@ -267,7 +269,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 //без этих полей считаем запись некорректной и помечаем как обработанную
                 String cedoccod = rs.getString("CEDOCCOD");
                 String type = rs.getString("CEOBTYP");
-                if(cedoccod != null && type != null) {
+                if(cedoccod != null && allowedTypes.contains(type)) {
 
                     Date dateReceipt = rs.getDate("TEDOCINS");
                     Time timeReceipt = rs.getTime("TEDOCINS");
@@ -370,8 +372,6 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                             error = false;
                             break;
                         }
-                        default:
-                            readRecordSet.add(id);
                     }
                 } else {
                     readRecordSet.add(id);
@@ -403,6 +403,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
                 Locale defaultLocale = Locale.getDefault();
                 try {
+                    Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
                     sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
                     conn = DriverManager.getConnection(directory);
                     conn.setAutoCommit(false);
