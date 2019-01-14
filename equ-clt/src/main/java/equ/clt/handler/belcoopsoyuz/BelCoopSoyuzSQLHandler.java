@@ -247,9 +247,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         List<String> allowedTypes = Arrays.asList("ТОВАР", "ТОВАР ВОЗВРАТ", "БОНУС", "ВСЕГО", "ВОЗВРАТ");
 
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.MINUTE, -5); //хак: берём записи с отставанием на 5 минут
+        String dateFilter = String.format("TEDOCINS >= TO_TIMESTAMP('%s','YYYY-MM-DD HH24:MI:SS')", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime()));
+
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
-                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0 FROM cl1_bks.a9ck07 WHERE CEUNIFOL NOT LIKE '____________________1%' ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
+                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0 FROM cl1_bks.a9ck07 " +
+                    "WHERE CEUNIFOL NOT LIKE '____________________1%' AND " + dateFilter + " ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
             String currentNumberZReport = null;
@@ -275,11 +280,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     Time timeReceipt = rs.getTime("TEDOCINS");
 
                     String numberZReport = rs.getString("CEDOCNUM");
-
-                    Integer numberReceipt = Integer.parseInt(cedoccod);
-                    if (numberZReport != null && numberZReport.trim().equals("0")) {
-                        numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
-                    }
+                    Integer numberReceipt = getNumberReceipt(cedoccod, numberZReport, timeReceipt);
 
                     if(ceuniref0.equals("100166374")) {
                     //временный лог
@@ -388,6 +389,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
     private boolean isTheSameReceipt(String currentZReport, Integer currentReceipt, String zReport, Integer receipt) {
         return currentZReport != null && currentReceipt != null && currentZReport.equals(zReport) && currentReceipt.equals(receipt);
+    }
+
+    private Integer getNumberReceipt(String cedoccod, String numberZReport, Time timeReceipt) {
+        Integer numberReceipt = Integer.parseInt(cedoccod);
+        if (numberZReport != null && numberZReport.trim().equals("0")) {
+            numberReceipt = numberReceipt * 10000 + timeReceipt.getHours() * 100 + timeReceipt.getMinutes();
+        }
+        return numberReceipt;
     }
 
     @Override
