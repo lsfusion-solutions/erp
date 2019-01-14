@@ -85,7 +85,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             try {
 
                 Timestamp tedocact = new Timestamp(transaction.date.getTime() + 1000 * 60 * 5); //добавляем 5 минут
-                String tedocactString = new SimpleDateFormat("YYYY-MM-dd HH:mm:SS").format(tedocact);
+                String tedocactString = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(tedocact);
 
                 conn.setAutoCommit(true);
                 try(Statement statement = conn.createStatement()) {
@@ -409,53 +409,53 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
     @Override
     public void finishReadingSalesInfo(BelCoopSoyuzSQLSalesBatch salesBatch) {
-        for(Map.Entry<String, Set<String>> entry : salesBatch.readRecordsMap.entrySet()) {
-            String directory = entry.getKey();
-            Set<String> readRecordSet = entry.getValue();
-
-            if (directory != null) {
-
-                Connection conn = null;
-                Statement statement = null;
-
-                Locale defaultLocale = Locale.getDefault();
-                try {
-                    Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
-                    sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
-                    conn = DriverManager.getConnection(directory);
-                    conn.setAutoCommit(false);
-
-                    int i = 0;
-                    int blockSize = 1000; //ограничение сервера
-                    StringBuilder in = new StringBuilder();
-                    for (String record : readRecordSet) {
-                        if(i >= blockSize) {
-                            statement = conn.createStatement();
-                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
-                            in = new StringBuilder();
-                            i = 0;
-                        }
-                        in.append(in.length() == 0 ? "" : ",").append('\'' + record + '\'');
-                        i++;
-                    }
-                    statement = conn.createStatement();
-                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
-                    conn.commit();
-
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        Locale.setDefault(defaultLocale);
-                        if (statement != null)
-                            statement.close();
-                        if (conn != null)
-                            conn.close();
-                    } catch (SQLException ignored) {
-                    }
-                }
-            }
-        }
+//        for(Map.Entry<String, Set<String>> entry : salesBatch.readRecordsMap.entrySet()) {
+//            String directory = entry.getKey();
+//            Set<String> readRecordSet = entry.getValue();
+//
+//            if (directory != null) {
+//
+//                Connection conn = null;
+//                Statement statement = null;
+//
+//                Locale defaultLocale = Locale.getDefault();
+//                try {
+//                    Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
+//                    sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
+//                    conn = DriverManager.getConnection(directory);
+//                    conn.setAutoCommit(false);
+//
+//                    int i = 0;
+//                    int blockSize = 1000; //ограничение сервера
+//                    StringBuilder in = new StringBuilder();
+//                    for (String record : readRecordSet) {
+//                        if(i >= blockSize) {
+//                            statement = conn.createStatement();
+//                            statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
+//                            in = new StringBuilder();
+//                            i = 0;
+//                        }
+//                        in.append(in.length() == 0 ? "" : ",").append('\'' + record + '\'');
+//                        i++;
+//                    }
+//                    statement = conn.createStatement();
+//                    statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
+//                    conn.commit();
+//
+//                } catch (SQLException e) {
+//                    e.printStackTrace();
+//                } finally {
+//                    try {
+//                        Locale.setDefault(defaultLocale);
+//                        if (statement != null)
+//                            statement.close();
+//                        if (conn != null)
+//                            conn.close();
+//                    } catch (SQLException ignored) {
+//                    }
+//                }
+//            }
+//        }
     }
 
     protected String trim(String input, Integer length) {
