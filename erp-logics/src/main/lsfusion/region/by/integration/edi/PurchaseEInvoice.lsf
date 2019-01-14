@@ -19,17 +19,6 @@ DESIGN legalEntity {
     }
 } 
 
-eInvoice = DATA EInvoice (UserInvoice);
-
-migrateEInvoice = DATA BOOLEAN ();
-onStarted() +{ 
-    IF NOT migrateEInvoice() THEN {
-        invoice(EInvoice ei) <-  GROUP MAX UserInvoice i IF ei = eInvoice(i);
-        migrateEInvoice() <- TRUE;
-        APPLY;
-    }
-}
-
 numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
 receiver = ABSTRACT Employee (Invoice);
@@ -99,8 +88,16 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
     }
 }
 
+changeEInvoice(Invoice in) {
+    DIALOG dialogEInvoice OBJECTS i = eInvoice(in) NULL INPUT NULL DO {
+        IF i THEN invoice(i) <- in;
+             ELSE invoice(EInvoice ei) <- NULL WHERE ei = eInvoice(in);
+    }
+}
+
+
 EXTEND FORM userInvoice 
-    PROPERTIES numberEInvoice(i)
+    PROPERTIES numberEInvoice(i) ON CHANGE changeEInvoice(i)
     PROPERTIES(i) importFromEInvoice, nameReceiver
 ;
 
