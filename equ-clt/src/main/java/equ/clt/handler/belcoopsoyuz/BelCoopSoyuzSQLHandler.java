@@ -253,7 +253,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
-                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0 FROM cl1_bks.a9ck07 " +
+                    "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0, CEUNIFOL FROM cl1_bks.a9ck07 " +
                     "WHERE CEUNIFOL NOT LIKE '____________________1%' AND " + dateFilter + " ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
@@ -356,6 +356,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                     sendSalesLogger.error(logPrefix + String.format("total record without details: zreport %s, receipt %s", numberZReport, numberReceipt));
                                 } else {
                                     boolean isSale = type.equals("ВСЕГО");
+
+                                    if(ceuniref0.equals("100166374")) {
+                                        //временный лог
+                                        String ceunifol = rs.getString("CEUNIFOL");
+                                        sendSalesLogger.info(logPrefix + String.format("NEOPSUMCT: %s, CEUNIFOL: %s, extraDiscount: %s",
+                                                sumReceiptDetail, ceunifol, extraDiscountSum));
+                                    }
+
                                     for (SalesInfo salesInfo : currentSalesInfoList) {
                                         salesInfo.sumCash = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
                                         salesInfo.discountSumReceipt = safeAdd(salesInfo.discountSumReceipt, extraDiscountSum);
