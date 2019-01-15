@@ -350,7 +350,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         }
                         case "ВСЕГО":
                         case "ВОЗВРАТ": {
-                            if (!error) {
+                            if (!error && sumReceiptDetail != null) {
                                 if (currentSalesInfoList.isEmpty()) {
                                     //временный лог, возможно, проблема в том, что сначала выгружается запись "всего", а потом уже строки.
                                     sendSalesLogger.error(logPrefix + String.format("total record without details: zreport %s, receipt %s", numberZReport, numberReceipt));
