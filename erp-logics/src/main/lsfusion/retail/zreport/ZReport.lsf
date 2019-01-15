@@ -245,26 +245,9 @@ changeDialogSku(ReceiptDetail detail)   {
         sku(detail) <- s;
 } TOOLBAR;
 
-//партии
-@defineDocumentAbstractDetailBatchCustom(receiptDetail, batch);
-@defineDocumentDetailBatchCustom(receiptSaleDetail, batch);
-@defineDocumentDetailBatchCustom(receiptReturnDetail, batch);
+overBNameSku  = ABSTRACT  VARISTRING[255](ReceiptDetail);
 
-batch(ReceiptSaleDetail detail) += batch(detail);
-batch(ReceiptReturnDetail detail) += batch(detail);
-
-replace(Sku s, Batch b) + {  sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
-replace(Sku s, Batch b) + {  sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
-
-changeBatch(ReceiptDetail detail)  { 
-    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
-                             t = dateTime(detail),
-                             sk = sku(detail),
-                             bt = batch(detail) INPUT NULL NEWSESSION DO 
-        batch(detail) <- bt;
-}
-
-nameSku 'Товар' (ReceiptDetail d) = IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d)) IN id CHARWIDTH 20;
+nameSku 'Товар' (ReceiptDetail d) = OVERRIDE overBNameSku(d), name(sku(d)) IN id CHARWIDTH 20;
 
 nameCashRegisterSku (ReceiptDetail d) = OVERRIDE nameCashRegisterAttribute(sku(d)), nameSku(d);
 
@@ -457,10 +440,10 @@ VAT(ReceiptReturnDetail d) += VAT(d);
 
 numberVAT 'НДС, номер' (ReceiptDetail receiptDetail) = number(VAT(receiptDetail));
 
-valueVAT 'НДС, %' (receiptDetail) = DATA NUMERIC[10,5] (ReceiptDetail) MATERIALIZED;
+valueVAT 'НДС, %' (receiptDetail) = DATA NUMERIC[10,5] (ReceiptDetail);
 overValueVAT(d) = ABSTRACT VALUE NUMERIC[10,5] (ReceiptDetail);
 overValueVAT(ReceiptDetail d) += valueRate(VAT(d), date(d));
-WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO {
+WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) DO {
     valueVAT(d) <- overValueVAT(d);
 }
 
@@ -661,7 +644,6 @@ FORM zReport 'Z-отчет'
 
     PROPERTIES(d) type READONLY, idBarcode, idSku,
                   nameSku ON CHANGE changeDialogSku(d) , 
-                  nameBatch ON CHANGE changeBatch(d) SHOWIF explicitBatchLedger(b),
                   descriptionSale ON CHANGE changeDescriptionSale(d),
                   quantity, quantityReturned , price,
                   sum, discountPercent , discountSum ,
@@ -739,7 +721,6 @@ copy 'Копировать'(Receipt receipt)  {
                 NEW d=ReceiptSaleDetail {                    
                     receipt(d) <- r;
                     sku(d) <- sku[ReceiptSaleDetail](detail);
-                    batch(d) <- batch[ReceiptSaleDetail](detail);
                     idBarcode(d) <- idBarcode(detail);
                     quantity(d) <- quantity[ReceiptSaleDetail](detail);
                     price(d) <- price[ReceiptSaleDetail](detail);
@@ -787,18 +768,9 @@ EXTEND FORM zReport
 
 overPrice 'Цена' (Sku sku, Receipt receipt, DATETIME dateTime) =
         priceA(priceListType(groupCashRegister(receipt)), sku, departmentStore(receipt), dateTime);
-overPrice 'Цена' (Batch batch, Receipt receipt, DATETIME dateTime) =
-    IF priceA(priceListType(groupCashRegister(receipt)), batch, departmentStore(receipt), dateTime) THEN
-        priceA(priceListType(groupCashRegister(receipt)), batch, departmentStore(receipt), dateTime)
-    ELSE
-        overPrice(sku(batch), receipt, dateTime); 
         
-WHEN LOCAL FORMS zReport (CHANGED (sku(ReceiptDetail d)) OR CHANGED (batch(d))) AND NOT (CHANGED (price(d))) DO {
-    IF explicitBatchLedger(receipt(d)) THEN {
-        price(d) <- overPrice(batch(d), receipt(d), dateTime(d));    
-    } ELSE {
-        price(d) <- overPrice(sku(d), receipt(d), dateTime(d));    
-    }
+WHEN LOCAL FORMS zReport (CHANGED (sku(ReceiptDetail d))) AND notExplicitBatchLedger(receipt(d)) AND NOT (CHANGED (price(d))) DO {
+    price(d) <- overPrice(sku(d), receipt(d), dateTime(d));    
 }
 WHEN LOCAL FORMS zReport CHANGED (sku(ReceiptDetail d))  AND NOT (CHANGED (idBarcode(d))) DO {
     idBarcode(d) <- idBarcode(sku(d));
@@ -884,7 +856,7 @@ FORM zReports 'Z-отчеты'
     ORDER                number(b)
 
     OBJECTS d=ReceiptDetail
-    PROPERTIES(d) READONLY  type, idBarcode, idSku, nameSku , nameBatch SHOWIF explicitBatchLedger(b),
+    PROPERTIES(d) READONLY  type, idBarcode, idSku, nameSku,
                             descriptionSale ,
                             quantity, quantityReturned , price,
                             sum, discountPercent ,

@@ -1,0 +1,43 @@
+MODULE ZReportBatch;
+
+REQUIRE ZReport;
+
+NAMESPACE ZReport;
+
+//партии
+@defineDocumentAbstractDetailBatchCustom(receiptDetail, batch);
+@defineDocumentDetailBatchCustom(receiptSaleDetail, batch);
+@defineDocumentDetailBatchCustom(receiptReturnDetail, batch);
+
+batch(ReceiptSaleDetail detail) += batch(detail);
+batch(ReceiptReturnDetail detail) += batch(detail);
+
+replace(Sku s, Batch b) + {  sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) + {  sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
+
+changeBatch(ReceiptDetail detail)  { 
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
+                             t = dateTime(detail),
+                             sk = sku(detail),
+                             bt = batch(detail) INPUT NULL NEWSESSION DO 
+        batch(detail) <- bt;
+}
+
+overBNameSku(ReceiptDetail d) += documentNameSku(batch(d)) IF batch(d);
+
+EXTEND FORM zReport
+    PROPERTIES(d) nameBatch ON CHANGE changeBatch(d) SHOWIF explicitBatchLedger(b) BEFORE descriptionSale(d);
+EXTEND FORM zReports
+    PROPERTIES (d) READONLY nameBatch SHOWIF explicitBatchLedger(b) BEFORE descriptionSale(d);
+    
+overCopy(ReceiptDetail d, ReceiptDetail detail) +{ batch(d) <- batch[ReceiptSaleDetail](detail);}
+
+overPrice 'Цена' (Batch batch, Receipt receipt, DATETIME dateTime) =
+    IF priceA(priceListType(groupCashRegister(receipt)), batch, departmentStore(receipt), dateTime) THEN
+        priceA(priceListType(groupCashRegister(receipt)), batch, departmentStore(receipt), dateTime)
+    ELSE
+        overPrice(sku(batch), receipt, dateTime);  
+
+WHEN LOCAL FORMS zReport (CHANGED (sku(ReceiptDetail d)) OR CHANGED (batch(d))) AND explicitBatchLedger(receipt(d)) AND NOT (CHANGED (price(d))) DO {
+    price(d) <- overPrice(batch(d), receipt(d), dateTime(d));    
+}
