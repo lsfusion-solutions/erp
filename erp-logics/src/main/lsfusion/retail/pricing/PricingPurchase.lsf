@@ -168,10 +168,14 @@ EXTEND FORM userInvoice
 
 // Проставляем НДС розничный, равный НДС входному
 skipSetSkuVAT = ABSTRACT BOOLEAN (UserInvoiceDetail);
+
+setVAT = ABSTRACT CASE Range (UserInvoiceDetail);
+setVAT (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN VAT(detail);
+
 WHEN LOCAL CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
     retailVAT(detail) <- IF valueVAT(detail) == 0 AND NOT skipSetSkuVAT(detail) THEN
                                                VAT (sku(detail), country(supplierStock(detail)))
-                                          ELSE VAT(detail);
+                                          ELSE setVAT(detail);
 }
 
 // Добавляем на форму цену розничную (до)
