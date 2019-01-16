@@ -479,7 +479,9 @@ emailSupplierSingle  'Отправить акт поставщику' (SaleRepor
             calcEmailSupplier(report);
             
             APPLY;
-        } ELSE  MESSAGE 'У поставщика ' + nameSupplier(report) + ' не задан e-mail';
+        } ELSE  {
+            MESSAGE 'У поставщика ' + nameSupplier(report) + ' не задан e-mail' NOWAIT;
+        }
     }
 }
 
@@ -527,7 +529,7 @@ EXTEND FORM contractSkus
 
 filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
     BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
-
+overFillData  ABSTRACT (SaleReport);
 createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo)  { 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND NOT skipSaleLedger(c) DO {
@@ -541,6 +543,7 @@ createAutoSaleReport 'Создать акты реализации'(LegalEntity 
             fromDate(r) <- dateFrom;
             toDate(r) <- dateTo;
             fillData(r);
+            overFillData(r);
             IF countSaleReportDetail(r)  
                 THEN {
                     apply();
@@ -575,6 +578,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
             fromDate(r) <- fromDateFull(c);
             toDate(r) <- lastSaleDate();
             fillData(r);
+            overFillData(r);            
             IF countSaleReportDetail(r)  
                 THEN {
                     apply();
