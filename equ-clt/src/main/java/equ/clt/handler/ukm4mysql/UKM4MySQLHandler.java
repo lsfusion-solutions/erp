@@ -748,6 +748,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
+                    checkIndex(conn, "shift", "moneyoperation", "cash_id, shift_number");
+
                     Statement statement = conn.createStatement();
                     String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id";
                     if (lastDaysCashDocument != null) {
