@@ -59,6 +59,9 @@ retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [ round2((((X - X*Y/(100+Y
          CHANGED(supplierPrice(userInvoiceDetail));
 
 overRetailVAT = ABSTRACT VALUE Range (UserInvoiceDetail);
+// Принудительное обнуление НДС для тары в расценке
+overRetailVAT (UserInvoiceDetail detail) += valueCurrentVAT(countrySupplierStock(detail), 0) IF isContainer(sku(detail));
+   
 WHEN LOCAL FORMS userInvoice
     (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR 
      CHANGED(overRetailVAT(detail))) AND NOT CHANGED(retailVAT(detail)) DO {

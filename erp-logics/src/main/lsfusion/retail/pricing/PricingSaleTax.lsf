@@ -4,10 +4,14 @@ REQUIRE PricingSale, SkuLedgerTax;
 
 NAMESPACE Sale;
 
-overRetailVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF valueVAT(batch(detail)) != 0;
+overRetailVAT(UserInvoiceDetail detail) += VAT(batch(detail)) IF valueVAT(batch(detail)) != 0 AND NOT isContainer(sku(detail));
 
 // не меняем ставку НДС, если льготный НДС
 skipOverSetValueRetailVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+// Принудительное обнуление НДС для тары в расценке
+skipOverSetValueRetailVAT(UserInvoiceDetail detail) += isContainer(sku(detail));
+
 overSetValueRetailVAT(UserInvoiceDetail detail) += valueVAT(batch(detail)) IF valueVAT(batch(detail)) != 0 AND NOT skipOverSetValueRetailVAT(detail);
 
 // todo : временное решение, пока нету последовательности выполнения событий
