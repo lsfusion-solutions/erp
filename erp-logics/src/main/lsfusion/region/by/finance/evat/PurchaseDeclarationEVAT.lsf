@@ -25,6 +25,10 @@ DESIGN options {
 }
 
 VATSum[EVATDocument] (Declaration i) += NUMERIC[18,4]([ GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id)](i));
+
+overCreateEVATDetailDeclarationDetail ABSTRACT LIST (EVATDetail, DeclarationDetail);
+overCreateEVATDeclaration ABSTRACT LIST (EVAT, Declaration);
+
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo)  { 
     FOR date(Declaration d) >= dFrom AND
         NOT EVAT(d) AND
@@ -85,6 +89,8 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             sumWithVAT(ed) <- 0; // homeSum(id) (+) VATSum(id);
             
             descriptionType(ed) <- DescriptionType.importVAT;
+            
+            overCreateEVATDetailDeclarationDetail(ed,id);
         }
         FOR NUMERIC[16,5] vatSum == [ GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
             evat(ed) <- e;
@@ -98,6 +104,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             
             descriptionType(ed) <- DescriptionType.importVAT;
         }
+        overCreateEVATDeclaration(e,d); 
     } 
     APPLY;
 } CONFIRM;
