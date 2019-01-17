@@ -249,7 +249,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.MINUTE, -5); //хак: берём записи с отставанием на 5 минут
-        String dateFilter = String.format("TEDOCINS >= TO_TIMESTAMP('%s','YYYY-MM-DD HH24:MI:SS')", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime()));
+        String dateFilter = String.format("TEDOCINS <= TO_TIMESTAMP('%s','YYYY-MM-DD HH24:MI:SS')", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime()));
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
