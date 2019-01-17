@@ -56,7 +56,7 @@ createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock
             isPosted(r) <- TRUE;
     
             createDashboardRepricingNotFormBatchDetail(r, d, dt);
-            repForm() <- r;
+            inRepForm(r) <- TRUE;
         }
     }
 } TOOLBAR;
@@ -64,8 +64,10 @@ createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock
 createDashboardRepricingBatch 'Создать переоценку'(Stock d, Operation o, DATETIME dt)  { 
 	NEWSESSION NESTED LOCAL  {
 	    createDashboardRepricingNotFormBatch(d, o, dt);
-	    SHOW userRepricing OBJECTS p = repForm() DOCKED NOCANCEL;
-	    repForm() <- NULL;      
+	    FOR inRepForm(UserRepricing r) DO {
+	        SHOW userRepricing OBJECTS p = r DOCKED NOCANCEL;
+	    }
+	    inRepForm(UserRepricing r) <- NULL;
 	}
 }  
 

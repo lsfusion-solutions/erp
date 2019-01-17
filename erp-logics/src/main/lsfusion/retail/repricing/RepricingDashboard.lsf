@@ -233,13 +233,15 @@ DESIGN repricingDashboard {
 createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt)  { 
 	NEWSESSION NESTED LOCAL  {
 	    createDashboardRepricingNotForm(d, o, dt);
-	    DIALOG userRepricing OBJECTS p = repForm() DOCKED NOCANCEL DO {
-	        inDashboardRepricing(Sku sku) <- NULL;
-	        IF updateDateTime() THEN {
-	            SEEK repricingDashboard.t = currentDateTime();
-	        }	        
+	    FOR inRepForm(UserRepricing r) DO {
+	        DIALOG userRepricing OBJECTS p = r DOCKED NOCANCEL DO {
+                inDashboardRepricing(Sku sku) <- NULL;
+                IF updateDateTime() THEN {
+                    SEEK repricingDashboard.t = currentDateTime();
+                }	        
+            }
 	    }
-	    repForm() <- NULL;      
+	    inRepForm(UserRepricing r) <- NULL;      
 	}
 } 
 
