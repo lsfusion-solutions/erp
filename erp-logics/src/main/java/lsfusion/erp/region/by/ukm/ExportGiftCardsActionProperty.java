@@ -43,6 +43,11 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 if(checkUnderpay == null)
                     checkUnderpay = 0;
 
+                Integer monoAccount = (Integer) findProperty("monoAccountExportGiftCards[]").read(context);
+                if(monoAccount == null)
+                    monoAccount = 1;
+
+
                 if (connectionString != null) {
 
                     Class.forName("com.mysql.jdbc.Driver");
@@ -51,7 +56,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
 
                     Integer version = getVersion(connection) + 1;
 
-                    exportCertificateType(connection, giftCards, checkUnderpay, version);
+                    exportCertificateType(connection, giftCards, monoAccount, checkUnderpay, version);
                     exportCertificate(connection, giftCards, version);
                     exportCertificateOperations(connection, giftCards, version);
                     exportSignals(connection, version);
@@ -70,13 +75,13 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private void exportCertificateType(Connection connection, List<List<Object>> giftCards, int checkUnderpay, int version) throws SQLException {
+    private void exportCertificateType(Connection connection, List<List<Object>> giftCards, int monoAccount, int checkUnderpay, int version) throws SQLException {
         PreparedStatement statement = null;
         try {
             String sql = "INSERT INTO certificate_type (id, name, nominal, mono_account, check_underpay, " +
                     "multi_sell, allow_return, allow_return_payment, check_store, item_id, use_pincode, print_in_receipt, " +
                     "fixed_nominal, min_nominal, max_nominal, version, deleted) " +
-                    "VALUES(?, ?, ?, 1, ?, 0, 0, 0, 0, ?, 0, 1, 1, ?, ?, ?, 0) ON DUPLICATE KEY UPDATE nominal=VALUES(nominal), " +
+                    "VALUES(?, ?, ?, ?, ?, 0, 0, 0, 0, ?, 0, 1, 1, ?, ?, ?, 0) ON DUPLICATE KEY UPDATE nominal=VALUES(nominal), " +
                     "name=VALUES(name), " +
                     "item_id=VALUES(item_id), " +
                     "min_nominal=VALUES(min_nominal), max_nominal=VALUES(max_nominal), " +
@@ -86,11 +91,12 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 statement.setObject(1, giftCard.get(0)); //id
                 statement.setObject(2, giftCard.get(9)); //name
                 statement.setObject(3, giftCard.get(2)); //nominal
-                statement.setObject(4, checkUnderpay); //check_underpay
-                statement.setObject(5, giftCard.get(3)); //item_id
-                statement.setObject(6, giftCard.get(2)); //min_nominal
-                statement.setObject(7, giftCard.get(2)); //max_nominal
-                statement.setObject(8, version); //version
+                statement.setObject(4, monoAccount); //mono_account
+                statement.setObject(5, checkUnderpay); //check_underpay
+                statement.setObject(6, giftCard.get(3)); //item_id
+                statement.setObject(7, giftCard.get(2)); //min_nominal
+                statement.setObject(8, giftCard.get(2)); //max_nominal
+                statement.setObject(9, version); //version
                 statement.addBatch();
             }
             statement.executeBatch();
