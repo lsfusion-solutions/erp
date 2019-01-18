@@ -243,6 +243,7 @@ DESIGN giftCard {
 }
 
 allowPartiallyPayGiftCard 'Разрешить погашать сертификат частично' = DATA BOOLEAN ();
+dateSoldStartMultiPayment 'Дата продажи сертификатов, с которой их можно использовать несколько раз' = DATA DATE();
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
@@ -281,7 +282,7 @@ nameDepartmentStoreUsed 'Где использован последний раз
 numberReceiptUsed 'Номер чека (последнее использование)' (GiftCard g) = numberDocument(used(g));
 
 WHEN SETCHANGED(giftCard(UseGiftCard l)) AND [GROUP SUM 1 IF UseGiftCard ledger IS UseGiftCard BY giftCard(ledger)](giftCard(l))>1 AND l IS UseGiftCard AND NOT isSumPaymentReceipt() 
-    AND NOT allowPartiallyPayGiftCard() DO {
+    AND (NOT allowPartiallyPayGiftCard() OR (allowPartiallyPayGiftCard() AND dateSold(giftCard(l)) < dateSoldStartMultiPayment())) DO {
     MESSAGE 'Нельзя повторно использовать сертификат' NOWAIT;
     cancel();
 }    
@@ -331,7 +332,7 @@ CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) AND NOT allo
     CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать суммы всего чека';
 
 EXTEND FORM options
-    PROPERTIES allowPartiallyPayGiftCard()
+    PROPERTIES allowPartiallyPayGiftCard(), dateSoldStartMultiPayment()
 ;
 
 DESIGN options {
@@ -339,6 +340,7 @@ DESIGN options {
         NEW giftCards {
             caption = 'Подарочные сертификаты';
             MOVE PROPERTY(allowPartiallyPayGiftCard());
+            MOVE PROPERTY(dateSoldStartMultiPayment());
         }
     }
 }
