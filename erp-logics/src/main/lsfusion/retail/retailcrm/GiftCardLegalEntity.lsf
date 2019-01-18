@@ -1,0 +1,52 @@
+MODULE GiftCardLegalEntity;
+
+REQUIRE GiftCard;
+
+NAMESPACE GiftCard;
+
+
+legalEntity = DATA LegalEntity (GiftCard);
+nameLegalEntity 'Эмитент' (GiftCard g) = name(legalEntity(g));   
+
+legalEntityGiftCard = DATA LegalEntity ();
+nameLegalEntityGiftCard 'Эмитент подарочных сертификатов' = name(legalEntityGiftCard());
+
+EXTEND FORM giftCard 
+    PROPERTIES nameLegalEntity(g);
+    
+DESIGN giftCard {
+    topContainer {
+        MOVE PROPERTY(nameLegalEntity(g)) BEFORE PROPERTY (inactive(g));
+    }
+}
+
+EXTEND FORM giftCards 
+    PROPERTIES nameLegalEntity(g) BEFORE nameDepartmentStoreSold(g); 
+
+EXTEND FORM options 
+    PROPERTIES() nameLegalEntityGiftCard;
+    
+DESIGN options {
+    giftCards {
+        MOVE PROPERTY(nameLegalEntityGiftCard());             
+    }
+}
+
+generateLegalEntity 'Эмитент' = DATA LOCAL NESTED LegalEntity();
+nameGenerateLegalEntity 'Эмитент' = name(generateLegalEntity()); 
+seekGenerateLegalEntity()  { generateLegalEntity() <- legalEntityGiftCard(); }
+
+overGenerateGiftCards(g) + { legalEntity(g) <- generateLegalEntity(); }
+
+EXTEND FORM generationGiftCards
+    PROPERTIES nameGenerateLegalEntity()
+    
+    EVENTS 
+        ON INIT seekGenerateLegalEntity()
+;
+
+DESIGN generationGiftCards{
+    topContainer{
+        MOVE PROPERTY (nameGenerateLegalEntity());
+    }
+}

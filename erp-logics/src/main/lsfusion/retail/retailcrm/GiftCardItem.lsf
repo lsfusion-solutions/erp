@@ -39,16 +39,24 @@ FORM generationGiftCardsSku
     FILTERS itemGroup(s) == giftCardItemGroup()
 ;
 
-inputComplete = DATA LOCAL BOOLEAN ();
-generateSku = DATA LOCAL Sku ();
-overGenerateGiftCards(GiftCard g) + { 
-    IF NOT inputComplete() THEN {
-        DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
-            generateSku() <- s;
-        }
-        inputComplete () <- TRUE;
+generateSku 'Номинал' = DATA LOCAL NESTED Sku();
+nameGenerateSku 'Номинал' = name(generateSku()); 
+changeGenerateSku() {
+    DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
+        generateSku() <- s;
     }
-    sku(g) <- generateSku() ;
+}
+
+overGenerateGiftCards(g) + { sku(g) <- generateSku(); }
+
+EXTEND FORM generationGiftCards
+    PROPERTIES nameGenerateSku() ON CHANGE changeGenerateSku()
+;
+
+DESIGN generationGiftCards{
+    topContainer{
+        MOVE PROPERTY (nameGenerateSku());
+    }
 }
 
 //номиналы сертификатов

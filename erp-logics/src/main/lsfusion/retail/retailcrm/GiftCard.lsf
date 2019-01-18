@@ -76,8 +76,6 @@ dateSoldReturn 'Дата возврата' (GiftCard g) = date(soldReturn(g)) MA
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
 numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDocument(sold(g));
-legalEntity = DATA LegalEntity (GiftCard);
-nameLegalEntity 'Эмитент' (GiftCard g) = name(legalEntity(g));   
 
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, SaleGiftCard;
 TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
@@ -152,16 +150,11 @@ show(ReceiptGiftCardSaleDetail d)  {
 
 show(ReceiptGiftCardSaleDetail d) + {  show(d); }  
 
-legalEntityGiftCard = DATA LegalEntity ();
-nameLegalEntityGiftCard 'Эмитент подарочных сертификатов' = name(legalEntityGiftCard()); 
-
-EXTEND FORM options 
-    PROPERTIES() nameLegalEntityGiftCard;
 
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
     OBJECTS n=Numerator  PANEL
-    PROPERTIES(n) SELECTOR name
+    PROPERTIES(n) name SELECTOR , curValue
 
     OBJECTS quantityCards=INTEGER PANEL
     PROPERTIES(quantityCards) intValueQuantityCards = VALUE
@@ -174,9 +167,6 @@ FORM generationGiftCards 'Генерация подарочных сертифи
      
     OBJECTS d=INTEGER PANEL
     PROPERTIES(d) valueD = VALUE   
-         
-    OBJECTS l = LegalEntity PANEL 
-    PROPERTIES(l) SELECTOR name        
     
 ;
 
@@ -184,41 +174,47 @@ DESIGN generationGiftCards {
     BOX {
         NEW topContainer{
             caption = 'Параметры';
-            MOVE PROPERTY(name(n));
+            NEW numerator{
+                type = CONTAINERH;
+                MOVE PROPERTY(name(n)) {caption = 'Нумератор';}; 
+                MOVE PROPERTY(curValue(n));     
+            }
             MOVE PROPERTY(intValueQuantityCards) {caption = 'Количество подарочных сертификатов';}
             MOVE PROPERTY(valuePriceCards) {caption = 'Цена подарочных сертификатов';}
             MOVE PROPERTY(valueDt) {caption = 'Дата';}
             MOVE PROPERTY(valueD) {caption = 'Срок действия (дней)';}            
-            MOVE PROPERTY(name(l)) {caption = 'Эмитент';}            
-            
         }
         MOVE TOOLBARBOX;
     }
 }
 
 overGenerateGiftCards  ABSTRACT LIST ( GiftCard);
+iterateLong(LONG i, LONG from, LONG to) = RECURSION i==from AND from IS LONG AND to IS LONG STEP i==$i+1 AND i<=to CYCLES IMPOSSIBLE;
 
 generateGiftCards 'Сгенерировать ПС'()  { 
-    DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() INPUT, l = legalEntityGiftCard() INPUT,
-                                       quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT DO {
-        LOCAL num = INTEGER();
-        num() <- 0;
-        WHILE num() < quantityCards DO {
-            NEW g = GiftCard {
+    NEWSESSION {
+        DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() INPUT, 
+                                       quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT NOMANAGESESSION DO {
+            LOCAL from = LONG ();
+            LOCAL to = LONG ();
+            
+            APPLY NESTED LOCAL {
+                from() <- curValue(n);
+                to() <- curValue(n) + quantityCards - 1;
+                curValue(n) <- curValue(n) + quantityCards;
+            }
+            
+            FOR iterateLong(LONG i, from(), to()) NEW g = GiftCard DO {
                 numerator(g) <- n;
-                number(g) <- curStringValue(numerator(g));
-                series(g) <- series(numerator(g));
+                number(g) <- lpadStringWithZero(i, stringLength(n));
+                series(g) <- series(g);
                 price(g) <- priceCards;
                 date(g) <- dt;                
                 expiryDays(g) <- d;
-                legalEntity(g) <- l;    
                 
                 overGenerateGiftCards(g);
-                
-                curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(g);
             }
-
-            num() <- num() + 1;
+            APPLY;
         }
     }
 } TOOLBAR;
@@ -226,7 +222,7 @@ generateGiftCards 'Сгенерировать ПС'()  {
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard PANEL
-    PROPERTIES(g) nameNumerator, number, series, id SHOWIF showIDs(), date, price, expiryDays, nameLegalEntity, inactive
+    PROPERTIES(g) nameNumerator, number, series, id SHOWIF showIDs(), date, price, expiryDays, inactive
 
     EDIT GiftCard OBJECT g
 ;
@@ -241,7 +237,6 @@ DESIGN giftCard {
         MOVE PROPERTY(date(g));
         MOVE PROPERTY(expiryDays(g));
         MOVE PROPERTY(price(g));
-        MOVE PROPERTY(nameLegalEntity(g));
         MOVE PROPERTY(inactive(g));
     }
     MOVE TOOLBARBOX;
@@ -251,7 +246,7 @@ allowPartiallyPayGiftCard 'Разрешить погашать сертифик�
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLYIF isReadonly() inactive, number, series, id SHOWIF showIDs(), date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    PROPERTIES(g) READONLYIF isReadonly() inactive, number, series, id SHOWIF showIDs(), date, dateSold,  nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES(g) READONLY currentBalance SHOWIF allowPartiallyPayGiftCard() 
     PROPERTIES generateGiftCards() DRAW g 
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR 
@@ -344,7 +339,6 @@ DESIGN options {
         NEW giftCards {
             caption = 'Подарочные сертификаты';
             MOVE PROPERTY(allowPartiallyPayGiftCard());
-            MOVE PROPERTY(nameLegalEntityGiftCard());             
         }
     }
 }
