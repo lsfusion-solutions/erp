@@ -40,6 +40,8 @@ numSpelledRouble (NUMERIC[14,2] number, VARSTRING[10] decFormat) = numSpelled(nu
 
 template = DATA Template (MarketingInvoice);
 
+overCreateTask ABSTRACT LIST(MarketingInvoice);
+
 createTask 'Задание и Акт' (MarketingInvoice i)  { 
     NEWSESSION {
         NEW t = Template {
@@ -156,6 +158,7 @@ createTask 'Задание и Акт' (MarketingInvoice i)  {
         value(TemplateEntry d) <- OVERRIDE (postAddress(customer(i))), '' WHERE key(d) = 'POSTADDR_LE' AND template (d) == template(i);
         value(TemplateEntry d) <- OVERRIDE (addressBank(account(customer(i)))), '' WHERE key(d) = 'BANKADDR_LE' AND template (d) == template(i);
 
+        overCreateTask(i);
         process(template(i));
         open(resultTemplate());
     }

@@ -10,6 +10,7 @@ TABLE marketingInvoice(MarketingInvoice);
 contract = DATA ContractMarketing(MarketingInvoice) INDEXED;
 numberContract 'Номер договора маркетинга' (MarketingInvoice i) = number(contract(i));
 nameContract 'Наименование договора' (MarketingInvoice i) = name(contract(i));
+dateContract 'Дата договора' (MarketingInvoice i) = dateFrom(contract(i));
 date 'Дата акта' = DATA DATE (MarketingInvoice);
 dateTime 'Дата/время создания' = DATA DATETIME (MarketingInvoice);
 dateFromContract 'Дата с (договора)' (MarketingInvoice i) = dateFrom(contract(i));
@@ -153,18 +154,18 @@ WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) A
 
 condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
 
+in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
         contract(i) <- c;
                  
-        date(i) <- IF contractType(c) == ContractType.tradeBonus THEN lastDayOfMonth(dt)
-                   ELSE jumpWorkdays(defaultCountry(), lastDayOfMonth(dt), 1);
-                   
+        date(i) <- jumpWorkdays(defaultCountry(), sum(lastDayOfMonth(dt), 1), -1);
         dateTask(i) <- jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1);
-        dateAttachment(i) <- firstDayOfMonth(dt);                        
-        dateAgreement(i) <- IF contractType(c) == ContractType.tradeBonus THEN lastDayOfMonth(dt) ELSE currentDate();                          
-        dateFromProtocol(i) <- jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1); 
+        dateAttachment(i) <- df;                        
+        dateAgreement(i) <- df;                          
+        dateFromProtocol(i) <- df; 
         dateToProtocol(i) <- jumpWorkdays(defaultCountry(), lastDayOfMonth(dt), 1);
         dateFrom (i) <- df;
         dateTo (i) <- dt;
@@ -222,6 +223,9 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
                                     [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                                 WHEN calcBase(mc) == CalcBase.supplier THEN
                                     [ GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                   
+            in(md, Purchase.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);                 
+            in(md, PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
         }
         
         IF (GROUP SUM 1 IF contractMarketing(MarketingCondition mc) = c AND (calcBase(mc) == CalcBase.turnoverVAT 
@@ -481,14 +485,15 @@ DESIGN marketingInvoice {
 }
 
 FORM marketingInvoices 'Акты на оплату'
-    OBJECTS i = MarketingInvoice
-    PROPERTIES (i) READONLY isPosted, series, number, date, dateTime, dateFrom, dateTo, nameSuppler, nameCustomer, 
+    OBJECTS i = MarketingInvoice LAST 
+    PROPERTIES (i) READONLY isPosted, series, number, date, dateTime, dateFrom, dateTo, nameSuppler, nameCustomer, dateContract,
                    numberContract, nameContractType, marketingTypes, sum, VATSum, sumVAT, overSumVAT, overMinSum, averageMarketingPercent, sumCalcBase,
                    sumCalcBaseCustomer, averageMarketingPercentCustomer
     PROPERTIES (i) NEWSESSION EDIT, DELETE 
 
     OBJECTS d = MarketingInvoiceDetail
     PROPERTIES (d) READONLY nameSku, nameStock, nameConditionType, nameCalcBase, marketingPercent, quantity, sum, returnSum, sumMarketing
+    ORDER nameSku(d), nameStock(d)
     FILTERS marketingInvoice(d) = i
      
     OBJECTS c = MarketingCondition PANEL 
