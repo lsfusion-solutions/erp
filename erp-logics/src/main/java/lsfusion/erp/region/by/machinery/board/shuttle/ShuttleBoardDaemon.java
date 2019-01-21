@@ -65,11 +65,15 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
         return logicsInstance;
     }
 
-    protected void setupDaemon(String host, Integer port) throws IOException {
-        IoAcceptor acceptor = new NioSocketAcceptor();
-        acceptor.setHandler(new ShuttleHandler());
-        acceptor.getSessionConfig().setReadBufferSize(15);
-        acceptor.bind(new InetSocketAddress(host, port));
+    protected void setupDaemon(String host, Integer port) {
+        try {
+            IoAcceptor acceptor = new NioSocketAcceptor();
+            acceptor.setHandler(new ShuttleHandler());
+            acceptor.getSessionConfig().setReadBufferSize(15);
+            acceptor.bind(new InetSocketAddress(host, port));
+        } catch (IOException e) {
+            priceCheckerLogger.error("Error starting " + getEventName() + " Daemon: ", e);
+        }
     }
 
     @Override
@@ -79,7 +83,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
             String host = (String) LM.findProperty("hostShuttleBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShuttleBoard[]").read(session);
             setupDaemon(host != null ? host : "localhost", port != null ? port : 9101);
-        } catch (Exception e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
     }
