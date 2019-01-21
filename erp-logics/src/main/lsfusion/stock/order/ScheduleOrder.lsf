@@ -290,7 +290,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             WHILE tmpDate() <= toDate() DO {
             
                 IF tmpDate() >= ( IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE (MAX startDate(scheduleOrder), currentDate())) THEN {
-                    FOR in(scheduleOrder, Stock stock) DO { 
+                    FOR in(scheduleOrder, Stock stock) AND active(stock) DO { 
                         NEW o = ScheduleOrderDetail {
                             dateOrder(o) <- subtract(tmpDate(), dayBefore(scheduleOrder));
                             dateSupply(o) <- tmpDate();
@@ -313,7 +313,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= toDate() DO {
                 IF isWordInCSV(extractDay(tmpDate()), stringNumber(scheduleOrder)) == 1 THEN {
-                    FOR in(scheduleOrder, Stock stock) DO {                     
+                    FOR in(scheduleOrder, Stock stock) AND active(stock) DO {                     
                         NEW o = ScheduleOrderDetail {
                             tmpDateS() <- tmpDate();
                             scheduleOrder(o) <- scheduleOrder;
@@ -358,7 +358,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     IF inScheduleOrder(scheduleOrder, extractMonth(tmpDate())) AND shipmentScheduleOrderTime(scheduleOrder, extractDOW(tmpDate())) THEN {
                         LOCAL orderDate = DATE();
                         orderDate() <- subtract(tmpDate(), shipmentTime(shipmentScheduleOrderTime(scheduleOrder,extractDOW(tmpDate()))));
-                        FOR in(scheduleOrder, Stock stock) AND NOT tmpDate() <= lastDateSupply(scheduleOrder, stock) DO { //AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                      
+                        FOR in(scheduleOrder, Stock stock) AND active(stock) AND NOT tmpDate() <= lastDateSupply(scheduleOrder, stock) DO { //AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                      
                             NEW o = ScheduleOrderDetail {
                                 dateOrder(o) <- orderDate();
                                 dateSupply(o) <- tmpDate();
