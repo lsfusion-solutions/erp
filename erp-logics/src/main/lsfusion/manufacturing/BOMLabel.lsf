@@ -59,6 +59,10 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
     selectLabel(Sku sku, Stock stock) <- NULL;
 } TOOLBAR; 
 
+showBOM 'Показать спецификацию' (Sku s,Stock st)  { 
+    NEWSESSION SHOW BOM OBJECTS b = BOM(productOver(s,st)), p = productOver(s,st);  
+};
+
 FORM LabelProduct 'Печать ценников СП' 
     OBJECTS ds = DepartmentStore PANEL    
     PROPERTIES name(ds) SELECTOR
@@ -66,7 +70,7 @@ FORM LabelProduct 'Печать ценников СП'
     OBJECTS s = Sku
     PROPERTIES selectLabel(s,ds)
     PROPERTIES(s) READONLY id, name, idBarcode, expiryDays, hoursExpiryPack 
-    PROPERTIES(s,ds)  seriesProduct READONLY, numberProduct READONLY,manufactureDate ON CHANGE changeManufactureDate(s,ds), 
+    PROPERTIES(s,ds)  seriesProduct READONLY ON  CONTEXTMENU showBOM(s,ds), numberProduct READONLY ON  CONTEXTMENU showBOM(s,ds), manufactureDate ON CHANGE changeManufactureDate(s,ds), 
                       manufactureTime ON CHANGE changeManufactureTime(s,ds),
                       expiryDate, 
                       expiryTime             
@@ -89,13 +93,13 @@ textFastLabel (Product p) = CONCAT ' ', 'Белки: '+VARSTRING[10](round1(OVER
                                                     'Жиры: '+VARSTRING[10](round1(OVERRIDE fats(p), 0.0 )) +'г.',
                                                     'Углеводы: '+VARSTRING[10](round1(OVERRIDE carbohydrates(p), 0.0 )) +'г.';
                                                     
-textFastLabelCalc 'Жиры' (LabelTransactionDetail d) = IF product(d) THEN textFastLabel(product(d)) ELSE textFastLabel(sku(d));
+textFastLabelCalc 'Жиры' (LabelTransactionDetail d) = IF showNutrition(BOM(product(d))) THEN textFastLabel(product(d)) ELSE textFastLabel(sku(d));
 
 textEnergyLabel (Sku p) = CONCAT ' ', VARSTRING[10](INTEGER(energy(p) )) +' ккал /',
                                                            VARSTRING[10](INTEGER(energyParamsRound(energy(p)*4.184))) +' кДж.';                                                                                                                                                                                                                                             
 textEnergyLabel (Product p) = CONCAT ' ', VARSTRING[10](INTEGER(energy(p) )) +' ккал /',
                                                            VARSTRING[10](INTEGER(energyParamsRound(energy(p)*4.184))) +' кДж.';            
-textEnergyLabelCalc 'Ценность' (LabelTransactionDetail d) = IF product(d) THEN textEnergyLabel(product(d)) ELSE textEnergyLabel(sku(d)); 
+textEnergyLabelCalc 'Ценность' (LabelTransactionDetail d) = IF showNutrition(BOM(product(d))) THEN textEnergyLabel(product(d)) ELSE textEnergyLabel(sku(d)); 
                                                        
 numberStateStandart 'ТНПА' = DATA VARSTRING[100] (LabelTransactionDetail);
 manufactureDateTime 'Дата/время изготовления'  = DATA DATETIME (LabelTransactionDetail);
