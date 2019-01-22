@@ -96,13 +96,17 @@ GLNCustomer(EOrder e) = GLN(customer(e));
 
 EDIProvider 'Провайдер EDI' = DATA EDIProvider(LegalEntity);
 nameEDIProvider 'Провайдер EDI'(LegalEntity l) = staticCaption(EDIProvider(l));
-EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider;
+aliasEDSService 'Alias EDSService' = DATA VARSTRING[100] (LegalEntity);
+passwordEDSService 'Пароль EDSService' = DATA VARSTRING[100] (LegalEntity) ECHO;
+EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider, aliasEDSService, passwordEDSService;
 DESIGN legalEntity {
     column2{
         NEW EDI {
             caption = 'EDI';
             MOVE PROPERTY (GLN(l));
             MOVE PROPERTY (nameEDIProvider(l));
+            MOVE PROPERTY(aliasEDSService(l));
+            MOVE PROPERTY(passwordEDSService(l));
         }
     }
 }
@@ -412,6 +416,11 @@ nameCustomer 'Покупатель' (EInvoice i) = name(customer(i));
 glnCustomer 'GLN покупателя' (EInvoice i) = GLN(customer(i));
 addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
 unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
+
+aliasEDSServiceSupplier (EInvoice i) = aliasEDSService(supplier(i));
+aliasEDSServiceCustomer (EInvoice i) = aliasEDSService(customer(i));
+passwordEDSServiceSupplier (EInvoice i) = passwordEDSService(supplier(i));
+passwordEDSServiceCustomer (EInvoice i) = passwordEDSService(customer(i));
 
 customerStock 'Склад покупателя' = DATA Stock (EInvoice);
 glnCustomerStock 'GLN склада покупателя' (EInvoice i) = GLN(customerStock(i));

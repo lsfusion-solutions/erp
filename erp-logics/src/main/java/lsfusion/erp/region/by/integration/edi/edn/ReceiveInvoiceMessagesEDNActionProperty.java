@@ -32,14 +32,12 @@ public class ReceiveInvoiceMessagesEDNActionProperty extends ReceiveMessagesActi
             boolean disableConfirmation = findProperty("disableConfirmationEDN[]").read(context) != null;
             boolean receiveSupplierMessages = findProperty("receiveSupplierMessagesEDN[]").read(context) != null;
 
-            String aliasEDSService = (String) findProperty("aliasEDSServiceEDN[]").read(context);
-            String passwordEDSService = (String) findProperty("passwordEDSServiceEDN[]").read(context);
             String hostEDSService = (String) findProperty("hostEDSServiceEDN[]").read(context);
             Integer portEDSService = (Integer) findProperty("portEDSServiceEDN[]").read(context);
 
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
-                receiveMessages(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService,
+                receiveMessages(context, url, login, password, host, port, hostEDSService, portEDSService,
                         provider, archiveDir, disableConfirmation, receiveSupplierMessages, true, true);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");

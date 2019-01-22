@@ -103,34 +103,37 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
 
     protected String signDocument(String documentType, String invoiceNumber, String hostEDSService, Integer portEDSService, String xml, String aliasEDSService, String passwordEDSService, String charset) throws IOException, JDOMException {
         if (xml != null) {
-            String urlEDSService = String.format("http://%s:%s/eds/services/EDSService?wsdl", hostEDSService, portEDSService);
-            String responseMessage = getResponseMessage(sendRequest(hostEDSService, portEDSService, "eds", "eds", urlEDSService, createSignRequest(xml, aliasEDSService, passwordEDSService, charset), null, true));
-            String error = null;
-            SAXBuilder builder = new SAXBuilder();
-            Document document = builder.build(IOUtils.toInputStream(responseMessage));
-            Element rootNode = document.getRootElement();
-            Namespace ns = rootNode.getNamespace();
-            if (ns != null) {
-                Element body = rootNode.getChild("Body", ns);
-                if (body != null) {
-                    Element faultElement = body.getChild("Fault", ns);
-                    if (faultElement != null) {
-                        error = faultElement.getChildText("faultstring");
-                    } else {
-                        Element response = body.getChild("GetEDSResponse", ns2Namespace);
-                        if (response != null) {
-                            String waybill = response.getChildText("waybill");
-                            if (waybill != null) {
-                                responseMessage = StringEscapeUtils.unescapeXml(waybill);
+            if(aliasEDSService != null || passwordEDSService != null) {
+                String urlEDSService = String.format("http://%s:%s/eds/services/EDSService?wsdl", hostEDSService, portEDSService);
+                String responseMessage = getResponseMessage(sendRequest(hostEDSService, portEDSService, "eds", "eds", urlEDSService, createSignRequest(xml, aliasEDSService, passwordEDSService, charset), null, true));
+                String error = null;
+                SAXBuilder builder = new SAXBuilder();
+                Document document = builder.build(IOUtils.toInputStream(responseMessage));
+                Element rootNode = document.getRootElement();
+                Namespace ns = rootNode.getNamespace();
+                if (ns != null) {
+                    Element body = rootNode.getChild("Body", ns);
+                    if (body != null) {
+                        Element faultElement = body.getChild("Fault", ns);
+                        if (faultElement != null) {
+                            error = faultElement.getChildText("faultstring");
+                        } else {
+                            Element response = body.getChild("GetEDSResponse", ns2Namespace);
+                            if (response != null) {
+                                String waybill = response.getChildText("waybill");
+                                if (waybill != null) {
+                                    responseMessage = StringEscapeUtils.unescapeXml(waybill);
+                                }
                             }
-                        }
 
+                        }
                     }
                 }
+                if (error != null) throw new RuntimeException(String.format("%s %s не подписан. Ошибка: %s", documentType, invoiceNumber, error));
+                return responseMessage;
+            } else {
+                throw new RuntimeException("Alias or Password for EDSService not found");
             }
-            if (error != null)
-                throw new RuntimeException(String.format("%s %s не подписан. Ошибка: %s", documentType, invoiceNumber, error));
-            return responseMessage;
         } else
             return null;
     }

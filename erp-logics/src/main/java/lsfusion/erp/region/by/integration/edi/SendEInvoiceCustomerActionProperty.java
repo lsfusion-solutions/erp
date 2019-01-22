@@ -42,7 +42,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
     }
 
     protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
+                                String hostEDSService, Integer portEDSService,
                                 boolean useEDSServiceForCustomer, String outputDir, String provider)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if (context.getDbManager().isServer()) {
@@ -74,6 +74,9 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
 
                 String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);
                 String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
+
+                String aliasEDSService = (String) findProperty("aliasEDSServiceCustomer[EInvoice]").read(context, eInvoiceObject);
+                String passwordEDSService = (String) findProperty("passwordEDSServiceCustomer[EInvoice]").read(context, eInvoiceObject);
 
                 boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
 

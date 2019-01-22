@@ -47,12 +47,12 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
     }
 
     protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider,
-                                String outputDir, String hostEDSService, Integer portEDSService, String aliasEDSService, String passwordEDSService)
+                                String outputDir, String hostEDSService, Integer portEDSService)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (context.getDbManager().isServer()) {
 
             outputDir = outputDir == null ? null : (outputDir + "/sent");
-            if (hostEDSService != null && portEDSService != null && aliasEDSService != null && passwordEDSService != null) {
+            if (hostEDSService != null && portEDSService != null) {
 
 
                 DataObject eInvoiceObject = context.getDataKeyValue(eInvoiceInterface);
@@ -62,6 +62,9 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                 String documentDate = new SimpleDateFormat("yyyyMMddHHmmss").format(currentTime);
 
                 String referenceNumber = trim((String) findProperty("number[EInvoice]").read(context, eInvoiceObject));
+
+                String aliasEDSService = (String) findProperty("aliasEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
+                String passwordEDSService = (String) findProperty("passwordEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
 
                 String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
                 String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);

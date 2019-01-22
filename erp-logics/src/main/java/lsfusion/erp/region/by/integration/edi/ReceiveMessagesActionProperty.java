@@ -50,12 +50,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
                                    String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
-        receiveMessages(context, url, login, password, host, port, null, null, null, null, provider, archiveDir,
+        receiveMessages(context, url, login, password, host, port, null, null, provider, archiveDir,
                 disableConfirmation, false, sendReplies, invoices);
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
-                                   String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
+                                   String hostEDSService, Integer portEDSService,
                                    String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
                                    boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
@@ -91,7 +91,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, responseMessage, archiveDir, "GetDocuments");
                 switch (requestResult) {
                     case OK:
-                        importMessages(context, url, login, password, host, port, aliasEDSService, passwordEDSService, hostEDSService, portEDSService,
+                        importMessages(context, url, login, password, host, port, hostEDSService, portEDSService,
                                 provider, responseMessage, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
                         break;
                     case AUTHORISATION_ERROR:
@@ -112,7 +112,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                                String aliasEDSService, String passwordEDSService, String hostEDSService, Integer portEDSService,
+                                String hostEDSService, Integer portEDSService,
                                 String provider, String responseMessage, String archiveDir, boolean disableConfirmation,
                                 boolean receiveSupplierMessages, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
@@ -373,6 +373,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     //создаём BLRAPN и подписываем
                     ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
                     if (eInvoiceObject instanceof DataObject) {
+                        String aliasEDSService = (String) findProperty("aliasEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
+                        String passwordEDSService = (String) findProperty("passwordEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
                         String invoiceNumber = trim((String) findProperty("number[EInvoice]").read(context, eInvoiceObject));
                         String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
                         String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);

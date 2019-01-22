@@ -28,14 +28,12 @@ public class SendEInvoiceSupplierTopByActionProperty extends SendEInvoiceSupplie
             Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
             String outputDir = (String) findProperty("outputDirTopBy[]").read(context);
 
-            String aliasEDSService = (String) findProperty("aliasEDSServiceTopBy[]").read(context);
-            String passwordEDSService = (String) findProperty("passwordEDSServiceTopBy[]").read(context);
             String hostEDSService = (String) findProperty("hostEDSServiceTopBy[]").read(context);
             Integer portEDSService = (Integer) findProperty("portEDSServiceTopBy[]").read(context);
 
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                sendEInvoice(context, url, login, password, host, port, provider, outputDir, hostEDSService, portEDSService, aliasEDSService, passwordEDSService);
+                sendEInvoice(context, url, login, password, host, port, provider, outputDir, hostEDSService, portEDSService);
             } else {
                 ServerLoggers.importLogger.info(provider + " SendEInvoice: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
