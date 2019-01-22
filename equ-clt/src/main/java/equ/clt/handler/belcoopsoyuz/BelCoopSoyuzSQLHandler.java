@@ -383,6 +383,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         }
                     }
                 } else {
+                    //временный лог
+                    sendSalesLogger.info(logPrefix + String.format("Incorrect record: CEUNIKEY=%s, CEDOCCOD=%s, CEOBTYP=%s", id, cedoccod, type));
                     readRecordSet.add(id);
                 }
             }
