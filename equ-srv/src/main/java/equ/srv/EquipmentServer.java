@@ -34,7 +34,6 @@ import lsfusion.server.remote.RmiServer;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.util.Assert;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -933,7 +932,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Set<String> closedZReportSet = readClosedZReportSet(outerSession);
                         ListIterator<SalesInfo> iter = salesInfoList.listIterator();
                         while (iter.hasNext()) {
-                            if (closedZReportSet.contains(iter.next().getIdZReport(null))){
+                            if (closedZReportSet.contains(iter.next().getIdZReport())){
                                 iter.remove();
                             }
                         }
@@ -1026,30 +1025,26 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             Timestamp timeStart = getCurrentTimestamp();
 
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-            Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
             Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
 
             List<ImportProperty<?>> saleProperties = new ArrayList<>();
-            List<ImportField> saleFields = new ArrayList<>();
             List<ImportKey<?>> saleKeys = new ArrayList<>();
 
             List<ImportProperty<?>> returnProperties = new ArrayList<>();
-            List<ImportField> returnFields = new ArrayList<>();
             List<ImportKey<?>> returnKeys = new ArrayList<>();
 
             List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
-            List<ImportField> giftCardFields = new ArrayList<>();
             List<ImportKey<?>> giftCardKeys = new ArrayList<>();
 
             ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
-            saleFields.add(nppGroupMachineryField);
-            returnFields.add(nppGroupMachineryField);
-            giftCardFields.add(nppGroupMachineryField);
-
             ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
-            saleFields.add(nppMachineryField);
-            returnFields.add(nppMachineryField);
-            giftCardFields.add(nppMachineryField);
+            ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
+            ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
+            ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
+            ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
+            ImportField sumProtectedEndZReportField = new ImportField(zReportLM.findProperty("sumProtectedEnd[ZReport]"));
+            ImportField sumBackZReportField = new ImportField(zReportLM.findProperty("sumBack[ZReport]"));
+            ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
 
             ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
             cashRegisterKey.skipKey = true;
@@ -1057,36 +1052,24 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             returnKeys.add(cashRegisterKey);
             giftCardKeys.add(cashRegisterKey);
 
-            ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
-            saleFields.add(idZReportField);
-            returnFields.add(idZReportField);
-            giftCardFields.add(idZReportField);
-
             ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
             saleKeys.add(zReportKey);
             returnKeys.add(zReportKey);
             giftCardKeys.add(zReportKey);
 
-            ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
-            saleFields.add(numberZReportField);
-            returnFields.add(numberZReportField);
-            giftCardFields.add(numberZReportField);
-
-            ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
-            saleFields.add(dateZReportField);
-            returnFields.add(dateZReportField);
-            giftCardFields.add(dateZReportField);
-
-            ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
-            saleFields.add(timeZReportField);
-            returnFields.add(timeZReportField);
-            giftCardFields.add(timeZReportField);
+            List<ImportProperty<?>> commonZReportProperties = new ArrayList<>();
+            List<ImportField> commonZReportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField, idZReportField, numberZReportField,
+                    dateZReportField, timeZReportField, sumProtectedEndZReportField, sumBackZReportField, isPostedZReportField);
 
             ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
             ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
             saleKeys.add(receiptKey);
             returnKeys.add(receiptKey);
             giftCardKeys.add(receiptKey);
+
+            List<ImportField> saleFields = new ArrayList<>(commonZReportFields);
+            List<ImportField> returnFields = new ArrayList<>(commonZReportFields);
+            List<ImportField> giftCardFields = new ArrayList<>(commonZReportFields);
 
             ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
             saleFields.add(dateReceiptField);
@@ -1097,11 +1080,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleFields.add(timeReceiptField);
             returnFields.add(timeReceiptField);
             giftCardFields.add(timeReceiptField);
-
-            ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
-            saleFields.add(isPostedZReportField);
-            returnFields.add(isPostedZReportField);
-            giftCardFields.add(isPostedZReportField);
 
             ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
             saleFields.add(idEmployeeField);
@@ -1254,14 +1232,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
             }
 
-            //sale 2
-            saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+            commonZReportProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                     zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-            saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-            saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(sumProtectedEndZReportField, zReportLM.findProperty("sumProtectedEnd[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(sumBackZReportField, zReportLM.findProperty("sumBack[ZReport]").getMapping(zReportKey)));
+            commonZReportProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+
+            //sale 2
+            saleProperties.addAll(commonZReportProperties);
 
             saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
             saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1312,13 +1294,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             //return 2
-            returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                    zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-            returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-            returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+            returnProperties.addAll(commonZReportProperties);
 
             returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
             returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1375,13 +1351,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             //giftCard 2
             ImportKey<?> receiptGiftCardSaleDetailKey = null;
             if (giftCardLM != null) {
-                giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                        zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+                giftCardProperties.addAll(commonZReportProperties);
 
                 giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
                 giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1423,105 +1393,27 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
             }
 
-            List<List<Object>> dataSale = new ArrayList<>();
-            List<List<Object>> dataReturn = new ArrayList<>();
-            List<List<Object>> dataGiftCard = new ArrayList<>();
-
-            Map<Object, String> barcodeMap = new HashMap<>();
-            for (int i = start; i < finish; i++) {
-                SalesInfo sale = salesInfoList.get(i);
-                if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
-                    String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
-                            (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
-                    if (barcode == null && sale.itemObject != null) {
-                        barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
-                        barcodeMap.put(sale.itemObject, barcode);
-                    }
-                    if (barcode == null && sale.idItem != null) {
-                        barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                        //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
-                        if (barcode == null)
-                            barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
-                        barcodeMap.put(sale.idItem, barcode);
-                    }
-
-                    String idReceipt = sale.getIdReceipt(startDate, timeId);
-                    if (sale.isGiftCard) {
-                        //giftCard 3
-                        List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
-                                sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
-                        if (zReportSectionLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.idSection);
-                        }
-                        if (zReportExternalLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.externalSumZReport);
-                        }
-                        dataGiftCard.add(row);
-                    } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                        //return 3
-                        List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                                sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
-                        if (discountCardLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.seriesNumberDiscountCard);
-                        }
-                        if (zReportSectionLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.idSection);
-                        }
-                        if (zReportExternalLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.externalSumZReport);
-                        }
-                        dataReturn.add(row);
-                    } else {
-                        //sale 3
-                        List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                                sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
-                        if (discountCardLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.seriesNumberDiscountCard);
-                        }
-                        if (zReportSectionLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.idSection);
-                        }
-                        if (zReportExternalLM != null) {
-                            row = new ArrayList<>(row);
-                            row.add(sale.externalSumZReport);
-                        }
-                        dataSale.add(row);
-                    }
-                }
-            }
+            RowsData rowsData = getRowsData(session, salesInfoList, timeId, start, finish, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
             //sale 5
-            new IntegrationService(session, new ImportTable(saleFields, dataSale), saleKeys, saleProperties).synchronize(true);
+            new IntegrationService(session, new ImportTable(saleFields, rowsData.dataSale), saleKeys, saleProperties).synchronize(true);
 
             //return 5
-            new IntegrationService(session, new ImportTable(returnFields, dataReturn), returnKeys, returnProperties).synchronize(true);
+            new IntegrationService(session, new ImportTable(returnFields, rowsData.dataReturn), returnKeys, returnProperties).synchronize(true);
 
             //giftCard 5
             if (giftCardLM != null)
-                new IntegrationService(session, new ImportTable(giftCardFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
 
-            EquipmentServerImport.importPaymentMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, startDate, timeId);
+            EquipmentServerImport.importPaymentMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, timeId);
 
-            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, startDate, timeId);
+            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, timeId);
 
 
             session.setKeepLastAttemptCountMap(true);
             String result = session.applyMessage(getBusinessLogics(), stack);
             if (result == null) {
-                logCompleteMessageMultiThread(stack, session, salesInfoList, start, finish, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
+                logCompleteMessageMultiThread(stack, session, salesInfoList, start, finish, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
             } else
                 return result;
         }
@@ -1558,24 +1450,28 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
-                Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
                 Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
 
                 List<ImportKey<?>> saleKeys = new ArrayList<>();
 
                 ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
                 ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
-
                 ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
                 ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
                 ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
                 ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
+                ImportField sumProtectedEndZReportField = new ImportField(zReportLM.findProperty("sumProtectedEnd[ZReport]"));
+                ImportField sumBackZReportField = new ImportField(zReportLM.findProperty("sumBack[ZReport]"));
+                ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
+
+                List<ImportProperty<?>> commonZReportProperties = new ArrayList<>();
+                List<ImportField> commonZReportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField, idZReportField, numberZReportField,
+                        dateZReportField, timeZReportField, sumProtectedEndZReportField, sumBackZReportField, isPostedZReportField);
 
                 ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
                 ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
                 ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
                 ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
-                ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
 
                 ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
                 ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstName[Contact]"));
@@ -1645,14 +1541,23 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 if(sectionKey != null)
                     saleKeys.add(sectionKey);
 
-                //sale 2
-                saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                commonZReportProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                         zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(sumProtectedEndZReportField, zReportLM.findProperty("sumProtectedEnd[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(sumBackZReportField, zReportLM.findProperty("sumBack[ZReport]").getMapping(zReportKey)));
+                commonZReportProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+
+                commonZReportProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                commonZReportProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                commonZReportProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                commonZReportProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
+
+                //sale 2
+                saleProperties.addAll(commonZReportProperties);
 
                 saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
                 saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1705,13 +1610,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 //return 2
-                returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                        zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+                returnProperties.addAll(commonZReportProperties);
 
                 returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
                 returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1766,13 +1665,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 //giftCard 2
                 ImportKey<?> receiptGiftCardSaleDetailKey = null;
                 if (giftCardLM != null) {
-                    giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
-                    giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
-                    giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
-                            zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                    giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
-                    giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
-                    giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
+                    giftCardProperties.addAll(commonZReportProperties);
 
                     giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
                     giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
@@ -1813,92 +1706,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
                 }
 
-                List<List<Object>> dataSale = new ArrayList<>();
-                List<List<Object>> dataReturn = new ArrayList<>();
-                List<List<Object>> dataGiftCard = new ArrayList<>();
-
-                Map<Object, String> barcodeMap = new HashMap<>();
-                for (SalesInfo sale : data) {
-                    if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
-                        String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
-                                (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
-                        if (barcode == null && sale.itemObject != null) {
-                            barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
-                            barcodeMap.put(sale.itemObject, barcode);
-                        }
-                        if (barcode == null && sale.idItem != null) {
-                            barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                            //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
-                            if (barcode == null)
-                                barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
-                            barcodeMap.put(sale.idItem, barcode);
-                        }
-
-                        String idReceipt = sale.getIdReceipt(startDate, timeId);
-                        if (sale.isGiftCard) {
-                            //giftCard 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
-                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
-                            if (zReportSectionLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.idSection);
-                            }
-                            if(zReportExternalLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.externalSumZReport);
-                            }
-                            dataGiftCard.add(row);
-                        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                            //return 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                                    sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
-                            if (discountCardLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.seriesNumberDiscountCard);
-                            }
-                            if (zReportSectionLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.idSection);
-                            }
-                            if(zReportExternalLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.externalSumZReport);
-                            }
-                            dataReturn.add(row);
-                        } else {
-                            //sale 3
-                            List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                    sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                    idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                                    sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
-                            if (discountCardLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.seriesNumberDiscountCard);
-                            }
-                            if (zReportSectionLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.idSection);
-                            }
-                            if(zReportExternalLM != null) {
-                                row = new ArrayList<>(row);
-                                row.add(sale.externalSumZReport);
-                            }
-                            dataSale.add(row);
-                        }
-                    }
-                }
+                RowsData rowsData = getRowsData(session, data, timeId, 0, data.size(), ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
                 //sale 4
-                List<ImportField> saleImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                List<ImportField> saleImportFields = new ArrayList<>(commonZReportFields);
+                saleImportFields.addAll(Arrays.asList(dateReceiptField, timeReceiptField,
                         idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
                         idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
-                        discountPercentReceiptSaleDetailField, discountSumReceiptSaleDetailField, discountSumSaleReceiptField);
+                        discountPercentReceiptSaleDetailField, discountSumReceiptSaleDetailField, discountSumSaleReceiptField));
                 if (discountCardLM != null) {
                     saleImportFields = new ArrayList<>(saleImportFields);
                     saleImportFields.add(seriesNumberDiscountCardField);
@@ -1913,12 +1729,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 //return 4
-                List<ImportField> returnImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                List<ImportField> returnImportFields = new ArrayList<>(commonZReportFields);
+                returnImportFields.addAll(Arrays.asList(dateReceiptField, timeReceiptField,
                         idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
                         idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
-                        discountSumReceiptReturnDetailField, discountSumReturnReceiptField, idSaleReceiptReceiptReturnDetailField);
+                        discountSumReceiptReturnDetailField, discountSumReturnReceiptField, idSaleReceiptReceiptReturnDetailField));
                 if (discountCardLM != null) {
                     returnImportFields = new ArrayList<>(returnImportFields);
                     returnImportFields.add(seriesNumberDiscountCardField);
@@ -1933,11 +1749,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 //giftCard 4
-                List<ImportField> giftCardImportFields = Arrays.asList(nppGroupMachineryField, nppMachineryField,
-                        idZReportField, numberZReportField, dateZReportField, timeZReportField, dateReceiptField, timeReceiptField, isPostedZReportField,
+                List<ImportField> giftCardImportFields = new ArrayList<>(commonZReportFields);
+                giftCardImportFields.addAll(Arrays.asList(dateReceiptField, timeReceiptField,
                         idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
                         idReceiptDetailField, numberReceiptDetailField, idGiftCardField,
-                        priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField, isReturnReceiptGiftCardSaleDetailField);
+                        priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField, isReturnReceiptGiftCardSaleDetailField));
                 if (zReportSectionLM != null) {
                     giftCardImportFields = new ArrayList<>(giftCardImportFields);
                     giftCardImportFields.add(idSectionField);
@@ -1948,7 +1764,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 //sale 5
-                new IntegrationService(session, new ImportTable(saleImportFields, dataSale), saleKeys, saleProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(saleImportFields, rowsData.dataSale), saleKeys, saleProperties).synchronize(true);
 
                 //return 5
                 List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey, receiptSaleDetailReceiptReturnDetailKey);
@@ -1960,23 +1776,23 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     returnKeys = new ArrayList<>(returnKeys);
                     returnKeys.add(sectionKey);
                 }
-                new IntegrationService(session, new ImportTable(returnImportFields, dataReturn), returnKeys, returnProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(returnImportFields, rowsData.dataReturn), returnKeys, returnProperties).synchronize(true);
 
                 //giftCard 5
                 if (giftCardLM != null) {
                     List<ImportKey<?>> giftCardKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptGiftCardSaleDetailKey, giftCardKey, employeeKey);
-                    new IntegrationService(session, new ImportTable(giftCardImportFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
+                    new IntegrationService(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                 }
 
-                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, startDate, timeId);
+                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, timeId);
 
-                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, startDate, timeId);
+                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, timeId);
 
 
                 session.setKeepLastAttemptCountMap(true);
                 String result = session.applyMessage(getBusinessLogics(), stack);
                 if (result == null) {
-                    logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
+                    logCompleteMessage(stack, session, data, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
                 } else
                     return result;
             }
@@ -2392,6 +2208,106 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             result.add(idZReport);
         }
         return result;
+    }
+
+    private RowsData getRowsData(DataSession session, List<SalesInfo> data, Boolean timeId, int start, int finish, boolean ignoreReceiptsAfterDocumentsClosedDate,
+                                 List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<List<Object>> dataSale = new ArrayList<>();
+        List<List<Object>> dataReturn = new ArrayList<>();
+        List<List<Object>> dataGiftCard = new ArrayList<>();
+        Map<Object, String> barcodeMap = new HashMap<>();
+        for (int i = start; i < finish; i++) {
+            SalesInfo sale = data.get(i);
+            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
+                String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
+                        (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
+                if (barcode == null && sale.itemObject != null) {
+                    barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
+                    barcodeMap.put(sale.itemObject, barcode);
+                }
+                if (barcode == null && sale.idItem != null) {
+                    barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                    //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
+                    if (barcode == null)
+                        barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);
+                    barcodeMap.put(sale.idItem, barcode);
+                }
+
+                String idReceipt = sale.getIdReceipt(timeId);
+                BigDecimal sumProtectedEnd = sale.zReportInfo != null ? sale.zReportInfo.sumProtectedEnd : null;
+                BigDecimal sumBack = sale.zReportInfo != null ? sale.zReportInfo.sumBack : null;
+                if (sale.isGiftCard) {
+                    //giftCard 3
+                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumProtectedEnd, sumBack, true,
+                            sale.dateReceipt, sale.timeReceipt, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(timeId), sale.numberReceiptDetail, barcode,
+                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
+                    if (zReportSectionLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.idSection);
+                    }
+                    if (zReportExternalLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.zReportInfo.externalSum);
+                    }
+                    dataGiftCard.add(row);
+                } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+                    //return 3
+                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumProtectedEnd, sumBack, true,
+                            sale.dateReceipt, sale.timeReceipt, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                            sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
+                    if (discountCardLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.seriesNumberDiscountCard);
+                    }
+                    if (zReportSectionLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.idSection);
+                    }
+                    if (zReportExternalLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.zReportInfo.externalSum);
+                    }
+                    dataReturn.add(row);
+                } else {
+                    //sale 3
+                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumProtectedEnd, sumBack, true,
+                            sale.dateReceipt, sale.timeReceipt, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
+                    if (discountCardLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.seriesNumberDiscountCard);
+                    }
+                    if (zReportSectionLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.idSection);
+                    }
+                    if (zReportExternalLM != null) {
+                        row = new ArrayList<>(row);
+                        row.add(sale.zReportInfo.externalSum);
+                    }
+                    dataSale.add(row);
+                }
+            }
+        }
+        return new RowsData(dataSale, dataReturn, dataGiftCard);
+    }
+
+    private class RowsData {
+        List<List<Object>> dataSale;
+        List<List<Object>> dataReturn;
+        List<List<Object>> dataGiftCard;
+
+        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard) {
+            this.dataSale = dataSale;
+            this.dataReturn = dataReturn;
+            this.dataGiftCard = dataGiftCard;
+        }
     }
 
 

@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SalesInfo implements Serializable {
+    public ZReportInfo zReportInfo;
     public boolean isGiftCard;
     public boolean isReturnGiftCard;
     public Integer nppGroupMachinery;
@@ -42,7 +43,6 @@ public class SalesInfo implements Serializable {
     public String filename;
     public String idSection;
     public CashRegisterInfo cashRegisterInfo;
-    public BigDecimal externalSumZReport;
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
@@ -160,18 +160,15 @@ public class SalesInfo implements Serializable {
     }
 
     //startDate - для обратной совместимости
-    public String getIdZReport(Date startDate) {
-        if (dateZReport != null && (startDate == null || startDate.compareTo(dateZReport) <= 0))
-            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport);
-        else
-            return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
+    public String getIdZReport() {
+        return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + (dateZReport != null ? ("_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport)) : "");
     }
     
-    public String getIdReceipt(Date startDate, Boolean timeId) {
-        return getIdZReport(startDate) + "_" + numberReceipt + (timeId != null && timeId.equals(Boolean.TRUE) ? "_" + timeReceipt : "");
+    public String getIdReceipt(Boolean timeId) {
+        return getIdZReport() + "_" + numberReceipt + (timeId != null && timeId.equals(Boolean.TRUE) ? "_" + timeReceipt : "");
     }
 
-    public String getIdReceiptDetail(Date startDate, Boolean timeId) {
-        return getIdReceipt(startDate, timeId) + "_" + numberReceiptDetail;
+    public String getIdReceiptDetail(Boolean timeId) {
+        return getIdReceipt(timeId) + "_" + numberReceiptDetail;
     }
 }
