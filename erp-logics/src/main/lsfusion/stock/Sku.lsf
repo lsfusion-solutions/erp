@@ -114,7 +114,7 @@ CLASS CustomGroup 'Дополнительный классификатор SKU' 
 TABLE customGroup (CustomGroup);
 
 
-@defineExternalizable(customGroup, VARSTRING[100]);
+id '{integration.id}' = DATA VARSTRING[100] (CustomGroup) IN id INDEXED CHARWIDTH 10;
 id(CustomGroup group) += id(group) IF group IS CustomGroup;
 
 name 'Наименование' = DATA VARISTRING[250](CustomGroup) MATERIALIZED INDEXED CHARWIDTH 20;
@@ -138,7 +138,7 @@ name(CustomGroupType type) += name(type) IF type IS CustomGroupType;
 customGroupType = DATA CustomGroupType (CustomGroup) AUTOSET NONULL DELETE;
 nameCustomGroupType 'Тип классификатора' (CustomGroup customGroup) = name(customGroupType(customGroup));
 
-customGroupIdCustomGroup (id, idType) = GROUP AGGR CustomGroup customGroup BY id(customGroup), id(customGroupType(customGroup));
+customGroup (id, type) = GROUP AGGR CustomGroup customGroup BY id(customGroup), customGroupType(customGroup);
 
 CONSTRAINT customGroupType(parent(CustomGroup group)) != customGroupType(group)
            CHECKED BY parent[CustomGroup] MESSAGE 'Родительский объект классификатора SKU имеет неправильный тип';
