@@ -90,8 +90,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 conn.setAutoCommit(true);
                 try(Statement statement = conn.createStatement()) {
                     if (transaction.snapshot) {
-                        statement.execute("DELETE FROM cl1_bks.l9sk34"); //на truncate не дают прав
-                            //truncateStatement.execute("TRUNCATE TABLE cl1_bks.l9sk34");
+                        String section = null;
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            section = item.section != null && item.section.contains(" ") ? item.section.split(" ")[0] : null;
+                            break;
+                        }
+                        if(section != null) {
+                            statement.execute("DELETE FROM cl1_bks.l9sk34 WHERE CEUNIREF0=" + section);
+                        }
                     } else {
                         statement.execute(String.format("UPDATE cl1_bks.l9sk34 SET TEDOCACT = TO_DATE('%s','YYYY-MM-DD HH24:MI:SS')", tedocactString));
                     }
