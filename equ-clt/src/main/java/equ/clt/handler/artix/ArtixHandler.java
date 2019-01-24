@@ -997,8 +997,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     BigDecimal sumBack = null;
                                     for (int i = 0; i < kkms.length(); i++) {
                                         JSONObject kkmsObject = kkms.getJSONObject(i);
-                                        sumProtectedEnd = BigDecimal.valueOf(kkmsObject.getDouble("sumProtectedEnd"));
-                                        sumBack = BigDecimal.valueOf(kkmsObject.getDouble("sumBack"));
+                                        sumProtectedEnd = getBigDecimal(kkmsObject, "sumProtectedEnd");
+                                        sumBack = getBigDecimal(kkmsObject, "sumBack");
                                     }
                                     
                                     if (!timeBeg.equals("null")) {
@@ -1212,6 +1212,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         return (cashierTimeList.isEmpty() && salesInfoList.isEmpty() && filePathSet.isEmpty()) ? null :
                 new ArtixSalesBatch(salesInfoList, cashierTimeList, filePathSet);
+    }
+
+    private BigDecimal getBigDecimal(JSONObject obj, String key) throws JSONException {
+        Object object = obj.get(key);
+        if (object instanceof BigDecimal) {
+            return (BigDecimal)object;
+        } else return null;
     }
 
     public List<CashierTime> readCashierTime(File file, Map<Integer, CashRegisterInfo> departNumberCashRegisterMap) throws JSONException, ParseException, IOException {
