@@ -2,19 +2,6 @@ MODULE FiscalEpson;
 
 REQUIRE POS, POSSection;
 
-disableLoadLibrary 'Отключить загрузку библиотеки Epson' = DATA BOOLEAN (Computer);
-EXTEND FORM computer
-    PROPERTIES(c) disableLoadLibrary
-;
-
-needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'Epson';
-onClientStarted() + { 
-	IF needDLL() THEN {
-	    IF NOT is64Java(currentComputer()) AND NOT disableLoadLibrary(currentComputer()) THEN
-	        loadLibrary('lib/win32/uniFiscalOcx.dll');
-	}
-};
-
 fiscalEpsonComment 'Дополнительный текст для чека Epson' = ABSTRACT TEXT (Receipt);
 fiscalEpsonComment 'Дополнительный текст для строки чека Epson' = ABSTRACT TEXT (ReceiptDetail);
 
