@@ -38,7 +38,8 @@ countDaysActiveScales 'Количество дней для неактивнос
 
 closeInactiveScales 'Отключить загрузку в неактивные весы' () {
     NEWSESSION {
-        inactive(Scales s) <- TRUE WHERE active(groupScales(s)) AND NOT  (GROUP MAX dateTimeSucceeded(s, ScalesPriceTransaction pt) ) > sumDay(currentDateTime(), -countDaysActiveScales());
+        inactive(Scales s) <- TRUE WHERE active(groupScales(s)) AND (GROUP MAX dateTime(ScalesPriceTransaction pt) IF filter(s, pt) ) > sumDay(currentDateTime(), -countDaysActiveScales())
+            AND NOT (GROUP MAX dateTimeSucceeded(s, ScalesPriceTransaction pt) IF filter(s, pt)) > sumDay(currentDateTime(), -countDaysActiveScales());
         
         IF (GROUP SUM 1 IF CHANGED(inactive(Scales s)))  THEN {
             MESSAGE 'Отключено ' + (GROUP SUM 1 IF CHANGED(inactive(Scales s) )) + ' весов' NOWAIT;
