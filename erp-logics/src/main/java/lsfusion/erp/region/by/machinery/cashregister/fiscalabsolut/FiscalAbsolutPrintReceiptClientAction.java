@@ -20,7 +20,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     int operatorNumber;
     ReceiptInstance receipt;
     String receiptTop;
-    String receiptBottom;
+    String receiptBeforePayment;
+    String receiptAfterPayment;
     String receiptCode128;
     boolean saveCommentOnFiscalTape;
     boolean groupPaymentsByVAT;
@@ -35,7 +36,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String machineryNumber;
 
     public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                                 ReceiptInstance receipt, String receiptTop, String receiptBottom,
+                                                 ReceiptInstance receipt, String receiptTop, String receiptBeforePayment, String receiptAfterPayment,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
                                                  boolean giftCardAsNotPayment, String giftCardAsNotPaymentText, boolean sumPayment,
                                                  Integer maxLines, boolean printSumWithDiscount, boolean useSKNO, String UNP,
@@ -47,7 +48,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
         this.receipt = receipt;
         this.receiptTop = receiptTop;
-        this.receiptBottom = receiptBottom;
+        this.receiptBeforePayment = receiptBeforePayment;
+        this.receiptAfterPayment = receiptAfterPayment;
         this.receiptCode128 = receiptCode128;
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
         this.groupPaymentsByVAT = groupPaymentsByVAT;
@@ -167,7 +169,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             if (!FiscalAbsolut.subtotal())
                 return false;
 
-            FiscalAbsolut.printFiscalText(receiptBottom);
+            FiscalAbsolut.printFiscalText(receiptBeforePayment);
 
             if (!FiscalAbsolut.totalCard(receipt.sumCard))
                 return false;
@@ -176,6 +178,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             if(receipt.sumCard == null && receipt.sumCash == null && !sum.equals(BigDecimal.ZERO))
                 if(!FiscalAbsolut.totalCash(BigDecimal.ZERO))
                     return false;
+
+            FiscalAbsolut.printFiscalText(receiptAfterPayment);
 
         } else {
 
@@ -200,7 +204,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 if (!FiscalAbsolut.subtotal())
                     return false;
 
-                FiscalAbsolut.printFiscalText(receiptBottom);
+                FiscalAbsolut.printFiscalText(receiptBeforePayment);
 
                 if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
                     return false;
@@ -208,6 +212,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                     return false;
                 if (!FiscalAbsolut.totalCash(receipt.sumCash))
                     return false;
+
+                FiscalAbsolut.printFiscalText(receiptAfterPayment);
 
             } else {
 
@@ -239,7 +245,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 if (!FiscalAbsolut.discountReceipt(receipt))
                     return false;
 
-                if (!FiscalAbsolut.printFiscalText(receiptBottom))
+                if (!FiscalAbsolut.printFiscalText(receiptBeforePayment))
                     return false;
 
                 if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
@@ -248,6 +254,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                     return false;
                 if (!FiscalAbsolut.totalCash(receipt.sumCash))
                     return false;
+
+                FiscalAbsolut.printFiscalText(receiptAfterPayment);
             }
 
         }

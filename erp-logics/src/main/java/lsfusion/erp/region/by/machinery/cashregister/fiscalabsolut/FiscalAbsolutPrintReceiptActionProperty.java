@@ -44,7 +44,8 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
             String fiscalAbsolutReceiptTop = (String) findProperty("fiscalAbsolutTop[Receipt]").read(context, receiptObject);
-            String fiscalAbsolutReceiptBottom = (String) findProperty("fiscalAbsolutBottom[Receipt]").read(context, receiptObject);
+            String fiscalAbsolutBeforePayment = (String) findProperty("fiscalAbsolutBeforePayment[Receipt]").read(context, receiptObject);
+            String fiscalAbsolutAfterPayment = (String) findProperty("fiscalAbsolutAfterPayment[Receipt]").read(context, receiptObject);
             String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
 
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
@@ -173,7 +174,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
+                            fiscalAbsolutReceiptTop, fiscalAbsolutBeforePayment, fiscalAbsolutAfterPayment, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
                             giftCardAsNotPayment, giftCardAsNotPaymentText, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO, UNP, regNumber, machineryNumber));
                     if (result != null) {
                         if (result instanceof Integer) {
