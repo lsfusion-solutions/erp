@@ -815,7 +815,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
-                boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword((DataObject) customUser, password, stack);
+                boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
                 DataObject result = authenticated ? (DataObject) customUser : null;
                 if(result != null) {
                     ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
