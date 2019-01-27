@@ -39,10 +39,10 @@ public class TerminalDocumentEquipmentServer {
         terminalLM = BL.getModule("EquipmentTerminal");
     }
 
-    public static List<TerminalInfo> readTerminalInfo(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
+    public static List<TerminalInfo> readTerminalInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
         List<TerminalInfo> terminalInfoList = new ArrayList<>();
         if (terminalLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 KeyExpr groupTerminalExpr = new KeyExpr("groupTerminal");
                 KeyExpr terminalExpr = new KeyExpr("terminal");
@@ -86,7 +86,7 @@ public class TerminalDocumentEquipmentServer {
         return terminalInfoList;
     }
 
-    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
+    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
         try {
 
             List<ImportProperty<?>> props = new ArrayList<>();
@@ -219,7 +219,7 @@ public class TerminalDocumentEquipmentServer {
 
                 ImportTable table = new ImportTable(fields, data);
 
-                try (DataSession session = dbManager.createSession()) {
+                try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_TI");
                     IntegrationService service = new IntegrationService(session, table, keys, props);
                     service.synchronize(true, false);

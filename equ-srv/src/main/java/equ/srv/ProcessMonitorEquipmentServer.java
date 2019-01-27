@@ -23,17 +23,17 @@ public class ProcessMonitorEquipmentServer {
         equLM = BL.getModule("Equipment");
     }
 
-    public static boolean needUpdateProcessMonitor(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
-        try (DataSession session = dbManager.createSession()) {
+    public static boolean needUpdateProcessMonitor(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
+        try (DataSession session = server.createSession()) {
             return equLM.findProperty("needLogProcesses[VARSTRING[20]]").read(session, new DataObject(sidEquipmentServer)) != null;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static void logProcesses(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, String sidEquipmentServer, String data) throws RemoteException, SQLException {
+    public static void logProcesses(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, String sidEquipmentServer, String data) throws RemoteException, SQLException {
 
-        try (DataSession session = dbManager.createSession()) {
+        try (DataSession session = server.createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             if(equipmentServerObject instanceof DataObject) {
                 DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));

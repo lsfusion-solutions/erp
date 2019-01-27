@@ -42,7 +42,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
     @Override
     protected void onStarted(LifecycleEvent event) {
         startLogger.info("Starting " + getEventName() + " Daemon");
-        try (DataSession session = dbManager.createSession()) {
+        try (DataSession session = createSession()) {
             String host = (String) LM.findProperty("hostCheckWayBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portCheckWayBoard[]").read(session);
             setupDaemon(dbManager, host, port != null ? port : 9102);
@@ -125,7 +125,7 @@ public class CheckWayBoardDaemon extends BoardDaemon {
             //хак. Иногда приходит штрихкод, начинающийся с F
             if(idBarcode.startsWith("F"))
                 idBarcode = idBarcode.substring(1);
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
                 String piecePrefix = (String) LM.findProperty("piecePrefixIP").read(session, new DataObject(ip));

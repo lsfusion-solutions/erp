@@ -47,7 +47,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
             
             if (HTCPromotionLM != null) {
 
-                try (DataSession session = logicsInstance.getDbManager().createSession()) {
+                try (DataSession session = createSession()) {
 
                     //PromotionTime
                     KeyExpr htcPromotionTimeExpr = new KeyExpr("htcPromotionTime");

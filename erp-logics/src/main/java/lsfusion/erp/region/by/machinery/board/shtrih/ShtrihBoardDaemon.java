@@ -43,7 +43,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
     @Override
     protected void onStarted(LifecycleEvent event) {
         startLogger.info("Starting " + getEventName() + " Daemon");
-        try (DataSession session = dbManager.createSession()) {
+        try (DataSession session = createSession()) {
             String host = (String) LM.findProperty("hostShtrihBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShtrihBoard[]").read(session);
             setupDaemon(dbManager, host, port != null ? port : 2004);
@@ -118,7 +118,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
         private byte[] readMessage(String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             byte[] messageBytes = null;
             int length = 60;
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
                 String piecePrefix = (String) LM.findProperty("piecePrefixIP").read(session, new DataObject(ip));

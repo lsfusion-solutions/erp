@@ -62,12 +62,12 @@ public class StopListEquipmentServer {
         return (cashRegisterLM != null || scalesLM != null)  && stopListLM != null;
     }
 
-    public static List<StopListInfo> readStopListInfo(DBManager dbManager) throws RemoteException, SQLException {
+    public static List<StopListInfo> readStopListInfo(DBManager dbManager, EquipmentServer server) throws RemoteException, SQLException {
 
         List<StopListInfo> stopListInfoList = new ArrayList<>();
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
         if(machineryLM != null && stopListLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
                 Map<String, Map<String, Set<MachineryInfo>>> stockMap = null;
                 KeyExpr stopListExpr = new KeyExpr("stopList");
                 ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
@@ -268,9 +268,9 @@ public class StopListEquipmentServer {
 
 
 
-    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, String numberStopList, Exception e) throws RemoteException, SQLException {
+    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Exception e) throws RemoteException, SQLException {
         if(stopListLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
                 DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
                 ObjectValue stopListObject = stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
                 stopListLM.findProperty("stopList[StopListError]").change(stopListObject, session, errorObject);
@@ -287,9 +287,9 @@ public class StopListEquipmentServer {
         }
     }
 
-    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
+    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
         if(stopListLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
                 DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
                 for (String idStock : idStockSet) {
                     DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));

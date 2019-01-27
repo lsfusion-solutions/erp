@@ -51,10 +51,10 @@ public class SendSalesEquipmentServer {
         zReportLM = BL.getModule("ZReport");
     }
 
-    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
+    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
         List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
         if (cashRegisterLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -101,10 +101,10 @@ public class SendSalesEquipmentServer {
         return cashRegisterInfoList;
     }
 
-    public static Set<String> readCashDocumentSet(DBManager dbManager) throws IOException, SQLException {
+    public static Set<String> readCashDocumentSet(DBManager dbManager, EquipmentServer server) throws IOException, SQLException {
         Set<String> cashDocumentSet = new HashSet<>();
         if (cashOperationLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
@@ -123,7 +123,7 @@ public class SendSalesEquipmentServer {
         return cashDocumentSet;
     }
 
-    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<CashDocument> cashDocumentList) throws IOException, SQLException {
+    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) throws IOException, SQLException {
         if (cashOperationLM != null && cashDocumentList != null) {
 
             try {
@@ -247,7 +247,7 @@ public class SendSalesEquipmentServer {
 
                 ImportTable table = new ImportTable(fieldsIncome, dataIncome);
                 String resultIncome;
-                try (DataSession session = dbManager.createSession()) {
+                try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
                     service.synchronize(true, false);
@@ -260,7 +260,7 @@ public class SendSalesEquipmentServer {
                 table = new ImportTable(fieldsOutcome, dataOutcome);
                 String resultOutcome;
 
-                try (DataSession session = dbManager.createSession()) {
+                try (DataSession session = server.createSession()) {
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
                     service.synchronize(true, false);
@@ -275,10 +275,10 @@ public class SendSalesEquipmentServer {
         } else return null;
     }
 
-    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
+    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
         if (zReportLM != null && equipmentCashRegisterLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
 
@@ -315,10 +315,10 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager) throws RemoteException, SQLException {
+    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager, EquipmentServer server) throws RemoteException, SQLException {
         Map<String, BigDecimal> zReportSumMap = new HashMap<>();
         if (zReportLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
 
@@ -343,11 +343,11 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<String> idZReportList) throws RemoteException, SQLException {
+    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws RemoteException, SQLException {
         if (zReportLM != null) {
             try {
                 for (String idZReport : idZReportList) {
-                    try (DataSession session = dbManager.createSession()) {
+                    try (DataSession session = server.createSession()) {
                         zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
                         session.applyException(BL, stack);
                     }
@@ -359,9 +359,9 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static void logRequestZReportSumCheck(DBManager dbManager, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+    public static void logRequestZReportSumCheck(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
         if (machineryPriceTransactionLM != null && cashRegisterLM != null && EquipmentServer.notNullNorEmpty(checkSumResult)) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
                 for (List<Object> entry : checkSumResult) {
                     Object nppMachinery = entry.get(0);
                     Object message = entry.get(1);
@@ -379,10 +379,10 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, String idStock) throws RemoteException, SQLException {
+    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, EquipmentServer server, String idStock) throws RemoteException, SQLException {
         Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
         if(equipmentCashRegisterLM != null)
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
 
@@ -418,10 +418,10 @@ public class SendSalesEquipmentServer {
         return cashRegisterList;
     }
 
-    public static List<Integer> readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(DBManager dbManager) {
+    public static List<Integer> readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(DBManager dbManager, EquipmentServer server) {
         List<Integer> cashRegisterList = new ArrayList<>();
         if (equipmentCashRegisterLM != null) {
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = server.createSession()) {
 
                 KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "groupCashRegister", groupCashRegisterExpr);

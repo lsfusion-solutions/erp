@@ -79,7 +79,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
     @Override
     protected void onStarted(LifecycleEvent event) {
         startLogger.info("Starting " + getEventName() + " Daemon");
-        try (DataSession session = dbManager.createSession()) {
+        try (DataSession session = createSession()) {
             String host = (String) LM.findProperty("hostShuttleBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portShuttleBoard[]").read(session);
             setupDaemon(host != null ? host : "localhost", port != null ? port : 9101);
@@ -127,7 +127,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
             //хак. Иногда приходит штрихкод, начинающийся с F
             if (idBarcode.startsWith("F"))
                 idBarcode = idBarcode.substring(1);
-            try (DataSession session = dbManager.createSession()) {
+            try (DataSession session = createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
                 String piecePrefix = (String) LM.findProperty("piecePrefixIP").read(session, new DataObject(ip));

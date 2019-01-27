@@ -186,10 +186,6 @@ public class TerminalServer extends MonitorServer {
         listenThread.start();
     }
 
-    protected DataSession createSession() throws SQLException {
-        return getDbManager().createSession();
-    }
-
     public class SocketCallable implements Callable {
         private Socket socket;
 
