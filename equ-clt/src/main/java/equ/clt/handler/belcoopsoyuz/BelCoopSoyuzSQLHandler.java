@@ -63,11 +63,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     } else {
                         processTransactionLogger.info(String.format(logPrefix + "connecting to %s", directory));
                         Exception exception = null;
-                        try (Connection conn = DriverManager.getConnection(directory)) {
+                        Locale defaultLocale = Locale.getDefault();
+                        try (Connection conn = getConnection(directory)) {
                             processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
                             exportItems(conn, transaction);
                         } catch (Exception e) {
                             exception = e;
+                        } finally {
+                            resetLocale(defaultLocale);
                         }
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
@@ -188,7 +191,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             } else {
 
                 Locale defaultLocale = Locale.getDefault();
-                try (Connection conn = DriverManager.getConnection(directory)) {
+                try (Connection conn = getConnection(directory)) {
                     salesBatch = readSalesInfoFromSQL(conn, sectionCashRegisterMap, directory, directory);
                 } finally {
                     resetLocale(defaultLocale);
