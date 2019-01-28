@@ -103,9 +103,7 @@ countCustomerStock 'Кол-во складов' (StockGroup stockGroup) = GROUP
     SUM 1 IF isCustomer(Stock stock)
     AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
 
-TABLE userLegalEntityStock (LegalEntity, Stock);
-user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) MATERIALIZED;
-in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == legalEntity) OR user(legalEntity, stock);
+in 'Отм.' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
 default 'По умолч.' = DATA BOOLEAN (Stock); 
@@ -878,39 +876,6 @@ META defineDocumentDialogStocks(objectClass, stockClass, filter, prefix, dataPro
 END
 
 // ------------------------------------------ Расширение формы организаций ---------------------------- //
-
-FORM chooseStocks 'Выбор складов'
-
-    OBJECTS l = LegalEntity PANEL
-    
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
-    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
-    ORDER sgTreeName
-    FILTERS stringEqualsAll(a)
-
-    OBJECTS s=Stock
-    PROPERTIES(s) READONLY name, address, nameLegalEntity
-    PROPERTIES user(l, s)
-    ORDER name(s)
-    FILTERS isParent(sg, s) OR (s IS Stock AND sg IS StockGroup AND NOT stockGroup(s)) OR (s IS Stock AND NOT sg)
-    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-;
-
-DESIGN chooseStocks {
-    MOVE BOX(l);
-    NEW mainContainer{
-        fill = 1;
-        type = SPLITH;
-        MOVE BOX(TREE stockTree);
-        MOVE BOX(s) { fill = 3; }
-    }
-    MOVE TOOLBARBOX;
-}
-
-chooseStocks 'Выбрать склады'(LegalEntity legalEntity)  { 
-
-    SHOW chooseStocks OBJECTS l = legalEntity ;
-}
 
 EXTEND FORM legalEntity
     TREE stockTree b=STRING[3], sg = StockGroup PARENT parent
