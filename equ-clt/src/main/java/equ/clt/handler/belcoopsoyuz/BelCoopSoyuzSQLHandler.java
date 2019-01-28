@@ -188,14 +188,10 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             } else {
 
                 Locale defaultLocale = Locale.getDefault();
-                try {
-                    Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
-                    //jdbc:oracle:thin:ls/ls@213.184.248.129:1521:XE
-                    try (Connection conn = DriverManager.getConnection(directory)) {
-                        salesBatch = readSalesInfoFromSQL(conn, sectionCashRegisterMap, directory, directory);
-                    }
+                try (Connection conn = DriverManager.getConnection(directory)) {
+                    salesBatch = readSalesInfoFromSQL(conn, sectionCashRegisterMap, directory, directory);
                 } finally {
-                    Locale.setDefault(defaultLocale);
+                    resetLocale(defaultLocale);
                 }
             }
         } catch (Exception e) {
@@ -208,40 +204,35 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
-            Connection conn = null;
-            Statement statement = null;
             try {
                 Class.forName("com.mysql.jdbc.Driver");
 
                 for (String directory : getDirectorySet(entry)) {
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", directory));
-                    conn = DriverManager.getConnection(directory);
 
-                    String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(entry.dateTo);
-                    cal.add(Calendar.DATE, 1);
-                    sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
-                    String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                    sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+                    Locale defaultLocale = Locale.getDefault();
+                    try (Connection conn = getConnection(directory)) {
+                        String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                        Calendar cal = Calendar.getInstance();
+                        cal.setTime(entry.dateTo);
+                        cal.add(Calendar.DATE, 1);
+                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                        String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                        sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
-                    statement = conn.createStatement();
-                    String query = String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\10') WHERE TEDOCINS >= TO_DATE('%s','yyyy-MM-dd') AND TEDOCINS <= TO_DATE('%s','yyyy-MM-dd')", dateFrom, dateTo);
-                    sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
-                    statement.execute(query);
-                    succeededRequests.add(entry.requestExchange);
+                        try (Statement statement = conn.createStatement()) {
+                            String query = String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\10') WHERE TEDOCINS >= TO_DATE('%s','yyyy-MM-dd') AND TEDOCINS <= TO_DATE('%s','yyyy-MM-dd')", dateFrom, dateTo);
+                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                            statement.execute(query);
+                            succeededRequests.add(entry.requestExchange);
+                        }
+                    } finally {
+                        resetLocale(defaultLocale);
+                    }
                 }
             } catch (Exception e) {
                 failedRequests.put(entry.requestExchange, e);
                 e.printStackTrace();
-            } finally {
-                try {
-                    if (statement != null)
-                        statement.close();
-                    if (conn != null)
-                        conn.close();
-                } catch (SQLException ignored) {
-                }
             }
         }
     }
@@ -417,27 +408,24 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
     @Override
     public void finishReadingSalesInfo(BelCoopSoyuzSQLSalesBatch salesBatch) {
-        for(Map.Entry<String, Set<String>> entry : salesBatch.readRecordsMap.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : salesBatch.readRecordsMap.entrySet()) {
             String directory = entry.getKey();
             Set<String> readRecordSet = entry.getValue();
 
             if (directory != null) {
 
-                Connection conn = null;
                 Statement statement = null;
 
+                sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
                 Locale defaultLocale = Locale.getDefault();
-                try {
-                    Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
-                    sendSalesLogger.info(String.format(logPrefix + "Finish Reading, connecting to %s", directory));
-                    conn = DriverManager.getConnection(directory);
+                try (Connection conn = getConnection(directory)) {
                     conn.setAutoCommit(false);
 
                     int i = 0;
                     int blockSize = 1000; //ограничение сервера
                     StringBuilder in = new StringBuilder();
                     for (String record : readRecordSet) {
-                        if(i >= blockSize) {
+                        if (i >= blockSize) {
                             statement = conn.createStatement();
                             statement.execute(String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\11') WHERE CEUNIKEY IN (%s)", in.toString()));
                             in = new StringBuilder();
@@ -454,11 +442,9 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     e.printStackTrace();
                 } finally {
                     try {
-                        Locale.setDefault(defaultLocale);
                         if (statement != null)
                             statement.close();
-                        if (conn != null)
-                            conn.close();
+                        resetLocale(defaultLocale);
                     } catch (SQLException ignored) {
                     }
                 }
@@ -477,5 +463,14 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         while(lineBuilder.length() < length)
             lineBuilder.append(" ");
         return lineBuilder.toString();
+    }
+
+    private Connection getConnection(String url) throws SQLException {
+        Locale.setDefault(Locale.ENGLISH); //хак. То ли этот конкретный сервер, то ли oracle вообще хочет английскую локаль
+        return DriverManager.getConnection(url);
+    }
+
+    private void resetLocale(Locale defaultLocale) {
+        Locale.setDefault(defaultLocale);
     }
 }
