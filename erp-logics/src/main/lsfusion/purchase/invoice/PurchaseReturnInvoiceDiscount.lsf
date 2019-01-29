@@ -133,6 +133,10 @@ WHEN LOCAL FORMS userInvoice SET(showPercReturnDiscount(userInvoice(UserInvoiceD
     percReturnDiscountPrice (d) <- overPercReturnDiscount(contractSku(d), sku(d));
 }
 WHEN LOCAL FORMS userInvoice (CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(batch(d))) AND showPercReturnDiscount(userInvoice(d)) DO {
+
+    IF overPercReturnDiscount(contractSku(d), sku(d)) AND NOT PREV(percReturnDiscountPrice (d)) THEN {
+        percReturnDiscountPrice (d) <- overPercReturnDiscount(contractSku(d), sku(d));   
+    }                    
     price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
     invoicePrice(d) <- prevListPVAT(priceListType(d), d);
 }
