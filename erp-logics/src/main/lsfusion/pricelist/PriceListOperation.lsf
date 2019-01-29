@@ -316,7 +316,7 @@ DESIGN userPriceList{
     }    
 }
 
-@defineOperationProperty(countDaysToExcludePriceLists, 'Кол-во дней через которое прайс исключается из регистра', INTEGER, paramsContainer);
+@defineOperationProperty(countDaysToExcludePriceLists, 'Кол-во дней через которое прайс с датой окончания исключается из регистра', INTEGER, paramsContainer);
 
 // Установка даты действия по для прайсов
 
@@ -334,7 +334,7 @@ setToDateTime 'Установить дату действия по' (UserPriceLi
     }
 }
 
-excludePriceListsToDate 'Исключить прайсы из регистра до даты' ()  { 
+excludePriceListsToDate 'Исключить прайсы с датой окончания из регистра до даты' ()  { 
     exclude(UserPriceListDetail d) <- TRUE WHERE toDate(d) < subtract(currentDate(), countDaysToExcludePriceLists(operation(d))) AND NOT exclude(d) AND countDaysToExcludePriceLists(operation(d));
     APPLY ;
 }
@@ -346,6 +346,45 @@ clearApplicationLog () + {
     NEWSESSION {
         excludePriceListsToDate();
     } 
+}
+
+daysToClosePriceList 'Кол-во дней через которое прайс с компанией исключается из регистра' = DATA INTEGER ();
+priceListTypeToClosePriceList  = DATA DataPriceListType();
+nameOperationToClosePriceList 'Вид цен для исключения из регистра прайсов с компанией' = name(priceListTypeToClosePriceList());
+
+closePriceLists 'Исключить прайсы с компанией из регистра до даты' () {
+    FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) 
+            AND NOT exclude(d)  ORDER d DO {
+        
+        LOCAL notSkip = BOOLEAN ();
+        FOR in(priceList(d), Stock s) AND in(d, DataPriceListType t) DO {
+            IF priceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
+                notSkip() <- TRUE;
+                logToFile('closePriceList', CONCAT '-', 'SKIP', number(d), idBarcodeSku(d), name(s), name(t));
+                BREAK;
+            }
+        }
+        
+        IF NOT notSkip() THEN {
+            exclude(d) <- TRUE;
+            logToFile('closePriceList', CONCAT '-', 'CLOSE', number(d), idBarcodeSku(d));
+        }
+        IF (GROUP SUM 1 IF CHANGED (exclude(UserPriceListDetail dd))) > 99 THEN {
+            logToFile('closePriceList',CONCAT '-', 'APPLY');
+            APPLY;
+        }
+    }
+}
+
+
+EXTEND FORM options PROPERTIES () daysToClosePriceList, nameOperationToClosePriceList, closePriceLists;
+
+DESIGN options {
+    price {
+        MOVE PROPERTY (daysToClosePriceList());
+        MOVE PROPERTY (nameOperationToClosePriceList());
+        MOVE PROPERTY (closePriceLists());
+    }
 }
 
 nameOperation 'Операция' (PriceListDetail priceListDetail) = name(operation(priceListDetail));

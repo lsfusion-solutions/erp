@@ -1403,38 +1403,3 @@ show[PriceListLedger] (PriceListDetail ledger) + { show(ledger);};
 // Храним количество прайс-листов для поставщика и вида цен
 TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
 countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 
-
-daysToClosePriceList 'Кол-во дней, после которого закрывать прайс' = DATA INTEGER ();
-
-EXTEND FORM options PROPERTIES daysToClosePriceList();
-
-DESIGN options {
-    price {
-        MOVE PROPERTY (daysToClosePriceList());
-    }
-}
-
-toClose1 (UserPriceListDetail d, Stock s) = GROUP SUM 1 IF sku(UserPriceListDetail dd) == sku(d) AND isPosted(dd) AND fromDateTime(dd) > fromDateTime(d) AND in(priceList(d), s);
-toClose1 (UserPriceListDetail d) = (GROUP SUM 1 IF in(priceList(d), Stock s) AND toClose1(d, s)) == (GROUP SUM 1 IF in(priceList(d), Stock s));
-
-toClose2 (UserPriceListDetail d, Stock s) = (daysBetweenDates(currentDate(), fromDate(d)) >= daysToClosePriceList() AND NOT 
-    (GROUP SUM 1 IF date(PurchaseLedger dd) > subtract(currentDate(), daysToClosePriceList()) AND sku(dd) == sku(d) AND stock(dd) == s));
-        
-toClose2 (UserPriceListDetail d) = (GROUP SUM 1 IF in(priceList(d), Stock s) AND toClose2(d, s)) == (GROUP SUM 1 IF in(priceList(d), Stock s));
-
-toClose (UserPriceListDetail d) = toClose1(d) OR toClose2(d);
-toClose (UserPriceList p) = (GROUP SUM 1 IF userPriceList(UserPriceListDetail d) == p AND toClose(d)) == countUserPriceListDetail(p);
-
-closePriceLists 'Закрыть прайсы' () {
-    FOR (toClose(UserPriceList p)) AND NOT toDate(p) DO {
-        toDate(p) <- currentDate();
-        toTime(p) <- currentTime();
-    }
-}
-EXTEND FORM options PROPERTIES closePriceLists();
-
-DESIGN options {
-    price {
-        MOVE PROPERTY (closePriceLists());
-    }
-}
