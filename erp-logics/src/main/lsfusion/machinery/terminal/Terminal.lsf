@@ -686,6 +686,24 @@ clearApplicationLog () + {
 	}
 }
 
+access 'Доступ' = DATA BOOLEAN (UserRole, GroupTerminalDocumentType);
+
+EXTEND FORM securityPolicy
+    OBJECTS g = GroupTerminalDocumentType
+    PROPERTIES name(g) READONLY, access(ur, g)
+;
+
+DESIGN securityPolicy {
+    rolePolicyContainer {
+        MOVE BOX (g);
+    }
+}
+
+access (TerminalDocumentType t, CustomUser u) = GROUP SUM 1 IF access(UserRole r, groupTerminalDocumentType(t)) AND has(u, r);
+accessAll (CustomUser u) = NOT (GROUP SUM 1 IF access(UserRole r, GroupTerminalDocumentType g) AND has(u, r));
+
+notSkip 'Доступно' (TerminalDocumentType t, CustomUser u) = NOT skip(groupTerminalDocumentType(t)) AND (access(t, u) OR accessAll(u));
+
 //-------------------------------------------------- Импорт поставленного кол-ва --------------------------------------------------
 
 META defineAddToDetailDialogTerminal (object, skuProp, stockProp, NS)
