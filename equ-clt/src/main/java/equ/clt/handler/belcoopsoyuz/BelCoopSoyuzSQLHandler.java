@@ -245,7 +245,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         List<SalesInfo> salesInfoList = new ArrayList<>();
         Set<String> readRecordSet = new HashSet<>();
 
-        List<String> allowedTypes = Arrays.asList("ТОВАР", "ТОВАР ВОЗВРАТ", "БОНУС", "ВСЕГО", "ВОЗВРАТ");
+        List<String> allowedTypes = Arrays.asList("ТОВАР", "ТОВАР ВОЗВРАТ", "БОНУС", "ВСЕГО", "ВОЗВРАТ",
+                "ПЕРЕХОДЯЩАЯ СУММА", "ВХОДЯЩАЯ СУММА", "ВНЕСЕНИЕ НАЛИЧНЫХ", "ВЫПЛАТА НАЛИЧНЫХ");
 
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.MINUTE, -5); //хак: берём записи с отставанием на 5 минут
@@ -254,7 +255,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
                     "NEOPDEL, NEOPPDELC, NEOPSDELC, NEOPNDS, NEOPSUMCT, CEOPDEV, CEOPMAN, CESUCOD, CEUNIREF0, CEUNIFOL FROM cl1_bks.a9ck07 " +
-                    "WHERE CEUNIFOL NOT LIKE '____________________1%' AND " + dateFilter + " ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
+                    "WHERE CEUNIFOL NOT LIKE '____________________1%' AND CEOBTYP IS NOT NULL AND " + dateFilter + " ORDER BY CEUNIREF0, CEDOCNUM, CEDOCCOD, CEUNIKEY";
             ResultSet rs = statement.executeQuery(query);
 
             String currentNumberZReport = null;
@@ -381,6 +382,12 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                             error = false;
                             break;
                         }
+                        case "ПЕРЕХОДЯЩАЯ СУММА":
+                        case "ВХОДЯЩАЯ СУММА":
+                        case "ВНЕСЕНИЕ НАЛИЧНЫХ":
+                        case "ВЫПЛАТА НАЛИЧНЫХ":
+                            readRecordSet.add(id);
+                            break;
                     }
                 } else {
                     //временный лог
