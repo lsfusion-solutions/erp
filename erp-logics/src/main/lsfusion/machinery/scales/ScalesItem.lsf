@@ -167,3 +167,11 @@ EXTEND FORM item PROPERTIES(i) expired;
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expired;
 
 skipIn(GroupScales groupMachinery, Item sku) += WHEN groupMachinery IS GroupScales AND expired(sku) AND lastExpiryDate(sku, stock[GroupMachinery](groupMachinery)) < currentDate() THEN TRUE;
+
+
+//----------------------- Переход на новый основной классификатор ---------------------------//
+overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
+    weightNumerator(ng) <- weightNumerator(itemGroup(g));
+    dataExpired(ng) <- prevExpired(itemGroup(g));
+    userShowPassScales(ng) <- userShowPassScales(itemGroup(g));
+}

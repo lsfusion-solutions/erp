@@ -2122,3 +2122,166 @@ banPurchase 'Запрет закупки' = DATA BOOLEAN (LegalEntity) IN filter
 EXTEND FORM legalEntity
     PROPERTIES(l) banPurchase
 ;
+
+//----------------------- Переход на новый основной классификатор ---------------------------//
+
+FORM copyToCustomGroupDialog 'Создать копию основного классификатора'
+    OBJECTS i = VARSTRING[100] PANEL, n = VARSTRING[50] PANEL
+    PROPERTIES id = VALUE(i), name = VALUE(n)
+;
+DESIGN copyToCustomGroupDialog {
+    OBJECTS {
+        MOVE PROPERTY(id) {caption='Код';}
+        MOVE PROPERTY(name) {caption='Наименование';}
+    }
+}
+
+overCopyToCustomGroup ABSTRACT LIST (ItemGroup, CustomGroup);
+
+copyToCustomGroup 'Создать копию основного классификатора' () {
+    NEWSESSION DIALOG copyToCustomGroupDialog OBJECTS i INPUT, n INPUT DO {
+        NEW gt = CustomGroupType {
+            id(gt) <- i;
+            name(gt) <- n;
+            
+            FOR ItemGroup g IS ItemGroup ORDER level(g), g DO NEW ng = CustomGroup {
+                customGroupType(ng) <- gt;
+                id(ng) <- id(g);
+                name(ng) <- name(g);
+                parent(ng) <- customGroup(id(parent(g)),gt);
+                
+                overCopyToCustomGroup(g,ng);
+            }
+            FOR itemGroup(Item item) DO {
+                customGroup(gt,item) <- customGroup(id(itemGroup(item)),gt);
+            }
+        }
+        APPLY;
+    }
+}
+
+new = DATA LOCAL BOOLEAN (ItemGroup);
+itemGroup 'Соответствие' = DATA LOCAL ItemGroup (CustomGroup);
+nameItemGroup 'Соответствие' (CustomGroup g) = name(itemGroup(g));
+
+FORM replaceToItemGroupDialog 'Соответствие групп для переноса настроек'
+    OBJECTS t = CustomGroupType PANEL
+    PROPERTIES(t) READONLY name
+    
+    TREE treeGroups g=CustomGroup PARENT parent
+    PROPERTIES(g) READONLY id, name, canonicalName
+    PROPERTIES(g) nameItemGroup
+    FILTERS customGroupType(g) == t
+    ORDER canonicalName(g)
+;
+
+overReplaceToItemGroup ABSTRACT LIST (CustomGroup, ItemGroup);
+
+overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
+    IF (GROUP SUM 1 IF customGroupType(CustomGroup g) == t AND NOT itemGroup(g)) THEN
+        ASK 'Не для всех групп задано соответствие. Хотите продолжить замену?' DO {
+        } ELSE {
+            RETURN;
+        }
+    printToLog('' + currentDateTime() + ' Creating new ItemGroups');
+    FOR customGroupType(CustomGroup g) == t ORDER level(g), g DO NEW ng = ItemGroup {
+        id(ng) <- 'tst_' + id(g);
+        name(ng) <- name(g);
+        parent(ng) <- itemGroup('tst_' + id(parent(g)));
+        order(ng) <- order(g);
+
+        pieceNumerator(ng) <- pieceNumerator(itemGroup(g));
+        userShowCaption(ng) <- userShowCaption(itemGroup(g));
+        userShowUOM(ng) <- userShowUOM(itemGroup(g));
+        userShowBrand(ng) <- userShowBrand(itemGroup(g));
+        userShowCountry(ng) <- userShowCountry(itemGroup(g));
+        userShowManufacturer(ng) <- userShowManufacturer(itemGroup(g));
+        userShowComposition(ng) <- userShowComposition(itemGroup(g));
+        userShowSplit(ng) <- userShowSplit(itemGroup(g));
+        userShowFixedPrice(ng) <- userShowFixedPrice(itemGroup(g));
+        userShowPriceSegment(ng) <- userShowPriceSegment(itemGroup(g));
+        userShowBanPurchase(ng) <- userShowBanPurchase(itemGroup(g));
+        userShowOriginalCaption(ng) <- userShowOriginalCaption(itemGroup(g));
+        userShowOriginalComposition(ng) <- userShowOriginalComposition(itemGroup(g));
+        userShowNetWeight(ng) <- userShowNetWeight(itemGroup(g));
+        userShowGrossWeight(ng) <-userShowGrossWeight(itemGroup(g));
+        userShowExpiry(ng) <- userShowExpiry(itemGroup(g));
+        dataCaption(ng) <- prevCaption(itemGroup(g));
+        dataUOM(ng) <- prevUOM(itemGroup(g));
+        dataCustomGroup(CustomGroupType cgt, ng) <- prevCustomGroup(cgt,itemGroup(g));
+
+        overReplaceToItemGroup(g,ng);
+
+        new(ng) <- TRUE;
+    }
+    TRY {
+        setNoCancelInTransaction();
+        APPLY NESTED LOCAL;
+        IF canceled() THEN {
+            printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
+        } ELSE {
+            printToLog('' + currentDateTime() + ' Changing itemGroup in Items');
+            itemGroup(Item item) <- itemGroup('tst_' + id(customGroup(t,item)));
+            setNoCancelInTransaction();
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
+            } ELSE {
+                printToLog('' + currentDateTime() + ' Deleting old ItemGroups');
+                FOR ItemGroup g IS ItemGroup AND NOT new(g) DO {
+                    printToLog('' + currentDateTime() + ' Deleting ' + name(g));
+                    DELETE g;
+                    setNoCancelInTransaction();
+                    APPLY NESTED LOCAL;
+                }
+                IF canceled() THEN {
+                    printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
+                } ELSE {
+                    printToLog('' + currentDateTime() + ' Changing ids');
+                    id(ItemGroup g) <- VARSTRING[100](replace(id(g),'tst_',''));
+                    setNoCancelInTransaction();
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
+                    } ELSE formOk();
+                }
+            }
+        }
+    } CATCH {
+        printToLog('' + currentDateTime() + ' ERROR ' + messageCaughtException());
+    }
+    
+} CHANGEKEY 'ctrl ENTER';
+
+
+//fillId 'Проставить соответствие по коду' (CustomGroupType t) {
+//    itemGroup(CustomGroup g) <- itemGroup(id(g)) WHERE customGroupType(g) == t;
+//}
+
+EXTEND FORM replaceToItemGroupDialog
+    PROPERTIES(t) overOkReplaceToItemGroupDialog//, fillId
+;
+DESIGN replaceToItemGroupDialog {
+    TOOLBARRIGHT {
+        REMOVE PROPERTY(formOk());
+        MOVE PROPERTY(overOkReplaceToItemGroupDialog(t)) BEFORE PROPERTY(formCancel());
+    }
+}
+
+replaceToItemGroup 'Заменить основной классификатор' (CustomGroupType t) {
+    IF (GROUP SUM 1 IF customGroupType(CustomGroup g) == t AND NOT id(g)) THEN {
+        MESSAGE 'Не для всех групп дополнительного классификатора задан Код';
+        RETURN;
+    }
+    NEWSESSION SHOW replaceToItemGroupDialog;
+}
+
+EXTEND FORM customGroupTypes
+    PROPERTIES TOOLBAR copyToCustomGroup() DRAW t, replaceToItemGroup(t)
+;
+DESIGN customGroupTypes {
+    TOOLBARRIGHT(t) {
+        MOVE PROPERTY(copyToCustomGroup()) BEFORE TOOLBAR(t);
+        MOVE PROPERTY(replaceToItemGroup(t)) AFTER PROPERTY(copyToCustomGroup());
+    }
+}

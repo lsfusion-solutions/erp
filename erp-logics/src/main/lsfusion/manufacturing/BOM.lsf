@@ -9,7 +9,8 @@ REQUIRE EmployeeStock,
         Time,
         Manufacturing,
         Integration,
-        StockSkuDocument;
+        StockSkuDocument,
+        Item;
 
 dataComponent 'Сырье' = DATA BOOLEAN (SkuGroup);
 countDataComponentSkuGroup () = GROUP SUM 1 IF dataComponent(SkuGroup g);
@@ -394,7 +395,7 @@ CONSTRAINT sku(Product p) AND NOT isProductGroup(sku(p)) CHECKED  BY sku[Product
     
 overSku (Component c) = IF material(c) IS Product THEN sku[Product](material(c)) ELSE material(c);
     
-overNetWeight = OVERRIDE netWeight(overSku(Component c)); 
+overNetWeight = OVERRIDE Stock.netWeight(overSku(Component c)); 
 overNettoNetWeight 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
 
@@ -1165,4 +1166,12 @@ customer(BOM BOM) += company(BOM);
 //customerStockDocument(BOM) += customerStockBOM(BOM);
 
 
-@defineDocumentLogForm(BOMs, b); 
+@defineDocumentLogForm(BOMs, b);
+
+//----------------------- Переход на новый основной классификатор ---------------------------//
+overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
+    IF ng IS ItemGroup THEN {
+        dataComponent(ng) <- component(itemGroup(g));
+        dataProduct(ng) <- product(itemGroup(g));
+    }
+}
