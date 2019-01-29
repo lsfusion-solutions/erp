@@ -277,7 +277,7 @@ CONSTRAINT stock(UserPicking picking) != stock(pickingOrder(picking))
 descriptionPickingOrder 'Заказ' (Picking picking) = description(pickingOrder(picking)) CHARWIDTH 30 IN pickingOrders;
 notePickingOrder 'Примечание (заказ)' (Picking p) = note(pickingOrder(p)); 
 
-pickingOrder(PickingDetail d) = pickingOrder(picking(d)) MATERIALIZED INDEXED;
+pickingOrder(PickingDetail d) = pickingOrder(picking(d)) MATERIALIZED;
 
 INDEX pickingOrder(PickingDetail d), sku(d);
 
@@ -377,7 +377,6 @@ EXTEND FORM pickings
 
 countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
 
-//quantityPickingDetail 'Кол-во в комплектациях' (Sku sku, pickingOrder) = GROUP SUM quantityPickingDetail(sku, Picking picking) IF NOT notCount(picking) BY pickingOrder(picking);
 quantityPickingDetail 'Кол-во в комплектациях' = GROUP SUM quantity(PickingDetail d) IF NOT notCount(picking(d)) BY sku(d),pickingOrder(d);
 countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
 
