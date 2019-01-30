@@ -1,0 +1,30 @@
+MODULE PickingTerminalOrder;
+
+REQUIRE TerminalOrder, Picking;
+
+NAMESPACE Picking;
+
+EXTEND CLASS Picking : TerminalOrder;
+EXTEND CLASS PickingDetail : TerminalOrderDetail;
+
+date[TerminalOrder] (Picking o) += date(o);
+dataNumber[TerminalOrder] (Picking o) += number(o);
+isOpened[TerminalOrder] (Picking o) += TRUE IF o IS Picking;
+
+filter(Picking o, Stock s) += (o IS Picking AND stock(o) == s);
+
+order[TerminalOrderDetail] (PickingDetail d) += picking(d);
+
+terminalBarcode = ABSTRACT VARSTRING[100](PickingDetail);
+idBarcodeSku[TerminalOrderDetail] (PickingDetail d) += OVERRIDE terminalBarcode(d), idBarcodeSku(d);
+
+idSku[TerminalOrderDetail] (PickingDetail d) += idSku(d);
+nameSku[TerminalOrderDetail] (PickingDetail d) += nameSku(d);
+price[TerminalOrderDetail] (PickingDetail d) += price(sku(d),picking(d));
+dataOrderQuantity[TerminalOrderDetail] (PickingDetail d) += quantity(d);
+
+nameManufacturerSku (PickingDetail d) = name(manufacturer(sku(d)));
+nameManufacturerSku[TerminalOrderDetail] (PickingDetail d) += nameManufacturerSku(d);
+
+passScalesSku(PickingDetail d) = passScales(sku(d));
+passScalesSku[TerminalOrderDetail] (PickingDetail d) += passScalesSku(d);
