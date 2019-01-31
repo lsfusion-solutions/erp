@@ -252,6 +252,16 @@ legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntity
 nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
 captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticCaption(legalEntityStatusSupplier(evat));
 
+bigCompanySupplier 'Крупный поставщик' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+EXTEND FORM legalEntity
+    PROPERTIES (l) SHOWIF isSupplier(l) bigCompanySupplier
+;
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLYIF isReadonly() bigCompanySupplier
+;
+WHEN LOCAL CHANGED(supplier(EVAT e)) DO {
+    bigCompanySupplier(e) <- bigCompanySupplier(supplier(e));
+}
 
 //Получатель.
 noCustomer 'Без покупателя' = DATA BOOLEAN (EVAT);
