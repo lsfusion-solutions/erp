@@ -1,0 +1,29 @@
+MODULE PurchaseManufacturingPricePharmacyBy;
+
+REQUIRE PurchaseManufacturingPrice, Pharmacy;
+
+NAMESPACE Purchase;
+
+maxSellingPrice 'Предельная отпускная цена' = DATA NUMERIC[16,4](UserInvoiceDetail);
+
+@defineOperationProperty(showMaxSellingPrice, 'Предельная отпускная цена', showContainer);
+
+EXTEND FORM userInvoice PROPERTIES maxSellingPrice(d) SHOWIF showMaxSellingPrice(operation(d));
+EXTEND FORM invoices PROPERTIES maxSellingPrice(d) SHOWIF showMaxSellingPrice(operation(d));
+
+maxSellingPriceListType = DATA PriceListType();
+nameMaxSellingPriceListType 'Вид цен для предельной отпускной цены' () = name(maxSellingPriceListType());
+
+EXTEND FORM options PROPERTIES nameMaxSellingPriceListType();
+
+DESIGN options {
+    pharmacy {
+        MOVE PROPERTY (nameMaxSellingPriceListType());
+    }
+}
+
+maxSellingPrice(UserInvoiceDetail d) <- priceA(maxSellingPriceListType(), sku(d), customerStock(d), dateTime(d))
+    WHEN CHANGED (sku(d)) OR CHANGED (customerStock(d)) OR CHANGED (dateTime(d));
+    
+dataCostManufacuringPrice (UserInvoiceDetail d) += NUMERIC[20,8] 
+    (min(incomeManufacturingPrice(d), maxSellingPrice(d)) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d));

@@ -1,0 +1,413 @@
+MODULE InvoiceRevaluation;
+
+REQUIRE Revaluation, Invoice, RevaluationManufacturingPrice, InvoiceShipment;
+
+NAMESPACE Revaluation;
+
+CLASS Reason 'Причина переоценки';
+TABLE reason (Reason);
+
+name 'Наименование' = DATA VARISTRING[100](Reason);
+@defineExternalizable(reason, VARSTRING[100]);
+
+FORM reason 'Причина переоценки'
+    OBJECTS r=Reason  PANEL
+    PROPERTIES(r) name, id SHOWIF showIDs() 
+    EDIT Reason OBJECT r
+;
+
+FORM reasons 'Причины переоценки'
+    OBJECTS r=Reason
+    PROPERTIES(r) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
+
+    LIST Reason OBJECT r
+;
+DESIGN reasons { BOX { size = (600, 400); } }
+
+
+reason = ABSTRACT Reason (Revaluation);
+nameReason'Причина' (Revaluation r)= name(reason(r));
+reason = DATA Reason (UserRevaluation);
+nameReason 'Причина' (UserRevaluation r)= name(reason(r));
+reason(UserRevaluation r) += reason(r);
+
+reason = ABSTRACT Reason (RevaluationDetail);
+nameReason 'Причина' (RevaluationDetail d)= name(reason(d));
+idReason 'ID причины' (RevaluationDetail d)= id(reason(d));
+
+dataReason = DATA Reason (UserRevaluationDetail);
+reason (UserRevaluationDetail d)= OVERRIDE dataReason(d), reason(userRevaluation(d));
+nameReason 'Причина' (UserRevaluationDetail d)= name(reason(d)) IN documentPrm;
+
+reason(UserRevaluationDetail d) += reason(d);
+
+EXTEND FORM userRevaluation
+    PROPERTIES (p)  nameReason 
+    PROPERTIES (d)  nameReason AFTER nameBatch(d)
+;
+DESIGN userRevaluation  {
+    third{
+        MOVE PROPERTY(nameReason(p));
+    }
+}
+EXTEND FORM revaluations
+    PROPERTIES (d)  nameReason AFTER nameBatch(d)
+;
+
+
+reason= DATA Reason (Operation);
+nameReason 'Причина переоценки (по умолчанию)' (Operation o)= name(reason(o));
+
+EXTEND FORM operation
+    PROPERTIES (o)  nameReason            
+;
+DESIGN operation{
+    showContainer {
+        MOVE PROPERTY(nameReason(o));
+    }            
+}
+
+@deriveDocumentOperationProperty(userRevaluation, reason);
+
+
+
+NAVIGATOR {
+    revaluationNavigator {
+        NEW reasons BEFORE operations;
+    }
+}
+META defineOperationInvoiceRevaluation (oper)
+    @defineOperationProperty(createRevaluation, 'Создать акт переоценки (склад)', createContainer);
+    
+    revaluationOperation  = DATA Revaluation.Operation (Operation);
+    nameRevaluationOperation 'Операция (переоценки)' (Operation operation)= name(revaluationOperation(operation));
+
+    EXTEND FORM operation
+        PROPERTIES(o) nameRevaluationOperation
+    ;
+    DESIGN operation {
+        createContainer {
+            type = CONTAINERV;
+            MOVE PROPERTY(nameRevaluationOperation(o)) AFTER PROPERTY(createRevaluation(o));
+        }
+    }
+END
+
+META defineInvoiceRevaluation(sign, stockProp)
+
+    reason = ABSTRACT Revaluation.Reason (OrderDetail);
+    nameReason 'Причина переоценки' (OrderDetail d)= name(reason(d));
+    
+    reason = DATA Revaluation.Reason (UserOrderDetail);
+    nameReason 'Причина переоценки' (UserOrderDetail d)= name(reason(d));
+    reason(UserOrderDetail d) += reason(d);
+    
+    EXTEND FORM userOrder
+        PROPERTIES(d) nameReason SHOWIF changeShipmentPrice(o)
+    ;
+    
+    EXTEND FORM orders
+        PROPERTIES(d) READONLY nameReason SHOWIF changeShipmentPrice(o)
+    ;
+
+    invoiceDetail = ABSTRACT InvoiceDetail (RevaluationDetail) MATERIALIZED;
+    invoiceDetail = DATA InvoiceDetail (UserRevaluationDetail);
+    invoiceDetail(UserRevaluationDetail revaluationDetail) += invoiceDetail(revaluationDetail);
+
+    CONSTRAINT stock[RevaluationDetail](UserRevaluationDetail detail) != stockProp(invoiceDetail(detail)) OR
+               sku[RevaluationDetail](detail) != sku(invoiceDetail(detail))
+        CHECKED BY invoiceDetail[UserRevaluationDetail]
+            MESSAGE 'Склад и товар в накладной и переоценке должны соответствовать друг другу';
+
+
+    descriptionIndexInvoiceDetail 'Строка накладной' (RevaluationDetail detail) = descriptionIndex(invoiceDetail(detail));
+    descriptionIndexInvoiceDetail 'Строка накладной' (UserRevaluationDetail detail) = descriptionIndex(invoiceDetail(detail));
+
+    quantityRevaluationDetail (invoice, revaluation) = GROUP SUM quantity(RevaluationDetail revaluationDetail) BY invoice(invoiceDetail(revaluationDetail)), revaluation(revaluationDetail);
+    relationInvoice 'Связь'(Revaluation revaluation)  = GROUP SUM 1 IF quantityRevaluationDetail (Invoice invoice, revaluation);
+
+    invoices 'Накладные'(Revaluation revaluation)  = GROUP
+                                                    CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityRevaluationDetail(invoice, revaluation) , ', '
+                                                    ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
+
+    revaluation 'Кол-во (переоценено)' (invoiceDetail) = GROUP SUM quantity(RevaluationDetail revaluationDetail) IF isPosted(revaluationDetail)
+                                                                       BY invoiceDetail(revaluationDetail) MATERIALIZED;
+
+    toRevaluation 'Не переоценено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) revaluation(invoiceDetail);
+
+    toRevaluationInvoiceDetail 'Не переоценено по складу' (stock, invoice) =
+        GROUP SUM toRevaluation(InvoiceDetail invoiceDetail) IF toRevaluation(invoiceDetail) > 0
+              BY stockProp(invoiceDetail), invoice(invoiceDetail);
+
+    toRevaluationInvoiceDetail 'Не переоценено по накладной' (invoice) =
+        GROUP SUM toRevaluation(InvoiceDetail invoiceDetail) IF toRevaluation(invoiceDetail) > 0
+              BY invoice(invoiceDetail);
+
+    // Создание поставки на основе инвойса //
+
+    backgroundRevaluation 'Цвет' (Invoice invoice) = RGB(255, 255, 224) IF invoice IS Invoice;
+    backgroundRevaluation (InvoiceDetail detail) = backgroundRevaluation(invoice(detail));
+
+    FORM revaluationInvoices 'Накладные'###sign
+        OBJECTS s = Stock PANEL
+        PROPERTIES (s) READONLY name
+
+        OBJECTS i = Invoice
+        PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                                nameSupplier, name###stockProp, nameCustomer, nameCustomerStock,
+                                nameCurrency, seriesNumberContractSku, isCommission,
+                                countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                                VATSumInvoiceDetail, invoiceSumInvoiceDetail, orders,
+                                note
+        FILTERS stockProp(i) == s,
+                isPosted(i)
+
+        OBJECTS d = InvoiceDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       name###stockProp, descriptionOrder
+        
+        FILTERS invoice(d) == i
+        
+
+    ;
+
+    DESIGN revaluationInvoices {
+        BOX {
+            size = (1024, 768);
+            MOVE BOX(s);
+            MOVE BOX(i);
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+        }
+    }
+    overFillInvoice  ABSTRACT LIST ( UserRevaluation, Invoice);                          // документ
+    overFillInvoice  ABSTRACT LIST ( UserRevaluationDetail, InvoiceDetail);  // детайл
+
+    fillInvoiceUser 'Заполнить на основе накладной'(Revaluation userRevaluation)   { 
+        DIALOG revaluationInvoices OBJECTS s = stock(userRevaluation), i INPUT DO {
+            overFillInvoice(userRevaluation, i);
+
+            FOR invoice(InvoiceDetail invoiceDetail) == i AND
+                toRevaluation(invoiceDetail) > 0
+                NEW d = UserRevaluationDetail DO {
+                    userRevaluation(d) <- userRevaluation;
+                    invoiceDetail(d) <- invoiceDetail;
+                    sku(d) <- sku(invoiceDetail);
+                    quantity (d) <- toRevaluation(invoiceDetail);
+
+                    overFillInvoice(d, invoiceDetail);
+            }
+        }
+    } IN invoice;
+
+//-- агр.объект
+
+    // Комиссия
+    @defineDocumentInterfaceHeaderRepricingCommittee (invoice, stockProp);
+
+    @defineDocumentInterfaceProperty (invoice, createRevaluation, 'Создать акт переоценки (склад)');
+
+    //-- До                                                                                accountPriceListType
+    @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, curManufacturing, ' РОЦ до');
+    //@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, curManufacturing, sku, stockProp);
+    @defineDocumentInterfaceDetailDataSumPrefix (invoice, curManufacturing, ' РОЦ до');
+    @deriveDocumentDetailSumPrefix(userInvoice, curManufacturing, currency, quantity);
+
+    @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, curShipment, ' учетная до');
+    //@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, accountPriceListType, curShipment, sku, stockProp);
+    @defineDocumentInterfaceDetailDataSumPrefix (invoice, curShipment, ' учетная до');
+    @deriveDocumentDetailSumPrefix(userInvoice, curShipment, currency, quantity);
+
+    // -- Разница
+    @defineDocumentInterfaceDetailDiffSumPrefix (invoice, manufacturingSum, , cur, ' дооценки (РОЦ)');
+    @defineDocumentInterfaceDetailDiffSumPrefix (invoice, shipmentSum, , cur, ' дооценки (учетная)');
+
+    // ---- Суммы по документу ---- //
+    @defineDocumentInterfaceHeaderSumPrefix (invoice, diffManufacturing, ' дооценки (РОЦ)');
+    @defineDocumentInterfaceHeaderSumPrefix (invoice, diffShipment, ' дооценки (учетная)');
+
+//----------------------------------------------- Операция переоценки ---------------------------------------------------//
+
+//    @defineOperationProperty(createRevaluation, 'Создать акт переоценки (склад)', createContainer);
+//    @deriveDocumentOperationProperty(UserInvoice, createRevaluation);
+//
+//    revaluationOperationOperation  = DATA Revaluation.Operation (Operation);
+//    nameRevaluationOperationOperation 'Операция (переоценки)' (operation)= Revaluation.nameOperation(revaluationOperationOperation(operation));
+//
+//    EXTEND FORM operation
+//        PROPERTIES(o) nameRevaluationOperationOperation
+//    ;
+//    DESIGN operation {
+//        createContainer {
+//            type = CONTAINERV;
+//            NEW PROPERTY(nameRevaluationOperationOperation(o)) AFTER PROPERTY(createRevaluationOperation(o));
+//        }
+//    }
+
+    // Операция переоценки
+    @defineDocumentInterfaceOperationPrefix (invoice, revaluation, Revaluation, ' ( переоценка)');
+    revaluationOperation(UserInvoice i) <- revaluationOperation(operation(i))
+        WHEN CHANGED(operation(i));
+
+//--
+    @deriveDocumentOperationProperty(UserInvoice, createRevaluation);
+    
+    overCopy(UserInvoice s, UserInvoice d) + { 
+        createRevaluation(d) <- createRevaluation(s);
+        revaluationOperation(d) <- revaluationOperation(s);
+    }
+
+    showRevaluation (Invoice invoice) =  invoice IS Invoice AND NOT createRevaluation(invoice);
+    
+    reason = ABSTRACT Revaluation.Reason (Invoice);
+    nameReason'Причина переоценки' (Invoice r)= name(reason(r));
+    reason = DATA Revaluation.Reason (UserInvoice);
+    nameReason 'Причина переоценки' (UserInvoice r)= name(reason(r));
+    reason(UserInvoice r) += reason(r);
+    
+    reason = ABSTRACT Revaluation.Reason (InvoiceDetail);
+    nameReason 'Причина переоценки' (InvoiceDetail d)= name(reason(d));
+    
+    dataReason = DATA Revaluation.Reason (UserInvoiceDetail);
+    reason (UserInvoiceDetail d)= OVERRIDE dataReason(d), reason(userInvoice(d));
+    nameReason 'Причина переоценки' (UserInvoiceDetail d)= name(reason(d)) IN documentPrm;
+    reason(UserInvoiceDetail d) += reason(d);
+    
+    reason(UserInvoice i) <- reason(revaluationOperation(operation(i)))
+        WHEN CHANGED(operation(i));    
+    
+    overCopy(UserInvoice s, UserInvoice d) + { 
+        reason(d) <- reason(s);            
+    }
+    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {       
+        dataReason(d) <- dataReason(detail);
+    } 
+
+    setReason(UserInvoiceDetail userInvoiceDetail, OrderDetail orderDetail)  { 
+        reason(userInvoiceDetail) <- reason(orderDetail);
+    }
+    overFill(UserInvoiceDetail d, OrderDetail orderDetail) + {  setReason(d, orderDetail); }        
+    
+    EXTEND FORM userInvoice
+        PROPERTIES(i)    BACKGROUND backgroundRevaluation(i) createRevaluation
+        PROPERTIES(i)   BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i) nameRepricingCommittee, numberDisposal
+        PROPERTIES(i)   BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i)
+                        diffManufacturingSumUserInvoiceDetail, diffShipmentSumUserInvoiceDetail
+        PROPERTIES(i) BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i) nameRevaluationOperation
+        PROPERTIES(i) BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i) nameReason
+        
+
+        PROPERTIES(d)   BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i) BEFORE deleteid
+                        curManufacturingPrice, curManufacturingSum,
+                        curShipmentPrice, curShipmentSum, nameReason
+    ;
+    DESIGN userInvoice {
+        headerCreateDocuments {
+            NEW headerCreateRepricing {
+                caption = 'Переоценка (склад)';
+                MOVE PROPERTY(createRevaluation(i));
+                MOVE PROPERTY(nameRevaluationOperation(i));
+                MOVE PROPERTY(nameReason(i));
+                MOVE PROPERTY(nameRepricingCommittee(i));
+                MOVE PROPERTY(numberDisposal(i));
+            }
+        }
+    }
+
+    EXTEND FORM invoices
+        PROPERTIES(i) BACKGROUND backgroundRevaluation(i) createRevaluation READONLYIF isReadonly(),
+                      diffManufacturingSumInvoiceDetail READONLY, diffShipmentSumInvoiceDetail READONLY
+
+//        PROPERTIES(i) PANEL  printRepricingInvoice SHOWIF createRepricingInvoice(i)
+
+    ;
+    EXTEND FORM revaluationInvoices
+        PROPERTIES (d) READONLY BACKGROUND backgroundRevaluation(i)  toRevaluation
+    ;
+
+    needToRevaluation (InvoiceDetail detail) = curShipmentPrice(detail) != shipmentPrice(detail)
+                                                   AND quantity(detail) 
+                                                   AND createRevaluation(detail)
+                                                   AND isStockSku(detail) MATERIALIZED;
+
+    needToRevaluation (invoice)= GROUP SUM 1 IF needToRevaluation(InvoiceDetail detail)
+        BY invoice(detail) MATERIALIZED;
+
+    CLASS InvoiceRevaluation 'Переоценка на основе накладной'###sign : Revaluation;
+    CLASS InvoiceRevaluationDetail 'Строка переоценки на основе накладной'###sign : RevaluationDetail;
+
+    @defineDocumentTables(invoiceRevaluation);
+
+    @defineDocumentAggregation(invoice, invoiceRevaluation, needToRevaluation);
+    revaluation(InvoiceRevaluationDetail detail) += invoiceRevaluation(detail);
+
+    index(InvoiceRevaluationDetail detail) += index(detail);
+    
+    date(InvoiceRevaluation revaluation) += date(revaluation);
+    time(InvoiceRevaluation revaluation) += time(revaluation);
+
+    repricingCommittee(InvoiceRevaluation revaluation) += repricingCommittee(invoice(revaluation));
+    numberDisposal(InvoiceRevaluation revaluation) += numberDisposal(invoice(revaluation));
+
+    stock(InvoiceRevaluation revaluation) += stockProp(invoice(revaluation));
+
+    @defineDocumentAggregationPosted(invoice, invoiceRevaluation);
+    isPosted(InvoiceRevaluation revaluation) += isPosted(revaluation);
+    
+    @defineDocumentAggregationClosed(invoice, invoiceRevaluation);
+    isClosed(InvoiceRevaluation revaluation) += isClosed(revaluation);
+
+    number 'Номер документа' (InvoiceRevaluation invoiceRevaluation) = number(invoice(invoiceRevaluation));
+    number(InvoiceRevaluation revaluation) += number(revaluation);
+
+    series 'Серия документа' (InvoiceRevaluation invoiceRevaluation) = series(invoice(invoiceRevaluation));
+    series(InvoiceRevaluation revaluation) += series(revaluation);
+
+    seriesNumber 'Серия/номер документа' (InvoiceRevaluation invoiceRevaluation) = seriesNumber(invoice(invoiceRevaluation));
+
+    noteInvoice 'Примечание' (InvoiceRevaluation invoiceRevaluation) = note(invoice(invoiceRevaluation));
+    note(InvoiceRevaluation revaluation) += noteInvoice(revaluation);
+
+    currency  (InvoiceRevaluation invoiceRevaluation) = currency(invoice(invoiceRevaluation));
+    currency (InvoiceRevaluation revaluation) += currency(revaluation);
+
+    skipChangeLedger (InvoiceRevaluation revaluation) += revaluation IS InvoiceRevaluation;
+    operation(InvoiceRevaluation revaluation) += revaluationOperation(invoice(revaluation));
+    reason(InvoiceRevaluation revaluation) += reason(invoice(revaluation));
+
+
+    @defineDocumentDescription(invoiceRevaluation, InvoiceRevaluationDetail, 'Переоценка на основе накладной'###sign);
+    description (InvoiceRevaluation revaluation) += description(revaluation);
+
+    @defineDocumentAggregationDetailSku(invoice, invoiceRevaluation, sku);
+    sku(InvoiceRevaluationDetail revaluationDetail) +=  sku(revaluationDetail);
+
+    quantity(InvoiceRevaluationDetail revaluationDetail) += quantity(invoiceDetail(revaluationDetail));
+    batch(InvoiceRevaluationDetail revaluationDetail) += batch(invoiceDetail(revaluationDetail));
+
+    curManufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += curManufacturingPrice(invoiceDetail(revaluationDetail));
+    curManufacturingSum(InvoiceRevaluationDetail revaluationDetail) += curManufacturingSum(invoiceDetail(revaluationDetail));
+
+    curPrice(InvoiceRevaluationDetail revaluationDetail) += curShipmentPrice(invoiceDetail(revaluationDetail));
+    curSum(InvoiceRevaluationDetail revaluationDetail) += curShipmentSum(invoiceDetail(revaluationDetail));
+
+    manufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += manufacturingPrice(invoiceDetail(revaluationDetail));
+    manufacturingSum(InvoiceRevaluationDetail revaluationDetail) += manufacturingSum(invoiceDetail(revaluationDetail));
+
+    price(InvoiceRevaluationDetail revaluationDetail) += shipmentPrice(invoiceDetail(revaluationDetail));
+    sum(InvoiceRevaluationDetail revaluationDetail) += shipmentSum(invoiceDetail(revaluationDetail));
+
+    invoiceDetail(InvoiceRevaluationDetail revaluationDetail) += invoiceDetail(revaluationDetail);
+    reason(InvoiceRevaluationDetail revaluationDetail) += reason(invoiceDetail(revaluationDetail));
+
+    edit(InvoiceRevaluation revaluation) + {  edit(invoice(revaluation)); }
+    close(InvoiceRevaluation revaluation) + {  close(invoice(revaluation)); }
+    edit(InvoiceRevaluationDetail d) + {  edit(invoiceDetail(d)); }
+    show(InvoiceRevaluationDetail d) + {  show(invoiceDetail(d)); }
+END
+
+
