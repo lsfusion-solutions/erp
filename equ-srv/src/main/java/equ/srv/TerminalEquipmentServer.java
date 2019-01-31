@@ -173,7 +173,7 @@ public class TerminalEquipmentServer {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL, DataObject userObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
@@ -188,7 +188,11 @@ public class TerminalEquipmentServer {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
             query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
-            query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
+            if(userObject != null) {
+                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userObject.getExpr()).getWhere());
+            } else {
+                query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
+            }
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = trim((String) entry.get("idTerminalDocumentType"));
@@ -210,10 +214,10 @@ public class TerminalEquipmentServer {
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
-            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty"};
+            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
             LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
                     "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
-                    "canonicalNameFilterProperty[TerminalHandbookType]");
+                    "canonicalNameFilterProperty[TerminalHandbookType]", "extInfoProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
@@ -227,6 +231,8 @@ public class TerminalEquipmentServer {
                 LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
                 String canonicalNameFilterProperty = trim((String) entry.get("filterProperty"));
                 LCP filterProperty = canonicalNameFilterProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
+                String canonicalNameExtInfoProperty = trim((String) entry.get("extInfoProperty"));
+                LCP extInfoProperty = canonicalNameExtInfoProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameExtInfoProperty) : null;
 
                 if(propertyID != null && propertyName != null) {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
@@ -236,6 +242,9 @@ public class TerminalEquipmentServer {
                         QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
+                        if(extInfoProperty != null) {
+                            customANAQuery.addProperty("extInfo", extInfoProperty.getExpr(customANAExpr));
+                        }
                         if (filterProperty != null) {
                             switch (filterProperty.listInterfaces.size()) {
                                 case 1:
@@ -259,7 +268,8 @@ public class TerminalEquipmentServer {
                         for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {
                             String idCustomANA = trim((String) customANAEntry.get("id"));
                             String nameCustomANA = trim((String) customANAEntry.get("name"));
-                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA));
+                            String extInfo = trim((String) customANAEntry.get("extInfo"));
+                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA, extInfo));
                         }
                     }
                 }
@@ -285,7 +295,7 @@ public class TerminalEquipmentServer {
             for (ImMap<Object, Object> entry : legalEntityResult.values()) {
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
                 String nameLegalEntity = trim((String) entry.get("nameLegalEntity"));
-                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity));
+                terminalLegalEntityList.add(new TerminalLegalEntity(idLegalEntity, nameLegalEntity, null));
             }
         }
         return terminalLegalEntityList;

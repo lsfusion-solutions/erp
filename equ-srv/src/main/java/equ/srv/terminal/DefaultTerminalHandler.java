@@ -172,7 +172,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
-                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL);
+                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL, userObject);
                 List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL, userObject);
                 file = File.createTempFile("terminalHandler", ".db");
 
@@ -405,7 +405,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " weight  TEXT," +
                 " main_barcode TEXT," +
                 " color TEXT," +
-                " ticket TEXT)";
+                " ticket_data TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -428,7 +428,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer
                         statement.setObject(7, formatValue(barcode.isWeight)); //weight
                         statement.setObject(8, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(9, formatValue(barcode.extInfo)); //ticket
+                        statement.setObject(9, formatValue(barcode.extInfo)); //ticket_data
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -447,7 +447,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                     statement.setObject(7, formatValue(order.weight)); //weight
                                     statement.setObject(8, formatValue(order.barcode)); //main_barcode
-                                    statement.setObject(9, ""); //ticket
+                                    statement.setObject(9, ""); //ticket_data
                                     statement.addBatch();
                                 }
                             }
@@ -461,7 +461,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
                                 statement.setObject(7, formatValue(order.weight)); //weight
                                 statement.setObject(8, formatValue(order.barcode)); //main_barcode
-                                statement.setObject(9, ""); //ticket
+                                statement.setObject(9, ""); //ticket_data
                                 statement.addBatch();
                             }
                         }
@@ -556,7 +556,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " naim TEXT," +
                 " fld1 TEXT," +
                 " fld2 TEXT," +
-                " fld3 TEXT)";
+                " fld3 TEXT," +
+                " ticket TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -566,12 +567,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
+                String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '', ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalLegalEntity legalEntity : customANAList) {
                     if (legalEntity.idLegalEntity != null) {
-                        statement.setObject(1, formatValue(legalEntity.idLegalEntity));
-                        statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
+                        statement.setObject(1, formatValue(legalEntity.idLegalEntity)); //ana
+                        statement.setObject(2, formatValue(legalEntity.nameLegalEntity)); //naim
+                        statement.setObject(3, formatValue(legalEntity.extInfo)); //ticket
                         statement.addBatch();
                     }
                 }
