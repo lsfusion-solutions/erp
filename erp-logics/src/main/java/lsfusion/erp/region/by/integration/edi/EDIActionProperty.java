@@ -167,9 +167,9 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         return outputXMLString(doc, charset, null, null, true);
     }
 
-    protected void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
+    protected boolean sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
                               DataObject eInvoiceObject, boolean showMessages, boolean isCancel, int step) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
+        boolean result = false;
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML, null);
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
         switch (requestResult) {
@@ -190,6 +190,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s%s выгружена", provider, invoiceNumber, isCancel ? " (отмена)" : ""), "Экспорт"));
                     context.apply();
                 }
+                result = true;
                 break;
             case AUTHORISATION_ERROR:
                 ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
@@ -203,6 +204,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: неизвестная ошибка", provider, invoiceNumber), "Экспорт"));
                 }
         }
+        return result;
     }
 
     HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file) throws IOException {
