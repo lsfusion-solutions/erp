@@ -9,10 +9,10 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.Compare;
-import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -50,7 +50,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
-                context.delayUserInterfaction(new ExportFileClientAction("export.dbf", new RawFileData(file)));
+                context.delayUserInterfaction(new WriteClientAction(new RawFileData(file), "export", "dbf", false, true));
                 if(!file.delete())
                     file.deleteOnExit();
             }

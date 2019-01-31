@@ -8,9 +8,9 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.interop.Compare;
-import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -197,7 +197,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
                 RawFileData fileData = new RawFileData(tmpFile);
                 if (choosePath)
-                    context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
+                    context.delayUserInterfaction(new WriteClientAction(fileData, documentNumber, "xml", false, true));
                 if (saveToLocal) findProperty("generatedXML[]").change(new FileData(fileData, "xml"), context);
                 return Arrays.asList((Object) fileData, documentNumber);
 
