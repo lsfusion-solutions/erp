@@ -29,16 +29,29 @@ countAccess 'Кол-во доступных групп' (Employee employee, SkuG
           SUM 1 IF access(employee, SkuGroup child)
                 AND isParent(child, parent) MATERIALIZED;
 
+limitAccessSkuGroup 'Ограничение по группам SKU' = DATA BOOLEAN (Employee) COMPLEX;
+
+migrateLimitAccessSkuGroup = DATA BOOLEAN ();
+onStarted() +{ 
+    IF NOT migrateLimitAccessSkuGroup() THEN {
+        limitAccessSkuGroup(Employee e) <- TRUE IF NOT (GROUP SUM 1 IF dataAccess(SkuGroup gr, e) AND NOT parent(gr)); 
+        migrateLimitAccessSkuGroup() <- TRUE;
+        APPLY;
+    }
+}
 EXTEND FORM employee
     TREE skuTree skg = SkuGroup PARENT parent
-    PROPERTIES READONLY SHOWIF  limitAccess(e) order(skg), skgTreeName = name(skg)
+    PROPERTIES(e) limitAccessSkuGroup
+    PROPERTIES READONLY SHOWIF  limitAccessSkuGroup(e) order(skg), skgTreeName = name(skg)
     ORDER order(skg), skgTreeName
-    PROPERTIES(e,skg) SHOWIF limitAccess(e) access
+    PROPERTIES(e,skg) SHOWIF limitAccessSkuGroup(e) access
 ;
 DESIGN employee {
     pane {
-        MOVE BOX(TREE skuTree) {
+        NEW skuGroupAccess {
             caption = 'Группы SKU';
+            MOVE PROPERTY(limitAccessSkuGroup(e));
+            MOVE BOX(TREE skuTree);
         }
     }
 }
@@ -46,5 +59,5 @@ DESIGN employee {
 // ----------------------------------------- Метакод по добавлению фильтров на форму ----------------------- //
 
 META extendFormFilterSkuGroupAccess(form, concrete)
-    EXTEND FORM form FILTERS (concrete IS SkuGroup AND NOT limitAccess(currentUser())) OR countAccess(currentUser(), concrete) OR NOT concrete IS SkuGroup;
+    EXTEND FORM form FILTERS (concrete IS SkuGroup AND NOT limitAccessSkuGroup(currentUser())) OR countAccess(currentUser(), concrete) OR NOT concrete IS SkuGroup;
 END
