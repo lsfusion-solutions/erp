@@ -217,7 +217,7 @@ public class TerminalEquipmentServer {
             String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
             LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
                     "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
-                    "canonicalNameFilterProperty[TerminalHandbookType]", "extInfoProperty[TerminalHandbookType]");
+                    "canonicalNameFilterProperty[TerminalHandbookType]", "canonicalNameExtInfoProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
