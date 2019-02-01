@@ -1,6 +1,6 @@
 MODULE EVAT;
 
-REQUIRE System, Finance, LegalEntityBy, Item, Warehouse;
+REQUIRE System, Finance, LegalEntityBy, Item, Warehouse, LegalEntityCU;
 
 // Атрибуты для счет-фактуры
 
@@ -221,18 +221,6 @@ EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AG
 
 WHEN SET(exported(EVAT e)) 
      DO exportYear(e) <- Time.extractYear(currentDate());
-
-
-UNPForeign 'УНП (иностр.)' = DATA VARSTRING[50] (LegalEntity) IN doc CHARWIDTH 15;
-CONSTRAINT country(LegalEntity l) != defaultCountry() AND NOT toShowIndividual(l) AND NOT UNPForeign(l) MESSAGE 'Для организации должен быть задан УНП';
-
-toShowForeign(LegalEntity l) += l IS LegalEntity AND country('112') != country(l) AND NOT toShowIndividual(l);
-EXTEND FORM legalEntity
-    PROPERTIES (l) SHOWIF toShowForeign(l) UNPForeign
-;
-EXTEND FORM legalEntities
-    PROPERTIES (l) READONLY UNPForeign
-;
 
 
 //Поставщик
