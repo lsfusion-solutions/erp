@@ -2184,10 +2184,10 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
             RETURN;
         }
     printToLog('' + currentDateTime() + ' Creating new ItemGroups');
-    FOR customGroupType(CustomGroup g) == t ORDER level(g), g DO NEW ng = ItemGroup {
+    FOR customGroupType(CustomGroup g) == t ORDER level(g), g AND NOT id(g) == 'Все' DO NEW ng = ItemGroup {
         id(ng) <- 'tst_' + id(g);
         name(ng) <- name(g);
-        parent(ng) <- itemGroup('tst_' + id(parent(g)));
+        parent(ng) <- IF id(parent(g)) == 'Все' THEN itemGroup('Все') ELSE itemGroup('tst_' + id(parent(g)));
         order(ng) <- order(g);
 
         pieceNumerator(ng) <- pieceNumerator(itemGroup(g));
@@ -2227,13 +2227,11 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
             IF canceled() THEN {
                 printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
             } ELSE {
-                printToLog('' + currentDateTime() + ' Deleting old ItemGroups');
-                FOR ItemGroup g IS ItemGroup AND NOT new(g) DO {
-                    printToLog('' + currentDateTime() + ' Deleting ' + name(g));
-                    DELETE g;
-                    setNoCancelInTransaction();
-                    APPLY NESTED LOCAL;
-                }
+                printToLog('' + currentDateTime() + ' Setting old ItemGroups as inactive');
+                id(ItemGroup g) <- 'old_' + id(g) WHERE g IS ItemGroup AND NOT new(g) AND NOT id(g) == 'Все';
+                inactive(ItemGroup g) <- TRUE WHERE g IS ItemGroup AND NOT new(g) AND NOT id(g) == 'Все';
+                setNoCancelInTransaction();
+                APPLY NESTED LOCAL;
                 IF canceled() THEN {
                     printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
                 } ELSE {
