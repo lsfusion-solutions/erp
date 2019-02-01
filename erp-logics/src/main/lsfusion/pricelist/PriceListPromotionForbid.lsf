@@ -4,4 +4,14 @@ REQUIRE PriceListPromotion, MachineryPriceTransactionPromotion;
 
 NAMESPACE PriceList;
 
-overForbidPromotion(Sku sku, DepartmentStore stock) += TRUE IF promotionPriceListDetailA(sku, stock);
+allowPromotion 'Разрешить скидки' = DATA BOOLEAN (PriceList);
+
+EXTEND FORM userPriceList PROPERTIES allowPromotion(p);
+
+DESIGN userPriceList {
+    param {
+        MOVE PROPERTY (allowPromotion(p));
+    }
+}
+
+overForbidPromotion(Sku sku, DepartmentStore stock) += TRUE IF promotionPriceListDetailA(sku, stock) AND NOT allowPromotion(priceList(promotionPriceListDetailA(sku, stock)));
