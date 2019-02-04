@@ -1,6 +1,6 @@
 MODULE TopBy;
 
-REQUIRE System, EDI, Integration, Warehouse, Store;
+REQUIRE System, EDIIntegration, Integration, Warehouse, Store;
 
 NAMESPACE EDI;
 
@@ -16,7 +16,11 @@ archiveDirTopBy 'Папка принятых сообщений' = DATA VARSTRIN
 outputDirTopBy 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
-receiveTopBy 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
+receiveTopByAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
+receiveTopBy 'Получить сообщения' {
+    checkIsServer();
+    IF isServer() THEN receiveTopByAction();
+}
 
 loginInvoiceTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
 passwordInvoiceTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
@@ -27,7 +31,11 @@ hostEDSServiceTopBy 'Хост EDSService' = DATA VARSTRING[100] ();
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerTopBy 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 
-receiveInvoiceTopBy 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByActionProperty' ();
+receiveInvoiceTopByAction 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByActionProperty' ();
+receiveInvoiceTopBy 'Получить сообщения по электронным накладным' () {
+    checkIsServer();
+    IF isServer() THEN receiveInvoiceTopByAction();  
+}
 
 EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,

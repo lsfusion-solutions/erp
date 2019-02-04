@@ -1,6 +1,6 @@
 MODULE EDN;
 
-REQUIRE System, EDI, Integration, Warehouse, Store;
+REQUIRE System, EDIIntegration, Integration, Warehouse, Store;
 
 NAMESPACE EDI;
 
@@ -16,7 +16,11 @@ archiveDirEDN 'Папка принятых сообщений' = DATA VARSTRING[
 outputDirEDN 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesEDN 'Получать сообщения для поставщика' = DATA BOOLEAN ();
-receiveEDN 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
+receiveEDNAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
+receiveEDN 'Получить сообщения' {
+    checkIsServer();
+    IF isServer() THEN receiveEDNAction();
+}
 
 loginInvoiceEDN 'Имя пользователя EDN' = DATA VARSTRING[100] ();
 passwordInvoiceEDN 'Пароль EDN' = DATA VARSTRING[100] () ECHO;
@@ -27,7 +31,11 @@ hostEDSServiceEDN 'Хост EDSService' = DATA VARSTRING[100] ();
 portEDSServiceEDN 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerEDN 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 
-receiveInvoiceEDN 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveInvoiceMessagesEDNActionProperty' ();
+receiveInvoiceEDNAction 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveInvoiceMessagesEDNActionProperty' ();
+receiveInvoiceEDN 'Получить сообщения по электронным накладным' {
+    checkIsServer();
+    IF isServer() THEN receiveInvoiceEDNAction();
+}
 
 EXTEND FORM integrationData
     PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN,

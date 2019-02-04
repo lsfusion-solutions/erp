@@ -1,5 +1,7 @@
 package lsfusion.erp.region.by.integration.edi;
 
+import lsfusion.base.FileData;
+import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -9,6 +11,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
+import lsfusion.server.classes.DynamicFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -34,10 +37,13 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import static lsfusion.base.BaseUtils.trimToNull;
 
 public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
@@ -46,10 +52,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
-                                   String provider, String archiveDir, boolean disableConfirmation, boolean sendReplies, boolean invoices)
+                                   String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
+                                   boolean sendReplies, boolean invoices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         receiveMessages(context, url, login, password, host, port, null, null, provider, archiveDir,
-                disableConfirmation, false, sendReplies, invoices);
+                disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
@@ -57,56 +64,56 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                    String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
                                    boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        if (context.getDbManager().isServer()) {
-            Element rootElement = new Element("Envelope", soapenvNamespace);
-            rootElement.setNamespace(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(topNamespace);
 
-            Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
+            String xml = getReceiveMessagesRequest(login, password);
 
-            //parent: rootElement
-            Element headerElement = new Element("Header", soapenvNamespace);
-            rootElement.addContent(headerElement);
-
-            //parent: rootElement
-            Element bodyElement = new Element("Body", soapenvNamespace);
-            rootElement.addContent(bodyElement);
-
-            //parent: bodyElement
-            Element sendDocumentElement = new Element("GetDocuments", topNamespace);
-            bodyElement.addContent(sendDocumentElement);
-
-            addStringElement(topNamespace, sendDocumentElement, "username", login);
-            addStringElement(topNamespace, sendDocumentElement, "password", password);
-
-            String xml = new XMLOutputter().outputString(doc);
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
             ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
             String responseMessage = getResponseMessage(httpResponse);
             try {
-                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, archiveDir, "GetDocuments");
-                switch (requestResult) {
-                    case OK:
-                        importMessages(context, url, login, password, host, port, hostEDSService, portEDSService,
-                                provider, responseMessage, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
-                        break;
-                    case AUTHORISATION_ERROR:
-                        ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
-                        context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Импорт"));
-                        break;
-                    case UNKNOWN_ERROR:
-                        ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
-                        context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Импорт"));
+
+                DataObject fileObject = new DataObject(new FileData(new RawFileData(responseMessage.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get());
+                findAction("importRequestResult[FILE, TEXT]").execute(context, fileObject, new DataObject("GetDocumentsResponse"));
+                String error = (String)findProperty("requestError[]").read(context);
+
+                if(error == null) {
+                    importMessages(context, url, login, password, host, port, hostEDSService, portEDSService,
+                            provider, responseMessage, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
+                } else {
+                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: " + error);
+                    context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: " + error, "Импорт"));
                 }
             } catch (JDOMException e) {
                 ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
                 context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: некорректный ответ сервера", "Импорт"));
             }
-        } else {
-            context.delayUserInteraction(new MessageClientAction(provider + " Receive Messages disabled, change serverComputer() to enable", "Импорт"));
-        }
+    }
+
+    private String getReceiveMessagesRequest(String login, String password) {
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(topNamespace);
+
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        //parent: rootElement
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        //parent: rootElement
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        rootElement.addContent(bodyElement);
+
+        //parent: bodyElement
+        Element sendDocumentElement = new Element("GetDocuments", topNamespace);
+        bodyElement.addContent(sendDocumentElement);
+
+        addStringElement(topNamespace, sendDocumentElement, "username", login);
+        addStringElement(topNamespace, sendDocumentElement, "password", password);
+
+        return new XMLOutputter().outputString(doc);
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
@@ -114,16 +121,16 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                 String provider, String responseMessage, String archiveDir, boolean disableConfirmation,
                                 boolean receiveSupplierMessages, boolean sendReplies, boolean invoices)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
-        Map<String, DocumentData> orderMessages = new HashMap<>();
-        Map<String, DocumentData> orderResponses = new HashMap<>();
-        Map<String, DocumentData> despatchAdvices = new HashMap<>();
-        Map<String, DocumentData> invoiceMessages = new HashMap<>();
 
-        List<InvoiceMessage> invoiceSystemMessageList = new ArrayList<>();
-        List<BLRWBL> blrwblList = new ArrayList<>();
-        List<BLRWBR> blrwbrList = new ArrayList<>();
+        Map<String, String> systemMessageMap = new HashMap<>();
+        Map<String, String> ordrspMap = new HashMap<>();
+        Map<String, String> desadvMap = new HashMap<>();
+        Map<String, String> blrwblMap = new HashMap<>();
+        Map<String, String> blrwbrMap = new HashMap<>();
+        Map<String, String> blrapnMap = new HashMap<>();
+        Map<String, String> ordersMap = new HashMap<>();
 
-        Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
+        Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes(StandardCharsets.UTF_8)));
         Element rootNode = document.getRootElement();
         Namespace ns = rootNode.getNamespace();
         if (ns != null) {
@@ -144,56 +151,37 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                 String documentType = documentData.getChildText("DocumentType", topNamespace).toLowerCase();
                                 String documentId = documentData.getChildText("Id", topNamespace);
 
-                                try {
-                                    Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
-                                    switch (documentType) {
-                                        case "systemmessage":
-                                            if (invoices) {
-                                                if(receiveSupplierMessages) {
-                                                    InvoiceMessage invoiceSystemMessage = parseInvoiceSystemMessage(context, subXMLRootNode, documentId);
-                                                    if (invoiceSystemMessage != null)
-                                                        invoiceSystemMessageList.add(invoiceSystemMessage);
-                                                }
-                                            } else {
-                                                DocumentData orderMessage = parseOrderMessage(subXMLRootNode, provider, documentId, receiveSupplierMessages);
-                                                if(orderMessage != null)
-                                                    orderMessages.put(documentId, orderMessage);
-                                            }
-                                            break;
-                                        case "ordrsp":
-                                            if (!invoices)
-                                                orderResponses.put(documentId, parseOrderResponse(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation));
-                                            break;
-                                        case "desadv":
-                                            if (!invoices)
-                                                despatchAdvices.put(documentId, parseDespatchAdvice(subXMLRootNode, context, url, login, password,
-                                                        host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation));
-                                            break;
-                                        case "blrwbl":
-                                            if (invoices)
-                                                blrwblList.add(parseBLRWBL(subXMLRootNode, documentId));
-                                            break;
-                                        case "blrwbr":
-                                            if (invoices && receiveSupplierMessages) {
-                                                BLRWBR blrwbr = parseBLRWBR(subXMLRootNode, documentId);
-                                                blrwbrList.add(blrwbr);
-                                            }
-                                            break;
-                                        case "blrapn":
-                                            if (invoices)
-                                                invoiceMessages.put(documentId, parseInvoiceMessage(context, subXMLRootNode, provider, documentId, receiveSupplierMessages));
-                                            break;
-                                    }
-                                } catch (JDOMException e) {
-                                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                                switch (documentType) {
+                                    case "systemmessage":
+                                        systemMessageMap.put(documentId, subXML);
+                                        break;
+                                    case "ordrsp":
+                                        ordrspMap.put(documentId, subXML);
+                                        break;
+                                    case "desadv":
+                                        desadvMap.put(documentId, subXML);
+                                        break;
+                                    case "blrwbl":
+                                        blrwblMap.put(documentId, subXML);
+                                        break;
+                                    case "blrwbr":
+                                        blrwbrMap.put(documentId, subXML);
+                                        break;
+                                    case "blrapn":
+                                        blrapnMap.put(documentId, subXML);
+                                        break;
+                                    case "orders":
+                                        ordersMap.put(documentId, subXML);
+                                        break;
+
                                 }
 
                                 archiveDocument(archiveDir, documentId, subXML);
                             }
 
                             importData(context, url, login, password, host, port, hostEDSService, portEDSService, provider, archiveDir,
-                                    orderMessages, orderResponses, despatchAdvices, invoiceMessages, blrwblList, invoiceSystemMessageList, blrwbrList, disableConfirmation, sendReplies);
+                                    systemMessageMap, ordrspMap, desadvMap, blrwblMap, blrwbrMap, blrapnMap, ordersMap,
+                                    invoices, receiveSupplierMessages, disableConfirmation, sendReplies);
 
                         } else {
                             String message = result.getChildText("Message", topNamespace);
@@ -207,12 +195,37 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importData(ExecutionContext context, String url, String login, String password, String host, Integer port,
-                            String hostEDSService, Integer portEDSService,
-                            String provider, String archiveDir, Map<String, DocumentData> orderMessages, Map<String, DocumentData> orderResponses,
-                            Map<String, DocumentData> despatchAdvices, Map<String, DocumentData> invoiceMessages, List<BLRWBL> blrwblList,
-                            List<InvoiceMessage> invoiceSystemMessageList, List<BLRWBR> blrwbrList, boolean disableConfirmation, boolean sendReplies)
+                            String hostEDSService, Integer portEDSService, String provider, String archiveDir,
+                            Map<String, String> systemMessageMap, Map<String, String> ordrspMap, Map<String, String> desadvMap,
+                            Map<String, String> blrwblMap, Map<String, String> blrwbrMap, Map<String, String> blrapnMap, Map<String, String> ordersMap,
+                            boolean invoices, boolean receiveSupplierMessages, boolean disableConfirmation, boolean sendReplies)
             throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, SQLHandledException {
         int sendRecipientErrorFailed = 0;
+
+        //Parse and import systemmessage
+        List<InvoiceMessage> invoiceSystemMessageList = new ArrayList<>();
+        Map<String, DocumentData> orderMessages = new HashMap<>();
+        for(Map.Entry<String, String> systemMessageEntry : systemMessageMap.entrySet()) {
+            String documentId = systemMessageEntry.getKey();
+            String subXML = systemMessageEntry.getValue();
+            try {
+                if (invoices) {
+                    if (receiveSupplierMessages) {
+                        InvoiceMessage invoiceSystemMessage = parseInvoiceSystemMessage(context, subXML, documentId);
+                        if (invoiceSystemMessage != null) {
+                            invoiceSystemMessageList.add(invoiceSystemMessage);
+                        }
+                    }
+                } else {
+                    DocumentData orderMessage = parseOrderMessage(subXML, provider, documentId, receiveSupplierMessages);
+                    if (orderMessage != null) {
+                        orderMessages.put(documentId, orderMessage);
+                    }
+                }
+            } catch (JDOMException e) {
+                ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+            }
+        }
 
         int orderMessagesSucceeded = 0;
         int orderMessagesFailed = 0;
@@ -242,80 +255,124 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
 
+        //Parse and import ordrsp
         int responsesSucceeded = 0;
         int responsesFailed = 0;
-        for (Map.Entry<String, DocumentData> orderResponse : orderResponses.entrySet()) {
-            String documentId = orderResponse.getKey();
-            DocumentData data = orderResponse.getValue();
-            String error = importOrderResponses(context, data);
-            if (error == null) {
-                confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
-                responsesSucceeded++;
-            } else {
-                if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
-                    sendRecipientErrorFailed++;
-                ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
-                responsesFailed++;
+        if (!invoices) {
+            for (Map.Entry<String, String> ordrspEntry : ordrspMap.entrySet()) {
+                String documentId = ordrspEntry.getKey();
+                String subXML = ordrspEntry.getValue();
+                try {
+                    DocumentData data = parseOrderResponse(subXML, context, url, login, password,
+                            host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation);
+
+                    String error = importOrderResponses(context, data);
+                    if (error == null) {
+                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                        ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
+                        responsesSucceeded++;
+                    } else {
+                        if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
+                            sendRecipientErrorFailed++;
+                        ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
+                        responsesFailed++;
+                    }
+
+                } catch (JDOMException e) {
+                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                }
             }
         }
 
+        //Parse and import desadv
         int despatchAdvicesSucceeded = 0;
         int despatchAdvicesFailed = 0;
-        for (Map.Entry<String, DocumentData> despatchAdvice : despatchAdvices.entrySet()) {
-            String documentId = despatchAdvice.getKey();
-            DocumentData data = despatchAdvice.getValue();
-            String error = importDespatchAdvices(context, data);
-            if (error == null) {
-                confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
-                despatchAdvicesSucceeded++;
-            } else {
-                if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
-                    sendRecipientErrorFailed++;
-                ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
-                despatchAdvicesFailed++;
+        if(!invoices) {
+            for(Map.Entry<String, String> desadvEntry : desadvMap.entrySet()) {
+                String documentId = desadvEntry.getKey();
+                String subXML = desadvEntry.getValue();
+                try {
+                    DocumentData data = parseDespatchAdvice(subXML, context, url, login, password,
+                            host, port, provider, archiveDir, documentId, sendReplies, disableConfirmation);
+
+                    String error = importDespatchAdvices(context, data);
+                    if (error == null) {
+                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                        ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
+                        despatchAdvicesSucceeded++;
+                    } else {
+                        if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
+                            sendRecipientErrorFailed++;
+                        ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
+                        despatchAdvicesFailed++;
+                    }
+
+                } catch (JDOMException e) {
+                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                }
             }
         }
 
+        //Parse and import blrwbl
         int eInvoicesSucceeded = 0;
         int eInvoicesFailed = 0;
-        for (BLRWBL blrwbl : blrwblList) {
-            String error = importBLRWBL(context, blrwbl);
-            if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, blrwbl.documentId));
-                confirmDocumentReceived(context, blrwbl.documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                eInvoicesSucceeded++;
-            } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, blrwbl.documentId, error));
-                if(!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, blrwbl.documentId, blrwbl.documentNumber, error, disableConfirmation, sendReplies))
-                    sendRecipientErrorFailed++;
-                eInvoicesFailed++;
+        if(invoices) {
+            for (Map.Entry<String, String> blrwblEntry : blrwblMap.entrySet()) {
+                String documentId = blrwblEntry.getKey();
+                String subXML = blrwblEntry.getValue();
+                try {
+                    BLRWBL blrwbl = parseBLRWBL(subXML, documentId);
+
+                    String error = importBLRWBL(context, blrwbl);
+                    if (error == null) {
+                        ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, blrwbl.documentId));
+                        confirmDocumentReceived(context, blrwbl.documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                        eInvoicesSucceeded++;
+                    } else {
+                        ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, blrwbl.documentId, error));
+                        if(!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, blrwbl.documentId, blrwbl.documentNumber, error, disableConfirmation, sendReplies))
+                            sendRecipientErrorFailed++;
+                        eInvoicesFailed++;
+                    }
+
+                } catch (JDOMException e) {
+                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                }
             }
         }
 
+        //Parse and import blrapn
         int invoiceMessagesSucceeded = 0;
         int invoiceMessagesFailed = 0;
-        for (Map.Entry<String, DocumentData> message : invoiceMessages.entrySet()) {
-            String documentId = message.getKey();
-            DocumentData data = message.getValue();
-            if (data.firstData != null) {
-                String error = importInvoiceMessages(context, data);
-                if (error == null) {
-                    confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                    ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
-                    invoiceMessagesSucceeded++;
-                } else {
-                    if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
-                        sendRecipientErrorFailed++;
-                    ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
-                    invoiceMessagesFailed++;
+        if(invoices) {
+            for (Map.Entry<String, String> blrapnEntry : blrapnMap.entrySet()) {
+                String documentId = blrapnEntry.getKey();
+                String subXML = blrapnEntry.getValue();
+                try {
+
+                    DocumentData data = parseInvoiceMessage(context, subXML, provider, documentId, receiveSupplierMessages);
+                    if (data.firstData != null) {
+                        String error = importInvoiceMessages(context, data.firstData);
+                        if (error == null) {
+                            confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                            ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
+                            invoiceMessagesSucceeded++;
+                        } else {
+                            if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
+                                sendRecipientErrorFailed++;
+                            ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
+                            invoiceMessagesFailed++;
+                        }
+                    } else {
+                        if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber,
+                                String.format("%s Parsing EInvoiceMessage %s failed", provider, documentId), disableConfirmation, sendReplies))
+                            sendRecipientErrorFailed++;
+                        invoiceMessagesFailed++;
+                    }
+
+                } catch (JDOMException e) {
+                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
-            } else {
-                if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber,
-                        String.format("%s Parsing EInvoiceMessage %s failed", provider, documentId), disableConfirmation, sendReplies))
-                    sendRecipientErrorFailed++;
-                invoiceMessagesFailed++;
             }
         }
 
@@ -333,37 +390,87 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
 
+        //Parse blrwbr, create, sign and send blrapn
         int blrwbrCount = 0;
-        if(!disableConfirmation) {
-            for (BLRWBR blrwbr : blrwbrList) {
-                //создаём BLRAPN и подписываем
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
-                if (eInvoiceObject instanceof DataObject) {
-                    String aliasEDSService = (String) findProperty("aliasEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
-                    String passwordEDSService = (String) findProperty("passwordEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
-                    String invoiceNumber = trim((String) findProperty("number[EInvoice]").read(context, eInvoiceObject));
-                    String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
-                    String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);
-                    String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
-                    boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
-                    String blrapn = createBLRAPN(context, (DataObject) eInvoiceObject, archiveDir, blrwbr.documentNumberBLRAPN, blrwbr.documentDate, blrwbr.documentId,
-                            blrwbr.creationDateTime, glnSupplier, glnCustomer);
-                    String signedBLRAPN = signDocument("BLRAPN", invoiceNumber, hostEDSService, portEDSService, blrapn, aliasEDSService, passwordEDSService, charset);
-                    //Отправляем
-                    if (signedBLRAPN != null) {
-                        if (sendDocument(context, url, login, password, host, port, provider, invoiceNumber, generateXML(login, password, invoiceNumber,
-                                blrwbr.documentDate, glnSupplier, glnCustomer, glnCustomerStock,
-                                new String(org.apache.commons.codec.binary.Base64.encodeBase64(signedBLRAPN.getBytes())), "BLRAPN"),
-                                (DataObject) eInvoiceObject, true, isCancel, 4)) {
-                            confirmDocumentReceived(context, blrwbr.docId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                            blrwbrCount++;
+        if(invoices && receiveSupplierMessages && !disableConfirmation) {
+            for (Map.Entry<String, String> blrwbrEntry : blrwbrMap.entrySet()) {
+                String documentId = blrwbrEntry.getKey();
+                String subXML = blrwbrEntry.getValue();
+                try {
+                    BLRWBR blrwbr = parseBLRWBR(subXML, documentId);
+
+                    //создаём BLRAPN и подписываем
+                    ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
+                    if (eInvoiceObject instanceof DataObject) {
+                        String aliasEDSService = (String) findProperty("aliasEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
+                        String passwordEDSService = (String) findProperty("passwordEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
+                        String invoiceNumber = trim((String) findProperty("number[EInvoice]").read(context, eInvoiceObject));
+                        String glnSupplier = (String) findProperty("glnSupplier[EInvoice]").read(context, eInvoiceObject);
+                        String glnCustomer = (String) findProperty("glnCustomer[EInvoice]").read(context, eInvoiceObject);
+                        String glnCustomerStock = (String) findProperty("glnCustomerStock[EInvoice]").read(context, eInvoiceObject);
+                        boolean isCancel = findProperty("isCancel[EInvoice]").read(context, eInvoiceObject) != null;
+                        String blrapn = createBLRAPN(context, (DataObject) eInvoiceObject, archiveDir, blrwbr.documentNumberBLRAPN, blrwbr.documentDate, blrwbr.documentId,
+                                blrwbr.creationDateTime, glnSupplier, glnCustomer);
+                        String signedBLRAPN = signDocument("BLRAPN", invoiceNumber, hostEDSService, portEDSService, blrapn, aliasEDSService, passwordEDSService, charset);
+                        //Отправляем
+                        if (signedBLRAPN != null) {
+                            if (sendDocument(context, url, login, password, host, port, provider, invoiceNumber, generateXML(login, password, invoiceNumber,
+                                    blrwbr.documentDate, glnSupplier, glnCustomer, glnCustomerStock,
+                                    new String(org.apache.commons.codec.binary.Base64.encodeBase64(signedBLRAPN.getBytes())), "BLRAPN"),
+                                    (DataObject) eInvoiceObject, true, isCancel, 4)) {
+                                confirmDocumentReceived(context, blrwbr.docId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                                blrwbrCount++;
+                            }
                         }
                     }
+
+                } catch (JDOMException e) {
+                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
 
         String message = "";
+
+
+        //Import orders
+        if(!invoices && receiveSupplierMessages) {
+            int supplierOrdersSucceeded = 0;
+            int supplierOrdersFailed = 0;
+            for (Map.Entry<String, String> blrapnEntry : ordersMap.entrySet()) {
+                String documentId = blrapnEntry.getKey();
+                String subXML = blrapnEntry.getValue();
+                String error;
+                String documentNumber = null;
+                try {
+
+                    findAction("importSaleUserOrderEDI[FILE]").execute(context, new DataObject(new FileData(new RawFileData(subXML.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get()));
+                    error = trimToNull((String) findProperty("importSaleUserOrderEDIError[]").read(context));
+
+                    if(error == null) {
+                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+                        supplierOrdersSucceeded++;
+                        ServerLoggers.importLogger.info(String.format("%s Import Order %s succeeded", provider, documentId));
+                    } else {
+                        documentNumber = (String) findProperty("documentNumber[]").read(context);
+                        ServerLoggers.importLogger.error(String.format("%s Import Order %s failed: %s", provider, documentId, error));
+                    }
+                } catch (Exception e) {
+                    error = e.getMessage();
+                    ServerLoggers.importLogger.error(String.format("%s Parse Order %s error: ", provider, documentId), e);
+                }
+                if(error != null) {
+                    if (documentNumber != null && !sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error, disableConfirmation, sendReplies))
+                        sendRecipientErrorFailed++;
+                    supplierOrdersFailed++;
+                }
+            }
+
+            if (supplierOrdersSucceeded > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено заказов поставщика: %s", supplierOrdersSucceeded);
+            if (supplierOrdersFailed > 0)
+                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено заказов поставщика: %s", supplierOrdersFailed);
+        }
 
         if (orderMessagesSucceeded > 0)
             message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по заказам: %s", orderMessagesSucceeded);
@@ -398,8 +505,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             context.delayUserInteraction(new MessageClientAction(message.isEmpty() ? "Не найдено новых сообщений" : message, "Импорт"));
     }
 
-    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId, boolean receiveSupplierMessages) {
-
+    private DocumentData parseOrderMessage(String subXML, String provider, String documentId, boolean receiveSupplierMessages) throws IOException, JDOMException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
@@ -486,9 +593,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
+    private DocumentData parseOrderResponse(String subXML, ExecutionContext context, String url, String login, String password, String host,
                                             Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -710,9 +818,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host,
+    private DocumentData parseDespatchAdvice(String subXML, ExecutionContext context, String url, String login, String password, String host,
                                              Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
 
@@ -920,7 +1029,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private BLRWBL parseBLRWBL(Element rootNode, String documentId) {
+    private BLRWBL parseBLRWBL(String subXML, String documentId) throws IOException, JDOMException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         List<List<Object>> data = new ArrayList<>();
 
         Element messageHeaderElement = rootNode.getChild("MessageHeader");
@@ -1059,8 +1169,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private InvoiceMessage parseInvoiceSystemMessage(ExecutionContext context, Element rootNode, String documentId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
+    private InvoiceMessage parseInvoiceSystemMessage(ExecutionContext context, String subXML, String documentId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
@@ -1078,7 +1188,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return null;
     }
 
-    private BLRWBR parseBLRWBR(Element rootNode, String docId) {
+    private BLRWBR parseBLRWBR(String subXML, String docId) throws IOException, JDOMException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         String documentNumber = rootNode.getChild("MessageHeader").getChildText("MessageID");
         Element deliveryNoteElement = rootNode.getChild("DeliveryNote");
         String documentId = deliveryNoteElement.getChildText("DocumentID");
@@ -1095,8 +1206,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new BLRWBR(docId, documentId, creationDateTime, documentNumber, deliveryNoteNumber, documentNumberBLRAPN, documentDate, isCancel);
     }
 
-    private DocumentData parseInvoiceMessage(ExecutionContext context, Element rootNode, String provider, String documentId, boolean receiveSupplierMessages) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
+    private DocumentData parseInvoiceMessage(ExecutionContext context, String subXML, String provider, String documentId, boolean receiveSupplierMessages) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+        Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         Element acknowledgementElement = rootNode.getChild("Acknowledgement");
 
         String documentNumber = acknowledgementElement.getChildText("DocumentID");
@@ -1127,10 +1238,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importInvoiceMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
+    private String importInvoiceMessages(ExecutionContext context, List<List<Object>> importData) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
-        List<List<Object>> importData = data == null ? null : data.firstData;
-        if (importData != null && !importData.isEmpty()) {
+        if (!importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -1210,6 +1320,27 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                          String host, Integer port, String provider, String archiveDir, boolean disableConfirmation) throws IOException, JDOMException {
         if(!disableConfirmation) {
 
+            String xml = generateConfirmDocumentXML(documentId, login, password);
+
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
+            RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "ConfirmDocumentReceived");
+            switch (requestResult) {
+                case OK:
+                    ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
+                    break;
+                case AUTHORISATION_ERROR:
+                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Импорт"));
+                    break;
+                case UNKNOWN_ERROR:
+                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Импорт"));
+            }
+        }
+    }
+
+    private String generateConfirmDocumentXML(String documentId, String login, String password) {
             Element rootElement = new Element("Envelope", soapenvNamespace);
             rootElement.setNamespace(soapenvNamespace);
             rootElement.addNamespaceDeclaration(soapenvNamespace);
@@ -1234,61 +1365,16 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             addStringElement(topNamespace, confirmDocumentReceivedElement, "password", password);
             addStringElement(topNamespace, confirmDocumentReceivedElement, "documentId", documentId);
 
-            String xml = new XMLOutputter().outputString(doc);
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-            ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
-            RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "ConfirmDocumentReceived");
-            switch (requestResult) {
-                case OK:
-                    ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
-                    break;
-                case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
-                    context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Импорт"));
-                    break;
-                case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
-                    context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Импорт"));
-            }
-        }
+            return new XMLOutputter().outputString(doc);
     }
 
     protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String archiveDir,
                                          String documentId, String documentNumber, String error, boolean disableConfirmation, boolean sendReplies) throws IOException, JDOMException {
         if(!disableConfirmation && sendReplies) {
             boolean succeeded = false;
-            String currentDate = formatTimestamp(new Timestamp(Calendar.getInstance().getTime().getTime()));
-            String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
 
-            Element rootElement = new Element("Envelope", soapenvNamespace);
-            rootElement.setNamespace(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(soapenvNamespace);
-            rootElement.addNamespaceDeclaration(topNamespace);
+            String xml = generateRecipientErrorXML(login, password, documentId, documentNumber, error);
 
-            Document doc = new Document(rootElement);
-            doc.setRootElement(rootElement);
-
-            //parent: rootElement
-            Element headerElement = new Element("Header", soapenvNamespace);
-            rootElement.addContent(headerElement);
-
-            //parent: rootElement
-            Element bodyElement = new Element("Body", soapenvNamespace);
-            rootElement.addContent(bodyElement);
-
-            //parent: bodyElement
-            Element sendDocumentElement = new Element("SendDocument", topNamespace);
-            bodyElement.addContent(sendDocumentElement);
-
-            addStringElement(topNamespace, sendDocumentElement, "username", login);
-            addStringElement(topNamespace, sendDocumentElement, "password", password);
-            addStringElement(topNamespace, sendDocumentElement, "documentDate", currentDate);
-            addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentId);
-
-            addStringElement(topNamespace, sendDocumentElement, "documentType", "SYSTEMMESSAGE");
-            addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
-
-            String xml = new XMLOutputter().outputString(doc);
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
             ServerLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "SendDocument");
@@ -1308,6 +1394,41 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         } else {
             return true;
         }
+    }
+
+    private String generateRecipientErrorXML(String login, String password, String documentId, String documentNumber, String error) {
+        String currentDate = formatTimestamp(new Timestamp(Calendar.getInstance().getTime().getTime()));
+        String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
+
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(topNamespace);
+
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        //parent: rootElement
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        //parent: rootElement
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        rootElement.addContent(bodyElement);
+
+        //parent: bodyElement
+        Element sendDocumentElement = new Element("SendDocument", topNamespace);
+        bodyElement.addContent(sendDocumentElement);
+
+        addStringElement(topNamespace, sendDocumentElement, "username", login);
+        addStringElement(topNamespace, sendDocumentElement, "password", password);
+        addStringElement(topNamespace, sendDocumentElement, "documentDate", currentDate);
+        addStringElement(topNamespace, sendDocumentElement, "documentNumber", documentId);
+
+        addStringElement(topNamespace, sendDocumentElement, "documentType", "SYSTEMMESSAGE");
+        addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
+
+        return new XMLOutputter().outputString(doc);
     }
 
     private String getErrorSubXML(String documentId, String documentNumber, String error) {
@@ -1470,18 +1591,6 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             this.firstData = firstData;
             this.secondData = secondData;
             this.skip = skip;
-        }
-    }
-
-    private class ImportResult {
-        String documentId;
-        String documentNumber;
-        String error;
-
-        public ImportResult(String documentId, String documentNumber, String error) {
-            this.documentId = documentId;
-            this.documentNumber = documentNumber;
-            this.error = error;
         }
     }
 

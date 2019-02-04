@@ -1,0 +1,74 @@
+MODULE EDIIntegration;
+
+REQUIRE EDI, SaleOrder;
+
+
+//----------------------- importRequestResult ---------------------------//
+
+succesful = DATA LOCAL TEXT(INTEGER);
+message = DATA LOCAL TEXT(INTEGER);
+errorCode = DATA LOCAL INTEGER(INTEGER);
+
+requestError = DATA LOCAL NESTED TEXT();
+importRequestResult(FILE xml, TEXT root) {
+    IMPORT XML ROOT root FROM xml TO succesful='Succesful', message='Message', errorCode='ErrorCode';
+    IF succesful(0) == 'true' THEN {
+        requestError() <- NULL;
+    } ELSE {
+        IF errorCode(0) == 1300 THEN {
+            requestError()<- 'Ошибка авторизации';
+        } ELSE {
+            requestError() <- CONCAT 'Неизвестная ошибка', message(0);
+        }   
+    }
+}
+
+
+//----------------------- Import Sale.UserOrder (orders) ---------------------------//
+
+documentNumber = DATA LOCAL NESTED VARSTRING[28]();
+documentDate = DATA LOCAL DATE();
+buyerGLN = DATA LOCAL VARSTRING[100]();
+destinationGLN = DATA LOCAL VARSTRING[100]();
+supplierGLN = DATA LOCAL VARSTRING[100]();
+
+GTIN = DATA LOCAL VARSTRING[100](INTEGER);
+quantityOrdered = DATA LOCAL NUMERIC[16,5](INTEGER);
+priceElement = DATA LOCAL NUMERIC[16,4](INTEGER);
+priceNoNDS = DATA LOCAL VARSTRING[100](INTEGER);
+priceNDS = DATA LOCAL VARSTRING[100](INTEGER);
+tax = DATA LOCAL NUMERIC[10,5](INTEGER);
+
+FORM importSaleUserOrderEDI
+    PROPERTIES() documentNumber, documentDate, buyerGLN, destinationGLN, supplierGLN
+    
+    OBJECTS line = INTEGER
+    PROPERTIES(line) GTIN, quantityOrdered, priceElement, priceNoNDS, priceNDS, tax 
+;
+
+importSaleUserOrderEDIError = DATA LOCAL NESTED TEXT();
+importSaleUserOrderEDI(FILE xml) {
+    NEWSESSION {
+    IMPORT importSaleUserOrderEDI XML FROM xml;
+        NEW order = Sale.UserOrder {
+            number(order) <- documentNumber();
+            date(order) <- documentDate();
+            supplier(order) <- legalEntityGLN(buyerGLN());
+            supplierStock(order) <- stockGLN(destinationGLN());
+            customer(order) <- legalEntityGLN(supplierGLN());
+            operation(order) <- Sale.operation('intra');
+            
+            FOR GTIN(INTEGER line) DO {
+                NEW detail = Sale.UserOrderDetail {      
+                    order(detail) <- order;     
+                    sku(detail) <- skuGTIN(GTIN(line));
+                    quantity(detail) <- quantityOrdered(line);
+                    price(detail) <- priceElement(line);
+                    valueVAT(detail) <- tax(line);
+                }
+            }
+            APPLY;
+            IF canceled() THEN importSaleUserOrderEDIError() <- applyMessage();
+        }
+    }
+}
