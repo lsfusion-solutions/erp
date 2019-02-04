@@ -594,6 +594,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
         Integer maxFilesDirectoryCount = artixSettings == null ? null : artixSettings.getMaxFilesDirectoryCount();
+        String priorityDirectoriesString = artixSettings == null ? null : artixSettings.getPriorityDirectories();
+        Set<String> priorityDirectories = priorityDirectoriesString == null ? new HashSet<String>() : new HashSet<>(Arrays.asList(priorityDirectoriesString.split(",")));
 
         Map<String, Timestamp> result = new HashMap<>();
         softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
@@ -606,7 +608,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         //так что пока ищем во всех подпапках + в подпапках в папке online.
         //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
         int totalFilesCount = 0;
-        for (File dir : getSoftCheckDirectories(directorySet)) {
+        for (File dir : getSoftCheckDirectories(directorySet, priorityDirectories)) {
             File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
@@ -682,9 +684,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private List<File> getSoftCheckDirectories(Set<String> directorySet) {
-        List<File> directories = new ArrayList<>();
+    private List<File> getSoftCheckDirectories(Set<String> directorySet, Set<String> priorityDirectories) {
+
+        List<String> directoryList = new ArrayList<>();
+        for(String priorityDirectory : priorityDirectories) {
+            if(directorySet.contains(priorityDirectory))
+                directoryList.add(priorityDirectory);
+        }
         for(String directory : directorySet) {
+            if(!directoryList.contains(directory)) {
+                directoryList.add(directory);
+            }
+        }
+
+        List<File> directories = new ArrayList<>();
+        for(String directory : directoryList) {
             if(directory != null) {
                 File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
                     @Override
