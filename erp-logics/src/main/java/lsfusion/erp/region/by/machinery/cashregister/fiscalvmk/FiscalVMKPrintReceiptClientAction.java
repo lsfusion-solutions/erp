@@ -18,8 +18,6 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String ip;
     int comPort;
     int baudRate;
-    int placeNumber;
-    int operatorNumber;
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBottom;
@@ -29,15 +27,13 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String regNumber;
     String machineryNumber;
 
-    public FiscalVMKPrintReceiptClientAction(String logPath, String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    public FiscalVMKPrintReceiptClientAction(String logPath, String ip, Integer comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
         this.logPath = logPath;
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
-        this.placeNumber = placeNumber == null ? 1 : placeNumber;
-        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;

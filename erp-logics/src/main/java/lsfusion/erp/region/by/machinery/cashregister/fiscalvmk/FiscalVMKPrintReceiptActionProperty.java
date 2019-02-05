@@ -168,8 +168,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 }
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(logPath, ip, comPort, baudRate, placeNumber,
-                            operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
+                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(logPath, ip, comPort, baudRate,
+                            new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {

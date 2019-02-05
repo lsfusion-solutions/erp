@@ -38,7 +38,6 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-            Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
             BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
 
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
@@ -51,7 +50,7 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(logPath, ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(logPath, ip, comPort, baudRate, sumPayment, typePayment, false));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {

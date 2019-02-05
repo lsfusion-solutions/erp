@@ -13,20 +13,15 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
     String ip;
     int comPort;
     int baudRate;
-    int placeNumber;
-    int operatorNumber;
     BigDecimal sumPayment;
     Integer typePayment;
     boolean sale;
 
-    public FiscalVMKPrintInvoicePaymentClientAction(String logPath, String ip, Integer comPort, Integer baudRate, Integer placeNumber,
-                                                    Integer operatorNumber, BigDecimal sumPayment, Integer typePayment, boolean sale) {
+    public FiscalVMKPrintInvoicePaymentClientAction(String logPath, String ip, Integer comPort, Integer baudRate, BigDecimal sumPayment, Integer typePayment, boolean sale) {
         this.logPath = logPath;
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
-        this.placeNumber = placeNumber == null ? 1 : placeNumber;
-        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
         this.sale = sale;
