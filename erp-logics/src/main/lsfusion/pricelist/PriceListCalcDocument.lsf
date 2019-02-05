@@ -1,0 +1,244 @@
+MODULE PriceListCalcDocument;
+
+REQUIRE PriceListCalc;
+
+NAMESPACE PriceList;
+
+CLASS CalcPriceListTypeDocument 'Торговые надбавки';
+TABLE calcPriceListTypeDocument (CalcPriceListTypeDocument);
+
+
+@defineDocumentHeaderTimePrefix(CalcPriceListTypeDocument, ,' документа');
+@deriveDocumentHeaderTimePrefix(CalcPriceListTypeDocument, );
+
+@defineDocumentHeaderPosted(CalcPriceListTypeDocument);
+
+@defineNumbered(CalcPriceListTypeDocument);
+
+@defineNumerated(CalcPriceListTypeDocument);
+
+@defineCreated(CalcPriceListTypeDocument);
+
+TABLE calcPriceListTypeDocumentCalcPriceListType (CalcPriceListTypeDocument, CalcPriceListType);
+in 'Вкл.' = DATA BOOLEAN (CalcPriceListTypeDocument, CalcPriceListType);
+includeCalcPriceListTypes 'Расчетные виды цен' (CalcPriceListTypeDocument d) = GROUP CONCAT name(CalcPriceListType t) IF in(d,t), ', ' ORDER t CHARWIDTH 20;
+
+groupType (CalcPriceListTypeDocument d) = GROUP MAX groupType(CalcPriceListType t) IF in(d,t);
+nameGroupType 'Тип классификатора' (CalcPriceListTypeDocument d) = name(groupType(d));
+
+CONSTRAINT in(CalcPriceListTypeDocument d, CalcPriceListType t) AND groupType(d) AND NOT groupType(t) == groupType(d)
+    MESSAGE 'Запрещено выбирать расчетные виды цен с разными типами классификатора';
+
+fromDate '{document.date.of} c' = DATA DATE (CalcPriceListTypeDocument) IN documentHeader;
+fromTime '{document.time.of} c' = DATA TIME (CalcPriceListTypeDocument) IN documentHeader;
+fromDateTime '{document.date.time.of} c' (CalcPriceListTypeDocument d) = dateTimeToDateTime(fromDate(d), fromTime(d)) MATERIALIZED;
+
+toDate '{document.date.of} по' = DATA DATE (CalcPriceListTypeDocument) IN documentHeader;
+toTime '{document.time.of} по' = DATA TIME (CalcPriceListTypeDocument) IN documentHeader;
+toDateTime '{document.date.time.of} по' (CalcPriceListTypeDocument d) = dateTimeToDateTime(toDate(d), toTime(d)) MATERIALIZED;
+
+TABLE calcPriceListTypeDocumentGroup (CalcPriceListTypeDocument, Group);
+dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListTypeDocument, Group);
+
+TABLE calcPriceListTypeDocumentSku (CalcPriceListTypeDocument, Sku);
+dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListTypeDocument, Sku);
+
+levelParentMarkup (CalcPriceListTypeDocument calcPriceListTypeDocument, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataMarkup(calcPriceListTypeDocument, parent) MATERIALIZED;
+nearestParent (CalcPriceListTypeDocument calcPriceListTypeDocument, Group group) = group(group, levelParentMarkup(calcPriceListTypeDocument, group));
+nearestMarkup 'Расчетная надбавка, %' (CalcPriceListTypeDocument calcPriceListTypeDocument, Group group) =
+    dataMarkup(calcPriceListTypeDocument, nearestParent(calcPriceListTypeDocument, group)) MATERIALIZED;
+
+markup 'Надбавка, %' (CalcPriceListTypeDocument document, Group group) =
+    OVERRIDE dataMarkup(document, group), nearestMarkup(document, group) MATERIALIZED;
+    
+                                                                     
+quantityChildWithMarkup (CalcPriceListTypeDocument document, Group parent)  = GROUP SUM 1 IF dataMarkup(document, Group child) AND isParent(child, parent) MATERIALIZED;
+quantityParentWithMarkup (CalcPriceListTypeDocument document, Group child)  = GROUP SUM 1 IF dataMarkup(document, Group parent) AND isParent(child, parent) MATERIALIZED;                                                                        
+
+backgroundMarkup 'Цвет' (CalcPriceListTypeDocument document, Group group) = CASE 
+    WHEN dataMarkup(document, group) THEN RGB(230,248,250)
+    WHEN quantityChildWithMarkup (document, group) != descendantNumber(group) AND NOT quantityParentWithMarkup (document, group) THEN RGB(203,203,203);
+
+overMarkup 'Расчетная надбавка, %' (CalcPriceListTypeDocument document, Sku sku) = OVERRIDE 
+    dataMarkup(document, sku),
+    markup(document, group(groupType(document), sku)) MATERIALIZED;
+
+filterCalcPriceListType = DATA LOCAL CalcPriceListType (CalcPriceListTypeDocument);
+nameFilterCalcPricelistType 'Расчетный вид цены' (CalcPriceListTypeDocument d) = name(filterCalcPriceListType(d));
+CONSTRAINT filterCalcPriceListType(CalcPriceListTypeDocument d) AND NOT in(d,filterCalcPriceListType(d))
+    CHECKED BY filterCalcPriceListType[CalcPriceListTypeDocument] MESSAGE 'Для фильтра выбран расчетный вид цены не включенный в документ';
+
+FORM dialogPriceListTypes 'Расчетный вид цены'
+    OBJECTS d = CalcPriceListTypeDocument PANEL
+    OBJECTS p = CalcPriceListType
+    PROPERTIES(d,p) in
+    PROPERTIES(p) READONLY name, nameCurrency, nameRoundCondition, includeVAT
+    
+    LIST CalcPriceListType OBJECT p;
+;
+
+changeCalcPriceListTypes (CalcPriceListTypeDocument d) {
+    DIALOG dialogPriceListTypes OBJECTS d = d, p INPUT DO {
+        IF NOT GROUP SUM 1 IF in(d, CalcPriceListType t) THEN {
+            in(d,p) <- TRUE;
+        }
+    }
+}
+
+currentMarkup 'Надбавка (текущая), %' (CalcPriceListTypeDocument document, Group group) = OVERRIDE dataMarkup(filterCalcPriceListType(document), group), nearestMarkup(filterCalcPriceListType(document), group);
+
+currentMarkup 'Надбавка (текущая), %' (CalcPriceListTypeDocument document, Sku sku) = OVERRIDE 
+    dataMarkup(filterCalcPriceListType(document), sku),
+    extraMarkup(filterCalcPriceListType(document), sku),
+    markup(filterCalcPriceListType(document), group(groupType(filterCalcPriceListType(document)), sku));
+
+FORM calcPriceListTypeDocument 'Торговые надбавки'
+    OBJECTS d = CalcPriceListTypeDocument PANEL
+    PROPERTIES(d) isPosted, nameNumerator, number, series, date, time, fromDate, fromTime, toDate, toTime,
+                  includeCalcPriceListTypes ON CHANGE changeCalcPriceListTypes(d), nameFilterCalcPricelistType
+
+    TREE treeGroup g=Group PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(d)
+    ORDER order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
+    PROPERTIES(d,g) dataMarkup , nearestMarkup BACKGROUND backgroundMarkup(d,g)
+    PROPERTIES(d,g) READONLY currentMarkup
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY name, idBarcode
+    ORDER name(s)
+    FILTERS isParent(g,s) OR s IS Sku AND NOT g
+    PROPERTIES(d,s) dataMarkup, overMarkup
+    PROPERTIES(d,s) READONLY currentMarkup
+    FILTERGROUP inactiveSku 
+        FILTER 'Активный' active(s) 'F5' DEFAULT
+
+    EDIT CalcPriceListTypeDocument OBJECT d
+    
+    EVENTS ON OK prePost(d),
+           ON INIT {filterCalcPriceListType(d) <- GROUP MAX CalcPriceListType t IF in(d,t);}
+;
+
+DESIGN calcPriceListTypeDocument {
+    OBJECTS {
+        NEW top {
+            type = CONTAINERV;
+            NEW headContainer {
+                caption = 'Шапка документа';       
+                type = CONTAINERV;
+                NEW first {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (isPosted(d));
+                    MOVE PROPERTY (nameNumerator(d));
+                    MOVE PROPERTY (number(d));
+                    MOVE PROPERTY (series(d));
+                    MOVE PROPERTY (date(d));
+                    MOVE PROPERTY (time(d));
+                }
+                NEW second { 
+                    type = CONTAINERH;
+                    MOVE PROPERTY (includeCalcPriceListTypes(d));
+                } 
+                        
+            }
+            NEW timeContainer{
+                caption = 'Период действия';
+                type = CONTAINERH;
+                MOVE PROPERTY (fromDate(d));
+                MOVE PROPERTY (fromTime(d));
+                MOVE PROPERTY (toDate(d));
+                MOVE PROPERTY (toTime(d));
+            }
+        }
+        NEW groupContainer {
+            fill = 1;
+            MOVE PROPERTY (nameFilterCalcPricelistType(d));
+            NEW treeContainer{
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(TREE treeGroup) { caption = 'Группы товаров';}
+                MOVE BOX(s);
+            }
+        }
+    }
+    PROPERTY(formOk()) {
+        caption = 'Провести';
+    }
+}
+
+// ---------------------- Активность --------------------------- //
+isActive(CalcPriceListTypeDocument document, DATETIME dateTime) = (fromDateTime(document) <= (dateTime AS DATETIME) AND toDateTime(document) >= dateTime) OR
+                                                 (fromDateTime(document) <= (dateTime AS DATETIME) AND NOT toDateTime(document));
+isActive(CalcPriceListTypeDocument document) = isActive(document, currentDateTime());
+
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (CalcPriceListTypeDocument d) = fromDate(d) >= filterDateFrom() OR (d IS CalcPriceListTypeDocument AND NOT filterDateFrom());      
+
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (CalcPriceListTypeDocument d) = toDate(d) <= filterDateTo() OR (d IS CalcPriceListTypeDocument AND NOT filterDateTo());
+
+
+FORM calcPriceListTypeDocuments 'Торговые надбавки'
+    PROPERTIES() filterDateFrom, filterDateTo
+
+    OBJECTS d = CalcPriceListTypeDocument LAST
+    PROPERTIES(d) READONLY isPosted, number, series, date, time, fromDate, fromTime, toDate, toTime, 
+                           includeCalcPriceListTypes, guser = createdNameUser
+
+    PROPERTIES (d) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES (d) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                  postedNameUser, postedTime, postedHostnameComputer
+
+    FILTERGROUP inactiveDocument
+        FILTER 'Текущие' isActive(d) 'F11'            
+        FILTER 'Активные' isActive(d) OR (fromDateTime(d) > currentDateTime() AND NOT toDateTime(d) < currentDateTime()) 'F10' DEFAULT   
+
+    FILTERS filterDateFrom(d), 
+            filterDateTo(d)                    
+
+    LIST CalcPriceListTypeDocument OBJECT d
+;
+DESIGN calcPriceListTypeDocuments {
+    OBJECTS {
+        NEW topContainer{
+            fill = 1;
+            type = SPLITV;
+            NEW filtersBox {                       
+                fill = 2;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    type = CONTAINERH;          
+                    MOVE PROPERTY(filterDateFrom());    
+                    MOVE PROPERTY(filterDateTo());                
+                }
+                MOVE BOX(d) {
+                    fill = 1;
+                }
+                NEW documentHistory {
+                    fill = 1;
+                    caption = 'История';
+                    type = CONTAINERV;
+    
+                    MOVE GROUP(created,d);
+                    MOVE GROUP(posted,d);
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    priceListDocuments {
+        NEW calcPriceListTypeDocuments;
+    }
+}
+
+lastCalcPriceListTypeDocument (CalcPriceListType t, DATE dt) = GROUP LAST CalcPriceListTypeDocument d IF isPosted(d) AND in(d,t) AND dt >= fromDate(d) AND dt <= toDate(d) ORDER dateTime(d), d;
+
+fillPriorityMarkups (DATE dt) {
+    priorityMarkup(CalcPriceListType t, Group g) <- dataMarkup(lastCalcPriceListTypeDocument(t,dt),g);
+    priorityMarkup(CalcPriceListType t, Sku s) <- dataMarkup(lastCalcPriceListTypeDocument(t,dt),s);
+    APPLY;
+}

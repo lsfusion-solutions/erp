@@ -51,8 +51,10 @@ nearestParent (CalcPriceListType calcPriceListType, Group group) = group(group, 
 nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPriceListType, Group group) =
     dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) MATERIALIZED;
 
+priorityMarkup = DATA NUMERIC[8,2] (CalcPriceListType, Group);
+
 markup 'Надбавка, %' (CalcPriceListType type, Group group) =
-    OVERRIDE dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
+    OVERRIDE priorityMarkup(type, group), dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
     
                                                                      
 quantityChildWithMarkup (Group parent, CalcPriceListType type)  = GROUP SUM 1 IF dataMarkup(type, Group child) AND isParent(child, parent) MATERIALIZED;
@@ -64,10 +66,11 @@ backgroundMarkup 'Цвет' (CalcPriceListType type, Group group) = CASE
     WHEN quantityChildWithMarkup (group, type) != descendantNumber(group) AND NOT quantityParentWithMarkup (group, type) THEN RGB(203,203,203);
     
     
-    
+priorityMarkup = DATA NUMERIC[8,2] (CalcPriceListType, Sku);    
 extraMarkup = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);  
     
 overMarkup 'Надбавка, % (перегруженная)' (CalcPriceListType type, Sku sku) = OVERRIDE 
+    priorityMarkup(type, sku),
     dataMarkup(type, sku),
     extraMarkup(type, sku),
     markup(type, group(groupType(type), sku)) MATERIALIZED;
