@@ -191,7 +191,9 @@ skip(Shipment l) += (isCommission(invoice(l)) IF excludeComission()) OR overSkip
 quantity[OutFIFOSkuLedger] (ShipmentDetail ledger) += quantity(ledger);
 batch[SkuLedger](ShipmentDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, customerStock);
-sum[OutSkuLedger] (ShipmentDetail ledger) += sum(ledger);
+
+overSum = ABSTRACT NUMERIC[18,4] (ShipmentDetail);
+sum[OutSkuLedger] (ShipmentDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
 
 cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
 cost(InvoiceDetail ledger, Batch batch) += -cost (ledger, batch); 
