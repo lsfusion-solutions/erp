@@ -38,6 +38,7 @@ public class FiscalAbsolutPrintInvoicePaymentActionProperty extends ScriptingAct
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
             BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
 
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
@@ -51,7 +52,7 @@ public class FiscalAbsolutPrintInvoicePaymentActionProperty extends ScriptingAct
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(logPath, comPort, baudRate, sumPayment, typePayment, true, saveCommentOnFiscalTape));
+            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(logPath, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true, saveCommentOnFiscalTape));
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);

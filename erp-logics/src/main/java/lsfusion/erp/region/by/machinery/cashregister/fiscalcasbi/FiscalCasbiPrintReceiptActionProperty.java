@@ -118,7 +118,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             }
 
             if (context.checkApply()){
-                String result = (String) context.requestUserInteraction(new FiscalCasbiPrintReceiptClientAction(baudRate, comPort, new ReceiptInstance(sumDisc, sumCard, sumCash, sumTotal, receiptSaleItemList, receiptReturnItemList)));
+                String result = (String) context.requestUserInteraction(new FiscalCasbiPrintReceiptClientAction(baudRate, comPort, placeNumber, operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash, sumTotal, receiptSaleItemList, receiptReturnItemList)));
                 if (result == null) {
                     context.apply();
                     findAction("createCurrentReceipt[]").execute(context);

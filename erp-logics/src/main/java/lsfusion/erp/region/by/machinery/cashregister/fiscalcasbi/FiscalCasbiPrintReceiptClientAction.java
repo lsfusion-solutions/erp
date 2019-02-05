@@ -13,11 +13,16 @@ public class FiscalCasbiPrintReceiptClientAction implements ClientAction {
     ReceiptInstance receipt;
     int baudRate;
     int comPort;
+    int placeNumber;
+    int operatorNumber;
 
-    public FiscalCasbiPrintReceiptClientAction(Integer baudRate, Integer comPort, ReceiptInstance receipt) {
+    public FiscalCasbiPrintReceiptClientAction(Integer baudRate, Integer comPort, Integer placeNumber,
+                                               Integer operatorNumber, ReceiptInstance receipt) {
         this.receipt = receipt;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
+        this.placeNumber = placeNumber == null ? 1 : placeNumber;
+        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
     }
 
 
