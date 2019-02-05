@@ -73,7 +73,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             try {
 
                 DataObject fileObject = new DataObject(new FileData(new RawFileData(responseMessage.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get());
-                findAction("importRequestResult[FILE, TEXT]").execute(context, fileObject, new DataObject("GetDocumentsResponse"));
+                findAction("importRequestResult[FILE, INTEGER, TEXT]").execute(context, fileObject, new DataObject(httpResponse.getStatusLine().getStatusCode()), new DataObject("GetDocumentsResponse"));
                 String error = (String)findProperty("requestError[]").read(context);
 
                 if(error == null) {

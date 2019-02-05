@@ -87,3 +87,16 @@ signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.
 
 signAndSendSupplierEDN 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceSupplierEDNActionProperty' (EInvoice);
 signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE signAndSendSupplierEDN(e); }
+
+sendSaleOrderSupplierEDN 'Отправить (поставщик)' (Sale.UserOrder order) {
+    checkIsServer();
+    IF isServer() THEN {
+        IF loginEDN() AND passwordEDN() AND hostEDN() AND portEDN() THEN {
+            sendSaleOrder(order, outputDirEDN(), hostEDN(), portEDN(), loginEDN(), passwordEDN(), CONCAT '', 'https://', hostEDN(),':', portEDN(), '/topby/DmcService?wsdl');  
+        } ELSE {
+            printToImportLog(CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт';
+        }
+    }
+}
+sendSaleOrderSupplier(Sale.UserOrder o) + {  IF EDIProvider(supplier(o)) == EDIProvider.edn THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSaleOrderSupplierEDN(o); }
