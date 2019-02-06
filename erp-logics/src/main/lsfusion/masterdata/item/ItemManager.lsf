@@ -9,29 +9,29 @@ nameItemManager 'Категорийный менеджер' (ItemGroup itemGroup
 
 countItemGroup (Employee employee) = GROUP SUM 1 IF dataItemManager(ItemGroup group) == employee MATERIALIZED;
 
+hasManager (Employee e) = countItemGroup(e) OR countManagers(e) MATERIALIZED COMPLEX;
+
 TABLE employeeItemGroup(Employee, ItemGroup);
-accessManager 'Доступ разрешен' (Employee employee, ItemGroup itemGroup) = OVERRIDE
-    nearestItemManager(itemGroup) == employee,  
-    login(employee) AND itemGroup IS ItemGroup AND NOT countItemGroup(employee) AND NOT countManagers(employee) MATERIALIZED;
-
-countAccessManagers (Employee employee, ItemGroup itemGroup) = GROUP SUM 1 IF accessManager(Employee manager, itemGroup) AND inManager(manager, employee);
-
-access = countAccessManagers(Employee employee, ItemGroup itemGroup) OR accessManager(employee, itemGroup) MATERIALIZED;
+access (Employee e, ItemGroup g) = nearestItemManager(g) = e OR inManager(nearestItemManager(g), e) MATERIALIZED;
 
 countAccessItem 'Кол-во доступных групп' (Employee employee, SkuGroup itemGroup) =
     GROUP
        SUM 1 IF access(employee, ItemGroup child)
              AND isParent(child, itemGroup) MATERIALIZED;
+             
+childAccess 'Кол-во доступных групп' (Employee e, SkuGroup g) = countAccessItem(e, g) OR NOT hasManager(e); 
 
-access = access(Employee employee, itemGroup(Item item));                                     
+access = access(Employee employee, itemGroup(Item item));
+
+accessManager (Employee e, Item i) = access(e, i) OR NOT hasManager(e);                                     
 
 EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF  isReadonly() nameItemManager AFTER name(g) 
 ;
 
 EXTEND FORM items 
-    FILTERS countAccessItem(currentUser(), g) OR NOT g IS ItemGroup
-    FILTERS access(currentUser(), i) OR NOT itemGroup(i)
+    FILTERS childAccess(currentUser(), g) OR NOT g IS ItemGroup
+    FILTERS accessManager(currentUser(), i) OR NOT itemGroup(i)
 ;
 
 //----------------------- Переход на новый основной классификатор ---------------------------//
