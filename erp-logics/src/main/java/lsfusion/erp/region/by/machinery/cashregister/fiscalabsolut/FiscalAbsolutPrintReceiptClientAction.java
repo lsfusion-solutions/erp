@@ -16,8 +16,6 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String logPath;
     int comPort;
     int baudRate;
-    int placeNumber;
-    int operatorNumber;
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBeforePayment;
@@ -35,7 +33,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String regNumber;
     String machineryNumber;
 
-    public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    public FiscalAbsolutPrintReceiptClientAction(String logPath, Integer comPort, Integer baudRate,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBeforePayment, String receiptAfterPayment,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
                                                  boolean giftCardAsNotPayment, String giftCardAsNotPaymentText, boolean sumPayment,
@@ -44,8 +42,6 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
-        this.placeNumber = placeNumber == null ? 1 : placeNumber;
-        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBeforePayment = receiptBeforePayment;

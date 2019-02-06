@@ -12,20 +12,16 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
     String logPath;
     int comPort;
     int baudRate;
-    private int placeNumber;
-    private int operatorNumber;
     private BigDecimal sumPayment;
     private Integer typePayment;
     private boolean sale;
     private boolean saveCommentOnFiscalTape;
 
-    FiscalAbsolutPrintInvoicePaymentClientAction(String logPath, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
+    FiscalAbsolutPrintInvoicePaymentClientAction(String logPath, Integer comPort, Integer baudRate,
                                                  BigDecimal sumPayment, Integer typePayment, boolean sale, boolean saveCommentOnFiscalTape) {
         this.logPath = logPath;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
-        this.placeNumber = placeNumber == null ? 1 : placeNumber;
-        this.operatorNumber = operatorNumber == null ? 1 : operatorNumber;
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
         this.sale = sale;

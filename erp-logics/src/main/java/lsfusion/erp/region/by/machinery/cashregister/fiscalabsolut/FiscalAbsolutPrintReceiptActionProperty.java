@@ -60,9 +60,6 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-                Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
-                ObjectValue userObject = findProperty("employee[Receipt]").readClasses(context, receiptObject);
-                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
@@ -171,8 +168,8 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 String machineryNumber = (String) findProperty("machineryNumberAbsolutCurrentCashRegister[]").read(context);
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate, placeNumber,
-                            operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
+                    Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(logPath, comPort, baudRate,
+                            new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalAbsolutReceiptTop, fiscalAbsolutBeforePayment, fiscalAbsolutAfterPayment, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
                             giftCardAsNotPayment, giftCardAsNotPaymentText, sumPaymentAbsolut, maxLinesAbsolut, printSumWithDiscount, useSKNO, UNP, regNumber, machineryNumber));
