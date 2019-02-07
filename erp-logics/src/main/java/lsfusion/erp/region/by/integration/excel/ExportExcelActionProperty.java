@@ -6,10 +6,10 @@ import jxl.WorkbookSettings;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
-import lsfusion.base.IOUtils;
+import lsfusion.base.Pair;
 import lsfusion.base.RawFileData;
+import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
-import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -19,16 +19,14 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public abstract class ExportExcelActionProperty extends DefaultIntegrationActionProperty {
     
-    public abstract Map<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
+    public abstract Pair<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 
-    public static Map<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> rows) throws IOException, WriteException {
-        File file = File.createTempFile(fileName, ".xls");
+    public static RawFileData createFile(List<String> columns, List<List<String>> rows) throws IOException, WriteException {
+        File file = File.createTempFile("export", ".xls");
         WorkbookSettings ws = new WorkbookSettings();
         ws.setGCDisabled(true);
         WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
@@ -49,10 +47,8 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         workbook.write();
         workbook.close();
 
-        Map<String, RawFileData> result = new HashMap<>();
-        result.put(fileName + ".xls", new RawFileData(file));
+        RawFileData result = new RawFileData(file);
         file.delete();
-
         return result;
     }
 
@@ -63,7 +59,8 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            context.delayUserInterfaction(new ExportFileClientAction(createFile(context)));
+            Pair<String, RawFileData> fileEntry = createFile(context);
+            context.delayUserInterfaction(new WriteClientAction(fileEntry.second, fileEntry.first, "xls", false, true));
         } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }

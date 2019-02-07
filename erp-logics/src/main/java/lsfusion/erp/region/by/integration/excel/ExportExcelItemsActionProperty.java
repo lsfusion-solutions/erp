@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
+import lsfusion.base.Pair;
 import lsfusion.base.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -22,10 +23,7 @@ import lsfusion.server.session.DataSession;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
@@ -34,8 +32,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
     }
 
     @Override
-    public Map<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException {
-        return createFile("exportItems", getTitles(), getRows(context));
+    public Pair<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException {
+        return Pair.create("exportItems", createFile(getTitles(), getRows(context)));
 
     }
 
