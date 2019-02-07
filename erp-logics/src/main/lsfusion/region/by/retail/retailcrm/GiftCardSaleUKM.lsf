@@ -1,0 +1,45 @@
+MODULE GiftCardSaleUKM;
+
+REQUIRE GiftCardUKM, GiftCardSaleInvoice;
+
+NAMESPACE GiftCard;
+
+soldInvoice(GiftCard g) = sold(g) IF sold(g) IS InvoiceGiftCardSaleDetail;
+
+countInvoiceGiftCardSaleDetail = GROUP SUM 1 BY invoice(InvoiceGiftCardSaleDetail d);
+
+exportGiftCards 'Экспорт в УКМ' (Sale.Invoice i)  { 
+
+    inExportGiftCards(GiftCard c) <- TRUE WHERE invoice(soldInvoice(c)) == i;
+    IF NOT GROUP SUM 1 IF inExportGiftCards(GiftCard c) THEN 
+        {
+            MESSAGE('Загрузка не требуентся');
+            RETURN;
+        }
+    inExportGiftCards(GiftCard c) <- NULL WHERE inExportGiftCards(c) AND (exportedActive(c) OR sold(c) IS ReceiptGiftCardSaleDetail);
+    
+    MESSAGE  (OVERRIDE (countInvoiceGiftCardSaleDetail(i) (-) (GROUP  SUM 1 IF inExportGiftCards(GiftCard c))), 0) + '/' + countInvoiceGiftCardSaleDetail(i) + ' Выгружено ранее' NOWAIT;
+    MESSAGE  (OVERRIDE (GROUP SUM 1 IF inExportGiftCards(GiftCard c)), 0) + '/' + countInvoiceGiftCardSaleDetail(i) + ' Принято к загрузке' NOWAIT;
+    exportGiftCardsUKMCustom();
+}
+
+exportGiftCardsForm(Sale.Invoice i )  { 
+    NEWSESSION{
+	    IF isPosted(i) AND createShipment(i) AND isGiftCard(i) THEN 
+	    ASK 'Выгружать подарочные сертификаты в УКМ' DO exportGiftCards(i);
+	}
+}
+
+EXTEND FORM Sale.userInvoice 
+    EVENTS 
+        ON APPLY AFTER exportGiftCardsForm(i);
+
+EXTEND FORM saleGiftCardDashboard
+    PROPERTIES(i)  exportGiftCards
+;
+
+DESIGN saleGiftCardDashboard{
+    TOOLBAR(i){
+        MOVE PROPERTY (exportGiftCards(i));
+    }
+}
