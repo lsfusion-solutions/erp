@@ -59,9 +59,6 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-                Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
-                ObjectValue userObject = findProperty("employee[Receipt]").readClasses(context, receiptObject);
-                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
 
