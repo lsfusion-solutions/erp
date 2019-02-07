@@ -562,15 +562,40 @@ nameCurrency 'Валюта' (FixedMarketingCondition c) = name(currency(c));
 monthSum 'Сумма в месяц' = DATA NUMERIC[16,4] (FixedMarketingCondition);
 isVAT 'С НДС' = DATA BOOLEAN (FixedMarketingCondition);
 
+in = DATA BOOLEAN (FixedMarketingCondition, ItemGroup);
+countGroups (FixedMarketingCondition c) = GROUP SUM 1 IF in(c, ItemGroup g);
+itemGroups 'Категория' (FixedMarketingCondition c) = GROUP CONCAT name(ItemGroup g) IF in(c, g), ', ' CHARWIDTH 20;
+
 itemGroup = DATA ItemGroup (FixedMarketingCondition);
-nameItemGroup 'Категория' (FixedMarketingCondition c) = name(itemGroup(c));
+
+importFixedGroups = DATA BOOLEAN ();
+
+onStarted() + {
+    IF NOT (importFixedGroups()) THEN {
+        in(FixedMarketingCondition c, ItemGroup g) <- TRUE WHERE g == itemGroup(c);
+        importFixedGroups() <- TRUE;
+    }
+}
+
+FORM dialogFixedItemGroups 'Товарные группы'
+    OBJECTS c = FixedMarketingCondition PANEL 
+    OBJECTS g = ItemGroup
+    PROPERTIES in(c, g)
+    PROPERTIES (g) READONLY id, name, canonicalName
+    FILTERGROUP in FILTER 'Отмеченные' in(c, g)
+    FILTERGROUP active FILTER 'Активные' active(g) DEFAULT 
+;
+
+changeItemGroups (FixedMarketingCondition c) {
+    SHOW dialogFixedItemGroups OBJECTS c = c;
+}
 
 //showFixed (ContractMarketing c) = contractType(c) == ContractType.infoServices OR contractType(c) == ContractType.tradeBonus;
 //showFixed (ConditionList l) = showFixed(contractMarketing(l));
 
 EXTEND FORM contractMarketing
     OBJECTS fixed = FixedMarketingCondition
-    PROPERTIES (fixed) READONLY nameType, nameCurrency, monthSum, isVAT, nameItemGroup
+    PROPERTIES (fixed) READONLY nameType, nameCurrency, monthSum, isVAT, itemGroups
     FILTERS conditionList(fixed) = l   
 ;
 DESIGN contractMarketing {
@@ -584,7 +609,7 @@ DESIGN contractMarketing {
 
 EXTEND FORM contractMarketings 
     OBJECTS fixed = FixedMarketingCondition
-    PROPERTIES (fixed) READONLY nameType, nameCurrency, monthSum, isVAT, nameItemGroup
+    PROPERTIES (fixed) READONLY nameType, nameCurrency, monthSum, isVAT, itemGroups
     FILTERS conditionList(fixed) = l
 ;
 DESIGN contractMarketings {
@@ -598,7 +623,7 @@ DESIGN contractMarketings {
 
 EXTEND FORM conditionList
     OBJECTS fixed = FixedMarketingCondition
-    PROPERTIES (fixed) nameType, nameCurrency, monthSum, isVAT, nameItemGroup, NEW, DELETE 
+    PROPERTIES (fixed) nameType, nameCurrency, monthSum, isVAT, itemGroups ON CHANGE changeItemGroups(fixed), NEW, DELETE 
     FILTERS conditionList(fixed) = l
 ;
 DESIGN conditionList {
@@ -645,7 +670,7 @@ copyConditionList 'Копировать' (ConditionList l)  {
         }
         FOR conditionList(FixedMarketingCondition mc) == l NEW nc = FixedMarketingCondition DO {
             conditionList(nc) <- cl;
-            itemGroup(nc) <- itemGroup(mc);
+            in(nc, ItemGroup g) <- in(mc, g);
             type(nc) <- type(mc);
             currency(nc) <- currency(mc);
             monthSum(nc) <- monthSum(mc);
@@ -696,7 +721,7 @@ copyContractMarketing 'Копировать' (ContractMarketing c)  {
                 currency(nfc) <- currency(fc);
                 monthSum(nfc) <- monthSum(fc);
                 isVAT(nfc) <- isVAT(fc);
-                itemGroup(nfc) <- itemGroup(fc);    
+                in(nfc, ItemGroup g) <- in(fc, g);    
             }    
         }
         SHOW EDIT ContractMarketing = nc DOCKED;
@@ -829,8 +854,11 @@ importContractMarketings 'Импорт договоров' ()  {
                     
                     conditionList(fc) <- l;
                     type(fc) <- GROUP LAST FixedMarketingType t WHERE name(t) == fixedType(i);
-                    itemGroup(fc) <- IF subCategory(i) == 'Все' THEN GROUP LAST SkuGroup g WHERE name(g) == category(i)
-                                     ELSE GROUP LAST SkuGroup g WHERE name(g) == subCategory(i);
+                    
+                    LOCAL group = ItemGroup();
+                    group() <- IF subCategory(i) == 'Все' THEN GROUP LAST SkuGroup g WHERE name(g) == category(i)
+                                                          ELSE GROUP LAST SkuGroup g WHERE name(g) == subCategory(i);
+                    in(fc, ItemGroup g) <- g == group();
                     
                     currency(fc) <- GROUP LAST Currency r WHERE shortName(r) == currency(i);
                     monthSum(fc) <- sum(i);

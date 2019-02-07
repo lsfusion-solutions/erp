@@ -153,6 +153,7 @@ WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) A
 }
 
 condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
+fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
 
 in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
 
@@ -267,6 +268,7 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         FOR contractMarketing(FixedMarketingCondition mc) == c AND dateFrom(conditionList(mc)) <= dt AND NOT dateTo(conditionList(mc)) < df DO NEW md = MarketingInvoiceDetail {
             marketingInvoice(md) <- i;
             conditionTypeMarketing(md) <- ConditionType.fixed;
+            fixedCondition(md) <- mc;
             sumMarketing(md) <- CASE 
                                     WHEN daysInclBetweenDates(df, dt) <= 31 THEN monthSum(mc) * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i))
                                     WHEN daysInclBetweenDates(df, dt) >= 90 THEN monthSum(mc) * 3 * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i));
