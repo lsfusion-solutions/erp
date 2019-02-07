@@ -16,6 +16,7 @@ public class ArtixSettings implements Serializable{
     private boolean bonusesInDiscountPositions; //появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
     private boolean giftCardPriceInCertificatePositions; //берём цену сертификата из certificatePositions (введено для Ostrov)
     private String priorityDirectories; //dir1,dir2,dir3
+    private boolean notDeleteEmptyFiles;
 
     public ArtixSettings() {
     }
@@ -114,5 +115,13 @@ public class ArtixSettings implements Serializable{
 
     public void setPriorityDirectories(String priorityDirectories) {
         this.priorityDirectories = priorityDirectories;
+    }
+
+    public boolean isNotDeleteEmptyFiles() {
+        return notDeleteEmptyFiles;
+    }
+
+    public void setNotDeleteEmptyFiles(boolean notDeleteEmptyFiles) {
+        this.notDeleteEmptyFiles = notDeleteEmptyFiles;
     }
 }

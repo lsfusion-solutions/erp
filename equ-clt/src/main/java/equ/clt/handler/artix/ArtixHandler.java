@@ -943,6 +943,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         String giftCardRegexp = artixSettings != null ? artixSettings.getGiftCardRegexp() : null;
         boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
         boolean giftCardPriceInCertificatePositions = artixSettings != null && artixSettings.isGiftCardPriceInCertificatePositions();
+        boolean notDeleteEmptyFiles = artixSettings != null && artixSettings.isNotDeleteEmptyFiles();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1213,7 +1214,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
 
                         if (currentCashierTimeList.isEmpty() && currentSalesInfoList.isEmpty()) {
-                            safeFileDelete(file, false);
+                            if(notDeleteEmptyFiles) {
+                                sendSalesLogger.info(String.format("File %s has no sales nor cashierTime, but not deleted", file.getAbsolutePath()));
+                            } else {
+                                safeFileDelete(file, false);
+                            }
                         } else {
                             filePathSet.add(file.getAbsolutePath());
                         }
