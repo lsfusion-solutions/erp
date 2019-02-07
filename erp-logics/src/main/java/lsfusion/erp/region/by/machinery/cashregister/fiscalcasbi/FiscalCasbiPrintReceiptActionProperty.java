@@ -48,9 +48,6 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             } else {            
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-            Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
-            ObjectValue userObject = findProperty("employee[Receipt]").readClasses(context, receiptObject);
-            Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
             BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
             BigDecimal sumDisc = (BigDecimal) findProperty("discountSumReceiptDetail[Receipt]").read(context, receiptObject);
             BigDecimal sumCard = null;
@@ -118,7 +115,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             }
 
             if (context.checkApply()){
-                String result = (String) context.requestUserInteraction(new FiscalCasbiPrintReceiptClientAction(baudRate, comPort, placeNumber, operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash, sumTotal, receiptSaleItemList, receiptReturnItemList)));
+                String result = (String) context.requestUserInteraction(new FiscalCasbiPrintReceiptClientAction(baudRate, comPort, new ReceiptInstance(sumDisc, sumCard, sumCash, sumTotal, receiptSaleItemList, receiptReturnItemList)));
                 if (result == null) {
                     context.apply();
                     findAction("createCurrentReceipt[]").execute(context);
