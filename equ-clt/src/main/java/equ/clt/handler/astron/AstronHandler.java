@@ -199,7 +199,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     Integer idItem = parseIdItem(item);
                     setObject(ps, idItem, 1, offset); //ARTID
                     setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
-                    setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
+                    setObject(ps, getIdVAT(item.vat), 3, offset); //TAXGRPID
                     setObject(ps, idItem, 4, offset); //ARTCODE
                     setObject(ps, trim(item.name, "", 50), 5, offset); //ARTNAME
                     setObject(ps, trim(item.name, "", 50), 6, offset); //ARTSNAME
@@ -213,6 +213,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
         }
+    }
+
+    private Integer getIdVAT(BigDecimal vat) {
+        Integer result = 0;
+        if (vat != null) {
+            if (vat.compareTo(BigDecimal.valueOf(10)) == 0) {
+                result = 1;
+            } else if (vat.compareTo(BigDecimal.valueOf(20)) == 0) {
+                result = 2;
+            }
+        }
+        return result;
     }
 
     private void exportArtExtgrp(Connection conn, TransactionCashRegisterInfo transaction, Integer extGrpId) throws SQLException {
