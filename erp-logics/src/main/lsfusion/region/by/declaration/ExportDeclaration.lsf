@@ -18,8 +18,80 @@ exportDeclarant 'Экспорт в Декларант' (Declaration declaration)
     apply();
 }
 
+useNewImportDeclarationAdjustmentXML 'Использовать новый Импорт KTC (XML)' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () useNewImportDeclarationAdjustmentXML
+;
+DESIGN options {
+    customs {
+        MOVE PROPERTY(useNewImportDeclarationAdjustmentXML());
+    }
+}
+
 importDeclarationAdjustmentDBF 'Импорт KTC (DBF)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportDeclarationAdjustmentDBFActionProperty' (Declaration);
-importDeclarationAdjustmentXML 'Импорт KTC (XML)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportDeclarationAdjustmentXMLActionProperty' (Declaration);
+importDeclarationAdjustmentXMLOld 'Импорт KTC (XML)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportDeclarationAdjustmentXMLActionProperty' (Declaration);
+
+GROUP declaration EXTID 'cacdo:CustomsDeclarationIdDetails';
+creationDate = DATA LOCAL DATE ();
+GROUP shipment EXTID 'cacdo:GDCGoodsShipmentDetails';
+userNumber = DATA LOCAL INTEGER (INTEGER);
+homeSum = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+detailPayment = DATA LOCAL INTEGER (INTEGER);
+mode = DATA LOCAL TEXT (INTEGER);
+amount = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+FORM importKT
+    PROPERTIES() creationDate EXTID 'csdo:DocCreationDate' IN declaration
+    OBJECTS d = INTEGER EXTID 'cacdo:GDCGoodsItemDetails' IN shipment
+    PROPERTIES(d) userNumber EXTID 'casdo:ConsignmentItemOrdinal',
+                  homeSum EXTID 'casdo:CustomsValueAmount'
+    OBJECTS p = INTEGER EXTID 'cacdo:GoodsItemPaymentDetails'
+    FILTERS detailPayment(p) = d 
+    PROPERTIES(p) mode EXTID 'casdo:CustomsTaxModeCode',
+                  amount EXTID 'casdo:CAPaymentNAmount'                
+;
+
+importDeclarationAdjustmentXMLNew 'Импорт KTC (XML)' (Declaration d) {
+    INPUT f = FILE DO {
+        IMPORT importKT XML FROM f;
+        IF (GROUP SUM userNumber(INTEGER i)) THEN {
+            IF NOT declarationAdjustment(d,1) THEN NEW da = DeclarationAdjustment {
+                number(da) <- 1;
+                declaration(da) <- d;
+                date(da) <- creationDate();
+            }
+            FOR userNumber(INTEGER i) AND NOT declarationDetail(d, userNumber(i)) NEW dd = DeclarationDetail DO {
+                declaration(dd) <- d;
+                userNumber(dd) <- userNumber(i);
+            }
+            FOR DeclarationDetail dd == declarationDetail(d, userNumber(INTEGER i)) AND DeclarationAdjustment da == declarationAdjustment(d,1) DO {
+                homeSum(da,dd) <- homeSum(i);
+                dutySum(da,dd) <- dutySum(dd);
+                VATSum(da,dd) <- VATSum(dd);
+                FOR mode(INTEGER j) AND detailPayment(j) == i DO {
+                    IF mode(j) == '2010' AND NOT amount(j) == dutySum(dd) THEN {
+                        dutySum(da,dd) <- amount(j);
+                    }
+                    IF mode(j) == '5010' AND NOT amount(j) == VATSum(dd) THEN {
+                        VATSum(da,dd) <- amount(j);
+                    }
+                }
+            }
+            MESSAGE 'Импорт успешно завершён';
+        } ELSE {
+            MESSAGE 'Структура документа не соответствует ожидаемой';
+        }
+    }
+}
+
+importDeclarationAdjustmentXML 'Импорт KTC (XML)' (Declaration d) {
+    IF useNewImportDeclarationAdjustmentXML() THEN {
+        importDeclarationAdjustmentXMLNew(d);
+    } ELSE {
+        importDeclarationAdjustmentXMLOld(d);
+    }
+}
 
 EXTEND FORM declaration
     PROPERTIES (d) import DRAW dd TOOLBAR

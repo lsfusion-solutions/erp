@@ -7,7 +7,79 @@ REQUIRE System,
         PurchaseDeclarationDetail
         ;
 
-importXML 'Импортировать (XML)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportXMLDeclarationActionProperty' (Declaration);
+//importXML 'Импортировать (XML)'  INTERNAL  'lsfusion.erp.region.by.certificate.declaration.ImportXMLDeclarationActionProperty' (Declaration);
+
+GROUP shipment EXTID 'cacdo:DeclarationGoodsShipmentDetails';
+userNumber = DATA LOCAL INTEGER (INTEGER);
+homeSum = DATA LOCAL NUMERIC[18,4] (INTEGER);
+nameCustoms = DATA LOCAL VARSTRING[255] (INTEGER);
+codeCustomsGroup = DATA LOCAL VARSTRING[10] (INTEGER);
+GROUP country EXTID 'cacdo:OriginCountryDetails';
+sidOrigin2Country = DATA LOCAL STRING[2] (INTEGER);
+GROUP good EXTID 'cacdo:GoodsItemGroupDetails';
+GROUP commodity EXTID 'cacdo:CommodityGroupItemDetails': good;
+GROUP measure EXTID 'cacdo:GoodsMeasureDetails': commodity;
+nameUOM = DATA LOCAL VARSTRING[50] (INTEGER);
+GROUP unit EXTID 'casdo:GoodsMeasure': measure;
+idUOM = DATA LOCAL VARSTRING[100] (INTEGER);
+
+detailPayment = DATA LOCAL INTEGER (INTEGER);
+mode = DATA LOCAL TEXT (INTEGER);
+amount = DATA LOCAL NUMERIC[18,4] (INTEGER);
+GROUP rate EXTID 'cacdo:EffectiveCustomsRateDetails';
+valueRate = DATA LOCAL NUMERIC[10,5] (INTEGER);
+
+FORM importDT
+    OBJECTS d = INTEGER EXTID 'cacdo:DeclarationGoodsItemDetails' IN shipment
+    PROPERTIES(d) userNumber EXTID 'casdo:ConsignmentItemOrdinal',
+                  homeSum EXTID 'casdo:CustomsValueAmount',
+                  nameCustoms EXTID 'casdo:GoodsDescriptionText',
+                  codeCustomsGroup EXTID 'csdo:CommodityCode',
+                  sidOrigin2Country EXTID 'casdo:CACountryCode' IN country,
+                  nameUOM EXTID 'casdo:MeasureUnitAbbreviationCode' IN measure,
+                  idUOM EXTID 'measurementUnitCode' IN unit ATTR
+    OBJECTS p = INTEGER EXTID 'cacdo:GoodsItemPaymentDetails'
+    FILTERS detailPayment(p) = d 
+    PROPERTIES(p) mode EXTID 'casdo:CustomsTaxModeCode',
+                  amount EXTID 'casdo:CAPaymentNAmount',
+                  valueRate EXTID 'casdo:DutyTaxFeeRateValue' IN rate                 
+;
+
+importXML 'Импортировать (XML)' (Declaration d) {
+    INPUT f = FILE DO {
+        IMPORT importDT XML FROM f;
+        IF (GROUP SUM userNumber(INTEGER i)) THEN {
+            FOR userNumber(INTEGER i) AND NOT declarationDetail(d, userNumber(i)) NEW dd = DeclarationDetail DO {
+                declaration(dd) <- d;
+                userNumber(dd) <- userNumber(i);
+            }
+            FOR idUOM(INTEGER i) AND NOT UOM(idUOM(i)) NEW u = UOM DO {
+                id(u) <- idUOM(i);
+                name(u) <- nameUOM(i);
+                shortName(u) <- nameUOM(i);
+            }
+            FOR DeclarationDetail dd == declarationDetail(d, userNumber(INTEGER i)) DO {
+                nameCustoms(dd) <- nameCustoms(i);
+                homeSum(dd) <- homeSum(i);
+                customsGroup(dd) <- customsGroup(codeCustomsGroup(i));
+                country(dd) <- countrySIDOrigin2(sidOrigin2Country(i));
+                UOM(dd) <- UOM(idUOM(i));
+
+                FOR mode(INTEGER j) AND detailPayment(j) == i DO {
+                    IF mode(j) == '2010' THEN {
+                        dutySum(dd) <- amount(j);
+                    }
+                    IF mode(j) == '5010' THEN {
+                        VATSum(dd) <- amount(j);
+                        VAT(dd) <- valueCurrentVATDefault(valueRate(j));
+                    }
+                }
+            }
+        } ELSE {
+            MESSAGE 'Структура документа не соответствует ожидаемой';
+        }
+    }
+}
 
 EXTEND FORM declaration
     PROPERTIES (d) importXML DRAW dd TOOLBAR
