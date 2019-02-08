@@ -61,21 +61,19 @@ marketingPercent 'Процент маркетинга' = DATA NUMERIC[5,2] (Mark
 quantity 'Кол-во' = DATA NUMERIC[16,5] (MarketingInvoiceDetail);
 sum 'Сумма (согл. базе расчета)' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
 returnSum 'Сумма возврата' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
-sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
+sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,5] (MarketingInvoiceDetail);
 
 isCreated 'Создан' (ContractMarketing c, DATE df, DATE dt) =
     GROUP SUM 1 IF contract(MarketingInvoice i) == c AND dateFrom(i) == df AND dateTo(i) == dt;
 
 sumVAT 'Сумма с НДС (расчетная)' (MarketingInvoice i) = 
-    GROUP SUM sumMarketing(MarketingInvoiceDetail d) BY marketingInvoice(d);
+    round2([GROUP SUM sumMarketing(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
 
 userSumVAT = DATA NUMERIC[18,2](MarketingInvoice);
 overSumVAT 'Сумма с НДС' (MarketingInvoice i) = OVERRIDE userSumVAT(i), sumVAT(i);
 
-sum 'Сумма' (MarketingInvoice i) = 
-    IF contractType(contract(i)) == ContractType.tradeBonus THEN overSumVAT(i) ELSE round2(overSumVAT(i) / 1.2);
-
-VATSum 'Сумма НДС' (MarketingInvoice i) = OVERRIDE (overSumVAT(i) (-) sum(i)), 0;
+VATSum 'Сумма НДС' (MarketingInvoice i) = OVERRIDE (round2(overSumVAT(i) * 0.20) IF NOT contractType(contract(i)) == ContractType.tradeBonus), 0.00;
+sum 'Сумма' (MarketingInvoice i) = overSumVAT(i) (-) VATSum(i);
 valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
 
 averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = 
@@ -517,7 +515,9 @@ DESIGN marketingInvoices {
                 height = 400;
                 fill = 1;
                 MOVE BOX(c);
-                MOVE BOX(d);
+                MOVE BOX(d) {
+                    PROPERTY (sumMarketing(d)) { pattern = '#,##0.00'; }
+                }
             }
         }
     }
