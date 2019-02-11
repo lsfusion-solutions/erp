@@ -26,19 +26,19 @@ public class SendSalesEquipmentServer {
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange();
 
-        Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();
+        Map<String, List<String>> handlerModelDirectoryMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if(!cashRegister.disableSales) {
-                Set<String> directorySet = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new HashSet<String>();
-                directorySet.add(cashRegister.directory);
-                handlerModelDirectoryMap.put(cashRegister.handlerModel, directorySet);
+                List<String> directoryList = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new ArrayList<String>();
+                directoryList.add(cashRegister.directory);
+                handlerModelDirectoryMap.put(cashRegister.handlerModel, directoryList);
             }
         }
 
         try {
-            for (Map.Entry<String, Set<String>> entry : handlerModelDirectoryMap.entrySet()) {
+            for (Map.Entry<String, List<String>> entry : handlerModelDirectoryMap.entrySet()) {
                 String handlerModel = entry.getKey();
-                Set<String> directorySet = entry.getValue();
+                List<String> directoryList = entry.getValue();
 
                 if (handlerModel != null && !handlerModel.isEmpty()) {
 
@@ -49,11 +49,11 @@ public class SendSalesEquipmentServer {
 
                         requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
 
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, new HashSet<>(directoryList));
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
+                        readSalesInfo(remote, sidEquipmentServer, handler, directoryList, cashRegisterInfoList, mergeBatches);
 
                         extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -119,14 +119,13 @@ public class SendSalesEquipmentServer {
     }
 
     static void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler,
-                               Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList, boolean mergeBatches)
-            throws ParseException, IOException, ClassNotFoundException, SQLException {
-        if(directorySet != null) {
+                               List<String> directoryList, List<CashRegisterInfo> cashRegisterInfoList, boolean mergeBatches) throws IOException, SQLException {
+        if(directoryList != null) {
 
             if (mergeBatches) {
 
                 SalesBatch mergedSalesBatch = null;
-                for (String directory : directorySet) {
+                for (String directory : directoryList) {
                     try {
                         SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
                         if (salesBatch != null) {
@@ -144,7 +143,7 @@ public class SendSalesEquipmentServer {
 
             } else {
 
-                for (String directory : directorySet) {
+                for (String directory : directoryList) {
                     try {
                         SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
                         sendSalesInfo(remote, salesBatch, sidEquipmentServer, directory, handler);

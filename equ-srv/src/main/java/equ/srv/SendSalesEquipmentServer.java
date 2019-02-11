@@ -70,10 +70,10 @@ public class SendSalesEquipmentServer {
 
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery",
                         "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
-                        "idStockGroupMachinery", "section", "documentsClosedDate"};
+                        "idStockGroupMachinery", "section", "documentsClosedDate", "priority"};
                 LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]",
                         "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]",
-                        "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]");
+                        "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]", "priority[GroupCashRegister]");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
@@ -83,8 +83,7 @@ public class SendSalesEquipmentServer {
                 query.and(cashRegisterLM.findProperty("groupMachinery[Machinery]").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
                 query.and(cashRegisterLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
                 query.and(cashRegisterLM.findProperty("active[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session, MapFact.singletonOrder((Object)"priority", true));
 
                 for (ImMap<Object, Object> row : result.values()) {
                     CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
