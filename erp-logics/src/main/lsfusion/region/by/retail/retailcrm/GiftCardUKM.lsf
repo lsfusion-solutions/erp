@@ -8,6 +8,7 @@ NAMESPACE GiftCard;
 connectionStringExportGiftCards 'Строка подключения' = DATA VARSTRING[255] ();
 userExportGiftCards 'Пользователь' = DATA VARSTRING[255] ();
 passwordExportGiftCards 'Пароль' = DATA VARSTRING[255] ();
+useGiftCardDates 'Использовать дату активации из сертификата (вместо текущей)' = DATA BOOLEAN ();
 checkUnderpayExportGiftCards 'check_underpay' = DATA INTEGER ();
 monoAccountExportGiftCards 'mono_account' = DATA INTEGER ();
 
@@ -19,7 +20,7 @@ exportGiftCardsUKMCustom 'Экспорт в УКМ'  INTERNAL  'lsfusion.erp.reg
 idDepartmentStore = ABSTRACT VARISTRING[10](GiftCard);
 isSoldInvoice 'Активировать при выгрузке' = ABSTRACT BOOLEAN (GiftCard);
 isDefect = ABSTRACT BOOLEAN (GiftCard);
-useGiftCardDates = ABSTRACT BOOLEAN (GiftCard);
+useGiftCardDates(GiftCard g) = useGiftCardDates() AND isSoldInvoice(g);
 
 exportGiftCards 'Экспорт в УКМ' ()  { 
 
@@ -35,7 +36,7 @@ EXTEND FORM giftCards
 
 
 EXTEND FORM integrationData 
-    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards, checkUnderpayExportGiftCards, monoAccountExportGiftCards
+    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards, useGiftCardDates, checkUnderpayExportGiftCards, monoAccountExportGiftCards
 ;
 
 DESIGN integrationData {
@@ -45,6 +46,7 @@ DESIGN integrationData {
             MOVE PROPERTY(connectionStringExportGiftCards());
             MOVE PROPERTY(userExportGiftCards());
             MOVE PROPERTY(passwordExportGiftCards());
+            MOVE PROPERTY(useGiftCardDates());
             MOVE PROPERTY(checkUnderpayExportGiftCards()) {toolTip = '0 - не разрешено, 1 - разрешено, 2 - решение принимает кассир';};
             MOVE PROPERTY(monoAccountExportGiftCards());
         }    
