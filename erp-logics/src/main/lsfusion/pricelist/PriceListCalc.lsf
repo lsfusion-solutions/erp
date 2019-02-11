@@ -53,8 +53,14 @@ nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPr
 
 priorityMarkup = DATA NUMERIC[8,2] (CalcPriceListType, Group);
 
+levelParentPriorityMarkup (CalcPriceListType calcPriceListType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF priorityMarkup(calcPriceListType, parent) MATERIALIZED;
+nearestPriorityParent (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentPriorityMarkup(calcPriceListType, group));
+nearestPriorityMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPriceListType, Group group) =
+    priorityMarkup(calcPriceListType, nearestPriorityParent(calcPriceListType, group)) MATERIALIZED;
+
 markup 'Надбавка, %' (CalcPriceListType type, Group group) =
-    OVERRIDE priorityMarkup(type, group), dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
+    OVERRIDE priorityMarkup(type, group), nearestPriorityMarkup(type, group), dataMarkup(type, group), nearestMarkup(type, group) MATERIALIZED;
     
                                                                      
 quantityChildWithMarkup (Group parent, CalcPriceListType type)  = GROUP SUM 1 IF dataMarkup(type, Group child) AND isParent(child, parent) MATERIALIZED;
