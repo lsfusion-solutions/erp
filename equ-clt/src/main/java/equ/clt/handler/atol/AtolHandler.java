@@ -249,12 +249,12 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
         sendSoftCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
         Map<String, Timestamp> result = new HashMap<>();
-        for (String directory : directorySet) {
+        for (String directory : directoryList) {
 
             try {
 

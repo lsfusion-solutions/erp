@@ -49,7 +49,7 @@ public class SendSalesEquipmentServer {
 
                         requestSalesInfo(remote, sidEquipmentServer, getSalesInfoExchangeList(requestExchangeList), handler);
 
-                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, new HashSet<>(directoryList));
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directoryList);
 
                         sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 

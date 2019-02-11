@@ -589,7 +589,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
+    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
@@ -608,7 +608,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         //так что пока ищем во всех подпапках + в подпапках в папке online.
         //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
         int totalFilesCount = 0;
-        for (File dir : getSoftCheckDirectories(directorySet, priorityDirectories)) {
+        for (File dir : getSoftCheckDirectories(directoryList, priorityDirectories)) {
             File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
@@ -684,20 +684,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private List<File> getSoftCheckDirectories(Set<String> directorySet, Set<String> priorityDirectories) {
+    private List<File> getSoftCheckDirectories(List<String> directories, Set<String> priorityDirectories) {
 
         List<String> directoryList = new ArrayList<>();
         for(String priorityDirectory : priorityDirectories) {
-            if(directorySet.contains(priorityDirectory))
+            if(directories.contains(priorityDirectory))
                 directoryList.add(priorityDirectory);
         }
-        for(String directory : directorySet) {
+        for(String directory : directories) {
             if(!directoryList.contains(directory)) {
                 directoryList.add(directory);
             }
         }
 
-        List<File> directories = new ArrayList<>();
+        List<File> result = new ArrayList<>();
         for(String directory : directoryList) {
             if(directory != null) {
                 File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
@@ -708,15 +708,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 });
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
-                        directories.add(subDirectory);
+                        result.add(subDirectory);
                         File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
                         if (onlineDir.exists())
-                            directories.add(onlineDir);
+                            result.add(onlineDir);
                     }
                 }
             }
         }
-        return directories;
+        return result;
     }
 
     @Override

@@ -36,9 +36,9 @@ public class SoftCheckEquipmentServer {
         }
     }
 
-    static void sendSucceededSoftCheckInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet)
+    static void sendSucceededSoftCheckInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<String> directoryList)
             throws RemoteException, SQLException, ClassNotFoundException {
-        Map<String, Timestamp> succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
+        Map<String, Timestamp> succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directoryList);
         if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
             sendSoftCheckLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
             String result = remote.sendSucceededSoftCheckInfo(sidEquipmentServer, succeededSoftCheckInfo);

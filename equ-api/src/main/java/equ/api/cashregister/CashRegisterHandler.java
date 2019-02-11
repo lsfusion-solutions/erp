@@ -36,7 +36,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch);
    
-    public abstract Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException;
+    public abstract Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException;
     
     public abstract List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException;
 
