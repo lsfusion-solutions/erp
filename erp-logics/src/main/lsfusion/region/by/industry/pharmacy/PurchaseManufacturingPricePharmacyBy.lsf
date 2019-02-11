@@ -4,7 +4,9 @@ REQUIRE PurchaseManufacturingPrice, Pharmacy;
 
 NAMESPACE Purchase;
 
+maxSellingPrice 'Предельная отпускная цена' = ABSTRACT NUMERIC[16,4](InvoiceDetail);
 maxSellingPrice 'Предельная отпускная цена' = DATA NUMERIC[16,4](UserInvoiceDetail);
+maxSellingPrice (UserInvoiceDetail d) += maxSellingPrice(d);
 
 @defineOperationProperty(showMaxSellingPrice, 'Предельная отпускная цена', showContainer);
 
@@ -22,8 +24,10 @@ DESIGN options {
     }
 }
 
-maxSellingPrice(UserInvoiceDetail d) <- priceA(maxSellingPriceListType(), sku(d), customerStock(d), dateTime(d))
-    WHEN CHANGED (sku(d)) OR CHANGED (customerStock(d)) OR CHANGED (dateTime(d));
+
+WHEN LOCAL CHANGED (sku(UserInvoiceDetail d)) OR CHANGED (customerStock(d)) OR CHANGED (dateTime(d)) DO {
+    maxSellingPrice(d) <- priceA(maxSellingPriceListType(), sku(d), customerStock(d), dateTime(d));    
+}
     
 dataCostManufacuringPrice (UserInvoiceDetail d) += NUMERIC[20,8] 
     (min(incomeManufacturingPrice(d), maxSellingPrice(d)) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d));

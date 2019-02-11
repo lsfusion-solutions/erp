@@ -311,7 +311,7 @@ description (InvoiceRevaluation revaluation) += description(revaluation);
 sku(InvoiceRevaluationDetail revaluationDetail) +=  sku(revaluationDetail);
 
 quantity(InvoiceRevaluationDetail revaluationDetail) += quantity(invoiceDetail(revaluationDetail));
-batch(InvoiceRevaluationDetail revaluationDetail) += batch(invoiceDetail(revaluationDetail));
+batch(InvoiceRevaluationDetail revaluationDetail) += batch[Invoice.InvoiceDetail](invoiceDetail(revaluationDetail));
 
 curManufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += curManufacturingPrice(invoiceDetail(revaluationDetail));
 curManufacturingSum(InvoiceRevaluationDetail revaluationDetail) += curManufacturingSum(invoiceDetail(revaluationDetail));
@@ -336,12 +336,16 @@ show(InvoiceRevaluationDetail d) + {  show(invoiceDetail(d)); }
 curShipmentPrice (UserInvoiceDetail d)  <- round2(incomeManufacturingPrice(d) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d))
                                                 WHEN DO CHANGED(sku(d)) OR
                                                      CHANGED(supplierStock(d)) OR
+                                                     CHANGED(incomeManufacturingPrice(d) OR CHANGED(extraCostPrice(d)) OR
+                                                     CHANGED(customCostPrice(d)) OR CHANGED(certificateCostPrice(d))) OR
                                                      (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
                                                      CHANGED(batch(d));
 
 curManufacturingPrice (UserInvoiceDetail d)  <- round2(incomeManufacturingPrice(d) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d))
                                                 WHEN DO CHANGED(sku(d)) OR
                                                      CHANGED(supplierStock(d)) OR
+                                                     CHANGED(incomeManufacturingPrice(d) OR CHANGED(extraCostPrice(d)) OR
+                                                     CHANGED(customCostPrice(d)) OR CHANGED(certificateCostPrice(d))) OR
                                                      (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
                                                      CHANGED(batch(d));
 DESIGN userRevaluation {
