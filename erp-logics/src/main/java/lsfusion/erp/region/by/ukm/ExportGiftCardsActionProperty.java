@@ -181,9 +181,10 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "isDefect"};
+                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
-                "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]");
+                "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
+                "dateSold[GiftCard]", "expireDate[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
@@ -204,13 +205,21 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             Integer expiryDays = (Integer) resultValues.get("expiryDays");
             boolean active = resultValues.get("isSoldInvoice") != null;
             boolean defect = resultValues.get("isDefect") != null;
-            Calendar calendar = Calendar.getInstance();
-            Date dateFrom = new Date(calendar.getTime().getTime());
-            if (defect)
-                calendar.add(Calendar.DATE, -1);
-            else if (expiryDays != null)
-                calendar.add(Calendar.DATE, expiryDays);
-            Date dateTo = new Date(calendar.getTime().getTime());
+            boolean useGiftCardDates = resultValues.get("useGiftCardDates") != null;
+            Date dateFrom;
+            Date dateTo;
+            if(useGiftCardDates) {
+                dateFrom = (Date) resultValues.get("dateSold");
+                dateTo = (Date) resultValues.get("expireDate");
+            } else {
+                Calendar calendar = Calendar.getInstance();
+                dateFrom = new Date(calendar.getTime().getTime());
+                if (defect)
+                    calendar.add(Calendar.DATE, -1);
+                else if (expiryDays != null)
+                    calendar.add(Calendar.DATE, expiryDays);
+                dateTo = new Date(calendar.getTime().getTime());
+            }
             Integer id = getId(idBarcode);
             if (id != null) {
                 if (active)
