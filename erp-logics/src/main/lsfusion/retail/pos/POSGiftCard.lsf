@@ -35,17 +35,24 @@ overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + {  overChangeBarc
 
 // Оплата сертификатом
 
+isBan = ABSTRACT BOOLEAN (GiftCard);
+banMessage = ABSTRACT TEXT (GiftCard);
+
 addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt)  { 
     DIALOG barcodeInput DO
         IF isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS VARSTRING[15] AND 
            NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) AND NOT isUsedTotal(giftCardSeriesNumber(barcodeInput())) THEN {
-            NEW pg = PaymentGiftCard {
-                LOCAL giftCard = GiftCard();
-                giftCard() <- giftCardSeriesNumber(barcodeInput());
-                giftCard(pg) <- giftCard();
-                receipt(pg) <- receipt;
-                paymentType(pg) <- minGiftCardPaymentType();
-                sum[Payment](pg) <- MIN NUMERIC[18,4](currentBalance(giftCard())), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+            IF isBan(giftCardSeriesNumber(barcodeInput())) THEN {
+                MESSAGE banMessage(giftCardSeriesNumber(barcodeInput()));
+            } ELSE {
+                NEW pg = PaymentGiftCard {
+                    LOCAL giftCard = GiftCard();
+                    giftCard() <- giftCardSeriesNumber(barcodeInput());
+                    giftCard(pg) <- giftCard();
+                    receipt(pg) <- receipt;
+                    paymentType(pg) <- minGiftCardPaymentType();
+                    sum[Payment](pg) <- MIN NUMERIC[18,4](currentBalance(giftCard())), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+                }
             }
         } ELSE
             MESSAGE 'Сертификат не найден, истек или использован';
