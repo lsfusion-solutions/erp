@@ -4,6 +4,21 @@ REQUIRE Pricing;
 
 NAMESPACE Repricing; // пока Repricing для обратной совместимости - потом правильнее перекинуть на Pricing с миграцией
 
+//Авто изменение цены
+dataAutoPricing 'Авто изменение цены' = DATA BOOLEAN (CalcPriceListType, Group);
+
+levelParentAutoPricing (CalcPriceListType calcPriceListType, Group group) = GROUP
+                                                              MIN level(group, Group parent) IF dataAutoPricing(calcPriceListType, parent) MATERIALIZED;
+nearestParentAutoPricing (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentAutoPricing(calcPriceListType, group));
+nearestAutoPricing 'Авто изменение цены' (CalcPriceListType calcPriceListType, Group group) =
+    dataAutoPricing(calcPriceListType, nearestParentAutoPricing(calcPriceListType, group)) MATERIALIZED;
+
+autoPricing 'Авто изменение цены' (CalcPriceListType calcPriceListType, Group group) = OVERRIDE dataAutoPricing(calcPriceListType,group), nearestAutoPricing(calcPriceListType,group);
+
+EXTEND FORM calcPriceListType
+    PROPERTIES(c,g) autoPricing
+; 
+
 skipRepricing = ABSTRACT BOOLEAN (Sku, Stock);
 
 onStockPriceListRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
@@ -33,7 +48,7 @@ includeExtraDashboardRepricing  ABSTRACT ( DepartmentStore, PriceListType, DATET
 
 skipDialog = DATA LOCAL BOOLEAN ();
 
-calculateDashboardRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
+calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     IF NOT skipDialog() THEN {
         DIALOG dialogSkuGroup;
     }
@@ -67,6 +82,14 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Departme
         formRefresh();
     }
 }
+calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
+    skipDialog() <- TRUE;
+    inSession(SkuGroup g) <- autoPricing(ct,g);
+    calculateDashboardRepricing(d,ct,pt,dt);
+    inSession(SkuGroup g) <- NULL;
+    skipDialog() <- NULL;
+}
+
 customerManagementRepricing = DATA LOCAL BOOLEAN ();
 customerManagementRepricing  ABSTRACT LIST ( DepartmentStore, PriceListType, DATETIME );
 
