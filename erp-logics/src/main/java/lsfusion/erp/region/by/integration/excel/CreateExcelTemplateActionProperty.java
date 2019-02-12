@@ -6,9 +6,9 @@ import jxl.WorkbookSettings;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
-import lsfusion.base.IOUtils;
+import lsfusion.base.Pair;
 import lsfusion.base.RawFileData;
-import lsfusion.interop.action.ExportFileClientAction;
+import lsfusion.base.file.WriteClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -18,16 +18,13 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public abstract class CreateExcelTemplateActionProperty extends ScriptingActionProperty {
 
-    public abstract Map<String, RawFileData> createFile() throws IOException, WriteException;
+    public abstract Pair<String, RawFileData> createFile() throws IOException, WriteException;
 
-    public static Map<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
-        Map<String, RawFileData> result = new HashMap<>();
+    public static Pair<String, RawFileData> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
         File file = null;
         try {
             file = File.createTempFile(fileName, ".xls");
@@ -51,14 +48,12 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
 
             workbook.write();
             workbook.close();
-
-            result.put(fileName + ".xls", new RawFileData(file));
         } finally {
             if (file != null && !file.delete()) {
                 file.deleteOnExit();
             }
         }
-        return result;
+        return Pair.create(fileName, new RawFileData(file));
     }
 
     public CreateExcelTemplateActionProperty(ScriptingLogicsModule LM) {
@@ -68,7 +63,8 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            context.delayUserInterfaction(new ExportFileClientAction(createFile()));
+            Pair<String, RawFileData> fileEntry = createFile();
+            context.delayUserInterfaction(new WriteClientAction(fileEntry.second, fileEntry.first, "xls", false, true));
         } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }

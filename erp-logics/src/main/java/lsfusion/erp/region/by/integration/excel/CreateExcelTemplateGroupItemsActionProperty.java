@@ -1,12 +1,12 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
+import lsfusion.base.Pair;
 import lsfusion.base.RawFileData;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Map;
 
 public class CreateExcelTemplateGroupItemsActionProperty extends CreateExcelTemplateActionProperty {
 
@@ -15,7 +15,7 @@ public class CreateExcelTemplateGroupItemsActionProperty extends CreateExcelTemp
     }
 
     @Override
-    public Map<String, RawFileData> createFile() throws IOException, WriteException {
+    public Pair<String, RawFileData> createFile() throws IOException, WriteException {
         return createFile("importGroupItemsTemplate",
                 Arrays.asList("Код группы", "Наименование группы", "Код родительской группы"),
                 Arrays.asList(
