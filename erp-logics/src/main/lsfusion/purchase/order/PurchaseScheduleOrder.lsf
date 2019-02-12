@@ -125,9 +125,9 @@ autoCloseScheduleOrderInterval 'За сколько дней аннулиров�
 autoCloseScheduleOrderDetails 'Аннулировать точки заказов'()  { 
     isClosed(ScheduleOrderDetail o) <- TRUE WHERE dateOrder(o) <= subtract(currentDate(), autoCloseScheduleOrderInterval());
 }
-
+autoCreatedDayMonth 'Создавать точки заказов в момент создания графика (Генерация по дням недели и месяца)' = DATA BOOLEAN ();
 EXTEND FORM options
-    PROPERTIES() autoCloseScheduleOrderInterval, autoCloseScheduleOrderDetails 
+    PROPERTIES() autoCloseScheduleOrderInterval, autoCloseScheduleOrderDetails, autoCreatedDayMonth 
 ;
 DESIGN options {
     orders {
@@ -135,6 +135,7 @@ DESIGN options {
             caption = 'Графики заказов';
             MOVE PROPERTY(autoCloseScheduleOrderInterval());
             MOVE PROPERTY(autoCloseScheduleOrderDetails());
+            MOVE PROPERTY(autoCreatedDayMonth());
         }
     }
 }
@@ -166,4 +167,8 @@ DESIGN scheduleOrder {
     } 
 }
 
-
+WHEN (CHANGED(supplier(ScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED(customer(o)) OR CHANGED(startDate(o)) OR CHANGED(endDate(o))
+    OR (GROUP SUM 1 IF CHANGED (in(o,Stock st))) OR (GROUP SUM 1 IF (CHANGED(orderDOW(ScheduleOrderTime t)) OR CHANGED(shipmentDOW(t)) OR CHANGED(timeToOrder(t))) AND scheduleOrder(t)==o))
+    AND type(o)==GenType.genDayMonth AND autoCreatedDayMonth() AND startDate(o) AND customer(o) AND supplier(o)  DO {
+    reCreate(o);    
+}
