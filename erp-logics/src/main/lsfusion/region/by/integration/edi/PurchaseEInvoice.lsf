@@ -1,11 +1,17 @@
 MODULE PurchaseEInvoice;
 
-REQUIRE InvoiceEInvoice, PurchaseInvoice;
+REQUIRE EDI, PurchaseInvoice;
 
 PRIORITY Purchase;
 
 NAMESPACE EDI;
 
+invoice = DATA Invoice(EInvoice);
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
+numberInvoice 'Номер накладной EDI (приход)' (EInvoice i) = number(invoice(i));
+EXTEND FORM eInvoices
+    PROPERTIES (e) READONLY PurchaseNumberInvoice = numberInvoice
+;
 
 eOperation = DATA Operation(LegalEntity);
 nameEOperation 'Операция (Закупка) для электронных накладных'(LegalEntity l) = name(eOperation(l));
