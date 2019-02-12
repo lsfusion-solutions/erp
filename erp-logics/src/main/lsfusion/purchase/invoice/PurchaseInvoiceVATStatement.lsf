@@ -1,0 +1,201 @@
+MODULE PurchaseInvoiceVATStatement;
+
+REQUIRE PurchaseInvoice, PurchaseShipment, LegalEntityCU, PurchaseDeclarationDetail, LegalEntityBy, PurchaseOperation;
+
+NAMESPACE Purchase;
+
+directoryExportVATStatement 'Директория выгрузки заявлений НДС (ftp://username:password@host:port/path/)' = DATA VARSTRING[100] (); 
+exciseType 'Тип акциза' = DATA VARSTRING[2]();
+vatType 'Тип НДС' = DATA VARSTRING[2]();
+tax 'Налоговая (поле tax_department)' = DATA VARSTRING[100]();
+
+ 
+EXTEND FORM integrationData
+    PROPERTIES () directoryExportVATStatement, tax, exciseType, vatType ;
+    
+DESIGN integrationData {
+    pane {
+        NEW vat {
+            caption = 'НДС';
+            MOVE PROPERTY (directoryExportVATStatement());
+            MOVE PROPERTY (tax());
+            MOVE PROPERTY (exciseType());
+            MOVE PROPERTY (vatType());
+        }
+    }
+}
+
+inVATStatement 'Создавать заявление НДС' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) inVATStatement
+;
+DESIGN operation{
+    paramsContainer{
+        MOVE PROPERTY(inVATStatement(o));
+    }
+}
+
+TABLE vatStatement(UserInvoiceDetail);
+
+isVatStatement(UserInvoice i)  = inVATStatement(operation(i));
+isVatStatement(UserInvoiceDetail d)  = isVatStatement(userInvoice(d));
+
+transdocNumber 'Номер вх. документа' = DATA VARSTRING[28](UserInvoiceDetail) TABLE vatStatement;
+transdocDate 'Дата вх. документа' = DATA DATE(UserInvoiceDetail) TABLE vatStatement;
+
+invoiceNumber 'Номер счета фактуры' = DATA VARSTRING[28](UserInvoiceDetail) TABLE vatStatement;
+invoiceDate 'Дата счета фактуры' = DATA DATE (UserInvoiceDetail) TABLE vatStatement;
+
+acceptingDate 'Дата принятия на учет' = DATA DATE (UserInvoiceDetail) TABLE vatStatement;
+
+exciseBase 'База для акциза' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
+exciseBase(UserInvoiceDetail d) <- round2(sum(d) * rateExchange(d)) 
+    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d);
+    
+excisePerc 'Ставка акциза' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
+    
+exciseSum 'Сумма акциза' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
+exciseSum(UserInvoiceDetail d) <- round2(exciseBase(d) * excisePerc(d) / 100.0) 
+    WHEN CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d)) AND isVatStatement(d); 
+    
+vatBase 'База для НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
+vatBase(UserInvoiceDetail d) <- round2(sum(d) * rateExchange(d)) 
+    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d);
+    
+valueVATStatement 'Ставка НДС' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
+valueVATStatement(UserInvoiceDetail d) <- valueVAT[Item](sku(d))
+    WHEN CHANGED (sku(d)) AND isVatStatement(d);
+    
+VATStatementSum 'Сумма НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
+VATStatementSum(UserInvoiceDetail d) <- round2(vatBase(d) * valueVATStatement(d) / 100.0) 
+    WHEN CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d)) AND isVatStatement(d); 
+    
+EXTEND FORM userInvoice
+    OBJECTS d4 = UserInvoiceDetail GRID
+    PROPERTIES (d4) SHOWIF isVatStatement(i) READONLY index, idBarcodeSku, nameSku
+    PROPERTIES (d4) SHOWIF isVatStatement(i) transdocNumber, transdocDate, invoiceNumber, invoiceDate, acceptingDate,
+                                        exciseBase, excisePerc, exciseSum, vatBase, valueVATStatement, VATStatementSum
+    FILTERS userInvoice(d4) == i   
+;                                     
+
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW vatStatement {
+            caption = 'Заявление НДС';
+            MOVE BOX(d4);
+        }
+    }
+}
+
+//заявление ндс
+
+//UserInvoice
+UNPSupplier(Purchase.UserInvoice invoice) = OVERRIDE UNPForeign(supplier(invoice)), UNP(supplier(invoice));
+//KPPSupplier(Purchase.UserInvoice invoice) = KPP(supplier(invoice));
+formatNameSupplier(Purchase.UserInvoice invoice) = CONCAT ',', fullNameSupplier(invoice), name(country(supplier(invoice)));
+sidCountrySupplier(Purchase.UserInvoice invoice) = sid(country(supplier(invoice)));
+UNPCustomer(Purchase.UserInvoice invoice) = UNP(customer(invoice));
+sidCountryCustomer(Purchase.UserInvoice invoice) = sid(country(customer(invoice)));
+shortNameChiefCustomer 'Руководитель' (Purchase.UserInvoice invoice) = shortName(chief(customer(invoice)));
+shortNameBookerCustomer 'Руководитель' (Purchase.UserInvoice invoice) = shortName(booker(customer(invoice)));
+
+sidCurrency(Purchase.UserInvoiceDetail d) = sid(currency(d));
+
+decl_num(Invoice i) = number(i);
+decl_date(Invoice i) = date(i);
+version_reason_id(Invoice i) = 1 IF i IS Invoice;
+id_seller(Invoice i) = UNPForeign(customer(i));
+name_seller(Invoice i) = nameSupplier(i);
+address_seller(Invoice i) = addressSupplier(i);
+country_seller(Invoice i) = sidCountrySupplier(i); 
+id_buyer(Invoice i) = UNP(supplier(i));
+name_buyer(Invoice i) = nameCustomer(i); 
+country_buyer(Invoice i)= sidCountryCustomer(i); 
+address_buyer(Invoice i)=addressCustomer(i);                     
+num_contract_1(Invoice i) = seriesNumberContractSku(i); 
+date_contract_1(Invoice i) = toChar(dateFromContractSku(i),'YYYY-MM-DD');
+name_consignee_1(Invoice i) = '' IF i IS Invoice;
+num_contract_2(Invoice i)= '' IF i IS Invoice; 
+date_contract_2(Invoice i)='' IF i IS Invoice; 
+leasing(Invoice i) = 'false' IF i IS Invoice; 
+processing(Invoice i)= 'false' IF i IS Invoice; 
+decl_head_name(Invoice i) = shortNameChiefCustomer(i); 
+decl_head_date(Invoice i) = toChar(date(i),'YYYY-MM-DD');; 
+tax_department(Invoice i) = tax() IF i IS Invoice;
+
+order(InvoiceDetail id)=index(id); 
+comm_name(InvoiceDetail id)=nameSku(id);
+tnved(InvoiceDetail id) = codeCustomsGroup(id); 
+unit_meas_id(InvoiceDetail id)=  CASE WHEN shortNameUOMSku(id) = 'ШТ' THEN '796'
+                                                      WHEN shortNameUOMSku(id) = 'КГ' THEN '166'
+                                                      ELSE '796'; 
+comm_count(InvoiceDetail id) = quantity(id); 
+comm_price(InvoiceDetail id)=NUMERIC[18,2](round2(sum(id)));
+sidCurrency(InvoiceDetail id) =sid(currency(invoice(id)));
+//rate(InvoiceDetail id)=rateExchange(id); 
+rate(InvoiceDetail id)=rateOn(typeExchange(invoice(id)), currency(invoice(id)), shipmentDate(id))*100;
+invoice_num(InvoiceDetail id) =invoiceNumber(id);
+invoice_date(InvoiceDetail id)=toChar(invoiceDate(id),'YYYY-MM-DD');
+accepting_date(InvoiceDetail id)=toChar(acceptingDate(id),'YYYY-MM-DD');
+excise_base(InvoiceDetail id)=NUMERIC[18,2](round2(exciseBase(id))); 
+nds_base(InvoiceDetail id)=NUMERIC[18,2](round2(vatBase(id)));
+excise_perc_st(InvoiceDetail id)=excisePerc(id);
+excise_perc_ad(InvoiceDetail id)=excisePerc(id);
+nds_perc(InvoiceDetail id)= valueVATStatement(id);
+excise_sum(InvoiceDetail id)=NUMERIC[18,2](round2(exciseSum(id)));;
+excise_type(InvoiceDetail id)=OVERRIDE exciseType(), '' IF id IS InvoiceDetail; 
+nds_sum(InvoiceDetail id)=NUMERIC[18,2](round2(VATStatementSum(id))); 
+nds_type(InvoiceDetail id)= OVERRIDE vatType(), '' IF id IS InvoiceDetail;
+
+transdoc_serie(ShipmentDetail sd) = transdocNumber(invoiceDetail(sd));
+transdoc_date(ShipmentDetail sd) = toChar(transdocDate(invoiceDetail(sd)),'YYYY-MM-DD');
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) dateFromContractSku 
+;
+
+ DESIGN userInvoice{
+    headerContract{
+        MOVE PROPERTY (dateFromContractSku(i))AFTER PROPERTY(seriesNumberContractSku(i));
+    }
+ }
+ 
+FORM registry_document
+    OBJECTS i = Invoice
+    PROPERTIES(i) ATTR decl_date , version_reason_id, id_seller,name_seller,address_seller, country_seller, id_buyer, name_buyer
+    PROPERTIES(i) ATTR country_buyer, address_buyer, num_contract_1, date_contract_1, name_consignee_1, num_contract_2 
+    PROPERTIES(i) ATTR date_contract_2, leasing, processing, decl_head_name, decl_head_date, tax_department
+    OBJECTS commodity = InvoiceDetail
+    PROPERTIES(commodity) ATTR order, comm_name,tnved,unit_meas_id,comm_count,comm_price, currency = sidCurrency
+    PROPERTIES(commodity) ATTR rate, invoice_num, invoice_date, accepting_date, excise_base, nds_base, excise_perc_st, excise_perc_ad
+    PROPERTIES(commodity) ATTR nds_perc, excise_sum, excise_type, nds_sum, nds_type
+    FILTERS invoice(commodity) = i
+    OBJECTS transdocs = ShipmentDetail
+    PROPERTIES (transdocs) ATTR transdoc_serie, transdoc_date
+    FILTERS invoiceDetail(transdocs) = commodity
+;
+
+exportVatStatementXML 'Выгрузить заявление НДС (XML) ' (Invoice i){
+    EXPORT registry_document  OBJECTS i = i XML CHARSET 'Windows-1251';
+    open(exportFile());
+    TRY{
+        mkdir(directoryExportVATStatement());
+        WRITE System.exportFile() TO directoryExportVATStatement() + number(i);                       
+    }
+}
+
+
+EXTEND FORM invoices
+    PROPERTIES exportVatStatementXML(i) SHOWIF isVatStatement(i) 
+;
+
+DESIGN invoices{
+    actionContainer{
+        NEW vat{
+            caption = 'НДС';
+            MOVE PROPERTY (exportVatStatementXML(i));
+        }
+    }
+}
