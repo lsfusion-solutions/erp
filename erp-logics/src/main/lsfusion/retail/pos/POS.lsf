@@ -127,6 +127,7 @@ possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, ReceiptSaleD
 
 beforeCalculatePromotions  ABSTRACT LIST ( Receipt);
 overCalculatePromotions  ABSTRACT LIST ( Receipt);
+overCalculatePromotion  ABSTRACT LIST (ReceiptSaleDetail,PromotionCondition,NUMERIC[14,3],NUMERIC[16,3]);
 calculatePromotions 'Рассчитать акции'(Receipt receipt)  { 
 
     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
@@ -290,7 +291,10 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
                          WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - prevPriceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
                          WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
                     WHERE taken(detail, condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition);
-
+                
+                FOR taken(ReceiptSaleDetail detail, PromotionCondition condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition) DO
+                    overCalculatePromotion(detail, condition,taken(detail, condition),leftSum(detail));
+                
                 // Отнимаем использованные
                 leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);
 //                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
