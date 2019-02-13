@@ -47,6 +47,7 @@ overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME);
 includeExtraDashboardRepricing  ABSTRACT ( DepartmentStore, PriceListType, DATETIME);
 
 skipDialog = DATA LOCAL BOOLEAN ();
+calculateAllGroups = DATA LOCAL BOOLEAN () COMPLEX;
 
 calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     requestCanceled() <- NULL;
@@ -59,14 +60,14 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
-                IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
+                IF NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)
-                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND (inSession(skuGroup(sku)) OR calculateAllGroups());
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         }
         
@@ -85,9 +86,11 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
 }
 calculateDashboardAutoRepricing 'По надбавкам и прайсам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     skipDialog() <- TRUE;
+    calculateAllGroups() <- TRUE;
     inSession(SkuGroup g) <- autoPricing(ct,g);
     calculateDashboardRepricing(d,ct,pt,dt);
     inSession(SkuGroup g) <- NULL;
+    calculateAllGroups() <- NULL;
     skipDialog() <- NULL;
 }
 
