@@ -900,7 +900,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                                                                 THEN INTEGER(prefix###quantity(dd))
                                                              ELSE count(labelType, skuProp(d));
         
-                        price(d) <- calcPrice(pt, d);
+                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                         IF notChangePrintPrice(t) THEN {
                             DELETE d WHERE price(d) == lastPriceLabel(d);
                         }
@@ -1001,6 +1001,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                             name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
                             documentQuantity(d) <- prefix###quantity(dd); 
                             
+                            createAttribute(d);
                             price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                             retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
                                                                        
@@ -1010,7 +1011,6 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                                                                          ELSE count(labelType(d), skuProp(d)))
                                                                      ELSE countLabel(departmentStore(d));                                             
                                                                                                                                                                                           
-                            createAttribute(d);
                             createAttribute(dd, d);
                     }
                 }
@@ -1152,7 +1152,7 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
                                      (IF include(labelType, sku(d)) THEN INTEGER(currentBalance(sku, departmentStore))
                                                          ELSE count(labelType, sku(d)));
                                                  
-            price(d) <- calcPrice(pt, d);
+            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
             retailPrice(d) <- overRetailPrice(d);
         } 
         overCreate(t);
@@ -1201,7 +1201,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
                                                      THEN (IF include(labelType(d), sku(d)) 
                                                         THEN INTEGER(documentQuantity(d))
                                                          ELSE count(labelType(d), sku(d)))
-                                                     ELSE countLabel(departmentStore);                                                              
+                                                     ELSE countLabel(departmentStore);     
         }
         overCreate(t);
         IF change(departmentStore) THEN {
