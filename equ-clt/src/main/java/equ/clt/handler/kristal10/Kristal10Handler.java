@@ -960,7 +960,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                             case "BankCardPaymentEntity":
                                                 sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
-                                            case "GiftCardPaymentEntity":
+                                            case "GiftCardPaymentEntity": {
                                                 List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
                                                 boolean found = false;
                                                 String giftCardNumber = null;
@@ -982,6 +982,24 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                 } else
                                                     sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                                 break;
+                                            }
+                                            case "BonusCardPaymentEntity": {
+                                                List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
+                                                String giftCardNumber = null;
+                                                for (Element pluginProperty : pluginProperties) {
+                                                    String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                                                    String valuePluginProperty = pluginProperty.getAttributeValue("value");
+                                                    if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
+                                                        if (keyPluginProperty.equals("card.number")) {
+                                                            giftCardNumber = valuePluginProperty;
+                                                        }
+                                                    }
+                                                }
+                                                if (giftCardNumber != null) {
+                                                    sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
+                                                } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
