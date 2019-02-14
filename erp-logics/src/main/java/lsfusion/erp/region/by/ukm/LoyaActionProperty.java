@@ -15,6 +15,9 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -72,7 +75,9 @@ public class LoyaActionProperty extends ScriptingActionProperty {
     protected HttpResponse executeRequest(HttpRequestBase request, String sessionKey) throws IOException {
         request.setHeader("content-type", "application/json");
         request.setHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
-        return new DefaultHttpClient().execute(request);
+        final HttpParams httpParams = new BasicHttpParams();
+        HttpConnectionParams.setConnectionTimeout(httpParams, 5*60000);
+        return new DefaultHttpClient(httpParams).execute(request);
     }
 
     protected String getCookieResponse(HttpResponse response, int statusCode) {
