@@ -424,77 +424,74 @@ excludeBatch = ABSTRACT CASE BOOLEAN (Inventory, Batch);
 
 recalculateBalance 'Заполнить остатки' (Inventory inventory)  {   
     quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
-    sumBalance(CollationSheet cs, Sku sku)<- NULL WHERE inventory(cs) == inventory;
-    quantityBalance(CollationSheet cs, Batch batch)<- NULL WHERE inventory(cs) == inventory;
-    sumBalance(CollationSheet cs, Batch batch)<- NULL WHERE inventory(cs) == inventory;
+    sumBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+    quantityBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
+    sumBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     
-    IF isPartly(inventory) AND isRemains(inventory) THEN { 
-        quantityBalance(CollationSheet cs, Sku sku)
-            <- balanceB(sku, stock(cs), dateTime(inventory(cs)))
-            WHERE inventory(cs) == inventory AND include(inventory(cs), sku);
-        IF NOT isPrice(inventory) THEN {
-            sumBalance(CollationSheet cs, Sku sku)
-                <- NUMERIC[18,4](sumB(sku, stock(cs), dateTime(inventory(cs))))
-                WHERE inventory(cs) == inventory AND include(inventory(cs), sku);        
-        } ELSE {
-            sumBalance(CollationSheet cs, Sku sku)
-                <- NUMERIC[18,4](round(balanceB(sku, stock(cs), dateTime(inventory(cs)))*priceBalance(cs, sku),currency(stock(cs))))
-                WHERE inventory(cs) == inventory AND include(inventory(cs), sku);    
-        }   
-        
-        IF isBatch (inventory) THEN {
-            quantityBalance(CollationSheet cs, Batch batch)
-                <- balanceB(batch, stock(cs), dateTime(inventory(cs)))
-                WHERE inventory(cs) == inventory AND include(inventory(cs), sku(batch)) AND NOT excludeBatch(inventory,batch);
+    FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {
+        IF isPartly(inventory) AND isRemains(inventory) THEN { 
+            quantityBalance(cs, Sku sku)
+                <- balanceB(sku, st, dt)
+                WHERE include(inventory, sku) AND balanceB(sku, st, dt);
             IF NOT isPrice(inventory) THEN {
-                FOR inventory(CollationSheet cs) == inventory DO {
-                    IF explicitBatchLedger(stock(cs)) THEN 
-                        sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs)))) WHERE include(inventory(cs), sku(batch)) AND NOT excludeBatch(inventory,batch);
-                    ELSE
-                        sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs)))) WHERE include(inventory(cs), sku(batch)) AND NOT excludeBatch(inventory,batch);
-                }                                          
+                sumBalance(cs, Sku sku)
+                    <- NUMERIC[18,4](sumB(sku, st, dt))
+                    WHERE include(inventory, sku) AND sumB(sku, st, dt);        
             } ELSE {
-                sumBalance(CollationSheet cs, Batch batch)
-                    <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))))
-                    WHERE inventory(cs) == inventory AND include(inventory(cs), sku(batch)) AND NOT excludeBatch(inventory,batch);    
-            }                
-        }    
-    } ELSE {
-        quantityBalance(CollationSheet cs, Sku sku)
-            <- balanceB(sku, stock(cs), dateTime(inventory(cs)))
-            WHERE inventory(cs) == inventory;
-        IF NOT isPrice(inventory) THEN {
-            sumBalance(CollationSheet cs, Sku sku)
-                <- NUMERIC[18,4](sumB(sku, stock(cs), dateTime(inventory(cs))))
-                WHERE inventory(cs) == inventory;        
-        } ELSE {
-            sumBalance(CollationSheet cs, Sku sku)
-                <- NUMERIC[18,4](round(balanceB(sku, stock(cs), dateTime(inventory(cs)))*priceBalance(cs, sku),currency(stock(cs))))
-                WHERE inventory(cs) == inventory;    
-        }   
-        
-        IF isBatch (inventory) THEN {
-            quantityBalance(CollationSheet cs, Batch batch)
-                <- balanceB(batch, stock(cs), dateTime(inventory(cs)))
-                WHERE inventory(cs) == inventory AND NOT excludeBatch(inventory,batch);
-            IF NOT isPrice(inventory) THEN {
-                FOR inventory(CollationSheet cs) == inventory DO {
-                    IF explicitBatchLedger(stock(cs)) THEN 
+                sumBalance(cs, Sku sku)
+                    <- NUMERIC[18,4](round(balanceB(sku, st, dt)*priceBalance(cs, sku),currency(st)))
+                    WHERE include(inventory, sku) AND balanceB(sku, st, dt);    
+            }   
+            
+            IF isBatch (inventory) THEN {
+                quantityBalance(cs, Batch batch)
+                    <- balanceB(batch, st, dt)
+                    WHERE include(inventory, sku(batch)) AND NOT excludeBatch(inventory,batch) AND balanceB(batch, st, dt);
+                IF NOT isPrice(inventory) THEN {
+                    IF explicitBatchLedger(st) THEN 
                         sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](sumB(batch, stock(cs), dateTime(inventory(cs)))) WHERE NOT excludeBatch(inventory,batch);
+                            <- NUMERIC[18,4](sumB(batch, st, dt)) WHERE include(inventory, sku(batch)) AND NOT excludeBatch(inventory,batch) AND sumB(batch, st, dt);
                     ELSE
                         sumBalance(cs, Batch batch)
-                            <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs)))) WHERE NOT excludeBatch(inventory,batch);
+                            <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(st))) WHERE include(inventory, sku(batch)) AND NOT excludeBatch(inventory,batch) AND quantityBalance(cs, batch);
+                } ELSE {
+                    sumBalance(cs, Batch batch)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(st)))
+                        WHERE include(inventory, sku(batch)) AND NOT excludeBatch(inventory,batch) AND quantityBalance(cs, batch);    
+                }                
+            }    
+        } ELSE {
+            quantityBalance(cs, Sku sku)
+                <- balanceB(sku, st, dt)
+                WHERE balanceB(sku, st, dt);
+            IF NOT isPrice(inventory) THEN {
+                sumBalance(cs, Sku sku)
+                    <- NUMERIC[18,4](sumB(sku, st, dt))
+                    WHERE sumB(sku, st, dt);        
+            } ELSE {
+                sumBalance(cs, Sku sku)
+                    <- NUMERIC[18,4](round(balanceB(sku, st, dt)*priceBalance(cs, sku),currency(st)))
+                    WHERE balanceB(sku, st, dt);    
+            }   
+            
+            IF isBatch (inventory) THEN {
+                quantityBalance(cs, Batch batch)
+                    <- balanceB(batch, st, dt)
+                    WHERE NOT excludeBatch(inventory,batch) AND balanceB(batch, st, dt);
+                IF NOT isPrice(inventory) THEN {
+                    IF explicitBatchLedger(st) THEN 
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[18,4](sumB(batch, st, dt)) WHERE NOT excludeBatch(inventory,batch) AND sumB(batch, st, dt);
+                    ELSE
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(st))) WHERE NOT excludeBatch(inventory,batch) AND quantityBalance(cs, batch);
+                } ELSE {
+                    sumBalance(cs, Batch batch)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(st)))
+                        WHERE NOT excludeBatch(inventory,batch) AND quantityBalance(cs, batch);    
                 }
-                                          
-            } ELSE {
-                sumBalance(CollationSheet cs, Batch batch)
-                    <- NUMERIC[18,4](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))))
-                    WHERE inventory(cs) == inventory AND NOT excludeBatch(inventory,batch);    
+                    
             }
-                
         }
     }
     overRecalculateBalance(inventory);
@@ -2087,14 +2084,14 @@ EXTEND FORM inventory
     PROPERTIES (cs,i) batchQuantity READONLY SHOWIF isSkuBatch(cs) 
 ;
 
-overRecalculateBalance(Inventory in) + { 
-    FOR inventory(CollationSheet cs) == in DO {
+overRecalculateBalance(Inventory inventory) + { 
+    FOR inventory(CollationSheet cs) = inventory DO {
         IF isSkuBatch(cs) THEN {
             
-            IF isPartly(in) AND isRemains(in) THEN {
-                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory(cs), sku(bt)) AND NOT excludeBatch(in,bt); 
-            }ELSE {
-                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE NOT excludeBatch(in,bt); 
+            IF isPartly(inventory) AND isRemains(inventory) THEN {
+                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory, sku(bt)) AND NOT excludeBatch(inventory,bt) AND calcPartitionQuantity(cs, bt); 
+            } ELSE {
+                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE NOT excludeBatch(inventory,bt) AND calcPartitionQuantity(cs, bt); 
             }
             FOR quantityPageInventoryDetail(cs,Sku sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) DO {
                 MESSAGE (CONCAT ' ', 'Для товара:', name(sk), '('+id(sk)+')', 'в количестве', quantityPageInventoryDetail(cs,sk)+' единиц', 'нет подходящих партий.') NOWAIT;
