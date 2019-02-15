@@ -73,6 +73,7 @@ createEInvoice 'Создать электронную накладную' (Consi
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
             generateSeriesNumber(ei);
+            freightPayer(ei) <- payer(invoice);
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
@@ -82,9 +83,9 @@ createEInvoice 'Создать электронную накладную' (Consi
                 quantityDespatched(ed) <- quantity(detail);
                 valueVAT(ed) <- vat(detail);
                 lineItemPrice(ed) <- price(detail);
-                lineItemAmountWithoutCharges(ed) <- sum(detail);
-                lineItemAmount(ed) <- sum(detail);
+                lineItemAmount(ed) <- dataSumInvoice(detail);
                 lineItemAmountCharges(ed) <- sumVAT(detail);
+                lineItemAmountWithoutCharges(ed) <- dataSumInvoice(detail) (-)sumVAT(detail);
                 grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(detail));
                 lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                 despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 1.0;
@@ -100,6 +101,7 @@ addressSupplierAddressSupplierStock (Invoice i) = CONCAT ', ', addressSupplier[C
 infoCustomerBase (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i), shipmentBase(i);
 numberDate (Invoice i) = CONCAT ', ', number(i), toDateDDMMYY(date(i));
 
+//-- old
 FORM consignmentEInvoice 'РЕЕСТР'
     OBJECTS i = Invoice PANEL SUBREPORT
     PROPERTIES(i) READONLY UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock,
@@ -118,21 +120,46 @@ FORM attachmentEInvoice 'Приложение'
     FILTERS invoice(d) == i
 ;
 
+UNPfullNamePayer (EInvoice i) = CONCAT ', ', UNP(freightPayer(i)), fullName(freightPayer(i));
+UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
+addressSupplierAddressSupplierStock (EInvoice i) = CONCAT ', ', addressSupplier(i), addressSupplierStock(i);
+numberDate (EInvoice i) = CONCAT ', ', number(i), toDateDDMMYY(dateTime(i));
+infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i));
+
+FORM EInvoiceConsignment 'РЕЕСТР'
+    OBJECTS e = EInvoice PANEL 
+    PROPERTIES(e)  UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, deliveryNoteDateTime,deliveryNoteNumber,
+                   transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock    
+    PROPERTIES(e) totalAmountWithoutCharges,totalAmountCharges, totalAmount,totalLineItem, totalLineItemQuantity, totalGrossWeight, 
+                totalDespatchUnitQuantity, totalAmountExcise
+
+;
+FORM EInvoiceAttachment 'Приложение'
+    OBJECTS e = EInvoice PANEL 
+    PROPERTIES(e) READONLY number, dateTime
+    
+    OBJECTS d = EInvoiceDetail
+    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, lineItemPrice, lineItemAmountWithoutCharges, valueVAT, 
+                   lineItemAmountCharges, lineItemAmount, despatchUnitQuantityDespatched, grossWeightValue
+    PROPERTIES shortNameUOMSku= UOMExtraCode(lineItemQuantityUOM(d))
+    FILTERS eInvoice(d) == e
+;
+
 printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i)  { 
-    PRINT consignmentEInvoice OBJECTS i = i;
-    PRINT attachmentEInvoice OBJECTS i = i;
+    PRINT EInvoiceConsignment OBJECTS e = eInvoice(i);
+    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i);
 } IMAGE 'print.png';
 
 printConsignmentEInvoice 'Реестр ТТН' (Invoice i)  { 
-    PRINT consignmentEInvoice OBJECTS i = i;
+    PRINT EInvoiceConsignment OBJECTS e = eInvoice(i);
 } IMAGE 'print.png';
 
 printConsignmentEAttachment 'Приложение' (Invoice i)  { 
-    PRINT consignmentEInvoice OBJECTS i = i;
+    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i);
 } IMAGE 'print.png';
 
 printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i)  { 
-    PRINT consignmentEInvoice OBJECTS i = i XLSX;
+    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i) XLSX;
 } IMAGE 'print.png';
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
@@ -158,12 +185,12 @@ FORM consignmentEInvoices 'РЕЕСТР'
     FILTERS include(i)
 ;
 
-printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' ()  { 
-    PRINT consignmentEInvoices XLSX;
-    FOR include(Invoice i) DO {
-        PRINT attachmentEInvoice OBJECTS i = i XLSX;
-    }
-} IMAGE 'print.png';
+//printConsignmentEInvoicesXLSX 'Реестр ТТН (xlsx) (несколько)' ()  { 
+//    PRINT consignmentEInvoices XLSX;
+//    FOR include(Invoice i) DO {
+//        PRINT attachmentEInvoice OBJECTS i = i XLSX;
+//    }
+//} IMAGE 'print.png';
 
 editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i)  { 
 	NEWSESSION {   
