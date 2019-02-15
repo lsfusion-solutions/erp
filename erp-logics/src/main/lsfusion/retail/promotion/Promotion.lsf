@@ -230,7 +230,6 @@ overFlyer 'Листовка' (PromotionDetail detail) = OVERRIDE flyer(detail), 
 nameOverFlyer 'Листовка' (PromotionDetail detail) = name(overFlyer(detail));
 
 paymentForFlyer 'Оплата участия в листовке' = DATA BOOLEAN (PromotionDetail);
-decreaseSupplierPercent 'Уменьшение % маркетинга поставщика' = DATA BOOLEAN (PromotionDetail);
 
 supplierPromotionDiscount 'Скидка поставщика в Акцию' = DATA NUMERIC[8,3] (PromotionDetail);
 
@@ -253,43 +252,6 @@ promotionMarkup 'Акционная наценка' = DATA NUMERIC[8,3] (Promoti
 proposedPromotionPrice 'Предлагаемая акционная цена' = DATA NUMERIC[16,4] (PromotionDetail);
 promotionMarkupSum 'Сумма акционной наценки' = DATA NUMERIC[16,4] (PromotionDetail);
 discount 'Акционная скидка' = DATA NUMERIC[8,3] (PromotionDetail);
-
-CLASS StatusSku 'Статус товара';
-TABLE statusSku (StatusSku);
-
-id 'Код' = DATA VARSTRING[100] (StatusSku) IN id CHARWIDTH 5;
-statusSku(id) = GROUP AGGR (StatusSku status) BY id(status);
-
-name 'Наименование' = DATA VARISTRING[100] (StatusSku) IN id CHARWIDTH 20;
-
-FORM statusSku 'Статус товара'
-    OBJECTS o = StatusSku PANEL
-    PROPERTIES(o) id, name
-    
-    EDIT StatusSku OBJECT o
-;
-
-FORM statusSkus 'Статус товара'
-    OBJECTS o = StatusSku
-    PROPERTIES(o) READONLY id, name
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
-;
-
-FORM dialogStatusSkus 'Статус товара'
-    OBJECTS o = StatusSku
-    PROPERTIES(o) READONLY id, name
-    
-    LIST StatusSku OBJECT o
-;
-
-NAVIGATOR {
-    masterData {
-        NEW statusSkus;
-    }
-}
-
-statusSku 'Статус товара после акции' = DATA StatusSku (PromotionDetail);
-nameStatusSku 'Статус товара после акции' (PromotionDetail detail) = name(statusSku(detail));
 
 CLASS PromoType 'Тип промо';
 TABLE promoType (PromoType);
@@ -355,28 +317,19 @@ name 'Наименование' = DATA VARISTRING[100] (DiscountingType) IN base
 discountingType 'Тип начисления скидки/бонуса' = DATA DiscountingType (PromotionDetail);
 nameDiscountingType 'Тип начисления скидки/бонуса' (PromotionDetail detail) = name(discountingType(detail));
 
-bonusSum 'Сумма бонусов' = DATA NUMERIC[16,5] (PromotionDetail);
-bonusPercent 'Процент бонусов' = DATA NUMERIC[8,3] (PromotionDetail);
-
 //актуальные виды акции
 subway 'Метро' = DATA BOOLEAN (PromotionDetail);
 radio 'Радио' = DATA BOOLEAN (PromotionDetail);
-citylight 'Ситилайт' = DATA BOOLEAN (PromotionDetail);
 billboard 'Билборд' = DATA BOOLEAN (PromotionDetail);
 TVcommercial 'ТВ реклама' = DATA BOOLEAN (PromotionDetail);
 stockTVcommercial 'ТВ реклама в магазинах' = DATA BOOLEAN (PromotionDetail);
 elevator 'Лифты' = DATA BOOLEAN (PromotionDetail);
-newspaper 'Газеты/журналы' = DATA BOOLEAN (PromotionDetail);
-internet 'Интернет' = DATA BOOLEAN (PromotionDetail);
-transport 'Реклама на транспорте' = DATA BOOLEAN (PromotionDetail);
 sms 'СМС рассылка' = DATA BOOLEAN (PromotionDetail);
 email 'E-mail рассылка' = DATA BOOLEAN (PromotionDetail);
-shoppingRoomPoster 'Плакат в торговом зале' = DATA BOOLEAN (PromotionDetail);
 
 comment 'Замечания' = DATA VARISTRING[255] (PromotionDetail) CHARWIDTH 50;
 
 approved 'Утвержден' = DATA BOOLEAN (PromotionDetail);
-excluded 'Исключен после утверждения' = DATA BOOLEAN (PromotionDetail);
 
 //политика безопасности
 proposeDate 'Дата предложения' = DATA DATE (Promotion);
@@ -431,19 +384,19 @@ FORM promotion 'Акция'
     
     OBJECTS d = PromotionDetail
     PROPERTIES(d) idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, valueVAT, nameSuppliers,
-                  paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount
+                  paymentForFlyer, supplierPromotionDiscount
     PROPERTIES(d) BACKGROUND backgroundCur(d) price, markup, retailPrice
     PROPERTIES(d) BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
                   proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
     PROPERTIES(d) READONLY lastPromotionPrice
-    PROPERTIES(d) nameStatusSku, nameOverPromotionType, nameOverFlyer, comment, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d), NEW, deleted = DELETE GRID
+    PROPERTIES(d) nameOverPromotionType, nameOverFlyer, comment, approved SHOWIF showApproved(d), NEW, deleted = DELETE GRID
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d)
             
     OBJECTS dd = PromotionDetail
-    PROPERTIES(dd) idBarcodeSku, nameSku, nameOverExtraPromotionType, nameOverPromoType, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, 
-                   subway, radio, citylight, billboard, TVcommercial, stockTVcommercial, elevator, newspaper, internet, transport, sms, email, 
-                   shoppingRoomPoster, changedTime, changedNameUser, changedHostnameComputer
+    PROPERTIES(dd) idBarcodeSku, nameSku, nameOverExtraPromotionType, nameOverPromoType, nameDiscountType, nameDiscountingType, 
+                   subway, radio, billboard, TVcommercial, stockTVcommercial, elevator, sms, email, 
+                   changedTime, changedNameUser, changedHostnameComputer
     ORDER nameSku(dd)
     FILTERS promotion(dd) == p,
             accessManager(currentUser(), sku(dd)) OR NOT sku(dd)
@@ -535,12 +488,12 @@ FORM promotions 'Акции'
     
     OBJECTS d = PromotionDetail
     PROPERTIES(d) READONLY idBarcodeSku, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameCustomUser, nameBrand, nameSku, nameOverPromotionType, nameOverExtraPromotionType,
-                  nameSuppliers, nameOverFlyer, paymentForFlyer, decreaseSupplierPercent, supplierPromotionDiscount, valueVAT
+                  nameSuppliers, nameOverFlyer, paymentForFlyer, supplierPromotionDiscount, valueVAT
     PROPERTIES(d) READONLY BACKGROUND backgroundCur(d) price, markup, retailPrice
     PROPERTIES(d) READONLY BACKGROUND backgroundAfter(d) promotionPrice BACKGROUND backgroundPromo(d), promotionVATPrice, promotionMarkup,
                   proposedPromotionPrice BACKGROUND backgroundPromo(d), promotionMarkupSum, discount
-    PROPERTIES(d) READONLY nameStatusSku, nameOverPromoType, nameDiscountType, nameDiscountingType, bonusSum, bonusPercent, changedTime, 
-                  changedNameUser, changedHostnameComputer, approved SHOWIF showApproved(d), excluded SHOWIF showExcluded(d)
+    PROPERTIES(d) READONLY nameOverPromoType, nameDiscountType, nameDiscountingType, changedTime, 
+                  changedNameUser, changedHostnameComputer, approved SHOWIF showApproved(d)
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d)
@@ -618,10 +571,6 @@ WHEN LOCAL (CHANGED(discount(PromotionDetail detail)) AND NOT CHANGED (proposedP
 supplier 'Поставщик' (Stock stock, PromotionDetail detail) = companyA(defaultPriceListType(), sku(detail), stock, toDateTime(fromDate(detail)));
 nameSupplier 'Поставщик' (Stock stock, PromotionDetail detail) = name(supplier(stock,detail));
 
-status 'Статус' (PromotionDetail detail) = CASE
-                                                            WHEN excluded(detail) THEN 'Удален'
-                                                            WHEN approved(detail) THEN 'Добавлен';
-
 currentBalance 'Текущий остаток' (Stock stock, PromotionDetail detail) = currentBalance(sku(detail),stock);
 averageSold 'Продаж в день' (Stock stock, PromotionDetail detail) = averageSold(sku(detail),stock);
 
@@ -659,7 +608,7 @@ FORM promotionsStock 'Акции (магазин)'
     PROPERTIES(d) READONLY idBarcodeSku, nameSku, nameOverPromotionType, nameOverExtraPromotionType, nameOverFlyer
     PROPERTIES(s,d) currentBalance, averageSold
     PROPERTIES(d) READONLY BACKGROUND backgroundPromo(d) promotionPrice, proposedPromotionPrice
-    PROPERTIES(d) READONLY nameStatusSku, nameOverPromoType, nameDiscountType, nameDiscountingType, status, comment
+    PROPERTIES(d) READONLY nameOverPromoType, nameDiscountType, nameDiscountingType, comment
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d),
