@@ -214,10 +214,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
                         File file = new File(directory + "/pos" + currentTime + ".aif");
-                        FileCopyUtils.copy(tmpFile, file);
-                        if (!tmpFile.delete()) {
-                            processTransactionLogger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
-                            tmpFile.deleteOnExit();
+                        try {
+                            FileCopyUtils.copy(tmpFile, file);
+                        } finally {
+                            if (!tmpFile.delete()) {
+                                processTransactionLogger.info(String.format(logPrefix + "unable to delete pos file %s", tmpFile.getAbsolutePath()));
+                                tmpFile.deleteOnExit();
+                            }
                         }
 
                         File flagFile = new File(directory + "/pos" + currentTime + ".flz");
