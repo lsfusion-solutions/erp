@@ -69,7 +69,7 @@ valueVATStatement(UserInvoiceDetail d) <- valueVAT[Item](sku(d))
     
 VATStatementSum 'Сумма НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 VATStatementSum(UserInvoiceDetail d) <- round2(vatBase(d) * valueVATStatement(d) / 100.0) 
-    WHEN CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d)) AND isVatStatement(d); 
+    WHEN CHANGED (vatBase(d)) OR CHANGED (valueVATStatement(d)) AND isVatStatement(d); 
     
 EXTEND FORM userInvoice
     OBJECTS d4 = UserInvoiceDetail GRID
@@ -106,11 +106,11 @@ sidCurrency(Purchase.UserInvoiceDetail d) = sid(currency(d));
 decl_num(Invoice i) = number(i);
 decl_date(Invoice i) = date(i);
 version_reason_id(Invoice i) = 1 IF i IS Invoice;
-id_seller(Invoice i) = UNPForeign(customer(i));
+id_seller(Invoice i) = UNPForeign(supplier(i));
 name_seller(Invoice i) = nameSupplier(i);
 address_seller(Invoice i) = addressSupplier(i);
 country_seller(Invoice i) = sidCountrySupplier(i); 
-id_buyer(Invoice i) = UNP(supplier(i));
+id_buyer(Invoice i) = UNP(customer(i));
 name_buyer(Invoice i) = nameCustomer(i); 
 country_buyer(Invoice i)= sidCountryCustomer(i); 
 address_buyer(Invoice i)=addressCustomer(i);                     
