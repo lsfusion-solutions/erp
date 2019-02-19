@@ -21,7 +21,7 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.jdom.Document;
 import org.jdom.Element;
 
@@ -274,7 +274,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                 addIntegerElement(lineItemElement, "LineItemNumber", detail.lineItemNumber);
                 addStringElement(lineItemElement, "LineItemID", detail.lineItemID);
                 addStringElement(lineItemElement, "LineItemBuyerID", detail.lineItemBuyerID);
-                addStringElement(lineItemElement, "LineItemName", StringEscapeUtils.escapeXml(detail.lineItemName));
+                addStringElement(lineItemElement, "LineItemName", StringEscapeUtils.escapeXml11(detail.lineItemName));
                 if(detail.grossWeightValue != null && detail.grossWeightValue.compareTo(BigDecimal.ZERO) > 0) {
                     addBigDecimalElement(lineItemElement, "GrossWeightValue", detail.grossWeightValue);
                 } else {
