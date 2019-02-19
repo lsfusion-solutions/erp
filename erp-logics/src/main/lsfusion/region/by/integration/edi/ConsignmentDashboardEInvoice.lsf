@@ -6,12 +6,17 @@ NAMESPACE Order;
 
 
 EXTEND FORM consignmentDashboard
-    PROPERTIES READONLY PANEL numberEInvoice(i)
-        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
+    PROPERTIES include(i)
+    PROPERTIES READONLY isEInvoice(i), numberEInvoice(i)
+    PROPERTIES READONLY PANEL numberEInvoicePanel = numberEInvoice(i)
+    PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendSupplierEDI SHOWIF (eInvoice(i) AND NOT exportedSupplier(eInvoice(i))), 
-                      cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
-    PROPERTIES(i) SHOWIF eInvoice[Invoice](i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+                      cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))    
+    PROPERTIES(i) editAttributesEInvoice  SHOWIF (eInvoice(i) AND showEditEInvoiceCurrent())
+    PROPERTIES    editAttributes = editAttributes(i) SHOWIF eInvoice(i)
+    PROPERTIES(i) SHOWIF eInvoice[Invoice](i) printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
                   printConsignmentEAttachment, printConsignmentEAttachmentXLSX
+    PROPERTIES () printConsignmentEInvoices TOOLBAR DRAW i SHOWIF (GROUP SUM 1 IF include(Invoice iii))
 ;
 
 DESIGN consignmentDashboard {
@@ -20,9 +25,10 @@ DESIGN consignmentDashboard {
             caption = 'Электронная накладная';
             NEW createEI {
                 type = CONTAINERH;
-                MOVE PROPERTY(numberEInvoice(i));
+                MOVE PROPERTY(numberEInvoicePanel);
                 MOVE PROPERTY(createEInvoice(i));
                 MOVE PROPERTY(editAttributesEInvoice(i));
+                MOVE PROPERTY(editAttributes);
                 MOVE PROPERTY(signAndSendSupplierEDI(i));
                 MOVE PROPERTY(statusDescription(i));
             }

@@ -28,15 +28,15 @@ generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  {
     incrementValueSession(defaultNumeratorDeliveryNoteNumber());
 }
 
-//исходящие
+//исходящие (Sale OR PurchaseReturn)
 invoice= DATA Invoice(EInvoice);
 eInvoice= GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
 numberInvoice'Номер накладной EDI (расход)' (EInvoice i) = number(invoice(i));
 EXTEND FORM eInvoices
     PROPERTIES (e) READONLY SaleNumberInvoice = numberInvoice
 ;
-numberEInvoice'Номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
-
+numberEInvoice 'Номер ЭТТН'(Invoice i) = deliveryNoteNumber(eInvoice(i));
+isEInvoice 'ЭТТН'  (Invoice i) = TRUE IF eInvoice(i);
 signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i)  { 
     in(EInvoice e) <- e = eInvoice(i);
     signAndSendSupplierEDI();
@@ -56,6 +56,40 @@ cancelSignAndSendSupplierEDI 'Отменить (поставщик)'(Invoice i) 
 currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER priority(m), dateTime(m), m BY invoice(eInvoice(m));
 statusDescription 'Статус отправки EDI'(Invoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 
+WHEN CHANGED(payer(invoice(EInvoice e))) AND NOT (CHANGED(freightPayer(e)))  DO {
+    freightPayer(e) <- payer(invoice(e));    
+}
+WHEN CHANGED(nameDriver(invoice(EInvoice e))) AND NOT (CHANGED(transportContact(e)))  DO {
+    transportContact(e) <- VARSTRING[150](nameDriver(invoice(e)));    
+}
+WHEN CHANGED(overWaybill(invoice(EInvoice e))) AND NOT (CHANGED(waybillId(e)))  DO {
+    waybillId(e) <- VARSTRING[70](overWaybill(invoice(e))); 
+}
+WHEN CHANGED(nameIssuanceAllowed(invoice(EInvoice e))) AND NOT (CHANGED(contactSupplier(e)))  DO {
+    contactSupplier(e) <- VARSTRING[150](nameIssuanceAllowed(invoice(e)));     
+}
+WHEN CHANGED(forwarder(invoice(EInvoice e))) AND NOT (CHANGED(deliveryContact(e)))  DO {
+    deliveryContact(e) <- VARSTRING[150](forwarder(invoice(e)));
+}
+WHEN CHANGED(warrant(invoice(EInvoice e))) AND NOT (CHANGED(proxyID(e)))  DO {
+    proxyID(e) <- VARSTRING[70](warrant(invoice(e)));
+}
+WHEN CHANGED(warrantHolder(invoice(EInvoice e))) AND NOT (CHANGED(partyIssuingProxyName(e)))  DO {
+    partyIssuingProxyName(e) <- VARSTRING[175](warrantHolder(invoice(e)));
+}
+WHEN CHANGED(raceQuantity(invoice(EInvoice e))) AND NOT (CHANGED(quantityTrip(e)))  DO {
+    quantityTrip(e) <- VARSTRING[70](raceQuantity(invoice(e)));
+}
+WHEN CHANGED(nameTruck(invoice(EInvoice e))) AND NOT (CHANGED(transportID(e)))  DO {
+    transportID(e) <- VARSTRING[35](nameTruck(invoice(e)));
+}
+WHEN CHANGED (trailer(invoice(EInvoice e))) AND NOT (CHANGED(trailerID(e)))  DO {
+    trailerID(e) <- VARSTRING[35](trailer(invoice(e)));
+}
+WHEN CHANGED (overGoodsAccepted(invoice(EInvoice e))) AND NOT (CHANGED(contactCustomerStock(e)))  DO {
+    contactCustomerStock(e) <- VARSTRING[150](overGoodsAccepted(invoice(e)));
+}
+//transportOwnerName 'Владелец автомобиля' = DATA VARSTRING[175] (EInvoice);
 
 createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
@@ -72,8 +106,7 @@ createEInvoice 'Создать электронную накладную' (Consi
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
-            generateSeriesNumber(ei);
-            freightPayer(ei) <- payer(invoice);
+            generateSeriesNumber(ei);            
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
@@ -123,48 +156,85 @@ FORM attachmentEInvoice 'Приложение'
 UNPfullNamePayer (EInvoice i) = CONCAT ', ', UNP(freightPayer(i)), fullName(freightPayer(i));
 UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
 addressSupplierAddressSupplierStock (EInvoice i) = CONCAT ', ', addressSupplier(i), addressSupplierStock(i);
-numberDate (EInvoice i) = CONCAT ', ', number(i), toDateDDMMYY(dateTime(i));
+numberDate (EInvoice i) = CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDateTime(i));
 infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i));
 
+include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
+multy  = DATA LOCAL BOOLEAN ();
+
 FORM EInvoiceConsignment 'РЕЕСТР'
-    OBJECTS e = EInvoice PANEL 
+    OBJECTS e = EInvoice  
     PROPERTIES(e)  UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, deliveryNoteDateTime,deliveryNoteNumber,
                    transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock    
     PROPERTIES(e) totalAmountWithoutCharges,totalAmountCharges, totalAmount,totalLineItem, totalLineItemQuantity, totalGrossWeight, 
                 totalDespatchUnitQuantity, totalAmountExcise
-
+    PROPERTIES multy()
+    FILTERS include(e)
 ;
 FORM EInvoiceAttachment 'Приложение'
-    OBJECTS e = EInvoice PANEL 
-    PROPERTIES(e) READONLY number, dateTime
+    OBJECTS e = EInvoice  
+    PROPERTIES(e) READONLY number, dateTime, deliveryNoteDateTime, deliveryNoteNumber
+    PROPERTIES multy()
     
     OBJECTS d = EInvoiceDetail
     PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, lineItemPrice, lineItemAmountWithoutCharges, valueVAT, 
                    lineItemAmountCharges, lineItemAmount, despatchUnitQuantityDespatched, grossWeightValue
     PROPERTIES shortNameUOMSku= UOMExtraCode(lineItemQuantityUOM(d))
     FILTERS eInvoice(d) == e
+    FILTERS include(e)
 ;
 
 printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i)  { 
-    PRINT EInvoiceConsignment OBJECTS e = eInvoice(i);
-    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i);
+    include(EInvoice e) <- NULL;
+    multy() <- NULL;
+    include(EInvoice e) <- TRUE WHERE e = eInvoice(i);    
+    PRINT EInvoiceConsignment;
+    PRINT EInvoiceAttachment;
 } IMAGE 'print.png';
 
 printConsignmentEInvoice 'Реестр ТТН' (Invoice i)  { 
-    PRINT EInvoiceConsignment OBJECTS e = eInvoice(i);
+    include(EInvoice e) <- NULL;
+    multy() <- NULL;
+    include(EInvoice e) <- TRUE WHERE e = eInvoice(i);    
+    PRINT EInvoiceConsignment;
 } IMAGE 'print.png';
 
 printConsignmentEAttachment 'Приложение' (Invoice i)  { 
-    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i);
+    include(EInvoice e) <- NULL;
+    multy() <- NULL;
+    include(EInvoice e) <- TRUE WHERE e = eInvoice(i);    
+    PRINT EInvoiceAttachment;
 } IMAGE 'print.png';
 
 printConsignmentEAttachmentXLSX 'Приложение (xlsx)' (Invoice i)  { 
-    PRINT EInvoiceAttachment OBJECTS  e = eInvoice(i) XLSX;
+    include(EInvoice e) <- NULL;
+    multy() <- NULL;
+    include(EInvoice e) <- TRUE WHERE e = eInvoice(i);    
+    PRINT EInvoiceAttachment XLSX;
 } IMAGE 'print.png';
+
+
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (Invoice);
 countInclude() = GROUP SUM 1 IF include(Invoice i);
 maxInclude() = GROUP MAX Invoice i IF include(i);
+
+printConsignmentEInvoices 'Реестр ТТН (несколько)' ()  { 
+    IF NOT ([ GROUP SUM 1 IF [GROUP SUM 1 IF include(Invoice i) BY fromStock(i)](Stock st)]() >1 OR 
+            [ GROUP SUM 1 IF [GROUP SUM 1 IF include(Invoice i) BY toStock(i)](Stock st)]()>1 OR 
+            [ GROUP SUM 1 IF [GROUP SUM 1 IF include(Invoice i) BY Invoice.date(i)](DATE dt)]()>1)  THEN {
+        include(EInvoice e) <- NULL;
+        multy() <- TRUE;
+        include(EInvoice e) <- TRUE WHERE e = eInvoice(invoice(e)) AND include(invoice(e));    
+        
+        PRINT EInvoiceConsignment;
+        PRINT EInvoiceAttachment;
+        include(Invoice i) <- NULL;    
+    } ELSE {
+        MESSAGE 'Выбраны накладные с разными складами и/или датами';
+    }
+
+} IMAGE 'print.png';
 
 UNPfullNamePayer () = CONCAT ', ', UNPPayer(maxInclude()), fullNamePayer(maxInclude());
 addressPayer () = addressPayer(maxInclude());
@@ -176,7 +246,6 @@ overWaybill () = overWaybill(maxInclude());
 nameDriver () = nameDriver(maxInclude());
 forwarder () = forwarder(maxInclude());
 infoCustomer (Invoice i) = CONCAT ', ', UNPCustomer(i), fullNameCustomer[Consignment](i), addressCustomer[Consignment](i);
-
 
 FORM consignmentEInvoices 'РЕЕСТР'
     PROPERTIES() UNPfullNamePayer, addressPayer, UNPfullNameSupplier, addressSupplier, date, nameTruck, overWaybill, nameDriver, forwarder
@@ -191,8 +260,10 @@ FORM consignmentEInvoices 'РЕЕСТР'
 //        PRINT attachmentEInvoice OBJECTS i = i XLSX;
 //    }
 //} IMAGE 'print.png';
+@addRoleApplicationSetting(showEditEInvoice, 'Показывать форму редактирования электронной ТТН', BOOLEAN);
+showEditEInvoiceCurrent () = showEditEInvoice(mainRole(currentUser()));
 
-editAttributesEInvoice 'Заполнить атрибуты накладной' (Invoice i)  { 
+editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (Invoice i)  { 
 	NEWSESSION {   
 	    SHOW eInvoice OBJECTS e = eInvoice(i) DOCKED; 
 	}
@@ -201,10 +272,14 @@ editAttributesEInvoice 'Заполнить атрибуты накладной' 
 META defineInvoiceEinvoice (dumb)
     EXTEND FORM invoices
         PROPERTIES READONLY PANEL numberEInvoice(i)
+        PROPERTIES READONLY numberEInvoice = numberEInvoice(i)
         PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendSupplierEDI SHOWIF (eInvoice(i) AND NOT exportedSupplier(eInvoice(i))), 
                       cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
-        PROPERTIES(i) SHOWIF eInvoice(i) editAttributesEInvoice, printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
+        PROPERTIES (i) editAttributesEInvoice SHOWIF (eInvoice(i) AND showEditEInvoiceCurrent())
+        PROPERTIES    editAttributes = editAttributes(i) SHOWIF eInvoice(i)
+        PROPERTIES(i) SHOWIF eInvoice(i)
+                      printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
                       printConsignmentEAttachment, printConsignmentEAttachmentXLSX
     ;
     
@@ -219,7 +294,8 @@ META defineInvoiceEinvoice (dumb)
                         type = CONTAINERH;
                         MOVE PROPERTY(numberEInvoice(i));
                         MOVE PROPERTY(createEInvoice(i));
-                        MOVE PROPERTY(editAttributesEInvoice(i));
+                        MOVE PROPERTY(editAttributes);          
+                        MOVE PROPERTY(editAttributesEInvoice(i));                        
                         MOVE PROPERTY(signAndSendSupplierEDI(i));
                         MOVE PROPERTY(cancelSignAndSendSupplierEDI(i));
                         MOVE PROPERTY(statusDescription(i));
