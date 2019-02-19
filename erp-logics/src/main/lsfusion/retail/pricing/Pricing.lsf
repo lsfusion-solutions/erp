@@ -1,6 +1,6 @@
 MODULE Pricing;
 
-REQUIRE EmployeeStock, PriceRoundStore, PricingOperation, PriceListCalc, PriceListLedger, StockTax, StockSkuDocument, PriceListStore, Item;
+REQUIRE EmployeeStock, PriceRoundStore, PricingOperation, PriceListCalc, PriceListLedger, StockTax, StockSkuDocument, PriceListStore, Item, SkuList;
 
 //------------------------  derive or change ------------------------------------//
 
@@ -409,8 +409,12 @@ DESIGN userPricing {
         
                 NEW specificationBox {
                     fill = 1;
-                    MOVE BOX(d) {
+                    NEW details {
                         caption = 'Спецификация';
+                        NEW addContainter {
+                            type = CONTAINERH;
+                        }
+                        MOVE BOX(d);
                     }
                 }
             }
@@ -749,3 +753,12 @@ skipRetailPrice = ABSTRACT CASE BOOLEAN (PricingDetail);
 
 CONSTRAINT  (SET(isPosted(PricingDetail d)) OR CHANGED(retailPrice(d))) AND isPosted(d) AND isRetailPrice(operation(d)) AND NOT skipRetailPrice(d) AND NOT retailPrice(d)
     MESSAGE 'Для строки акта расценки должна быть задана розничная цена'; 
+
+@defineAddSkuLists(userPricing, userPricing, p);
+@defineNewSkuList(userPricing, userPricing, p);
+DESIGN userPricing {
+    addContainter {
+        MOVE PROPERTY (addSkuLists(p));
+        MOVE PROPERTY (newSkuList(p));
+    }
+}

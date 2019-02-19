@@ -17,7 +17,8 @@ REQUIRE System,
         Operation,
         StockMovement,
         StockContract,
-        StockTax;
+        StockTax,
+        SkuList;
 
 
 PRIORITY Utils, Stock;
@@ -444,7 +445,10 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
         EDIT UserOrder OBJECT o
     ;
-
+    
+    @defineAddSkuLists(userOrder, userOrder, o);
+    @defineNewSkuList(userOrder, userOrder, o);
+    
     DESIGN userOrder {
 
         BOX {
@@ -551,6 +555,16 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                 NEW import {
                                     caption = 'Импорт';
                                     type = CONTAINERH;
+                                }
+                                NEW add {
+                                    caption = 'Подбор';
+                                    type = CONTAINERH;
+                                    alignment = START;
+                                    MOVE PROPERTY(fillDocument(o));
+                                    MOVE PROPERTY(addDetailDialogSkuStockUserOrderDetail(o));
+                                    MOVE PROPERTY(addSkuLists(o));
+                                    MOVE PROPERTY(newSkuList(o));
+                                    MOVE PROPERTY(addDetailInputBarcodeUserOrderDetail(o));
                                 }
                             }
                         }

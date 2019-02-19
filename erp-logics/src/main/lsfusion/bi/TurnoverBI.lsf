@@ -468,6 +468,15 @@ addCommaBarcodeId 'Добавить' ()  {
     }
 }
 
+addSkuLists 'Отметить списки SKU' () {
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
+            include(sk) <- TRUE;
+        }
+    }
+    in(List l) <- NULL;
+}
+
 FORM dialogSku 'Товары'
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk), name(sk)
@@ -477,7 +486,7 @@ FORM dialogSku 'Товары'
     PROPERTIES deleteIncludeSkuGroups() DRAW sk TOOLBAR
 
     OBJECTS sku = Sku
-    PROPERTIES PANEL commaBarcodeId(), addCommaBarcodeId()
+    PROPERTIES() PANEL commaBarcodeId, addCommaBarcodeId, addSkuLists
     PROPERTIES include(sku)
     PROPERTIES(sku) READONLY idBarcode, name, shortNameUOM
     ORDER name(sku)
@@ -488,6 +497,9 @@ FORM dialogSku 'Товары'
 DESIGN dialogSku {
     BOX {
         size = (1024, 768);
+        GROUP () {
+            type = CONTAINERH;
+        }
         NEW topContainer {
             type = SPLITH;
             fill = 1;

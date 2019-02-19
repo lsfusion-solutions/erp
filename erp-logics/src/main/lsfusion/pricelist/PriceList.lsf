@@ -1,6 +1,6 @@
 MODULE PriceList;
 
-REQUIRE PriceListLedger, StockTax, StockSkuDocument, Item, PurchaseLedger;
+REQUIRE PriceListLedger, StockTax, StockSkuDocument, Item, PurchaseLedger, SkuList;
 
 NAMESPACE PriceList;
 
@@ -798,6 +798,10 @@ DESIGN userPriceList {
                     type = CONTAINERH;
                     MOVE PROPERTY(addDetailInputBarcodeUserPriceListDetail(p));
                 }
+                NEW addRowContainer {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (fillDocument(p));
+                }
                 MOVE BOX(d);
             }
         }
@@ -1287,6 +1291,12 @@ EXTEND FORM userPriceList
     PROPERTIES(p) DRAW d TOOLBAR addUnderPriceList
 ;
 
+DESIGN userPriceList {
+    addRowContainer {
+        MOVE PROPERTY (addUnderPriceList(p));
+    }
+}
+
 //печать прайсов
 
 FORM printPriceList 'Прайс'
@@ -1403,3 +1413,13 @@ show[PriceListLedger] (PriceListDetail ledger) + { show(ledger);};
 // Храним количество прайс-листов для поставщика и вида цен
 TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
 countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 
+
+@defineAddSkuLists(userPriceList, userPriceList, p);
+@defineNewSkuList(userPriceList, userPriceList, p);
+
+DESIGN userPriceList {
+    addRowContainer {
+        MOVE PROPERTY (addSkuLists(p));
+        MOVE PROPERTY (newSkuList(p));
+    }
+}

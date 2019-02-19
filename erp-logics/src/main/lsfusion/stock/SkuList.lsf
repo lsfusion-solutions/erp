@@ -1,0 +1,228 @@
+MODULE SkuList;
+
+REQUIRE Sku, Item, Barcode;
+
+NAMESPACE Sku;
+
+CLASS List 'Список SKU';
+TABLE list (List);
+
+CLASS ListDetail 'Строка списка SKU';
+TABLE listDetail(ListDetail);
+
+list = DATA List(ListDetail) NONULL DELETE;
+
+name 'Наименование' = DATA VARISTRING[250](List);
+
+sku = DATA Sku(ListDetail);
+idSku 'Код товара' (ListDetail d) = id(sku(d));
+idBarcodeSku 'Штрихкод товара' (ListDetail d) = idBarcode(sku(d));
+nameSku 'Наименование товара' (ListDetail d) = name(sku(d));
+shortNameUOMSku 'Ед. изм. товара' (ListDetail d) = shortNameUOM(sku(d));
+canonicalNameSkuGroup 'Группа товара' (ListDetail d) = canonicalName(skuGroup(sku(d)));
+nameBrandSku 'Бренд' (ListDetail d) = nameBrand(sku(d));
+nameCountrySku 'Страна' (ListDetail d) = nameCountry(sku(d));
+nameManufacturerSku 'Производитель' (ListDetail d) = nameManufacturer(sku(d));
+
+//Доступ
+dataAccess 'Доступ разрешен' = DATA BOOLEAN (Stock, List);
+dataAccess 'Доступ разрешен' = DATA BOOLEAN (StockGroup, List);
+limitAccessStock 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(Stock s, l) OR dataAccess(stockGroup(s), l);
+
+levelParent (List list, StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataAccess(parent, list) MATERIALIZED;
+nearestParent (List list, StockGroup stockGroup) = stockGroup(stockGroup, levelParent(list, stockGroup));
+nearestIn (List list, StockGroup stockGroup) =
+    dataAccess(nearestParent (list, stockGroup), list) MATERIALIZED;
+
+access 'Доступ разрешен' (List list, StockGroup stockGroup) = OVERRIDE
+    dataAccess(stockGroup, list),
+    nearestIn(list, stockGroup),
+    list IS List AND stockGroup IS StockGroup AND NOT limitAccessStock(list); // MATERIALIZED;
+
+access 'Доступ разрешен' (List list, Stock stock) = OVERRIDE
+    dataAccess(stock, list),
+    nearestIn(list, stockGroup(stock)),
+    list IS List AND stock IS Stock AND NOT limitAccessStock(list) MATERIALIZED;
+
+countAccessStock 'Кол-во доступных подразделений' (List list) =GROUP SUM 1 IF access(list, Stock stock) AND active(stock);
+defaultStock  (List list) = GROUP MIN Stock stock IF access(list, stock) AND active(stock);
+stocks  'Склады' (List list) = GROUP CONCAT name(Stock st) IF access(list, st) , ', ' ORDER name(st) CHARWIDTH 20; 
+
+dataAccess 'Доступ разрешен' = DATA BOOLEAN (UserRole, List);
+limitAccessRole 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(UserRole r, l);
+
+access 'Доступ разрешен' (List list, UserRole role) = OVERRIDE
+    dataAccess(role, list),
+    list IS List AND role IS UserRole AND NOT limitAccessRole(list) MATERIALIZED;
+
+in 'Вкл.' (List l, Sku s) = TRUE IF [GROUP SUM 1 BY list(ListDetail d),  sku(d)](l, s);
+
+changeIn (List l, Sku s) {
+    INPUT b = BOOLEAN DO {
+        IF NOT b THEN {
+            DELETE ListDetail d WHERE list(d) == l AND sku(d) == s;
+        }
+        IF b THEN NEW d = ListDetail {
+            list(d) <- l;
+            sku(d) <- s;
+        }
+    }
+}
+
+CONSTRAINT sku(ListDetail d1) == sku(ListDetail d2) AND list(d1) == list(d2) AND d1 != d2 CHECKED BY sku[ListDetail] MESSAGE 'В списке SKU не должен повторятся товар';
+
+FORM list 'Список SKU'
+    OBJECTS l = List PANEL
+    PROPERTIES (l) name
+    ORDER name(l)
+    
+    OBJECTS d = ListDetail
+    PROPERTIES(d) idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku, NEW, DELETE 
+    FILTERS list(d) == l
+    ORDER nameSku(d)
+    
+    TREE stockTree a = STRING[3], sg = StockGroup  PARENT parent
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDER sgTreeName
+    FILTERS stringEqualsAll(a)
+    PROPERTIES(l,sg) access
+
+    OBJECTS s = Stock GRID
+    PROPERTIES(s) READONLY id 
+    PROPERTIES(s) READONLY stockName = name, nameLegalEntity
+    ORDER stockName
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    PROPERTIES(l,s) access
+    
+    OBJECTS r = UserRole
+    PROPERTIES access(l, r), name(r) READONLY
+    ORDER name(r)
+    
+    OBJECTS sk = Sku
+    PROPERTIES in(l, sk) ON CHANGE changeIn(l, sk)
+    PROPERTIES (sk) READONLY id, idBarcode, name, shortNameUOM, canonicalNameSkuGroup, nameBrand, nameCountry, nameManufacturer
+    FILTERGROUP in FILTER 'Отмеченные' in(l, sk)
+    ORDER name(sk)
+    
+    EDIT List OBJECT l
+;
+
+DESIGN list {
+    OBJECTS {
+        NEW tab AFTER BOX (l) {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX (d) { caption = 'Товары'; }
+            NEW access {
+                caption = 'Доступ';
+                NEW stockSplitContainer{
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(TREE stockTree) { 
+                        caption = 'Группы складов';
+                        PROPERTY (access(l,sg)) {valueWidth = 100; }
+                    };
+                    MOVE BOX(s) {
+                        GRID(s) {
+                            defaultComponent = TRUE;
+                            PROPERTY (access(l,s)) {valueWidth = 100;}
+                        }
+                    }
+                }
+                MOVE BOX (r) { caption = 'Роли'; }
+            }
+            MOVE BOX (sk) { caption = 'Подбор'; }
+        }
+    }
+}
+
+FORM lists 'Списки SKU'
+    OBJECTS o = List
+    PROPERTIES (o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    ORDER name(o)
+    
+    OBJECTS d = ListDetail
+    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
+    ORDER nameSku(d)
+    FILTERS list(d) == o
+;
+
+FORM dialogLists 'Списки SKU'
+    OBJECTS o = List
+    PROPERTIES(o) READONLY name
+    ORDER name(o)
+    
+    OBJECTS d = ListDetail
+    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
+    ORDER nameSku(d)
+    FILTERS list(d) == o
+    
+    LIST List OBJECT o
+;
+
+NAVIGATOR {
+    skuNavigator {
+        NEW lists;
+    }
+}
+
+in 'Отм.' = DATA LOCAL BOOLEAN (List);
+
+FORM dialogAddLists 'Списки SKU'
+    OBJECTS o = List
+    PROPERTIES(o) in, name READONLY 
+    ORDER name(o)
+    
+    OBJECTS d = ListDetail
+    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
+    ORDER nameSku(d)
+    FILTERS list(d) == o
+;
+
+addSkuLists 'Отметить списки SKU' () {
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
+            select(sk, Stock st) <- TRUE WHERE [FILTER currentBalanceSkuStock.sts](st, sk);
+        }
+    }
+    in(List l) <- NULL;
+}
+
+EXTEND FORM currentBalanceSkuStock PROPERTIES addSkuLists();
+
+DESIGN currentBalanceSkuStock {
+    filter {
+        MOVE PROPERTY (addSkuLists());
+    }
+}
+
+META defineAddSkuLists(object, form, concrete)
+    addSkuLists 'Подбор списков SKU' (###object object) {
+        DIALOG dialogAddLists DO {
+            FOR in(list(ListDetail d)) AND NOT [GROUP SUM 1 BY sku(###object##Detail dd), object(dd)](sku(d), object) DO NEW dd = ###object##Detail {
+                object(dd) <- object;
+                sku(dd) <- sku(d);
+            }
+            in(List l) <- NULL;
+        }
+    }
+    EXTEND FORM form PROPERTIES addSkuLists(concrete) DRAW d TOOLBAR;
+    DESIGN form { TOOLBAR(d) { MOVE PROPERTY (addSkuLists(concrete)) FIRST; } }
+END
+
+META defineNewSkuList (object, form, concrete)
+    newSkuList 'Создать список SKU на основе' (###object object) {
+        NEWSESSION NEW l = List {
+            name(l) <- seriesNumber(object);
+            FOR [GROUP SUM 1 BY sku(###object##Detail detail), object(detail)](Sku sku, object) DO NEW detail = ListDetail {
+                list(detail) <- l;
+                sku(detail) <- sku;
+            }
+            SHOW list OBJECTS l = l DOCKED;
+        }
+    } CONFIRM;
+    EXTEND FORM form PROPERTIES newSkuList(concrete) DRAW d TOOLBAR;
+    DESIGN form { TOOLBAR(d) { MOVE PROPERTY (addSkuLists(concrete)) FIRST; } }
+END
