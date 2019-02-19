@@ -274,7 +274,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                 addIntegerElement(lineItemElement, "LineItemNumber", detail.lineItemNumber);
                 addStringElement(lineItemElement, "LineItemID", detail.lineItemID);
                 addStringElement(lineItemElement, "LineItemBuyerID", detail.lineItemBuyerID);
-                addStringElement(lineItemElement, "LineItemName", StringEscapeUtils.escapeXml11(detail.lineItemName));
+                addStringElement(lineItemElement, "LineItemName", detail.lineItemName);
                 if(detail.grossWeightValue != null && detail.grossWeightValue.compareTo(BigDecimal.ZERO) > 0) {
                     addBigDecimalElement(lineItemElement, "GrossWeightValue", detail.grossWeightValue);
                 } else {

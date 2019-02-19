@@ -122,7 +122,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                             if (response != null) {
                                 String waybill = response.getChildText("waybill");
                                 if (waybill != null) {
-                                    responseMessage = StringEscapeUtils.unescapeXml(waybill);
+                                    responseMessage = waybill;
                                 }
                             }
 
