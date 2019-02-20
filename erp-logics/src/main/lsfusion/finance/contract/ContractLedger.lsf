@@ -328,11 +328,13 @@ namePartyB 'Организация (покупатель)' = name(partyB());
 
 isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) MATERIALIZED;
 
+skipWrite = DATA BOOLEAN (OutContractLedger);
+
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'()  { 
 
     APPLY SINGLE {
         LOCAL changed = BOOLEAN (OutContractLedger);
-        changed(OutContractLedger l) <- TRUE IF isCosted(l) AND isPosted(l) AND NOT skipCost(l);
+        changed(OutContractLedger l) <- TRUE IF isCosted(l) AND isPosted(l) AND NOT (skipCost(l) OR skipWrite(l));
         
         cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol) AND costedInContractLedger(ol);
         
