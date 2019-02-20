@@ -30,7 +30,9 @@ public class SendSalesEquipmentServer {
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if(!cashRegister.disableSales) {
                 List<String> directoryList = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new ArrayList<String>();
-                directoryList.add(cashRegister.directory);
+                if(!directoryList.contains(cashRegister.directory)) {
+                    directoryList.add(cashRegister.directory);
+                }
                 handlerModelDirectoryMap.put(cashRegister.handlerModel, directoryList);
             }
         }
