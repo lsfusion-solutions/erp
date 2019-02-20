@@ -155,6 +155,8 @@ fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
 
 in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
 
+overCreateMarketingInvoice ABSTRACT LIST (ContractMarketing, MarketingInvoice, DATE, DATE);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -271,6 +273,7 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
                                     WHEN daysInclBetweenDates(df, dt) <= 31 THEN monthSum(mc) * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i))
                                     WHEN daysInclBetweenDates(df, dt) >= 90 THEN monthSum(mc) * 3 * rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i));
         }
+        overCreateMarketingInvoice(c, i, df, dt);
         APPLY;
     }
 }
