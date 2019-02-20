@@ -85,7 +85,8 @@ public class SendSalesEquipmentServer {
                 query.and(cashRegisterLM.findProperty("active[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session, MapFact.singletonOrder((Object)"priority", true));
 
-                for (ImMap<Object, Object> row : result.values()) {
+                for (int i = 0, size = result.size(); i < size; i++) {
+                    ImMap<Object, Object> row = result.getValue(i);
                     CashRegisterInfo c = new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
