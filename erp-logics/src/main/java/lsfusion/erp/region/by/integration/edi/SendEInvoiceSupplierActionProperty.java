@@ -348,7 +348,8 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
         for (int i = 0; i < eInvoiceDetailProperties.length; i++) {
             eInvoiceDetailQuery.addProperty(eInvoiceDetailNames[i], eInvoiceDetailProperties[i].getExpr(context.getModifier(), eInvoiceDetailExpr));
         }
-        eInvoiceDetailQuery.and(findProperty("lineItemID[EInvoiceDetail]").getExpr(context.getModifier(), eInvoiceDetailExpr).getWhere());
+        eInvoiceDetailQuery.and(findProperty("lineItemID[EInvoiceDetail]").getExpr(context.getModifier(), eInvoiceDetailExpr).getWhere().or(
+                findProperty("lineItemBuyerID[EInvoiceDetail]").getExpr(context.getModifier(), eInvoiceDetailExpr).getWhere()));
         eInvoiceDetailQuery.and(findProperty("eInvoice[EInvoiceDetail]").getExpr(context.getModifier(), eInvoiceDetailExpr).compare(eInvoiceObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> eInvoiceDetailResult = eInvoiceDetailQuery.execute(context);
         ImCol<ImMap<Object, Object>> resultValues = eInvoiceDetailResult.values();
