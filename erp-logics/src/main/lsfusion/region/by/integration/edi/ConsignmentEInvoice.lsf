@@ -30,6 +30,7 @@ generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  {
 
 //исходящие (Sale OR PurchaseReturn)
 invoice= DATA Invoice(EInvoice);
+invoiceDetail= DATA InvoiceDetail(EInvoiceDetail);
 eInvoice= GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
 numberInvoice'Номер накладной EDI (расход)' (EInvoice i) = number(invoice(i));
 EXTEND FORM eInvoices
@@ -94,6 +95,14 @@ WHEN CHANGED (sealNumberSupplier(invoice(EInvoice e))) AND NOT (CHANGED(sealIDRe
     sealIDReceiver(e) <- VARSTRING[35](sealNumberSupplier(invoice(e)));
 }
 
+WHEN CHANGED (nameIssuanceExecuted(invoice(EInvoice e))) AND NOT (CHANGED(contactSupplierStock(e)))  DO {
+    contactSupplierStock(e) <- VARSTRING[35](nameIssuanceExecuted(invoice(e)));    
+}
+
+WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail ed))) AND NOT (CHANGED(grossWeightValue(ed))) DO {
+    grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(invoiceDetail(ed)));
+}
+
 //transportOwnerName 'Владелец автомобиля' = DATA VARSTRING[175] (EInvoice);
 
 createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
@@ -115,6 +124,7 @@ createEInvoice 'Создать электронную накладную' (Consi
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
+                invoiceDetail(ed) <- detail;
                 lineItemID(ed) <- id(barcode(sku(detail))) IF charLength(id(barcode(sku(detail)))) > 7;
                 lineItemBuyerID(ed) <- id(sku(detail));
                 lineItemName(ed) <- nameSku(detail);
@@ -162,7 +172,7 @@ UNPfullNamePayer (EInvoice i) = CONCAT ', ', UNP(freightPayer(i)), fullName(frei
 UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
 addressSupplierAddressSupplierStock (EInvoice i) = CONCAT ', ', addressSupplier(i), addressSupplierStock(i);
 numberDate (EInvoice i) = CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDateTime(i));
-infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i));
+infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i)), ('разгрузка: '+addressCustomerStock(i));
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 multy  = DATA LOCAL BOOLEAN ();
@@ -172,7 +182,7 @@ FORM EInvoiceConsignment 'РЕЕСТР'
     PROPERTIES(e)  UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, deliveryNoteDateTime,deliveryNoteNumber,
                    transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock    
     PROPERTIES(e) totalAmountWithoutCharges,totalAmountCharges, totalAmount,totalLineItem, totalLineItemQuantity, totalGrossWeight, 
-                totalDespatchUnitQuantity, totalAmountExcise
+                totalDespatchUnitQuantity, totalAmountExcise, sealIDReceiver
     PROPERTIES multy()
     FILTERS include(e)
 ;
