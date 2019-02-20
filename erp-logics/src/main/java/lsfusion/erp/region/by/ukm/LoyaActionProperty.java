@@ -59,14 +59,22 @@ public class LoyaActionProperty extends ScriptingActionProperty {
     }
 
     protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpRequestBase request) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+        return executeRequestWithRelogin(context, request, 2);
+    }
+
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpRequestBase request, int count) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         assert settings != null;
         HttpResponse response = executeRequest(request, settings.sessionKey);
         String responseMessage = getResponseMessage(response);
         if(authenticationFailed(responseMessage)) {
             settings = login(context, true);
-            if(settings.error == null) {
-                response = executeRequest(request, settings.sessionKey);
-                responseMessage = getResponseMessage(response);
+            if(count > 0) {
+                return executeRequestWithRelogin(context, request, count - 1);
+            } else {
+                if (settings.error == null) {
+                    response = executeRequest(request, settings.sessionKey);
+                    responseMessage = getResponseMessage(response);
+                }
             }
         }
         return new LoyaResponse(responseMessage, requestSucceeded(response));
