@@ -216,13 +216,17 @@ DESIGN calcPriceListTypeDocuments {
                 MOVE BOX(d) {
                     fill = 1;
                 }
-                NEW documentHistory {
+                NEW tabs {
                     fill = 1;
-                    caption = 'История';
-                    type = CONTAINERV;
-    
-                    MOVE GROUP(created,d);
-                    MOVE GROUP(posted,d);
+                    type = TABBED;
+                    NEW documentHistory {
+                        fill = 1;
+                        caption = 'История';
+                        type = CONTAINERV;
+        
+                        MOVE GROUP(created,d);
+                        MOVE GROUP(posted,d);
+                    }
                 }
             }
         }
@@ -241,4 +245,24 @@ fillPriorityMarkups (DATE dt) {
     priorityMarkup(CalcPriceListType t, Group g) <- dataMarkup(lastCalcPriceListTypeDocument(t,dt),g);
     priorityMarkup(CalcPriceListType t, Sku s) <- dataMarkup(lastCalcPriceListTypeDocument(t,dt),s);
     APPLY;
+}
+
+fillPriorityMarkups 'Пересчитать надбавки (все)' () {
+    NEWSESSION {
+        fillPriorityMarkups(currentDate());
+    }
+}
+
+EXTEND FORM calcPriceListTypeDocuments
+    PROPERTIES() fillPriorityMarkups
+;
+
+DESIGN calcPriceListTypeDocuments {
+    tabs {
+        NEW actionContainer {
+            caption = 'Действия';
+            type = CONTAINERH;
+            MOVE PROPERTY(fillPriorityMarkups());
+        }
+    }
 }
