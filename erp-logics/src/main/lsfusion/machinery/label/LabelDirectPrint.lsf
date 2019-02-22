@@ -126,7 +126,7 @@ toDateDDMMYYYYUS = FORMULA VARSTRING[10] 'to_char(($1),\'DD/MM/YYYY\')';
 needCustomPrint (LabelTransaction labelTrans) += TRUE IF textTemplate(labelType(labelTrans));
 
 prefixCompleteBarcode = ABSTRACT STRING[2]();
-completedIdBarcode(LabelTransactionDetail ld) =  IF charLength(idBarcode(ld)) == 5 AND prefixCompleteBarcode() 
+completedIdBarcode(LabelTransactionDetail ld) =  IF length(idBarcode(ld)) == 5 AND prefixCompleteBarcode() 
     THEN completeBarcode(prefixCompleteBarcode() + idBarcode(ld) + '00000') 
     ELSE idBarcode(ld);
 
@@ -152,10 +152,10 @@ DESIGN labelType{
 }
 
 caseLpad(TEXT t, LabelType lt) = CASE
-    WHEN charLength(t) == 4 THEN OVERRIDE lpad4Char(lt), 8
-    WHEN charLength(t) == 3 THEN OVERRIDE lpad3Char(lt), 10
-    WHEN charLength(t) == 2 THEN OVERRIDE lpad2Char(lt), 11
-    WHEN charLength(t) == 1 THEN OVERRIDE lpad1Char(lt), 13
+    WHEN length(t) == 4 THEN OVERRIDE lpad4Char(lt), 8
+    WHEN length(t) == 3 THEN OVERRIDE lpad3Char(lt), 10
+    WHEN length(t) == 2 THEN OVERRIDE lpad2Char(lt), 11
+    WHEN length(t) == 1 THEN OVERRIDE lpad1Char(lt), 13
     ELSE 10;
 
 dynamicLpad(INTEGER p, LabelType lt) = lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
@@ -237,9 +237,9 @@ customPrint(LabelTransaction labelTrans) + {
         } ELSE charset() <-  'CP866';         
         
         formattedText() <- replace(formattedText(),'@6.18.4@', CONCAT '/', 'руб', lower(shortNameUOMSku(ld)));
-        formattedText() <- replace(formattedText(),'@32.1@', CASE WHEN charLength(idBarcode(ld)) == 8 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'B8' ELSE 'G'
-                                                                WHEN charLength(idBarcode(ld)) == 12 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BU' ELSE'B'
-                                                                WHEN charLength(idBarcode(ld)) == 13 OR charLength(idBarcode(ld)) == 5 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BE' ELSE 'F' 
+        formattedText() <- replace(formattedText(),'@32.1@', CASE WHEN length(idBarcode(ld)) == 8 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'B8' ELSE 'G'
+                                                                WHEN length(idBarcode(ld)) == 12 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BU' ELSE'B'
+                                                                WHEN length(idBarcode(ld)) == 13 OR length(idBarcode(ld)) == 5 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BE' ELSE 'F' 
                                                                 ELSE IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BC' ELSE 'E' );
 
         IF completedIdBarcode(ld) THEN {

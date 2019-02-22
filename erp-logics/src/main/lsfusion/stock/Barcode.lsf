@@ -38,20 +38,20 @@ completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode
 
 allowIncorrectBarcode 'Разрешить некорректные штрихкоды' = DATA BOOLEAN();
 
-incorrectBarcode (VARSTRING[15] id) = (charLength(id) == 8 AND completeBarcode(left(id,7)) != id) OR 
-                                           (charLength(id) == 12 AND completeBarcode('0'+left(id,11)) != '0'+id) OR
-                                           (charLength(id) == 13 AND completeBarcode(left(id,12)) != id) OR 
-                                           (charLength(id) != 8 AND charLength(id) != 12 AND charLength(id) != 13);
+incorrectBarcode (VARSTRING[15] id) = (length(id) == 8 AND completeBarcode(left(id,7)) != id) OR 
+                                           (length(id) == 12 AND completeBarcode('0'+left(id,11)) != '0'+id) OR
+                                           (length(id) == 13 AND completeBarcode(left(id,12)) != id) OR 
+                                           (length(id) != 8 AND length(id) != 12 AND length(id) != 13);
 
-CONSTRAINT charLength(id(Barcode barcode)) == 8 AND completeBarcode(left(id(barcode),7)) != id(barcode) 
+CONSTRAINT length(id(Barcode barcode)) == 8 AND completeBarcode(left(id(barcode),7)) != id(barcode) 
     AND NOT allowIncorrectBarcode()  
     MESSAGE 'Некорректный EAN-8 штрихкод';
 
-CONSTRAINT charLength(id(Barcode barcode)) == 12 AND completeBarcode('0'+left(id(barcode),11)) != '0'+id(barcode) 
+CONSTRAINT length(id(Barcode barcode)) == 12 AND completeBarcode('0'+left(id(barcode),11)) != '0'+id(barcode) 
     AND NOT allowIncorrectBarcode()  
     MESSAGE 'Некорректный UPC штрихкод';
 
-CONSTRAINT charLength(id(Barcode barcode)) == 13 AND completeBarcode(left(id(barcode),12)) != id(barcode) 
+CONSTRAINT length(id(Barcode barcode)) == 13 AND completeBarcode(left(id(barcode),12)) != id(barcode) 
     AND NOT allowIncorrectBarcode()  
     MESSAGE 'Некорректный EAN-13 штрихкод';
     
@@ -59,9 +59,9 @@ onlyEANBarcode 'Только EAN или UPC штрихкоды' = DATA BOOLEAN (
 
 skipCheckShortBarcode = ABSTRACT BOOLEAN (Barcode);
 
-CONSTRAINT ((charLength(id(Barcode barcode)) > 5 AND charLength(id(barcode)) < 8)
-    OR (charLength(id(barcode)) > 8 AND charLength(id(barcode)) < 12) 
-    OR (charLength(id(barcode)) > 13)
+CONSTRAINT ((length(id(Barcode barcode)) > 5 AND length(id(barcode)) < 8)
+    OR (length(id(barcode)) > 8 AND length(id(barcode)) < 12) 
+    OR (length(id(barcode)) > 13)
     OR (onlyDigits(id(barcode)) != 1))
     AND onlyEANBarcode()
     AND NOT skipCheckShortBarcode(barcode)
