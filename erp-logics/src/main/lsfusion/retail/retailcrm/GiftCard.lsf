@@ -51,7 +51,9 @@ namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedg
 
 currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);// MATERIALIZED;
 
-CONSTRAINT SET(currentBalance(GiftCard g) < 0.0) AND NOT isSumPaymentReceipt()
+allowNegativeBalance 'Разрешить расписывание в минус' = ABSTRACT BOOLEAN (GiftCard);
+
+CONSTRAINT SET(currentBalance(GiftCard g) < 0.0) AND NOT isSumPaymentReceipt() AND NOT allowNegativeBalance(g)
     MESSAGE 'Сумма платежей сертификатом больше его номинала';
 
 //продажа подарочных сертификатов
