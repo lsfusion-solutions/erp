@@ -74,14 +74,18 @@ FORM dialogPriceListTypes 'Расчетный вид цены'
     OBJECTS p = CalcPriceListType
     PROPERTIES(d,p) in
     PROPERTIES(p) READONLY name, nameCurrency, nameRoundCondition, includeVAT
-    
-    LIST CalcPriceListType OBJECT p;
 ;
 
+overChangeCalcPriceListTypes ABSTRACT (CalcPriceListTypeDocument);
+overChangeCalcPriceListTypes = DATA LOCAL BOOLEAN ();
 changeCalcPriceListTypes (CalcPriceListTypeDocument d) {
-    DIALOG dialogPriceListTypes OBJECTS d = d, p INPUT DO {
-        IF NOT GROUP SUM 1 IF in(d, CalcPriceListType t) THEN {
-            in(d,p) <- TRUE;
+    overChangeCalcPriceListTypes() <- NULL;
+    overChangeCalcPriceListTypes(d);
+    IF NOT overChangeCalcPriceListTypes() THEN {
+        DIALOG dialogPriceListTypes OBJECTS d = d, p INPUT DO {
+            IF NOT GROUP SUM 1 IF in(d, CalcPriceListType t) THEN {
+                in(d,p) <- TRUE;
+            }
         }
     }
 }
@@ -139,9 +143,9 @@ DESIGN calcPriceListTypeDocument {
                 }
                 NEW second { 
                     type = CONTAINERH;
+                    alignment = STRETCH;
                     MOVE PROPERTY (includeCalcPriceListTypes(d));
-                } 
-                        
+                }
             }
             NEW timeContainer{
                 caption = 'Период действия';
