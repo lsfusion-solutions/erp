@@ -536,6 +536,9 @@ code 'Код сообщения' = DATA VARSTRING[10] (EInvoiceMessage);
 description 'Текст сообщения' = DATA VARSTRING[200] (EInvoiceMessage);
 good = ABSTRACT CASE BOOLEAN (EInvoiceMessage);
 priority(EInvoiceMessage m) = IF good(m) THEN 0 ELSE 1;
+currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER priority(m), dateTime(m), m BY eInvoice(m);
+statusDescription 'Статус отправки EDI'(EInvoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
+backgroundStatusDescription (EInvoice o) = RGB(255,238,238) IF currentOrderMessage(o) AND NOT good(currentOrderMessage(o));
 
 backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
                                                    THEN RGB(255,0,0);
@@ -627,3 +630,12 @@ DESIGN eInvoice {
 overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
     userShowGTIN(ng) <- userShowGTIN(itemGroup(g));
 }
+editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice i)  { 
+	NEWSESSION {   
+	    SHOW eInvoice OBJECTS e = i DOCKED; 
+	}
+} TOOLBAR IMAGE 'edit.png';
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) editAttributesEInvoice
+;
