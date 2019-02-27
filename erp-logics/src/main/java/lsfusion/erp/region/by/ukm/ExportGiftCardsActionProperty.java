@@ -34,7 +34,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            List<List<Object>> giftCards = getGiftCards(context);
+            List<GiftCard> giftCards = getGiftCards(context);
             if(giftCards != null && !giftCards.isEmpty()) {
                 String connectionString = (String) findProperty("connectionStringExportGiftCards[]").read(context);
                 String user = (String) findProperty("userExportGiftCards[]").read(context);
@@ -59,6 +59,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                     exportCertificateType(connection, giftCards, monoAccount, checkUnderpay, version);
                     exportCertificate(connection, giftCards, version);
                     exportCertificateOperations(connection, giftCards, version);
+                    exportItems(connection, giftCards, version);
                     exportSignals(connection, version);
 
                     finishExport(context, giftCards);
@@ -75,7 +76,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private void exportCertificateType(Connection connection, List<List<Object>> giftCards, int monoAccount, int checkUnderpay, int version) throws SQLException {
+    private void exportCertificateType(Connection connection, List<GiftCard> giftCards, int monoAccount, int checkUnderpay, int version) throws SQLException {
         PreparedStatement statement = null;
         try {
             String sql = "INSERT INTO certificate_type (id, name, nominal, mono_account, check_underpay, " +
@@ -87,15 +88,15 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                     "min_nominal=VALUES(min_nominal), max_nominal=VALUES(max_nominal), " +
                     "version=VALUES(version), deleted=VALUES(deleted);";
             statement = connection.prepareStatement(sql);
-            for (List<Object> giftCard : giftCards) {
-                statement.setObject(1, giftCard.get(0)); //id
-                statement.setObject(2, giftCard.get(9)); //name
-                statement.setObject(3, giftCard.get(2)); //nominal
+            for (GiftCard giftCard : giftCards) {
+                statement.setObject(1, giftCard.id); //id
+                statement.setObject(2, giftCard.nameSku); //name
+                statement.setObject(3, giftCard.price); //nominal
                 statement.setObject(4, monoAccount); //mono_account
                 statement.setObject(5, checkUnderpay); //check_underpay
-                statement.setObject(6, giftCard.get(3)); //item_id
-                statement.setObject(7, giftCard.get(2)); //min_nominal
-                statement.setObject(8, giftCard.get(2)); //max_nominal
+                statement.setObject(6, giftCard.idBarcode); //item_id
+                statement.setObject(7, giftCard.price); //min_nominal
+                statement.setObject(8, giftCard.price); //max_nominal
                 statement.setObject(9, version); //version
                 statement.addBatch();
             }
@@ -106,7 +107,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private void exportCertificate(Connection connection, List<List<Object>> giftCards, int version) throws SQLException {
+    private void exportCertificate(Connection connection, List<GiftCard> giftCards, int version) throws SQLException {
         PreparedStatement statement = null;
         try {
             String sql = "INSERT INTO certificate (account_type_id, number, active, " +
@@ -115,14 +116,14 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                     "date_from=VALUES(date_from), date_to=VALUES(date_to), days_from_after_activate=VALUES(days_from_after_activate), days_to_after_activate=VALUES(days_to_after_activate), " +
                     "version=VALUES(version), deleted=VALUES(deleted);";
             statement = connection.prepareStatement(sql);
-            for (List<Object> giftCard : giftCards) {
-                statement.setObject(1, giftCard.get(0)); //account_type_id
-                statement.setObject(2, giftCard.get(1)); //number
-                statement.setObject(3, giftCard.get(8)); //active
-                statement.setObject(4, giftCard.get(5)); //date_from
-                statement.setObject(5, giftCard.get(6)); //date_to
+            for (GiftCard giftCard : giftCards) {
+                statement.setObject(1, giftCard.id); //account_type_id
+                statement.setObject(2, giftCard.number); //number
+                statement.setObject(3, giftCard.active); //active
+                statement.setObject(4, giftCard.dateFrom); //date_from
+                statement.setObject(5, giftCard.dateTo); //date_to
                 statement.setObject(6, 0); //days_from_after_activate
-                statement.setObject(7, giftCard.get(7)); //days_to_after_activate
+                statement.setObject(7, giftCard.expiryDays); //days_to_after_activate
                 statement.setObject(8, version); //version
                 statement.setObject(9, 0); //deleted
                 statement.addBatch();
@@ -134,16 +135,15 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private void exportCertificateOperations(Connection connection, List<List<Object>> giftCards, int version) throws SQLException {
+    private void exportCertificateOperations(Connection connection, List<GiftCard> giftCards, int version) throws SQLException {
         PreparedStatement statement = null;
         try {
             String sql = "INSERT INTO certificate_operations (number, amount, version, deleted) VALUES(?, ?, ?, 0);";
             statement = connection.prepareStatement(sql);
-            for (List<Object> giftCard : giftCards) {
-                boolean active = (boolean) giftCard.get(8);
-                BigDecimal amount = (BigDecimal) giftCard.get(2);
-                if(active && amount != null) {
-                    statement.setObject(1, giftCard.get(1)); //number
+            for (GiftCard giftCard : giftCards) {
+                BigDecimal amount = giftCard.price;
+                if(giftCard.active && amount != null) {
+                    statement.setObject(1, giftCard.number); //number
                     statement.setObject(2, amount); //amount
                     statement.setObject(3, version); //version
                     statement.addBatch();
@@ -153,6 +153,44 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         } finally {
             if (statement != null)
                 statement.close();
+        }
+    }
+
+    private void exportItems(Connection conn, List<GiftCard> giftCards, int version) throws SQLException {
+        conn.setAutoCommit(false);
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted, tax) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                + " ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif),"
+                + " prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted), tax=VALUES(tax)")) {
+
+            for (GiftCard giftCard : giftCards) {
+                ps.setInt(1, giftCard.id); //id
+                ps.setString(2, giftCard.nameSku); //name
+                ps.setString(3, ""); //descr
+                ps.setString(4, trim(giftCard.shortNameUOM, "", 40)); //measure
+                ps.setInt(5, 0); //measprec
+                ps.setString(6, parseGroup(giftCard.overIdSkuGroup)); //classif
+                ps.setInt(7, 1); //prop - признак товара ?
+                ps.setString(8, ""); //summary
+                ps.setDate(9, null); //exp_date
+                ps.setInt(10, version); //version
+                ps.setInt(11, 0); //deleted
+                ps.setInt(12, 0);
+                ps.addBatch();
+            }
+
+            ps.executeBatch();
+            conn.commit();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    private String parseGroup(String idItemGroup) {
+        try {
+            return idItemGroup == null || idItemGroup.equals("Все") ? "0" : idItemGroup;
+        } catch (Exception e) {
+            return "0";
         }
     }
 
@@ -172,8 +210,8 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private List<List<Object>> getGiftCards(ExecutionContext context) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
-        List<List<Object>> giftCards = new ArrayList<>();
+    private List<GiftCard> getGiftCards(ExecutionContext context) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
+        List<GiftCard> giftCards = new ArrayList<>();
 
         KeyExpr giftCardExpr = new KeyExpr("giftCard");
         ImRevMap<Object, KeyExpr> giftCardKeys = MapFact.singletonRev((Object) "giftCard", giftCardExpr);
@@ -181,10 +219,10 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate"};
+                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "extIdItemGroup"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
-                "dateSold[GiftCard]", "expireDate[GiftCard]");
+                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
@@ -206,6 +244,8 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             boolean active = resultValues.get("isSoldInvoice") != null;
             boolean defect = resultValues.get("isDefect") != null;
             boolean useGiftCardDates = resultValues.get("useGiftCardDates") != null;
+            String shortNameUOM = (String) resultValues.get("shortNameUOM");
+            String overIdSkuGroup = (String) resultValues.get("overIdSkuGroup");
             Date dateFrom;
             Date dateTo;
             if(useGiftCardDates) {
@@ -222,10 +262,8 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             }
             Integer id = getId(idBarcode);
             if (id != null) {
-                if (active)
-                    giftCards.add(Arrays.<Object>asList(id, number, price, idBarcode, departmentStore, dateFrom, dateTo, expiryDays, true, nameSku));
-                else
-                    giftCards.add(Arrays.<Object>asList(id, number, price, idBarcode, departmentStore, null, defect ? dateTo : null, expiryDays, false, nameSku));
+                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || !defect ? dateTo : null,
+                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
                 return null;
@@ -235,11 +273,11 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         return giftCards;
     }
 
-    private void finishExport(ExecutionContext context, List<List<Object>> giftCards) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void finishExport(ExecutionContext context, List<GiftCard> giftCards) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
-        for(List<Object> giftCard : giftCards) {
-            data.add(Arrays.asList(giftCard.get(1), true, giftCard.get(8).equals(false) ? null : true));
+        for(GiftCard giftCard : giftCards) {
+            data.add(Arrays.<Object>asList(giftCard.number, true, giftCard.active ? true : null));
         }
 
         List<ImportProperty<?>> props = new ArrayList<>();
@@ -293,5 +331,36 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 statement.close();
         }
         return version;
+    }
+
+    private class GiftCard {
+        Integer id;
+        String number;
+        BigDecimal price;
+        String idBarcode;
+        String departmentStore;
+        Date dateFrom;
+        Date dateTo;
+        Integer expiryDays;
+        boolean active;
+        String nameSku;
+        String shortNameUOM;
+        String overIdSkuGroup;
+
+        public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, Date dateFrom, Date dateTo,
+                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup) {
+            this.id = id;
+            this.number = number;
+            this.price = price;
+            this.idBarcode = idBarcode;
+            this.departmentStore = departmentStore;
+            this.dateFrom = dateFrom;
+            this.dateTo = dateTo;
+            this.expiryDays = expiryDays;
+            this.active = active;
+            this.nameSku = nameSku;
+            this.shortNameUOM = shortNameUOM;
+            this.overIdSkuGroup = overIdSkuGroup;
+        }
     }
 }
