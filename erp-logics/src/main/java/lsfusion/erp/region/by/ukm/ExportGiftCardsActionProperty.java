@@ -166,7 +166,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 + " prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted), tax=VALUES(tax)")) {
 
             for (GiftCard giftCard : giftCards) {
-                ps.setInt(1, giftCard.id); //id
+                ps.setString(1, giftCard.idBarcode); //id
                 ps.setString(2, giftCard.nameSku); //name
                 ps.setString(3, ""); //descr
                 ps.setString(4, trim(giftCard.shortNameUOM, "", 40)); //measure
