@@ -644,6 +644,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         List<File> subFiles = new ArrayList<>();
         for(int i = 0; i < maxFilesCount; i++) {
             subFiles.add(files.get(i).first);
+            sendSalesLogger.info(String.format(logPrefix + "adding to queue file %s", files.get(i).first.getAbsolutePath()));
         }
 
         readFiles = new HashSet<>(subFiles);
@@ -996,6 +997,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", files.size(), directory));
 
             for (File file : files) {
+                sendSalesLogger.info(String.format(logPrefix + "file %s", file.getAbsolutePath()));
                 if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                     try {
 
