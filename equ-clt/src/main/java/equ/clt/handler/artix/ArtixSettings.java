@@ -12,11 +12,10 @@ public class ArtixSettings implements Serializable{
     private boolean exportClients;
     private boolean exportSoftCheckItem;
     private Integer maxFilesCount;
-    private Integer maxFilesDirectoryCount;
     private boolean bonusesInDiscountPositions; //появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
     private boolean giftCardPriceInCertificatePositions; //берём цену сертификата из certificatePositions (введено для Ostrov)
-    private String priorityDirectories; //dir1,dir2,dir3
     private boolean notDeleteEmptyFiles;
+    private int priorityDirectoriesCount;
 
     public ArtixSettings() {
     }
@@ -85,14 +84,6 @@ public class ArtixSettings implements Serializable{
         this.maxFilesCount = maxFilesCount;
     }
 
-    public Integer getMaxFilesDirectoryCount() {
-        return maxFilesDirectoryCount;
-    }
-
-    public void setMaxFilesDirectoryCount(Integer maxFilesDirectoryCount) {
-        this.maxFilesDirectoryCount = maxFilesDirectoryCount;
-    }
-
     public boolean isBonusesInDiscountPositions() {
         return bonusesInDiscountPositions;
     }
@@ -109,19 +100,19 @@ public class ArtixSettings implements Serializable{
         this.giftCardPriceInCertificatePositions = giftCardPriceInCertificatePositions;
     }
 
-    public String getPriorityDirectories() {
-        return priorityDirectories;
-    }
-
-    public void setPriorityDirectories(String priorityDirectories) {
-        this.priorityDirectories = priorityDirectories;
-    }
-
     public boolean isNotDeleteEmptyFiles() {
         return notDeleteEmptyFiles;
     }
 
     public void setNotDeleteEmptyFiles(boolean notDeleteEmptyFiles) {
         this.notDeleteEmptyFiles = notDeleteEmptyFiles;
+    }
+
+    public int getPriorityDirectoriesCount() {
+        return priorityDirectoriesCount;
+    }
+
+    public void setPriorityDirectoriesCount(int priorityDirectoriesCount) {
+        this.priorityDirectoriesCount = priorityDirectoriesCount;
     }
 }
