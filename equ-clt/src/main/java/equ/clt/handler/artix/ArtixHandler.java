@@ -657,7 +657,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 if (!Thread.currentThread().isInterrupted()) {
                     try {
 
-                        String fileName = file.getName();
+                        String fileName = file.getAbsolutePath();
                         softCheckLogger.info(logPrefix + "reading " + fileName);
 
                         String fileContent = readFile(file.getAbsolutePath(), encoding);
