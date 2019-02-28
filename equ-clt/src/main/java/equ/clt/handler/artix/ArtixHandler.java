@@ -6,6 +6,7 @@ import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -598,7 +599,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
-        Integer maxFilesDirectoryCount = artixSettings == null ? null : artixSettings.getMaxFilesDirectoryCount();
+        //Integer maxFilesDirectoryCount = artixSettings == null ? null : artixSettings.getMaxFilesDirectoryCount();
         String priorityDirectoriesString = artixSettings == null ? null : artixSettings.getPriorityDirectories();
         Set<String> priorityDirectories = priorityDirectoriesString == null ? new HashSet<String>() : new HashSet<>(Arrays.asList(priorityDirectoriesString.split(",")));
 
@@ -608,12 +609,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         //ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         //boolean disable = artixSettings != null && artixSettings.isDisableCopyToSuccess();
 
-        List<File> files = new ArrayList<>();
+        List<Pair<File, Boolean>> files = new ArrayList<>();
         //правильнее брать только только нужные подпапки, как в readSales, но для этого пришлось бы менять equ-api.
         //так что пока ищем во всех подпапках + в подпапках в папке online.
         //потенциальная проблема - левые файлы, а также файлы из папок выключенных касс
-        int totalFilesCount = 0;
-        for (File dir : getSoftCheckDirectories(directoryList, priorityDirectories)) {
+        for (Pair<File, Boolean> dirEntry : getSoftCheckDirectories(directoryList, priorityDirectories)) {
+            File dir = dirEntry.first;
+            boolean priority = dirEntry.second;
             File[] filesList = dir.listFiles(new FileFilter() {
                 @Override
                 public boolean accept(File pathname) {
@@ -621,32 +623,37 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 }
             });
             if (filesList != null) {
-                totalFilesCount += filesList.length;
-                Arrays.sort(filesList, new Comparator<File>() {
-                    public int compare(File f1, File f2) {
-                        return Long.compare(f1.lastModified(), f2.lastModified());
-                    }
-                });
-                int directoryFilesCount = 0;
                 for (File file : filesList) {
-                    if ((maxFilesCount == null || files.size() <= maxFilesCount) && (maxFilesDirectoryCount == null || directoryFilesCount < maxFilesDirectoryCount)) {
-                        files.add(file);
-                        directoryFilesCount++;
-                    }
-                    else
-                        break;
+                        files.add(Pair.create(file, priority));
                 }
             }
         }
 
-        readFiles = new HashSet<>(files);
+        Collections.sort(files, new Comparator<Pair<File, Boolean>>() {
+            public int compare(Pair<File, Boolean> f1, Pair<File, Boolean> f2) {
+                if(f1.second) return f2.second ? compareDates(f1.first, f2.first) : 1; //f2 is not priority
+                if(f2.second) return 1; //f1 is not priority
+                return compareDates(f1.first, f2.first);
+            }
+        });
 
-        if (files.isEmpty())
+        int totalFilesCount = files.size();
+
+        if(maxFilesCount == null)
+            maxFilesCount = totalFilesCount;
+        List<File> subFiles = new ArrayList<>();
+        for(int i = 0; i < maxFilesCount; i++) {
+            subFiles.add(files.get(i).first);
+        }
+
+        readFiles = new HashSet<>(subFiles);
+
+        if (subFiles.isEmpty())
             softCheckLogger.info(logPrefix + "No sale files found");
         else {
-            softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, files.size()));
+            softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, subFiles.size()));
 
-            for (File file : files) {
+            for (File file : subFiles) {
                 if (!Thread.currentThread().isInterrupted()) {
                     try {
 
@@ -689,7 +696,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return result;
     }
 
-    private List<File> getSoftCheckDirectories(List<String> directories, Set<String> priorityDirectories) {
+    private int compareDates(File f1, File f2) {
+        return Long.compare(f1.lastModified(), f2.lastModified());
+    }
+
+    private List<Pair<File, Boolean>> getSoftCheckDirectories(List<String> directories, Set<String> priorityDirectories) {
 
         List<String> directoryList = new ArrayList<>();
         for(String priorityDirectory : priorityDirectories) {
@@ -702,8 +713,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        List<File> result = new ArrayList<>();
+        List<Pair<File, Boolean>> result = new ArrayList<>();
         for(String directory : directoryList) {
+            boolean priority = priorityDirectories.contains(directory);
             if(directory != null) {
                 File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
                     @Override
@@ -713,10 +725,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 });
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
-                        result.add(subDirectory);
+                        result.add(Pair.create(subDirectory, priority));
                         File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
                         if (onlineDir.exists())
-                            result.add(onlineDir);
+                            result.add(Pair.create(onlineDir, priority));
                     }
                 }
             }
