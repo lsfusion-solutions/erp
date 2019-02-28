@@ -59,7 +59,6 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                     exportCertificateType(connection, giftCards, monoAccount, checkUnderpay, version);
                     exportCertificate(connection, giftCards, version);
                     exportCertificateOperations(connection, giftCards, version);
-                    exportItems(connection, giftCards, version);
                     exportSignals(connection, version);
 
                     finishExport(context, giftCards);
@@ -158,35 +157,6 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         }
     }
 
-    private void exportItems(Connection conn, List<GiftCard> giftCards, int version) throws SQLException {
-        conn.setAutoCommit(false);
-        try (PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO items (id, name, descr, measure, measprec, classif, prop, summary, exp_date, version, deleted, tax) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                + " ON DUPLICATE KEY UPDATE name=VALUES(name), descr=VALUES(descr), measure=VALUES(measure), measprec=VALUES(measprec), classif=VALUES(classif),"
-                + " prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted), tax=VALUES(tax)")) {
-
-            for (GiftCard giftCard : giftCards) {
-                ps.setString(1, giftCard.idBarcode); //id
-                ps.setString(2, giftCard.nameSku); //name
-                ps.setString(3, ""); //descr
-                ps.setString(4, trim(giftCard.shortNameUOM, "", 40)); //measure
-                ps.setInt(5, 0); //measprec
-                ps.setString(6, parseGroup(giftCard.overIdSkuGroup)); //classif
-                ps.setInt(7, 1); //prop - признак товара ?
-                ps.setString(8, ""); //summary
-                ps.setDate(9, null); //exp_date
-                ps.setInt(10, version); //version
-                ps.setInt(11, 0); //deleted
-                ps.setInt(12, 0);
-                ps.addBatch();
-            }
-
-            ps.executeBatch();
-            conn.commit();
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
-    }
 
     private String parseGroup(String idItemGroup) {
         try {
@@ -221,12 +191,10 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "overIdSkuGroup",
-                "allowReturn", "allowReturnPayment"};
+                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "allowReturn", "allowReturnPayment"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
-                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]", "overIdSkuGroup[GiftCard]",
-                "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
+                "dateSold[GiftCard]", "expireDate[GiftCard]", "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
