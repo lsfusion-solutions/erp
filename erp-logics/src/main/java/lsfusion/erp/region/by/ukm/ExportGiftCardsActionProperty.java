@@ -219,10 +219,10 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "extIdItemGroup"};
+                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "overIdSkuGroup"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
-                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]");
+                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]", "overIdSkuGroup[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
