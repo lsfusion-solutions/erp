@@ -95,7 +95,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 statement.setObject(4, monoAccount); //mono_account
                 statement.setObject(5, checkUnderpay); //check_underpay
                 statement.setObject(6, giftCard.allowReturn ? 1 : 0); //allow_return
-                statement.setObject(7, giftCard.allowReturn ? 1 : 0); //allow_return_payment
+                statement.setObject(7, giftCard.allowReturnPayment ? 1 : 0); //allow_return_payment
                 statement.setObject(8, giftCard.idBarcode); //item_id
                 statement.setObject(9, giftCard.price); //min_nominal
                 statement.setObject(10, giftCard.price); //max_nominal
@@ -222,11 +222,11 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
                 "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "overIdSkuGroup",
-                "allowReturn"};
+                "allowReturn", "allowReturnPayment"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
                 "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]", "overIdSkuGroup[GiftCard]",
-                "allowReturn[GiftCard]");
+                "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
@@ -251,6 +251,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             String shortNameUOM = (String) resultValues.get("shortNameUOM");
             String overIdSkuGroup = (String) resultValues.get("overIdSkuGroup");
             boolean allowReturn = resultValues.get("allowReturn") != null;
+            boolean allowReturnPayment = resultValues.get("allowReturnPayment") != null;
             Date dateFrom;
             Date dateTo;
             if(useGiftCardDates) {
@@ -268,7 +269,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             Integer id = getId(idBarcode);
             if (id != null) {
                 giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
-                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup, allowReturn));
+                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
                 return null;
@@ -352,9 +353,11 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         String shortNameUOM;
         String overIdSkuGroup;
         boolean allowReturn;
+        boolean allowReturnPayment;
 
         public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, Date dateFrom, Date dateTo,
-                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup, boolean allowReturn) {
+                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup,
+                        boolean allowReturn, boolean allowReturnPayment) {
             this.id = id;
             this.number = number;
             this.price = price;
@@ -368,6 +371,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             this.shortNameUOM = shortNameUOM;
             this.overIdSkuGroup = overIdSkuGroup;
             this.allowReturn = allowReturn;
+            this.allowReturnPayment = allowReturnPayment;
         }
     }
 }
