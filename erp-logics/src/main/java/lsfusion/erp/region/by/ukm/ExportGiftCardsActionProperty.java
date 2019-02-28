@@ -82,7 +82,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             String sql = "INSERT INTO certificate_type (id, name, nominal, mono_account, check_underpay, " +
                     "multi_sell, allow_return, allow_return_payment, check_store, item_id, use_pincode, print_in_receipt, " +
                     "fixed_nominal, min_nominal, max_nominal, version, deleted) " +
-                    "VALUES(?, ?, ?, ?, ?, 0, 0, 0, 0, ?, 0, 1, 1, ?, ?, ?, 0) ON DUPLICATE KEY UPDATE nominal=VALUES(nominal), " +
+                    "VALUES(?, ?, ?, ?, ?, 0, ?, ?, 0, ?, 0, 1, 1, ?, ?, ?, 0) ON DUPLICATE KEY UPDATE nominal=VALUES(nominal), " +
                     "name=VALUES(name), " +
                     "item_id=VALUES(item_id), " +
                     "min_nominal=VALUES(min_nominal), max_nominal=VALUES(max_nominal), " +
@@ -94,10 +94,12 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
                 statement.setObject(3, giftCard.price); //nominal
                 statement.setObject(4, monoAccount); //mono_account
                 statement.setObject(5, checkUnderpay); //check_underpay
-                statement.setObject(6, giftCard.idBarcode); //item_id
-                statement.setObject(7, giftCard.price); //min_nominal
-                statement.setObject(8, giftCard.price); //max_nominal
-                statement.setObject(9, version); //version
+                statement.setObject(6, giftCard.allowReturn ? 1 : 0); //allow_return
+                statement.setObject(7, giftCard.allowReturn ? 1 : 0); //allow_return_payment
+                statement.setObject(8, giftCard.idBarcode); //item_id
+                statement.setObject(9, giftCard.price); //min_nominal
+                statement.setObject(10, giftCard.price); //max_nominal
+                statement.setObject(11, version); //version
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -219,10 +221,12 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
-                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "overIdSkuGroup"};
+                "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "shortNameUOM", "overIdSkuGroup",
+                "allowReturn"};
         LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
-                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]", "overIdSkuGroup[GiftCard]");
+                "dateSold[GiftCard]", "expireDate[GiftCard]", "shortNameUOM[GiftCard]", "overIdSkuGroup[GiftCard]",
+                "allowReturn[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
@@ -246,6 +250,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             boolean useGiftCardDates = resultValues.get("useGiftCardDates") != null;
             String shortNameUOM = (String) resultValues.get("shortNameUOM");
             String overIdSkuGroup = (String) resultValues.get("overIdSkuGroup");
+            boolean allowReturn = resultValues.get("allowReturn") != null;
             Date dateFrom;
             Date dateTo;
             if(useGiftCardDates) {
@@ -263,7 +268,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             Integer id = getId(idBarcode);
             if (id != null) {
                 giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || !defect ? dateTo : null,
-                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup));
+                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup, allowReturn));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
                 return null;
@@ -346,9 +351,10 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
         String nameSku;
         String shortNameUOM;
         String overIdSkuGroup;
+        boolean allowReturn;
 
         public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, Date dateFrom, Date dateTo,
-                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup) {
+                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup, boolean allowReturn) {
             this.id = id;
             this.number = number;
             this.price = price;
@@ -361,6 +367,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             this.nameSku = nameSku;
             this.shortNameUOM = shortNameUOM;
             this.overIdSkuGroup = overIdSkuGroup;
+            this.allowReturn = allowReturn;
         }
     }
 }
