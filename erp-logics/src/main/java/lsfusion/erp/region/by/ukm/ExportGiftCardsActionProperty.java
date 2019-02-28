@@ -267,7 +267,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
             }
             Integer id = getId(idBarcode);
             if (id != null) {
-                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || !defect ? dateTo : null,
+                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup, allowReturn));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
