@@ -637,7 +637,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         int totalFilesCount = files.size();
 
-        if(maxFilesCount == null)
+        if(maxFilesCount == null || maxFilesCount > totalFilesCount)
             maxFilesCount = totalFilesCount;
         List<File> subFiles = new ArrayList<>();
         for(int i = 0; i < maxFilesCount; i++) {
