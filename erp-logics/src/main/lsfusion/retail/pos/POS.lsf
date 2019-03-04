@@ -100,11 +100,13 @@ overDate 'Дата документа' (ReceiptDetail d) = overDate(receipt(d));
 overTime 'Время документа' (ReceiptDetail d) = overTime(receipt(d));
 overDateTime 'Дата/время документа' (ReceiptDetail d) = overDateTime(receipt(d));
 
+promotionSumReceipt = DATA LOCAL NUMERIC[16,4]();
+
 skip (Promotion promotion) = DATA LOCAL BOOLEAN (Promotion);
 inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
                                           overDate(receipt) >= dateFrom(promotion) AND overDate(receipt) <= dateTo(promotion) AND
                                           NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
-                                          NOT (sumReceiptDetail(receipt) + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0) > maxSumBill(promotion)
+                                          NOT (sumReceiptDetail(receipt) (-) promotionSumReceipt() + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0) > maxSumBill(promotion)
                                           AND NOT skip(promotion, extractDOW(overDate(receipt)))
                                           AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
                                           AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
@@ -142,7 +144,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
     FOR PromotionGroup promotionGroup IS PromotionGroup AND active(promotionGroup) ORDER order (promotionGroup) DO {
 //        LOCAL leftSku = NUMERIC[14,3] (Sku);
 //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
-
+        promotionSumReceipt()<-GROUP SUM promotionSum(ReceiptSaleDetail rd) IF receipt(rd) = receipt;
         LOCAL leftQuantity = NUMERIC[14,3] (ReceiptSaleDetail);
         leftQuantity(ReceiptSaleDetail detail) <- quantity(detail) WHERE receipt(detail) == receipt;
 
@@ -300,6 +302,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 //                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
             }
         }
+        promotionSumReceipt()<-NULL;
     }
 
     discountSum(ReceiptSaleDetail detail) <- round(promotionDiscountSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
