@@ -28,6 +28,10 @@ generateSeriesNumber 'Сгенерировать номер'(EInvoice o)  {
     incrementValueSession(defaultNumeratorDeliveryNoteNumber());
 }
 
+WHEN CHANGED (supplier(EInvoice o)) AND NOT deliveryNoteNumber(o) DO {
+    generateSeriesNumber(o);
+}
+
 //исходящие (Sale OR PurchaseReturn)
 invoice= DATA Invoice(EInvoice);
 invoiceDetail= DATA InvoiceDetail(EInvoiceDetail);
@@ -121,7 +125,6 @@ createEInvoice 'Создать электронную накладную' (Consi
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
-            generateSeriesNumber(ei);            
             
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
