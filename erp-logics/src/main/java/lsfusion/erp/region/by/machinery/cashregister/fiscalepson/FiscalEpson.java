@@ -181,7 +181,7 @@ public class FiscalEpson {
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
         logger.info(String.format("Epson Sale: name %s, price %s, quantity %s", item.name, price, quantity));
-        epsonActiveXComponent.setProperty("Article", new Variant(item.name));
+        epsonActiveXComponent.setProperty("Article", new Variant(getMultilineName(item.name)));
         epsonActiveXComponent.setProperty("Price", new Variant(price));
         epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
@@ -190,6 +190,15 @@ public class FiscalEpson {
         Dispatch.call(epsonDispatch, "Sale");
         checkErrors(true);
 
+    }
+
+    private static String getMultilineName(String name) {
+        String result = "";
+        while(name.length() > 40) {
+            result += name.substring(0, 40) + '\n';
+            name = name.substring(40);
+        }
+        return result + name;
     }
 
     public static void discountItem(ReceiptItem item, Boolean isReturn, DecimalFormat formatter) throws RuntimeException {
