@@ -10,14 +10,10 @@ NAMESPACE Label;
 
 @defineItemGroupValue(volumeMinPrice, 'Минимальный объем/вес для не печати цены за килограмм', NUMERIC[16,5]);
 
-@defineOption(minVolumeLabelBy, 'Объем/Вес для цены за 100г (0,05 = 50г)', NUMERIC[10,3], label);
-
-overMinVolumeLabelBy() = OVERRIDE minVolumeLabelBy(), 0.25;
-
 labelBaseCoeff = ABSTRACT NUMERIC[9,3](Sku);
 labelBaseRetailCoeff = ABSTRACT NUMERIC[9,3](Sku);
 labelBaseName = ABSTRACT VARSTRING[20](Sku);
-volumeMinPrice (LabelTransactionDetail d) = OVERRIDE volume(sku(d)) < volumeMinPrice(skuGroup(sku(d))), netWeight(sku(d)) < volumeMinPrice(skuGroup(sku(d)));
+volumeMinPrice (Sku d) = OVERRIDE volume(d) < volumeMinPrice(skuGroup(d)), netWeight(d) < volumeMinPrice(skuGroup(d));
 
 skipFullPrice 'Не печатать цену за килограмм' = ABSTRACT BOOLEAN (Sku);
 skipFullPrice 'Не печатать цену за килограмм'  = DATA BOOLEAN (Item) IN itemBase;
@@ -31,29 +27,29 @@ EXTEND FORM item
 ;
 
 
-basePrice 'Цена за базовую единицу' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) AND NOT (volumeMinPrice(d) OR skipFullPrice(sku(d)))  THEN CASE 
-                                                                                                          WHEN labelBaseCoeff(sku(d)) THEN round2(price(d) / labelBaseCoeff(sku(d)))
-                                                                                                          WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(price(d) / volume(sku(d)) / 10.0 )
-                                                                                                          WHEN volume(sku(d)) != 1.0 THEN round2(price(d) / volume(sku(d)))
-                                                                                                          WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN round2(price(d) / netWeight(sku(d)) / 10.0 )
-                                                                                                          WHEN netWeight(sku(d)) != 1.0 THEN round2(price(d) / netWeight(sku(d))) ;
+basePrice 'Цена за базовую единицу' (Sku d, NUMERIC[16,4] price) = IF printFullPrice(skuGroup(d)) AND NOT (volumeMinPrice(d) OR skipFullPrice(d))  THEN CASE 
+                                                                                                          WHEN labelBaseCoeff(d) THEN round2(price / labelBaseCoeff(d))
+                                                                                                          WHEN volume(d) != 1.0 THEN round2(price / volume(d))
+                                                                                                          WHEN netWeight(d) != 1.0 THEN round2(price / netWeight(d)) ;
+basePrice 'Цена за базовую единицу' (LabelTransactionDetail d) = basePrice(sku(d), price(d));
                                                                                                                                                                                                                   
-basePriceName 'Базовая единица' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) AND NOT (volumeMinPrice(d) OR skipFullPrice(sku(d))) THEN CASE 
-                                                                                                          WHEN labelBaseName(sku(d)) THEN labelBaseName(sku(d))
-                                                                                                          WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN '100мл'
-                                                                                                          WHEN volume(sku(d)) != 1.0 THEN '1л'
-                                                                                                          WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN '100г'
-                                                                                                          WHEN netWeight(sku(d)) != 1.0 THEN '1кг' ;
+basePriceName 'Базовая единица' (Sku d) = IF printFullPrice(skuGroup(d)) AND NOT (volumeMinPrice(d) OR skipFullPrice(d)) THEN CASE 
+                                                                                                          WHEN labelBaseName(d) THEN labelBaseName(d)
+                                                                                                          WHEN volume(d) != 1.0 THEN '1л'
+                                                                                                          WHEN netWeight(d) != 1.0 THEN '1кг' ;
+basePriceName 'Базовая единица' (LabelTransactionDetail d) = basePriceName(sku(d));
                                                                                                           
-basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = trunc(basePrice(d));
-basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = OVERRIDE round0((basePrice(d) (-) basePriceRub(d)) * 100.0), 0.00 IF basePrice(d);
+basePriceRub 'Рубли (за б.е.)' (Sku d, NUMERIC[16,4] price) = trunc(basePrice(d, price));
+basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = basePriceRub(sku(d), price(d));
 
-baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) AND NOT (volumeMinPrice(d) OR skipFullPrice(sku(d))) THEN CASE 
-                                                                                                          WHEN labelBaseRetailCoeff(sku(d)) THEN round2(retailPrice(d) / labelBaseRetailCoeff(sku(d)))
-                                                                                                          WHEN volume(sku(d)) <= overMinVolumeLabelBy() THEN round2(retailPrice(d) / volume(sku(d)) / 10.0 )
-                                                                                                          WHEN volume(sku(d)) != 1.0 THEN round2(retailPrice(d) / volume(sku(d)))
-                                                                                                          WHEN netWeight(sku(d)) <= overMinVolumeLabelBy() THEN round2(retailPrice(d) / netWeight(sku(d)) / 10.0 )
-                                                                                                          WHEN netWeight(sku(d)) != 1.0 THEN round2(retailPrice(d) / netWeight(sku(d))) ;
+basePriceKop 'Копейки (за б.е.)' (Sku d, NUMERIC[16,4] price) = OVERRIDE round0((basePrice(d, price) (-) basePriceRub(d, price)) * 100.0), 0.00 IF basePrice(d, price);
+basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = basePriceKop(sku(d), price(d));
+
+baseRetailPrice 'Цена за базовую единицу до' (Sku d, NUMERIC[16,4] retailPrice) = IF printFullPrice(skuGroup(d)) AND NOT (volumeMinPrice(d) OR skipFullPrice(d)) THEN CASE 
+                                                                                                          WHEN labelBaseRetailCoeff(d) THEN round2(retailPrice / labelBaseRetailCoeff(d))
+                                                                                                          WHEN volume(d) != 1.0 THEN round2(retailPrice / volume(d))
+                                                                                                          WHEN netWeight(d) != 1.0 THEN round2(retailPrice / netWeight(d)) ;
+baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = baseRetailPrice(sku(d), retailPrice(d));
 
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, baseRetailPrice;
 EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop, baseRetailPrice;
