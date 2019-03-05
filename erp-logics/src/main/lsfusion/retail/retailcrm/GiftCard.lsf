@@ -49,7 +49,23 @@ show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
 namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
 
-currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);// MATERIALIZED;
+currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);
+
+// без учета текущей даты/времени
+balanceB 'Остаток (до)' (GiftCard g, DATETIME dateTime) = currentBalance(g)
+                                                                          (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) >= dateTime
+                                                                                     BY giftCard(ledger)](g) CHARWIDTH 7;
+prevBalanceB 'Остаток (до)' (GiftCard g, DATETIME dateTime) = PREV(balanceB(g, dateTime) IF dateTime IS DATETIME);
+
+// с учетом текущей даты/времени
+balanceA 'Остаток (после)' (GiftCard g, DATETIME dateTime) = currentBalance(g)
+                                                                         (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) > dateTime
+                                                                                    BY giftCard(ledger)](g) CHARWIDTH 7;
+prevBalanceA 'Остаток (после)' (GiftCard g, DATETIME dateTime) = PREV(balanceA(g, dateTime) IF dateTime IS DATETIME);
+
+balanceB 'Остаток (до)' (GiftCardLedger l) = balanceB(giftCard(l),dateTime(l));
+balanceA 'Остаток (после)' (GiftCardLedger l) = balanceA(giftCard(l),dateTime(l));
+
 
 allowNegativeBalance 'Разрешить расписывание в минус' = ABSTRACT BOOLEAN (GiftCard);
 
