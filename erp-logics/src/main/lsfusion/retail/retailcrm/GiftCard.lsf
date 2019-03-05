@@ -44,7 +44,7 @@ description 'Описание' = ABSTRACT VARSTRING[100] (GiftCardLedger);
 numberDocument 'Документ' = ABSTRACT VARSTRING[30](GiftCardLedger);
 departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
 nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(departmentStore(g));
-
+nameLegalEntity 'Компания' (GiftCardLedger g) = name(legalEntity(departmentStore(g))) CHARWIDTH 10;
 show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
 namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
@@ -273,7 +273,7 @@ FORM giftCards 'Подарочные сертификаты'
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR 
 
     OBJECTS l = GiftCardLedger
-    PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore, namePaymentType
+    PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore, nameLegalEntity, namePaymentType
     PROPERTIES (l) show //edit                    
                     
     ORDER dateTime(l)
@@ -299,6 +299,7 @@ used = GROUP LAST UseGiftCard ledger  ORDER dateTime(ledger), ledger WHERE ledge
 isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
 dateUsed 'Дата последнего использования'(GiftCard g) = date(used(g));
 nameDepartmentStoreUsed 'Где использован последний раз' (GiftCard g) = nameDepartmentStore(used(g));
+nameLegalEntityUsed 'Компания (последнее использование)' (GiftCard g) = name(legalEntity(departmentStore(used(g)))) CHARWIDTH 10;
 numberReceiptUsed 'Номер чека (последнее использование)' (GiftCard g) = numberDocument(used(g));
 
 WHEN SETCHANGED(giftCard(UseGiftCard l)) AND [GROUP SUM 1 IF UseGiftCard ledger IS UseGiftCard BY giftCard(ledger)](giftCard(l))>1 AND l IS UseGiftCard AND NOT isSumPaymentReceipt() 
@@ -372,7 +373,7 @@ expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(gift
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
 EXTEND FORM giftCards
-    PROPERTIES(g) READONLYIF isReadonly() BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
+    PROPERTIES(g) READONLYIF isReadonly() BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed, nameLegalEntityUsed,
                   numberReceiptUsed 
     PROPERTIES(g) READONLYIF isReadonly() AFTER expiryDays(g) expireDate  
 
