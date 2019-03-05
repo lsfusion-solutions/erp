@@ -306,7 +306,7 @@ public class ImportMilaActionProperty extends ScriptingActionProperty {
                 Connection connection = Jsoup.connect(url);
                 connection.timeout(timeout);
                 connection.userAgent(cAgent);
-                doc = Jsoup.connect(url).get();
+                doc = connection.get();
                 return true;
             } catch (HttpStatusException e) {
                 errBox(e.getMessage());
