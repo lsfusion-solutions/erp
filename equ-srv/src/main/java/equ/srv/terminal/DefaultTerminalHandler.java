@@ -18,7 +18,6 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.*;
-import lsfusion.server.logics.property.actions.LSFException;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -752,13 +751,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 }
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
-
-                String result;
-                try {
-                    result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
-                } catch (LSFException e) {
-                    result = e.getMessage();
-                }
+                String result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                 if(result != null) {
                     ServerLoggers.importLogger.error(String.format("Apply terminal document %s error: %s", idTerminalDocument, result));
                 }
