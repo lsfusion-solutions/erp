@@ -75,6 +75,8 @@ DESIGN options {
     }
 }
 
+skipDropOrderDetail = DATA LOCAL BOOLEAN ();   
+
 META defineOrderInvoice(sign, stockProp)
 
     orderDetail = ABSTRACT OrderDetail (InvoiceDetail) MATERIALIZED;
@@ -97,8 +99,8 @@ META defineOrderInvoice(sign, stockProp)
     CONSTRAINT sku(UserInvoiceDetail detail) != sku(orderDetail(detail))
         CHECKED BY orderDetail[UserInvoiceDetail]
             MESSAGE 'Товар в заказе и накладной должны соответствовать друг другу';
-            
-    WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) AND NOT CHANGED(orderDetail(detail)) DO
+        
+    WHEN LOCAL CHANGED(sku(UserInvoiceDetail detail)) AND NOT CHANGED(orderDetail(detail)) AND NOT skipDropOrderDetail() DO
         orderDetail(detail) <- NULL;
 
 
