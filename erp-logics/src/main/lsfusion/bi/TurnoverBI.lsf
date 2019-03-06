@@ -26,7 +26,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
             EXPORT CSV ',' HEADER FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                                group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)),
+                                group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)), group5 = skuGroup6(sku(b)),
                                 brand = brand(sku(b)), manufacturer = manufacturer(sku(b)), country = country(sku(b)),
                                 price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
                                 balance = DOUBLE(balance(b, st)),
@@ -96,6 +96,7 @@ DESIGN turnoverReport {
 @createGroup(turnover, group2, 'По группе', 4, 'group2', 'LOOKUP(group2,\'group_name\')', 'Группа', itemContainer);
 @createGroup(turnover, group3, 'По подгруппе', 5, 'group3', 'LOOKUP(group3,\'group_name\')', 'Подгруппа', itemContainer);
 @createGroup(turnover, group4, 'По субгруппе', 6, 'group4', 'LOOKUP(group4,\'group_name\')', 'Субгруппа', itemContainer);
+@createGroup(turnover, group5, 'По виду', 21, 'group5', 'LOOKUP(group5,\'group_name\')', 'Вид', itemContainer);
 @createGroup(turnover, sku, 'По товару', 7, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', itemContainer);
 @createGroup(turnover, brand, 'По бренду', 8, 'brand', 'LOOKUP(brand,\'brand_name\')', 'Бренд', itemContainer);
 @createGroup(turnover, manufacturer, 'По производителю', 9, 'manufacturer', 'LOOKUP(manufacturer,\'manufacturer_name\')', 'Производитель', itemContainer);
@@ -442,6 +443,7 @@ nameIncludeSkuGroups1 'Направления (все)' = GROUP CONCAT TEXT('\''
 nameIncludeSkuGroups2 'Группы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 3, ', ' ORDER skuGroup CHARWIDTH 20;
 nameIncludeSkuGroups3 'Подгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 4, ', ' ORDER skuGroup CHARWIDTH 20;
 nameIncludeSkuGroups4 'Субгруппы (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 5, ', ' ORDER skuGroup CHARWIDTH 20;
+nameIncludeSkuGroups5 'Виды (все)' = GROUP CONCAT TEXT('\''+ TEXT(SkuGroup skuGroup) +'\'') IF dataInclude(skuGroup) AND level(skuGroup) == 6, ', ' ORDER skuGroup CHARWIDTH 20;
 
 //------- Товары -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (Sku);
@@ -529,7 +531,8 @@ changeIncludeBarcodes()  {
 filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
                                        ' group2 IN (' + nameIncludeSkuGroups2() + ')',
                                        ' group3 IN (' + nameIncludeSkuGroups3() + ')',
-                                       ' group4 IN (' + nameIncludeSkuGroups4() + ')';
+                                       ' group4 IN (' + nameIncludeSkuGroups4() + ')',
+                                       ' group5 IN (' + nameIncludeSkuGroups5() + ')';
 filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (include(s) OR (NOT (GROUP SUM 1 IF include(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',') + ')','')
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND brand IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
@@ -841,10 +844,12 @@ showGroup1 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 2;
 showGroup2 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 3;
 showGroup3 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 4;
 showGroup4 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 5;
+showGroup5 = GROUP SUM 1 IF level(SkuGroup skuGroup) == 6;
 hideGroup1Turnover() += TRUE IF NOT showGroup1();
 hideGroup2Turnover() += TRUE IF NOT showGroup2();
 hideGroup3Turnover() += TRUE IF NOT showGroup3();
 hideGroup4Turnover() += TRUE IF NOT showGroup4();
+hideGroup5Turnover() += TRUE IF NOT showGroup5();
 
 EXTEND FORM turnoverReport    
     PROPERTIES() isBalanceB, isIn, overIsOut, isBalanceA,
