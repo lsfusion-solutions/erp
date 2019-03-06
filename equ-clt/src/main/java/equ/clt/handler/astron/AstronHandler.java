@@ -97,7 +97,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     if (!isValidItem(item)) {
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
                                         iter.remove();
-                                    } else if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idBarcode)) {
+                                    } else if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idItem)) {
                                         usedDeleteBarcodeList.add(item);
                                         iter.remove();
                                     }
@@ -521,7 +521,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
         Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
         for(CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
-            deleteBarcodeMap.remove(usedDeleteBarcode.idBarcode);
+            deleteBarcodeMap.remove(usedDeleteBarcode.idItem);
         }
         deleteBarcodeConnectionStringMap.put(deleteBarcodeKey, deleteBarcodeMap);
         return null;
@@ -617,8 +617,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             if (deleteBarcodeMap == null)
                 deleteBarcodeMap = new HashMap<>();
             for (CashRegisterItemInfo item : deleteBarcodeInfo.barcodeList) {
-                if (!deleteBarcodeMap.containsKey(item.idBarcode)) {
-                    deleteBarcodeMap.put(item.idBarcode, item);
+                if (!deleteBarcodeMap.containsKey(item.idItem)) {
+                    deleteBarcodeMap.put(item.idItem, item);
                 }
             }
             if (!deleteBarcodeMap.isEmpty())
