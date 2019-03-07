@@ -13,6 +13,8 @@ seriesNumberPurchaseUserOrder 'Заказ (закупка) серия/номер
 notPurchaseUserOrder = Invoice i IS Invoice AND NOT purchaseUserOrder(i);
 invoice = GROUP MAX Invoice i BY purchaseUserOrder(i);
 
+purchaseUserOrderDetail = DATA Purchase.UserOrderDetail (InvoiceDetail) INDEXED;
+
 skipCreateOrderDetail = ABSTRACT BOOLEAN (Sale.InvoiceDetail);
 
 createUserOrder 'Заказ (закупка)'(Invoice invoice)   { 
@@ -50,6 +52,7 @@ createUserOrder 'Заказ (закупка)'(Invoice invoice)   {
 	
 	            batch(d) <- batch(detail) WHERE NOT (notUseBatchPurchaseInvoice(operation(invoice)) OR skipFillBatch(d));
 	            overFillOrder(d,detail);
+	            purchaseUserOrderDetail(detail) <- d;
 	        }
 	
 	    SHOW Purchase.userOrder OBJECTS o = o DOCKED NOCANCEL;
