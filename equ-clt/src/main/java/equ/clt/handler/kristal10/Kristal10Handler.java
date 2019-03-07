@@ -890,6 +890,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             else
                 sendSalesLogger.info(String.format("Kristal10: found %s file(s) in %s, will read %s file(s)", filesList.length, exchangeDirectory, Math.min(filesList.length, maxFilesCount)));
 
+            Arrays.sort(filesList, new Comparator<File>() {
+                public int compare(File f1, File f2) {
+                    return Long.compare(f1.lastModified(), f2.lastModified());
+                }
+            });
+
             int filesCount = 0;
             for (File file : filesList) {
                 filesCount++;
