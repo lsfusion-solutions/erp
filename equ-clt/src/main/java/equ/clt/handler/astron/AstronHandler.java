@@ -98,8 +98,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
                                         iter.remove();
                                     } else if(deleteBarcodeMap != null && deleteBarcodeMap.containsKey(item.idItem)) {
-                                        usedDeleteBarcodeList.add(item);
-                                        iter.remove();
+                                        usedDeleteBarcodeList.add(deleteBarcodeMap.get(item.idItem));
                                     }
                                 }
 
