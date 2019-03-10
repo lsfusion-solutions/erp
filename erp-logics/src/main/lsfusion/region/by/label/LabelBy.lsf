@@ -1,6 +1,6 @@
 MODULE LabelBy;
 
-REQUIRE Label, Item;
+REQUIRE LabelItem;
 
 NAMESPACE Label;
 
@@ -10,9 +10,24 @@ NAMESPACE Label;
 
 @defineItemGroupValue(volumeMinPrice, 'Минимальный объем/вес для печати цены за килограмм(литр)', NUMERIC[16,5]);
 
-labelBaseCoeff = ABSTRACT NUMERIC[9,3](Sku);
-labelBaseRetailCoeff = ABSTRACT NUMERIC[9,3](Sku);
-labelBaseName = ABSTRACT VARSTRING[20](Sku);
+labelBaseCoeff = ABSTRACT CASE NUMERIC[9,3](Sku);
+dataLabelBaseCoeff 'Коэффициент за базовую единицу' = DATA NUMERIC[9,3](Item);
+labelBaseCoeff(Item i) += WHEN dataLabelBaseCoeff(i) THEN dataLabelBaseCoeff(i);
+
+labelBaseName = ABSTRACT CASE VARSTRING[20](Sku);
+dataLabelBaseName 'Базовая единица' = DATA VARSTRING[20](Item);
+labelBaseName(Item i) += WHEN dataLabelBaseName(i) THEN dataLabelBaseName(i);
+
+EXTEND FORM item 
+    PROPERTIES (i) dataLabelBaseCoeff, dataLabelBaseName;
+    
+DESIGN item {
+    itemLabel {
+        MOVE PROPERTY (dataLabelBaseCoeff(i));
+        MOVE PROPERTY (dataLabelBaseName(i));
+    }
+}
+
 volumeMinPrice (Sku d) = OVERRIDE volume(d) < volumeMinPrice(skuGroup(d)), netWeight(d) < volumeMinPrice(skuGroup(d));
 
 skipFullPrice 'Не печатать цену за килограмм(литр)' = ABSTRACT BOOLEAN (Sku);
@@ -46,7 +61,7 @@ basePriceKop 'Копейки (за б.е.)' (Sku d, NUMERIC[16,4] price) = OVERR
 basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = basePriceKop(sku(d), price(d));
 
 baseRetailPrice 'Цена за базовую единицу до' (Sku d, NUMERIC[16,4] retailPrice) = IF printFullPrice(skuGroup(d)) AND NOT (volumeMinPrice(d) OR skipFullPrice(d)) THEN CASE 
-                                                                                                          WHEN labelBaseRetailCoeff(d) THEN round2(retailPrice / labelBaseRetailCoeff(d))
+                                                                                                          WHEN labelBaseCoeff(d) THEN round2(retailPrice / labelBaseCoeff(d))
                                                                                                           WHEN volume(d) != 1.0 THEN round2(retailPrice / volume(d))
                                                                                                           WHEN netWeight(d) != 1.0 THEN round2(retailPrice / netWeight(d)) ;
 baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = baseRetailPrice(sku(d), retailPrice(d));
