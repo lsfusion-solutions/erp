@@ -3,6 +3,8 @@ MODULE Druid;
 REQUIRE Utils, Time, Authentication;
 
 host 'Хост для подключения' = DATA VARSTRING[100] ();
+port 'Порт для подключения' = DATA VARSTRING[10] ();
+overPort 'Порт для подключения' = OVERRIDE port(), '8082';
 maxRowCount 'Максимальное количество записей' = DATA INTEGER ();
 // ----------------- Загрузка данных ------------------- //
 
@@ -15,7 +17,7 @@ importDirectory 'Путь для импорта файлов' = DATA VARSTRING[5
 
 
 EXTEND FORM integrationData
-    PROPERTIES host(), maxRowCount(), exportDirectory(), importDirectory()
+    PROPERTIES host(), overPort(), maxRowCount(), exportDirectory(), importDirectory()
     
     OBJECTS dates = (druidFrom = DATE, druidTo = DATE) PANEL
     PROPERTIES druidFrom 'С' = VALUE(druidFrom), druidTo 'По' = VALUE(druidTo)
@@ -25,7 +27,11 @@ DESIGN integrationData {
     pane {
         NEW druid {
             caption = 'Druid';
-            MOVE PROPERTY(host());
+            NEW connect {
+                type = CONTAINERH; 
+                MOVE PROPERTY(host());
+                MOVE PROPERTY(overPort());
+            }
             MOVE PROPERTY(maxRowCount());
             MOVE PROPERTY(exportDirectory());
             MOVE PROPERTY(importDirectory());
@@ -140,7 +146,7 @@ query(TEXT q)  {
 	}
     
 	stringToFile('\{"query": "' + q + '"\}','UTF-8','json');
-	EXTERNAL HTTP 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultFile() TO queryResult;
+	EXTERNAL HTTP 'http://' + host() + ':' + overPort() + '/druid/v2/sql' PARAMS resultFile() TO queryResult;
 	
 }
 // example : IMPORT JSON TO columns = columns FROM result();
@@ -151,7 +157,7 @@ dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDataSource()  { 
     LOCAL result = FILE();
-    EXTERNAL HTTP GET 'http://' + host() + ':8082/druid/v2/datasources' TO result;
+    EXTERNAL HTTP GET 'http://' + host() + ':' + overPort() + '/druid/v2/datasources' TO result;
         
     fileToString(result(), 'UTF-8');
     
@@ -167,7 +173,7 @@ measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
 
 readDimensionsAndMeasures (VARSTRING[100] ds)  { 
     LOCAL result = FILE();
-    EXTERNAL HTTP GET 'http://' + host() + ':8082/druid/v2/datasources/' + ds  TO result;
+    EXTERNAL HTTP GET 'http://' + host() + ':' + overPort() + '/druid/v2/datasources/' + ds  TO result;
     
     LOCAL dimensions = TEXT();
     LOCAL measures = TEXT();
@@ -207,7 +213,7 @@ runQuery 'Выполнить' (VARSTRING[100] ds)  {
 	stringToFile('\{"query": "' + query() + '"\}','UTF-8','json');
 
 	LOCAL result = FILE();
-	EXTERNAL HTTP GET 'http://' + host() + ':8082/druid/v2/sql' PARAMS resultFile() TO result;
+	EXTERNAL HTTP GET 'http://' + host() + ':' + overPort() + '/druid/v2/sql' PARAMS resultFile() TO result;
 
     open(result());
 //	IMPORT JSON TO columns = columns FROM result();
