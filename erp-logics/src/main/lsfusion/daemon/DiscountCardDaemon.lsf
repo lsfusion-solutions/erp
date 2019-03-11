@@ -1,0 +1,15 @@
+MODULE DiscountCardDaemon;
+
+REQUIRE SystemEvents;
+
+useDiscountCardReader 'Включить считыватель дисконтных карт' = DATA BOOLEAN (Computer);
+EXTEND FORM computer PROPERTIES(c) useDiscountCardReader;
+EXTEND FORM computers PROPERTIES(c) READONLY useDiscountCardReader;
+EXTEND FORM computersDialog PROPERTIES(c) READONLY useDiscountCardReader;
+
+discountCardDaemon INTERNAL  'lsfusion.erp.daemon.DiscountCardDaemonActionProperty' ();
+onClientStarted() + {
+    IF useDiscountCardReader(currentComputer()) THEN {
+        discountCardDaemon();
+    }
+}
