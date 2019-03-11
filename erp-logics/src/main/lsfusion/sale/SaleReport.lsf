@@ -532,7 +532,7 @@ filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE 
 overFillData  ABSTRACT (SaleReport);
 createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo)  { 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
-        AND inSalereport(Stock stock) AND partyB(c) == company AND NOT skipSaleLedger(c) DO {
+        AND inSalereport(Stock stock) AND partyB(c) == company AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
         NEWSESSION  {
             NEW r = SaleReport {
             
@@ -567,7 +567,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company
         AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
-        AND NOT skipSaleLedger(c) DO {
+        AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
             NEW r = SaleReport {
         
@@ -593,7 +593,7 @@ createAutoSaleReportdPart 'Создать акты реализации (пол�
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
         AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
-        AND NOT skipSaleLedger(c) DO {
+        AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
             NEW r = SaleReport {
                 supplier(r) <- partyA(c);
