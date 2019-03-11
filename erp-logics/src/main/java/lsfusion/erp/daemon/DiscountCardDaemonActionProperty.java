@@ -1,6 +1,5 @@
 package lsfusion.erp.daemon;
 
-import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -11,8 +10,8 @@ import java.sql.SQLException;
 
 public class DiscountCardDaemonActionProperty extends ScriptingActionProperty {
 
-    public DiscountCardDaemonActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
-        super(LM, classes);
+    public DiscountCardDaemonActionProperty(ScriptingLogicsModule LM) {
+        super(LM);
     }
 
     @Override
