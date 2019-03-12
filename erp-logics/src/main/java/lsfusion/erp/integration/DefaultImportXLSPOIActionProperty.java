@@ -43,7 +43,7 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
         return getXLSFieldValue(sheet, row, cell, null);
     }
 
-    protected String getXLSFieldValue(HSSFSheet sheet, int row, int cell, String defaultValue) throws ParseException {
+    protected String getXLSFieldValue(HSSFSheet sheet, int row, int cell, String defaultValue) {
         HSSFRow hssfRow = sheet.getRow(row);
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
@@ -58,6 +58,8 @@ public class DefaultImportXLSPOIActionProperty extends DefaultImportActionProper
                     result = hssfCell.getStringCellValue().isEmpty() ? defaultValue : trim(hssfCell.getStringCellValue());
                 }
                 return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
+            case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_ERROR:
+                return defaultValue;
             case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
             default:
                 return (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
