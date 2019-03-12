@@ -1,10 +1,10 @@
 package lsfusion.erp.utils;
 
-import jasperapi.ReportGenerator;
+import lsfusion.interop.form.report.ReportGenerator;
 import lsfusion.base.file.IOUtils;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import jasperapi.ReportGenerationData;
+import lsfusion.interop.form.report.ReportGenerationData;
 import net.sf.jasperreports.engine.JRException;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.DataConsolidateFunction;
