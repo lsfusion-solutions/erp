@@ -1,6 +1,6 @@
 package lsfusion.erp.integration.image;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.classes.ImageClass;
 import lsfusion.server.classes.ValueClass;
@@ -11,7 +11,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.apache.poi.util.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;

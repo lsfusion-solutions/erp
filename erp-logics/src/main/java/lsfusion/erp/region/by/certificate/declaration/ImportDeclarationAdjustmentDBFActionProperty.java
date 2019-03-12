@@ -1,8 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportDBFActionProperty;
 import lsfusion.interop.action.ChooseObjectClientAction;
 import lsfusion.interop.action.MessageClientAction;

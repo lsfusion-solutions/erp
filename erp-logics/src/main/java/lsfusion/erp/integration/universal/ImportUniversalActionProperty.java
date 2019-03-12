@@ -4,7 +4,7 @@ import jxl.CellType;
 import jxl.NumberCell;
 import jxl.NumberFormulaCell;
 import jxl.Sheet;
-import lsfusion.base.IOUtils;
+import lsfusion.base.file.IOUtils;
 import lsfusion.base.Pair;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.classes.ValueClass;

@@ -1,8 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.utils.geo.JsonReader;
 import lsfusion.server.classes.ValueClass;

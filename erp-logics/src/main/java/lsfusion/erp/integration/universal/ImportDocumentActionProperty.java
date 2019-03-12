@@ -5,7 +5,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.LogicalClass;
 import lsfusion.server.classes.ValueClass;

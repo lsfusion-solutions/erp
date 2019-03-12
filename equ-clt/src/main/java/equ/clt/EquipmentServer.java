@@ -4,9 +4,9 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
-import lsfusion.base.OrderedMap;
-import lsfusion.interop.DaemonThreadFactory;
-import lsfusion.interop.remote.RMIUtils;
+import lsfusion.base.col.heavy.OrderedMap;
+import lsfusion.base.DaemonThreadFactory;
+import lsfusion.base.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 

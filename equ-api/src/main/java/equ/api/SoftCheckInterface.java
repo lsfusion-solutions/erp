@@ -1,7 +1,7 @@
 package equ.api;
 
 import equ.api.cashregister.CashierTime;
-import lsfusion.interop.remote.RmiServerInterface;
+import lsfusion.interop.server.RmiServerInterface;
 
 import java.rmi.RemoteException;
 import java.sql.SQLException;

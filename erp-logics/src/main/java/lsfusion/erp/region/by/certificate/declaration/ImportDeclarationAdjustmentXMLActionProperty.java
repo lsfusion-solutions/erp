@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
@@ -19,7 +19,6 @@ import org.jdom.Element;
 import org.jdom.Namespace;
 import org.jdom.input.SAXBuilder;
 
-import java.io.ByteArrayInputStream;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;

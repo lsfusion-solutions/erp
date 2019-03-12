@@ -2,11 +2,10 @@ package lsfusion.erp.region.by.integration.excel;
 
 import jxl.*;
 import jxl.read.biff.BiffException;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;

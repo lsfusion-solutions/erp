@@ -2,15 +2,15 @@ package lsfusion.erp.region.by.finance.evat;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.FileData;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;

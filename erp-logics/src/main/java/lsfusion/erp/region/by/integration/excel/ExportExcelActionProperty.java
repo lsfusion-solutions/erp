@@ -7,7 +7,7 @@ import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.server.classes.ValueClass;

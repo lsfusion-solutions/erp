@@ -9,7 +9,7 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
-import lsfusion.base.OrderedMap;
+import lsfusion.base.col.heavy.OrderedMap;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 

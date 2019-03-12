@@ -2,8 +2,8 @@ package lsfusion.erp.integration.universal.userpricelist;
 
 import com.hexiong.jdbf.DBFReader;
 import com.hexiong.jdbf.JDBFException;
-import lsfusion.base.FileData;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;

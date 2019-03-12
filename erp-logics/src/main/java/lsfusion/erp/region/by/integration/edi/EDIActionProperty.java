@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.Pair;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
@@ -13,7 +13,6 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;

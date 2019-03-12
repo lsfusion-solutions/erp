@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;

@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;

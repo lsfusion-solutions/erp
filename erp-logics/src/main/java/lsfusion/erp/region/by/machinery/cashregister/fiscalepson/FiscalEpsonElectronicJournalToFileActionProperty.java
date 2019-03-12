@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.interop.action.OpenFileClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;

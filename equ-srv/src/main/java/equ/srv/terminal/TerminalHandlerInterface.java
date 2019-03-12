@@ -1,6 +1,6 @@
 package equ.srv.terminal;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.session.DataSession;

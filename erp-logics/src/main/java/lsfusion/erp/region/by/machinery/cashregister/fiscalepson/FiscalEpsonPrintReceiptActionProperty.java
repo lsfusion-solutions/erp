@@ -4,7 +4,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;

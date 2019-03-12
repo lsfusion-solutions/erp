@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;

@@ -6,7 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImCol;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
@@ -21,7 +21,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.jdom.Document;
 import org.jdom.Element;
 

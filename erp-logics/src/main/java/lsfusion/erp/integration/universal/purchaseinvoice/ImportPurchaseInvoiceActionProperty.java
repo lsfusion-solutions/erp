@@ -10,6 +10,8 @@ import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.ImportPreviewClientAction;

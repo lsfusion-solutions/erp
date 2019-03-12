@@ -4,7 +4,7 @@ import equ.api.cashregister.*;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
 import equ.api.terminal.TerminalOrder;
-import lsfusion.interop.remote.RmiServerInterface;
+import lsfusion.interop.server.RmiServerInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;

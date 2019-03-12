@@ -1,7 +1,7 @@
 package equ.srv.terminal;
 
 import equ.srv.EquipmentLoggers;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.lifecycle.MonitorServer;

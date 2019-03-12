@@ -3,7 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;

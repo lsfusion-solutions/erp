@@ -1,6 +1,6 @@
 package lsfusion.erp.integration;
 
-import lsfusion.base.IOUtils;
+import lsfusion.base.file.IOUtils;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;

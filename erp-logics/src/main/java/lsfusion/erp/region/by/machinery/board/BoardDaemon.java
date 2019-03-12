@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.board;
 
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.DaemonThreadFactory;
+import lsfusion.base.DaemonThreadFactory;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.MonitorServer;

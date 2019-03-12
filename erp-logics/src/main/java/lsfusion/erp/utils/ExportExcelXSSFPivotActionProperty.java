@@ -2,7 +2,7 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
-import lsfusion.interop.form.ReportGenerationData;
+import jasperapi.ReportGenerationData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;

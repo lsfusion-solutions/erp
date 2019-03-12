@@ -9,7 +9,7 @@ import com.jacob.com.Variant;
 import jasperapi.ReportGenerator;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.form.ReportGenerationData;
+import jasperapi.ReportGenerationData;
 import net.sf.jasperreports.engine.JRException;
 
 import java.awt.*;

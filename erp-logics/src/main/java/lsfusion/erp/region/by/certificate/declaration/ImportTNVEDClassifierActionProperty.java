@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.DateClass;

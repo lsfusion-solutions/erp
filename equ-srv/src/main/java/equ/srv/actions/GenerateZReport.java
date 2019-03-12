@@ -7,7 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;

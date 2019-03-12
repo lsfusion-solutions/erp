@@ -2,15 +2,15 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.IOUtils;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.erp.integration.OverJDBField;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.classes.ValueClass;

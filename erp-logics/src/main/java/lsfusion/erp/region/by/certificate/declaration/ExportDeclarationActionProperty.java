@@ -2,14 +2,13 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportActionProperty;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;

@@ -3,7 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Item;

@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.WorkbookSettings;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Warehouse;
@@ -16,7 +16,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;

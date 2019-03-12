@@ -1,7 +1,7 @@
 package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;

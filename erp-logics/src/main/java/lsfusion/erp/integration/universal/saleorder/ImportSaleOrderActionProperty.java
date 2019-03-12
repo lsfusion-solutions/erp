@@ -5,7 +5,7 @@ import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;

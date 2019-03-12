@@ -1,6 +1,6 @@
 package lsfusion.erp.integration.universal.productionorder;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -21,7 +21,6 @@ import org.xBaseJ.xBaseJException;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.List;
 import java.util.Map;
 
 public class ImportProductionOrdersFileActionProperty extends ImportDocumentActionProperty {

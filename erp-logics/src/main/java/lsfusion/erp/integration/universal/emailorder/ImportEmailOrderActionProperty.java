@@ -1,14 +1,14 @@
 package lsfusion.erp.integration.universal.emailorder;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.FileData;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportXLSXActionProperty;
-import lsfusion.interop.Compare;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;

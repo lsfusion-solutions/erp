@@ -1,7 +1,7 @@
 package lsfusion.erp.integration;
 
 import jxl.*;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;

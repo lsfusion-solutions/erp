@@ -2,7 +2,7 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.SetFact;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
@@ -22,7 +22,6 @@ import org.xBaseJ.xBaseJException;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.List;
 
 public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionProperty {
 

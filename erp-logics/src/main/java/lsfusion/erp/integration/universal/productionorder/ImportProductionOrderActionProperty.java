@@ -1,7 +1,6 @@
 package lsfusion.erp.integration.universal.productionorder;
 
-import lsfusion.base.IOUtils;
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;

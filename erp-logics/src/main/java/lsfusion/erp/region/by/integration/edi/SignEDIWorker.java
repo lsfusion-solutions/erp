@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
-import lsfusion.base.RawFileData;
+import lsfusion.base.file.RawFileData;
 
 import javax.swing.*;
 import java.util.List;
