@@ -3,7 +3,7 @@ package lsfusion.erp.integration.image;
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultIntegrationActionProperty;
-import lsfusion.utils.geo.JsonReader;
+import lsfusion.utils.type.geo.JsonReader;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;

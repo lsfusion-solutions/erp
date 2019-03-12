@@ -5,8 +5,8 @@ import jssc.SerialPortEvent;
 import jssc.SerialPortException;
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.ExecuteClientAction;
-import lsfusion.utils.com.SerialPortEventListener;
-import lsfusion.utils.com.SerialPortHandler;
+import lsfusion.utils.equ.com.SerialPortEventListener;
+import lsfusion.utils.equ.com.SerialPortHandler;
 
 import java.io.Serializable;
 
