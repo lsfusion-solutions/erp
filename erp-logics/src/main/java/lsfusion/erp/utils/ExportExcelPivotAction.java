@@ -6,10 +6,10 @@ import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
 import com.jacob.com.SafeArray;
 import com.jacob.com.Variant;
-import lsfusion.interop.form.report.ReportGenerator;
+import lsfusion.interop.form.stat.report.ReportGenerator;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.form.report.ReportGenerationData;
+import lsfusion.interop.form.stat.report.ReportGenerationData;
 import net.sf.jasperreports.engine.JRException;
 
 import java.awt.*;
