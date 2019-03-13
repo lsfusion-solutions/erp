@@ -16,6 +16,8 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserOrderDetail);
 percDiscount '% скидки' (UserOrderDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userOrder(d)) IF isItem(sku(d));
 percDiscount(UserOrderDetail d) += percDiscount(d);
 
+showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Order);
+
 prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userOrder(d)) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), priceStock(d), dateTime(d)) * (100.0 (-) percDiscount(userOrder(d))) / 100.0));
 
@@ -39,6 +41,7 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
          AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
          AND includeVAT(pt) AND NOT disableUpdateOrderFullPrice(d) 
+         AND showFullPrice(order(d))
          NOINLINE (pt) DO {
     fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));    
 }
@@ -48,6 +51,7 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
          AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
          AND NOT includeVAT(pt) AND NOT disableUpdateOrderFullPrice(d) 
+         AND showFullPrice(order(d))
          NOINLINE (pt) DO {
     fullPrice(d) <- fullPrevList(pt, d);    
 }
@@ -56,6 +60,7 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (CHANGED(fullPrice(UserOrderDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
+         AND showFullPrice(order(d))
          AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
@@ -64,6 +69,7 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail] 
         (CHANGED(percDiscount(UserOrderDetail d)))
          AND NOT CHANGED(price(d)) 
+         AND showFullPrice(order(d))
          AND fullPrice(d) AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
@@ -76,6 +82,7 @@ overChangePrice(UserOrderDetail d) + {
 }
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail] (CHANGED(price(UserOrderDetail d)))  AND 
                              fullPrice(d) AND isItem(sku(d)) AND
+                             showFullPrice(order(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
     dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
@@ -96,8 +103,6 @@ recalculateFullPriceUserOrderDetail 'Пересчитать цены'()  {
 @defineOption(readonlySaleDiscount, 'Запретить редактирование % скидки в строках (продажа)', sale);
 
 @defineOption(readonlySaleReturnDiscount, 'Запретить редактирование % скидки в строках (продажа-возврат)', sale);
-
-showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Order);
 
 EXTEND FORM userOrder
     PROPERTIES (o) percDiscount 
@@ -130,6 +135,8 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserInvoiceDetail);
 percDiscount '% скидки' (UserInvoiceDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userInvoice(d)) IF isItem(sku(d));
 percDiscount(UserInvoiceDetail d) += percDiscount(d);
 
+showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Invoice);
+
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userInvoice(d)) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(userInvoice(d))) / 100.0));
 
@@ -153,6 +160,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail]
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
          AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
          AND includeVAT(pt) AND NOT disableUpdateInvoiceFullPrice(d) 
+         AND showFullPrice(invoice(d))
          NOINLINE (pt) DO {
     fullPrice(d) <- round2(fullPrevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));    
 }
@@ -162,6 +170,7 @@ WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail]
          (CHANGED(priceListType(d)) OR CHANGED(agreement(d)) OR CHANGED(sku(d))))
          AND NOT CHANGED(fullPrice(d)) AND PriceListType pt == priceListType(d) AND isItem(sku(d))
          AND NOT includeVAT(pt) AND NOT disableUpdateInvoiceFullPrice(d) 
+         AND showFullPrice(invoice(d))
          NOINLINE (pt) DO {
     fullPrice(d) <- fullPrevList(pt, d);    
 }
@@ -171,6 +180,7 @@ WHEN LOCAL //FORMS userInvoice
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
+         AND showFullPrice(invoice(d))
          AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
@@ -180,6 +190,7 @@ WHEN LOCAL FORMS userInvoice
         GOAFTER fullPrice[UserInvoiceDetail] 
         (CHANGED(percDiscount(UserInvoiceDetail d)))
          AND NOT CHANGED(price(d)) 
+         AND showFullPrice(invoice(d))
          AND fullPrice(d) AND isItem(sku(d)) DO {
     recalculateDiscountPrice(d);
 }
@@ -190,8 +201,10 @@ overChangePrice(UserInvoiceDetail d) + {
         dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));     
     }   
 }
+
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail] (CHANGED(price(UserInvoiceDetail d)))  AND 
-                             fullPrice(d) AND isItem(sku(d)) AND
+                             fullPrice(d) AND isItem(sku(d)) 
+                             AND showFullPrice(invoice(d)) AND
                              NOT CHANGED(percDiscount(d)) AND NOT CHANGED(fullPrice(d))DO {
     dataPercDiscount(d) <- NUMERIC[8,4](round2((1.0 - (price(d)/fullPrice(d)))*100.0));
 }
@@ -208,8 +221,6 @@ recalculateFullPriceUserInvoiceDetail 'Пересчитать цены'()  {
         overRecalculateFullPrice(d);               
     }
 } ASON CONTEXTMENU fullPrice[UserInvoiceDetail];
-
-showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Invoice);
 
 EXTEND FORM userInvoice
     PROPERTIES (i) percDiscount 
