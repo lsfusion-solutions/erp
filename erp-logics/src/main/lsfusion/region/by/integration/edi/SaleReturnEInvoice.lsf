@@ -1,0 +1,30 @@
+MODULE SaleReturnEInvoice;
+
+REQUIRE InvoiceEInvoice, SaleReturnInvoice;
+
+PRIORITY SaleReturn;
+
+NAMESPACE EDI;
+
+
+receiver = DATA Employee (UserInvoice);
+receiver(UserInvoice i) += receiver(i);
+
+nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
+
+EXTEND FORM userInvoice 
+    PROPERTIES numberEInvoice(i) ON CHANGE changeEInvoice(i)
+    PROPERTIES(i) nameReceiver
+;
+
+DESIGN userInvoice {
+    import {
+        NEW importEDI {
+            caption = 'Накладная EDI';
+            flex = 1;
+            type = CONTAINERH;
+            MOVE PROPERTY(numberEInvoice(i));
+            MOVE PROPERTY(nameReceiver(i));
+        }
+    }
+}

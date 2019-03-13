@@ -1,17 +1,11 @@
 MODULE PurchaseEInvoice;
 
-REQUIRE EDI, PurchaseInvoice;
+REQUIRE InvoiceEInvoice, PurchaseInvoice;
 
 PRIORITY Purchase;
 
 NAMESPACE EDI;
 
-invoice = DATA Invoice(EInvoice) INDEXED;
-eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER dateTime(ei), ei BY invoice(ei);
-numberInvoice 'Номер накладной EDI (приход)' (EInvoice i) = number(invoice(i));
-EXTEND FORM eInvoices
-    PROPERTIES (e) READONLY PurchaseNumberInvoice = numberInvoice
-;
 
 eOperation = DATA Operation(LegalEntity);
 nameEOperation 'Операция (Закупка) для электронных накладных'(LegalEntity l) = name(eOperation(l));
@@ -25,9 +19,6 @@ DESIGN legalEntity {
     }
 } 
 
-numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
-
-receiver = ABSTRACT Employee (Invoice);
 receiver = DATA Employee (UserInvoice);
 receiver(UserInvoice i) += receiver(i);
 
@@ -35,8 +26,6 @@ nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
 filterDate (EInvoice i) = DATE(dateTime(i)) == filterDate() OR NOT filterDate();      
-
-isReceived 'Принят' (EInvoice e) = isPosted(invoice(e));
 
 FORM selectEInvoice 'Накладные EDI'
     PROPERTIES filterDate()
@@ -94,13 +83,6 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
     }
 }
 
-changeEInvoice(Invoice in) {
-    DIALOG dialogEInvoice OBJECTS i = eInvoice(in) NULL INPUT NULL DO {
-        IF i THEN invoice(i) <- in;
-             ELSE invoice(EInvoice ei) <- NULL WHERE ei = eInvoice(in);
-    }
-}
-
 
 EXTEND FORM userInvoice 
     PROPERTIES numberEInvoice(i) ON CHANGE changeEInvoice(i)
@@ -121,23 +103,6 @@ DESIGN userInvoice {
 }
 
 skipNumberCheck(Invoice i) += IF eInvoice(i) AND i IS Invoice THEN TRUE;
-
-skipReceiver = ABSTRACT BOOLEAN (Invoice);
-
-CONSTRAINT isPosted(Invoice i) AND NOT receiver(i) AND NOT skipReceiver(i) AND eInvoice(i)
-        MESSAGE 'В накладной должен быть указан приёмщик';
-
-EXTEND FORM eInvoices
-    PROPERTIES (e) READONLY isReceived BEFORE dateTime(e)
-    FILTERGROUP isReceived FILTER 'Принятые' isReceived(e) 
-;
-
-changeContactString (EInvoice e, Employee em)  { 
-    contactCustomerStock(e) <- VARSTRING[150](CONCAT ', ', shortName(em), namePosition(em));
-}
-
-WHEN SETCHANGED (receiver(Invoice i)) DO 
-    changeContactString(eInvoice(i), receiver(i));
  
 @defineOption(createPurchaseInvoiceFromEInvoice, 'Автоматически создавать накладную (закупка) при создании накладной EDI', EDI);
 
