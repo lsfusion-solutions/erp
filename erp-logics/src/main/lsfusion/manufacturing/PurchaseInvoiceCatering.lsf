@@ -21,10 +21,26 @@ EXTEND FORM invoices
     PROPERTIES (d) READONLY SHOWIF showCatering(i) cateringMarkup, cateringPrice
 ;
 
+calcFromSupplierPriceCatering 'Расчета цены общепита от цены поставщика' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () calcFromSupplierPriceCatering
+;
+
+DESIGN options {
+    MOVE PROPERTY (calcFromSupplierPriceCatering());
+}
+
+
 WHEN LOCAL (CHANGED(cateringMarkup(UserInvoiceDetail d)) OR
               CHANGED(retailPrice(d)))
-             AND NOT CHANGED(cateringPrice(d)) DO {
+             AND NOT CHANGED(cateringPrice(d)) AND NOT calcFromSupplierPriceCatering() DO {
         cateringPrice(d) <- [ X*(100.00+Y)/100.00] (retailPrice(d), cateringMarkup(d));
+}
+WHEN LOCAL (CHANGED(cateringMarkup(UserInvoiceDetail d)) OR
+              CHANGED(pricingPrice(d)) OR CHANGED (valueRetailVAT(d)))
+             AND NOT CHANGED(cateringPrice(d)) AND calcFromSupplierPriceCatering() DO {
+        cateringPrice(d) <- [ X*(100.00+Y)*(100.00+Z)/10000.00] (pricingPrice(d), cateringMarkup(d),valueRetailVAT(d));
 }
 
 cateringBackground = RGB(255, 212, 192);
