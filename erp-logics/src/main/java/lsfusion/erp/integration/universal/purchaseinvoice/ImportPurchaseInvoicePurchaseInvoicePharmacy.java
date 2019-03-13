@@ -7,8 +7,8 @@ import lsfusion.server.integration.ImportField;
 import lsfusion.server.integration.ImportKey;
 import lsfusion.server.integration.ImportProperty;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.util.LinkedHashMap;
 import java.util.List;

@@ -3,7 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.util.Arrays;

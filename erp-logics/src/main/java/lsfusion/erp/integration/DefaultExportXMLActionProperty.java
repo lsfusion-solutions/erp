@@ -2,7 +2,7 @@ package lsfusion.erp.integration;
 
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingLogicsModule;
 import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;

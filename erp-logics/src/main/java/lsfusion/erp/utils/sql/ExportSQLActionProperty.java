@@ -11,9 +11,9 @@ import lsfusion.server.form.instance.FormInstance;
 import lsfusion.server.form.instance.FormRow;
 import lsfusion.server.form.instance.PropertyDrawInstance;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.*;
 import java.util.ArrayList;

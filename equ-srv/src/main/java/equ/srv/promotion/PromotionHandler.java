@@ -11,8 +11,8 @@ import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.remote.RmiServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.linear.LCP;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.springframework.beans.factory.InitializingBean;
 

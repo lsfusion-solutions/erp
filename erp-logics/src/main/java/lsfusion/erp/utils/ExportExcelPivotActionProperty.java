@@ -11,9 +11,9 @@ import lsfusion.server.form.view.PropertyDrawView;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.form.stat.InteractiveFormReportManager;
 
 import java.sql.SQLException;
@@ -206,7 +206,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
 //import lsfusion.server.logics.DataObject;
 //import lsfusion.server.logics.property.ClassPropertyInterface;
 //import lsfusion.server.logics.property.ExecutionContext;
-//import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+//import lsfusion.server.language.ScriptingLogicsModule;
 //
 //import java.sql.SQLException;
 //import java.util.Arrays;

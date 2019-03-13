@@ -8,7 +8,7 @@ import lsfusion.server.lifecycle.MonitorServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.logics.scripted.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingErrorLog;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;

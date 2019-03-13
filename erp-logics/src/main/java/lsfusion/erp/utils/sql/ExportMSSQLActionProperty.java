@@ -1,6 +1,6 @@
 package lsfusion.erp.utils.sql;
 
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -59,8 +59,8 @@ public abstract class ExportMSSQLActionProperty extends ExportSQLActionProperty 
 
 //example of implementation
 
-//import lsfusion.server.logics.scripted.ScriptingErrorLog;
-//import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+//import lsfusion.server.language.ScriptingErrorLog;
+//import lsfusion.server.language.ScriptingLogicsModule;
 //import java.util.Arrays;
 //public class TestExportSQLActionProperty extends ExportMSSQLActionProperty {
 //

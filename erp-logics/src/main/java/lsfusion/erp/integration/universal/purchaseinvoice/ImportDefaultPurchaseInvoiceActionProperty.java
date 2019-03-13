@@ -2,7 +2,7 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.lang.reflect.Field;
 import java.util.List;

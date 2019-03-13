@@ -4,7 +4,7 @@ import jxl.*;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportActionProperty;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.math.BigDecimal;
