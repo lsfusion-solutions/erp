@@ -12,21 +12,21 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.logics.classes.ConcreteClass;
-import lsfusion.server.logics.classes.ConcreteCustomClass;
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.base.context.ExecutionStack;
+import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.ValueClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.DBManager;
-import lsfusion.server.data.DataObject;
-import lsfusion.server.data.ObjectValue;
-import lsfusion.server.language.linear.LP;
+import lsfusion.server.logics.DBManager;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.language.linear.LCP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -74,7 +74,7 @@ public class StopListEquipmentServer {
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<>(slKeys);
                 String[] slNames = new String[]{"excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList",
                         "toDateStopList", "toTimeStopList"};
-                LP<?>[] slProperties = stopListLM.findProperties("exclude[StopList]", "number[StopList]", "fromDate[StopList]", "fromTime[StopList]",
+                LCP<?>[] slProperties = stopListLM.findProperties("exclude[StopList]", "number[StopList]", "fromDate[StopList]", "fromTime[StopList]",
                         "toDate[StopList]", "toTime[StopList]");
                 for (int i = 0; i < slProperties.length; i++) {
                     slQuery.addProperty(slNames[i], slProperties[i].getExpr(stopListExpr));
@@ -158,7 +158,7 @@ public class StopListEquipmentServer {
         QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
         String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]");
+        LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]");
         for (int i = 0; i < groupMachineryProperties.length; i++) {
             machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
         }
@@ -211,7 +211,7 @@ public class StopListEquipmentServer {
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
                 "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
-        LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
+        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
                 "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]",
                 "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {

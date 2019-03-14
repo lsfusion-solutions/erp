@@ -8,20 +8,16 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.data.DataObject;
-import lsfusion.server.data.NullValue;
-import lsfusion.server.data.ObjectValue;
-import lsfusion.server.language.linear.LP;
-import lsfusion.server.logics.classes.ConcreteCustomClass;
-import lsfusion.server.base.context.ExecutionStack;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.*;
+import lsfusion.server.language.linear.LCP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
-import lsfusion.server.physics.exec.DBManager;
+import lsfusion.server.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -56,7 +52,7 @@ class DeleteBarcodeEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"barcodeObject", "barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
                         "nppGroupMachinery", "handlerModelGroupMachinery", "valueVATSku", "idItemGroup", "nameItemGroup", "directoryGroupMachinery",};
-                LP[] properties = deleteBarcodeLM.findProperties("barcodeObject[DeleteBarcode]", "barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
+                LCP[] properties = deleteBarcodeLM.findProperties("barcodeObject[DeleteBarcode]", "barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
                         "idUOMSku[DeleteBarcode]", "shortNameUOMSku[DeleteBarcode]",
                         "nppGroupMachinery[DeleteBarcode]", "handlerModelGroupMachinery[DeleteBarcode]",
                         "valueVATSku[DeleteBarcode]", "idItemGroup[DeleteBarcode]", "nameItemGroup[DeleteBarcode]", "directoryGroupMachinery[DeleteBarcode]");

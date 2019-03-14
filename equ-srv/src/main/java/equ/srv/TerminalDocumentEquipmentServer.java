@@ -8,19 +8,19 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.linear.LP;
-import lsfusion.server.logics.classes.ConcreteCustomClass;
-import lsfusion.server.base.context.ExecutionStack;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.DBManager;
-import lsfusion.server.data.DataObject;
+import lsfusion.server.logics.DBManager;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.language.linear.LCP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
 
 import java.rmi.RemoteException;
@@ -51,14 +51,14 @@ public class TerminalDocumentEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] terminalNames = new String[]{"nppMachinery", "portMachinery"};
-                LP[] terminalProperties = terminalLM.findProperties("npp[Machinery]", "port[Machinery]");
+                LCP[] terminalProperties = terminalLM.findProperties("npp[Machinery]", "port[Machinery]");
                 for (int i = 0; i < terminalProperties.length; i++) {
                     query.addProperty(terminalNames[i], terminalProperties[i].getExpr(terminalExpr));
                 }
 
                 String[] groupTerminalNames = new String[]{"handlerModelGroupMachinery",
                         "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"};
-                LP[] groupTerminalProperties = terminalLM.findProperties("handlerModel[GroupMachinery]",
+                LCP[] groupTerminalProperties = terminalLM.findProperties("handlerModel[GroupMachinery]",
                         "directory[GroupTerminal]", "idPriceListType[GroupMachinery]", "npp[GroupMachinery]");
                 for (int i = 0; i < groupTerminalProperties.length; i++) {
                     query.addProperty(groupTerminalNames[i], groupTerminalProperties[i].getExpr(groupTerminalExpr));

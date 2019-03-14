@@ -2,13 +2,13 @@ package equ.srv.terminal;
 
 import equ.srv.EquipmentLoggers;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.base.context.ExecutorFactory;
-import lsfusion.server.base.lifecycle.LifecycleEvent;
-import lsfusion.server.base.lifecycle.MonitorServer;
-import lsfusion.server.physics.exec.DBManager;
-import lsfusion.server.data.DataObject;
+import lsfusion.server.context.ExecutorFactory;
+import lsfusion.server.lifecycle.LifecycleEvent;
+import lsfusion.server.lifecycle.MonitorServer;
+import lsfusion.server.logics.DBManager;
+import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 

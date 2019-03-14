@@ -1,14 +1,14 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.logics.classes.ConcreteCustomClass;
-import lsfusion.server.base.context.ExecutionStack;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.DBManager;
-import lsfusion.server.data.DataObject;
-import lsfusion.server.data.ObjectValue;
+import lsfusion.server.logics.DBManager;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 
 import java.rmi.RemoteException;
 import java.sql.SQLException;
