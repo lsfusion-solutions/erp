@@ -14,24 +14,28 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.classes.StringClass;
-import lsfusion.server.context.ExecutionStack;
-import lsfusion.server.context.ExecutorFactory;
-import lsfusion.server.context.ThreadLocalContext;
+import lsfusion.server.data.DataObject;
+import lsfusion.server.data.ObjectValue;
+import lsfusion.server.logics.classes.ConcreteCustomClass;
+import lsfusion.server.logics.classes.CustomClass;
+import lsfusion.server.logics.classes.StringClass;
+import lsfusion.server.base.context.ExecutionStack;
+import lsfusion.server.base.context.ExecutorFactory;
+import lsfusion.server.base.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.*;
-import lsfusion.server.lifecycle.LifecycleEvent;
+import lsfusion.server.base.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
-import lsfusion.server.language.linear.LCP;
+import lsfusion.server.language.linear.LP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.physics.exec.DBManager;
+import lsfusion.server.remote.RMIManager;
 import lsfusion.server.remote.RmiServer;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 
@@ -244,7 +248,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
                     "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction", "priorityMPT", "filterMPT"};
-            LCP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
+            LP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
                     "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
                     "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]",
                     "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]");
@@ -319,7 +323,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
                         "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice"};
-                LCP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
+                LP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
                         "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
                         "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]",
                         "pluNumber[MachineryPriceTransaction,Barcode]", "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]",
@@ -329,7 +333,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 String[] barcodeNames = new String[]{"idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
-                LCP[] barcodeProperties = equLM.findProperties("id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
+                LP[] barcodeProperties = equLM.findProperties("id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
                 for (int i = 0; i < barcodeProperties.length; i++) {
                     skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
                 }
@@ -364,7 +368,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 if (scalesItemLM != null) {
                     String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
                             "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
-                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
+                    LP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
                             "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
@@ -375,7 +379,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 
                 if (machineryPriceTransactionStockTaxLM != null) {
                     String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
-                    LCP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VAT[MachineryPriceTransaction,Barcode]");
+                    LP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VAT[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < taxProperties.length; i++) {
                         skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -405,7 +409,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
 
                 String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LCP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
+                LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
                 
                 if (isCashRegisterPriceTransaction) {
                     
@@ -721,7 +725,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             QueryBuilder<Object, Object> groupMachineryQuery = new QueryBuilder<>(groupMachineryKeys);
 
             String[] groupMachineryNames = new String[]{"npp", "lastErrorTime"};
-            LCP[] groupMachineryProperties = machineryPriceTransactionLM.findProperties("npp[GroupMachinery]", "lastErrorTime[GroupMachinery]");
+            LP[] groupMachineryProperties = machineryPriceTransactionLM.findProperties("npp[GroupMachinery]", "lastErrorTime[GroupMachinery]");
             for (int i = 0; i < groupMachineryProperties.length; i++) {
                 groupMachineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
             }
@@ -751,7 +755,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[] {"idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LCP[] itemGroupProperties = itemLM.findProperties("id[ItemGroup]", "overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
+        LP[] itemGroupProperties = itemLM.findProperties("id[ItemGroup]", "overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
         for (int i = 0; i < itemGroupProperties.length; i++) {
             itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
         }
