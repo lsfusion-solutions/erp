@@ -28,7 +28,7 @@ public class ScannerDaemonActionProperty extends ScriptingActionProperty {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
         String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead));
-        if(result != null) {
+        if(result != null && !result.isEmpty()) {
             context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
         }
     }
