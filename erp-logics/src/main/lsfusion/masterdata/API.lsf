@@ -2,7 +2,11 @@ MODULE API;
 
 REQUIRE Security;
 
-CLASS Category 'API' { }
+NAMESPACE API; 
+
+CLASS Category 'API' { 
+    masterData 'Справочники'
+}
 name 'Наименование' (Category c) = staticCaption(c) IF c IS Category;
 
 access 'Доступ' = DATA BOOLEAN (UserRole, Category);
@@ -24,4 +28,8 @@ DESIGN securityPolicy {
             MOVE BOX (c);
         }
     }
+}
+
+getCategories() {
+    EXPORT JSON FROM name(Category c) WHERE access(currentUser(), c) OR NOT limitAccess();
 }

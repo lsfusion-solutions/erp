@@ -27,6 +27,11 @@ FORM addTerminalDocument
 
 addTerminalDocument (FILE f) {
 
+    IF limitAccess() AND NOT access(currentUser(), Category.terminal) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
     IMPORT addTerminalDocument JSON FROM f AS FILE;
     
     IF (GROUP SUM 1 IF quantity(INTEGER i) AND LONG (Sku s AS Sku) = id(i)) THEN NEW t = TerminalDocument {
