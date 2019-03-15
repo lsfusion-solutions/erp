@@ -1,0 +1,62 @@
+MODULE ZReportAPI;
+
+REQUIRE ZReportReport, API;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS Category {
+    zReport 'Z-отчёт'
+}
+
+filter = DATA LOCAL BOOLEAN (DepartmentStore);
+access (DepartmentStore s) = (accessCompany(currentUser(), s) AND access(currentUser(), Category.zReport)) OR NOT limitAccess();
+filterAccess (DepartmentStore s) = filter(s) AND access(s);
+
+getSalesStores (DATE df, DATE dt, FILE f) {
+    
+    IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
+        filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
+    }
+    
+    EXPORT FROM name(DepartmentStore s), 
+        sum = sumReceiptDetailZReport(s, df, dt), 
+        discountSum = discountSumZReport(s, df, dt),
+        receipt = countReceipt(s, df, dt),
+        averageReceipt = averageSumReceipt(s, df, dt)
+        WHERE sumReceiptDetailZReport(s, df, dt) AND filterAccess(s);
+}
+
+getSalesDays (DATE df, DATE dt, FILE f) {
+
+    IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
+        filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
+    }
+    
+    EXPORT FROM date = DATE d, 
+        sum = (GROUP SUM sumReceiptDetailZReport(DepartmentStore s, d) IF filterAccess(s)), 
+        discountSum = (GROUP SUM discountSumZReport(DepartmentStore s, d) IF filterAccess(s)),
+        receipt = (GROUP SUM countReceipt(DepartmentStore s, d) IF filterAccess(s)),
+        averageReceipt = (GROUP SUM sumReceiptDetailZReport(DepartmentStore s, d) IF filterAccess(s)) / (GROUP SUM countReceipt(DepartmentStore s, d) IF filterAccess(s))
+        WHERE (GROUP SUM sumReceiptDetailZReport(DepartmentStore s, d) IF filterAccess(s)) AND d >= df AND d <= dt;
+}
+
+FORM salesDepartmentStores
+    OBJECTS (dFrom = DATE, dTo = DATE) PANEL
+    OBJECTS s = DepartmentStore EXTID 'value'
+    PROPERTIES(s) name
+    FILTERS active(s), filterAccess(s)
+    
+    OBJECTS d = DATE
+    PROPERTIES date = VALUE(d), sum = sumReceiptDetailZReport(s, d), receipt = countReceipt(s, d), averageReceipt = averageSumReceipt(s, d)
+    FILTERS sumReceiptDetailZReport(s, d), d >= dFrom AND d <= dTo,
+            (GROUP SUM sumReceiptDetailZReport(s, DATE dd) IF dd >= dFrom AND dd <= dTo)
+;
+
+getSalesDaysStores (DATE df, DATE dt, FILE f) {
+
+    IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
+        filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
+    }
+    
+    EXPORT salesDepartmentStores OBJECTS dFrom = df, dTo = dt JSON;
+}

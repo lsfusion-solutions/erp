@@ -1,0 +1,11 @@
+MODULE SkuLedgerAPI;
+
+REQUIRE SkuLedger, API, Pricing;
+
+NAMESPACE Stock;
+
+getSkuBalance (LONG idStock, VARISTRING[15] barcode, VARISTRING[15] name) {
+    EXPORT JSON FROM id = Sku i, barcode = idBarcode(i), name = name(i), balance = currentBalance(i, Stock s), price = currentRetailPricingPrice(i, s) 
+        WHERE LONG(s) = idStock AND currentBalance(i, s) AND (endsWith(idBarcode(i),barcode) = 1 OR NOT barcode) AND (isISubstring(name(i), name) = 1 OR NOT name)
+        AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+}

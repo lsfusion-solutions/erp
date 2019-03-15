@@ -1,0 +1,42 @@
+MODULE TerminalAPI;
+
+REQUIRE Terminal, API;
+
+NAMESPACE Terminal;
+
+EXTEND CLASS Category {
+    terminal 'ТСД'
+}
+
+getTerminalDocumentTypes () {
+    EXPORT FROM id = TerminalDocumentType t, name(t) WHERE name(t) AND (access(currentUser(), Category.terminal) OR NOT limitAccess());
+}
+
+type = DATA LOCAL LONG ();
+quantity = DATA LOCAL NUMERIC[14,3] (INTEGER);
+id = DATA LOCAL LONG (INTEGER);
+
+GROUP item;
+
+FORM addTerminalDocument
+    PROPERTIES type = type()
+    OBJECTS details = INTEGER 
+
+    PROPERTIES id = id(details) IN item, quantity = quantity(details)
+;
+
+addTerminalDocument (FILE f) {
+
+    IMPORT addTerminalDocument JSON FROM f AS FILE;
+    
+    IF (GROUP SUM 1 IF quantity(INTEGER i) AND LONG (Sku s AS Sku) = id(i)) THEN NEW t = TerminalDocument {
+        terminalDocumentType(t) <- GROUP MAX TerminalDocumentType td IF LONG (td AS TerminalDocumentType) == type();
+        
+        FOR quantity(INTEGER i) AND LONG (Sku s AS Sku) = id(i) DO NEW d = TerminalDocumentDetail {
+            terminalDocument(d) <- t;
+            sku(d) <- s;
+            quantity(d) <- quantity(i);
+        }
+    }
+    APPLY;
+}

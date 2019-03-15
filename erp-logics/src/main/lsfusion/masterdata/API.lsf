@@ -1,0 +1,27 @@
+MODULE API;
+
+REQUIRE Security;
+
+CLASS Category 'API' { }
+name 'Наименование' (Category c) = staticCaption(c) IF c IS Category;
+
+access 'Доступ' = DATA BOOLEAN (UserRole, Category);
+access 'Доступ' (User u, Category c) = TRUE IF GROUP SUM 1 IF access(UserRole r, c) IF has(u, r);
+
+limitAccess 'Ограниченный доступ' = DATA BOOLEAN ();
+
+EXTEND FORM securityPolicy
+    OBJECTS c = Category
+    PROPERTIES limitAccess(), name(c) READONLY, access(ur, c)
+;
+
+DESIGN securityPolicy {
+    rolePolicyContainer {
+        NEW category {
+            caption = 'API';
+            fill = 1;
+            MOVE PROPERTY (limitAccess());
+            MOVE BOX (c);
+        }
+    }
+}
