@@ -294,9 +294,14 @@ NAVIGATOR {
 
 @defineOperationProperty(allowRepeatSku, 'Разрешить повтор SKU', constraintContainer);
 
-CONSTRAINT NOT allowRepeatSku(operation(priceList(PriceListDetail d1))) AND SETCHANGED (sku(d1)) AND sku(d1) == sku(PriceListDetail d2) AND priceList(d1) == priceList(d2) AND NOT d1 == d2
-    MESSAGE 'SKU может быть включен в прайс только один раз';
-    
+contraintEqualItems(PriceListDetail d) = (CHANGED(sku(d)) OR SET(isPosted(d))) AND isPosted(d) AND NOT allowRepeatSku(operation(d));
+WHEN (GROUP SUM 1 IF contraintEqualItems(PriceListDetail d)) DO {
+    FOR VARISTRING[255] message == (GROUP CONCAT ('Строка номер ' + index(PriceListDetail d) + ' : ' + idSku(d) + ' ' + nameSku(d)) IF contraintEqualItems(d), '\n') DO {
+        cancel();
+        MESSAGE 'Внимание, в прайсе есть одинаковые товары!. \n' + message NOWAIT;
+    }
+}
+
 @defineOperationProperty(showNameCompany, 'Организация', showContainer);
 @defineOperationProperty(showContract, 'Договор', showContainer);
 @defineOperationProperty(showLabelType, 'Тип ценника', paramsContainer);
