@@ -1,0 +1,46 @@
+MODULE ItemInfoAPI;
+
+REQUIRE PriceList, SaleLedger, Item, Store, API, OrderLedger, Pricing;
+
+NAMESPACE Item;
+
+filter = DATA LOCAL BOOLEAN (DepartmentStore);
+access (DepartmentStore s) = filter(s) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+
+getSkuSalesBalance (FILE f, DATE df, DATE dt, LONG idSku) {
+
+    IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
+        filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
+    }
+    
+    LOCAL sku = Sku();
+    sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
+    
+    EXPORT JSON FROM id = idSku, name(Stock st), 
+        quantity = balanceA(sku(), st, dt),
+        sold = quantitySold(sku(), st, df, dt),
+        ordered = currentReservePurchase(sku(), st),
+        price = currentRetailPricingPrice(sku(), st) 
+        WHERE access(st) AND (balanceA(sku(), st, dt) OR quantitySold(sku(), st, df, dt) OR currentReservePurchase(sku(), st));
+} @@api;
+
+getSkuLedger (FILE f, DATE df, DATE dt, LONG idSku) {
+
+    IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
+        filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
+    }
+    
+    LOCAL sku = Sku();
+    sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
+    
+    EXPORT JSON FROM id = idSku, name(Stock st), 
+        date = date(SkuLedger s),
+        number = number(s),
+        description = description(s),
+        quantity = signedQuantity(sku(), st, date(s))
+        WHERE access(st) AND sku(s) == sku() AND stock(s) == st AND date(s) >= df AND date(s) <= dt;
+} @@api;
+
+getSkuImage (LONG id) {
+    exportFile() <- FILE (image(GROUP MAX Sku s IF LONG (s AS Sku) == id));
+} @@api;
