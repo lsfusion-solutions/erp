@@ -2,13 +2,13 @@ package equ.srv;
 
 import equ.api.GiftCard;
 import equ.api.SalesInfo;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.integration.*;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;

@@ -1,9 +1,9 @@
 package equ.srv.terminal;
 
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.context.ExecutionStack;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.rmi.RemoteException;
 import java.sql.SQLException;
