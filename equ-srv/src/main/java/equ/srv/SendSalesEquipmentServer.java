@@ -8,22 +8,22 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.CustomClass;
+import lsfusion.server.classes.DateClass;
+import lsfusion.server.context.ExecutionStack;
+import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.data.expr.KeyExpr;
+import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.db.controller.manager.DBManager;
-import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.DBManager;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.language.linear.LCP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -63,7 +63,7 @@ public class SendSalesEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
-                LP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]");
+                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]");
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
@@ -71,7 +71,7 @@ public class SendSalesEquipmentServer {
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery",
                         "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
                         "idStockGroupMachinery", "section", "documentsClosedDate", "priority"};
-                LP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]",
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]",
                         "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]",
                         "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]", "priority[GroupCashRegister]");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
@@ -287,7 +287,7 @@ public class SendSalesEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport",
                         "dateZReport", "nameDepartmentStore"};
-                LP<?>[] properties = zReportLM.findProperties("sumReceiptDetail[ZReport]", "number[ZReport]", "numberCashRegister[ZReport]",
+                LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetail[ZReport]", "number[ZReport]", "numberCashRegister[ZReport]",
                         "date[ZReport]", "nameDepartmentStore[ZReport]");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(zReportExpr));
@@ -391,7 +391,7 @@ public class SendSalesEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
-                LP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]",
+                LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]",
                         "overDirectory[Machinery]");
                 for (int i = 0; i < machineryProperties.length; i++) {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));

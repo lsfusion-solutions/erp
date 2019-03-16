@@ -8,20 +8,20 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.data.time.DateTimeClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.classes.DateTimeClass;
+import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.data.expr.KeyExpr;
+import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.property.classes.IsClassProperty;
-import lsfusion.server.logics.property.oraction.PropertyInterface;
+import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.language.linear.LCP;
+import lsfusion.server.logics.property.ClassPropertyInterface;
+import lsfusion.server.logics.property.IsClassProperty;
+import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.session.DataSession;
 
 import java.awt.*;
 import java.math.BigDecimal;
@@ -52,7 +52,7 @@ public class TerminalEquipmentServer {
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]", "idSupplier[TerminalOrder]");
+                LCP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]", "idSupplier[TerminalOrder]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
@@ -60,7 +60,7 @@ public class TerminalEquipmentServer {
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3"};
-                LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
+                LCP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
@@ -158,7 +158,7 @@ public class TerminalEquipmentServer {
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
-            LP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
@@ -182,7 +182,7 @@ public class TerminalEquipmentServer {
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-            LP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
                     "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
@@ -215,7 +215,7 @@ public class TerminalEquipmentServer {
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
             String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
-            LP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
+            LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
                     "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]",
                     "canonicalNameFilterProperty[TerminalHandbookType]", "canonicalNameExtInfoProperty[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
@@ -227,12 +227,12 @@ public class TerminalEquipmentServer {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String prefix = trim((String) entry.get("exportId"));
-                LP propertyID = (LP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
-                LP propertyName = (LP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
+                LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
+                LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
                 String canonicalNameFilterProperty = trim((String) entry.get("filterProperty"));
-                LP filterProperty = canonicalNameFilterProperty != null ? (LP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
+                LCP filterProperty = canonicalNameFilterProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameFilterProperty) : null;
                 String canonicalNameExtInfoProperty = trim((String) entry.get("extInfoProperty"));
-                LP extInfoProperty = canonicalNameExtInfoProperty != null ? (LP<?>) BL.findSafeProperty(canonicalNameExtInfoProperty) : null;
+                LCP extInfoProperty = canonicalNameExtInfoProperty != null ? (LCP<?>) BL.findSafeProperty(canonicalNameExtInfoProperty) : null;
 
                 if(propertyID != null && propertyName != null) {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
@@ -286,7 +286,7 @@ public class TerminalEquipmentServer {
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
-            LP<?>[] legalEntityProperties = terminalLM.findProperties("id[LegalEntity]", "name[LegalEntity]");
+            LCP<?>[] legalEntityProperties = terminalLM.findProperties("id[LegalEntity]", "name[LegalEntity]");
             for (int i = 0; i < legalEntityProperties.length; i++) {
                 legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(legalEntityExpr));
             }
