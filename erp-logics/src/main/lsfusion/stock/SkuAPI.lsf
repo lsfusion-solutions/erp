@@ -1,6 +1,6 @@
 MODULE SkuAPI;
 
-REQUIRE Sku, Barcode, API;
+REQUIRE Sku, Barcode, Item, API;
 
 NAMESPACE Stock;
 
@@ -19,4 +19,14 @@ getSkuGroups () {
         RETURN;
     }
     EXPORT FROM id = SkuGroup g, name(g), parent(g) WHERE active(g);
+} @@api;
+
+getSkuImage (LONG id) {
+    
+    IF limitAccess() AND NOT access(currentUser(), Category.masterData) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
+    exportFile() <- FILE (image(GROUP MAX Sku s IF LONG (s AS Sku) == id));
 } @@api;
