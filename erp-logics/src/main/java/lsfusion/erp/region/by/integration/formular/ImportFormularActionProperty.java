@@ -1,14 +1,14 @@
 package lsfusion.erp.region.by.integration.formular;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.integration.*;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.physics.dev.integration.service.*;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public class ImportFormularActionProperty extends ScriptingActionProperty {
+public class ImportFormularActionProperty extends InternalAction {
     public ImportFormularActionProperty(ScriptingLogicsModule LM) {
         super(LM);
 
@@ -28,7 +28,7 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         Connection conn = null;
 

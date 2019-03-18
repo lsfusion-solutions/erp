@@ -16,22 +16,22 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.DynamicFormatFileClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.property.PropertyInterface;
-import lsfusion.server.logics.property.SessionDataProperty;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.oraction.PropertyInterface;
+import lsfusion.server.logics.property.data.SessionDataProperty;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,15 +51,15 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-        super.executeCustom(context);
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+        super.executeInternal(context);
         try {
 
             List<String> errors = new ArrayList<>();
 
             DataSession session = context.getSession();
 
-            LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
+            LP<PropertyInterface> isImportType = (LP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);

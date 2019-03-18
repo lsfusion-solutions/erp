@@ -13,21 +13,21 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.LongClass;
-import lsfusion.server.context.ExecutionStack;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.data.integral.LongClass;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.logics.DBManager;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
+import lsfusion.server.physics.exec.db.controller.manager.DBManager;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -74,7 +74,7 @@ public class MachineryExchangeEquipmentServer {
 
                 String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
                         "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
-                LCP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "startDate[RequestExchange]",
+                LP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "startDate[RequestExchange]",
                         "nameRequestExchangeType[RequestExchange]", "idDiscountCardFrom[RequestExchange]", "idDiscountCardTo[RequestExchange]");
                 for (int i = 0; i < requestExchangeProperties.length; i++) {
                     requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
@@ -101,7 +101,7 @@ public class MachineryExchangeEquipmentServer {
                             QueryBuilder<Object, Object> terminalQuery = new QueryBuilder<>(terminalKeys);
 
                             String[] terminalNames = new String[]{"idStockTerminal"};
-                            LCP[] terminalProperties = terminalLM.findProperties("idStock[Terminal]");
+                            LP[] terminalProperties = terminalLM.findProperties("idStock[Terminal]");
                             for (int j = 0; j < terminalProperties.length; j++) {
                                 terminalQuery.addProperty(terminalNames[j], terminalProperties[j].getExpr(terminalExpr));
                             }
@@ -136,7 +136,7 @@ public class MachineryExchangeEquipmentServer {
 
                             String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppGroupMachinery",
                                     "nppCashRegister", "handlerModelCashRegister"};
-                            LCP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
+                            LP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
                                     "nppGroupMachinery[Machinery]", "npp[CashRegister]", "handlerModel[CashRegister]");
                             for (int j = 0; j < cashRegisterProperties.length; j++) {
                                 cashRegisterQuery.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
@@ -183,7 +183,7 @@ public class MachineryExchangeEquipmentServer {
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         String[] cashRegisterNames = new String[]{"npp", "nppGroup", "overDirectory", "idStock", "handlerModel"};
-        LCP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[CashRegister]", "nppGroupMachinery[CashRegister]", "overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
+        LP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[CashRegister]", "nppGroupMachinery[CashRegister]", "overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
         for (int j = 0; j < cashRegisterProperties.length; j++) {
             query.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
         }
@@ -268,7 +268,7 @@ public class MachineryExchangeEquipmentServer {
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard",
                         "idDiscountCardType", "nameDiscountCardType", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact",
                         "sexContact"};
-                LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "seriesNumber[DiscountCard]", "name[DiscountCard]",
+                LP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "seriesNumber[DiscountCard]", "name[DiscountCard]",
                         "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
                         "idDiscountCardType[DiscountCard]", "nameDiscountCardType[DiscountCard]", "firstNameContact[DiscountCard]", "lastNameContact[DiscountCard]",
                         "middleNameHttpServerContact[DiscountCard]", "birthdayContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]");
@@ -329,7 +329,7 @@ public class MachineryExchangeEquipmentServer {
 
                 QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
                 String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
-                LCP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
+                LP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
                 for (int i = 0; i < employeeProperties.length; i++) {
                     employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
                 }
@@ -365,14 +365,14 @@ public class MachineryExchangeEquipmentServer {
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idExternalStock[Order.Order]");
+                LP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idExternalStock[Order.Order]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
                         "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
-                LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]",
+                LP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]",
                         "quantity[Purchase.OrderDetail]", "minDeviationQuantity[Purchase.OrderDetail]", "maxDeviationQuantity[Purchase.OrderDetail]",
                         "minDeviationPrice[Purchase.OrderDetail]", "maxDeviationPrice[Purchase.OrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
@@ -426,13 +426,13 @@ public class MachineryExchangeEquipmentServer {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LCP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
+                LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
                 for (int i = 0; i < machineryProperties.length; i++) {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
                 }
 
                 String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery"};
-                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]");
+                LP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]");
                 for (int i = 0; i < groupMachineryProperties.length; i++) {
                     query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
                 }

@@ -1,7 +1,7 @@
 package lsfusion.erp.integration.universal.userpricelist;
 
 
-import lsfusion.server.logics.DataObject;
+import lsfusion.server.data.value.DataObject;
 
 import java.math.BigDecimal;
 import java.sql.Date;

@@ -8,16 +8,16 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.CalcProperty;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.Property;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
@@ -101,7 +101,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
     }
 
     @Override
-    public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
+    public ImMap<Property, Boolean> aspectChangeExtProps() {
         try {
             return getChangeProps(findProperty("exportedSupplier[EInvoice]").property, findProperty("importedCustomer[EInvoice]").property, findProperty("importedSupplier[EInvoice]").property);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
@@ -340,7 +340,7 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
         String[] eInvoiceDetailNames = new String[]{"lineItemID", "lineItemBuyerID", "lineItemName", "grossWeightValue", "quantityDespatched", "lineItemQuantityUOM",
                 "despatchUnitQuantityDespatched", "valueVAT", "additionalInformation", "lineItemAmountWithoutCharges", "lineItemAmountCharges",
                 "lineItemAmount", "lineItemPrice", "lineItemAmountExcise"};
-        LCP[] eInvoiceDetailProperties = findProperties("lineItemID[EInvoiceDetail]", "lineItemBuyerID[EInvoiceDetail]", "lineItemName[EInvoiceDetail]", "grossWeightValue[EInvoiceDetail]",
+        LP[] eInvoiceDetailProperties = findProperties("lineItemID[EInvoiceDetail]", "lineItemBuyerID[EInvoiceDetail]", "lineItemName[EInvoiceDetail]", "grossWeightValue[EInvoiceDetail]",
                 "quantityDespatched[EInvoiceDetail]", "lineItemQuantityUOM[EInvoiceDetail]", "despatchUnitQuantityDespatched[EInvoiceDetail]",
                 "valueVAT[EInvoiceDetail]", "additionalInformation[EInvoiceDetail]", "lineItemAmountWithoutCharges[EInvoiceDetail]",
                 "lineItemAmountCharges[EInvoiceDetail]", "lineItemAmount[EInvoiceDetail]", "lineItemPrice[EInvoiceDetail]", "lineItemAmountExcise[EInvoiceDetail]");

@@ -1,14 +1,14 @@
 package lsfusion.erp.integration.image;
 
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.classes.DateTimeClass;
-import lsfusion.server.classes.ImageClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.data.time.DateTimeClass;
+import lsfusion.server.logics.classes.data.file.ImageClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -19,7 +19,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Iterator;
 
-public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActionProperty {
+public class UploadImageArticleFromDirectoryActionProperty extends InternalAction {
     private final ClassPropertyInterface articleInterface;
 
     public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -30,7 +30,7 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

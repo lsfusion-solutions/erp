@@ -1,11 +1,11 @@
 package lsfusion.erp.region.by.ukm;
 
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -28,7 +28,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 
-public class LoyaActionProperty extends ScriptingActionProperty {
+public class LoyaActionProperty extends InternalAction {
 
     protected SettingsLoya settings = null;
 
@@ -41,7 +41,7 @@ public class LoyaActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String getURL(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

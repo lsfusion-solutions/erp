@@ -14,15 +14,15 @@ import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
 import lsfusion.server.data.where.Where;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.io.FileUtils;
@@ -41,7 +41,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             ObjectValue dateFrom = findProperty("dateFromExportGeneralLedgerDBF[]").readClasses(context);
             ObjectValue dateTo = findProperty("dateToExportGeneralLedgerDBF[]").readClasses(context);
@@ -96,7 +96,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocument", "seriesGLDocument",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "quantityGeneralLedger", "idOperationGeneralLedger"};
-        LCP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
+        LP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
                 "description[GeneralLedger]", "idDebit[GeneralLedger]", "idCredit[GeneralLedger]", "sum[GeneralLedger]",
                 "quantity[GeneralLedger]", "idOperation[GeneralLedger]");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
@@ -106,7 +106,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        LCP[] dimensionTypeProperties = findProperties("idDebit[GeneralLedger,DimensionType]", "orderDebit[GeneralLedger,DimensionType]",
+        LP[] dimensionTypeProperties = findProperties("idDebit[GeneralLedger,DimensionType]", "orderDebit[GeneralLedger,DimensionType]",
                 "idCredit[GeneralLedger,DimensionType]", "orderCredit[GeneralLedger,DimensionType]");
         for (int j = 0; j < dimensionTypeProperties.length; j++) {
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));

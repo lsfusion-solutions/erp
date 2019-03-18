@@ -1,7 +1,7 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.language.ScriptingLogicsModule;
 import okhttp3.FormBody;
 import okhttp3.MediaType;

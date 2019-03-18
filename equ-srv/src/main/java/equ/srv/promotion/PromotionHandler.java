@@ -6,14 +6,14 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.remote.RmiServer;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.base.controller.remote.manager.RmiServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.language.linear.LCP;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 import org.springframework.beans.factory.InitializingBean;
 
 import java.math.BigDecimal;
@@ -56,7 +56,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     String[] htcPromotionTimeNames = new String[]{"isStopHTCPromotionTime", "captionDayHTCPromotionTime",
                             "numberDayHTCPromotionTime", "beginTimeHTCPromotionTime", "endTimeHTCPromotionTime", "percentHTCPromotionTime"};
-                    LCP[] htcPromotionTimeProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionTime]", "captionDay[HTCPromotionTime]",
+                    LP[] htcPromotionTimeProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionTime]", "captionDay[HTCPromotionTime]",
                             "numberDay[HTCPromotionTime]", "beginTime[HTCPromotionTime]", "endTime[HTCPromotionTime]", "percent[HTCPromotionTime]");
                     for (int i = 0; i < htcPromotionTimeProperties.length; i++) {
                         htcPromotionTimeQuery.addProperty(htcPromotionTimeNames[i], htcPromotionTimeProperties[i].getExpr(htcPromotionTimeExpr));
@@ -85,7 +85,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     String[] htcPromotionQuantityNames = new String[]{"isStopHTCPromotionQuantity", "barcodeItemHTCPromotionQuantity",
                             "quantityHTCPromotionQuantity", "percentHTCPromotionQuantity"};
-                    LCP[] htcPromotionQuantityProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionQuantity]", "barcodeItem[HTCPromotionQuantity]",
+                    LP[] htcPromotionQuantityProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionQuantity]", "barcodeItem[HTCPromotionQuantity]",
                             "quantity[HTCPromotionQuantity]", "percent[HTCPromotionQuantity]");
                     for (int i = 0; i < htcPromotionQuantityProperties.length; i++) {
                         htcPromotionQuantityQuery.addProperty(htcPromotionQuantityNames[i], htcPromotionQuantityProperties[i].getExpr(htcPromotionQuantityExpr));
@@ -112,7 +112,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                     QueryBuilder<Object, Object> htcPromotionSumQuery = new QueryBuilder<>(htcPromotionSumKeys);
 
                     String[] htcPromotionSumNames = new String[]{"isStopHTCPromotionSum", "sumHTCPromotionSum", "percentHTCPromotionSum"};
-                    LCP[] htcPromotionSumProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionSum]", "sum[HTCPromotionSum]", "percent[HTCPromotionSum]");
+                    LP[] htcPromotionSumProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionSum]", "sum[HTCPromotionSum]", "percent[HTCPromotionSum]");
                     for (int i = 0; i < htcPromotionSumProperties.length; i++) {
                         htcPromotionSumQuery.addProperty(htcPromotionSumNames[i], htcPromotionSumProperties[i].getExpr(htcPromotionSumExpr));
                     }

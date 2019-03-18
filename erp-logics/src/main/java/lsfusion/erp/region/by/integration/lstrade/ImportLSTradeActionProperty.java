@@ -1,9 +1,9 @@
 package lsfusion.erp.region.by.integration.lstrade;
 
 import lsfusion.erp.integration.*;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.xBaseJ.DBF;
@@ -32,7 +32,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             Integer numberOfItems = (Integer) findProperty("importNumberItems[]").read(context);
             Integer numberOfPriceLists = (Integer) findProperty("importNumberPriceLists[]").read(context);

@@ -1,23 +1,23 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonZReportActionProperty extends ScriptingActionProperty {
+public class FiscalEpsonZReportActionProperty extends InternalAction {
 
     public FiscalEpsonZReportActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             DataSession session = context.getSession();
 

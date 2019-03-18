@@ -3,13 +3,13 @@ package lsfusion.erp.region.by.integration.edi;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.CalcProperty;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.Property;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
@@ -183,9 +183,9 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
     }
 
     @Override
-    public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
+    public ImMap<Property, Boolean> aspectChangeExtProps() {
         try {
-            return getChangeProps((CalcProperty) findProperty("exportedCustomer[EInvoice]").property);
+            return getChangeProps((Property) findProperty("exportedCustomer[EInvoice]").property);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             return null;
         }

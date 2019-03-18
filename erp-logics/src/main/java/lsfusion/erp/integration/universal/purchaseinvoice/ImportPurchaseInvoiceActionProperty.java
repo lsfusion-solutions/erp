@@ -18,21 +18,25 @@ import lsfusion.erp.integration.universal.ImportPreviewClientAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.*;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.NullValue;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.property.SessionDataProperty;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.NullValue;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.*;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.data.SessionDataProperty;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.logics.action.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
@@ -62,8 +66,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-        super.executeCustom(context);
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+        super.executeInternal(context);
         try {
 
             DataSession session = context.getSession();
@@ -393,7 +397,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItem"));
 
                 String replaceField;
-                LCP iGroupAggr;
+                LP iGroupAggr;
                 ImportField iField;
                 if (keyType == null || keyType.equals("item")) {
                     replaceField = "idItem";
@@ -539,7 +543,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 if (showSidOrigin2Country || showNameCountry || showNameOriginCountry || showImportCodeCountry) {
                     if (countryKeyType != null) {
                         ImportField countryField = null;
-                        LCP<?> countryAggr = null;
+                        LP<?> countryAggr = null;
                         switch (countryKeyType) {
                             case "sidOrigin2Country":
                                 countryField = sidOrigin2CountryField;
@@ -605,7 +609,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         //старую логику оставляем для обратной совместимости
                         ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                                 (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-                        LCP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+                        LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
                                 (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
                         String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                                 (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
@@ -787,7 +791,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                     ImportColumnDetail customColumn = entry.getValue();
-                    LCP<?> customProp = customColumn.propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                    LP<?> customProp = customColumn.propertyCanonicalName == null ? null : (LP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
                     if (customProp != null) {
                         ImportField customField = new ImportField(customProp);
                         ImportKey<?> customKey = null;
@@ -834,7 +838,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     private Object safeParse(ImportField field, String value) {
         try {
             return value == null ? null : field.getFieldClass().parseString(value);
-        } catch (lsfusion.server.data.type.ParseException e) {
+        } catch (lsfusion.server.logics.classes.data.ParseException e) {
             return null;
         }
     }
@@ -1434,10 +1438,10 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
-            LCP<?> sidProp = (LCP)context.getBL().findSafeProperty(propertyImportType);
+            LP<?> sidProp = (LP)context.getBL().findSafeProperty(propertyImportType);
             if (sidProp != null) {
                 ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
-                LCP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");
+                LP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");
 
                 List<Object> articles = getArticlesMap(context.getSession(), idArticleProp, sidProp);
                 Set<String> articleSet = (Set<String>) articles.get(0);
@@ -1470,7 +1474,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         return true;
     }
     
-    private List<Object> getArticlesMap(DataSession session, LCP<?> idArticleProp, LCP<?> sidProperty) throws SQLException, SQLHandledException {
+    private List<Object> getArticlesMap(DataSession session, LP<?> idArticleProp, LP<?> sidProperty) throws SQLException, SQLHandledException {
         
         Set<String> articleSet = new HashSet<>();
         Map<String, String> articlePropertyMap = new HashMap<>();

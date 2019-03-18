@@ -3,10 +3,10 @@ package lsfusion.erp.region.by.integration.edi.edn;
 import com.google.common.base.Throwables;
 import lsfusion.erp.region.by.integration.edi.ReceiveMessagesActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -21,7 +21,7 @@ public class ReceiveMessagesEDNActionProperty extends ReceiveMessagesActionPrope
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             String login = (String) findProperty("loginEDN[]").read(context);

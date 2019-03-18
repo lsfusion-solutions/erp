@@ -4,20 +4,20 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.classes.CustomStaticFormatFileClass;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.*;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -30,14 +30,14 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProperty {
+public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
 
     public ImportTNVEDCustomsRatesActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
@@ -228,7 +228,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
 
         Set<String> tnvedSet = new HashSet<>();
 
-        LCP<?> isCustomsGroup = is(findClass("CustomsGroup"));
+        LP<?> isCustomsGroup = is(findClass("CustomsGroup"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);

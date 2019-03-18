@@ -10,15 +10,15 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -38,13 +38,13 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             List<String> exportNames = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
                     "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
                     "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
                     "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
-            LCP[] exportProperties = findProperties("number[DeclarationDetail]", "nameCustoms[DeclarationDetail]",
+            LP[] exportProperties = findProperties("number[DeclarationDetail]", "nameCustoms[DeclarationDetail]",
                     "codeCustomsGroup[DeclarationDetail]", "sidCountry[DeclarationDetail]", "idUOM[DeclarationDetail]",
                     "shortNameUOM[DeclarationDetail]", "sidOrigin2Country[DeclarationDetail]", "quantity[DeclarationDetail]",
                     "sum[DeclarationDetail]", "sumNetWeight[DeclarationDetail]", "sumGrossWeight[DeclarationDetail]");
@@ -119,7 +119,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                 addStringCellToRow(title, ";");
             writerTSDocs44.println(row);
 
-            LCP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
+            LP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
             ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
             KeyExpr key = keys.singleValue();
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);

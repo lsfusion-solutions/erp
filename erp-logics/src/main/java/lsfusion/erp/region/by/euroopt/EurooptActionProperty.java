@@ -2,10 +2,10 @@ package lsfusion.erp.region.by.euroopt;
 
 import com.google.common.base.Throwables;
 import lsfusion.erp.integration.DefaultImportActionProperty;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
@@ -32,7 +32,7 @@ public class EurooptActionProperty extends DefaultImportActionProperty {
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected NetLayer getNetLayer() {

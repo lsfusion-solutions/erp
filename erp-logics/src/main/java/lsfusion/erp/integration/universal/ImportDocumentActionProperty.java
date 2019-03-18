@@ -7,22 +7,22 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.LogicalClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.ImportField;
-import lsfusion.server.integration.ImportKey;
-import lsfusion.server.integration.ImportProperty;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.data.LogicalClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.physics.dev.integration.service.ImportField;
+import lsfusion.server.physics.dev.integration.service.ImportKey;
+import lsfusion.server.physics.dev.integration.service.ImportProperty;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
@@ -51,7 +51,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
@@ -64,7 +64,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
-        LCP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
+        LP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importTypeDetailExpr));
         }
@@ -80,7 +80,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
 
             String propertyCanonicalName = (String) entry.get("propertyImportTypeDetail");
-            LCP<?> customProp = propertyCanonicalName == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyCanonicalName);
+            LP<?> customProp = propertyCanonicalName == null ? null : (LP<?>) context.getBL().findSafeProperty(propertyCanonicalName);
             boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
 
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportTypeDetail"), "\\.", 1);
@@ -152,7 +152,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : keyType.equals("importCode") ? "idImportCode": "idBatch";
     }
     
-    public LCP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
+    public LP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
         if(keyType == null || keyType.equals("item"))
             return findProperty("item[VARSTRING[100]]");
         else if(keyType.equals("barcode"))
@@ -162,13 +162,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         else return findProperty("skuBatch[VARSTRING[100]]");
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, Object key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, Object key) throws ScriptingErrorLog.SemanticErrorException {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);

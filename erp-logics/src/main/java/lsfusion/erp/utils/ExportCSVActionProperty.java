@@ -4,17 +4,17 @@ import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.entity.PropertyDrawEntity;
-import lsfusion.server.form.instance.FormData;
-import lsfusion.server.form.instance.FormInstance;
-import lsfusion.server.form.instance.FormRow;
-import lsfusion.server.form.instance.PropertyDrawInstance;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.form.struct.FormEntity;
+import lsfusion.server.logics.form.struct.property.PropertyDrawEntity;
+import lsfusion.server.logics.form.interactive.instance.FormData;
+import lsfusion.server.logics.form.interactive.instance.FormInstance;
+import lsfusion.server.logics.form.interactive.instance.FormRow;
+import lsfusion.server.logics.form.interactive.instance.property.PropertyDrawInstance;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.net.ftp.FTP;
@@ -36,7 +36,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
         this.idGroupObject = idGroupObject;
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator, String charset)
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String filePath, boolean printHeader, String separator, String charset)
             throws SQLException, SQLHandledException {
 
         if (separator == null)

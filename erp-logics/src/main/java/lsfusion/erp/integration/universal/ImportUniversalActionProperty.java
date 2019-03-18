@@ -7,10 +7,10 @@ import jxl.Sheet;
 import lsfusion.base.file.IOUtils;
 import lsfusion.base.Pair;
 import lsfusion.erp.integration.DefaultImportActionProperty;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.lang3.StringUtils;
@@ -70,7 +70,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
     String substringPattern = "(.*)\\^\\(((?:'.*')|(?:(?:-|\\d)+)),((?:'.*')|(?:(?:-|\\d)+))?\\)";
     String patternedDateTimePattern = "(.*)(~(.*))+";

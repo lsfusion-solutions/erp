@@ -1,24 +1,24 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 
-public abstract class FiscalBoardActionProperty extends ScriptingActionProperty {
+public abstract class FiscalBoardActionProperty extends InternalAction {
     protected int lineLength = 20;
 
     public FiscalBoardActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     protected String fillSpaces(String line, int length) {

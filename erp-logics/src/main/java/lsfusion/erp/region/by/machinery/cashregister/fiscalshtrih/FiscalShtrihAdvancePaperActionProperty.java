@@ -1,22 +1,22 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalShtrihAdvancePaperActionProperty extends ScriptingActionProperty {
+public class FiscalShtrihAdvancePaperActionProperty extends InternalAction {
 
     public FiscalShtrihAdvancePaperActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());

@@ -2,16 +2,16 @@ package lsfusion.erp.utils.sql;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.entity.PropertyDrawEntity;
-import lsfusion.server.form.instance.FormData;
-import lsfusion.server.form.instance.FormInstance;
-import lsfusion.server.form.instance.FormRow;
-import lsfusion.server.form.instance.PropertyDrawInstance;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.form.struct.FormEntity;
+import lsfusion.server.logics.form.struct.property.PropertyDrawEntity;
+import lsfusion.server.logics.form.interactive.instance.FormData;
+import lsfusion.server.logics.form.interactive.instance.FormInstance;
+import lsfusion.server.logics.form.interactive.instance.FormRow;
+import lsfusion.server.logics.form.interactive.instance.property.PropertyDrawInstance;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-abstract class ExportSQLActionProperty extends ScriptingActionProperty {
+abstract class ExportSQLActionProperty extends InternalAction {
     String idForm; //idForm = table
     String table;
     String idGroupObject;
@@ -58,7 +58,7 @@ abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     public abstract void setObject(PreparedStatement ps, int index, Object value) throws SQLException;
 
     @Override
-    public void executeCustom(ExecutionContext context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext context) throws SQLException, SQLHandledException {
 
         Connection conn = null;
         PreparedStatement ps = null;

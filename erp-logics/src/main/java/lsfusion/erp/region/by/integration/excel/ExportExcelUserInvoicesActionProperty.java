@@ -9,17 +9,17 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -76,7 +76,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
             String[] userInvoiceNames = new String[]{"seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
-            LCP[] userInvoiceProperties = findProperties("series[UserInvoice]", "number[UserInvoice]",
+            LP[] userInvoiceProperties = findProperties("series[UserInvoice]", "number[UserInvoice]",
                     "date[UserInvoice]", "supplier[UserInvoice]", "customerStock[Purchase.Invoice]", "supplierStock[Purchase.Invoice]");
             QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<>(userInvoiceKeys);
             for (int j = 0; j < userInvoiceProperties.length; j++) {
@@ -109,7 +109,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<>(userInvoiceDetailKeys);
                     String[] userInvoiceDetailNames = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
                             "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail"};
-                    LCP<?>[] userInvoiceDetailProperties = findProperties("idBarcodeSku[Purchase.InvoiceDetail]", "quantity[UserInvoiceDetail]",
+                    LP<?>[] userInvoiceDetailProperties = findProperties("idBarcodeSku[Purchase.InvoiceDetail]", "quantity[UserInvoiceDetail]",
                             "price[UserInvoiceDetail]", "chargePrice[UserInvoiceDetail]", "certificateText[Purchase.InvoiceDetail]");
                     for (int j = 0; j < userInvoiceDetailProperties.length; j++) {
                         userInvoiceDetailQuery.addProperty(userInvoiceDetailNames[j], userInvoiceDetailProperties[j].getExpr(context.getModifier(), userInvoiceDetailExpr));
@@ -117,7 +117,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     if (purchaseInvoiceWholesaleLM != null) {
                         String[] purchaseInvoiceWholesaleUserInvoiceDetailNames = new String[]{"Purchase.wholesalePriceUserInvoiceDetail", "Purchase.wholesaleMarkupUserInvoiceDetail"};
-                        LCP[] purchaseInvoiceWholesaleUserInvoiceDetailProperties = new LCP[] {
+                        LP[] purchaseInvoiceWholesaleUserInvoiceDetailProperties = new LP[] {
                                 purchaseInvoiceWholesaleLM.findProperty("wholesalePrice[UserInvoiceDetail]"), purchaseInvoiceWholesaleLM.findProperty("wholesaleMarkup[UserInvoiceDetail]")
                         };
                         for (int j = 0; j < purchaseInvoiceWholesaleUserInvoiceDetailProperties.length; j++) {
@@ -127,7 +127,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
                     if (pricingPurchaseLM != null) {
                         String[] pricingPurchaseUserInvoiceDetailNames = new String[]{"Purchase.retailPriceUserInvoiceDetail", "Purchase.retailMarkupUserInvoiceDetail"};
-                        LCP[] pricingPurchaseUserInvoiceDetailProperties = new LCP[]{
+                        LP[] pricingPurchaseUserInvoiceDetailProperties = new LP[]{
                                 pricingPurchaseLM.findProperty("retailPrice[UserInvoiceDetail]"),
                                 pricingPurchaseLM.findProperty("retailMarkup[UserInvoiceDetail]")};
                         for (int j = 0; j < pricingPurchaseUserInvoiceDetailProperties.length; j++) {

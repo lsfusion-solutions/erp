@@ -5,16 +5,16 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.http.client.methods.HttpGet;
@@ -45,7 +45,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             boolean disableSynchronizeItems = findProperty("disableSynchronizeItemsLoya[]").read(context) != null;
             boolean deleteInactiveItemGroups = findProperty("deleteInactiveItemGroupsLoya[]").read(context) != null;
@@ -94,7 +94,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         QueryBuilder<Object, Object> brandQuery = new QueryBuilder<>(brandKeys);
 
         String[] brandNames = new String[]{"idLoya", "name"};
-        LCP[] brandProperties = findProperties("idLoya[Brand]", "name[Brand]");
+        LP[] brandProperties = findProperties("idLoya[Brand]", "name[Brand]");
         for (int i = 0; i < brandProperties.length; i++) {
             brandQuery.addProperty(brandNames[i], brandProperties[i].getExpr(brandExpr));
         }
@@ -121,7 +121,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[]{"overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LCP[] itemGroupProperties = findProperties("overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
+        LP[] itemGroupProperties = findProperties("overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
         for (int i = 0; i < itemGroupProperties.length; i++) {
             itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
         }
@@ -175,7 +175,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
 
         String[] loyaItemGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup",
                 "maxDiscountLoyaItemGroup", "maxAllowBonusLoyaItemGroup", "maxAwardBonusLoyaItemGroup"};
-        LCP[] loyaItemGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]",
+        LP[] loyaItemGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]",
                 "overMaxDiscountLoyaItemGroup[LoyaItemGroup]", "overMaxAllowBonusLoyaItemGroup[LoyaItemGroup]", "overMaxAwardBonusLoyaItemGroup[LoyaItemGroup]");
         for (int i = 0; i < loyaItemGroupProperties.length; i++) {
             query.addProperty(loyaItemGroupNames[i], loyaItemGroupProperties[i].getExpr(groupExpr));
@@ -228,7 +228,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         KeyExpr emptyGroupExpr = new KeyExpr("loyaItemGroup");
         QueryBuilder<Object, Object> emptyQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "loyaItemGroup", emptyGroupExpr));
         String[] emptyGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup", "empty", "active", "maxDiscountLoyaItemGroup", "maxAllowBonusLoyaItemGroup", "maxAwardBonusLoyaItemGroup"};
-        LCP[] emptyGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]", "empty[LoyaItemGroup]",
+        LP[] emptyGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]", "empty[LoyaItemGroup]",
                 "active[LoyaItemGroup]", "overMaxDiscountLoyaItemGroup[LoyaItemGroup]", "overMaxAllowBonusLoyaItemGroup[LoyaItemGroup]", "overMaxAwardBonusLoyaItemGroup[LoyaItemGroup]");
         for (int i = 0; i < emptyGroupProperties.length; i++) {
             emptyQuery.addProperty(emptyGroupNames[i], emptyGroupProperties[i].getExpr(emptyGroupExpr));

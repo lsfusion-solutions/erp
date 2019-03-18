@@ -13,20 +13,27 @@ import lsfusion.erp.integration.universal.ImportUniversalActionProperty;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.*;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.NullValue;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.property.PropertyInterface;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.NullValue;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.*;
+import lsfusion.server.logics.classes.data.ParseException;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
+import lsfusion.server.logics.classes.data.LogicalClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -67,7 +74,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -164,7 +171,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 return true;
 
             boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
-            LCP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+            LP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
 
             if(settings.isCheckExistence()) {
                 for (Iterator<UserPriceListDetail> iterator = userPriceListDetailList.iterator(); iterator.hasNext();) {
@@ -504,7 +511,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LCP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
                     (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
@@ -539,7 +546,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             for (Map.Entry<String, ImportColumnDetail> entry : customColumns.entrySet()) {
                 ImportColumnDetail customColumn = entry.getValue();
-                LCP<?> customProp = (LCP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
+                LP<?> customProp = (LP<?>) context.getBL().findSafeProperty(customColumn.propertyCanonicalName);
                 if (customProp != null) {
                     ImportField customField = new ImportField(customProp);
                     ImportKey<?> customKey = null;
@@ -574,7 +581,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private Object safeParse(ImportField field, String value) {
         try {
             return value == null ? null : field.getFieldClass().parseString(value);
-        } catch (lsfusion.server.data.type.ParseException e) {
+        } catch (ParseException e) {
             return null;
         }
     }
@@ -613,7 +620,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            LCP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+            LP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
@@ -1003,7 +1010,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportUserPriceListTypeDetail", "nameKeyImportUserPriceListTypeDetail"};
-        LCP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");
+        LP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importUserPriceListTypeDetailExpr));
         }
@@ -1019,7 +1026,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
 
             String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
-            LCP<?> customProp = propertyImportTypeDetail == null ? null : (LCP<?>) context.getBL().findSafeProperty(propertyImportTypeDetail);
+            LP<?> customProp = propertyImportTypeDetail == null ? null : (LP<?>) context.getBL().findSafeProperty(propertyImportTypeDetail);
             boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
 
             String keyImportTypeDetail = getSplittedPart((String) entry.get("nameKeyImportUserPriceListTypeDetail"), "\\.", 1);
@@ -1045,7 +1052,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         Map<DataObject, String[]> importColumns = new HashMap<>();
 
-        LCP<PropertyInterface> isDataPriceListType = (LCP<PropertyInterface>) is(findClass("DataPriceListType"));
+        LP<PropertyInterface> isDataPriceListType = (LP<PropertyInterface>) is(findClass("DataPriceListType"));
         ImRevMap<PropertyInterface, KeyExpr> keys = isDataPriceListType.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<>(keys);

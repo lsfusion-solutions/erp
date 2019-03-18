@@ -5,11 +5,11 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.*;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
-import lsfusion.server.classes.CustomStaticFormatFileClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ public class ImportExcelStoresActionProperty extends ImportExcelActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы таблиц", "xls");

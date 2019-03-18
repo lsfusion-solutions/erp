@@ -1,13 +1,17 @@
 package lsfusion.erp.region.by.machinery.board.shtrih;
 
 import lsfusion.erp.region.by.machinery.board.BoardDaemon;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.lifecycle.LifecycleEvent;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.NullValue;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.language.ScriptingBusinessLogics;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.springframework.util.Assert;
 
 import java.io.*;

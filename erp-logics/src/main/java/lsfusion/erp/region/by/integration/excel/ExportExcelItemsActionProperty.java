@@ -8,17 +8,17 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.StringClass;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.data.StringClass;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -66,7 +66,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku"};
-            LCP[] itemProperties = findProperties("itemGroup[Item]", "nameAttribute[Item]", "UOM[Item]",
+            LP[] itemProperties = findProperties("itemGroup[Item]", "nameAttribute[Item]", "UOM[Item]",
                     "brand[Item]", "country[Item]", "idBarcode[Sku]", "split[Item]", "netWeight[Item]", "grossWeight[Item]",
                     "composition[Item]", "amountPack[Sku]");
             for (int i = 0; i < itemProperties.length; i++) {
@@ -78,7 +78,7 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
 
             if (wareItemLM != null) {
                 String[] wareItemNames = new String[]{"wareItem"};
-                LCP[] wareItemProperties = findProperties("ware[Item]");
+                LP[] wareItemProperties = findProperties("ware[Item]");
                 for (int i = 0; i < wareItemProperties.length; i++) {
                     itemQuery.addProperty(wareItemNames[i], wareItemProperties[i].getExpr(context.getModifier(), itemExpr));
                 }

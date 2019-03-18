@@ -3,18 +3,18 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.interop.form.stat.report.ReportGenerationData;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.instance.FormInstance;
-import lsfusion.server.form.view.PropertyDrawView;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.form.struct.FormEntity;
+import lsfusion.server.logics.form.interactive.instance.FormInstance;
+import lsfusion.server.logics.form.interactive.design.property.PropertyDrawView;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.form.stat.InteractiveFormReportManager;
+import lsfusion.server.logics.form.interactive.instance.InteractiveFormReportManager;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import java.util.Map;
 //IFERROR(xxx, a)
 // xxx is formula
 // a is default value
-public abstract class ExportExcelXSSFPivotActionProperty extends ScriptingActionProperty {
+public abstract class ExportExcelXSSFPivotActionProperty extends InternalAction {
     String idForm;
     String titleProperty;
     Integer titleRowHeight;
@@ -83,7 +83,7 @@ public abstract class ExportExcelXSSFPivotActionProperty extends ScriptingAction
         this.cells = cells;
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap) throws SQLException, SQLHandledException {
 
         try {
 
@@ -196,12 +196,12 @@ public abstract class ExportExcelXSSFPivotActionProperty extends ScriptingAction
 
 //package lsfusion.erp.utils;
 //
-//import lsfusion.server.classes.DateClass;
-//import lsfusion.server.classes.ValueClass;
-//import lsfusion.server.data.SQLHandledException;
-//import lsfusion.server.logics.DataObject;
-//import lsfusion.server.logics.property.ClassPropertyInterface;
-//import lsfusion.server.logics.property.ExecutionContext;
+//import DateClass;
+//import ValueClass;
+//import lsfusion.server.data.sql.exception.SQLHandledException;
+//import lsfusion.server.data.value.DataObject;
+//import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+//import lsfusion.server.logics.action.controller.context.ExecutionContext;
 //import lsfusion.server.language.ScriptingLogicsModule;
 //
 //import java.sql.SQLException;

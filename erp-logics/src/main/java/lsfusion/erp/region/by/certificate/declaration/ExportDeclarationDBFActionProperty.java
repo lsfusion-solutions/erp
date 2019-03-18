@@ -12,16 +12,16 @@ import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.erp.integration.OverJDBField;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
-import lsfusion.server.classes.CustomStaticFormatFileClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.ObjectValue;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.xBaseJ.DBF;
@@ -47,7 +47,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         declarationInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 
@@ -130,7 +130,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
                 "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail"};
 
-        LCP[] exportProperties = findProperties("extraName[DeclarationDetail]", "markin[DeclarationDetail]",
+        LP[] exportProperties = findProperties("extraName[DeclarationDetail]", "markin[DeclarationDetail]",
                 "number[DeclarationDetail]", "codeCustomsGroup[DeclarationDetail]", "sidOrigin2Country[DeclarationDetail]",
                 "sumGrossWeight[DeclarationDetail]", "extraComponentsQuantity[DeclarationDetail]", "sum[DeclarationDetail]",
                 "nameCustoms[DeclarationDetail]", "quantity[DeclarationDetail]", "sumNetWeight[DeclarationDetail]",
@@ -139,7 +139,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 "percentDuty[DeclarationDetail]", "percentVAT[DeclarationDetail]", "dutySum[DeclarationDetail]",
                 "VATSum[DeclarationDetail]", "nameSupplier[DeclarationDetail]", "nameBrand[DeclarationDetail]", "nameManufacturer[DeclarationDetail]");
 
-        LCP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
+        LP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -203,7 +203,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);
 
         String[] customsDocumentNames = new String[]{"orderCustomsDocument", "idCustomsDocument", "nameCustomsDocument", "dateCustomsDocument", "isVATCustomsExceptionCustomsDocument", "typePaymentCustomsDocument", "refDocCustomsDocument", "descriptionCustomsDocument"};
-        LCP[] customsDocumentProperties = new LCP[]{findProperty("order[CustomsDocument]"), findProperty("id[CustomsDocument]"), findProperty("name[CustomsDocument]"), findProperty("date[CustomsDocument]"), findProperty("isVATCustomsException[CustomsDocument]"), findProperty("typePayment[CustomsDocument]"), findProperty("refDoc[CustomsDocument]"), findProperty("description[CustomsDocument]")};
+        LP[] customsDocumentProperties = new LP[]{findProperty("order[CustomsDocument]"), findProperty("id[CustomsDocument]"), findProperty("name[CustomsDocument]"), findProperty("date[CustomsDocument]"), findProperty("isVATCustomsException[CustomsDocument]"), findProperty("typePayment[CustomsDocument]"), findProperty("refDoc[CustomsDocument]"), findProperty("description[CustomsDocument]")};
 
         KeyExpr declarationDetailExpr = new KeyExpr("declarationDetail");
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
@@ -242,7 +242,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance"};
-        LCP[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
+        LP[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
                 "toDate[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");

@@ -1,12 +1,12 @@
 package lsfusion.erp.integration;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.Settings;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.admin.Settings;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.lang3.time.DateUtils;
 
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.*;
 
-public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
+public class DefaultIntegrationActionProperty extends InternalAction {
 
     public DefaultIntegrationActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -42,7 +42,7 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
     private static ExecutorService executor = Executors.newCachedThreadPool();

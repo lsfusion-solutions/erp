@@ -8,15 +8,15 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.IOException;
 import java.util.*;
@@ -49,7 +49,7 @@ public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
             ImRevMap<Object, KeyExpr> bankKeys = MapFact.singletonRev((Object) "Bank", bankExpr);
 
             String[] bankNames = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
-            LCP[] bankProperties = findProperties("id[Bank]", "name[Bank]", "department[Bank]", "MFO[Bank]", "CBU[Bank]");
+            LP[] bankProperties = findProperties("id[Bank]", "name[Bank]", "department[Bank]", "MFO[Bank]", "CBU[Bank]");
             QueryBuilder<Object, Object> bankQuery = new QueryBuilder<>(bankKeys);
             for (int i = 0; i < bankProperties.length; i++) {
                 bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));

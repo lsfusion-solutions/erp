@@ -7,16 +7,16 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.integration.*;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.physics.dev.integration.service.*;
 
 import java.math.BigDecimal;
 import java.sql.*;
@@ -32,7 +32,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             List<GiftCard> giftCards = getGiftCards(context);
             if(giftCards != null && !giftCards.isEmpty()) {
@@ -192,7 +192,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
                 "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "allowReturn", "allowReturnPayment"};
-        LCP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
+        LP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
                 "dateSold[GiftCard]", "expireDate[GiftCard]", "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {

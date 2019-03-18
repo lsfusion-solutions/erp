@@ -1,13 +1,13 @@
 package lsfusion.erp.utils;
 
 import lsfusion.base.ExceptionUtils;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -16,7 +16,7 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 
-public class FillDaysOffActionProperty extends ScriptingActionProperty {
+public class FillDaysOffActionProperty extends InternalAction {
 
     private final ClassPropertyInterface countryInterface;
 
@@ -27,7 +27,7 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
         countryInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             DataObject countryObject = context.getDataKeyValue(countryInterface);
             generateDates(context, countryObject);

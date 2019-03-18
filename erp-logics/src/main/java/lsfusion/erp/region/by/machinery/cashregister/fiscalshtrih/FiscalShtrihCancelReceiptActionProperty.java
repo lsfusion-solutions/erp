@@ -1,19 +1,19 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalShtrihCancelReceiptActionProperty extends ScriptingActionProperty {
+public class FiscalShtrihCancelReceiptActionProperty extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalShtrihCancelReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -23,7 +23,7 @@ public class FiscalShtrihCancelReceiptActionProperty extends ScriptingActionProp
         receiptInterface = i.next();
     }
 
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 

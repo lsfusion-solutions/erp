@@ -1,18 +1,18 @@
 package lsfusion.erp.region.ru.masterdata;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.logics.action.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -31,7 +31,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-public class ImportCBRFExchangeRateActionProperty extends ScriptingActionProperty {
+public class ImportCBRFExchangeRateActionProperty extends InternalAction {
     private final ClassPropertyInterface currencyInterface;
 
     public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -42,7 +42,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
     }
 
     @Override
-    public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
 

@@ -6,16 +6,16 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.CalcProperty;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.Property;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.codec.binary.Base64;
@@ -170,7 +170,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 
         String[] eOrderDetailNames = new String[]{"GTINBarcode", "idSku", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
-        LCP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "idSku[EOrderDetail]", "nameSku[EOrderDetail]",
+        LP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "idSku[EOrderDetail]", "nameSku[EOrderDetail]",
                 "extraCodeUOMSku[EOrderDetail]", "overQuantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
         for (int j = 0; j < eOrderDetailProperties.length; j++) {
             eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(context.getModifier(), eOrderDetailExpr));
@@ -233,7 +233,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     }
 
     @Override
-    public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
+    public ImMap<Property, Boolean> aspectChangeExtProps() {
         try {
             return getChangeProps(findProperty("exported[EOrder]").property, findProperty("exportedCanceled[EOrder]").property);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

@@ -8,16 +8,16 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.classes.DateClass;
-import lsfusion.server.classes.ValueClass;
-import lsfusion.server.data.expr.KeyExpr;
-import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.logics.DataObject;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -73,7 +73,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger"};
-            LCP[] generalLedgerProperties = findProperties("isPosted[GeneralLedger]", "date[GeneralLedger]",
+            LP[] generalLedgerProperties = findProperties("isPosted[GeneralLedger]", "date[GeneralLedger]",
                     "nameLegalEntity[GeneralLedger]", "nameGLDocument[GeneralLedger]", "description[GeneralLedger]",
                     "idDebit[GeneralLedger]", "dimensionsDebit[GeneralLedger]", "idCredit[GeneralLedger]",
                     "dimensionsCredit[GeneralLedger]", "sum[GeneralLedger]");

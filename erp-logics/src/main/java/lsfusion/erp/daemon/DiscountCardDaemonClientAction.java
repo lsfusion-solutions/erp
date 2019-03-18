@@ -3,7 +3,7 @@ package lsfusion.erp.daemon;
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.ExecuteClientAction;
 import lsfusion.interop.form.event.ICleanListener;
-import lsfusion.server.ServerLoggers;
+import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;

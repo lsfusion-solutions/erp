@@ -1,12 +1,12 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.server.classes.ConcreteCustomClass;
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.integration.ImportField;
-import lsfusion.server.integration.ImportKey;
-import lsfusion.server.integration.ImportProperty;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.physics.dev.integration.service.ImportField;
+import lsfusion.server.physics.dev.integration.service.ImportKey;
+import lsfusion.server.physics.dev.integration.service.ImportProperty;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 

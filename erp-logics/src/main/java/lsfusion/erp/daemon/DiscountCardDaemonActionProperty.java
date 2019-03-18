@@ -1,21 +1,21 @@
 package lsfusion.erp.daemon;
 
-import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.property.ClassPropertyInterface;
-import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.language.ScriptingActionProperty;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class DiscountCardDaemonActionProperty extends ScriptingActionProperty {
+public class DiscountCardDaemonActionProperty extends InternalAction {
 
     public DiscountCardDaemonActionProperty(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     @Override
-    protected void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         context.requestUserInteraction(new DiscountCardDaemonClientAction());
     }
 }

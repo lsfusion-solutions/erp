@@ -1,12 +1,12 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.server.classes.CustomClass;
-import lsfusion.server.integration.ImportField;
-import lsfusion.server.integration.ImportKey;
-import lsfusion.server.integration.ImportProperty;
-import lsfusion.server.language.linear.LCP;
-import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.physics.dev.integration.service.ImportField;
+import lsfusion.server.physics.dev.integration.service.ImportKey;
+import lsfusion.server.physics.dev.integration.service.ImportProperty;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -189,7 +189,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LCP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
                     (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));

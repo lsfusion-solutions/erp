@@ -2,11 +2,11 @@ package lsfusion.erp.region.by.machinery.board;
 
 import lsfusion.erp.ERPLoggers;
 import lsfusion.base.DaemonThreadFactory;
-import lsfusion.server.ServerLoggers;
-import lsfusion.server.context.ExecutorFactory;
-import lsfusion.server.lifecycle.MonitorServer;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.base.controller.thread.ExecutorFactory;
+import lsfusion.server.base.controller.manager.MonitorServer;
 import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.logics.DBManager;
+import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.language.ScriptingErrorLog;
 import org.apache.log4j.Logger;
