@@ -26,7 +26,7 @@ import lsfusion.server.base.controller.thread.ThreadLocalContext;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.expr.value.ValueExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.language.property.LP;

@@ -18,7 +18,7 @@ import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import lsfusion.server.data.value.DataObject;

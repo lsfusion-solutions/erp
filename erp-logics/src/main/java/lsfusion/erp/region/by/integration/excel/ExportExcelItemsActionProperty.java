@@ -11,7 +11,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.property.LP;

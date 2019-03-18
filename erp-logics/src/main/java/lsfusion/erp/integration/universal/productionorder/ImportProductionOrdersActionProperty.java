@@ -10,7 +10,7 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.builder.QueryBuilder;
+import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.property.LP;
