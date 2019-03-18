@@ -1,0 +1,466 @@
+MODULE SaleOrderEDITopBy;
+
+REQUIRE EDI, SaleOrder, TopBy;
+
+NAMESPACE EDI;
+
+////----------------------- Import Sale.UserOrder (orders) ---------------------------//
+//
+//documentNumber = DATA LOCAL NESTED VARSTRING[28]();
+//documentDate = DATA LOCAL DATE();
+//buyerGLN = DATA LOCAL VARSTRING[100]();
+//destinationGLN = DATA LOCAL VARSTRING[100]();
+//supplierGLN = DATA LOCAL VARSTRING[100]();
+//
+//GTIN = DATA LOCAL VARSTRING[100](INTEGER);
+//quantityOrdered = DATA LOCAL NUMERIC[16,5](INTEGER);
+//priceElement = DATA LOCAL NUMERIC[16,4](INTEGER);
+//priceNoNDS = DATA LOCAL VARSTRING[100](INTEGER);
+//priceNDS = DATA LOCAL VARSTRING[100](INTEGER);
+//tax = DATA LOCAL NUMERIC[10,5](INTEGER);
+//
+//FORM importSaleUserOrderEDI
+//    PROPERTIES() documentNumber, documentDate, buyerGLN, destinationGLN, supplierGLN
+//
+//    OBJECTS line = INTEGER
+//    PROPERTIES(line) GTIN, quantityOrdered, priceElement, priceNoNDS, priceNDS, tax 
+//;
+//
+//importSaleUserOrderEDIError = DATA LOCAL NESTED TEXT();
+//importSaleUserOrderEDI(FILE xml) {
+//    NEWSESSION {
+//    IMPORT importSaleUserOrderEDI XML FROM xml;
+//        NEW order = Sale.UserOrder {
+//            number(order) <- documentNumber();
+//            date(order) <- documentDate();
+//            supplier(order) <- legalEntityGLN(buyerGLN());
+//            supplierStock(order) <- stockGLN(destinationGLN());
+//            customer(order) <- legalEntityGLN(supplierGLN());
+//            operation(order) <- Sale.operation('intra');
+//
+//            FOR GTIN(INTEGER line) DO {
+//                NEW detail = Sale.UserOrderDetail {      
+//                    order(detail) <- order;     
+//                    sku(detail) <- skuGTIN(GTIN(line));
+//                    quantity(detail) <- quantityOrdered(line);
+//                    price(detail) <- priceElement(line);
+//                    valueVAT(detail) <- tax(line);
+//                }
+//            }
+//            APPLY;
+//            IF canceled() THEN importSaleUserOrderEDIError() <- applyMessage();
+//        }
+//    }
+//}
+//
+////----------------------- Export Sale.UserOrder (ordrsp, desadv) ---------------------------//
+//
+//GLNSupplier (Sale.UserOrder order) = GLN(supplier(order));
+//GLNSupplierStock (Sale.UserOrder order) = GLN(supplierStock(order));
+//GLNCustomer (Sale.UserOrder order) = GLN(customer(order));
+//GLNCustomerStock (Sale.UserOrder order) = GLN(customerStock(order));
+//GTIN(Sale.UserOrderDetail detail) = GTIN(sku(detail));
+//
+//documentType = DATA LOCAL VARSTRING[6](Sale.UserOrder);
+//filename (Sale.UserOrder order) = CONCAT '', 'order', number(order);
+//orderDate(Sale.UserOrder order) = '2019-02-04T09:30:00Z' IF order IS Sale.UserOrder; //TODO: изменить на нужное свойство
+//    
+//FORM envelope
+//    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'      
+//    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
+//    OBJECTS order = Sale.UserOrder
+//    PROPERTIES DRAW order IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+//    PROPERTIES(order) IN sendDocument filename EXTID 'top:filename', orderDate EXTID 'top:documentDate', number EXTID 'top:documentNumber',
+//                      GLNSupplier EXTID 'top:senderCode', GLNCustomer EXTID 'top:receiverCode', GLNCustomerStock EXTID 'top:deliveryPointCode',
+//                      documentType EXTID 'top:documentType'
+//    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'  
+//    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'                                                  
+//;
+//
+//sendSaleUserOrderRequest(Sale.UserOrder order, TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url, TEXT innerXML, VARSTRING[6] documentType) {
+//    LOCAL exportSaleUserOrderRequest = XMLFILE();
+//    documentType(order) <- documentType;
+//    encodeBase64(innerXML);
+//    EXPORT envelope OBJECTS order = order, login=login, password=password, innerXML=encodedBase64() XML TO exportSaleUserOrderRequest; //export request
+//    sendRequestEDI(host, port, login, password, url, exportSaleUserOrderRequest()); //send request
+//    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse'); //check response
+//    open(exportSaleUserOrderRequest());
+//}
+//
+////свойства для ordrsp и desadv
+//idBuyer = DATA LOCAL VARSTRING[15] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//idSupplier = DATA LOCAL VARSTRING[15] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//measurement(Sale.UserOrderDetail detail) = 'PCE' IF detail IS Sale.UserOrderDetail;//TODO: изменить на нужное свойство
+//
+////свойства для ordrsp
+//function(Sale.UserOrder order) = '4' IF order IS Sale.UserOrder;
+//lineQuantity(order) = GROUP SUM 1 BY order(Sale.UserOrderDetail detail);
+//sumNoNDS = DATA LOCAL NUMERIC[16,5] (Sale.UserOrder); //TODO: изменить на нужное свойство
+//sumNDS = DATA LOCAL NUMERIC[16,5] (Sale.UserOrder); //TODO: изменить на нужное свойство
+//action(Sale.UserOrderDetail detail) = '5' IF detail IS Sale.UserOrderDetail;
+//quantityOrdered (Sale.UserOrderDetail detail) = quantity(detail);//TODO: изменить на нужное свойство
+//quantityAccepted (Sale.UserOrderDetail detail) = quantity(detail);//TODO: изменить на нужное свойство
+//
+////свойства для desadv
+//deliveryNoteNumber = DATA LOCAL TEXT (Sale.UserOrder);//TODO: изменить на нужное свойство
+//deliveryNoteDate = DATA LOCAL DATE (Sale.UserOrder);//TODO: изменить на нужное свойство
+//functionCode(Sale.UserOrder order) = '9' IF order IS Sale.UserOrder;
+//contractNumber = DATA LOCAL TEXT (Sale.UserOrder);//TODO: изменить на нужное свойство
+//contractDate = DATA LOCAL DATE (Sale.UserOrder);//TODO: изменить на нужное свойство
+//quantityDespatch (Sale.UserOrderDetail detail) = quantity(detail);//TODO: изменить на нужное свойство
+//quantityDespatchTransport (Sale.UserOrderDetail detail) = quantity(detail);//TODO: изменить на нужное свойство
+//vat =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//lineItemPrice =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//lineItemAmountWithoutCharges =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//lineItemAmount =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство
+//lineItemAmountCharges =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrderDetail);//TODO: изменить на нужное свойство 
+//totalLineItem =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrder);//TODO: изменить на нужное свойство 
+//totalLineItemQuantity =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrder);//TODO: изменить на нужное свойство 
+//totalAmountWithoutCharges =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrder);//TODO: изменить на нужное свойство 
+//totalAmountCharges =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrder);//TODO: изменить на нужное свойство 
+//totalAmount =  DATA LOCAL NUMERIC[16,5] (Sale.UserOrder);//TODO: изменить на нужное свойство 
+//
+//exported 'Экспортирован' = DATA BOOLEAN (Sale.UserOrder);
+//exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (Sale.UserOrder);
+//sendSaleOrderSupplier 'Отправить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
+//EXTEND FORM Sale.orders PROPERTIES(o) exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier TOOLBAR;
+//
+////ordrsp form
+//FORM orders
+//    OBJECTS order = Sale.UserOrder
+//    PROPERTIES(order) IN private documentNumber=number, documentDate=date, function=function, buyerGLN=GLNCustomer,
+//                                 buyerName=nameCustomer, destinationGLN=GLNCustomerStock, destinationName=nameCustomerStock,
+//                                 supplierGLN=GLNSupplier, supplierName=nameSupplier, orderNumber=number, orderDate=orderDate,
+//                                 deliveryDateTimeFirst=orderDate
+//    OBJECTS line = Sale.UserOrderDetail 
+//    PROPERTIES(line) GTIN=GTIN, IDBuyer=idBuyer, idSupplier=idSupplier, action=action, fullName=nameSku, quantityOrdered=quantityOrdered,
+//                     quantityAccepted=quantityAccepted, measurement=measurement, pricElement=price
+//    PROPERTIES(order) IN private lineQuantity=lineQuantity, sumNoNDS=sumNoNDS, sumNDS=sumNDS                    
+//    FILTERS order(line) = order
+//;
+//
+//sendOrdrspXML(Sale.UserOrder order, TEXT outputDir, TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url) {
+//    LOCAL ordrspXML = FILE();
+//    EXPORT orders OBJECTS order = order XML TO ordrspXML;
+//    IF outputDir THEN WRITE ordrspXML() TO outputDir + '/' + number(order) + 'ordrsp';
+//    fileToString(ordrspXML());
+//    printToImportLog(CONCAT ' ', 'Sending order', number(order), '(ordrsp)');
+//    sendSaleUserOrderRequest(order, host, port, login, password, url, resultString(), 'ORDERS');
+//}
+//
+////desadv form
+//FORM DESADV
+//    OBJECTS order = Sale.UserOrder
+//    PROPERTIES(order) IN private documentNumber=number, documentDate=date, deliveryNoteNumber=deliveryNoteNumber, deliveryNoteDate=deliveryNoteDate,
+//                      function=functionCode, buyerGLN=GLNCustomer, buyerName=nameCustomer, destinationGLN=GLNCustomerStock, destinationName=nameCustomerStock,
+//                      supplierGLN=GLNSupplier, supplierName=nameSupplier, stGLN=GLNSupplierStock, stName=nameSupplierStock, contractNumber=contractNumber, 
+//                      contractDate=contractDate
+//    OBJECTS line = Sale.UserOrderDetail 
+//    PROPERTIES(line) IN private GTIN=GTIN, IDBuyer=idBuyer, idSupplier=idSupplier, fullName=nameSku, quantityDespatch=quantityDespatch,
+//                     measurement=measurement, quantityDespatchTransport=quantityDespatchTransport, vat=vat,lineItemPrice=lineItemPrice, 
+//                     lineItemAmountWithoutCharges=lineItemAmountWithoutCharges, lineItemAmount=lineItemAmount, lineItemAmountCharges=lineItemAmountCharges             
+//    
+//    PROPERTIES(order) IN private totalLineItem=totalLineItem, totalLineItemQuantity=totalLineItemQuantity, totalAmountWithoutCharges=totalAmountWithoutCharges,
+//                                 totalAmountCharges=totalAmountCharges, totalAmount=totalAmount
+//                                 
+//    FILTERS order(line) = order
+//;
+//
+//sendDesadvXML(Sale.UserOrder order, TEXT outputDir, TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url) {
+//    LOCAL desadvXML = FILE();
+//    EXPORT DESADV OBJECTS order = order XML TO desadvXML;
+//    IF outputDir THEN WRITE desadvXML() TO outputDir + '/' + number(order) + 'desadv';
+//    fileToString(desadvXML());
+//    printToImportLog(CONCAT ' ', 'Sending order', number(order), '(desadv)');
+//    sendSaleUserOrderRequest(order, host, port, login, password, url, resultString(), 'DESADV');
+//}
+//
+////----------------------- Sale.UserOrder ---------------------------//
+//sendSaleOrder(Sale.UserOrder order, TEXT outputDir, TEXT host, INTEGER port, TEXT login, TEXT password, TEXT url) {
+//    sendOrdrspXML(order, outputDir, host, port, login, password, url);
+//    IF NOT requestError() THEN {
+//        sendDesadvXML(order, outputDir, host, port, login, password, url);
+//    }
+//    IF NOT requestError() THEN {
+//        NEWSESSION {
+//            exported(order) <- TRUE;
+//            apply();
+//        }
+//        printToImportLog(CONCAT ' ', 'Заказ', number(order), 'выгружен');
+//        MESSAGE CONCAT ' ', 'Заказ', number(order), 'выгружен';
+//    } ELSE {
+//        printToImportLog(CONCAT ' ', 'Заказ', number(order), 'не выгружен:', requestError());
+//        MESSAGE CONCAT ' ', 'Заказ', number(order), 'не выгружен:', requestError();
+//    }
+//}
+//
+//
+//
+//sendSaleOrderSupplierTopBy 'Отправить (поставщик)' (Sale.UserOrder order) {
+//    checkIsServer();
+//    IF isServer() THEN {
+//        IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
+//            sendSaleOrder(order, outputDirTopBy(), hostTopBy(), portTopBy(), loginTopBy(), passwordTopBy(), CONCAT '', 'http://', hostTopBy(),':', portTopBy(), '/DmcService');  
+//        } ELSE {
+//            printToImportLog(CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт');
+//            MESSAGE CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт';
+//        }
+//    }
+//}
+//sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSaleOrderSupplierTopBy(o); }
+
+saleOperationTopBy 'Операция' = DATA Sale.Operation();
+nameSaleOperationTopBy 'Операция' () = name(saleOperationTopBy());
+supplierStockTopBy 'Склад поставщика' = DATA Stock();
+nameSupplierStockTopBy 'Склад поставщика' () = name(supplierStockTopBy());
+CONSTRAINT supplierStockTopBy() AND NOT isCompany(supplierStockTopBy())
+    CHECKED BY supplierStockTopBy[] MESSAGE 'Выбран склад поставщика, который не принадлежит компании';
+
+EXTEND FORM integrationData
+    PROPERTIES() nameSaleOperationTopBy, nameSupplierStockTopBy
+;
+
+DESIGN integrationData {
+    vs {
+        MOVE PROPERTY (nameSaleOperationTopBy()) AFTER PROPERTY (receiveSupplierMessagesTopBy());
+        MOVE PROPERTY (nameSupplierStockTopBy()) AFTER PROPERTY (nameSaleOperationTopBy());
+    }
+}
+
+ordersDocumentNumber = DATA LOCAL NESTED VARSTRING[28]();
+ordersDocumentDate = DATA LOCAL NESTED DATE();
+ordersDocumentType = DATA LOCAL NESTED INTEGER();
+ordersBuyerGLN = DATA LOCAL NESTED VARSTRING[13]();
+ordersDestinationGLN = DATA LOCAL NESTED VARSTRING[13]();
+ordersSupplierGLN = DATA LOCAL NESTED VARSTRING[13]();
+ordersDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
+ordersComment = DATA LOCAL NESTED VARISTRING[500]();
+ordersGTIN = DATA LOCAL NESTED VARSTRING[15](INTEGER);
+ordersQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+ordersPriceElement = DATA LOCAL NESTED NUMERIC[16,2](INTEGER);
+ordersTax = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
+
+FORM importOrders
+    PROPERTIES() ordersDocumentNumber EXTID 'documentNumber', ordersDocumentDate EXTID 'documentDate',
+                 ordersDocumentType EXTID 'documentType', ordersBuyerGLN EXTID 'buyerGLN',
+                 ordersDestinationGLN EXTID 'destinationGLN', ordersSupplierGLN EXTID 'supplierGLN',
+                 ordersDeliveryDateTimeFirst EXTID 'deliveryDateTimeFirst', ordersComment EXTID 'comment'
+    OBJECTS i = INTEGER EXTID 'line'
+    PROPERTIES(i) ordersGTIN EXTID 'GTIN', ordersQuantityOrdered EXTID 'quantityOrdered',
+                  ordersPriceElement EXTID 'priceElement', ordersTax EXTID 'tax'
+;
+
+orderDocumentNumber = DATA VARSTRING[28](Sale.UserOrder);
+isCancel 'Отменен' = DATA BOOLEAN (Sale.UserOrder);
+quantityOrdered = DATA NUMERIC[16,5] (Sale.UserOrderDetail);
+
+CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя проводить отмененный заказ';
+
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, VARSTRING[100] provider) + {
+    IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages THEN {
+        TRY {
+            IMPORT importOrders XML FROM data(i);
+            IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
+                logToFile('import', provider + ' Parse Order ' + id(i) + ' skipped for documentType ' + ordersDocumentType());
+                IF NOT disableConfirmation THEN {
+                    LOCAL xml = XMLFILE();
+                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                    sendRequestEDI(host, port, login, password, url, xml());
+                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                    IF requestError() THEN {
+                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                    } ELSE {
+                        IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                    }
+                }
+                supplierOrdersFailed() <- supplierOrdersFailed() + 1;
+            } ELSE {
+                NEWSESSION NESTED LOCAL {
+                    IF ordersDocumentType() == 9 THEN NEW o = Sale.UserOrder {
+                        id(o) <- ordersSupplierGLN() + '/' + ordersDocumentNumber();
+                    }
+                    IF ordersDocumentType() == 5 THEN {
+                        DELETE Sale.UserOrderDetail d WHERE d IS Sale.UserOrderDetail AND userOrder(d) == Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber());
+                    }
+                    FOR ordersGTIN(INTEGER l) AND NOT Sale.userOrderDetail(ordersSupplierGLN() + '/' + ordersDocumentNumber() + '/' + l) AND (ordersDocumentType() == 5 OR ordersDocumentType() == 9) DO NEW d = UserOrderDetail {
+                        userOrder(d) <- Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber());
+                        id(d) <- ordersSupplierGLN() + '/' + ordersDocumentNumber() + '/' + l;
+                    }
+                    FOR Sale.UserOrder o == Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber()) DO {
+                        IF ordersDocumentType() == 1 THEN {
+                            isCancel(o) <- TRUE;
+                            isPosted(o) <- NULL;
+                        } ELSE IF ordersDocumentType() == 5 OR ordersDocumentType() == 9 THEN {
+                            orderDocumentNumber(o) <- ordersDocumentNumber();
+                            date(o) <- ordersDocumentDate();
+                            supplier(o) <- legalEntityGLN(ordersSupplierGLN());
+                            //возможно операцию и склад нужно пеедавать параметрами 
+                            supplierStock(o) <- supplierStockTopBy();
+                            customer(o) <- legalEntityGLN(ordersBuyerGLN());
+                            customerStock(o) <- stockGLN(ordersDestinationGLN());
+                            operation(o) <- saleOperationTopBy();
+                            shipmentDate(o) <- DATE(ordersDeliveryDateTimeFirst());
+                            shipmentTime(o) <- TIME(ordersDeliveryDateTimeFirst());
+                            note(o) <- ordersComment();
+                            
+                            FOR ordersGTIN(INTEGER l) AND Sale.UserOrderDetail d == Sale.userOrderDetail(ordersSupplierGLN() + '/' + ordersDocumentNumber() + '/' + l) DO {
+                                sku(d) <- skuGTIN(ordersGTIN(l));
+                                quantity(d) <- ordersQuantityOrdered(l);
+                                quantityOrdered(d) <- ordersQuantityOrdered(l);
+                                price(d) <- ordersPriceElement(l);
+                                valueVAT(d) <- ordersTax(l);
+                            }
+                        }
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            logToFile('import', provider + ' Import Order ' + id(i) + ' failed: ' + applyMessage());
+                            supplierOrdersFailed() <- supplierOrdersFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                LOCAL xml = XMLFILE();
+                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                                sendRequestEDI(host, port, login, password, url, xml());
+                                logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                IF requestError() THEN {
+                                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                    MESSAGE provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                }
+                            }
+                            logToFile('import', provider + ' Import Order ' + id(i) + ' succeeded');
+                            supplierOrdersSucceeded() <- supplierOrdersSucceeded() + 1;
+                        }
+                    }
+                }
+            }
+        } CATCH {
+            logToFile('import', CONCAT '\n', provider + ' Parse Order ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            supplierOrdersFailed() <- supplierOrdersFailed() + 1;
+        }
+        
+    }
+}
+
+
+GLNSupplier (Sale.UserOrder o) = GLN(supplier(o));
+GLNSupplierStock (Sale.UserOrder o) = GLN(supplierStock(o));
+GLNCustomer (Sale.UserOrder o) = GLN(customer(o));
+GLNCustomerStock (Sale.UserOrder o) = GLN(customerStock(o));
+GTINBarcode(Sale.UserOrderDetail d) = GTINBarcode(sku(d));
+
+action(Sale.UserOrderDetail d) = IF isCancel(userOrder(d)) THEN '7' ELSE (IF NOT quantityOrdered(d) THEN '1' ELSE (IF quantityOrdered(d) == quantity(d) THEN '5' ELSE '3'));
+function(Sale.UserOrder o) = IF isCancel(o) THEN '27' ELSE (IF (GROUP SUM 1 IF userOrder(Sale.UserOrderDetail d) == o AND quantity(d) > 0 AND NOT action(d) == '5') THEN '4' ELSE '29');
+
+exported 'Экспортирован' = DATA BOOLEAN (Sale.UserOrder);
+exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (Sale.UserOrder);
+sendSaleOrderSupplier 'Отправить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
+EXTEND FORM Sale.orders PROPERTIES(o) exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o);
+DESIGN Sale.orders {
+    actionContainer {
+        MOVE PROPERTY (sendSaleOrderSupplier(o));
+    }
+}
+
+FORM saleOrder FORMEXTID 'ORDRSP'
+    OBJECTS o = Sale.UserOrder PANEL
+    PROPERTIES READONLY documentNumber = VARSTRING[28](number(o)) EXTID 'documentNumber',
+                        documentDate = toChar(dateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'documentDate',
+                        function(o) EXTID 'function',
+                        GLNCustomer(o) EXTID 'buyerGLN',
+                        buyerName = VARSTRING[150](nameCustomer(o)) EXTID 'buyerName',
+                        GLNCustomerStock(o) EXTID 'destinationGLN',
+                        destinationName = VARSTRING[150](nameCustomerStock(o)) EXTID 'destinationName',
+                        GLNSupplier(o) EXTID 'supplierGLN',
+                        supplierName = VARSTRING[150](nameSupplier(o)) EXTID 'supplierName',
+                        orderDocumentNumber(o) EXTID 'orderNumber',
+                        orderDate = toChar(dateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'orderDate',
+                        deliveryDateTimeFirst = toChar(shipmentDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
+                        lineQuantity = (GROUP SUM 1 IF quantity(Sale.UserOrderDetail od) > 0 AND userOrder(od) == o) EXTID 'lineQuantity',
+                        note(o) EXTID 'comment'
+    OBJECTS d = Sale.UserOrderDetail EXTID 'line'
+    FILTERS userOrder(d) = o
+    PROPERTIES READONLY GTINBarcode(d) EXTID 'GTIN',
+                        idSku(d) EXTID 'IDSupplier',
+                        action(d) EXTID 'action',
+                        nameSku(d) EXTID 'fullName',
+                        quantityOrdered(d) EXTID 'quantityOrdered',
+                        quantity(d) EXTID 'quantityAccepted',
+                        measurement = (OVERRIDE extraCodeUOM(UOM(sku(d))), 'PCE') EXTID 'measurement',
+                        priceElement = NUMERIC[16,2](round2(price(d))) EXTID 'priceElement',
+                        tax = NUMERIC[4,2](round2(valueVAT(d))) EXTID 'tax'
+    FILTERS quantity(d) > 0
+;
+
+FORM envelopeSaleOrder
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
+    OBJECTS o = Sale.UserOrder
+    PROPERTIES DRAW o IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+    PROPERTIES IN sendDocument filename = (CONCAT '', 'order', number(o)) EXTID 'top:filename', 
+                  documentDate = toChar(dateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'top:documentDate',
+                  number(o) EXTID 'top:documentNumber',
+                  senderCode = GLNCustomer(o) EXTID 'top:senderCode',
+                  receiverCode = GLNCustomer(o) EXTID 'top:receiverCode',
+                  GLNCustomerStock(o) EXTID 'top:deliveryPointCode',
+                  documentType = 'ORDRSP' EXTID 'top:documentType'
+    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder o, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] outputDir, VARSTRING[100] provider) {
+    TRY {
+        IF login AND password AND host AND port THEN {
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLNSupplier(o) THEN error() <- error() + 'SupplierOrder ' + number(o) + ': Не задан GLN поставщика\n';
+            IF NOT GLNCustomer(o) THEN error() <- error() + 'SupplierOrder ' + number(o) + ': Не задан GLN покупателя\n';
+            IF NOT GLNCustomerStock(o) THEN error() <- error() + 'SupplierOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
+            IF shipmentDateTime(o) < sumMinutes(currentDateTime(),60) THEN error() <- error() + 'SupplierOrder ' + number(o) + ': Не верная дата/время поставки';
+            
+            IF error() == '' THEN {
+                LOCAL contentSubXML = FILE();
+                EXPORT saleOrder OBJECTS o = o XML TO contentSubXML;
+                IF outputDir THEN WRITE contentSubXML() TO outputDir + '/' + number(o) + (IF isCancel(o) THEN 'c' ELSE '');
+                fileToString(contentSubXML());
+                encodeBase64(resultString());
+                LOCAL xml = XMLFILE();
+                EXPORT envelopeSaleOrder OBJECTS o = o, login = login, password = password, innerXML = encodedBase64() XML TO xml;
+                sendRequestEDI(host, port, login, password, url, xml());
+                logToFile('import', provider + ' SendSupplierOrder ' + number(o) +' request sent');
+                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                IF requestError() THEN {
+                    logToFile('import', provider + ' SendSupplierOrder ' + number(o) + ': ' + requestError());
+                    logToFile('import', provider + ' Заказ ' + number(o) + ' не выгружен: ' + requestError());
+                } ELSE {
+                    IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
+                    logToFile('import', provider + ' SendSupplierOrder ' + number(o) + ' request succeeded');
+                    logToFile('import', provider + ' Заказ ' + number(o) + ' выгружен');
+                }
+            } ELSE {
+                logToFile('import', provider + ' SendSupplierOrder: Не все поля заполнены. ' + error());
+                MESSAGE  provider + ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+            }
+        } ELSE {
+            logToFile('import', provider + ' SendSupplierOrder: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE  provider + ' Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+        }
+    } CATCH {
+        logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+    }
+}
+
+sendSupplierSaleOrderTopBy (Sale.UserOrder o) {
+    checkIsServer();
+    IF isServer() THEN NEWSESSION {
+        sendSupplierSaleOrder(o, loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), outputDirTopBy(), 'TopBy');
+        APPLY;
+    }
+}
+
+sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSupplierSaleOrderTopBy(o); }

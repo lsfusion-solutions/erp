@@ -639,3 +639,36 @@ editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice 
 EXTEND FORM eInvoices
     PROPERTIES (e) editAttributesEInvoice
 ;
+
+//-------------------------- Send Request ------------------------------//
+//host, port, login, password, url, xml request
+sendRequestEDIResponse = DATA LOCAL FILE();
+sendRequestEDIStatus = DATA LOCAL INTEGER();
+sendRequestEDI 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.SendRequestEDIActionProperty' (TEXT, INTEGER, TEXT, TEXT, TEXT, XMLFILE);
+
+printToImportLog INTERNAL  'lsfusion.erp.region.by.integration.edi.PrintToImportLogActionProperty' (TEXT);
+
+//----------------------- importRequestResult ---------------------------//
+
+succesful = DATA LOCAL TEXT(INTEGER);
+message = DATA LOCAL TEXT(INTEGER);
+errorCode = DATA LOCAL INTEGER(INTEGER);
+
+requestError = DATA LOCAL NESTED TEXT();
+// todo : нужно переделать без входа xml и status
+importRequestResult(FILE xml, INTEGER status, TEXT root) {
+    IF status == 200 THEN {
+        IMPORT XML ROOT root FROM xml TO succesful='Succesful', message='Message', errorCode='ErrorCode';
+        IF succesful(0) == 'true' THEN {
+            requestError() <- NULL;
+        } ELSE {
+            IF errorCode(0) == 1300 THEN {
+                requestError()<- 'Ошибка авторизации';
+            } ELSE {
+                requestError() <- CONCAT ' ', 'Неизвестная ошибка', message(0);
+            }   
+        }
+    } ELSE {
+        requestError() <- CONCAT ' ', 'Неизвестная ошибка: статус', VARSTRING[3](status);
+    }
+}

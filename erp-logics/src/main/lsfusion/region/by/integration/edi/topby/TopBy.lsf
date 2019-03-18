@@ -1,6 +1,6 @@
 MODULE TopBy;
 
-REQUIRE System, EDIIntegration, Integration, Warehouse, Store;
+REQUIRE System, EDI, Integration, Warehouse, Store;
 
 NAMESPACE EDI;
 
@@ -8,6 +8,7 @@ EXTEND CLASS EDIProvider {
     topBy 'СТТ'
 }
 
+useLSF 'Использовать lsf' = DATA BOOLEAN ();
 loginTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
 passwordTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
 hostTopBy 'Хост' = DATA VARSTRING[100] ();
@@ -16,10 +17,215 @@ archiveDirTopBy 'Папка принятых сообщений' = DATA VARSTRIN
 outputDirTopBy 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
+
+GROUP body EXTID 'soapenv:Body';
+GROUP sendDocument EXTID 'top:SendDocument' : body;
+GROUP getDocuments EXTID 'top:GetDocuments' : body;
+GROUP confirmDocumentReceived EXTID 'top:ConfirmDocumentReceived' : body;
+
+FORM receiveMessagesRequest
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT
+    PROPERTIES IN getDocuments VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+GROUP bodyS EXTID 'S:Body';
+GROUP getDocumentsResponse EXTID '=http://topby.by/:GetDocumentsResponse' : bodyS;
+GROUP getDocumentsResult EXTID 'GetDocumentsResult' : getDocumentsResponse;
+GROUP data EXTID 'Data' : getDocumentsResult;
+
+succesful = DATA LOCAL NESTED BOOLEAN();
+message = DATA LOCAL NESTED TEXT();
+errorCode = DATA LOCAL NESTED INTEGER();
+
+id = DATA LOCAL NESTED TEXT(INTEGER);
+documentType = DATA LOCAL NESTED TEXT(INTEGER);
+data = DATA LOCAL NESTED XMLFILE(INTEGER);
+
+FORM documentsResult
+    PROPERTIES() IN getDocumentsResult succesful EXTID 'Succesful',
+                                       message EXTID 'Message',
+                                       errorCode EXTID 'ErrorCode'
+    OBJECTS d = INTEGER EXTID 'DocumentData' IN data
+    PROPERTIES(d) id EXTID 'Id',
+                  documentType EXTID 'DocumentType',
+                  data EXTID 'Data'
+;
+
+sendRecipientErrorFailed = DATA LOCAL NESTED INTEGER();
+supplierOrdersSucceeded = DATA LOCAL NESTED INTEGER();
+supplierOrdersFailed = DATA LOCAL NESTED INTEGER();
+orderMessagesSucceeded = DATA LOCAL NESTED INTEGER();
+orderMessagesFailed = DATA LOCAL NESTED INTEGER();
+responsesSucceeded = DATA LOCAL NESTED INTEGER();
+responsesFailed = DATA LOCAL NESTED INTEGER();
+despatchAdvicesSucceeded = DATA LOCAL NESTED INTEGER();
+despatchAdvicesFailed = DATA LOCAL NESTED INTEGER();
+
+overReceiveMessages ABSTRACT LIST (INTEGER, VARSTRING[100], VARSTRING[100], VARSTRING[100], INTEGER, TEXT, VARSTRING[100], BOOLEAN, BOOLEAN, VARSTRING[100]);
+
+receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, VARSTRING[100] provider) {
+    TRY {
+        IF login AND password AND host AND port THEN {
+            LOCAL xml = XMLFILE();
+            EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
+            sendRequestEDI(host, port, login, password, url, xml());
+            logToFile('import', provider + ' ReceiveMessages request sent');
+            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
+            IF requestError() THEN {
+                logToFile('import', provider + ' ReceiveMessages: ' + requestError());
+                MESSAGE  provider + ' Сообщения не получены: ' + requestError() NOWAIT;
+            } ELSE {
+                IMPORT documentsResult XML FROM sendRequestEDIResponse();
+                IF succesful() THEN {
+                    sendRecipientErrorFailed() <- 0;
+                    supplierOrdersSucceeded() <- 0;
+                    supplierOrdersFailed() <- 0;
+                    orderMessagesSucceeded() <- 0;
+                    orderMessagesFailed() <- 0;
+                    responsesSucceeded() <- 0;
+                    responsesFailed() <- 0;
+                    despatchAdvicesSucceeded() <- 0;
+                    despatchAdvicesFailed() <- 0;
+                    
+                    FOR documentType(INTEGER i) DO {
+                        overReceiveMessages(i, login, password, host, port, url, archiveDir, disableConfirmation, receiveSupplierMessages, provider);
+                        IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+                    }
+                    
+                    LOCAL textMessage = TEXT();
+                    IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
+                    IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
+                    IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
+                    IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
+                    IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
+                    IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
+                    IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
+                    IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
+                    
+                    MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
+                }
+                ELSE {
+                    logToFile('import', provider + ' ReceiveMessages error ' + errorCode() + ': ' + message());
+                    MESSAGE  provider + ' Сообщения не получены error ' + errorCode() + ': ' + message() NOWAIT;
+                }
+            }
+     
+        } ELSE {
+            logToFile('import', provider + ' ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE  provider + ' Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+        }
+    } CATCH {
+        logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+    }
+}
+
+receiveMessagesTopBy () {
+    receiveMessages(loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), 'TopBy');
+}
+
 receiveTopByAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
+
 receiveTopBy 'Получить сообщения' {
     checkIsServer();
-    IF isServer() THEN receiveTopByAction();
+    IF isServer() THEN {IF useLSF() THEN receiveMessagesTopBy(); ELSE receiveTopByAction();};
+}
+
+GROUP reference;
+messageDocumentNumber = DATA LOCAL NESTED VARSTRING[24]();
+messageDocumentDate = DATA LOCAL NESTED DATETIME();
+documentType = DATA LOCAL NESTED TEXT();
+orderNumber = DATA LOCAL NESTED VARSTRING[28]();
+code = DATA LOCAL NESTED VARSTRING[10]();
+description = DATA LOCAL NESTED VARSTRING[200]();
+
+FORM systemMessage
+    PROPERTIES() messageDocumentNumber EXTID 'documentNumber', messageDocumentDate EXTID 'documentDate'
+    PROPERTIES() IN reference documentType, orderNumber EXTID 'documentNumber', code, description
+;
+
+FORM confirmDocument
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT, documentId = TEXT
+    PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, VARSTRING[100] provider) + {
+    IF lower(documentType(i)) == 'systemmessage' THEN {
+        TRY {
+            IMPORT systemMessage XML FROM data(i);
+            CASE
+                WHEN documentType() == 'ORDERS' THEN {
+                    NEWSESSION NESTED LOCAL {
+                        IF NOT eOrderMessage(messageDocumentNumber()) THEN NEW m = EOrderMessage {
+                            number(m) <- messageDocumentNumber();
+                        }
+                        FOR EOrderMessage m == eOrderMessage(messageDocumentNumber()) DO {
+                            dateTime(m) <- messageDocumentDate();
+                            code(m) <- code();
+                            description(m) <- description();
+                            eOrder(m) <- eOrder(orderNumber());
+                            APPLY NESTED LOCAL;
+                            IF canceled() THEN {
+                                //не вызываем sendRecipientError т.к. sendReplies = false
+                                logToFile('import', provider + ' Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
+                                orderMessagesFailed() <- orderMessagesFailed() + 1;
+                            } ELSE {
+                                IF NOT disableConfirmation THEN {
+                                    LOCAL xml = XMLFILE();
+                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                                    sendRequestEDI(host, port, login, password, url, xml());
+                                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                    IF requestError() THEN {
+                                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                    } ELSE {
+                                        IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                    }
+                                }
+                                logToFile('import', provider + ' Import EOrderMessage ' + id(i) + ' succeeded');
+                                orderMessagesSucceeded() <- orderMessagesSucceeded() + 1;
+                            }
+                        }
+                    }
+                }
+                // логика для накладных
+//                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' THEN {
+//                    logToFile('import', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
+//                    IF NOT disableConfirmation THEN {
+//                        LOCAL xml = XMLFILE();
+//                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+//                        sendRequestEDI(host, port, login, password, url, xml());
+//                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+//                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+//                        IF requestError() THEN {
+//                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+//                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+//                        } ELSE {
+//                            IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+//                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+//                        }
+//                    }
+//                    orderMessagesFailed() <- orderMessagesFailed() + 1;
+//                }
+//                WHEN documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
+//                    IF NOT receiveSupplierMessages THEN {
+//                        logToFile('import', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType());
+//                    }
+//                }
+                ELSE {
+                    logToFile('import', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + (OVERRIDE documentType(), 'NULL'));
+                    orderMessagesFailed() <- orderMessagesFailed() + 1;
+                }
+        } CATCH {
+            logToFile('import', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            orderMessagesFailed() <- orderMessagesFailed() + 1;
+        }
+    }
 }
 
 loginInvoiceTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
@@ -41,7 +247,7 @@ EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
                  loginInvoiceTopBy, passwordInvoiceTopBy, hostInvoiceTopBy, portInvoiceTopBy, 
                  hostEDSServiceTopBy, portEDSServiceTopBy, useEDSServiceForCustomerTopBy,
-                 receiveInvoiceTopBy
+                 receiveInvoiceTopBy, useLSF
 ;
     
 DESIGN integrationData {
@@ -67,6 +273,7 @@ DESIGN integrationData {
                 MOVE PROPERTY(useEDSServiceForCustomerTopBy());     
                 MOVE PROPERTY(receiveInvoiceTopBy());
             }
+            MOVE PROPERTY(useLSF());
             MOVE PROPERTY(archiveDirTopBy());
             MOVE PROPERTY(outputDirTopBy());
             MOVE PROPERTY(disableConfirmationTopBy());
@@ -75,10 +282,6 @@ DESIGN integrationData {
     }
 }
 
-sendTopBy 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEOrderTopByActionProperty' (EOrder);
-
-send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendTopBy(o); }
-cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.topBy AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE sendTopBy(o);}
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252') THEN TRUE ;
 good(EInvoiceMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2551' OR code(m) == '2571' OR code(m) == '2650') THEN TRUE ;
@@ -88,16 +291,3 @@ signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.
 
 signAndSendSupplierTopBy 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceSupplierTopByActionProperty' (EInvoice);
 signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE signAndSendSupplierTopBy(e); }
-
-sendSaleOrderSupplierTopBy 'Отправить (поставщик)' (Sale.UserOrder order) {
-    checkIsServer();
-    IF isServer() THEN {
-        IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-            sendSaleOrder(order, outputDirTopBy(), hostTopBy(), portTopBy(), loginTopBy(), passwordTopBy(), CONCAT '', 'http://', hostTopBy(),':', portTopBy(), '/DmcService');  
-        } ELSE {
-            printToImportLog(CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт');
-            MESSAGE CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт';
-        }
-    }
-}
-sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSaleOrderSupplierTopBy(o); }
