@@ -363,7 +363,10 @@ sendSaleOrderSupplier 'Отправить (поставщик)'  ABSTRACT LIST (
 EXTEND FORM Sale.orders PROPERTIES(o) exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o);
 DESIGN Sale.orders {
     actionContainer {
-        MOVE PROPERTY (sendSaleOrderSupplier(o));
+        NEW edi {
+            caption = 'EDI';
+            MOVE PROPERTY (sendSaleOrderSupplier(o));
+        }
     }
 }
 
@@ -463,4 +466,4 @@ sendSupplierSaleOrderTopBy (Sale.UserOrder o) {
     }
 }
 
-sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSupplierSaleOrderTopBy(o); }
+sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(customer(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSupplierSaleOrderTopBy(o); }
