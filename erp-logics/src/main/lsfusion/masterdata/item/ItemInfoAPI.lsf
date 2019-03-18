@@ -43,12 +43,12 @@ getSkuLedger (FILE f, DATE df, DATE dt, LONG idSku) {
     LOCAL sku = Sku();
     sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
     
-    EXPORT JSON FROM id = idSku, name(Stock st), 
-        date = date(SkuLedger s),
-        number = number(s),
+    EXPORT JSON FROM id = SkuLedger s, nameStock(s), 
+        date = date(s),
         description = description(s),
-        quantity = signedQuantity(sku(), st, date(s))
-        WHERE access(st) AND sku(s) == sku() AND stock(s) == st AND date(s) >= df AND date(s) <= dt;
+        quantity = signedQuantity(s)
+        WHERE access(stock(s)) AND active(s) AND sku(s) == sku() AND date(s) >= df AND date(s) <= dt
+        ORDER date(s) DESC, s DESC;
 } @@api;
 
 getSkuImage (LONG id) {
