@@ -1,0 +1,123 @@
+MODULE SaleInvoiceEDITopBy;
+
+REQUIRE EDI, SaleInvoice, TopBy, SaleOrderEDITopBy;
+
+NAMESPACE EDI;
+
+GLNSupplier (Sale.Invoice i) = GLN(supplier(i));
+GLNSupplierStock (Sale.Invoice i) = GLN(supplierStock(i));
+GLNCustomer (Sale.Invoice i) = GLN(customer(i));
+GLNCustomerStock (Sale.Invoice i) = GLN(customerStock(i));
+GTINBarcode(Sale.InvoiceDetail d) = GTINBarcode(sku(d));
+
+userOrder (Sale.Invoice i) = GROUP MAX Sale.UserOrder o IF quantityInvoiceDetail(o, i) MATERIALIZED;
+
+exported 'Экспортирован' = DATA BOOLEAN (Sale.Invoice);
+sendSaleInvoiceSupplier 'Отправить (поставщик)'  ABSTRACT LIST (Sale.Invoice);
+EXTEND FORM Sale.invoices PROPERTIES(i) exported READONLY, sendSaleInvoiceSupplier PANEL SHOWIF orderDocumentNumber(userOrder(i));
+DESIGN Sale.invoices {
+    actionContainer {
+        NEW edi {
+            caption = 'EDI';
+            MOVE PROPERTY (sendSaleInvoiceSupplier(i));
+        }
+    }
+}
+
+FORM saleInvoice FORMEXTID 'DESADV'
+    OBJECTS i = Sale.Invoice PANEL
+    PROPERTIES READONLY documentNumber = VARSTRING[28](number(i)) EXTID 'documentNumber',
+                        documentDate = toChar(dateTime(i),'yyyy-MM-ddThh24:mi:ss') EXTID 'documentDate',
+                        seriesNumber(i) EXTID 'deliveryNoteNumber',
+                        deliveryNoteDate = DATE(date(i)) EXTID 'deliveryNoteDate',
+                        functionCode = '9' EXTID 'functionCode',
+                        GLNCustomer(i) EXTID 'buyerGLN',
+                        buyerName = VARSTRING[150](nameCustomer(i)) EXTID 'buyerName',
+                        GLNCustomerStock(i) EXTID 'destinationGLN',
+                        destinationName = VARSTRING[150](nameCustomerStock(i)) EXTID 'destinationName',
+                        GLNSupplier(i) EXTID 'supplierGLN',
+                        supplierName = VARSTRING[150](nameSupplier(i)) EXTID 'supplierName',
+                        orderNumber = orderDocumentNumber(userOrder(i)) EXTID 'orderNumber',
+                        orderDate = toChar(dateTime(userOrder(i)),'yyyy-MM-ddThh24:mi:ss') EXTID 'orderDate',
+                        deliveryDateTimeFirst = toChar(shipmentDateTime(userOrder(i)),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
+                        totalLineItem = (GROUP SUM 1 IF quantity(Sale.InvoiceDetail id) > 0 AND invoice(id) == i) EXTID 'totalLineItem',
+                        comment = VARSTRING[500](note(i)) EXTID 'comment'
+    OBJECTS d = Sale.InvoiceDetail EXTID 'line'
+    FILTERS invoice(d) = i
+    PROPERTIES READONLY GTINBarcode(d) EXTID 'GTIN',
+                        idSku(d) EXTID 'IDSupplier',
+                        nameSku(d) EXTID 'fullName',
+                        quantity(d) EXTID 'quantityDespatch',
+                        measurement = (OVERRIDE extraCodeUOM(UOM(sku(d))), 'PCE') EXTID 'measurement',
+                        lineItemPrice = NUMERIC[16,2](round2(price(d))) EXTID 'lineItemPrice',
+                        vat = NUMERIC[4,2](round2(valueVAT(d))) EXTID 'vat'
+    FILTERS quantity(d) > 0
+;
+
+FORM envelopeSaleInvoice
+    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
+    OBJECTS i = Sale.Invoice
+    PROPERTIES DRAW i IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+    PROPERTIES IN sendDocument filename = (CONCAT '', 'order', number(i)) EXTID 'top:filename', 
+                  documentDate = toChar(dateTime(i),'yyyy-MM-ddThh24:mi:ss') EXTID 'top:documentDate',
+                  number(i) EXTID 'top:documentNumber',
+                  senderCode = GLNCustomer(i) EXTID 'top:senderCode',
+                  receiverCode = GLNCustomer(i) EXTID 'top:receiverCode',
+                  GLNCustomerStock(i) EXTID 'top:deliveryPointCode',
+                  documentType = 'DESADV' EXTID 'top:documentType'
+    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] outputDir, VARSTRING[100] provider) {
+    TRY {
+        IF login AND password AND host AND port THEN {
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLNSupplier(i) THEN error() <- error() + 'SupplierInvoice ' + number(i) + ': Не задан GLN поставщика\n';
+            IF NOT GLNCustomer(i) THEN error() <- error() + 'SupplierInvoice ' + number(i) + ': Не задан GLN покупателя\n';
+            IF NOT GLNCustomerStock(i) THEN error() <- error() + 'SupplierInvoice ' + number(i) + ': Не задан GLN склада покупателя\n';
+            //IF shipmentDateTime(i) < sumMinutes(currentDateTime(),60) THEN error() <- error() + 'SupplierInvoice ' + number(i) + ': Не верная дата/время поставки';
+            
+            IF error() == '' THEN {
+                LOCAL contentSubXML = FILE();
+                EXPORT saleInvoice OBJECTS i = i XML TO contentSubXML;
+                IF outputDir THEN WRITE contentSubXML() TO outputDir + '/' + number(i);
+                fileToString(contentSubXML());
+                encodeBase64(resultString());
+                LOCAL xml = XMLFILE();
+                EXPORT envelopeSaleInvoice OBJECTS i = i, login = login, password = password, innerXML = encodedBase64() XML TO xml;
+                sendRequestEDI(host, port, login, password, url, xml());
+                logToFile('import', provider + ' SendSupplierInvoice ' + number(i) +' request sent');
+                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                IF requestError() THEN {
+                    logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ': ' + requestError());
+                    logToFile('import', provider + ' Накладная ' + number(i) + ' не выгруженa: ' + requestError());
+                } ELSE {
+                    exported(i) <- TRUE;
+                    logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ' request succeeded');
+                    logToFile('import', provider + ' Накладная ' + number(i) + ' выгружена');
+                }
+            } ELSE {
+                logToFile('import', provider + ' SendSupplierInvoice: Не все поля заполнены. ' + error());
+                MESSAGE  provider + ' Накладная не выгруженa: Не все поля заполнены ' + error() NOWAIT;
+            }
+        } ELSE {
+            logToFile('import', provider + ' SendSupplierInvoice: не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE  provider + ' Накладная не выгруженa: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+        }
+    } CATCH {
+        logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+    }
+}
+
+sendSupplierSaleInvoiceTopBy (Sale.Invoice i) {
+    checkIsServer();
+    IF isServer() THEN NEWSESSION {
+        sendSupplierSaleInvoice(i, loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), outputDirTopBy(), 'TopBy');
+        APPLY;
+    }
+}
+
+sendSaleInvoiceSupplier(Sale.Invoice i) + { IF EDIProvider(customer(i)) == EDIProvider.topBy THEN IF exported(i) THEN MESSAGE 'Накладная уже отправлена'; ELSE sendSupplierSaleInvoiceTopBy(i); }
