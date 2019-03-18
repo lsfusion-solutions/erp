@@ -9,7 +9,9 @@ EXTEND CLASS Category {
 }
 
 filter = DATA LOCAL BOOLEAN (DepartmentStore);
-access (DepartmentStore s) = filter(s) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+allStores = DATA LOCAL BOOLEAN () COMPLEX;
+
+access (DepartmentStore s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
 
 getSalesStores (DATE df, DATE dt, FILE f) {
 
@@ -21,6 +23,7 @@ getSalesStores (DATE df, DATE dt, FILE f) {
     IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
         filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
     }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(DepartmentStore s));
     
     EXPORT FROM name(DepartmentStore s), 
         sum = sumReceiptDetailZReport(s, df, dt), 
@@ -40,6 +43,7 @@ getSalesDays (DATE df, DATE dt, FILE f) {
     IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
         filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
     }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(DepartmentStore s));
     
     EXPORT FROM date = DATE d, 
         sum = (GROUP SUM sumReceiptDetailZReport(DepartmentStore s, d) IF access(s)), 
@@ -71,6 +75,7 @@ getSalesDaysStores (DATE df, DATE dt, FILE f) {
     IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
         filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
     }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(DepartmentStore s));
     
     EXPORT salesDepartmentStores OBJECTS dFrom = df, dTo = dt JSON;
 } @@api;

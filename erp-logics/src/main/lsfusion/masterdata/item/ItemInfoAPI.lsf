@@ -5,7 +5,9 @@ REQUIRE PriceList, SaleLedger, Item, Store, API, OrderLedger, Pricing, SkuLedger
 NAMESPACE Item;
 
 filter = DATA LOCAL BOOLEAN (DepartmentStore);
-access (DepartmentStore s) = filter(s) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+allStores = DATA LOCAL BOOLEAN () COMPLEX;
+
+access (DepartmentStore s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
 
 getSkuSalesBalance (FILE f, DATE df, DATE dt, LONG idSku) {
 
@@ -17,6 +19,7 @@ getSkuSalesBalance (FILE f, DATE df, DATE dt, LONG idSku) {
     IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
         filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
     }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(DepartmentStore s));
     
     LOCAL sku = Sku();
     sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
@@ -39,6 +42,7 @@ getSkuLedger (FILE f, DATE df, DATE dt, LONG idSku) {
     IMPORT JSON FROM f AS FILE FIELDS LONG id DO {
         filter(DepartmentStore s) <- TRUE WHERE LONG (s AS DepartmentStore) == id;
     }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(DepartmentStore s));
     
     LOCAL sku = Sku();
     sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;

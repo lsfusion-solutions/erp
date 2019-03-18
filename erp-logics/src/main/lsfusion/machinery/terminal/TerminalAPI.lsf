@@ -13,13 +13,14 @@ getTerminalDocumentTypes () {
 } @@api;
 
 type = DATA LOCAL LONG ();
+stock = DATA LOCAL LONG ();
 quantity = DATA LOCAL NUMERIC[14,3] (INTEGER);
 id = DATA LOCAL LONG (INTEGER);
 
 GROUP item;
 
 FORM addTerminalDocument
-    PROPERTIES type = type()
+    PROPERTIES type = type(), stock = stock()
     OBJECTS details = INTEGER 
 
     PROPERTIES id = id(details) IN item, quantity = quantity(details)
@@ -35,7 +36,9 @@ addTerminalDocument (FILE f) {
     IMPORT addTerminalDocument JSON FROM f AS FILE;
     
     IF (GROUP SUM 1 IF quantity(INTEGER i) AND LONG (Sku s AS Sku) = id(i)) THEN NEW t = TerminalDocument {
+    
         terminalDocumentType(t) <- GROUP MAX TerminalDocumentType td IF LONG (td AS TerminalDocumentType) == type();
+        stock(t) <- GROUP MAX Stock st IF LONG (st AS Stock) == stock();
         
         FOR quantity(INTEGER i) AND LONG (Sku s AS Sku) = id(i) DO NEW d = TerminalDocumentDetail {
             terminalDocument(d) <- t;
