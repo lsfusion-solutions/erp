@@ -11,6 +11,8 @@ VATSumEVAT 'Сумма НДС док-ов' = GROUP SUM totalVATSum(EVAT e) IF NO
 
 filterTypeReport = DATA LOCAL EVATType ();
 nameFilterTypeReport 'Тип' = name(filterTypeReport());
+overVATSumReport = ABSTRACT NUMERIC[18,4](EVATDocument);
+VATSumReport 'Сумма НДС' (EVATDocument d) = VATSum(d) (-) overVATSumReport(d);
 
 FORM EVATReport 'Сверка ЭСЧФ'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -18,13 +20,13 @@ FORM EVATReport 'Сверка ЭСЧФ'
     PROPERTIES() nameFilterTypeReport
        
     OBJECTS doc = EVATDocument
-    PROPERTIES (doc) READONLY nameType, isPosted, number, series, date, time, nameCustomer, name, VATSum, VATSumEVAT, countEVAT, countCompletedEVAT, objectClassName 
+    PROPERTIES (doc) READONLY nameType, isPosted, number, series, date, time, nameCustomer, name, VATSumReport, VATSumEVAT, countEVAT, countCompletedEVAT, objectClassName 
         ORDER date(doc)
         
     FILTERS overNeedCreateEVAT(doc),
             date(doc) >= dFrom, date(doc) <= dTo,
             type(doc) == filterTypeReport() OR ( doc IS EVATDocument AND NOT filterTypeReport()),
-            VATSum(doc)
+            VATSumReport(doc)
             
     OBJECTS e = EVAT
     PROPERTIES(e) in
@@ -39,9 +41,9 @@ FORM EVATReport 'Сверка ЭСЧФ'
         FILTER 'Нет ЭСЧФ' NOT countEVAT(doc) 'F10'
         FILTER 'Не содержит COMPLETED' countEVAT(doc) AND NOT (countEVAT(doc) == countCompletedEVAT(doc)) 'F9'
         FILTER 'В статусе ERROR' countErrorEVAT(doc)
-        FILTER 'Отклонения в суммах' NOT (VATSum(doc) == VATSumEVAT(doc)) 'F8'
+        FILTER 'Отклонения в суммах' NOT (VATSumReport(doc) == VATSumEVAT(doc)) 'F8'
         FILTER 'Расхождения' (NOT (countEVAT(doc) == countCompletedEVAT(doc))) OR 
-                             (NOT (VATSum(doc) == VATSumEVAT(doc))) 'F7' DEFAULT      
+                             (NOT (VATSumReport(doc) == VATSumEVAT(doc))) 'F7' DEFAULT      
 ;
 
 DESIGN EVATReport {
