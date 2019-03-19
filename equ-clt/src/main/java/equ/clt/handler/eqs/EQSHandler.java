@@ -428,6 +428,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             Integer cash_id = rs.getInt(2); //ecr, Номер КСА
 
                             CashRegisterInfo cashRegister = machineryMap.get(cash_id);
+                            if(cashRegister == null) {
+                                //todo: tempLog
+                                sendSalesLogger.info(logPrefix + "cashRegister not found: " + cash_id);
+                                for(Integer c : machineryMap.keySet()) {
+                                    sendSalesLogger.info(logPrefix + "cashRegister exist: " + c);
+                                }
+                            }
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                             String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 5, appendBarcode); //barcode, Штрих-код товара
