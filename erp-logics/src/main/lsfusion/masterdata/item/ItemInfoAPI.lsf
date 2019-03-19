@@ -102,7 +102,7 @@ getSkuDateSalesBalance (FILE f, DATE df, DATE dt, LONG idSku) {
     EXPORT JSON FROM date = DATE d, sold(d), balance(d) WHERE iterate(d, df, dt) AND (sold(d) OR balance(d));
 } @@api;
 
-getSkuMarkups (DATE df, DATE dt, LONG idSku) {
+getSkuMarkups (LONG idSku) {
 
     IF limitAccess() AND NOT access(currentUser(), Category.skuLedger) THEN {
         EXPORT FROM 'Нет доступа к API';
@@ -112,6 +112,9 @@ getSkuMarkups (DATE df, DATE dt, LONG idSku) {
     LOCAL sku = Sku();
     sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
     
-    EXPORT JSON FROM id = CalcPriceListType t, markup = overMarkup(t, sku()), 
-        level = (OVERRIDE ('Товар' IF dataMarkup(t, sku())), name(group(groupType(t), sku()))) WHERE overMarkup(t, sku());
+    EXPORT JSON FROM 
+        id = CalcPriceListType t, 
+        markup = overMarkup(t, sku()), 
+        level = (OVERRIDE ('Товар' IF dataMarkup(t, sku())), name(group(groupType(t), sku()))) 
+        WHERE overMarkup(t, sku());
 } @@api;
