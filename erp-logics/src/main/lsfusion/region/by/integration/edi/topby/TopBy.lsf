@@ -63,9 +63,9 @@ responsesFailed = DATA LOCAL NESTED INTEGER();
 despatchAdvicesSucceeded = DATA LOCAL NESTED INTEGER();
 despatchAdvicesFailed = DATA LOCAL NESTED INTEGER();
 
-overReceiveMessages ABSTRACT LIST (INTEGER, VARSTRING[100], VARSTRING[100], VARSTRING[100], INTEGER, TEXT, VARSTRING[100], BOOLEAN, BOOLEAN, BOOLEAN, VARSTRING[100]);
+overReceiveMessages ABSTRACT LIST (INTEGER, VARSTRING[100], VARSTRING[100], VARSTRING[100], INTEGER, TEXT, VARSTRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, VARSTRING[100]);
 
-receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, VARSTRING[100] provider) {
+receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) {
     TRY {
         IF login AND password AND host AND port THEN {
             LOCAL xml = XMLFILE();
@@ -90,7 +90,7 @@ receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] h
                     despatchAdvicesFailed() <- 0;
                     
                     FOR documentType(INTEGER i) DO {
-                        overReceiveMessages(i, login, password, host, port, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, provider);
+                        overReceiveMessages(i, login, password, host, port, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
                         IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
                     }
                     
@@ -123,15 +123,15 @@ receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] h
     }
 }
 
-receiveMessagesTopBy () {
-    receiveMessages(loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, 'TopBy');
+receiveMessagesTopBy (BOOLEAN invoices) {
+    receiveMessages(loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
 }
 
 receiveTopByAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByActionProperty' ();
 
 receiveTopBy 'Получить сообщения' {
     checkIsServer();
-    IF isServer() THEN {IF useLSF() THEN receiveMessagesTopBy(); ELSE receiveTopByAction();};
+    IF isServer() THEN {IF useLSF() THEN receiveMessagesTopBy(NULL); ELSE receiveTopByAction();};
 }
 
 GROUP reference;
@@ -171,8 +171,8 @@ FORM envelopeMessage
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, VARSTRING[100] provider) + {
-    IF lower(documentType(i)) == 'systemmessage' THEN {
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+    IF lower(documentType(i)) == 'systemmessage' AND NOT invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             CASE
@@ -230,31 +230,49 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         }
                     }
                 }
-                // логика для накладных
-//                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' THEN {
-//                    logToFile('import', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
-//                    IF NOT disableConfirmation THEN {
-//                        LOCAL xml = XMLFILE();
-//                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-//                        sendRequestEDI(host, port, login, password, url, xml());
-//                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-//                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-//                        IF requestError() THEN {
-//                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-//                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-//                        } ELSE {
-//                            IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
-//                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-//                        }
-//                    }
-//                    orderMessagesFailed() <- orderMessagesFailed() + 1;
-//                }
-//                WHEN documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
-//                    IF NOT receiveSupplierMessages THEN {
-//                        logToFile('import', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType());
-//                        //не вызываем sendRecipientError т.к. sendReplies = false
-//                    }
-//                }
+                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' THEN {
+                    logToFile('import', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
+                    IF NOT disableConfirmation THEN {
+                        LOCAL xml = XMLFILE();
+                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                        sendRequestEDI(host, port, login, password, url, xml());
+                        logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                        IF requestError() THEN {
+                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                        } ELSE {
+                            IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+                            logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                        }
+                    }
+                    orderMessagesFailed() <- orderMessagesFailed() + 1;
+                }
+                WHEN documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
+                    IF NOT receiveSupplierMessages THEN {
+                        IF NOT disableConfirmation AND sendReplies THEN {
+                            LOCAL contentSubXML = FILE();
+                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType()) XML TO contentSubXML;
+                            fileToString(contentSubXML());
+                            encodeBase64(resultString());
+                            LOCAL xml = XMLFILE();
+                            EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                            sendRequestEDI(host, port, login, password, url, xml());
+                            logToFile('import', provider + ' RecipientError ' + id(i) +' request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                            IF requestError() THEN {
+                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                                logToFile('import', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('import', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' выгружено' NOWAIT;
+                            }
+                        }
+                        logToFile('import', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType());
+                        orderMessagesFailed() <- orderMessagesFailed() + 1;
+                    }
+                }
                 ELSE {
                     IF NOT disableConfirmation AND sendReplies THEN {
                         LOCAL contentSubXML = FILE();

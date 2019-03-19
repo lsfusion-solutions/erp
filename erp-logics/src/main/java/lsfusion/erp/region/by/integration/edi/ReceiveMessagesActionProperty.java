@@ -434,43 +434,43 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
 
         //Import orders
-        if(!invoices && receiveSupplierMessages) {
-            int supplierOrdersSucceeded = 0;
-            int supplierOrdersFailed = 0;
-            for (Map.Entry<String, String> blrapnEntry : ordersMap.entrySet()) {
-                String documentId = blrapnEntry.getKey();
-                String subXML = blrapnEntry.getValue();
-                String error;
-                String documentNumber = null;
-                try {
-
-                    findAction("importSaleUserOrderEDI[FILE]").execute(context, new DataObject(new FileData(new RawFileData(subXML.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get()));
-                    error = trimToNull((String) findProperty("importSaleUserOrderEDIError[]").read(context));
-
-                    if(error == null) {
-                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                        supplierOrdersSucceeded++;
-                        ServerLoggers.importLogger.info(String.format("%s Import Order %s succeeded", provider, documentId));
-                    } else {
-                        documentNumber = (String) findProperty("documentNumber[]").read(context);
-                        ServerLoggers.importLogger.error(String.format("%s Import Order %s failed: %s", provider, documentId, error));
-                    }
-                } catch (Exception e) {
-                    error = e.getMessage();
-                    ServerLoggers.importLogger.error(String.format("%s Parse Order %s error: ", provider, documentId), e);
-                }
-                if(error != null) {
-                    if (documentNumber != null && !sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error, disableConfirmation, sendReplies))
-                        sendRecipientErrorFailed++;
-                    supplierOrdersFailed++;
-                }
-            }
-
-            if (supplierOrdersSucceeded > 0)
-                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено заказов поставщика: %s", supplierOrdersSucceeded);
-            if (supplierOrdersFailed > 0)
-                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено заказов поставщика: %s", supplierOrdersFailed);
-        }
+//        if(!invoices && receiveSupplierMessages) {
+//            int supplierOrdersSucceeded = 0;
+//            int supplierOrdersFailed = 0;
+//            for (Map.Entry<String, String> blrapnEntry : ordersMap.entrySet()) {
+//                String documentId = blrapnEntry.getKey();
+//                String subXML = blrapnEntry.getValue();
+//                String error;
+//                String documentNumber = null;
+//                try {
+//
+//                    findAction("importSaleUserOrderEDI[FILE]").execute(context, new DataObject(new FileData(new RawFileData(subXML.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get()));
+//                    error = trimToNull((String) findProperty("importSaleUserOrderEDIError[]").read(context));
+//
+//                    if(error == null) {
+//                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
+//                        supplierOrdersSucceeded++;
+//                        ServerLoggers.importLogger.info(String.format("%s Import Order %s succeeded", provider, documentId));
+//                    } else {
+//                        documentNumber = (String) findProperty("documentNumber[]").read(context);
+//                        ServerLoggers.importLogger.error(String.format("%s Import Order %s failed: %s", provider, documentId, error));
+//                    }
+//                } catch (Exception e) {
+//                    error = e.getMessage();
+//                    ServerLoggers.importLogger.error(String.format("%s Parse Order %s error: ", provider, documentId), e);
+//                }
+//                if(error != null) {
+//                    if (documentNumber != null && !sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error, disableConfirmation, sendReplies))
+//                        sendRecipientErrorFailed++;
+//                    supplierOrdersFailed++;
+//                }
+//            }
+//
+//            if (supplierOrdersSucceeded > 0)
+//                message += (message.isEmpty() ? "" : "\n") + String.format("Загружено заказов поставщика: %s", supplierOrdersSucceeded);
+//            if (supplierOrdersFailed > 0)
+//                message += (message.isEmpty() ? "" : "\n") + String.format("Не загружено заказов поставщика: %s", supplierOrdersFailed);
+//        }
 
         if (orderMessagesSucceeded > 0)
             message += (message.isEmpty() ? "" : "\n") + String.format("Загружено сообщений по заказам: %s", orderMessagesSucceeded);

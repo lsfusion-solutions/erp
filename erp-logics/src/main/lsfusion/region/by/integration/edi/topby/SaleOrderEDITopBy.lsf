@@ -256,8 +256,8 @@ quantityOrdered = DATA NUMERIC[16,5] (Sale.UserOrderDetail);
 
 CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя проводить отмененный заказ';
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, VARSTRING[100] provider) + {
-    IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages THEN {
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+    IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages AND NOT invoices THEN {
         TRY {
             IMPORT importOrders XML FROM data(i);
             IF ordersDocumentType() == 31 OR (ordersDocumentType() == 9 AND Sale.userOrder(ordersSupplierGLN() + '/' + ordersDocumentNumber())) THEN {
