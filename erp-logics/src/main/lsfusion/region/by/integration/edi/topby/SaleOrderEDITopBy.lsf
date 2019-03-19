@@ -256,7 +256,7 @@ quantityOrdered = DATA NUMERIC[16,5] (Sale.UserOrderDetail);
 
 CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя проводить отмененный заказ';
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, VARSTRING[100] provider) + {
     IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages THEN {
         TRY {
             IMPORT importOrders XML FROM data(i);
@@ -316,6 +316,25 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         }
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
+                            IF NOT disableConfirmation AND sendReplies THEN {
+                                LOCAL contentSubXML = FILE();
+                                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = ordersDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                                fileToString(contentSubXML());
+                                encodeBase64(resultString());
+                                LOCAL xml = XMLFILE();
+                                EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                                sendRequestEDI(host, port, login, password, url, xml());
+                                logToFile('import', provider + ' RecipientError ' + id(i) +' request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                                IF requestError() THEN {
+                                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                                    logToFile('import', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    logToFile('import', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' выгружено' NOWAIT;
+                                }
+                            }
                             logToFile('import', provider + ' Import Order ' + id(i) + ' failed: ' + applyMessage());
                             supplierOrdersFailed() <- supplierOrdersFailed() + 1;
                         } ELSE {
@@ -441,22 +460,23 @@ sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder 
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
                     logToFile('import', provider + ' SendSupplierOrder ' + number(o) + ': ' + requestError());
-                    logToFile('import', provider + ' Заказ ' + number(o) + ' не выгружен: ' + requestError());
+                    MESSAGE provider + ' Заказ ' + number(o) + ' не выгружен: ' + requestError() NOWAIT;
                 } ELSE {
                     IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
                     logToFile('import', provider + ' SendSupplierOrder ' + number(o) + ' request succeeded');
-                    logToFile('import', provider + ' Заказ ' + number(o) + ' выгружен');
+                    MESSAGE provider + ' Заказ ' + number(o) + ' выгружен' NOWAIT;
                 }
             } ELSE {
                 logToFile('import', provider + ' SendSupplierOrder: Не все поля заполнены. ' + error());
-                MESSAGE  provider + ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+                MESSAGE provider + ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
             }
         } ELSE {
             logToFile('import', provider + ' SendSupplierOrder: не заданы имя пользователя / пароль / хост / порт');
-            MESSAGE  provider + ' Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            MESSAGE provider + ' Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
         logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Заказ не выгружен. Обратитесь к администратору' NOWAIT;
     }
 }
 

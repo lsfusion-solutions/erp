@@ -96,22 +96,23 @@ sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice 
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
                     logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ': ' + requestError());
-                    logToFile('import', provider + ' Накладная ' + number(i) + ' не выгруженa: ' + requestError());
+                    MESSAGE provider + ' Накладная ' + number(i) + ' не выгруженa: ' + requestError() NOWAIT;
                 } ELSE {
                     exported(i) <- TRUE;
                     logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ' request succeeded');
-                    logToFile('import', provider + ' Накладная ' + number(i) + ' выгружена');
+                    MESSAGE provider + ' Накладная ' + number(i) + ' выгружена' NOWAIT;
                 }
             } ELSE {
                 logToFile('import', provider + ' SendSupplierInvoice: Не все поля заполнены. ' + error());
-                MESSAGE  provider + ' Накладная не выгруженa: Не все поля заполнены ' + error() NOWAIT;
+                MESSAGE provider + ' Накладная не выгруженa: Не все поля заполнены ' + error() NOWAIT;
             }
         } ELSE {
             logToFile('import', provider + ' SendSupplierInvoice: не заданы имя пользователя / пароль / хост / порт');
-            MESSAGE  provider + ' Накладная не выгруженa: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            MESSAGE provider + ' Накладная не выгруженa: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
         logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Накладная не выгруженa. Обратитесь к администратору' NOWAIT;
     }
 }
 
