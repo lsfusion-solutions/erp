@@ -16,7 +16,7 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
                         GLNSupplierStock(o) EXTID 'supplierGLN',
                         nameSupplier(o) EXTID 'supplierName',
                         deliveryDateTimeFirst = toChar(shipmentDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
-                        lineQuantity = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND order(od) == o) EXTID 'lineQuantity',
+                        lineQuantity = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND GTINBarcode(d) AND order(od) == o) EXTID 'lineQuantity',
                         note(o) EXTID 'comment'
     OBJECTS d = EOrderDetail EXTID 'line'
     FILTERS order(d) == o
@@ -27,7 +27,7 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
                         extraCodeUOMSku(d) EXTID 'measurement',
                         priceElement = NUMERIC[16,2](round2(price(d))) EXTID 'priceElement',
                         tax = NUMERIC[4,2](round2(valueVAT(d))) EXTID 'tax'
-    FILTERS overQuantity(d) > 0
+    FILTERS overQuantity(d) > 0 AND GTINBarcode(d)
 ;
 
 FORM envelopePurchaseOrder
