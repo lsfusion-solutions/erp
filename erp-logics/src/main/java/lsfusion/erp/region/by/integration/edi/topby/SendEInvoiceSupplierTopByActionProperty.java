@@ -22,10 +22,10 @@ public class SendEInvoiceSupplierTopByActionProperty extends SendEInvoiceSupplie
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            String login = (String) findProperty("loginInvoiceTopBy[]").read(context);
-            String password = (String) findProperty("passwordInvoiceTopBy[]").read(context);
-            String host = (String) findProperty("hostInvoiceTopBy[]").read(context);
-            Integer port = (Integer) findProperty("portInvoiceTopBy[]").read(context);
+            String login = (String) findProperty("loginTopBy[]").read(context);
+            String password = (String) findProperty("passwordTopBy[]").read(context);
+            String host = (String) findProperty("hostTopBy[]").read(context);
+            Integer port = (Integer) findProperty("portTopBy[]").read(context);
             String outputDir = (String) findProperty("outputDirTopBy[]").read(context);
 
             String hostEDSService = (String) findProperty("hostEDSServiceTopBy[]").read(context);

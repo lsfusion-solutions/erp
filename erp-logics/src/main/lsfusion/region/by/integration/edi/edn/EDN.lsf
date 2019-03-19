@@ -28,55 +28,29 @@ receiveEDN 'Получить сообщения' {
     IF isServer() THEN {IF useLSF() THEN receiveMessagesEDN(NULL); ELSE receiveEDNAction();};
 }
 
-loginInvoiceEDN 'Имя пользователя EDN' = DATA VARSTRING[100] ();
-passwordInvoiceEDN 'Пароль EDN' = DATA VARSTRING[100] () ECHO;
-hostInvoiceEDN 'Хост EDN' = DATA VARSTRING[100] ();
-portInvoiceEDN 'Порт EDN' = DATA INTEGER ();
-
-hostEDSServiceEDN 'Хост EDSService' = DATA VARSTRING[100] ();
-portEDSServiceEDN 'Порт EDSService' = DATA INTEGER ();
-useEDSServiceForCustomerEDN 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
-
-receiveInvoiceEDNAction 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveInvoiceMessagesEDNActionProperty' ();
-receiveInvoiceEDN 'Получить сообщения по электронным накладным' {
-    checkIsServer();
-    IF isServer() THEN receiveInvoiceEDNAction();
-}
-
 EXTEND FORM integrationData
-    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN,
-                 loginInvoiceEDN, passwordInvoiceEDN, hostInvoiceEDN, portInvoiceEDN,
-                 hostEDSServiceEDN, portEDSServiceEDN, useEDSServiceForCustomerEDN,
-                 receiveInvoiceEDN
+    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, receiveSupplierMessagesEDN
 ;
     
 DESIGN integrationData {
     pane {
         NEW vsEDN {
             caption = 'EDN';
-            NEW ovsEDN {
-                caption = 'Заказы';
+            NEW paramsEDN {
+                caption = 'Общие';
                 MOVE PROPERTY(loginEDN());
                 MOVE PROPERTY(passwordEDN());
                 MOVE PROPERTY(hostEDN());
                 MOVE PROPERTY(portEDN());
+                MOVE PROPERTY(archiveDirEDN());
+                MOVE PROPERTY(outputDirEDN());
+                MOVE PROPERTY(disableConfirmationEDN());
+                MOVE PROPERTY(receiveSupplierMessagesEDN());
+            }
+            NEW ovsEDN {
+                caption = 'Заказы';
                 MOVE PROPERTY(receiveEDN());
             }
-            NEW ivsEDN {
-                caption = 'Электронные накладные';
-                MOVE PROPERTY(loginInvoiceEDN());
-                MOVE PROPERTY(passwordInvoiceEDN());
-                MOVE PROPERTY(hostInvoiceEDN());
-                MOVE PROPERTY(portInvoiceEDN());
-                MOVE PROPERTY(hostEDSServiceEDN());
-                MOVE PROPERTY(portEDSServiceEDN());  
-                MOVE PROPERTY(useEDSServiceForCustomerEDN());                                                           
-                MOVE PROPERTY(receiveInvoiceEDN());
-            }
-            MOVE PROPERTY(archiveDirEDN());
-            MOVE PROPERTY(outputDirEDN());
-            MOVE PROPERTY(disableConfirmationEDN());
-            MOVE PROPERTY(receiveSupplierMessagesEDN());
         }
     }
 }
@@ -95,21 +69,5 @@ cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
 
-signAndSendCustomerEDN 'Подписать и отправить (покупатель)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceCustomerEDNActionProperty' (EInvoice);
-signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exportedCustomer(e) THEN MESSAGE 'Накладная (покупатель) уже отправлена'; ELSE signAndSendCustomerEDN(e); }
-
-signAndSendSupplierEDN 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEInvoiceSupplierEDNActionProperty' (EInvoice);
-signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE signAndSendSupplierEDN(e); }
-
-//sendSaleOrderSupplierEDN 'Отправить (поставщик)' (Sale.UserOrder order) {
-//    checkIsServer();
-//    IF isServer() THEN {
-//        IF loginEDN() AND passwordEDN() AND hostEDN() AND portEDN() THEN {
-//            sendSaleOrder(order, outputDirEDN(), hostEDN(), portEDN(), loginEDN(), passwordEDN(), CONCAT '', 'https://', hostEDN(),':', portEDN(), '/topby/DmcService?wsdl');  
-//        } ELSE {
-//            printToImportLog(CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт');
-//            MESSAGE CONCAT ' ', 'Заказ', number(order), 'не выгружен: не заданы имя пользователя / пароль / хост / порт';
-//        }
-//    }
-//}
-//sendSaleOrderSupplier(Sale.UserOrder o) + {  IF EDIProvider(supplier(o)) == EDIProvider.edn THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSaleOrderSupplierEDN(o); }
+signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN MESSAGE 'Операция не поддерживается для данного EDI проавайдера'; }
+signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.edn THEN MESSAGE 'Операция не поддерживается для данного EDI проавайдера'; }
