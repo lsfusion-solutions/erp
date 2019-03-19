@@ -72,10 +72,12 @@ getPriceListDetail (FILE f, DATE df, DATE dt, LONG idSku) {
     sku() <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku;
     
     EXPORT JSON FROM fromDate(UserPriceListDetail d), toDate(d),
+        nameCompany = nameCompany(d),
         stockGroups = (GROUP CONCAT name(StockGroup g) IF dataIn(priceList(d), g), ', ' ORDER name(g), g),
         stocks = (GROUP CONCAT name(Stock s) IF dataIn(priceList(d), s), ', ' ORDER name(s), s),
         prices = (GROUP CONCAT (name(DataPriceListType t) + ' : ' + TEXT (round2(price(d, t)))) IF in(priceList(d), t) AND price(d, t), ', ' ORDER name(t), t)
-        WHERE fromDate(d) <= dt AND NOT toDate(d) < df AND sku(d) == sku() AND (GROUP SUM 1 IF access(Stock st) AND in(priceList(d), st));
+        WHERE fromDate(d) <= dt AND NOT toDate(d) < df AND sku(d) == sku() AND (GROUP SUM 1 IF access(Stock st) AND in(priceList(d), st))
+        ORDER fromDate(d) DESC, d DESC;
 
 } @@api;
 
