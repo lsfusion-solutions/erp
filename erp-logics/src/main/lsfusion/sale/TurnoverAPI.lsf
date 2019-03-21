@@ -1,0 +1,170 @@
+MODULE TurnoverAPI;
+
+REQUIRE PurchaseLedger, SaleLedger, Pricing, Item, API;
+
+NAMESPACE Stock;
+
+EXTEND CLASS Category {
+    turnover 'Товарооборот'
+}
+
+costSumSold 'Себестоимость' = DATA NUMERIC[18,4](Stock, LegalEntity, SkuGroup, DATE);
+markupSumSold  'Надбавка' = DATA NUMERIC[18,4](Stock, LegalEntity, SkuGroup, DATE);
+sumSold 'Сумма продажи' = DATA NUMERIC[18,4](Stock, LegalEntity, SkuGroup, DATE);
+costSumBalanceA 'Остаток в с/с без НДС' = DATA NUMERIC[18,4](Stock, LegalEntity, SkuGroup, DATE);
+
+fillTurnover (DATE df, DATE dt) {
+    
+    LOCAL balance = NUMERIC[18,4](Batch, Stock);
+    balance(Batch b, Stock st) <- balanceA(b, st, dt);
+    
+    LOCAL date = DATE ();
+    date() <- dt;
+    
+    WHILE date() >= df DO {
+        FOR DATE d = date() DO {
+        
+            costSumSold(Stock st, LegalEntity le, SkuGroup g, d) <- GROUP SUM costSumSold(Batch b, st, d) IF isParent(g, sku(b)) AND supplier(b) == le;
+            markupSumSold(Stock st, LegalEntity le, SkuGroup g, d) <- GROUP SUM markupSumSold(Batch b, st, d) IF isParent(g, sku(b)) AND supplier(b) == le;
+            sumSold(Stock st, LegalEntity le, SkuGroup g, d) <- GROUP SUM sumSold(Batch b, st, d) IF isParent(g, sku(b)) AND supplier(b) == le;
+    
+            costSumBalanceA(Stock st, LegalEntity le, SkuGroup g, d) <- GROUP SUM balance(Batch b, st) * cost(b) IF isParent(g, sku(b)) AND supplier(b) == le;
+            balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
+        }
+        date() <- subtract(date(), 1);
+        APPLY NESTED LOCAL;
+    }
+}
+
+filter = DATA LOCAL BOOLEAN (Stock);
+filter = DATA LOCAL BOOLEAN (LegalEntity);
+filter = DATA LOCAL BOOLEAN (SkuGroup);
+allStores = DATA LOCAL BOOLEAN () COMPLEX;
+allSuppliers = DATA LOCAL BOOLEAN () COMPLEX;
+allGroups = DATA LOCAL BOOLEAN () COMPLEX;
+
+access (Stock s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+
+costSumSold (Stock s, DATE d) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+markupSumSold (Stock s, DATE d) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+sumSold (Stock s, DATE d) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+costSumBalanceA (Stock s, DATE d) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+
+costSumSold (LegalEntity le, DATE d) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, d) IF (access(s) OR allStores()) AND (filter(g) OR allGroups());
+markupSumSold (LegalEntity le, DATE d) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, d) IF (access(s) OR allStores()) AND (filter(g) OR allGroups());
+sumSold (LegalEntity le, DATE d) = GROUP SUM sumSold(Stock s, le, SkuGroup g, d) IF (access(s) OR allStores()) AND (filter(g) OR allGroups());
+costSumBalanceA (LegalEntity le, DATE d) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, d) IF (access(s) OR allStores()) AND (filter(g) OR allGroups());
+
+costSumSold (SkuGroup g, DATE d) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+markupSumSold (SkuGroup g, DATE d) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+sumSold (SkuGroup g, DATE d) = GROUP SUM sumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+costSumBalanceA (SkuGroup g, DATE d) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+
+costSumSold (Stock s, DATE df, DATE dt) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+markupSumSold (Stock s, DATE df, DATE dt) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+sumSold (Stock s, DATE df, DATE dt) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+costSumBalanceA (Stock s, DATE df, DATE dt) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+
+costSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (access(s) OR allStores()) AND (filter(g) OR allGroups());
+markupSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (access(s) OR allStores()) AND (filter(g) OR allGroups());
+sumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (access(s) OR allStores()) AND (filter(g) OR allGroups());
+costSumBalanceA (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (access(s) OR allStores()) AND (filter(g) OR allGroups());
+
+costSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+markupSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+sumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+costSumBalanceA (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (access(s) OR allStores());
+
+importFilters (FILE stockList, FILE supplierList, FILE groupList) {
+
+    IMPORT JSON FROM stockList AS FILE FIELDS LONG id DO {
+        filter(Stock s) <- TRUE WHERE LONG (s AS Stock) == id;
+    }
+    allStores() <- TRUE IF NOT (GROUP SUM 1 IF filter(Stock s)); 
+     
+    IMPORT JSON FROM supplierList AS FILE FIELDS LONG id DO {
+        filter(LegalEntity s) <- TRUE WHERE LONG (s AS LegalEntity) == id;
+    }
+    allSuppliers() <- TRUE IF NOT (GROUP SUM 1 IF filter(LegalEntity s)); 
+    
+    IMPORT JSON FROM groupList AS FILE FIELDS LONG id DO {
+        filter(SkuGroup s) <- TRUE WHERE LONG (s AS SkuGroup) == id;
+    }
+    allGroups() <- TRUE IF NOT (GROUP SUM 1 IF filter(SkuGroup s)); 
+}
+
+getTurnoverByStockDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
+    
+    IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    importFilters(stockList, supplierList, groupList);
+    
+    EXPORT JSON FROM stock = LONG (Stock st), name(st), date = DATE d, costSumSold(st, d), markupSumSold(st, d), sumSold(st, d), costSumBalanceA(st, d)
+        WHERE (access(st) OR allStores()) AND iterate(d, df, dt) AND (sumSold(st, d) OR costSumBalanceA(st, d));
+} @@api;
+
+getTurnoverBySupplierDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
+                             
+     IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+         EXPORT FROM 'Нет доступа к API';
+         RETURN;
+     }
+     importFilters(stockList, supplierList, groupList);
+     
+     EXPORT JSON FROM supplier = LONG (LegalEntity le), name(le), date = DATE d, costSumSold(le, d), markupSumSold(le, d), sumSold(le, d), costSumBalanceA(le, d)
+         WHERE (filter(le) OR allSuppliers()) AND iterate(d, df, dt) AND (sumSold(le, d) OR costSumBalanceA(le, d));
+ } @@api;
+ 
+getTurnoverByGroupDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt, INTEGER level) {
+                                                   
+    IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    importFilters(stockList, supplierList, groupList);
+    
+    EXPORT JSON FROM group = LONG (SkuGroup g), name(g), date = DATE d, costSumSold(g, d), markupSumSold(g, d), sumSold(g, d), costSumBalanceA(g, d)
+        WHERE (filter(g) OR allGroups()) AND skuGroupRoot(g, level (+) 1) == g AND iterate(d, df, dt) AND (sumSold(g, d) OR costSumBalanceA(g, d));
+} @@api;
+
+getTurnoverByStock (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
+                      
+    IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    importFilters(stockList, supplierList, groupList);
+    
+    EXPORT JSON FROM stock = LONG (Stock st), name(st), costSumSold = costSumSold(st, df, dt), markupSumSold = markupSumSold(st, df, dt), 
+        sumSold = sumSold(st, df, dt), costSumBalanceA = costSumBalanceA(st, df, dt)
+        WHERE (access(st) OR allStores()) AND (sumSold(st, df, dt) OR costSumBalanceA(st, df, dt));
+} @@api;
+
+getTurnoverBySupplier (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
+                                            
+    IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    importFilters(stockList, supplierList, groupList);
+    
+    EXPORT JSON FROM supplier = LONG (LegalEntity le), name(le), costSumSold = costSumSold(le, df, dt), markupSumSold = markupSumSold(le, df, dt), 
+        sumSold = sumSold(le, df, dt), costSumBalanceA = costSumBalanceA(le, df, dt)
+        WHERE (filter(le) OR allSuppliers()) AND (sumSold(le, df, dt) OR costSumBalanceA(le, df, dt));
+} @@api;
+
+
+getTurnoverByGroup (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt, INTEGER level) {
+                                                                   
+    IF limitAccess() AND NOT access(currentUser(), Category.turnover) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    importFilters(stockList, supplierList, groupList);
+    
+    EXPORT JSON FROM group = LONG (SkuGroup g), name(g), costSumSold = costSumSold(g, df, dt), markupSumSold = markupSumSold(g, df, dt), 
+        sumSold = sumSold(g, df, dt), costSumBalanceA = costSumBalanceA(g, df, dt)
+        WHERE (filter(g) OR allGroups()) AND skuGroupRoot(g, level (+) 1) == g AND (sumSold(g, df, dt) OR costSumBalanceA(g, df, dt));
+} @@api;
