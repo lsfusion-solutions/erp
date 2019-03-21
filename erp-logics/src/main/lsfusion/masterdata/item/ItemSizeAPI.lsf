@@ -1,0 +1,45 @@
+MODULE ItemSizeAPI;
+
+REQUIRE ItemSize, API;
+
+NAMESPACE Item;
+
+EXTEND CLASS Category {
+    itemSize 'Габариты товаров'
+}
+
+getSkuSize (LONG idSku) {
+
+    IF limitAccess() AND NOT access(currentUser(), Category.itemSize) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
+    EXPORT JSON FROM netWeight(Item i), grossWeight(i), volume(i), length(i), height(i), width(i) 
+        WHERE (i = GROUP MAX Sku s IF LONG (s AS Sku) == idSku);
+} @@api;
+
+
+addSkuSize (FILE f, LONG idSku) {
+
+    IF limitAccess() AND NOT access(currentUser(), Category.itemSize) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
+    IMPORT JSON FROM f AS FILE FIELDS NUMERIC[11,5] netWeight NULL, NUMERIC[11,5] grossWeight NULL, NUMERIC[9,3] volume NULL, 
+        NUMERIC[8,2] length NULL, NUMERIC[8,2] height NULL, NUMERIC[8,2] width NULL DO  {
+    
+        
+        FOR Item i = GROUP MAX Sku s IF LONG (s AS Sku) == idSku DO {
+            
+            netWeight(i) <- netWeight;
+            grossWeight(i) <- grossWeight;
+            volume(i) <- volume;
+            length(i) <- length;
+            height(i) <- height;
+            width(i) <- width;
+        }  
+        APPLY;
+    }
+} @@api;
