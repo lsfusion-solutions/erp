@@ -1,0 +1,127 @@
+MODULE Competitor;
+
+REQUIRE MasterData, Authentication, Sku, PriceListType;
+
+NAMESPACE Competitor;
+
+CLASS Competitor 'Конкурент';
+TABLE competitor (Competitor);
+
+name 'Наименование' = DATA VARISTRING[100] (Competitor) CHARWIDTH 15;
+
+FORM competitor 'Конкурент'
+    OBJECTS c = Competitor PANEL
+    PROPERTIES(c) name
+    
+    EDIT Competitor OBJECT c
+;
+
+FORM competitors 'Конкуренты'
+    OBJECTS c = Competitor
+    PROPERTIES(c) READONLY name
+    PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogCompetitors 'Конкуренты'
+    OBJECTS c = Competitor
+    PROPERTIES(c) READONLY name
+    
+    LIST Competitor OBJECT c
+;
+
+CLASS PriceList 'Прайс';
+TABLE priceList (PriceList);
+
+note 'Примечание' = DATA VARISTRING[100] (PriceList) CHARWIDTH 20;
+date 'Дата' = DATA DATE (PriceList);
+dateTimeCreated 'Дата/время создания' = DATA DATETIME (PriceList);
+
+competitor = DATA Competitor(PriceList);
+nameCompetitor 'Конкурент' (PriceList p) = name(competitor(p));
+
+createdUser = DATA User(PriceList);
+nameCreatedUser 'Создан пользователем' (PriceList p) = name(createdUser(p));
+
+CLASS PriceListDetail 'Строка прайса';
+TABLE priceListDetail (PriceListDetail);
+
+priceList = DATA PriceList(PriceListDetail) NONULL DELETE;
+
+date 'Дата' (PriceListDetail d) = date(priceList(d));
+
+competitor (PriceListDetail d) = competitor(priceList(d));
+nameCompetitor 'Конкурент' (PriceListDetail d) = name(competitor(d));
+
+sku = DATA Sku(PriceListDetail);
+nameSku 'Товар' (PriceListDetail d) = name(sku(d));
+idBarcodeSku 'Штрихкод' (PriceListDetail d) = idBarcode(sku(d));
+idSku 'Код товара' (PriceListDetail d) = id(sku(d));
+
+CONSTRAINT sku(PriceListDetail d1) == sku(PriceListDetail d2) AND priceList(d1) == priceList(d2) AND d1 != d2 
+    CHECKED BY sku[PriceListDetail] MESSAGE 'В прайсе не должно быть одинаковых товаров';
+
+price 'Цена' = DATA NUMERIC[16,5](PriceListDetail);
+
+price 'Цена конкурента' (Competitor c, Sku s, DATE d) = 
+    GROUP LAST price(PriceListDetail dd) ORDER date(dd), dd WHERE date(dd) <= d BY competitor(dd), sku(dd);
+
+createdUser(p) <- currentUser() WHEN SET (p IS PriceList);
+dateTimeCreated(p) <- currentDateTime() WHEN SET (p IS PriceList);
+
+FORM priceList 'Прайс'
+    OBJECTS p = PriceList PANEL
+    PROPERTIES(p) date, nameCompetitor, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
+    ORDER date(p)
+
+    OBJECTS d = PriceListDetail
+    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, price, NEW, DELETE 
+    FILTERS priceList(d) == p
+    
+    EDIT PriceList OBJECT p
+;
+
+DESIGN priceList {
+    OBJECTS {
+        NEW header FIRST {
+            caption = 'Параметры';
+            type = CONTAINERH;
+            MOVE PROPERTY (date(p));
+            MOVE PROPERTY (nameCompetitor(p)) { charWidth = 25; }
+            MOVE PROPERTY (note(p)) { charWidth = 50; }
+        }
+        NEW created AFTER header {
+            caption = 'Создан';
+            type = CONTAINERH;
+            MOVE PROPERTY (dateTimeCreated(p));
+            MOVE PROPERTY (nameCreatedUser(p)) { charWidth = 50; }
+        }
+    }
+}
+
+FORM priceLists 'Прайсы'
+    OBJECTS p = PriceList
+    PROPERTIES(p) READONLY date, nameCompetitor, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    ORDER date(p)
+
+    OBJECTS d = PriceListDetail
+    PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, price
+    FILTERS priceList(d) == p
+;
+
+FORM dialogPriceLists 'Прайсы'
+    OBJECTS p = PriceList
+    PROPERTIES(p) READONLY date, nameCompetitor, note, dateTimeCreated, nameCreatedUser
+    ORDER date(p)
+    
+    LIST PriceList OBJECT p
+;
+
+NAVIGATOR {
+    priceListNavigator {
+        NEW FOLDER competitorPrices 'Цены конкурентов' { 
+            NEW competitors;
+            NEW priceLists;
+        }
+    }
+}

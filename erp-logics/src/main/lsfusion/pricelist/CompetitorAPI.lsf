@@ -1,0 +1,59 @@
+MODULE CompetitorAPI;
+
+REQUIRE Competitor, API;
+
+NAMESPACE Competitor;
+
+EXTEND CLASS Category {
+    competitors 'Конкуренты'
+}
+
+getCompetitors () {
+    IF limitAccess() AND NOT access(currentUser(), Category.competitors) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    EXPORT JSON FROM id = Competitor c, name(c);
+} @@api;
+
+date = DATA LOCAL DATE ();
+competitor = DATA LOCAL LONG ();
+note = DATA LOCAL VARISTRING[100]();
+
+sku = DATA LOCAL LONG (INTEGER);
+price = DATA LOCAL NUMERIC[16,5](INTEGER);
+
+FORM importPriceList
+    PROPERTIES date = date(), competitor = competitor(), note = note()
+    
+    OBJECTS details = INTEGER 
+    PROPERTIES sku = sku(details), price = price(details)
+;
+
+addPriceList (FILE f) {
+    IF limitAccess() AND NOT access(currentUser(), Category.competitors) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
+    IMPORT importPriceList JSON FROM f AS FILE;
+    
+    IF (GROUP SUM 1 IF price(INTEGER i) AND LONG (Sku s AS Sku) = sku(i)) THEN NEW p = PriceList {
+        
+        date(p) <- date();
+        competitor(p) <- GROUP MAX Competitor c IF LONG (c AS Competitor) == competitor();
+        note(p) <- note();
+        
+        FOR price(INTEGER i) AND LONG (Sku s AS Sku) = sku(i) DO NEW d = PriceListDetail {
+            
+            priceList(d) <- p;
+            sku(d) <- s;
+            price(d) <- price(i);
+        }
+    }
+    APPLY;
+    IF canceled() THEN {
+        EXPORT JSON FROM message = applyMessage();
+        RETURN;
+    }
+}
