@@ -175,7 +175,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 //                    if(declarationCustomer == null)
 //                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для покупателя\n", number);
                     rootElement.addContent(createProviderElement(context, evatObject, declarationSupplier, namespace, exportProviderTaxes));
-                    rootElement.addContent(createRecipientElement(context, evatObject, declarationCustomer, namespace));
+                    rootElement.addContent(createRecipientElement(context, evatObject, declarationCustomer, namespace, exportProviderTaxes));
                     boolean skipDeliveryCondition = findProperty("skipDeliveryCondition[EVAT]").read(context, evatObject) != null;
                     if(!skipDeliveryCondition) {
                         String numberDoc = trim((String) findProperty("numberDoc[EVAT]").read(context, evatObject));
@@ -337,7 +337,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createRecipientElement(ExecutionContext context, DataObject evatObject, String declarationCustomer, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRecipientElement(ExecutionContext context, DataObject evatObject, String declarationCustomer, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusCustomer[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonCustomer[EVAT]").read(context, evatObject) != null;
@@ -350,8 +350,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String name = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
         Integer branchCodeCustomer = (Integer) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
-        //String numberTaxes = trim((String) findProperty("numberTaxesCustomer[EVAT]").read(context, evatObject));
-        //String dateTaxes = formatDate((Date) findProperty("dateTaxesCustomer[EVAT]").read(context, evatObject));
+        String numberTaxes = trim((String) findProperty("numberTaxesCustomer[EVAT]").read(context, evatObject));
+        String dateTaxes = formatDate((Date) findProperty("dateTaxesCustomer[EVAT]").read(context, evatObject));
         String dateImport = formatDate((Date) findProperty("dateImportCustomer[EVAT]").read(context, evatObject));
 
         Element recipientElement = new Element("recipient");
@@ -367,9 +367,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, recipientElement, "name", name);
             addStringElement(namespace, recipientElement, "address", address);
             addStringElement(namespace, recipientElement, "declaration", declarationCustomer);
-            //Поле 21."Реквизиты заявления о ввозе товаров и уплате косвенных налогов" должно быть пустым (Правило-31)
-            //if (numberTaxes != null)
-            //    recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+            if (numberTaxes != null && exportProviderTaxes)
+                recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
             addStringElement(namespace, recipientElement, "dateImport", dateImport);
         }
         recipientElement.setNamespace(namespace);
