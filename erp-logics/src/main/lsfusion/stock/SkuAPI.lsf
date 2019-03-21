@@ -30,3 +30,16 @@ getSkuImage (LONG id) {
     
     exportFile() <- FILE (image(GROUP MAX Sku s IF LONG (s AS Sku) == id));
 } @@api;
+
+setSkuImage (FILE f, LONG id) {
+    
+    IF limitAccess() AND NOT access(currentUser(), Category.masterData) THEN {
+        EXPORT FROM 'Нет доступа к API';
+        RETURN;
+    }
+    
+    FOR Sku sk = (GROUP MAX Sku s IF LONG (s AS Sku) == id) DO {
+        image(sk) <- IMAGEFILE (f);
+    }
+    APPLY;
+} @@api;
