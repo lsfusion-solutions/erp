@@ -1,0 +1,229 @@
+MODULE ExportCSO;
+REQUIRE Item, Store, LegalEntityBy;
+
+
+//----------------------------- Экспорт в КСО -----------------------//
+
+//------------------//PI_SAP_ArticleHierarchyObject.xml
+dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' = DATA VARSTRING[255] ();
+
+GROUP Header EXTID 's:Header';
+GROUP Body EXTID 's:Body';
+GROUP Put EXTID '=http://www.uvs.lt/PI_GP:PutArticleHierarchyObjects' :Body;
+GROUP head :Put;
+GROUP items:Put;
+GROUP Message EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' :items;
+
+FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
+
+    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
+    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
+
+    PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
+    PROPERTIES  IN head h1 = 'SAP PI' EXTID 'Receiver'
+    PROPERTIES  IN head h2 = 'SAP ERP' EXTID 'Sender'
+    PROPERTIES  IN head h3 = TRUE EXTID 'SessionEnd'
+    PROPERTIES  IN head h33 = 1 EXTID'SessionMessageNumber'
+    PROPERTIES  IN head h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN head h5 = 'F' EXTID 'SessionType'                      
+                           
+    PROPERTIES IN items ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
+    PROPERTIES  IN Message m1 = 'U' EXTID 'ChangeType'   
+ 
+    OBJECTS i = Item EXTID 'Item' IN Message
+    PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId'
+    PROPERTIES  i2='kso' IF i IS Item EXTID 'HierarchyId'
+    PROPERTIES  i3=id(customGroup(customGroupType('kso'), i)) EXTID 'NodeId'
+                    
+    FILTERS customGroup(customGroupType('kso'), i), active(i) 
+;
+
+articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (){
+    EXPORT ArticleHierarchyObject XML TO System.exportFile;
+//    WRITE System.exportFile() TO 'file://' + exportDirectoryXML() + '/' + 'New' + toDateDDMMYYYY(currentDate());        
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+    } CATCH {
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        fileToString(result(), 'UTF-8');
+        logToFile('CSO', (CONCAT '\n', 'ArticleHierarchyObject',resultString()));            
+    }                  
+}
+
+//----------- //PI_SAP_ArticleMessage.xml
+GROUP PutL EXTID '=http://www.uvs.lt/PI_GP:PutArticleMessage' :Body;
+GROUP headL EXTID 'head' :PutL;
+GROUP itemsL EXTID 'items' :PutL;
+GROUP MessageL EXTID 'MessageItemOfArticleMessageS7N_Sjo7W' :itemsL;
+GROUP ArticleText;
+
+Description = ABSTRACT CASE VARISTRING[255](Item, INTEGER);
+Description (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN VARISTRING[255](nameAttribute(i));
+countDescription (Item i)= GROUP MAX INTEGER  int IF Description(i, int);
+
+LanguageId = ABSTRACT CASE VARSTRING[3](Item, INTEGER);
+LanguageId (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN 'RU';
+
+
+//Description (Item i, INTEGER int)= CASE 
+//    WHEN int == 1 THEN nameEng(i)
+//    WHEN int == 2 THEN nameAttribute(i)
+//    WHEN int == 3 THEN nameBlr(i)        
+//;
+//LanguageId (Item i, INTEGER int)= CASE 
+//    WHEN int == 1 AND i IS Item THEN 'EN'
+//    WHEN int == 2 AND i IS Item THEN 'RU'
+//    WHEN int == 3 AND i IS Item THEN 'BY'       
+//;
+
+FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
+    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
+    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
+    
+    PROPERTIES IN headL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
+    PROPERTIES  IN headL h1 = 'SAP PI' EXTID 'Receiver'
+    PROPERTIES  IN headL h2 = 'SAP ERP' EXTID 'Sender'
+    PROPERTIES  IN headL h3 = TRUE EXTID 'SessionEnd'
+    PROPERTIES  IN headL h33 = 1 EXTID'SessionMessageNumber'
+    PROPERTIES  IN headL h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headL h5 = 'F' EXTID 'SessionType'                      
+                           
+    PROPERTIES IN itemsL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
+    PROPERTIES  IN MessageL m1 = 'U' EXTID 'ChangeType' 
+    
+    OBJECTS i = Item EXTID 'Item' IN MessageL
+    PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId'
+    
+    OBJECTS gg = (ii = Item, int=INTEGER) EXTID 'ArticleHierarchyDescriptionData' IN ArticleText
+    PROPERTIES (ii,int) Description, LanguageId
+    FILTERS iterate(int,1,countDescription(ii)), ii==i                    
+    FILTERS customGroup(customGroupType('kso'), i), active(i)       
+; 
+articleMessage 'Наименование товаров КСО (ArticleMessage)' (){
+    EXPORT ArticleMessage XML TO System.exportFile;
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+    } CATCH { 
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        fileToString(result(), 'UTF-8');
+        logToFile('CSO', (CONCAT '\n', 'ArticleMessage',resultString()));        
+    }                    
+}
+
+//------------ //PI_SAP_ArticleDocumentMessage.xml
+GROUP PutI EXTID '=http://www.uvs.lt/PI_GP:PutArticleDocumentMessage' :Body;
+GROUP headI EXTID 'head' :PutI;
+GROUP itemsI EXTID 'items' :PutI;
+GROUP MessageI EXTID 'MessageItemOfArticleDocumentMessageS7N_Sjo7W' :itemsI;
+GROUP DocumentData;
+GROUP ArticleDocumentData : DocumentData;
+
+FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
+    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
+    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
+    
+    PROPERTIES IN headI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
+    PROPERTIES  IN headI h1 = 'SAP PI' EXTID 'Receiver'
+    PROPERTIES  IN headI h2 = 'SAP ERP' EXTID 'Sender'
+    PROPERTIES  IN headI h3 = TRUE EXTID 'SessionEnd'
+    PROPERTIES  IN headI h33 = 1 EXTID'SessionMessageNumber'
+    PROPERTIES  IN headI h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headI h5 = 'F' EXTID 'SessionType'                      
+                           
+    PROPERTIES IN itemsI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
+    PROPERTIES  IN MessageI m1 = 'U' EXTID 'ChangeType' 
+    
+    OBJECTS i = Item EXTID 'Item' IN MessageI
+    PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId'
+    PROPERTIES  IN ArticleDocumentData i2=idBarcode(i) EXTID 'DokNr'
+    PROPERTIES  IN ArticleDocumentData i3=image(i) EXTID 'Object'     
+    FILTERS customGroup(customGroupType('kso'), i), active(i)       
+; 
+articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
+    EXPORT ArticleDocumentMessage XML TO System.exportFile;    
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+    } CATCH {
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        fileToString(result(), 'UTF-8');
+        logToFile('CSO', (CONCAT '\n', 'ArticleDocumentMessage',resultString()));    
+    }           
+}
+
+//------------ //PI_SAP_ArticleHierarchy.xml
+GROUP PutC EXTID '=http://www.uvs.lt/PI_GP:PutArticleHierarchies' :Body;
+GROUP headC EXTID 'head' :PutC;
+GROUP itemsC EXTID 'items' :PutC;
+GROUP MessageC EXTID 'MessageItemOfArticleHierarchyS7N_Sjo7W' :itemsC;
+GROUP HeaderText;
+GROUP ArticleHierarchyDescriptionData:HeaderText; 
+GROUP Node;
+GROUP ArticleHierarchyNode :Node;
+GROUP NodeText :ArticleHierarchyNode;
+GROUP ArticleHierarchyDescriptionDataC EXTID 'ArticleHierarchyDescriptionData' :NodeText;
+
+FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
+    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
+    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
+    
+    PROPERTIES IN headC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
+    PROPERTIES  IN headC h1 = 'SAP PI' EXTID 'Receiver'
+    PROPERTIES  IN headC h2 = 'SAP ERP' EXTID 'Sender'
+    PROPERTIES  IN headC h3 = TRUE EXTID 'SessionEnd'
+    PROPERTIES  IN headC h33 = 1 EXTID'SessionMessageNumber'
+    PROPERTIES  IN headC h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headC h5 = 'F' EXTID 'SessionType'    
+
+    PROPERTIES IN itemsC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
+    PROPERTIES  IN MessageC m1 = 'U' EXTID 'ChangeType'  
+    
+    OBJECTS    i = CustomGroup EXTID 'Item' IN MessageC  
+    PROPERTIES  i1='P1' IF i IS CustomGroup  EXTID 'DistributionChannel'
+    
+    PROPERTIES IN ArticleHierarchyDescriptionData i21=name(i) EXTID  'Description'
+    PROPERTIES IN ArticleHierarchyDescriptionData i22='RU' IF i IS CustomGroup EXTID  'LanguageId'        
+    PROPERTIES  i2='kso' IF i IS CustomGroup EXTID 'HierarchyId' 
+    PROPERTIES IN ArticleHierarchyNode i3 = id(i) EXTID 'NodeId'
+    PROPERTIES IN ArticleHierarchyDescriptionDataC i4 = name(i) EXTID 'Description'
+    PROPERTIES IN ArticleHierarchyDescriptionDataC i5 = 'RU' IF i IS CustomGroup EXTID  'LanguageId'    
+        
+    PROPERTIES IN ArticleHierarchyNode i6 = id(parent(i)) EXTID 'ParentId'
+//    PROPERTIES IN Node i7 =  1 IF i IS CustomGroup EXTID  'SalesOrganization'    
+    PROPERTIES IN Node i8 =  1 IF i IS CustomGroup EXTID  'Type'        
+    FILTERS customGroupType('kso') == customGroupType(i)
+;
+articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
+    EXPORT ArticleHierarchy XML TO System.exportFile;
+     
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+    } CATCH { 
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        fileToString(result(), 'UTF-8');
+        logToFile('CSO', (CONCAT '\n', 'ArticleHierarchy',resultString()));               
+    }
+            
+}
+
+EXTEND FORM integrationData 
+    PROPERTIES() dataExchangeRegisterAddress, articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
+;
+
+
+DESIGN integrationData {
+    pane {
+        NEW kso {
+            caption = 'КСО';
+            MOVE PROPERTY (dataExchangeRegisterAddress());
+            MOVE PROPERTY (articleHierarchyObject());
+            MOVE PROPERTY (articleMessage());
+            MOVE PROPERTY (articleDocumentMessage());
+            MOVE PROPERTY (articleHierarchy());            
+        }
+    }
+}
+
