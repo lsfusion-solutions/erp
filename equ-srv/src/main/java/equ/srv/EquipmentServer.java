@@ -1034,6 +1034,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
+            boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
             List<ImportProperty<?>> saleProperties = new ArrayList<>();
             List<ImportKey<?>> saleKeys = new ArrayList<>();
@@ -1268,8 +1269,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                     zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-            saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
-            saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
+            saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
+            saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
 
             ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
             saleKeys.add(receiptSaleDetailKey);
@@ -1459,6 +1460,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
                 Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
+                boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
                 List<ImportKey<?>> saleKeys = new ArrayList<>();
 
@@ -1582,8 +1584,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                         zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-                saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
-                saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
+                saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
+                saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
 
                 ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
                 saleKeys.add(receiptSaleDetailKey);
