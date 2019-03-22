@@ -64,28 +64,76 @@ promotionPrice 'Цена (акция)' = DATA NUMERIC[16,5](PriceListDetail, Com
 price 'Цена конкурента' (Competitor c, Sku s, DATE d) = 
     GROUP LAST price(PriceListDetail dd, c) ORDER date(dd), dd WHERE date(dd) <= d AND in(dd, c) BY sku(dd);
 
-createdUser(p) <- currentUser() WHEN SET (p IS PriceList);
-dateTimeCreated(p) <- currentDateTime() WHEN SET (p IS PriceList);
+createdUser(PriceList p) <- currentUser() WHEN SET (p IS PriceList);
+dateTimeCreated(PriceList p) <- currentDateTime() WHEN SET (p IS PriceList);
+date(PriceList p) <- currentDate() WHEN SET (p IS PriceList);
+
+CLASS PriceListType 'Тип прайса';
+TABLE priceListType (PriceListType);
+
+name 'Наименование' = DATA VARISTRING[100] (PriceListType) CHARWIDTH 20;
+columnSku 'Колонка штрихкода в xls' = DATA INTEGER (PriceListType);
+
+in 'Вкл.' = DATA BOOLEAN (PriceListType, Competitor);
+column 'Колонка цены в xls' =  DATA INTEGER (PriceListType, Competitor);
+competitors 'Конкуренты' (PriceListType t) = GROUP CONCAT name(Competitor c) IF in(t, c), ', ' ORDER name(c), c CHARWIDTH 20;
+
+WHEN LOCAL SETCHANGED (column(PriceListType t, Competitor c)) AND NOT in(t, c) DO {
+    in(t, c) <- TRUE;
+}
+
+FORM priceListType 'Тип прайса'
+    OBJECTS o = PriceListType PANEL
+    PROPERTIES(o) name, columnSku
+
+    OBJECTS c = Competitor
+    PROPERTIES in(o, c), name(c) READONLY, column(o, c) 
+    ORDER name(c)
+
+    EDIT PriceListType OBJECT o
+;
+
+FORM priceListTypes 'Типы прайса'
+    OBJECTS o = PriceListType
+    PROPERTIES(o) READONLY name, competitors
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogPriceListTypes 'Типы прайса'
+    OBJECTS o = PriceListType
+    PROPERTIES(o) READONLY name,competitors
+
+    LIST PriceListType OBJECT o
+;
+
+type = DATA PriceListType(PriceList);
+nameType 'Тип' (PriceList p) = name(type(p));
+
+WHEN LOCAL CHANGED (type(PriceList p)) DO {
+    in(p, Competitor c) <- in(type(p), c);
+}
 
 FORM priceList 'Прайс'
     OBJECTS p = PriceList PANEL
-    PROPERTIES(p) date, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
+    PROPERTIES(p) date, nameType, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
     ORDER date(p)
-    
+
     OBJECTS c = Competitor
     PROPERTIES in(p, c), name(c) READONLY 
     FILTERGROUP in FILTER 'Отмеченные' in(p, c)
-    
+    ORDER name(c)
+
     OBJECTS cc = Competitor
     PROPERTIES (cc) READONLY name SHOWIF NULL 
     FILTERS in(p, cc)
-    
+    ORDER name(cc)
+
     OBJECTS d = PriceListDetail
     PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
     PROPERTIES promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
     PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
-    
+
     EDIT PriceList OBJECT p
 ;
 
@@ -95,6 +143,7 @@ DESIGN priceList {
             caption = 'Параметры';
             type = CONTAINERH;
             MOVE PROPERTY (date(p));
+            MOVE PROPERTY (nameType(p));
             MOVE PROPERTY (note(p)) { charWidth = 50; }
         }
         NEW created AFTER header {
@@ -114,14 +163,15 @@ DESIGN priceList {
 
 FORM priceLists 'Прайсы'
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY date, competitors, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) READONLY date, competitors, nameType, note, dateTimeCreated, nameCreatedUser
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
     ORDER date(p)
 
     OBJECTS cc = Competitor
     PROPERTIES (cc) READONLY name SHOWIF NULL 
     FILTERS in(p, cc)
-    
+    ORDER name(cc)
+
     OBJECTS d = PriceListDetail
     PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
     PROPERTIES READONLY promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
@@ -131,9 +181,9 @@ FORM priceLists 'Прайсы'
 
 FORM dialogPriceLists 'Прайсы'
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY date, competitors, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) READONLY date, competitors, nameType, note, dateTimeCreated, nameCreatedUser
     ORDER date(p)
-    
+
     LIST PriceList OBJECT p
 ;
 
@@ -141,7 +191,67 @@ NAVIGATOR {
     priceListNavigator {
         NEW FOLDER competitorPrices 'Цены конкурентов' { 
             NEW competitors;
+            NEW priceListTypes;
             NEW priceLists;
         }
+    }
+}
+
+importPriceLists 'Импорт xls' (PriceList p) {
+
+    LOCAL value1 = VARISTRING[15](INTEGER);
+    LOCAL value2 = VARISTRING[15](INTEGER);
+    LOCAL value3 = VARISTRING[15](INTEGER);
+    LOCAL value4 = VARISTRING[15](INTEGER);
+    LOCAL value5 = VARISTRING[15](INTEGER);
+    LOCAL value6 = VARISTRING[15](INTEGER);
+    LOCAL value7 = VARISTRING[15](INTEGER);
+    LOCAL value8 = VARISTRING[15](INTEGER);
+    LOCAL value9 = VARISTRING[15](INTEGER);
+    LOCAL value10 = VARISTRING[15](INTEGER);
+
+    LOCAL sku = Sku(INTEGER);
+
+    INPUT f = FILE DO {
+        IMPORT XLS FROM f TO value1, value2, value3, value4, value5, value6, value7, value8, value9, value10;
+
+        sku(INTEGER i) <- CASE WHEN columnSku(type(p)) == 1 THEN skuBarcode(value1(i))
+                               WHEN columnSku(type(p)) == 2 THEN skuBarcode(value2(i))
+                               WHEN columnSku(type(p)) == 3 THEN skuBarcode(value3(i))
+                               WHEN columnSku(type(p)) == 4 THEN skuBarcode(value4(i))
+                               WHEN columnSku(type(p)) == 5 THEN skuBarcode(value5(i))
+                               WHEN columnSku(type(p)) == 6 THEN skuBarcode(value6(i))
+                               WHEN columnSku(type(p)) == 7 THEN skuBarcode(value7(i))
+                               WHEN columnSku(type(p)) == 8 THEN skuBarcode(value8(i))
+                               WHEN columnSku(type(p)) == 9 THEN skuBarcode(value9(i))
+                               WHEN columnSku(type(p)) == 10 THEN skuBarcode(value10(i));
+
+        LOCAL value = NUMERIC[16,5](INTEGER, INTEGER);
+
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value1(i)) WHERE j == 1;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value2(i)) WHERE j == 2;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value3(i)) WHERE j == 3;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value4(i)) WHERE j == 4;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value5(i)) WHERE j == 5;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value6(i)) WHERE j == 6;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value7(i)) WHERE j == 7;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value8(i)) WHERE j == 8;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value9(i)) WHERE j == 9;
+        value(INTEGER i, INTEGER j) <- NUMERIC[16,5](value10(i)) WHERE j == 10;
+
+        FOR sku(INTEGER i) DO NEW d = PriceListDetail {
+
+            priceList(d) <- p;
+            sku(d) <- sku(i);
+            price(d, Competitor c) <- value(i, column(type(p), c)) WHERE in(p, c);
+        }
+    }
+}
+
+EXTEND FORM priceList PROPERTIES DRAW d TOOLBAR importPriceLists(p);
+
+DESIGN priceList {
+    TOOLBAR (d) {
+        MOVE PROPERTY (importPriceLists(p)) FIRST;
     }
 }
