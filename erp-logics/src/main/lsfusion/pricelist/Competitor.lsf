@@ -8,6 +8,7 @@ CLASS Competitor 'Конкурент';
 TABLE competitor (Competitor);
 
 name 'Наименование' = DATA VARISTRING[100] (Competitor) CHARWIDTH 15;
+competitor = GROUP MAX Competitor c BY name(c);
 
 FORM competitor 'Конкурент'
     OBJECTS c = Competitor PANEL
@@ -57,10 +58,8 @@ nameSku 'Товар' (PriceListDetail d) = name(sku(d));
 idBarcodeSku 'Штрихкод' (PriceListDetail d) = idBarcode(sku(d));
 idSku 'Код товара' (PriceListDetail d) = id(sku(d));
 
-CONSTRAINT sku(PriceListDetail d1) == sku(PriceListDetail d2) AND priceList(d1) == priceList(d2) AND d1 != d2 
-    CHECKED BY sku[PriceListDetail] MESSAGE 'В прайсе не должно быть одинаковых товаров';
-
 price 'Цена' = DATA NUMERIC[16,5](PriceListDetail, Competitor);
+promotionPrice 'Цена (акция)' = DATA NUMERIC[16,5](PriceListDetail, Competitor);
 
 price 'Цена конкурента' (Competitor c, Sku s, DATE d) = 
     GROUP LAST price(PriceListDetail dd, c) ORDER date(dd), dd WHERE date(dd) <= d AND in(dd, c) BY sku(dd);
@@ -79,9 +78,11 @@ FORM priceList 'Прайс'
     
     OBJECTS cc = Competitor
     PROPERTIES (cc) READONLY name SHOWIF NULL 
+    FILTERS in(p, cc)
     
     OBJECTS d = PriceListDetail
     PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
+    PROPERTIES promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
     PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
     
@@ -119,10 +120,12 @@ FORM priceLists 'Прайсы'
 
     OBJECTS cc = Competitor
     PROPERTIES (cc) READONLY name SHOWIF NULL 
+    FILTERS in(p, cc)
     
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
-    PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
+    PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
+    PROPERTIES READONLY promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
+    PROPERTIES READONLY price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
 ;
 

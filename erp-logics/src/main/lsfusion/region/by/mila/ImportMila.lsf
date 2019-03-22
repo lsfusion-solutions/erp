@@ -1,6 +1,8 @@
 MODULE ImportMila;
 
-REQUIRE System, Barcode, PriceListOperation;
+REQUIRE System, Barcode, PriceListOperation, Competitor;
+
+PRIORITY Competitor;
 
 importMilaFile = DATA LOCAL FILE ();
 importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaActionProperty' (BOOLEAN);
@@ -40,23 +42,28 @@ FORM importMila
     OBJECTS goods = INTEGER
     PROPERTIES(goods) tcode=tcode, price2=price2, price3=price3
     FILTERS group(goods) = groups
-;;
+;
 
 importPriceList () {
     importMila(TRUE);
     
     IMPORT importMila JSON FROM importMilaFile();
     
-    NEW p = UserPriceList {
-        operation(p) <- GROUP LAST PriceList.Operation o WHERE id(o) == 'mila';
-        FOR skuBarcode(trim(tcode(INTEGER i))) NEW d = UserPriceListDetail DO {
+    NEW p = Competitor.PriceList {
+        
+        IF NOT competitor('Мила') THEN NEW c = Competitor { name(c) <- 'Мила'; }
+        
+        in(p, Competitor c) <- name(c) == 'Мила';
+        date(p) <- currentDate();
+        note(p) <- 'Цены Мила';
+         
+        FOR Sku s = skuBarcode(trim(tcode(INTEGER i))) AND Competitor c == competitor('Мила') DO NEW d = Competitor.PriceListDetail {
             
             priceList(d) <- p;
-            sku(d) <- skuBarcode(trim(tcode(i)));
-            price(d, DataPriceListType t) <- CASE WHEN id(t) = 'mila' THEN OVERRIDE (price3(i) IF price3(i) != 0), price2(i)
-                                                  WHEN id(t) = 'mila_p' THEN price2(i) IF price3(i) != 0;
+            sku(d) <- s;
+            price(d, c) <- OVERRIDE (price3(i) IF price3(i) != 0), price2(i);
+            promotionPrice(d, c) <- price2(i) IF price3(i) != 0;
         }
-        isPosted(p) <- TRUE;
         APPLY;
     }
 }

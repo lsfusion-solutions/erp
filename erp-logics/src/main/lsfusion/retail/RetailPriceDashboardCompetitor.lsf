@@ -12,23 +12,44 @@ EXTEND FORM retailPriceDashboard
     ORDER name(c)
 ;
 
-migratePrices() {
+//Миграция прайсов конкурентов для Острова
+
+migratePricesOstrov() {
     
-    FOR inCompare(LedgerPriceListType t) AND NOT (GROUP MAX Competitor c IF name(c) == name(t)) DO NEW c = Competitor {
-        name(c) <- name(t);
-    }
+    IF NOT competitor('e-dostavka') THEN NEW c = Competitor { name(c) <- 'e-dostavka'; }
+    IF NOT competitor('Мила') THEN NEW c = Competitor { name(c) <- 'Мила'; }
     
-    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) BY priceList(d), t](UserPriceList up, LedgerPriceListType t) DO NEW p = PriceList {
+    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'euroopt' OR id(t) == 'euroopt_p') BY priceList(d)](UserPriceList up) 
+        DO NEW p = Competitor.PriceList {
         
         date(p) <- date(up);
-        in(p, Competitor c) <- name(c) == name(t);
-        note(p) <- name(t);
+        in(p, Competitor c) <- name(c) == 'e-dostavka';
+        note(p) <- 'Цены e-dostavka';
         
-        FOR [GROUP SUM 1 IF price(UserPriceListDetail ud, t) BY sku(ud), priceList(ud)](Sku sk, up) DO NEW d = PriceListDetail {
-            
-            priceList(d) <- p;
-            sku(d) <- sk;
-            price(d, Competitor c) <- [GROUP MIN price(UserPriceListDetail ud, t) BY sku(ud), priceList(ud)](sk, up) WHERE name(c) == name(t);
+            FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'euroopt' OR id(t) == 'euroopt_p') BY priceList(d), d](up, UserPriceListDetail ud) 
+                DO NEW d = Competitor.PriceListDetail {
+                
+                priceList(d) <- p;
+                sku(d) <- sku(ud);
+                price(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'euroopt') WHERE c = competitor('e-dostavka');
+                promotionPrice(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'euroopt_p') WHERE c = competitor('e-dostavka');
+        }
+    }
+    
+    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'mila' OR id(t) == 'mila_p') BY priceList(d)](UserPriceList up) 
+        DO NEW p = Competitor.PriceList {
+        
+        date(p) <- date(up);
+        in(p, Competitor c) <- name(c) == 'Мила';
+        note(p) <- 'Цены Мила';
+        
+            FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'mila' OR id(t) == 'mila_p') BY priceList(d), d](up, UserPriceListDetail ud) 
+                DO NEW d = Competitor.PriceListDetail {
+                
+                priceList(d) <- p;
+                sku(d) <- sku(ud);
+                price(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'mila') WHERE c = competitor('Мила');
+                promotionPrice(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'mila_p') WHERE c = competitor('Мила');
         }
     }
     APPLY;
