@@ -17,17 +17,22 @@ getCompetitors () {
 } @@api;
 
 date = DATA LOCAL DATE ();
-competitor = DATA LOCAL LONG ();
+idCompetitor = DATA LOCAL LONG (INTEGER);
 note = DATA LOCAL VARISTRING[100]();
 
-sku = DATA LOCAL LONG (INTEGER);
+idSku = DATA LOCAL LONG (INTEGER);
 price = DATA LOCAL NUMERIC[16,5](INTEGER);
+competitorDetail = DATA LOCAL INTEGER (INTEGER);
 
 FORM importPriceList
-    PROPERTIES date = date(), competitor = competitor(), note = note()
+    PROPERTIES date = date(), note = note()
+    
+    OBJECTS competitors = INTEGER 
+    PROPERTIES competitor = idCompetitor(competitors)
     
     OBJECTS details = INTEGER 
-    PROPERTIES sku = sku(details), price = price(details)
+    PROPERTIES sku = idSku(details), price = price(details)
+    FILTERS competitorDetail(details) = competitors
 ;
 
 addPriceList (FILE f) {
@@ -38,17 +43,26 @@ addPriceList (FILE f) {
     
     IMPORT importPriceList JSON FROM f AS FILE;
     
-    IF (GROUP SUM 1 IF price(INTEGER i) AND LONG (Sku s AS Sku) = sku(i)) THEN NEW p = PriceList {
-        
+    LOCAL sku = Sku (INTEGER);
+    LOCAL competitor = Competitor(INTEGER);
+    
+    sku(INTEGER i) <- GROUP MAX Sku s IF LONG (s AS Sku) == idSku(i);
+    competitor(INTEGER i) <- GROUP MAX Competitor s IF LONG (s AS Competitor) == idCompetitor(i);
+    
+    IF (GROUP SUM 1 IF price(INTEGER i) AND competitor(i) AND sku(i)) THEN NEW p = PriceList {
+
         date(p) <- date();
-        competitor(p) <- GROUP MAX Competitor c IF LONG (c AS Competitor) == competitor();
         note(p) <- note();
-        
-        FOR price(INTEGER i) AND LONG (Sku s AS Sku) = sku(i) DO NEW d = PriceListDetail {
-            
+
+        FOR [GROUP SUM 1 IF price(INTEGER i) BY competitor(i)](Competitor c) DO {
+
+            in(p, c) <- TRUE;
+        }
+        FOR [GROUP SUM 1 IF price(INTEGER i) BY sku(i)](Sku s) DO NEW d = PriceListDetail {
+
             priceList(d) <- p;
             sku(d) <- s;
-            price(d) <- price(i);
+            price(d, Competitor c) <- GROUP MIN price(INTEGER i) IF sku(i) == s AND c == competitor(competitorDetail(i));
         }
     }
     APPLY;

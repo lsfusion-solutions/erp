@@ -1,0 +1,35 @@
+MODULE RetailPriceDashboardCompetitor;
+
+REQUIRE Competitor, RetailPriceDashboard;
+
+NAMESPACE Competitor;
+
+EXTEND FORM retailPriceDashboard
+    
+    OBJECTS c = Competitor
+    PROPERTIES name(c) SHOWIF NULL 
+    PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c)
+    ORDER name(c)
+;
+
+migratePrices() {
+    
+    FOR inCompare(LedgerPriceListType t) AND NOT (GROUP MAX Competitor c IF name(c) == name(t)) DO NEW c = Competitor {
+        name(c) <- name(t);
+    }
+    
+    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) BY priceList(d), t](UserPriceList up, LedgerPriceListType t) DO NEW p = PriceList {
+        
+        date(p) <- date(up);
+        in(p, Competitor c) <- name(c) == name(t);
+        note(p) <- name(t);
+        
+        FOR [GROUP SUM 1 IF price(UserPriceListDetail ud, t) BY sku(ud), priceList(ud)](Sku sk, up) DO NEW d = PriceListDetail {
+            
+            priceList(d) <- p;
+            sku(d) <- sk;
+            price(d, Competitor c) <- [GROUP MIN price(UserPriceListDetail ud, t) BY sku(ud), priceList(ud)](sk, up) WHERE name(c) == name(t);
+        }
+    }
+    APPLY;
+}

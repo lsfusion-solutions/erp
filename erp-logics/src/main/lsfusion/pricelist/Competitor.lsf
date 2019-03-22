@@ -36,8 +36,8 @@ note 'Примечание' = DATA VARISTRING[100] (PriceList) CHARWIDTH 20;
 date 'Дата' = DATA DATE (PriceList);
 dateTimeCreated 'Дата/время создания' = DATA DATETIME (PriceList);
 
-competitor = DATA Competitor(PriceList);
-nameCompetitor 'Конкурент' (PriceList p) = name(competitor(p));
+in 'Вкл.' = DATA BOOLEAN (PriceList, Competitor);
+competitors 'Конкуренты' (PriceList p) = GROUP CONCAT name(Competitor c) IF in(p, c), ', ' ORDER name(c) CHARWIDTH 20;
 
 createdUser = DATA User(PriceList);
 nameCreatedUser 'Создан пользователем' (PriceList p) = name(createdUser(p));
@@ -49,8 +49,8 @@ priceList = DATA PriceList(PriceListDetail) NONULL DELETE;
 
 date 'Дата' (PriceListDetail d) = date(priceList(d));
 
-competitor (PriceListDetail d) = competitor(priceList(d));
-nameCompetitor 'Конкурент' (PriceListDetail d) = name(competitor(d));
+in 'Вкл.' (PriceListDetail d, Competitor c) = in(priceList(d), c);
+competitors (PriceListDetail d) = competitors(priceList(d));
 
 sku = DATA Sku(PriceListDetail);
 nameSku 'Товар' (PriceListDetail d) = name(sku(d));
@@ -60,21 +60,29 @@ idSku 'Код товара' (PriceListDetail d) = id(sku(d));
 CONSTRAINT sku(PriceListDetail d1) == sku(PriceListDetail d2) AND priceList(d1) == priceList(d2) AND d1 != d2 
     CHECKED BY sku[PriceListDetail] MESSAGE 'В прайсе не должно быть одинаковых товаров';
 
-price 'Цена' = DATA NUMERIC[16,5](PriceListDetail);
+price 'Цена' = DATA NUMERIC[16,5](PriceListDetail, Competitor);
 
 price 'Цена конкурента' (Competitor c, Sku s, DATE d) = 
-    GROUP LAST price(PriceListDetail dd) ORDER date(dd), dd WHERE date(dd) <= d BY competitor(dd), sku(dd);
+    GROUP LAST price(PriceListDetail dd, c) ORDER date(dd), dd WHERE date(dd) <= d AND in(dd, c) BY sku(dd);
 
 createdUser(p) <- currentUser() WHEN SET (p IS PriceList);
 dateTimeCreated(p) <- currentDateTime() WHEN SET (p IS PriceList);
 
 FORM priceList 'Прайс'
     OBJECTS p = PriceList PANEL
-    PROPERTIES(p) date, nameCompetitor, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
+    PROPERTIES(p) date, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
     ORDER date(p)
-
+    
+    OBJECTS c = Competitor
+    PROPERTIES in(p, c), name(c) READONLY 
+    FILTERGROUP in FILTER 'Отмеченные' in(p, c)
+    
+    OBJECTS cc = Competitor
+    PROPERTIES (cc) READONLY name SHOWIF NULL 
+    
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, price, NEW, DELETE 
+    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
+    PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
     
     EDIT PriceList OBJECT p
@@ -86,7 +94,6 @@ DESIGN priceList {
             caption = 'Параметры';
             type = CONTAINERH;
             MOVE PROPERTY (date(p));
-            MOVE PROPERTY (nameCompetitor(p)) { charWidth = 25; }
             MOVE PROPERTY (note(p)) { charWidth = 50; }
         }
         NEW created AFTER header {
@@ -95,23 +102,33 @@ DESIGN priceList {
             MOVE PROPERTY (dateTimeCreated(p));
             MOVE PROPERTY (nameCreatedUser(p)) { charWidth = 50; }
         }
+        NEW bottom {
+            type = CONTAINERH;
+            fill = 1;
+            MOVE BOX (c) { fill = 1; }
+            MOVE BOX (d) { fill = 4; }
+        }
     }
 }
 
 FORM priceLists 'Прайсы'
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY date, nameCompetitor, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) READONLY date, competitors, note, dateTimeCreated, nameCreatedUser
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
     ORDER date(p)
 
+    OBJECTS cc = Competitor
+    PROPERTIES (cc) READONLY name SHOWIF NULL 
+    
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, price
+    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
+    PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
 ;
 
 FORM dialogPriceLists 'Прайсы'
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY date, nameCompetitor, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) READONLY date, competitors, note, dateTimeCreated, nameCreatedUser
     ORDER date(p)
     
     LIST PriceList OBJECT p
