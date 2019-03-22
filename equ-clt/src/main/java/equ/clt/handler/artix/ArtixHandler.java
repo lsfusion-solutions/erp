@@ -1042,8 +1042,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     JSONObject documentObject = new JSONObject(document + "}");
 
                                     Integer docType = documentObject.getInt("docType");
-                                    boolean isSale = docType == 1;
-                                    boolean isReturn = docType == 2 || docType == 25;
+                                    boolean isSale = docType == 1 || docType == 7; //sale or sale cancellation
+                                    boolean isReturn = docType == 2 || docType == 25 || docType == 8; //return or return cancellation
+                                    boolean isSkip = docType == 7 || docType == 8;
                                     if (isSale || isReturn) {
 
                                         Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
@@ -1204,7 +1205,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, cashRegister));
+                                                        numberReceiptDetail, fileName, null, isSkip, cashRegister));
                                             }
                                         }
                                     }

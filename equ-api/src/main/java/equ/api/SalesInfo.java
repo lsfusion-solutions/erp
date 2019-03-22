@@ -42,6 +42,7 @@ public class SalesInfo implements Serializable {
     public Integer numberReceiptDetail;
     public String filename;
     public String idSection;
+    public boolean skipReceipt;
     public CashRegisterInfo cashRegisterInfo;
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
@@ -83,7 +84,7 @@ public class SalesInfo implements Serializable {
         this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, null, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, cashRegisterInfo);
+                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, cashRegisterInfo);
         setSumGiftCardMap(sumGiftCard);
     }
 
@@ -97,7 +98,7 @@ public class SalesInfo implements Serializable {
         this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail,
                 quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard,
-                numberReceiptDetail, filename, idSection, null);
+                numberReceiptDetail, filename, idSection, false, null);
     }
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
@@ -110,7 +111,7 @@ public class SalesInfo implements Serializable {
         this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail,
                 quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard,
-                numberReceiptDetail, filename, idSection, null);
+                numberReceiptDetail, filename, idSection, false, null);
     }
 
     //Artix, Kristal10, UKM4MySQL
@@ -120,7 +121,7 @@ public class SalesInfo implements Serializable {
                      String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection, CashRegisterInfo cashRegisterInfo) {
+                     String idSection, boolean skipReceipt, CashRegisterInfo cashRegisterInfo) {
         this.isGiftCard = isGiftCard;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
@@ -150,6 +151,7 @@ public class SalesInfo implements Serializable {
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
         this.idSection = idSection;
+        this.skipReceipt = skipReceipt;
         this.cashRegisterInfo = cashRegisterInfo;
     }
 
