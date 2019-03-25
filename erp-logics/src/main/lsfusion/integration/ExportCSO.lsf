@@ -44,13 +44,15 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
                     
     FILTERS customGroup(customGroupType('kso'), i), active(i) 
 ;
-
+httpHeaders(TEXT name) = CASE
+    WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects';
+    
 articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (){
     EXPORT ArticleHierarchyObject XML TO System.exportFile;
 //    WRITE System.exportFile() TO 'file://' + exportDirectoryXML() + '/' + 'New' + toDateDDMMYYYY(currentDate());        
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeaders PARAMS System.exportFile() TO result;  
     } CATCH {
         logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
