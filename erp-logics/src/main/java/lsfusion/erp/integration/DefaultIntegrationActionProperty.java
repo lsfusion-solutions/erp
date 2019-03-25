@@ -139,8 +139,12 @@ public class DefaultIntegrationActionProperty extends InternalAction {
     }
 
     protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
+        return safeMultiply(operand1, operand2, null);
+    }
+
+    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2, BigDecimal defaultValue) {
         if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
-            return null;
+            return defaultValue;
         else return operand1.multiply(operand2);
     }
 

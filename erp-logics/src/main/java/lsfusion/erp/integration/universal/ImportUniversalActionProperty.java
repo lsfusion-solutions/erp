@@ -1349,7 +1349,7 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     }
 
     private BigDecimal checkedMultiply(BigDecimal multipliedValue, BigDecimal argument, int c) {
-        return multipliedValue == null && c == 0 ? argument : safeMultiply(multipliedValue, argument);
+        return multipliedValue == null && c == 0 ? argument : safeMultiply(multipliedValue, argument, BigDecimal.ZERO);
     }
 
     private BigDecimal checkedDivide(BigDecimal dividedValue, BigDecimal argument, int c) {
