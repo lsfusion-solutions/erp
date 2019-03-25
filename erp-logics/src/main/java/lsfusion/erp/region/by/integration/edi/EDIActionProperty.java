@@ -169,7 +169,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
     protected boolean sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
                               DataObject eInvoiceObject, boolean showMessages, boolean isCancel, int step) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean result = false;
-        HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML, null);
+        HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML);
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
         switch (requestResult) {
             case OK:
@@ -206,11 +206,11 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         return result;
     }
 
-    HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file) throws IOException {
-        return sendRequest(host, port, login, password, url, xml, file, false);
+    HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml) throws IOException {
+        return sendRequest(host, port, login, password, url, xml, null, false);
     }
 
-    private HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file, boolean preemptiveAuthentication) throws IOException {
+    protected HttpResponse sendRequest(String host, Integer port, String login, String password, String url, String xml, Pair<String, RawFileData> file, boolean preemptiveAuthentication) throws IOException {
         // Send post request
         DefaultHttpClient httpclient = new DefaultHttpClient();
         httpclient.getCredentialsProvider().setCredentials(new AuthScope(host, port),
@@ -253,7 +253,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
 
     protected String getResponseMessage(HttpResponse response) throws IOException {
         StringBuilder result = new StringBuilder();
-        BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent()), "utf-8"));
+        BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent()), StandardCharsets.UTF_8));
         String output;
         while ((output = br.readLine()) != null) {
             result.append(output);
@@ -270,7 +270,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         int status = httpResponse.getStatusLine().getStatusCode();
         if (status == 200) {
             SAXBuilder builder = new SAXBuilder();
-            Document document = builder.build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
+            Document document = builder.build(new ByteArrayInputStream(responseMessage.getBytes(StandardCharsets.UTF_8)));
             Element rootNode = document.getRootElement();
             Namespace ns = rootNode.getNamespace();
             if (ns != null) {

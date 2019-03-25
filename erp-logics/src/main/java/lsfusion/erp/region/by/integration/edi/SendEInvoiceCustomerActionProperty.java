@@ -157,7 +157,7 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
     private void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
                               DataObject eInvoiceObject, boolean showMessages) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML, null);
+        HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML);
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
         switch (requestResult) {
             case OK:

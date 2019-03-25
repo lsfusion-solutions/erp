@@ -67,7 +67,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             String xml = getReceiveMessagesRequest(login, password);
 
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
             ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
             String responseMessage = getResponseMessage(httpResponse);
             try {
@@ -1322,7 +1322,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             String xml = generateConfirmDocumentXML(documentId, login, password);
 
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
             ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "ConfirmDocumentReceived");
             switch (requestResult) {
@@ -1375,7 +1375,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             String xml = generateRecipientErrorXML(login, password, documentId, documentNumber, error);
 
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
             ServerLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "SendDocument");
             switch (requestResult) {

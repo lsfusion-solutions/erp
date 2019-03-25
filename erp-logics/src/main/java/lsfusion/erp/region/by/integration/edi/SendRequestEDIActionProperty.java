@@ -25,6 +25,8 @@ public class SendRequestEDIActionProperty extends EDIActionProperty {
     protected final ClassPropertyInterface passwordInterface;
     protected final ClassPropertyInterface urlInterface;
     protected final ClassPropertyInterface xmlFileInterface;
+    protected final ClassPropertyInterface preemptiveAuthenticationInterface;
+
 
     public SendRequestEDIActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -36,19 +38,21 @@ public class SendRequestEDIActionProperty extends EDIActionProperty {
         passwordInterface = i.next();
         urlInterface = i.next();
         xmlFileInterface = i.next();
+        preemptiveAuthenticationInterface = i.next();
     }
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            String host = (String) context.getDataKeyValue(hostInterface).getValue();
-            Integer port = (Integer) context.getDataKeyValue(portInterface).getValue();
-            String login = (String) context.getDataKeyValue(loginInterface).getValue();
-            String password = (String) context.getDataKeyValue(passwordInterface).getValue();
-            String url = (String) context.getDataKeyValue(urlInterface).getValue();
-            String xml = new String(((RawFileData) context.getDataKeyValue(xmlFileInterface).getValue()).getBytes(), StandardCharsets.UTF_8);
+            String host = (String) context.getKeyValue(hostInterface).getValue();
+            Integer port = (Integer) context.getKeyValue(portInterface).getValue();
+            String login = (String) context.getKeyValue(loginInterface).getValue();
+            String password = (String) context.getKeyValue(passwordInterface).getValue();
+            String url = (String) context.getKeyValue(urlInterface).getValue();
+            String xml = new String(((RawFileData) context.getKeyValue(xmlFileInterface).getValue()).getBytes(), StandardCharsets.UTF_8);
+            boolean preemptiveAuthentication = context.getKeyValue(preemptiveAuthenticationInterface).getValue() != null;
 
-            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+            HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null, preemptiveAuthentication);
 
             String responseMessage = getResponseMessage(httpResponse);
             DataObject fileObject = new DataObject(new FileData(new RawFileData(responseMessage.getBytes(StandardCharsets.UTF_8)), "xml"), DynamicFormatFileClass.get());

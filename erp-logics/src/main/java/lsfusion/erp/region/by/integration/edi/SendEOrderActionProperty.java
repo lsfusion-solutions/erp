@@ -113,7 +113,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 addStringElement(topNamespace, sendDocumentElement, "content", contentSubXML);
 
                 String xml = new XMLOutputter().outputString(doc);
-                HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+                HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
                 ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
                 RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
                 switch (requestResult) {
