@@ -20,18 +20,18 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
 
 //    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
 //    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
-    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN To ='localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'
-    
-    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID 'value'   
+
+//    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
+//    PROPERTIES  IN To ='localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'    
+//    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
+//    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID 'value'   
     
     PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN head h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN head h2 = 'SAP ERP' EXTID 'Sender'
     PROPERTIES  IN head h3 = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN head h33 = 1 EXTID'SessionMessageNumber'
-    PROPERTIES  IN head h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN head h4 = [FORMULA VARSTRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
     PROPERTIES  IN head h5 = 'F' EXTID 'SessionType'                      
                            
     PROPERTIES IN items ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
@@ -44,7 +44,7 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
                     
     FILTERS customGroup(customGroupType('kso'), i), active(i) 
 ;
-httpHeaders(TEXT name) = CASE
+httpHeadersAHO(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects';
     
 articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (){
@@ -52,7 +52,8 @@ articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchy
 //    WRITE System.exportFile() TO 'file://' + exportDirectoryXML() + '/' + 'New' + toDateDDMMYYYY(currentDate());        
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeaders PARAMS System.exportFile() TO result;  
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', 'Sending')));
+        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAHO PARAMS System.exportFile() TO result;  
     } CATCH {
         logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
@@ -87,20 +88,13 @@ LanguageId (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN 'RU';
 //;
 
 FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
-//    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
-//    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
-    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN To ='localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'
-    
-    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage' EXTID 'value'     
     
     PROPERTIES IN headL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headL h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headL h2 = 'SAP ERP' EXTID 'Sender'
     PROPERTIES  IN headL h3 = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN headL h33 = 1 EXTID'SessionMessageNumber'
-    PROPERTIES  IN headL h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headL h4 = [FORMULA VARSTRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
     PROPERTIES  IN headL h5 = 'F' EXTID 'SessionType'                      
                            
     PROPERTIES IN itemsL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
@@ -114,11 +108,15 @@ FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envel
     FILTERS iterate(int,1,countDescription(ii)), ii==i                    
     FILTERS customGroup(customGroupType('kso'), i), active(i)       
 ; 
+httpHeadersAM(TEXT name) = CASE
+    WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage';
+    
 articleMessage 'Наименование товаров КСО (ArticleMessage)' (){
     EXPORT ArticleMessage XML TO System.exportFile;
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', 'Sending')));
+        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAM PARAMS System.exportFile() TO result; 
     } CATCH { 
         logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
@@ -134,21 +132,13 @@ GROUP MessageI EXTID 'MessageItemOfArticleDocumentMessageS7N_Sjo7W' :itemsI;
 GROUP DocumentData;
 GROUP ArticleDocumentData : DocumentData;
 
-FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
-//    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
-//    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
-    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN To ='localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'
-    
-    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage' EXTID 'value'    
-        
+FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'           
     PROPERTIES IN headI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headI h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headI h2 = 'SAP ERP' EXTID 'Sender'
     PROPERTIES  IN headI h3 = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN headI h33 = 1 EXTID'SessionMessageNumber'
-    PROPERTIES  IN headI h4 = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headI h4 = [FORMULA VARSTRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
     PROPERTIES  IN headI h5 = 'F' EXTID 'SessionType'                      
                            
     PROPERTIES IN itemsI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
@@ -160,11 +150,16 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  IN ArticleDocumentData i3=image(i) EXTID 'Object'     
     FILTERS customGroup(customGroupType('kso'), i), active(i)       
 ; 
+
+httpHeadersADM(TEXT name) = CASE
+    WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage';
+
 articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
     EXPORT ArticleDocumentMessage XML TO System.exportFile;    
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', 'Sending')));
+        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersADM PARAMS System.exportFile() TO result;  
     } CATCH {
         logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
@@ -184,21 +179,13 @@ GROUP ArticleHierarchyNode :Node;
 GROUP NodeText :ArticleHierarchyNode;
 GROUP ArticleHierarchyDescriptionDataC EXTID 'ArticleHierarchyDescriptionData' :NodeText;
 
-FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
-//    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
-//    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
-    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN To ='http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'
-    
-    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
-    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies' EXTID 'value'    
-       
+FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'         
     PROPERTIES IN headC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headC  = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headC  = 'SAP ERP' EXTID 'Sender'
     PROPERTIES  IN headC  = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN headC  = 1 EXTID'SessionMessageNumber'
-    PROPERTIES  IN headC  = currentDateTime() EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headC  = [FORMULA VARSTRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
     PROPERTIES  IN headC  = 'F' EXTID 'SessionType'    
 
     PROPERTIES IN itemsC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
@@ -219,12 +206,17 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     PROPERTIES IN Node                                = 1 IF i IS CustomGroup EXTID  'Type'        
     FILTERS customGroupType('kso') == customGroupType(i)
 ;
+
+httpHeadersAH(TEXT name) = CASE
+    WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies';
+    
 articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
     EXPORT ArticleHierarchy XML TO System.exportFile;
      
     LOCAL result = FILE();
     TRY {
-        EXTERNAL HTTP dataExchangeRegisterAddress() PARAMS System.exportFile() TO result;  
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', 'Sending')));
+        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAH PARAMS System.exportFile() TO result;  
     } CATCH { 
         logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
