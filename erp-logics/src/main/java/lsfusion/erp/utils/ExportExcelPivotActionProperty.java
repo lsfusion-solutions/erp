@@ -2,7 +2,7 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
-import lsfusion.interop.form.stat.report.ReportGenerationData;
+import lsfusion.interop.form.print.ReportGenerationData;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
