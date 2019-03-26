@@ -673,22 +673,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     addStringElement(barcode, "default-code", "true");
                     good.addContent(barcode);
 
-                    //parent: good
-                    Element priceEntry = new Element("price-entry");
-                    setAttribute(priceEntry, "price", 1);
-                    setAttribute(priceEntry, "deleted", "true");
-                    addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
-                    addStringElement(priceEntry, "number", "1");
-                    good.addContent(priceEntry);
-
-                    Element measureType = new Element("measure-type");
-                    setAttribute(measureType, "id", item.idUOM);
-                    addStringElement(measureType, "name", item.shortNameUOM);
-                    good.addContent(measureType);
-
-                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
-
-                    //parent: priceEntry
+                    boolean noPriceEntry = true;
                     Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
                     if (machineryInfoSet != null) {
                         Set<Integer> nppGroupMachinerySet = new HashSet<>();
@@ -696,12 +681,39 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             if (machineryInfo instanceof CashRegisterInfo)
                                 nppGroupMachinerySet.add(((CashRegisterInfo) machineryInfo).overDepartNumber != null ? ((CashRegisterInfo) machineryInfo).overDepartNumber : ((CashRegisterInfo) machineryInfo).numberGroup);
                         }
+                        noPriceEntry = nppGroupMachinerySet.isEmpty();
                         for (Integer number : nppGroupMachinerySet) {
+
+                            //parent: good
+                            Element priceEntry = new Element("price-entry");
+                            setAttribute(priceEntry, "price", 1);
+                            setAttribute(priceEntry, "deleted", "true");
+                            addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
+                            addStringElement(priceEntry, "number", "1");
+                            good.addContent(priceEntry);
+
+                            //parent: priceEntry
                             Element department = new Element("department");
                             setAttribute(department, "number", number);
                             priceEntry.addContent(department);
                         }
                     }
+                    if(noPriceEntry) {
+                        //parent: good
+                        Element priceEntry = new Element("price-entry");
+                        setAttribute(priceEntry, "price", 1);
+                        setAttribute(priceEntry, "deleted", "true");
+                        addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
+                        addStringElement(priceEntry, "number", "1");
+                        good.addContent(priceEntry);
+                    }
+
+                    Element measureType = new Element("measure-type");
+                    setAttribute(measureType, "id", item.idUOM);
+                    addStringElement(measureType, "name", item.shortNameUOM);
+                    good.addContent(measureType);
+
+                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                     //parent: good
                     Element group = new Element("group");
