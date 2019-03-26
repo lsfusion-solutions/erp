@@ -51,7 +51,7 @@ dispersionSold 'Дисперсия однодневных продаж' = DATA N
 zScore 'Z-оценка' (Sku sk) = safetyCoeff(skuGroup(sk));
 
 
-//рассчет значений
+//расчет значений
 lastYearCurrent = DATE(sumYear(currentDate(),-1));
 skipCoeffSeason = ABSTRACT BOOLEAN (Stock);
 
@@ -67,7 +67,7 @@ calcQuantitySoldInterval 'Рассчитать однодневные прода
                                              
     APPLY;
     
-    dispersionSold(Sku sku, Stock stock) <- sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock)) 
+    dispersionSold(Sku sku, Stock stock) <- sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock)) 
                                                             IF iterate(date, fromSoldDate(sku), toSoldDate(sku))) / countSoldDays(skuGroup(sku)));
     APPLY;   
 }
@@ -138,7 +138,7 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
                                                         WHERE dateFromPromotion(sku, stock) >= currentDate();
     APPLY;
 
-    dispersionSold(Sku sku, Stock stock) <- sqrt((GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(sku, stock, DATE date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
+    dispersionSold(Sku sku, Stock stock) <- sqrt((GROUP SUM NUMERIC[20,6](sqr((OVERRIDE quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))) 
                                                             IF iterate(date, dateFromRegular(sku, stock), dateToRegular(sku, stock))) / daysBetweenDates(dateToRegular(sku, stock), dateFromRegular(sku, stock))) 
                                                             WHERE dateFromPromotion(sku, stock);
     APPLY;

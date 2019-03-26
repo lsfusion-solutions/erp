@@ -127,10 +127,13 @@ sumVATSold (sku, stock, customer, date) = GROUP SUM sumVAT(SaleLedger ledger) IF
 sumSold (sku, stock, customer, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
+extraQuantitySold = ABSTRACT NUMERIC[16,5](Sku,Stock,DATE);
+extraSumSold = ABSTRACT NUMERIC[18,4](Sku,Stock,DATE);
+
 //по складу и SKU
 quantitySold 'Продано за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
-        quantitySold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo CHARWIDTH 7;
+        quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date) IF date >= dateFrom AND date <= dateTo CHARWIDTH 7;
 
 costSumSold 'Себестоимость проданного за интервал' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
@@ -146,7 +149,7 @@ sumVATSold 'Сумма НДС проданного за интервал' (Sku s
 
 sumSold 'Продано за интервал (сумма)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
-        sumSold(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo CHARWIDTH 9;
+        sumSold(sku, stock, DATE date) (+) extraSumSold(sku, stock, date) IF date >= dateFrom AND date <= dateTo CHARWIDTH 9;
 
 //по складу, покупателю и SKU
 quantitySold 'Продано за интервал (кол-во)' (Sku sku, Stock stock, LegalEntity customer, DATE dateFrom, DATE dateTo) = GROUP
