@@ -284,8 +284,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     conn.setAutoCommit(false);
 
                     ps = conn.prepareStatement(
-                            "INSERT INTO customers (code, description, discount, updecr)" +
-                                    " VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                            "INSERT INTO customers (code, description, discount, store, updecr)" +
+                                    " VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                     " description=VALUES(description), discount=VALUES(discount), updecr=VALUES(updecr)");
 
                     int count = 0;
@@ -297,7 +297,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                     + (card.middleNameContact == null ? "" : card.middleNameContact);
                             ps.setString(2, trim(name, 50)); //description
                             ps.setInt(3, card.percentDiscountCard == null ? 0 : -card.percentDiscountCard.intValue()); //discount
-                            ps.setLong(4, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
+                            ps.setString(4, trim(idDepartmentStore, 10)); //store, код торговой точки;
+                            ps.setLong(5, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
                             ps.addBatch();
                             count++;
                         }
