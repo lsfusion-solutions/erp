@@ -66,6 +66,19 @@ prevBalanceA 'Остаток (после)' (GiftCard g, DATETIME dateTime) = PRE
 balanceB 'Остаток (до)' (GiftCardLedger l) = balanceB(giftCard(l),dateTime(l));
 balanceA 'Остаток (после)' (GiftCardLedger l) = balanceA(giftCard(l),dateTime(l));
 
+//--
+// без учета текущей даты/времени
+balanceB 'Остаток (до)' (GiftCard g, DATE date) = currentBalance(g)
+                                                                          (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) >= date
+                                                                                     BY giftCard(ledger)](g) CHARWIDTH 7;
+prevBalanceB 'Остаток (до)' (GiftCard g, DATE date) = PREV(balanceB(g, date) IF date IS DATE);
+
+// с учетом текущей даты/времени
+balanceA 'Остаток (после)' (GiftCard g, DATE date) = currentBalance(g)
+                                                                         (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) > date
+                                                                                    BY giftCard(ledger)](g) CHARWIDTH 7;
+prevBalanceA 'Остаток (после)' (GiftCard g, DATE date) = PREV(balanceA(g, date) IF date IS DATE);
+
 
 allowNegativeBalance 'Разрешить расписывание в минус' = ABSTRACT BOOLEAN (GiftCard);
 
