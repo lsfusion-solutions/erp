@@ -238,8 +238,8 @@ FORM turnoverByStockWeek
     PROPERTIES (st, df, dt) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS active(st), access(st), sumSold(st, df, dt) OR costSumBalanceA(st, df, dt)
     
-    OBJECTS weeks = (y = INTEGER, w = INTEGER)
-    PROPERTIES week = VALUE(w), year = VALUE (y)
+    OBJECTS d = (y = INTEGER, w = INTEGER)
+    PROPERTIES date = y + '_' + lpad(TEXT (w), 2, '0')
     PROPERTIES (st, w, y) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS filterWeek(y, w, df, dt), costSumSold(st, w, y) OR costSumBalanceA(st, w, y)
 ;
@@ -262,8 +262,8 @@ FORM turnoverBySupplierWeek
     PROPERTIES (le, df, dt) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS active(le), filter(le) OR allSuppliers(), sumSold(le, df, dt) OR costSumBalanceA(le, df, dt)
     
-    OBJECTS weeks = (y = INTEGER, w = INTEGER)
-    PROPERTIES week = VALUE(w), year = VALUE (y)
+    OBJECTS d = (y = INTEGER, w = INTEGER)
+    PROPERTIES date = y + '_' + lpad(TEXT (w), 2, '0')
     PROPERTIES (le, w, y) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS filterWeek(y, w, df, dt), costSumSold(le, w, y) OR costSumBalanceA(le, w, y)
 ;
@@ -286,8 +286,8 @@ FORM turnoverByGroupWeek
     PROPERTIES (g, df, dt) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS active(g), filter(g) OR allGroups(), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
     
-    OBJECTS weeks = (y = INTEGER, w = INTEGER)
-    PROPERTIES week = VALUE(w), year = VALUE (y)
+    OBJECTS d = (y = INTEGER, w = INTEGER)
+    PROPERTIES date = y + '_' + lpad(TEXT (w), 2, '0')
     PROPERTIES (g, w, y) costSumSold, markupSumSold, sumSold, costSumBalanceA
     FILTERS filterWeek(y, w, df, dt), costSumSold(g, w, y) OR costSumBalanceA(g, w, y)
 ;
@@ -311,7 +311,7 @@ getTurnoverByWeek (FILE stockList, FILE supplierList, FILE groupList, DATE df, D
     }
     importFilters(stockList, supplierList, groupList);
     
-    EXPORT JSON FROM week = INTEGER w, year = INTEGER y, costSumSold = costSumSold(w, y), markupSumSold = markupSumSold(w, y), sumSold = sumSold(w, y), costSumBalanceA = costSumBalanceA(w, y)
+    EXPORT JSON FROM date = INTEGER y + '_' + lpad(TEXT (INTEGER w), 2, '0'), costSumSold = costSumSold(w, y), markupSumSold = markupSumSold(w, y), sumSold = sumSold(w, y), costSumBalanceA = costSumBalanceA(w, y)
         WHERE filterWeek(y, w, df, dt) AND (sumSold(w, y) OR costSumBalanceA(w, y));
 } @@api;
 
