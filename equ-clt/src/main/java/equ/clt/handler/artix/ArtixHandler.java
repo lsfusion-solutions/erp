@@ -1243,6 +1243,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Object object = obj.get(key);
         if (object instanceof BigDecimal) {
             return (BigDecimal)object;
+        } else if(object instanceof Double) {
+            return BigDecimal.valueOf((Double) object);
         } else return null;
     }
 
