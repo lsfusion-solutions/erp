@@ -42,64 +42,63 @@ filter = DATA LOCAL BOOLEAN (LegalEntity);
 filter = DATA LOCAL BOOLEAN (SkuGroup);
 allStores = DATA LOCAL BOOLEAN () COMPLEX;
 allSuppliers = DATA LOCAL BOOLEAN () COMPLEX;
-allGroups = DATA LOCAL BOOLEAN () COMPLEX;
 
 access (Stock s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
 
-costSumSold (Stock s, DATE d) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-markupSumSold (Stock s, DATE d) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-sumSold (Stock s, DATE d) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-costSumBalanceA (Stock s, DATE d) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+costSumSold (Stock s, DATE d) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
+markupSumSold (Stock s, DATE d) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
+sumSold (Stock s, DATE d) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
+costSumBalanceA (Stock s, DATE d) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
 
-costSumSold (LegalEntity le, DATE d) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, d) IF access(s) AND (filter(g) OR allGroups());
-markupSumSold (LegalEntity le, DATE d) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, d) IF access(s) AND (filter(g) OR allGroups());
-sumSold (LegalEntity le, DATE d) = GROUP SUM sumSold(Stock s, le, SkuGroup g, d) IF access(s) AND (filter(g) OR allGroups());
-costSumBalanceA (LegalEntity le, DATE d) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, d) IF access(s) AND (filter(g) OR allGroups());
+costSumSold (LegalEntity le, DATE d) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, d) IF access(s) AND filter(g);
+markupSumSold (LegalEntity le, DATE d) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, d) IF access(s) AND filter(g);
+sumSold (LegalEntity le, DATE d) = GROUP SUM sumSold(Stock s, le, SkuGroup g, d) IF access(s) AND filter(g);
+costSumBalanceA (LegalEntity le, DATE d) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, d) IF access(s) AND filter(g);
 
 costSumSold (SkuGroup g, DATE d) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND access(s);
 markupSumSold (SkuGroup g, DATE d) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND access(s);
 sumSold (SkuGroup g, DATE d) = GROUP SUM sumSold(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND access(s);
 costSumBalanceA (SkuGroup g, DATE d) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, d) IF (filter(le) OR allSuppliers()) AND access(s);
 
-costSumSold (Stock s, DATE df, DATE dt) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-markupSumSold (Stock s, DATE df, DATE dt) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-sumSold (Stock s, DATE df, DATE dt) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
-costSumBalanceA (Stock s, DATE df, DATE dt) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups());
+costSumSold (Stock s, DATE df, DATE dt) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND filter(g);
+markupSumSold (Stock s, DATE df, DATE dt) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND filter(g);
+sumSold (Stock s, DATE df, DATE dt) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND filter(g);
+costSumBalanceA (Stock s, DATE df, DATE dt) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND filter(g);
 
-costSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND access(s) AND (filter(g) OR allGroups());
-markupSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND access(s) AND (filter(g) OR allGroups());
-sumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND access(s) AND (filter(g) OR allGroups());
-costSumBalanceA (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, DATE d) IF iterate(d, df, dt) AND access(s) AND (filter(g) OR allGroups());
+costSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND access(s) AND filter(g);
+markupSumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND access(s) AND filter(g);
+sumSold (LegalEntity le, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND access(s) AND filter(g);
+costSumBalanceA (LegalEntity le, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, DATE d) IF d >= df AND d <= dt AND access(s) AND filter(g);
 
-costSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND access(s);
-markupSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND access(s);
-sumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND access(s);
-costSumBalanceA (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, DATE d) IF iterate(d, df, dt) AND (filter(le) OR allSuppliers()) AND access(s);
+costSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND access(s);
+markupSumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND access(s);
+sumSold (SkuGroup g, DATE df, DATE dt) = GROUP SUM sumSold(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND access(s);
+costSumBalanceA (SkuGroup g, DATE df, DATE dt) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, DATE d) IF d >= df AND d <= dt AND (filter(le) OR allSuppliers()) AND access(s);
 
-costSumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-markupSumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-sumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-costSumBalanceA (Stock s, INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
+costSumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) BY extractWeek(d), extractYear(d);
+markupSumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) BY extractWeek(d), extractYear(d);
+sumSold (Stock s, INTEGER w, INTEGER y) = GROUP SUM sumSold(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) BY extractWeek(d), extractYear(d);
+costSumBalanceA (Stock s, INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) BY extractWeek(d), extractYear(d);
 
-costSumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-markupSumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-sumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM sumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
-costSumBalanceA (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, DATE d) IF access(s) AND (filter(g) OR allGroups()) BY extractWeek(d), extractYear(d);
+costSumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM costSumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND filter(g) BY extractWeek(d), extractYear(d);
+markupSumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM markupSumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND filter(g) BY extractWeek(d), extractYear(d);
+sumSold (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM sumSold(Stock s, le, SkuGroup g, DATE d) IF access(s) AND filter(g) BY extractWeek(d), extractYear(d);
+costSumBalanceA (LegalEntity le, INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(Stock s, le, SkuGroup g, DATE d) IF access(s) AND filter(g) BY extractWeek(d), extractYear(d);
 
 costSumSold (SkuGroup g, INTEGER w, INTEGER y) = GROUP SUM costSumSold(Stock s, LegalEntity le, g, DATE d) IF (filter(le) OR allSuppliers()) AND access(s) BY extractWeek(d), extractYear(d);
 markupSumSold (SkuGroup g, INTEGER w, INTEGER y) = GROUP SUM markupSumSold(Stock s, LegalEntity le, g, DATE d) IF (filter(le) OR allSuppliers()) AND access(s) BY extractWeek(d), extractYear(d);
 sumSold (SkuGroup g, INTEGER w, INTEGER y) = GROUP SUM sumSold(Stock s, LegalEntity le, g, DATE d) IF (filter(le) OR allSuppliers()) AND access(s) BY extractWeek(d), extractYear(d);
 costSumBalanceA (SkuGroup g, INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, g, DATE d) IF (filter(le) OR allSuppliers()) AND access(s) BY extractWeek(d), extractYear(d);
 
-costSumSold (INTEGER w, INTEGER y) = GROUP SUM costSumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s) BY extractWeek(d), extractYear(d);
-markupSumSold (INTEGER w, INTEGER y) = GROUP SUM markupSumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s) BY extractWeek(d), extractYear(d);
-sumSold (INTEGER w, INTEGER y) = GROUP SUM sumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s) BY extractWeek(d), extractYear(d);
-costSumBalanceA (INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s) BY extractWeek(d), extractYear(d);
+costSumSold (INTEGER w, INTEGER y) = GROUP SUM costSumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s) BY extractWeek(d), extractYear(d);
+markupSumSold (INTEGER w, INTEGER y) = GROUP SUM markupSumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s) BY extractWeek(d), extractYear(d);
+sumSold (INTEGER w, INTEGER y) = GROUP SUM sumSold(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s) BY extractWeek(d), extractYear(d);
+costSumBalanceA (INTEGER w, INTEGER y) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, SkuGroup g, DATE d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s) BY extractWeek(d), extractYear(d);
 
-costSumSold (DATE d) = GROUP SUM costSumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s);
-markupSumSold (DATE d) = GROUP SUM markupSumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s);
-sumSold (DATE d) = GROUP SUM sumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s);
-costSumBalanceA (DATE d) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND (filter(g) OR allGroups()) AND access(s);
+costSumSold (DATE d) = GROUP SUM costSumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s);
+markupSumSold (DATE d) = GROUP SUM markupSumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s);
+sumSold (DATE d) = GROUP SUM sumSold(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s);
+costSumBalanceA (DATE d) = GROUP SUM costSumBalanceA(Stock s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g) AND access(s);
 
 importFilters (FILE stockList, FILE supplierList, FILE groupList) {
 
@@ -116,7 +115,9 @@ importFilters (FILE stockList, FILE supplierList, FILE groupList) {
     IMPORT JSON FROM groupList AS FILE FIELDS LONG id DO {
         filter(SkuGroup s) <- TRUE WHERE LONG (s AS SkuGroup) == id;
     }
-    allGroups() <- TRUE IF NOT (GROUP SUM 1 IF filter(SkuGroup s)); 
+    IF NOT (GROUP SUM 1 IF filter(SkuGroup s)) THEN {
+        filter(SkuGroup g) <- TRUE WHERE NOT parent(g);
+    }
 }
 
 FORM turnoverByStockDate
@@ -127,7 +128,7 @@ FORM turnoverByStockDate
     
     OBJECTS d = DATE
     PROPERTIES date = VALUE(d), costSumSold(st, d), markupSumSold(st, d), sumSold(st, d), costSumBalanceA(st, d)
-    FILTERS iterate(d, df, dt), sumSold(st, d) OR costSumBalanceA(st, d)
+    FILTERS d >= df AND d <= dt, sumSold(st, d) OR costSumBalanceA(st, d)
 ;
 
 getTurnoverByStockDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
@@ -149,7 +150,7 @@ FORM turnoverBySupplierDate
     
     OBJECTS d = DATE
     PROPERTIES date = VALUE(d), costSumSold(le, d), markupSumSold(le, d), sumSold(le, d), costSumBalanceA(le, d)
-    FILTERS iterate(d, df, dt), sumSold(le, d) OR costSumBalanceA(le, d)
+    FILTERS d >= df AND d <= dt, sumSold(le, d) OR costSumBalanceA(le, d)
 ;
 
 getTurnoverBySupplierDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt) {
@@ -167,11 +168,11 @@ FORM turnoverByGroupDate
     OBJECTS (df = DATE, dt = DATE, level = INTEGER) PANEL
     OBJECTS g = SkuGroup EXTID 'value'
     PROPERTIES id = LONG (g), name(g), costSumSold(g, df, dt), markupSumSold(g, df, dt), sumSold(g, df, dt), costSumBalanceA(g, df, dt)
-    FILTERS active(g), filter(g) OR allGroups(), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
+    FILTERS active(g), filter(g), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
     
     OBJECTS d = DATE
     PROPERTIES date = VALUE(d), costSumSold(g, d), markupSumSold(g, d), sumSold(g, d), costSumBalanceA(g, d)
-    FILTERS iterate(d, df, dt), sumSold(g, d) OR costSumBalanceA(g, d)
+    FILTERS d >= df AND d <= dt, sumSold(g, d) OR costSumBalanceA(g, d)
 ;
 
 getTurnoverByGroupDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, DATE dt, INTEGER level) {
@@ -222,10 +223,10 @@ getTurnoverByGroup (FILE stockList, FILE supplierList, FILE groupList, DATE df, 
     
     EXPORT JSON FROM group = LONG (SkuGroup g), name(g), costSumSold = costSumSold(g, df, dt), markupSumSold = markupSumSold(g, df, dt), 
         sumSold = sumSold(g, df, dt), costSumBalanceA = costSumBalanceA(g, df, dt)
-        WHERE (filter(g) OR allGroups()) AND skuGroupRoot(g, level (+) 1) == g AND (sumSold(g, df, dt) OR costSumBalanceA(g, df, dt));
+        WHERE filter(g) AND skuGroupRoot(g, level (+) 1) == g AND (sumSold(g, df, dt) OR costSumBalanceA(g, df, dt));
 } @@api;
 
-filterWeek(INTEGER y, INTEGER w, DATE df, DATE dt) = iterate(w, 1, 53) AND (CASE 
+filterWeek(INTEGER y, INTEGER w, DATE df, DATE dt) = w > 0 AND w <= 53 AND (CASE 
     WHEN extractYear(df) == extractYear(dt) THEN (w >= extractWeek(df) AND w <= extractWeek(dt) AND extractYear(df) == y)
     WHEN extractYear(df) < extractYear(dt) THEN ((w >= extractWeek(df) AND y == extractYear(df)) OR 
                                                 (w <= extractWeek(dt) AND y == extractYear(dt)) OR 
@@ -284,7 +285,7 @@ FORM turnoverByGroupWeek
     OBJECTS g = SkuGroup EXTID 'value'
     PROPERTIES id = LONG (g), name(g)
     PROPERTIES (g, df, dt) costSumSold, markupSumSold, sumSold, costSumBalanceA
-    FILTERS active(g), filter(g) OR allGroups(), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
+    FILTERS active(g), filter(g), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
     
     OBJECTS d = (y = INTEGER, w = INTEGER)
     PROPERTIES date = y + '_' + lpad(TEXT (w), 2, '0')
@@ -324,5 +325,5 @@ getTurnoverByDate (FILE stockList, FILE supplierList, FILE groupList, DATE df, D
     importFilters(stockList, supplierList, groupList);
     
     EXPORT JSON FROM date = DATE d, costSumSold = costSumSold(d), markupSumSold = markupSumSold(d), sumSold = sumSold(d), costSumBalanceA = costSumBalanceA(d)
-        WHERE iterate(d, df, dt) AND (sumSold(d) OR costSumBalanceA(d));
+        WHERE d >= df AND d <= dt AND (sumSold(d) OR costSumBalanceA(d));
 } @@api;
