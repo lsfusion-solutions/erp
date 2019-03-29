@@ -44,6 +44,7 @@ allStores = DATA LOCAL BOOLEAN () COMPLEX;
 allSuppliers = DATA LOCAL BOOLEAN () COMPLEX;
 
 access (Stock s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+filterLevel (SkuGroup g, INTEGER level) = GROUP SUM 1 IF isParent(g, SkuGroup sg) AND filter(sg) AND skuGroupRoot(g, level (+) 1) == g;
 
 costSumSold (Stock s, DATE d) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
 markupSumSold (Stock s, DATE d) = GROUP SUM markupSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
@@ -168,7 +169,7 @@ FORM turnoverByGroupDate
     OBJECTS (df = DATE, dt = DATE, level = INTEGER) PANEL
     OBJECTS g = SkuGroup EXTID 'value'
     PROPERTIES id = LONG (g), name(g), costSumSold(g, df, dt), markupSumSold(g, df, dt), sumSold(g, df, dt), costSumBalanceA(g, df, dt)
-    FILTERS active(g), filter(g), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
+    FILTERS active(g), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), filterLevel(g, level)
     
     OBJECTS d = DATE
     PROPERTIES date = VALUE(d), costSumSold(g, d), markupSumSold(g, d), sumSold(g, d), costSumBalanceA(g, d)
@@ -223,7 +224,7 @@ getTurnoverByGroup (FILE stockList, FILE supplierList, FILE groupList, DATE df, 
     
     EXPORT JSON FROM group = LONG (SkuGroup g), name(g), costSumSold = costSumSold(g, df, dt), markupSumSold = markupSumSold(g, df, dt), 
         sumSold = sumSold(g, df, dt), costSumBalanceA = costSumBalanceA(g, df, dt)
-        WHERE filter(g) AND skuGroupRoot(g, level (+) 1) == g AND (sumSold(g, df, dt) OR costSumBalanceA(g, df, dt));
+        WHERE filterLevel(g, level) AND (sumSold(g, df, dt) OR costSumBalanceA(g, df, dt));
 } @@api;
 
 filterWeek(INTEGER y, INTEGER w, DATE df, DATE dt) = w > 0 AND w <= 53 AND (CASE 
@@ -285,7 +286,7 @@ FORM turnoverByGroupWeek
     OBJECTS g = SkuGroup EXTID 'value'
     PROPERTIES id = LONG (g), name(g)
     PROPERTIES (g, df, dt) costSumSold, markupSumSold, sumSold, costSumBalanceA
-    FILTERS active(g), filter(g), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt), skuGroupRoot(g, level (+) 1) == g
+    FILTERS active(g), filterLevel(g, level), sumSold(g, df, dt) OR costSumBalanceA(g, df, dt)
     
     OBJECTS d = (y = INTEGER, w = INTEGER)
     PROPERTIES date = y + '_' + lpad(TEXT (w), 2, '0')
