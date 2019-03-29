@@ -131,6 +131,8 @@ FORM ordrsp
                   ordrspPriceNoNDS EXTID 'priceNoNDS', ordrspPriceNDS EXTID 'priceNDS'
 ;
 
+indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
+
 overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
     IF lower(documentType(i)) == 'ordrsp' AND NOT invoices THEN {
         TRY {
@@ -140,9 +142,9 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                     IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
                         id(r) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber();
                     }
-                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber() + '/' + ordrspGTIN(l)) DO NEW d = EOrderResponseDetail {
+                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1)) DO NEW d = EOrderResponseDetail {
                         orderResponse(d) <- eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
-                        id(d) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber() + '/' + ordrspGTIN(l);
+                        id(d) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1);
                     }
                     FOR EOrderResponse r == eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) DO {
                         number(r) <- ordrspDocumentNumber();
@@ -158,7 +160,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         eOrder(r) <- eOrder(ordrspOrderNumber());
                         deliveryDateTime(r) <- ordrspDeliveryDateTimeFirst();
                         deliveryDateTimeSecond(r) <- ordrspDeliveryDateTimeSecond();
-                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber() + '/' + ordrspGTIN(l)) DO {
+                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1)) DO {
                             orderResponse(d) <- r;
                             id(d) <- id(r) + '/' + ordrspGTIN(l);
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
