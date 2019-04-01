@@ -544,6 +544,17 @@ backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT
                                                    THEN RGB(255,0,0);
 background = ABSTRACT CASE COLOR (EInvoice);
 
+CLASS EInvoiceMessageType 'Тип сообщения по накладной EDI' {
+    systemmessage_blrwbl 'SYSTEMMESSAGE-BLRWBL',
+    systemmessage_systemmessage 'SYSTEMMESSAGE-SYSTEMMESSAGE',
+    blrapn_blrapn 'BLRAPN-BLRAPN',
+    blrapn_blrwbr 'BLRAPN-BLRWBR',
+    blrapn_blrwbl 'BLRAPN-BLRWBL'
+}
+
+type 'Тип' = DATA EInvoiceMessageType (EInvoiceMessage);
+nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o));
+
 FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
     PROPERTIES(e) in
@@ -567,7 +578,7 @@ FORM eInvoices 'Электронные накладные EDI'
     FILTERS eInvoice(d) == e
 
     OBJECTS m = EInvoiceMessage
-    PROPERTIES(m) READONLY numberEInvoice, dateTime, code, description
+    PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, code, description
     FILTERS eInvoice(m) == e
     ORDER dateTime(m);
 ;

@@ -443,6 +443,9 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
                         eInvoice(m) <- eInvoice(documentNumber());
+                        type(m) <- CASE
+                            WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
+                            WHEN documentType() == 'SYSTEMMESSAGE' THEN EInvoiceMessageType.systemmessage_systemmessage;
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {
@@ -547,6 +550,10 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                             WHEN lower(blrapnDocumentType()) == 'blrwbr' THEN deliveryNoteNumberEInvoiceBlrwbr(belrapnInvoiceNumber())
                             WHEN lower(blrapnDocumentType()) == 'blrwbl' AND receiveSupplierMessages THEN deliveryNoteNumberEInvoiceBlrwbl(belrapnInvoiceNumber());
                         eInvoice(m) <- eInvoiceDeliveryNoteNumber(belrapnInvoiceNumber());
+                        type(m) <- CASE
+                            WHEN lower(blrapnDocumentType()) == 'blrapn' THEN EInvoiceMessageType.blrapn_blrapn
+                            WHEN lower(blrapnDocumentType()) == 'blrwbr' THEN EInvoiceMessageType.blrapn_blrwbr
+                            WHEN lower(blrapnDocumentType()) == 'blrwbl' THEN EInvoiceMessageType.blrapn_blrwbl;
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {
