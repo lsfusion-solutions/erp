@@ -245,7 +245,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
             IMPORT blrwbr XML FROM data(i);
             FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwbrDeliveryNoteNumber()) DO {
                 LOCAL contentSubXML = FILE();
-                blrapnDateTime() <- currentDateTime();
+                blrapnDateTime() <- currentDateTimeMillis();
                 blrapnReferenceDocumentType() <- 'BLRWBR';
                 blrapnReferenceDocumentId() <- blrwbrDocumentId();
                 blrapnReferenceDocumentDate() <- blrwbrDateTime();
@@ -370,7 +370,7 @@ signAndSendCustomerEInvoice (EInvoice ei, VARSTRING[100] provider) {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
                 IF hostEDSServiceTopBy() AND portEDSServiceTopBy() AND useEDSServiceForCustomerTopBy() THEN {
                     LOCAL blrapnSubXML = FILE();
-                    blrapnDateTime() <- currentDateTime();
+                    blrapnDateTime() <- currentDateTimeMillis();
                     blrapnReferenceDocumentType() <- 'BLRWBL';
                     blrapnReferenceDocumentId() <- OVERRIDE blrwbl(ei), number(ei);
                     blrapnReferenceDocumentDate() <- OVERRIDE blrwblDate(ei), dateTime(ei);
@@ -604,7 +604,7 @@ signAndSendSupplierEInvoice (EInvoice ei, VARSTRING[100] provider) {
                     
                     IF error() == '' THEN {
                         LOCAL contentSubXML = FILE();
-                        blrwblDateTime() <- currentDateTime();
+                        blrwblDateTime() <- currentDateTimeMillis();
                         toMilliseconds(blrwblDateTime());
                         EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
                         IF outputDirTopBy() THEN WRITE contentSubXML() TO outputDirTopBy() + '/sent/blrwbl-' + toChar(blrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
