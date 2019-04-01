@@ -50,7 +50,7 @@ limitRecommendedQuantity = ABSTRACT VALUE BOOLEAN (Sku, UserOrder);
 
 MOQ 'MOQ' = ABSTRACT NUMERIC[16,5] (Sku);
 overRecommendedQuantity  ABSTRACT LIST ( UserOrderDetail,Sku);
-
+skipCeil = ABSTRACT BOOLEAN (Sku,UserOrder);
 ceilRecommendedQuantity(Sku sku, NUMERIC[16,5] r) = IF (MIN MOQ(sku), amountPack(sku)) > 0 THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) ELSE (IF split(sku) THEN r ELSE ceil(r));
 
 fillRecommendedQuantityStock 'Заполнить рекомендуемым'(UserOrder userOrder)  { 
@@ -63,7 +63,8 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
         NEW d = UserOrderDetail DO {
             userOrder(d) <- userOrder;
             sku(d) <- sku;
-            quantity (d) <- ceilRecommendedQuantity(sku, r);
+            quantity (d) <- IF skipCeil(sku,userOrder) THEN (IF split(sku) THEN r ELSE ceil(r)) 
+                                                          ELSE ceilRecommendedQuantity(sku, r);
             overRecommendedQuantity(d,sku);
         }
 } TOOLBAR CONFIRM;
