@@ -37,13 +37,18 @@ fillTurnover (DATE df, DATE dt) {
     }
 }
 
+filterAPI 'Вкл. в API' = DATA BOOLEAN (Stock);
+allStocksAPI () = TRUE IF NOT (GROUP SUM 1 IF filterAPI(Stock s));
+
+EXTEND FORM options PROPERTIES filterAPI(s);
+
 filter = DATA LOCAL BOOLEAN (Stock);
 filter = DATA LOCAL BOOLEAN (LegalEntity);
 filter = DATA LOCAL BOOLEAN (SkuGroup);
 allStores = DATA LOCAL BOOLEAN () COMPLEX;
 allSuppliers = DATA LOCAL BOOLEAN () COMPLEX;
 
-access (Stock s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess());
+access (Stock s) = (filter(s) OR allStores()) AND (accessCompany(currentUser(), s) OR NOT limitAccess()) AND (filterAPI(s) OR allStocksAPI());
 filterLevel (SkuGroup g, INTEGER level) = (GROUP SUM 1 IF isParent(g, SkuGroup sg) AND filter(sg)) AND skuGroupRoot(g, level (+) 1) == g;
 
 costSumSold (Stock s, DATE d) = GROUP SUM costSumSold(s, LegalEntity le, SkuGroup g, d) IF (filter(le) OR allSuppliers()) AND filter(g);
