@@ -8,6 +8,7 @@ CLASS Category 'API' {
     masterData 'Справочники'
 }
 name 'Наименование' (Category c) = staticCaption(c) IF c IS Category;
+id 'ИД' (Category c) = staticName(c) IF c IS Category;
 
 access 'Доступ' = DATA BOOLEAN (UserRole, Category);
 access 'Доступ' (User u, Category c) = TRUE IF GROUP SUM 1 IF access(UserRole r, c) IF has(u, r);
@@ -31,5 +32,5 @@ DESIGN securityPolicy {
 }
 
 getCategories() {
-    EXPORT JSON FROM name(Category c) WHERE access(currentUser(), c) OR NOT limitAccess();
+    EXPORT JSON FROM name(Category c), id(c) WHERE access(currentUser(), c) OR NOT limitAccess();
 } @@api;
