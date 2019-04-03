@@ -2,23 +2,24 @@ package lsfusion.erp.region.by.euroopt;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.Pair;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.form.property.Compare;
+import lsfusion.base.file.RawFileData;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import org.castor.core.util.Base64Encoder;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.jsoup.HttpStatusException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -29,12 +30,13 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 
-public class ImportImageAndPriceEurooptActionProperty extends EurooptActionProperty {
+public class ImportImageAndPriceEurooptAction extends EurooptAction {
 
-    public ImportImageAndPriceEurooptActionProperty(ScriptingLogicsModule LM) {
+    public ImportImageAndPriceEurooptAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -49,12 +51,12 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                 boolean importPrices = findProperty("importPrices[]").read(context) != null;
 
                 if (importImages || importPrices) {
-                    List<List<List<Object>>> data = getData(context, mainPage, useTor, importImages, importPrices);
+                    List<JSONArray> data = getData(context, mainPage, useTor, importImages, importPrices);
                     if (!data.get(0).isEmpty() || !data.get(1).isEmpty()) {
                         if (importImages)
-                            importImages(context, data.get(0));
+                            findProperty("importImageFile[]").change(new RawFileData(data.get(0).toString().getBytes(StandardCharsets.UTF_8)), context);
                         if (importPrices)
-                            importPrices(context, data.get(1));
+                            findProperty("importPriceFile[]").change(new RawFileData(data.get(1).toString().getBytes(StandardCharsets.UTF_8)), context);
 
                         context.delayUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт Евроопт"));
                     }
@@ -71,115 +73,16 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
 
     }
 
-    private void importImages(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
-        List<ImportProperty<?>> props = new ArrayList<>();
-        List<ImportField> fields = new ArrayList<>();
-        List<ImportKey<?>> keys = new ArrayList<>();
-
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
-        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = true;
-        keys.add(itemKey);
-        fields.add(idBarcodeSkuField);
-
-        ImportField dataImageItemField = new ImportField(findProperty("dataImage[Item]"));
-        props.add(new ImportProperty(dataImageItemField, findProperty("dataImage[Item]").getMapping(itemKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
-        fields.add(dataImageItemField);
-
-        ImportTable table = new ImportTable(fields, data);
-
-        try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
-            newContext.apply();
-        }
-    }
-
-    private void importPrices(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-
-        List<ImportProperty<?>> props = new ArrayList<>();
-        List<ImportField> fields = new ArrayList<>();
-        List<ImportKey<?>> keys = new ArrayList<>();
-
-        ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
-        ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                findProperty("userPriceList[VARSTRING[100]]").getMapping(idUserPriceListField));
-        keys.add(userPriceListKey);
-        props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListKey)));
-        fields.add(idUserPriceListField);
-
-        ImportField isPostedUserPriceListField = new ImportField(findProperty("isPosted[UserPriceList]"));
-        props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPosted[UserPriceList]").getMapping(userPriceListKey)));
-        fields.add(isPostedUserPriceListField);
-
-        ImportField idOperationField = new ImportField(findProperty("id[PriceList.Operation]"));
-        ImportKey<?> operationKey = new ImportKey((CustomClass) findClass("PriceList.Operation"),
-                findProperty("PriceList.operation[VARISTRING[100]]").getMapping(idOperationField));
-        keys.add(operationKey);
-        props.add(new ImportProperty(idOperationField, findProperty("operation[PriceList]").getMapping(userPriceListKey),
-                object(findClass("PriceList.Operation")).getMapping(operationKey)));
-        props.add(new ImportProperty(idOperationField, findProperty("id[PriceList.Operation]").getMapping(operationKey)));
-        fields.add(idOperationField);
-
-        ImportField idUserPriceListDetailField = new ImportField(findProperty("id[UserPriceListDetail]"));
-        ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                findProperty("userPriceListDetail[VARSTRING[100],VARSTRING[100]]").getMapping(idUserPriceListDetailField, idUserPriceListField));
-        keys.add(userPriceListDetailKey);
-        props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-        props.add(new ImportProperty(idUserPriceListDetailField, findProperty("id[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
-        fields.add(idUserPriceListDetailField);
-
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
-        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"), findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
-        itemKey.skipKey = true;
-        keys.add(itemKey);
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("originalIdBarcodeSku[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
-                object(findClass("Item")).getMapping(itemKey)));
-        fields.add(idBarcodeSkuField);
-
-        ImportField idDataPriceListTypeField = new ImportField(findProperty("id[DataPriceListType]"));
-        ImportKey<?> dataPriceListTypeKey = new ImportKey((CustomClass) findClass("DataPriceListType"),
-                findProperty("dataPriceListType[VARSTRING[100]]").getMapping(idDataPriceListTypeField));
-        keys.add(dataPriceListTypeKey);
-        props.add(new ImportProperty(idDataPriceListTypeField, findProperty("id[PriceListType]").getMapping(dataPriceListTypeKey)));
-        fields.add(idDataPriceListTypeField);
-
-        ImportField namePriceListTypeField = new ImportField(findProperty("name[PriceListType]"));
-        props.add(new ImportProperty(namePriceListTypeField, findProperty("name[PriceListType]").getMapping(dataPriceListTypeKey), true));
-        fields.add(namePriceListTypeField);
-
-        ImportField pricePriceListDetailField = new ImportField(findProperty("price[PriceListDetail,DataPriceListType]"));
-        props.add(new ImportProperty(pricePriceListDetailField, findProperty("price[UserPriceListDetail,DataPriceListType]").getMapping(userPriceListDetailKey, dataPriceListTypeKey)));
-        fields.add(pricePriceListDetailField);
-
-        ImportField inPriceListPriceListTypeField = new ImportField(findProperty("in[UserPriceList,DataPriceListType]"));
-        props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("in[UserPriceList,DataPriceListType]").getMapping(userPriceListKey, dataPriceListTypeKey), true));
-        fields.add(inPriceListPriceListTypeField);
-
-        ImportTable table = new ImportTable(fields, data);
-
-        try (ExecutionContext.NewSession newContext = context.newSession()) {
-            IntegrationService service = new IntegrationService(newContext, table, keys, props);
-            service.synchronize(true, false);
-            newContext.apply();
-        }
-    }
-
-    private List<List<List<Object>>> getData(ExecutionContext context, String mainPage, boolean useTor, boolean importImages, boolean importPrices)
+    private List<JSONArray> getData(ExecutionContext context, String mainPage, boolean useTor, boolean importImages, boolean importPrices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
-        List<List<Object>> imagesList = new ArrayList<>();
-        List<List<Object>> userPriceListsList = new ArrayList<>();
+        JSONArray imagesJSON = new JSONArray();
+        JSONArray pricesJSON = new JSONArray();
 
         String id = mainPage.contains("gipermall") ? "gipermall" : "edostavka";
         String name = mainPage.contains("gipermall") ? "Гипермолл" : "Е-доставка";
 
         NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
-        String idPriceList = id + String.valueOf(Calendar.getInstance().getTimeInMillis());
+        String idPriceList = id + Calendar.getInstance().getTimeInMillis();
         Pair<List<String>, Map<String, String>> itemListData = getItemListData(context);
         List<String> itemListURLList = itemListData.first;
         Map<String, String> barcodeMap = itemListData.second;
@@ -206,20 +109,46 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                                     if (importImages) {
                                         String image = productCard.getElementsByClass("img").get(0).getElementsByClass("retina_redy").get(0).attr("src");
                                         RawFileData imageBytes = getImage(lowerNetLayer, idBarcode, mainPage, image);
-                                        if (imageBytes != null)
-                                            imagesList.add(Arrays.asList((Object) idBarcode, imageBytes));
+                                        if (imageBytes != null) {
+                                            JSONObject imageJSON = new JSONObject();
+                                            imageJSON.put("idBarcode", idBarcode);
+                                            imageJSON.put("image", new String(Base64Encoder.encode(imageBytes.getBytes())));
+                                            imagesJSON.put(imageJSON);
+                                        }
                                     }
 
                                     if (importPrices) {
                                         List<BigDecimal> prices = getPrices(productCard);
                                         if (prices.size() >= 1) {
                                             BigDecimal price1 = prices.get(0);
-                                            if (price1 != null)
-                                                userPriceListsList.add(Arrays.asList((Object) idPriceList, true, id, idPriceList + "/" + idPriceListDetail, idBarcode, id + "_p", name + "(акция)", price1, true));
+                                            if (price1 != null) {
+                                                JSONObject jsonObject = new JSONObject();
+                                                jsonObject.put("idPriceList", idPriceList);
+                                                jsonObject.put("isPosted", true);
+                                                jsonObject.put("idOperation", id);
+                                                jsonObject.put("idUserPriceListDetail", idPriceList + "/" + idPriceListDetail);
+                                                jsonObject.put("idBarcodeSku", idBarcode);
+                                                jsonObject.put("idDataPriceListType", id + "_p");
+                                                jsonObject.put("namePriceListType", name + "(акция)");
+                                                jsonObject.put("pricePriceListDetail", price1);
+                                                jsonObject.put("inPriceListPriceListType", true);
+                                                pricesJSON.put(jsonObject);
+                                            }
                                             if (prices.size() >= 2) {
                                                 BigDecimal price2 = prices.get(1);
-                                                if (price2 != null)
-                                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, true, id, idPriceList + "/" + idPriceListDetail, idBarcode, id, name, price2, true));
+                                                if (price2 != null) {
+                                                    JSONObject jsonObject = new JSONObject();
+                                                    jsonObject.put("idPriceList", idPriceList);
+                                                    jsonObject.put("isPosted", true);
+                                                    jsonObject.put("idOperation", id);
+                                                    jsonObject.put("idUserPriceListDetail", idPriceList + "/" + idPriceListDetail);
+                                                    jsonObject.put("idBarcodeSku", idBarcode);
+                                                    jsonObject.put("idDataPriceListType", id);
+                                                    jsonObject.put("namePriceListType", name);
+                                                    jsonObject.put("pricePriceListDetail", price2);
+                                                    jsonObject.put("inPriceListPriceListType", true);
+                                                    pricesJSON.put(jsonObject);
+                                                }
                                             }
                                             idPriceListDetail++;
                                         }
@@ -233,13 +162,13 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
                 i++;
             }
             if (importImages)
-                ServerLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesList.size()));
+                ServerLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesJSON.length()));
             if (importPrices)
-                ServerLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices for %s items found", userPriceListsList.size(), idPriceListDetail - 1));
+                ServerLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices for %s items found", pricesJSON.length(), idPriceListDetail - 1));
         } else {
             context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного импортированного товара", "Ошибка"));
         }
-        return Arrays.asList(imagesList, userPriceListsList);
+        return Arrays.asList(imagesJSON, pricesJSON);
     }
 
     private RawFileData getImage(NetLayer lowerNetLayer, String barcode, String mainPage, String smallImage) {
@@ -327,7 +256,7 @@ public class ImportImageAndPriceEurooptActionProperty extends EurooptActionPrope
         return null;
     }
 
-    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext context) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemListURLList = new ArrayList<>();
         Map<String, String> barcodeMap = new HashMap<>();
         KeyExpr itemListExpr = new KeyExpr("eurooptItemList");

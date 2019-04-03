@@ -22,13 +22,13 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.sql.SQLException;
 
-public class EurooptActionProperty extends DefaultImportActionProperty {
+public class EurooptAction extends DefaultImportActionProperty {
 
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
     String logPrefix = "Import Euroopt: ";
 
-    public EurooptActionProperty(ScriptingLogicsModule LM) {
+    public EurooptAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
