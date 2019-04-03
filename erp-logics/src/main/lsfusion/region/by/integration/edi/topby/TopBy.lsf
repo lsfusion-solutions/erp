@@ -428,21 +428,26 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
         }
     }
 }
-
+//todo: вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
+//возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
 overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             IF documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
                 NEWSESSION NESTED LOCAL {
-                    IF NOT eInvoiceMessage(messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
-                        number(m) <- messageDocumentNumber();
+                    IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
+                        number(m) <- 'm' + messageDocumentNumber();
                     }
-                    FOR EInvoiceMessage m == eInvoiceMessage(messageDocumentNumber()) DO {
+                    FOR EInvoiceMessage m == eInvoiceMessage('m' + messageDocumentNumber()) DO {
                         dateTime(m) <- messageDocumentDate();
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
-                        eInvoice(m) <- eInvoice(documentNumber());
+                        //todo: нужно найти файлы с типом message чтобы понять что там передается в качестве reference document, скорее всего они не создаются потому что не определяется ссылка на документ
+                        //и почему мы игнорируем остальные типы?
+                        documentNumber() <- CASE 
+                            WHEN lower(documentType()) == 'blrwbl' AND receiveSupplierMessages THEN deliveryNoteNumberEInvoiceBlrwbl(documentNumber());
+                        eInvoice(m) <- eInvoiceDeliveryNoteNumber(documentNumber());
                         type(m) <- CASE
                             WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
                             WHEN documentType() == 'SYSTEMMESSAGE' THEN EInvoiceMessageType.systemmessage_systemmessage;
@@ -519,16 +524,16 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
 GROUP acknowledgement EXTID 'Acknowledgement';
 blrapnDocumentNumber = DATA LOCAL NESTED VARSTRING[24]();
 blrapnDocumentDate = DATA LOCAL NESTED DATETIME();
+blrapnDeliveryNote = DATA LOCAL NESTED VARSTRING[28]();
 GROUP referenceDocument EXTID 'ReferenceDocument' : acknowledgement;
 blrapnDocumentType = DATA LOCAL NESTED VARSTRING[6]();
-belrapnInvoiceNumber = DATA LOCAL NESTED VARSTRING[28]();
 GROUP errorOrAcknowledgement EXTID 'ErrorOrAcknowledgement' : acknowledgement;
 belrapnCode = DATA LOCAL NESTED VARSTRING[8]();
 belrapnDescription = DATA LOCAL NESTED VARSTRING[1000]();
 
 FORM blrapn
-    PROPERTIES() IN acknowledgement blrapnDocumentNumber EXTID 'DocumentID', blrapnDocumentDate EXTID 'CreationDateTime'
-    PROPERTIES() IN referenceDocument blrapnDocumentType EXTID 'Type', belrapnInvoiceNumber EXTID 'ID'
+    PROPERTIES() IN acknowledgement blrapnDocumentNumber EXTID 'DocumentID', blrapnDocumentDate EXTID 'CreationDateTime', blrapnDeliveryNote EXTID 'DeliveryNoteID'
+    PROPERTIES() IN referenceDocument blrapnDocumentType EXTID 'Type'
     PROPERTIES() IN errorOrAcknowledgement belrapnCode EXTID 'Code', belrapnDescription EXTID 'Description'
 ;
 
@@ -536,7 +541,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
     IF lower(documentType(i)) == 'blrapn' AND invoices THEN {
         TRY {
             IMPORT blrapn XML FROM data(i);
-            IF blrapnDocumentType() AND belrapnCode() AND (lower(blrapnDocumentType()) == 'blrapn' OR lower(blrapnDocumentType()) == 'blrwbr' OR (lower(blrapnDocumentType()) == 'blrwbl' AND receiveSupplierMessages)) THEN {
+            IF blrapnDeliveryNote() AND belrapnCode() THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eInvoiceMessage(blrapnDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- blrapnDocumentNumber();
@@ -545,11 +550,8 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         dateTime(m) <- blrapnDocumentDate();
                         code(m) <- belrapnCode();
                         description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
-                        belrapnInvoiceNumber() <- CASE 
-                            WHEN lower(blrapnDocumentType()) == 'blrapn' THEN deliveryNoteNumberEInvoiceBlrapn(belrapnInvoiceNumber())
-                            WHEN lower(blrapnDocumentType()) == 'blrwbr' THEN deliveryNoteNumberEInvoiceBlrwbr(belrapnInvoiceNumber())
-                            WHEN lower(blrapnDocumentType()) == 'blrwbl' AND receiveSupplierMessages THEN deliveryNoteNumberEInvoiceBlrwbl(belrapnInvoiceNumber());
-                        eInvoice(m) <- eInvoiceDeliveryNoteNumber(belrapnInvoiceNumber());
+                        //для blrapn DeliveryNoteID всегда должен быть задан поэтому ссылку можно определять сразу по нему
+                        eInvoice(m) <- eInvoiceDeliveryNoteNumber(blrapnDeliveryNote());
                         type(m) <- CASE
                             WHEN lower(blrapnDocumentType()) == 'blrapn' THEN EInvoiceMessageType.blrapn_blrapn
                             WHEN lower(blrapnDocumentType()) == 'blrwbr' THEN EInvoiceMessageType.blrapn_blrwbr
