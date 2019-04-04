@@ -1,6 +1,6 @@
 MODULE TopBy;
 
-REQUIRE System, EDI, Integration, Warehouse, Store, EInvoiceEDI;
+REQUIRE System, EDI, Integration, Warehouse, Store;//, EInvoiceEDI;
 
 NAMESPACE EDI;
 
@@ -143,88 +143,6 @@ META receiveMessages (namespace)
 END
 
 @receiveMessages(S);
-//GROUP bodyS EXTID 'S:Body';
-//GROUP getDocumentsResponse EXTID '=http://topby.by/:GetDocumentsResponse' : bodyS;
-//GROUP getDocumentsResult EXTID 'GetDocumentsResult' : getDocumentsResponse;
-//GROUP data EXTID 'Data' : getDocumentsResult;
-
-//FORM documentsResult
-//    PROPERTIES() IN getDocumentsResult succesful EXTID 'Succesful',
-//                                       message EXTID 'Message',
-//                                       errorCode EXTID 'ErrorCode'
-//    OBJECTS d = INTEGER EXTID 'DocumentData' IN data
-//    PROPERTIES(d) id EXTID 'Id',
-//                  documentType EXTID 'DocumentType',
-//                  data EXTID 'Data'
-//;
-
-//receiveMessages (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) {
-//    TRY {
-//        IF login AND password AND host AND port THEN {
-//            LOCAL xml = XMLFILE();
-//            EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
-//            sendRequestEDI(host, port, login, password, url, xml());
-//            logToFile('import', provider + ' ReceiveMessages request sent');
-//            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
-//            IF requestError() THEN {
-//                logToFile('import', provider + ' ReceiveMessages: ' + requestError());
-//                MESSAGE  provider + ' Сообщения не получены: ' + requestError() NOWAIT;
-//            } ELSE {
-//                IMPORT documentsResult XML FROM sendRequestEDIResponse();
-//                IF succesful() THEN {
-//                    sendRecipientErrorFailed() <- 0;
-//                    supplierOrdersSucceeded() <- 0;
-//                    supplierOrdersFailed() <- 0;
-//                    orderMessagesSucceeded() <- 0;
-//                    orderMessagesFailed() <- 0;
-//                    responsesSucceeded() <- 0;
-//                    responsesFailed() <- 0;
-//                    despatchAdvicesSucceeded() <- 0;
-//                    despatchAdvicesFailed() <- 0;
-//                    invoiceMessagesSucceeded() <- 0;
-//                    invoiceMessagesFailed() <- 0;
-//                    eInvoicesSucceeded() <- 0;
-//                    eInvoicesFailed() <- 0;
-//                    blrwbrCount() <- 0;
-//                    
-//                    FOR documentType(INTEGER i) DO {
-//                        overReceiveMessages(i, login, password, host, port, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
-//                        IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
-//                    }
-//                    
-//                    LOCAL textMessage = TEXT();
-//                    IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
-//                    IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
-//                    IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
-//                    IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
-//                    IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
-//                    IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
-//                    IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
-//                    IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
-//                    IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
-//                    IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
-//                    IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
-//                    IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-//                    IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';                    
-//                    
-//                    IF sendRecipientErrorFailed() == 0 THEN {
-//                        MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
-//                    }
-//                }
-//                ELSE {
-//                    logToFile('import', provider + ' ReceiveMessages error ' + errorCode() + ': ' + message());
-//                    MESSAGE  provider + ' Сообщения не получены error ' + errorCode() + ': ' + message() NOWAIT;
-//                }
-//            }
-//     
-//        } ELSE {
-//            logToFile('import', provider + ' ReceiveMessages: не заданы имя пользователя / пароль / хост / порт');
-//            MESSAGE  provider + ' Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
-//        }
-//    } CATCH {
-//        logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-//    }
-//}
 
 receiveMessagesTopBy (BOOLEAN invoices) {
     receiveMessagesS(loginTopBy(), passwordTopBy(), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
