@@ -1,6 +1,6 @@
 MODULE TopBy;
 
-REQUIRE System, EDI, Integration, Warehouse, Store;
+REQUIRE System, EDI, Integration, Warehouse, Store, EInvoiceEDI;
 
 NAMESPACE EDI;
 
@@ -18,6 +18,7 @@ archiveDirTopBy 'Папка принятых сообщений' = DATA VARSTRIN
 outputDirTopBy 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
+confirmNotFoundOrders 'Подтверждать ответы по которым не найден заказ' = DATA BOOLEAN ();
 
 GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
@@ -599,6 +600,60 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         }
                     }
                 }
+//            }
+//            ELSE IF blrapnDocumentType() AND belrapnCode() AND lower(blrapnDocumentType()) == 'blradf' THEN {
+//                NEWSESSION NESTED LOCAL {
+//                    IF NOT eCreditNoteMessage(blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+//                        number(m) <- blrapnDocumentNumber();
+//                    }
+//                    FOR ECreditNoteMessage m == eCreditNoteMessage(blrapnDocumentNumber()) DO {
+//                        dateTime(m) <- blrapnDocumentDate();
+//                        code(m) <- belrapnCode();
+//                        description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
+//                        eCreditNote(m) <- eCreditNoteDeliveryNoteNumber(belrapnInvoiceNumber());
+//                        APPLY NESTED LOCAL;
+//                        IF canceled() THEN {
+//                            IF NOT disableConfirmation AND sendReplies THEN {
+//                                LOCAL contentSubXML = FILE();
+//                                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+//                                fileToString(contentSubXML());
+//                                encodeBase64(resultString());
+//                                LOCAL xml = XMLFILE();
+//                                EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+//                                sendRequestEDI(host, port, login, password, url, xml());
+//                                logToFile('import', provider + ' RecipientError ' + id(i) +' request sent');
+//                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+//                                IF requestError() THEN {
+//                                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+//                                    logToFile('import', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+//                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+//                                } ELSE {
+//                                    logToFile('import', provider + ' RecipientError ' + id(i) + ' request succeeded');
+//                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' выгружено' NOWAIT;
+//                                }
+//                            }
+//                            logToFile('import', provider + ' Import ECreditNoteMessage ' + id(i) + ' failed: ' + applyMessage());
+//                            creditNoteMessagesFailed() <- creditNoteMessagesFailed() + 1;
+//                        } ELSE {
+//                            IF NOT disableConfirmation THEN {
+//                                LOCAL xml = XMLFILE();
+//                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+//                                sendRequestEDI(host, port, login, password, url, xml());
+//                                logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+//                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+//                                IF requestError() THEN {
+//                                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+//                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+//                                } ELSE {
+//                                    IF archiveDir THEN WRITE data(i) TO archiveDir + '/received/' + id(i);
+//                                    logToFile('import', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+//                                }
+//                            }
+//                            logToFile('import', provider + ' Import ECreditNoteMessage ' + id(i) + ' succeeded');
+//                            creditNoteMessagesSucceeded() <- creditNoteMessagesSucceeded() + 1;
+//                        }
+//                    }
+//                }
             } ELSE {
                 IF NOT disableConfirmation AND sendReplies THEN {
                     LOCAL contentSubXML = FILE();
@@ -661,7 +716,8 @@ receiveInvoiceTopBy 'Получить сообщения по электронн
 EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
                  hostEDSServiceTopBy, portEDSServiceTopBy, useEDSServiceForCustomerTopBy,
-                 receiveInvoiceTopBy, useLSF, useLSFInvoice
+                 receiveInvoiceTopBy, useLSF, useLSFInvoice,
+                 confirmNotFoundOrders
 ;
     
 DESIGN integrationData {
@@ -681,6 +737,7 @@ DESIGN integrationData {
             }
             NEW ovs {
                 caption = 'Заказы';
+                MOVE PROPERTY (confirmNotFoundOrders());
                 MOVE PROPERTY(receiveTopBy());
                 MOVE PROPERTY(useLSF());
             }
