@@ -137,6 +137,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
     IF lower(documentType(i)) == 'ordrsp' AND NOT invoices THEN {
         TRY {
             IMPORT ordrsp XML FROM data(i);
+            ordrspOrderNumber() <- trim(ordrspOrderNumber());
             IF eOrder(ordrspOrderNumber()) THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
@@ -301,6 +302,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
     IF lower(documentType(i)) == 'desadv' AND NOT invoices THEN {
         TRY {
             IMPORT desadv XML FROM data(i);
+            desadvOrderNumber() <- trim(desadvOrderNumber());
             IF eOrder(desadvOrderNumber()) THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
