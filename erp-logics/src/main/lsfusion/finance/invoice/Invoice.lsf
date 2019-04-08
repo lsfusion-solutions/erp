@@ -782,9 +782,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     skipOpen = ABSTRACT BOOLEAN (UserInvoice);
     showClose (UserInvoice i) = isOpened(i) AND NOT skipClose(i);   
     showOpen (UserInvoice i) = isClosed(i) AND NOT skipOpen(i);   
-    backgroundDraft 'Цвет'  (Invoice i)= RGB(212,255,212) IF isDraft(i); 
+    background 'Цвет' (Invoice i)= ABSTRACT CASE COLOR (Invoice);
+    background(Invoice i) += WHEN isDraft(i) THEN RGB(212,255,212); 
     
-    backgroundSkuDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
+    backgroundSkuDetail 'Цвет' (d) = ABSTRACT CASE COLOR (InvoiceDetail);
     
     FORM invoices 'Накладные' 
     
@@ -792,16 +793,16 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                      nameFilterInvoiceCustomer, nameFilterInvoiceCustomerStock, nameFilterInvoiceCustomUser, nameFilterInvoiceComputer
         
         OBJECTS i = Invoice LAST
-        PROPERTIES (i) READONLYIF isReadonly() isClosed 
+        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isClosed 
                                 
-        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND backgroundDraft(i) isPosted,
+        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isPosted,
                                 number, series, date, time                                
-        PROPERTIES (i) READONLYIF isReadonly() nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
                                 nameCurrency, nameAgreement,
                                 seriesNumberContractSku, isCommission
-        PROPERTIES (i) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+        PROPERTIES (i) READONLY BACKGROUND background(i) countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
                                 VATSumInvoiceDetail, invoiceSumInvoiceDetail
-        PROPERTIES (i) READONLYIF isReadonly() note
+        PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) note
         PROPERTIES (i) READONLY PANEL createdNameUser[UserInvoice], createdTime[UserInvoice], createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer 
 
