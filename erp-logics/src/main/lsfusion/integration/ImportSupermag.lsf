@@ -1,0 +1,258 @@
+MODULE ImportSupermag;
+
+REQUIRE Item, ItemSize, LegalEntityBy, EDI;
+
+host 'Хост' = DATA VARISTRING[30]();
+base 'База' = DATA VARISTRING[100]();
+login 'Логин' = DATA VARISTRING[100]();
+password 'Пароль' = DATA VARISTRING[100]();
+
+EXTEND FORM integrationData PROPERTIES () host, base, login, password;
+
+DESIGN integrationData {
+    pane {
+        NEW supermag FIRST {
+            caption = 'Супермаг';
+            fill = 1;
+            NEW supermagParams {
+                MOVE PROPERTY (host());
+                MOVE PROPERTY (base());
+                MOVE PROPERTY (login());
+                MOVE PROPERTY (password());
+            }
+            NEW supermagButtons { }
+        }
+    }
+}
+
+idOrder (ItemGroup g) = GROUP CONCAT TEXT (order(ItemGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
+
+importItemGroup 'Импорт товарных групп' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = VARISTRING[100] (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM SACARDCLASS' TO file;
+    
+    IMPORT TABLE FROM file() TO id, tree, name;
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT itemGroup(TEXT (id(i))) DO NEW g = ItemGroup {
+        id(g) <- VARISTRING[100] (id(i));
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) ORDER level(i) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        parent(g) <- OVERRIDE (GROUP MAX ItemGroup gg IF idOrder(gg) == parent(i)), itemGroup('all');
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemGroup();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemGroup()); } }
+
+importUOM 'Импорт единиц измерений' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = TEXT (INTEGER);
+    LOCAL abb = TEXT (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME, ABBREV FROM SAMEASUREMENT' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, abb;
+    
+    FOR id(INTEGER i) AND NOT UOM(TEXT (id(i))) DO NEW u = UOM {
+        id(u) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR UOM u = UOM(TEXT (id(INTEGER i))) DO {
+        id(u) <- VARISTRING[100] (id(i));
+        name(u) <- name(i);
+        shortName(u) <- abb(i);
+        factor(u) <- 1;
+        base(u) <- u;
+    }
+    SHOW UOMs DOCKED;
+}
+
+EXTEND FORM integrationData PROPERTIES importUOM();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importUOM()); } }
+
+importItem 'Импорт товаров' () {
+    
+    LOCAL id = TEXT (INTEGER);
+    LOCAL name = TEXT (INTEGER);
+    LOCAL idMeasurement = INTEGER (INTEGER);
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL country = TEXT (INTEGER);
+    LOCAL width = NUMERIC[14,3] (INTEGER);
+    LOCAL length = NUMERIC[14,3] (INTEGER);
+    LOCAL height = NUMERIC[14,3] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, WIDTH, LENGTH, HEIGHT FROM SMCARD' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, width, length, height;
+    
+    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
+        id(s) <-id(i);
+    }
+    
+    FOR Item s = item(id(INTEGER i)) DO {
+        caption(s) <- name(i);
+        UOM(s) <- UOM(TEXT (idMeasurement(i)));
+        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
+        country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
+        width(s) <- width(i);
+        length(s) <- length(i);
+        height(s) <- height(i);
+    }
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM SVStoreUnits' TO file;
+    
+    IMPORT XLS FROM file() TO name, id;
+    
+    FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
+        id(b) <- name(i);
+    }
+    FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
+        sku(b) <- s;
+        barcode(s) <- b;
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItem();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItem()); } }
+
+idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
+
+importSupplierGroup 'Импорт групп поставщиков' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = VARISTRING[100] (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM SASUPPLIERCLASS' TO file;
+    
+    IMPORT TABLE FROM file() TO id, tree, name;
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT legalEntityGroup('S' + id(i)) DO NEW g = LegalEntityGroup {
+        id(g) <- 'S' + id(i);
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND LegalEntityGroup g = legalEntityGroup('S' + id(i)) ORDER level(i) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        parent(g) <- OVERRIDE (GROUP MAX LegalEntityGroup gg IF idOrder(gg) == parent(i)), legalEntityGroup('suppliers');
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importSupplierGroup();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSupplierGroup()); } }
+
+
+importCustomerGroup 'Импорт групп покупателей' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = VARISTRING[100] (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM SACLIENTCLASS' TO file;
+    
+    IMPORT TABLE FROM file() TO id, tree, name;
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT legalEntityGroup('C' + id(i)) DO NEW g = LegalEntityGroup {
+        id(g) <- 'C' + id(i);
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND LegalEntityGroup g = legalEntityGroup('C' + id(i)) ORDER level(i) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        parent(g) <- OVERRIDE (GROUP MAX LegalEntityGroup gg IF idOrder(gg) == parent(i)), legalEntityGroup('customers');
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importCustomerGroup();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCustomerGroup()); } }
+
+importLegalEntity 'Импорт организаций' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL shortName = VARISTRING[255] (INTEGER);
+    LOCAL inn = VARISTRING[20] (INTEGER);
+    LOCAL address = VARISTRING[255] (INTEGER);
+    LOCAL faddress = VARISTRING[255] (INTEGER);
+    LOCAL tel = VARISTRING[40] (INTEGER);
+    LOCAL fax = VARISTRING[40] (INTEGER);
+    LOCAL email = VARISTRING[255] (INTEGER);
+    LOCAL okpo = VARISTRING[40] (INTEGER);
+    LOCAL kpp = VARISTRING[9] (INTEGER);
+    LOCAL commentary = VARISTRING[255] (INTEGER);
+    LOCAL gln = VARISTRING[13] (INTEGER);
+    LOCAL own = VARISTRING[1] (INTEGER);
+    LOCAL clientClass = INTEGER (INTEGER);
+    LOCAL supplierClass = INTEGER (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS FROM SVCOMPANIES' TO file;
+
+    IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass;
+    
+    FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
+        id(s) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
+        fullName(s) <- VARISTRING[200] (name(i));
+        name(s) <- VARISTRING[150] (OVERRIDE shortName(i), name(i));
+        UNP(s) <- left(inn(i), 9);
+        dataAddress(s, DATE d) <- VARISTRING[150] (address(i)) WHERE d == currentDate();
+        dataPostAddress(s, DATE d) <- VARISTRING[150](faddress(i)) WHERE d == currentDate();
+        dataPhone(s, DATE d) <- CONCAT ', ', tel(i), fax(i) WHERE d == currentDate();
+        email(s) <- email(i);
+        OKPO(s) <- VARISTRING[20] (okpo(i));
+        note(s) <- commentary(i);
+        GLN(s) <- gln(i);
+        isCompany(s) <- own(i) == '1';
+        isSupplier(s) <- TRUE IF supplierClass(i);
+        isCustomer(s) <- TRUE IF clientClass(i);
+        legalEntityGroup(s) <- OVERRIDE legalEntityGroup('companies') IF own(i) == '1', legalEntityGroup('S' + supplierClass(i)), legalEntityGroup('C' + clientClass(i));
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importLegalEntity();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importLegalEntity()); } }
