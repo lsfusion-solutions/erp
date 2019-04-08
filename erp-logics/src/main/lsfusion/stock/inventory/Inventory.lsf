@@ -884,7 +884,7 @@ overReplace(Sku od, Sku d) + {
         WHERE quantityBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
 
     priceBalance(CollationSheet collationSheet, d)
-        <- OVERRIDE prevAccountPriceB(d, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
+        <- OVERRIDE prevAccountPriceB(od, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, d)
         WHERE priceBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od));
         
     sumBalance(CollationSheet collationSheet, d)
@@ -901,7 +901,7 @@ overReplace(Sku od, Sku d) + {
         
     priceBalance(CollationSheet collationSheet, Batch batch)
         <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE sku(batch) == d  AND PREV(countPageInventoryDetail(collationSheet, d)) AND isBatch(collationSheet);     
+        WHERE sku(batch) == od  AND PREV(countPageInventoryDetail(collationSheet, d)) AND isBatch(collationSheet);     
 
     sumBalance(CollationSheet collationSheet, Batch batch)
         <- NUMERIC[18,4](sumB(batch, stock(collationSheet), dateTime(inventory(collationSheet))))
@@ -910,6 +910,10 @@ overReplace(Sku od, Sku d) + {
     sumBalance(CollationSheet collationSheet, Batch batch)
         <- NUMERIC[18,4](round(balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet))) * priceBalance(collationSheet, batch), currency(stock(collationSheet))))
         WHERE sku(batch) == d AND PREV(countPageInventoryDetail(collationSheet, od)) AND isPrice(inventory(collationSheet)) AND isBatch(collationSheet);
+        
+    executeLocalEvents();
+    
+    price(PageInventoryDetail pd) <- prevAccountPriceB(od, stock(pd), dateTime(pd)) WHERE PREV(sku(pd)) == od;
 }                                                                                
 
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
