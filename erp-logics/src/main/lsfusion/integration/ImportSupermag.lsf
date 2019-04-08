@@ -82,7 +82,7 @@ importUOM 'Импорт единиц измерений' () {
         factor(u) <- 1;
         base(u) <- u;
     }
-    SHOW UOMs DOCKED;
+    APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importUOM();
@@ -256,3 +256,51 @@ importLegalEntity 'Импорт организаций' () {
 
 EXTEND FORM integrationData PROPERTIES importLegalEntity();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importLegalEntity()); } }
+
+importStockGroup 'Импорт групп складов' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = TEXT (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM SASTORECLASS' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT stockGroup(TEXT (id(i))) DO NEW g = StockGroup {
+        id(g) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR StockGroup g = stockGroup(TEXT (id(INTEGER i))) DO {
+        id(g) <- VARISTRING[100] (id(i));
+        name(g) <- name(i);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importStockGroup();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStockGroup()); } }
+
+importStoreType 'Импорт форматов магазинов' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = TEXT (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE FROM SASTOREFORMATS' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
+        id(g) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR StoreType g = storeType(TEXT (id(INTEGER i))) DO {
+        id(g) <- VARISTRING[100] (id(i));
+        name(g) <- name(i);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importStoreType();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStoreType()); } }
