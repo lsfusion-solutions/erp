@@ -118,6 +118,7 @@ TABLE legalEntityGroup(LegalEntityGroup);
 name 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
 legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) MATERIALIZED INDEXED AUTOSET;
 nameLegalEntityGroup 'Группа организаций' (LegalEntity legalEntity) = name(legalEntityGroup(legalEntity));
+order 'Порядок' = DATA INTEGER (LegalEntityGroup);
 
 TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 @defineHierarchy(legalEntityGroup);
@@ -125,7 +126,7 @@ TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 FORM legalEntityGroup 'Группа организаций'
 
     OBJECTS l = LegalEntityGroup PANEL
-    PROPERTIES(l) name, nameParent, id SHOWIF showIDs()
+    PROPERTIES(l) name, nameParent, id SHOWIF showIDs(), order
 
     EDIT LegalEntityGroup OBJECT l
 ;
@@ -133,7 +134,7 @@ FORM legalEntityGroup 'Группа организаций'
 FORM legalEntityGroups 'Группы организаций'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
-    PROPERTIES READONLY lgTreeName = name(lg)
+    PROPERTIES READONLY order(lg), lgTreeName = name(lg)
     ORDER lgTreeName
 
     LIST LegalEntityGroup OBJECT lg
@@ -298,10 +299,12 @@ changeChief(LegalEntity le)  {
 deleteChief 'Удалить' (LegalEntity l, DATE d)  { dataChief(l, d) <- NULL; }
 EXTEND FORM dialogChiefLegalEntity PROPERTIES deleteChief(a, d) TOOLBAR;
 
+note 'Примечание' = DATA TEXT (LegalEntity);
+
 FORM legalEntity 'Организация'
     OBJECTS l=LegalEntity PANEL
     PROPERTIES(l)  name, nameLegalEntityGroup, nameOwnership, shortNameOwnership,
-                   nameCountry, nameLanguage, nameCurrency, inactive
+                   nameCountry, nameLanguage, nameCurrency, inactive, note
     PROPERTIES(l)  SHOWIF toShow(l) fullName ON CONTEXTMENU setFullName(l),
                    address, postAddress, nameChief ON CHANGE changeChief(l), nameBooker ON CHANGE changeBooker(l), phone,
                    email, site, contacts
@@ -375,6 +378,14 @@ DESIGN legalEntity {
                 type = TABBED;
                 fill = 1;
                 MOVE BOX(li);
+                NEW note { 
+                    fill = 1;
+                    caption = 'Примечание';
+                    MOVE PROPERTY (note(l)) { 
+                        fill = 1;
+                        caption = ''; 
+                    }
+                }
             }
         }
     }
@@ -460,8 +471,9 @@ copy 'Копировать' (LegalEntity l)  {
 FORM legalEntities 'Организации'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
-    PROPERTIES READONLY lgTreeName = name(lg)
+    PROPERTIES READONLY order(lg), lgTreeName = name(lg)
     PROPERTIES(lg) NEWSESSION NEW, EDIT, deletelg=DELETE 
+    ORDER order(lg)
 
     OBJECTS l=LegalEntity
     PROPERTIES(l) in
