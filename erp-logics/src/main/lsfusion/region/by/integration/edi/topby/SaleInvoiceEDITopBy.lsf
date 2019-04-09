@@ -57,21 +57,21 @@ FORM saleInvoice FORMEXTID 'DESADV'
     FILTERS quantity(d) > 0
 ;
 
-FORM envelopeSaleInvoice
-    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
-    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
-    OBJECTS i = Sale.Invoice
-    PROPERTIES DRAW i IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
-    PROPERTIES IN sendDocument filename = (CONCAT '', 'order', number(i)) EXTID 'top:filename', 
-                  documentDate = toChar(dateTime(i),'yyyy-MM-ddThh24:mi:ss') EXTID 'top:documentDate',
-                  number(i) EXTID 'top:documentNumber',
-                  senderCode = GLNCustomer(i) EXTID 'top:senderCode',
-                  receiverCode = GLNCustomer(i) EXTID 'top:receiverCode',
-                  GLNCustomerStock(i) EXTID 'top:deliveryPointCode',
-                  documentType = 'DESADV' EXTID 'top:documentType'
-    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'
-    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-;
+//FORM envelopeSaleInvoice
+//    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+//    OBJECTS login = TEXT, password = TEXT, innerXML = TEXT
+//    OBJECTS i = Sale.Invoice
+//    PROPERTIES DRAW i IN sendDocument VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+//    PROPERTIES IN sendDocument filename = (CONCAT '', 'order', number(i)) EXTID 'top:filename', 
+//                  documentDate = toChar(dateTime(i),'yyyy-MM-ddThh24:mi:ss') EXTID 'top:documentDate',
+//                  number(i) EXTID 'top:documentNumber',
+//                  senderCode = GLNCustomer(i) EXTID 'top:senderCode',
+//                  receiverCode = GLNCustomer(i) EXTID 'top:receiverCode',
+//                  GLNCustomerStock(i) EXTID 'top:deliveryPointCode',
+//                  documentType = 'DESADV' EXTID 'top:documentType'
+//    PROPERTIES IN sendDocument VALUE(innerXML) EXTID 'top:content'
+//    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+//;
 
 sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] outputDir, VARSTRING[100] provider) {
     TRY {
@@ -86,32 +86,46 @@ sendSupplierSaleInvoice 'Отправить (поставщик)' (Sale.Invoice 
             IF error() == '' THEN {
                 LOCAL contentSubXML = FILE();
                 EXPORT saleInvoice OBJECTS i = i XML TO contentSubXML;
-                IF outputDir THEN WRITE contentSubXML() TO outputDir + '/' + number(i);
+                IF outputDir THEN {
+                    TRY{ mkdir(outputDir + '/sent/invoices'); }
+                    WRITE contentSubXML() TO outputDir + '/sent/invoices/' + number(i);
+                }
                 fileToString(contentSubXML());
                 encodeBase64(resultString());
                 LOCAL xml = XMLFILE();
-                EXPORT envelopeSaleInvoice OBJECTS i = i, login = login, password = password, innerXML = encodedBase64() XML TO xml;
+                envelopeLogin() <- login;
+                envelopePassword() <- password;
+                envelopeFilename() <- CONCAT '', 'order', number(i);
+                envelopeDocumentDate() <- dateTime(i);
+                envelopeDocumentNumber() <- number(i);
+                envelopeSender() <- GLNCustomer(i);
+                envelopeReceiver() <- GLNCustomer(i);
+                envelopeDeliveryPoint() <- GLNCustomerStock(i);
+                envelopeDocumentType() <- 'DESADV';
+                envelopeContent() <- encodedBase64();
+                EXPORT envelope XML TO xml;                
+                //EXPORT envelopeSaleInvoice OBJECTS i = i, login = login, password = password, innerXML = encodedBase64() XML TO xml;
                 sendRequestEDI(host, port, login, password, url, xml());
-                logToFile('import', provider + ' SendSupplierInvoice ' + number(i) +' request sent');
+                logToFile('edi', provider + ' SendSupplierInvoice ' + number(i) +' request sent');
                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                 IF requestError() THEN {
-                    logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ': ' + requestError());
+                    logToFile('edi', provider + ' SendSupplierInvoice ' + number(i) + ': ' + requestError());
                     MESSAGE provider + ' Накладная ' + number(i) + ' не выгруженa: ' + requestError() NOWAIT;
                 } ELSE {
                     exported(i) <- TRUE;
-                    logToFile('import', provider + ' SendSupplierInvoice ' + number(i) + ' request succeeded');
+                    logToFile('edi', provider + ' SendSupplierInvoice ' + number(i) + ' request succeeded');
                     MESSAGE provider + ' Накладная ' + number(i) + ' выгружена' NOWAIT;
                 }
             } ELSE {
-                logToFile('import', provider + ' SendSupplierInvoice: Не все поля заполнены. ' + error());
+                logToFile('edi', provider + ' SendSupplierInvoice: Не все поля заполнены. ' + error());
                 MESSAGE provider + ' Накладная не выгруженa: Не все поля заполнены ' + error() NOWAIT;
             }
         } ELSE {
-            logToFile('import', provider + ' SendSupplierInvoice: не заданы имя пользователя / пароль / хост / порт');
+            logToFile('edi', provider + ' SendSupplierInvoice: не заданы имя пользователя / пароль / хост / порт');
             MESSAGE provider + ' Накладная не выгруженa: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
-        logToFile('import', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
         MESSAGE 'Накладная не выгруженa. Обратитесь к администратору' NOWAIT;
     }
 }

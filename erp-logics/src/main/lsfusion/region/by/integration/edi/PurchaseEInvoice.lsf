@@ -1,6 +1,6 @@
 MODULE PurchaseEInvoice;
 
-REQUIRE InvoiceEInvoice, PurchaseInvoice;
+REQUIRE InvoiceEInvoice, PurchaseInvoice, EInvoiceEDI, PurchaseCreditNote;
 
 PRIORITY Purchase;
 
@@ -110,4 +110,106 @@ WHEN SET(EInvoice ei IS EInvoice) AND createPurchaseInvoiceFromEInvoice() DO {
     NEW i = UserInvoice {
         copyData(ei,i);
     }        
+}
+
+creditNote = DATA CreditNote (ECreditNote);
+creditNoteDetail = DATA CreditNoteDetail(ECreditNoteDetail);
+eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY creditNote(ec);
+numberCreditNote 'Номер акта приемки EDI' (ECreditNote c) = number(creditNote(c));
+EXTEND FORM eCreditNotes
+    PROPERTIES (c) READONLY numberCreditNote
+;
+
+CONSTRAINT DROPPED (CreditNote c IS CreditNote) AND exportedCustomer(eCreditNote(c)) 
+    MESSAGE 'Запрещено удалять акт расхождения по которому был отправлен электронный акт приемки. Сначала необходимо отменить электронный акт приемки';
+
+numberECreditNote 'Номер электронного акта приемки'(CreditNote c) = actDifNumber(eCreditNote(c));
+isECreditNote 'Электронный акт приемки' (CreditNote c) = TRUE IF eCreditNote(c);
+signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'(CreditNote c)  { 
+    NEWSESSION {
+        in(ECreditNote e) <- e = eCreditNote(c);
+        signAndSendCustomerCreditNoteEDI();
+        in(ECreditNote e) <- NULL;
+    }
+}
+
+cancelSignAndSendCustomerCreditNoteEDII 'Отменить (покупатель)'(CreditNote c)  { 
+    NEWSESSION {
+        in(ECreditNote e) <- e = eCreditNote(c);
+        exportedCustomer(ECreditNote e) <- NULL WHERE e = eCreditNote(c);
+        isCancel(ECreditNote e) <- TRUE WHERE e = eCreditNote(c);
+        signAndSendCustomerCreditNoteEDI();
+        IF (GROUP SUM 1 IF exportedCustomer(ECreditNote e) AND in(e)) THEN APPLY;
+    }
+}
+
+createECreditNote 'Создать электронный акт приемки' (CreditNote c)  { 
+    IF NOT eCreditNote(c) THEN NEWSESSION {
+        NEW ec = ECreditNote {
+            creditNote(ec) <- c;
+            number(ec) <- number(c);
+            dateTime(ec) <- dateTime(c);
+            actDifDateTime(ec) <- dateTime(c);
+            deliveryNoteNumber(ec) <- GROUP MAX deliveryNoteNumber(eInvoice(Invoice i)) IF quantity(i, c);
+            deliveryNoteDateTime(ec) <- GROUP MAX dateTime(eInvoice(Invoice i)) IF quantity(i, c);
+            supplier(ec) <- supplier(c);
+            customer(ec) <- customer(c);
+            customerStock(ec) <- customerStock(c);
+            contractId(ec) <- seriesNumberContractSku(c);
+            contractDate(ec) <- dateFromContractSku(c);
+            currency(ec) <- shortNameCurrency(c);
+            
+            FOR creditNote(CreditNoteDetail d) == c NEW ed = ECreditNoteDetail  DO {
+                eCreditNote(ed) <- ec;
+                creditNoteDetail(ed) <- d;
+                lineItemNumber(ed) <- index(d);
+                lineItemID(ed) <- id(barcode(sku(d))) IF length(id(barcode(sku(d)))) > 7;
+                lineItemBuyerID(ed) <- id(sku(d));
+                lineItemName(ed) <- VARSTRING[500](nameSku(d));
+                lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(d))), 'PCE';
+                quantityOrdered(ed) <- OVERRIDE quantity(invoiceDetail(d)), 0.0;
+                quantityReceived(ed) <- OVERRIDE shipped(invoiceDetail(d)), 0.0;
+                valueVAT(ed) <- NUMERIC[8,2](valueVAT(d));
+                lineItemPrice(ed) <- price(d);
+                amountOrdered(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)), 0.0;
+                amountReceived(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
+                //amountReceived(ed) <- NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) (+)
+                                      //round((NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) * calcValueVAT(invoiceDetail(d)) / 100), currency(invoiceDetail(d)));
+            }
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM creditNotes
+        PROPERTIES READONLY PANEL numberECreditNote(c)
+        PROPERTIES(c) createECreditNote SHOWIF (NOT eCreditNote(c)),// statusDescription SHOWIF eInvoice(i) PANEL, 
+                      signAndSendCustomerCreditNoteEDI SHOWIF (eCreditNote(c) AND NOT exportedCustomer(eCreditNote(c))), 
+                      cancelSignAndSendCustomerCreditNoteEDII SHOWIF (eCreditNote(c) AND exportedCustomer(eCreditNote(c)))
+;
+
+DESIGN creditNotes {
+    documentDetail {
+        NEW tabCreditNote AFTER printTab {
+            caption = 'Печатные формы';
+            type = TABBED;
+            MOVE printTab {caption = 'Акт расхождений';};
+            NEW eCreditNote {
+                caption = 'Электронный акт приемки';
+                NEW createEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberECreditNote(c));
+                    MOVE PROPERTY(createECreditNote(c));
+                    MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(c));
+                    MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(c));
+                }
+                NEW printEI {
+                    type = CONTAINERH;
+                }
+                NEW exportEI {
+                    type = CONTAINERH;
+                }
+            }
+        }
+    }
 }
