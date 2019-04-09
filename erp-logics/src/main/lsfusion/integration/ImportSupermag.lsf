@@ -44,14 +44,19 @@ importItemGroup 'Импорт товарных групп' () {
     
     LOCAL level = INTEGER (INTEGER);
     LOCAL parent = TEXT (INTEGER);
+    LOCAL idOrder = VARISTRING[20](ItemGroup);
     
     level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
     parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
     
-    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) ORDER level(i) DO {
+    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) DO {
     
         name(g) <- name(i);
         order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        idOrder(g) <- tree(i);
+    }
+    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) ORDER level(i) DO {
+        
         parent(g) <- OVERRIDE (GROUP MAX ItemGroup gg IF idOrder(gg) == parent(i)), itemGroup('all');
     }
     APPLY;
@@ -114,9 +119,9 @@ importItem 'Импорт товаров' () {
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
         itemGroup(s) <- itemGroup(TEXT (idClass(i)));
         country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
-        width(s) <- width(i);
-        length(s) <- length(i);
-        height(s) <- height(i);
+        width(s) <- max(min(width(i), 99999), -99999);
+        length(s) <- max(min(length(i), 99999), -99999);
+        height(s) <- max(min(height(i), 99999), -99999);
     }
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
