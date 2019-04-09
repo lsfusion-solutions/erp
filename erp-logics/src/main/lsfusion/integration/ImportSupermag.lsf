@@ -263,7 +263,7 @@ importLegalEntity 'Импорт организаций' () {
 EXTEND FORM integrationData PROPERTIES importLegalEntity();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importLegalEntity()); } }
 
-importStockGroup 'Импорт групп складов' () {
+importStore 'Импорт магазинов' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL name = TEXT (INTEGER);
@@ -273,19 +273,19 @@ importStockGroup 'Импорт групп складов' () {
     
     IMPORT TABLE FROM file() TO id, name;
     
-    FOR id(INTEGER i) AND NOT stockGroup(TEXT (id(i))) DO NEW g = StockGroup {
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT store(TEXT (id(i))) DO NEW g = Store {
         id(g) <- VARISTRING[100] (id(i));
+        legalEntity(g) <- legalEntity('534');
     }
     
-    FOR StockGroup g = stockGroup(TEXT (id(INTEGER i))) DO {
-        id(g) <- VARISTRING[100] (id(i));
+    FOR Store g = store(TEXT (id(INTEGER i))) DO {
         name(g) <- name(i);
     }
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importStockGroup();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStockGroup()); } }
+EXTEND FORM integrationData PROPERTIES importStore();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStore()); } }
 
 importStoreType 'Импорт форматов магазинов' () {
     
@@ -297,12 +297,16 @@ importStoreType 'Импорт форматов магазинов' () {
     
     IMPORT TABLE FROM file() TO id, name;
     
-    FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
-        id(g) <- VARISTRING[100] (id(i));
+    IF NOT chainStores('main') THEN NEW c = ChainStores {
+        id(c) <- 'main';
     }
     
-    FOR StoreType g = storeType(TEXT (id(INTEGER i))) DO {
-        id(g) <- VARISTRING[100] (id(i));
+    FOR id(INTEGER i) AND NOT storeType('T' + id(i)) DO NEW g = StoreType {
+        id(g) <- 'T' + id(i);
+        chainStores(g) <- chainStores('main');
+    }
+    
+    FOR StoreType g = storeType('T' + id(INTEGER i)) DO {
         name(g) <- name(i);
     }
     APPLY;
@@ -310,3 +314,40 @@ importStoreType 'Импорт форматов магазинов' () {
 
 EXTEND FORM integrationData PROPERTIES importStoreType();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStoreType()); } }
+
+importDepartmentStore 'Импорт отделов магазинов' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL address = VARISTRING[255] (INTEGER);
+    LOCAL idFormat = INTEGER (INTEGER);
+    LOCAL idCompany = INTEGER (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, NAME, IDCLASS, ADDRESS, FORMATID, l.CLIENTID AS COMPANYID FROM Supermag.SVGRANTEDLOCS g, Supermag.SMOWNCLIENTLOCS l WHERE g.ID = l.LOCID' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany;
+    
+    FOR id(INTEGER i) AND NOT departmentStore(TEXT (id(i))) DO NEW s = DepartmentStore {
+        id(s) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR DepartmentStore s = departmentStore(TEXT (id(INTEGER i))) DO {
+        
+        name(s) <- VARISTRING[150](name(i));
+        store(s) <- store(TEXT (idClass(i)));
+    }
+    
+    FOR INTEGER i = [GROUP LAST INTEGER ii ORDER idFormat(ii), address(ii) BY store(TEXT (idClass(ii)))](Store st) DO {
+        address(st) <- VARISTRING[150](address(i));
+        storeType(st) <- storeType('T' + idFormat(i));
+        legalEntity(st) <- legalEntity(TEXT (idCompany(i)));
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importDepartmentStore();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importDepartmentStore()); } }
