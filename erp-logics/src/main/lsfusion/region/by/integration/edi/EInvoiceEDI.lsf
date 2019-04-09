@@ -1,0 +1,252 @@
+MODULE EInvoiceEDI;
+
+REQUIRE EDI;
+
+NAMESPACE EDI;
+
+//-----------------------------------------Электронный акт приемки----------------------------------------------//
+CLASS ECreditNote 'Электронный акт приемки EDI';
+TABLE eCreditNote(ECreditNote);
+
+exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
+//importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+//exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
+
+dateTimeCreated 'Создан' = DATA DATETIME (ECreditNote);
+dateTimeCreated(ECreditNote c) <- currentDateTime() WHEN (c IS ECreditNote);
+
+@defineExternalizable(eCreditNote, VARSTRING[100]);
+dateTime 'Дата/время документа' = DATA DATETIME (ECreditNote);
+number 'Номер' = DATA VARSTRING[28] (ECreditNote);
+eCreditNoteNumber (number) = GROUP NAGGR ECreditNote e BY number(e);
+
+blrapn = DATA VARSTRING[14] (ECreditNote);
+eCreditNoteBlrapn (number) = GROUP MAX ECreditNote e BY blrapn(e);
+blradf = DATA VARSTRING[14] (ECreditNote);
+blradfDate = DATA DATETIME (ECreditNote);
+eCreditNoteBlradf (number) = GROUP MAX ECreditNote e BY blradf(e);
+
+actDifNumber 'Номер акта приемки' = DATA VARSTRING[28] (ECreditNote) IN id;
+eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
+actDifDateTime 'Дата акта приемки' = DATA DATETIME (ECreditNote);
+
+deliveryNoteNumber 'Серия и номер накладной, к которой относится акт' = DATA VARSTRING[28] (ECreditNote) IN id;
+eCreditNoteDeliveryNoteNumber (number) = GROUP NAGGR ECreditNote e BY deliveryNoteNumber(e);
+deliveryNoteDateTime 'Дата накладной в формате ГГГГММДД, к которой относится акт приемки' = DATA DATETIME (ECreditNote);
+
+contractId 'Номер Договора, на основании которого выставляется акт приемки' = DATA VARSTRING[70] (ECreditNote);
+contractDate 'Дата договора в формате ГГГГММДД, на основании которого выставляется акт приемки' = DATA DATE (ECreditNote);
+
+actDifNumberECreditNoteBlrapn(number) = actDifNumber(eCreditNoteBlrapn(number));
+actDifNumberECreditNoteBlradf(number) = actDifNumber(eCreditNoteBlradf(number));
+
+supplier 'Поставщик' = DATA LegalEntity (ECreditNote);
+glnSupplier 'GLN поставщика' (ECreditNote c) = GLN(supplier(c));
+nameSupplier 'Поставщик' (ECreditNote c) = name(supplier(c));
+addressSupplier 'Адрес поставщика' (ECreditNote c) = address(supplier(c));
+
+customer 'Покупатель' = DATA LegalEntity (ECreditNote);
+nameCustomer 'Покупатель' (ECreditNote c) = name(customer(c));
+glnCustomer 'GLN покупателя' (ECreditNote c) = GLN(customer(c));
+addressCustomer 'Адрес покупателя' (ECreditNote c) = address(customer(c));
+
+aliasEDSServiceSupplier (ECreditNote c) = aliasEDSService(supplier(c));
+aliasEDSServiceCustomer (ECreditNote c) = aliasEDSService(customer(c));
+passwordEDSServiceSupplier (ECreditNote c) = passwordEDSService(supplier(c));
+passwordEDSServiceCustomer (ECreditNote c) = passwordEDSService(customer(c));
+
+customerStock 'Склад покупателя' = DATA Stock (ECreditNote);
+glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(customerStock(c));
+nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(customerStock(c));
+addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
+
+currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA VARSTRING[3] (ECreditNote);
+
+isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
+//isCancelNumber (ECreditNote c) = IF isCancel(c) THEN 1 ELSE 0;
+//eCreditNoteActDifNumberIsCancel (number, isCancel) = GROUP NAGGR ECreditNote c BY actDifNumber(c), isCancelNumber(c);
+
+CLASS ECreditNoteDetail 'Строка электронной акта приемки EDI';
+TABLE eCreditNoteDetail(ECreditNoteDetail); 
+@defineExternalizable(eCreditNoteDetail, VARSTRING[100]);
+
+
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (ECreditNote);
+
+//signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST (ECreditNote);
+//signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'()  { 
+//    FOR in(ECreditNote c) DO { 
+//        IF EDIProvider(supplier(c)) THEN
+//            signAndSendSupplier(c);
+//        ELSE
+//            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+//    }
+//    ELSE
+//        MESSAGE 'Не выбрано ни одного акта приемки';
+//    
+//}
+
+signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST (ECreditNote);
+signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'()  { 
+    FOR in(ECreditNote c) DO { 
+        IF EDIProvider(supplier(c)) THEN
+            signAndSendCustomer(c);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного акта приемки';
+}
+
+eCreditNote = DATA ECreditNote(ECreditNoteDetail) NONULL DELETE INDEXED;
+
+lineItemNumber 'Порядковый номер товара' = DATA INTEGER (ECreditNoteDetail);
+lineItemID 'GTIN товара' = DATA VARSTRING[100] (ECreditNoteDetail);
+lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA VARSTRING[100] (ECreditNoteDetail);
+lineItemName 'Наименование товара' = DATA VARSTRING[500] (ECreditNoteDetail);
+lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA VARSTRING[3] (ECreditNoteDetail);
+
+quantityOrdered 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+valueVAT 'НДС, %' = DATA NUMERIC[10,5] (ECreditNoteDetail);
+
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (ECreditNoteDetail);
+amountOrdered 'Стоимость с учетом НДС товара по документам' = DATA NUMERIC[18,4] (ECreditNoteDetail);
+amountReceived 'Стоимость с учетом НДС фактически поставленного товара' = DATA NUMERIC[18,4] (ECreditNoteDetail);
+
+totalLineItem 'Общее кол-во товарных позиций' (eCreditNote) = GROUP SUM 1 BY eCreditNote(ECreditNoteDetail d);
+totalQuantityOrdered 'Всего кол-во товара по документам' (eCreditNote) = GROUP SUM quantityOrdered(ECreditNoteDetail d) BY eCreditNote(d);
+totalAmountOrdered 'Общая стоимость с учетом НДС товара по документам' (eCreditNote) = GROUP SUM amountOrdered(ECreditNoteDetail d) BY eCreditNote(d);
+totalQuantityReceived 'Всего кол-во поставленного товара' (eCreditNote) = GROUP SUM quantityReceived(ECreditNoteDetail d) BY eCreditNote(d);
+totalAmountReceived 'Общая стоимость с учетом НДС посталенного товара' (eCreditNote) = GROUP SUM amountReceived(ECreditNoteDetail d) BY eCreditNote(d);
+
+FORM dialogECreditNote 'Выбор электронного акта приемки'
+    OBJECTS c = ECreditNote
+    PROPERTIES(c) READONLY dateTime, number, actDifNumber, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    
+    LIST ECreditNote OBJECT c
+;
+
+//-----------------------------------------Сообщение по акту приемки EDI-----------------------------------------//
+CLASS ECreditNoteMessage 'Сообщение по акту приемки EDI';
+TABLE eCreditNoteMessage(ECreditNoteMessage);
+
+number 'Номер' = DATA VARSTRING[24] (ECreditNoteMessage);
+eCreditNoteMessage (number) = GROUP AGGR ECreditNoteMessage e BY number(e);
+eCreditNote 'Акт приемки' = DATA ECreditNote (ECreditNoteMessage) NONULL DELETE INDEXED;
+numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = number(eCreditNote(m));
+dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMessage);
+code 'Код сообщения' = DATA VARSTRING[10] (ECreditNoteMessage);
+description 'Текст сообщения' = DATA VARSTRING[1000] (ECreditNoteMessage);
+
+backgroundVAT 'Цвет' (ECreditNoteDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
+                                                   THEN RGB(255,0,0);
+background = ABSTRACT CASE COLOR (ECreditNote);
+
+FORM eCreditNotes 'Электронные акты приемки EDI'
+    OBJECTS c = ECreditNote
+    PROPERTIES(c) in
+    PROPERTIES(c) READONLYIF isReadonly() exportedCustomer, importedCustomer//importedSupplier, exportedSupplier,
+    PROPERTIES(c) READONLY isCancel, dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDateTime, deliveryNoteNumber, deliveryNoteDateTime,
+                           glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
+    FILTERGROUP notExported
+        //FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(c) 'F8'
+        FILTER 'Не импортированы (покупатель)' NOT importedCustomer(c) 'F9'
+        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(c) 'F10'
+        //FILTER 'Не импортированы (поставщик)' NOT importedSupplier(c) 'F11'
+    
+    OBJECTS d = ECreditNoteDetail
+    PROPERTIES(d) READONLY lineItemNumber, lineItemID, lineItemBuyerID, lineItemName, quantityOrdered, quantityReceived, valueVAT BACKGROUND backgroundVAT(d),
+     lineItemPrice, amountOrdered, amountReceived, lineItemQuantityUOM
+
+    PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNoteEDI//, signAndSendSupplierCreditNoteEDI
+
+    FILTERS eCreditNote(d) == c
+
+    OBJECTS m = ECreditNoteMessage
+    PROPERTIES(m) READONLY numberECreditNote, dateTime, code, description
+    FILTERS eCreditNote(m) == c
+    ORDER dateTime(m);
+;
+
+@extendFormEditable(eCreditNotes);
+
+DESIGN eCreditNotes {
+    BOX {
+        MOVE BOX(c);
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            MOVE BOX(d);
+            MOVE BOX(m);
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    edi {
+        NEW eCreditNotes;
+    }
+}
+
+FORM eCreditNote 'Электронный акт приемки EDI'
+    OBJECTS c = ECreditNote PANEL 
+    PROPERTIES(c) dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDateTime, deliveryNoteNumber, deliveryNoteDateTime, 
+                  nameSupplier, addressSupplier, nameCustomer, addressCustomer, nameCustomerStock,
+                  dateTimeCreated, contractDate, contractId, currency 
+    
+    OBJECTS ed = ECreditNoteDetail
+    PROPERTIES (ed) lineItemNumber, lineItemID, lineItemBuyerID, lineItemName, quantityOrdered, quantityReceived, valueVAT, lineItemPrice, 
+                    amountOrdered, amountReceived, lineItemQuantityUOM
+     FILTERS eCreditNote(ed) == c
+;
+
+DESIGN eCreditNote {
+    GROUP (,c) {
+        type = COLUMNS;
+        columns = 2;
+        fill = 1;
+    }
+}
+
+editAttributesECreditNote 'Заполнить атрибуты' (ECreditNote c)  { 
+	NEWSESSION {   
+	    SHOW eCreditNote OBJECTS c = c DOCKED; 
+	}
+} TOOLBAR IMAGE 'edit.png';
+
+EXTEND FORM eCreditNotes
+    PROPERTIES (c) editAttributesECreditNote
+;
+
+
+defaultNumeratorActDifNumber = DATA Numerator ();
+nameDefaultNumeratorActDif 'ActDifNumber Акты приемки EDI' = name(defaultNumeratorActDifNumber()) IN defaultNumerator;
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDefaultNumeratorActDif
+;
+
+loadDefaultNumerators() + { 
+    NEW n = Numerator {
+        name(n) <- 'ActDifNumber Акты приемки EDI';
+        series(n) <- '';
+        minValue(n) <- 1L;
+        maxValue(n) <- 9999999999L;
+        stringLength(n) <- 10;
+
+        defaultNumeratorActDifNumber() <- n;
+    }
+}
+
+generateSeriesNumber 'Сгенерировать номер' (ECreditNote o)  { 
+    actDifNumber(o) <- '001-' + GLN(supplier(o)) + '-' + curStringValue(defaultNumeratorActDifNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
+    incrementValueSession(defaultNumeratorActDifNumber());
+}
+
+WHEN CHANGED (supplier(ECreditNote o)) AND NOT actDifNumber(o) DO {
+    generateSeriesNumber(o);
+}

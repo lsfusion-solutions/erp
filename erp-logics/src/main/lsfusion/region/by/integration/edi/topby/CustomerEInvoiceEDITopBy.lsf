@@ -1,0 +1,331 @@
+MODULE CustomerEInvoiceEDITopBy;
+
+REQUIRE EInvoiceEDI, TopBy;
+
+NAMESPACE EDI;
+
+blradfDocumentNumber = DATA LOCAL NESTED VARSTRING[28]();
+GROUP actDif EXTID 'ActDif';
+blradfActDifNumber = DATA LOCAL NESTED VARSTRING[28]();
+blradfDeliveryNoteNumber = DATA LOCAL NESTED VARSTRING[28]();
+blradfDateTime = DATA LOCAL NESTED DATETIME();
+blradfFunctionCode = DATA LOCAL NESTED VARSTRING[3]();
+GROUP blradfSupplier EXTID 'Supplier' : actDif;
+blradfSupplierGLN = DATA LOCAL NESTED VARSTRING[13]();
+GROUP blradfBuyer EXTID 'Buyer' : actDif;
+blradfCustomerGLN = DATA LOCAL NESTED VARSTRING[13]();
+GROUP blradfShipTo EXTID 'ShipTo' : actDif;
+blradfCustomerStockGLN = DATA LOCAL NESTED VARSTRING[13]();
+GROUP actDifLineItem EXTID 'ActDifLineItem';
+blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
+blradfLineItemID = DATA LOCAL NESTED VARSTRING[14](INTEGER);
+blradfLineItemBuyerID = DATA LOCAL NESTED VARSTRING[35](INTEGER);
+blradfLineItemName = DATA LOCAL NESTED VARSTRING[500](INTEGER);
+blradfQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfQuantityReceived = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfValueVAT = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
+blradfLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
+blradfAmountOrdered = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+blradfAmountReceived = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+
+FORM blradf
+    PROPERTIES IN messageHeader blradfDocumentNumber() EXTID 'MessageID'
+    PROPERTIES IN actDif blradfActDifNumber() EXTID 'ActDifID',
+                         blradfDeliveryNoteNumber() EXTID 'DeliveryNoteID',
+                         blradfDateTime() EXTID 'CreationDateTime',
+                         blradfFunctionCode() EXTID 'FunctionCode'
+    PROPERTIES IN blradfSupplier blradfSupplierGLN() EXTID 'GLN'
+    PROPERTIES IN blradfBuyer blradfCustomerGLN() EXTID 'GLN'
+    PROPERTIES IN blradfShipTo blradfCustomerStockGLN() EXTID 'GLN'
+
+    OBJECTS i = INTEGER EXTID 'LineItem' IN actDifLineItem
+    PROPERTIES(i) blradfLineItemNumber EXTID 'LineItemNumber',
+                  blradfLineItemID EXTID 'LineItemID',
+                  blradfLineItemBuyerID EXTID 'LineItemBuyerID',
+                  blradfLineItemName EXTID 'LineItemName',
+                  blradfQuantityOrdered EXTID 'QuantityOrdered',
+                  blradfQuantityReceived EXTID 'QuantityReceived',
+                  blradfValueVAT EXTID 'TaxRate',
+                  blradfLineItemPrice EXTID 'LineItemPrice',
+                  blradfAmountOrdered EXTID 'AmountOrdered',
+                  blradfAmountReceived EXTID 'AmountReceived'
+;
+
+overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+    IF lower(documentType(i)) == 'blradf' AND invoices THEN {
+        TRY {
+            IMPORT blradf XML FROM data(i);
+            NEWSESSION NESTED LOCAL {
+                //LOCAL isCancel = BOOLEAN();
+                //isCancel() <- TRUE IF blradfFunctionCode() == '1';
+                IF eCreditNoteActDifNumber(blradfActDifNumber()) THEN {
+                    importedCustomer(ECreditNote ec) <- TRUE WHERE ec == eCreditNoteActDifNumber(blradfActDifNumber());
+                }
+//                } ELSE NEW ec = ECreditNote {
+//                    importedCustomer(ec) <- TRUE;
+//                    id(ec) <- blradfSupplierGLN() + '/' + blradfActDifNumber() + (IF isCancel() THEN '_cancel' ELSE '');
+//                    number(ec) <- blradfDocumentNumber();
+//                    dateTime(ec) <- blradfDateTime();
+//                    actDifDateTime(ec) <- blradfDateTime();
+//                    actDifNumber(ec) <- blradfActDifNumber();
+//                    deliveryNoteDateTime(ec) <- blradfDateTime();
+//                    deliveryNoteNumber(ec) <- blradfDeliveryNoteNumber();
+//                    isCancel(ec) <- isCancel();
+//                    supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
+//                    customer(ec) <- legalEntityGLN(blradfCustomerGLN());
+//                    customerStock(ec) <- companyStockGLN(blradfCustomerStockGLN());
+//
+//                    FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) DO NEW ed = ECreditNoteDetail {
+//                        id(ed) <- id(ec) + '/' + blradfLineItemNumber(l);
+//                        lineItemID(ed) <- blradfLineItemID(l);
+//                        lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
+//                        lineItemName(ed) <- blradfLineItemName(l);
+//                        quantityOrdered(ed) <- blradfQuantityOrdered(l);
+//                        quantityReceived(ed) <- blradfQuantityReceived(l);
+//                        valueVAT(ed) <- blradfValueVAT(l);
+//                        lineItemPrice(ed) <- blradfLineItemPrice(l);
+//                        amountOrdered(ed) <- blradfAmountOrdered(l);
+//                        amountReceived(ed) <- blradfAmountReceived(l);
+//                    }
+//                }
+                APPLY NESTED LOCAL;
+                IF canceled() THEN {
+                    IF NOT disableConfirmation AND sendReplies THEN {
+                        LOCAL contentSubXML = FILE();
+                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                        fileToString(contentSubXML());
+                        encodeBase64(resultString());
+                        LOCAL xml = XMLFILE();
+                        envelopeLogin() <- login;
+                        envelopePassword() <- password;
+                        envelopeDocumentDate() <- currentDateTime();
+                        envelopeDocumentNumber() <- id(i);
+                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                        envelopeContent() <- encodedBase64();
+                        EXPORT envelope XML TO xml;
+                        //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                        sendRequestEDI(host, port, login, password, url, xml());
+                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                        IF requestError() THEN {
+                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                        } ELSE {
+                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                        }
+                    }
+                    logToFile('edi', provider + ' Import ECreditNote ' + id(i) + ' failed: ' + applyMessage());
+                    eInvoicesFailed() <- eInvoicesFailed() + 1;
+                } ELSE {
+                    IF NOT disableConfirmation THEN {
+                        LOCAL xml = XMLFILE();
+                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                        sendRequestEDI(host, port, login, password, url, xml());
+                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                        IF requestError() THEN {
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                        } ELSE {
+                            IF archiveDir THEN {
+                                TRY{ mkdir(archiveDir + '/received'); }
+                                WRITE data(i) TO archiveDir + '/received/' + id(i);
+                            }
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                        }
+                    }
+                    logToFile('edi', provider + ' Import CreditNote ' + id(i) + ' succeeded');
+                    blradfCount() <- blradfCount() + 1;
+                }  
+            }
+        } CATCH {
+//            IF NOT disableConfirmation AND sendReplies THEN {
+//                LOCAL contentSubXML = FILE();
+//                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse CreditNote ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+//                fileToString(contentSubXML());
+//                encodeBase64(resultString());
+//                LOCAL xml = XMLFILE();
+//                envelopeLogin() <- login;
+//                envelopePassword() <- password;
+//                envelopeDocumentDate() <- currentDateTime();
+//                envelopeDocumentNumber() <- id(i);
+//                envelopeDocumentType() <- 'SYSTEMMESSAGE';
+//                envelopeContent() <- encodedBase64();
+//                EXPORT envelope XML TO xml;
+//                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+//                sendRequestEDI(host, port, login, password, url, xml());
+//                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+//                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+//                IF requestError() THEN {
+//                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+//                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+//                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+//                } ELSE {
+//                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+//                }
+//            }
+            logToFile('edi', CONCAT '\n', provider + ' Parse CreditNote ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте акта приемки ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+}
+
+GROUP supplier EXTID 'Supplier';
+GROUP buyer EXTID 'Buyer';
+GROUP shipTo EXTID 'ShipTo';
+
+FORM exportBlradf FORMEXTID 'BLRADF'
+    PROPERTIES ATTR ='0.1' EXTID 'version'
+    OBJECTS ec = ECreditNote PANEL
+    
+    OBJECTS ech = ECreditNote EXTID 'MessageHeader'
+    FILTERS ech == ec
+    PROPERTIES DRAW ech messageId = resultMilliseconds() EXTID 'MessageID',
+                        msgDateTime = toChar(blradfDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+                        messageType = 'BLRADF' EXTID 'MessageType',
+                        glnCustomer(ech) EXTID 'MsgSenderID',
+                        glnSupplier(ech) EXTID 'MsgReceiverID'
+    
+    OBJECTS ecn = ECreditNote EXTID 'ActDif'
+    FILTERS ecn == ec
+    PROPERTIES DRAW ecn documentID = resultMilliseconds() EXTID 'DocumentID',
+                        creationDateTime = toChar(blradfDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+                        functionCode = (IF isCancel(ecn) THEN '1' ELSE '9') EXTID 'FunctionCode',
+                        actDifNumber(ecn) EXTID 'ActDifID',
+                        actDifDate = toChar(actDifDateTime(ecn),'YYYYMMDD') EXTID 'ActDifDate',
+                        contractId(ecn) EXTID 'ContractID',
+                        contractDate = toChar(contractDate(ecn),'YYYYMMDD') EXTID 'ContractDate',
+                        deliveryNoteNumber(ecn) EXTID 'DeliveryNoteID',
+                        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ecn),'YYYYMMDD') EXTID 'DeliveryNoteDate'
+    PROPERTIES DRAW ecn IN supplier glnSupplier(ecn) EXTID 'GLN',
+                                    nameSupplier(ecn) EXTID 'Name',
+                                    addressSupplier(ecn) EXTID 'Address'
+    PROPERTIES DRAW ecn IN buyer glnCustomer(ecn) EXTID 'GLN',
+                                 nameCustomer(ecn) EXTID 'Name',
+                                 addressCustomer(ecn) EXTID 'Address'
+    PROPERTIES DRAW ecn IN shipTo glnCustomerStock(ecn) EXTID 'GLN',
+                                  addressCustomerStock(ecn) EXTID 'Address'
+                                  
+    OBJECTS d = ECreditNoteDetail EXTID 'LineItem' IN actDifLineItem
+    FILTERS eCreditNote(d) == ecn
+    PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
+                      lineItemID(d) EXTID 'LineItemID',
+                      lineItemBuyerID(d) EXTID 'LineItemBuyerID',
+                      lineItemName(d) EXTID 'LineItemName',
+                      lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
+                      lineItemPrice(d) EXTID 'LineItemPrice',
+                      valueVAT(d) EXTID 'TaxRate',
+                      quantityOrdered(d) EXTID 'QuantityOrdered',
+                      amountOrdered(d) EXTID 'AmountOrdered',
+                      quantityReceived(d) EXTID 'QuantityReceived',
+                      amountReceived(d) EXTID 'AmountReceived'
+    
+    OBJECTS ecnt = ECreditNote EXTID 'Total'
+    FILTERS ecnt == ec
+    PROPERTIES DRAW ecn totalLineItem(ecnt) EXTID 'TotalLineItem',
+                        totalQuantityOrdered(ecnt) EXTID 'TotalQuantityOrdered',
+                        totalAmountOrdered(ecnt) EXTID 'TotalAmountOrdered',
+                        totalQuantityReceived(ecnt) EXTID 'TotalQuantityReceived',
+                        totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
+;
+
+signAndSendCustomerECreditNote (ECreditNote c, VARSTRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
+                IF hostEDSServiceTopBy() AND portEDSServiceTopBy() AND useEDSServiceForCustomerTopBy() THEN {
+                    LOCAL error = TEXT();
+                    error() <- '';
+                    IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
+                    IF NOT length(addressSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес поставщика\'\n';
+                    IF NOT length(glnCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN покупателя\'\n';
+                    IF NOT length(addressCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес покупателя\'\n';
+                    IF NOT length(glnCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN склада покупателя\'\n';
+                    IF NOT length(addressCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес склада покупателя\'\n';
+                    IF NOT length(currency(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
+                    FOR eCreditNote(ECreditNoteDetail d) == c DO {
+                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                    }
+                    
+                    IF error() == '' THEN {
+                        LOCAL contentSubXML = FILE();
+                        blradfDateTime() <- currentDateTimeMillis();
+                        toMilliseconds(blradfDateTime());
+                        EXPORT exportBlradf OBJECTS ec = c XML TO contentSubXML;
+                        IF outputDirTopBy() THEN {
+                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices'); }
+                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        }
+                        IF aliasEDSServiceSupplier(c) AND passwordEDSServiceSupplier(c) THEN {
+                            LOCAL xml = FILE();
+                            fileToString(contentSubXML());
+                            EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(c),password = passwordEDSServiceSupplier(c) XML TO xml;
+                            LOCAL innerXML = TEXT();
+                            innerXML() <- resultString();
+                            fileToString(xml());
+                            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+                            sendRequestEDI(hostEDSServiceTopBy(), portEDSServiceTopBy(), 'eds', 'eds', ('http://' + hostEDSServiceTopBy() + ':' + portEDSServiceTopBy() + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            IMPORT getEDSResponse FROM sendRequestEDIResponse();
+                            IF faultstring() THEN {
+                                logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + faultstring());
+                            }
+                            ELSE IF waybill() THEN {
+                                encodeBase64(waybill());
+                                LOCAL ixml = XMLFILE();
+                                envelopeLogin() <- loginTopBy();
+                                envelopePassword() <- passwordTopBy();
+                                envelopeFilename() <- CONCAT '', 'creditnote', number(c);
+                                envelopeDocumentDate() <- blradfDateTime();
+                                envelopeDocumentNumber() <- number(c);
+                                envelopeSender() <- glnCustomer(c);
+                                envelopeReceiver() <- glnCustomer(c);
+                                envelopeDeliveryPoint() <- glnCustomerStock(c);
+                                envelopeDocumentType() <- 'BLRADF';
+                                envelopeContent() <- encodedBase64();
+                                EXPORT envelope XML TO ixml;
+                                //EXPORT envelopeEInvoice OBJECTS ei = ei, login = loginTopBy(), password = passwordTopBy(), innerXML = encodedBase64(), documentDate = blrwblDateTime(), documentType = 'BLRWBL' XML TO ixml;
+                                sendRequestEDI(hostTopBy(), portTopBy(), loginTopBy(), passwordTopBy(), ('http://' + hostTopBy() +':' + portTopBy() + '/DmcService'), ixml());
+                                logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                                IF requestError() THEN {
+                                    logToFile('edi', provider + ' SendECreditNote ' + number(c) + ': ' + requestError());
+                                    MESSAGE provider + ' Акт приемки ' + number(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
+                                    //NEWSESSION NESTED LOCAL {
+                                        exportedCustomer(c) <- TRUE;
+                                        blradf(c) <- VARSTRING[14](resultMilliseconds());
+                                        blradfDate(c) <- blradfDateTime();
+                                        APPLY NESTED LOCAL;
+                                    //}
+                                }
+                            }
+                        } ELSE {
+                            logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' error: Alias or Password for EDSService not found');
+                        }
+                    } ELSE {
+                        logToFile('edi', provider + ' SendECreditNote: Не все поля заполнены. ' + error());
+                        MESSAGE provider + ' Накладная не выгружена: Не все поля заполнены ' + error() NOWAIT;
+                    }
+                    
+                } ELSE {
+                    logToFile('edi', provider + ' SendECreditNote: не заданы параметры EDSService');
+                    MESSAGE provider + ' Акт приемки не выгружен: не заданы параметры EDSService' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendECreditNote: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' Акт приемки не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Акт приемки не выгружен. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendECreditNote disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendECreditNote disabled, change serverComputer() to enable' NOWAIT;
+    }
+}
+
+signAndSendCustomer(ECreditNote c) + { IF EDIProvider(supplier(c)) == EDIProvider.topBy THEN IF exportedCustomer(c) THEN MESSAGE 'Акт приемки (покупатель) уже отправлен'; ELSE signAndSendCustomerECreditNote(c,'TopBy'); }
