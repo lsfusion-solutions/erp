@@ -75,18 +75,6 @@ countDescription (Item i)= GROUP MAX INTEGER  int IF Description(i, int);
 LanguageId = ABSTRACT CASE VARSTRING[3](Item, INTEGER);
 LanguageId (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN 'RU';
 
-
-//Description (Item i, INTEGER int)= CASE 
-//    WHEN int == 1 THEN nameEng(i)
-//    WHEN int == 2 THEN nameAttribute(i)
-//    WHEN int == 3 THEN nameBlr(i)        
-//;
-//LanguageId (Item i, INTEGER int)= CASE 
-//    WHEN int == 1 AND i IS Item THEN 'EN'
-//    WHEN int == 2 AND i IS Item THEN 'RU'
-//    WHEN int == 3 AND i IS Item THEN 'BY'       
-//;
-
 FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
     
     PROPERTIES IN headL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -172,11 +160,12 @@ GROUP PutC EXTID '=http://www.uvs.lt/PI_GP:PutArticleHierarchies' :Body;
 GROUP headC EXTID 'head' :PutC;
 GROUP itemsC EXTID 'items' :PutC;
 GROUP MessageC EXTID 'MessageItemOfArticleHierarchyS7N_Sjo7W' :itemsC;
-GROUP HeaderText;
+GROUP itemC EXTID 'Item' : MessageC;
+GROUP HeaderText: itemC;
 GROUP ArticleHierarchyDescriptionData:HeaderText; 
-GROUP Node;
-GROUP ArticleHierarchyNode :Node;
-GROUP NodeText :ArticleHierarchyNode;
+GROUP Node: itemC;
+//GROUP ArticleHierarchyNode;
+GROUP NodeText;// :ArticleHierarchyNode;
 GROUP ArticleHierarchyDescriptionDataC EXTID 'ArticleHierarchyDescriptionData' :NodeText;
 
 FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'         
@@ -190,20 +179,27 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
 
     PROPERTIES IN itemsC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
     PROPERTIES  IN MessageC  = 'U' EXTID 'ChangeType'  
+    PROPERTIES IN itemC                                ='P1' EXTID 'DistributionChannel'    
+    PROPERTIES IN ArticleHierarchyDescriptionData      = name(customGroupType('kso')) EXTID  'Description'
+    PROPERTIES IN ArticleHierarchyDescriptionData      ='RU' EXTID  'LanguageId' 
+
+    PROPERTIES IN itemC                                ='kso' EXTID 'HierarchyId'                
     
-    OBJECTS    i = CustomGroup EXTID 'Item' IN MessageC  
-    PROPERTIES  i1='P1' IF i IS CustomGroup  EXTID 'DistributionChannel'
-    
-    PROPERTIES IN ArticleHierarchyDescriptionData     = name(i) EXTID  'Description'
-    PROPERTIES IN ArticleHierarchyDescriptionData     = 'RU' IF i IS CustomGroup EXTID  'LanguageId'        
-    PROPERTIES                                        ='kso' IF i IS CustomGroup EXTID 'HierarchyId' 
-    PROPERTIES IN ArticleHierarchyNode                = id(i) EXTID 'NodeId'
+    OBJECTS    i = CustomGroup EXTID 'ArticleHierarchyNode' IN Node          
+
+    PROPERTIES                                        = id(i) EXTID 'NodeId'
     PROPERTIES IN ArticleHierarchyDescriptionDataC    = name(i) EXTID 'Description'
-    PROPERTIES IN ArticleHierarchyDescriptionDataC    = 'RU' IF i IS CustomGroup EXTID  'LanguageId'    
-        
-    PROPERTIES IN ArticleHierarchyNode                = id(parent(i)) EXTID 'ParentId'
-//    PROPERTIES IN Node i7 =  1 IF i IS CustomGroup EXTID  'SalesOrganization'    
-    PROPERTIES IN Node                                = 1 IF i IS CustomGroup EXTID  'Type'        
+    PROPERTIES IN ArticleHierarchyDescriptionDataC    = 'RU' IF i IS CustomGroup EXTID 'LanguageId'     
+    PROPERTIES                                        = id(parent(i)) EXTID 'ParentId'
+    
+    OBJECTS in = INTEGER IN itemC EXTID 'SalesOrganization'
+    FILTERS in == 1     
+    PROPERTIES                                        = '1' IF in IS INTEGER  EXTID 'value'       
+                                         
+    OBJECTS in1 = INTEGER IN itemC EXTID 'Type'
+    FILTERS in1 == 1     
+    PROPERTIES                                        = '0' IF in1 IS INTEGER  EXTID  'value'  
+                
     FILTERS customGroupType('kso') == customGroupType(i)
 ;
 
