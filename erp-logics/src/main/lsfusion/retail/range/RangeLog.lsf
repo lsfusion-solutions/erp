@@ -34,7 +34,6 @@ range= DATA Range (RangeLog);
 level = DATA RangeLevel (RangeLog);
 nameLevel 'Уровень' (RangeLog l) = name(level(l));
 
-session = DATA Session (RangeLog); 
 hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (RangeLog); 
 userLogin 'Логин пользователя' = DATA VARSTRING[100] (RangeLog); 
 nameContact 'Имя пользователя' =  DATA VARSTRING[100] (RangeLog) IN id;
@@ -74,11 +73,10 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND NOT PREV(level(rangeRev(
         level(d) <- level(rangeRev(r),s);
         dateTimeRev(d) <- dateTime(rangeRev(r));
         typeChange(d) <- TypeChange.add;
-        session(d) <- currentSession();  
-        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
-        userLogin(d) <- userLoginConnection(currentSession()); 
-        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
-        dateTimeSession(d) <- dateTime(currentSession());   
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
     }
 }
 WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s))  AND NOT disableRangeLog()  DO { 
@@ -90,11 +88,10 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s
         dateTimeRev(d) <- dateTime(rangeRev(r));        
         note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
         typeChange(d) <- TypeChange.change;
-        session(d) <- currentSession();  
-        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
-        userLogin(d) <- userLoginConnection(currentSession()); 
-        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
-        dateTimeSession(d) <- dateTime(currentSession());   
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
     }
 }
 WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disableRangeLog()  DO { 
@@ -104,11 +101,10 @@ WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disable
         name(d) <- name(r);
         note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
         typeChange(d) <- TypeChange.delete;
-        session(d) <- currentSession();  
-        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
-        userLogin(d) <- userLoginConnection(currentSession()); 
-        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
-        dateTimeSession(d) <- dateTime(currentSession());   
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
     }
 }
                                                                                                              
