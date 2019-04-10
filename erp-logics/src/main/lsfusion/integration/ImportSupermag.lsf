@@ -1,6 +1,6 @@
 MODULE ImportSupermag;
 
-REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PurchasePack, ItemStorage;
+REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage;
 
 host 'Хост' = DATA VARISTRING[30]();
 base 'База' = DATA VARISTRING[100]();
@@ -506,3 +506,50 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
 
 EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importPriceListSupplier()); } }
+
+importCalcPriceListType 'Импорт расчетных видов цен' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = VARISTRING[50] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
+        id(s) <- VARISTRING[100] (id(i));
+    }
+    
+    FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {
+        
+        name(t) <- name(i);
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
+        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+        groupType(t) <- SystemGroupType.skuGroupType;  
+    }
+    
+    LOCAL idGroup = INTEGER (INTEGER);
+    LOCAL markup = NUMERIC[8,4] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO id, idGroup, markup;
+    
+    LOCAL idItemGroup = VARSTRING[100](INTEGER);
+    
+    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, VARSTRING[100](idGroup(i));
+    
+    FOR id(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (id(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+        dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (id(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
