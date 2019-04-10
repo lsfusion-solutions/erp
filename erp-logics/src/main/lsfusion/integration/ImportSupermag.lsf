@@ -1,6 +1,6 @@
 MODULE ImportSupermag;
 
-REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PurchasePack;
+REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PurchasePack, ItemStorage;
 
 host 'Хост' = DATA VARISTRING[30]();
 base 'База' = DATA VARISTRING[100]();
@@ -147,6 +147,62 @@ importItem 'Импорт товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importItem();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItem()); } }
+
+importItemAttribute 'Импорт доп. свойств товаров' () {
+    
+    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL property = VARISTRING[50] (INTEGER);
+    LOCAL value = TEXT (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\')' TO file;
+    
+    IMPORT TABLE FROM file() TO id, property, value;
+    
+    FOR property(INTEGER i) == 'packsize2' DO {
+        amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(id(i)));
+    }
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == '1' BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
+        name(b) <- VARISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == '1' DO {
+        brand(Item s) <- brandName(value(i)) WHERE s == item(id(i));
+    }
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manufacturer' BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
+        name(m) <- VARISTRING[200] (name);
+    }
+    FOR property(INTEGER i) == 'manufacturer' DO {
+        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(id(i));
+    }
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
+        name(c) <- VARISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 'manCountry' DO {
+        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(id(i));
+    }
+    
+    FOR property(INTEGER i) == 'expDate' DO {
+        expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(id(i));
+        expiryText(Item s) <- VARISTRING[100] (value(i)) WHERE s = item(id(i));
+    }
+    FOR property(INTEGER i) == 'storeTemperature' DO {
+        conditionsText(Item s) <- VARISTRING[100] (value(i)) WHERE s = item(id(i));
+    }
+    FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
+        AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
+        conditionsText(Item s) <- CONCAT '', conditionsText(s), ', влажность: ' + VARISTRING[100] (value(i)) WHERE s = item(id(i));
+    }
+    APPLY;
+}
+
+EXTEND FORM items PROPERTIES (i) READONLY expiryText, conditionsText;
+
+EXTEND FORM integrationData PROPERTIES importItemAttribute();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemAttribute()); } }
 
 idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
 
