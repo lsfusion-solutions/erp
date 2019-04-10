@@ -106,6 +106,7 @@ importItem 'Импорт товаров' () {
     LOCAL idClass = INTEGER (INTEGER);
     LOCAL country = TEXT (INTEGER);
     LOCAL accepted = INTEGER (INTEGER);
+    LOCAL scale = VARSTRING[1] (INTEGER);
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
@@ -115,9 +116,9 @@ importItem 'Импорт товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD' TO file;
+        EXEC 'SELECT ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD' TO file;
     
-    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, width, length, height;
+    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, scale, width, length, height;
     
     
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
@@ -133,6 +134,7 @@ importItem 'Импорт товаров' () {
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
         inactive(s) <- accepted(i) != 1;
+        passScales(s) <- scale(i) == '1';
         imported(s) <- TRUE;
     }
     
