@@ -616,3 +616,43 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
 
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
+
+id = DATA VARSTRING[100](Range.Range);
+range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
+
+importRange 'Импорт ассортиментных матриц' () {
+    
+    LOCAL id = VARSTRING[50] (INTEGER);
+    LOCAL name = VARISTRING[50] (INTEGER);
+    LOCAL store = Store(INTEGER);
+    LOCAL rangeRev = RangeRev(INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT sm.article, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(name(s), replace(name(i), ' nS', ''));
+    
+    FOR itemGroupRoot(ItemGroup g, 2) == g AND NOT range(id(g)) DO NEW r = Range.Range {
+        id(r) <- id(g);
+        name(r) <- VARISTRING[100](name(g));
+        inData(r, g) <- TRUE;
+        
+        NEW rr = RangeRev {
+            range(rr) <- r;
+            dateTime(rr) <- 2001_01_01_00:00;
+        }
+    }
+    
+    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(id(i))) AND level(g, itemGroup(id(range(rr))));
+    
+    FOR Item s == item(id(INTEGER i)) AND Store st == store(i) AND RangeRev r == rangeRev(i) DO {
+        include(r, st, s) <- TRUE;
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importRange();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importRange()); } }
