@@ -105,15 +105,20 @@ importItem 'Импорт товаров' () {
     LOCAL idMeasurement = INTEGER (INTEGER);
     LOCAL idClass = INTEGER (INTEGER);
     LOCAL country = TEXT (INTEGER);
+    LOCAL accepted = INTEGER (INTEGER);
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
     
+    LOCAL imported = BOOLEAN (Item);
+    LOCAL imported = BOOLEAN (Barcode);
+    
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD' TO file;
+        EXEC 'SELECT ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD' TO file;
     
-    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, width, length, height;
+    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, width, length, height;
+    
     
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
         id(s) <-id(i);
@@ -127,6 +132,8 @@ importItem 'Импорт товаров' () {
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
+        inactive(s) <- accepted(i) != 1;
+        imported(s) <- TRUE;
     }
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
@@ -140,7 +147,11 @@ importItem 'Импорт товаров' () {
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
         barcode(s) <- b;
+        imported(b) <- TRUE;
     }
+    
+    DELETE Item i WHERE i IS Item AND NOT imported(i);
+    DELETE Barcode b WHERE b IS Barcode AND NOT imported(b);
     
     APPLY;
 }
