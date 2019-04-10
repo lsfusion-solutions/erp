@@ -353,18 +353,49 @@ clearApplicationLog () + {
     } 
 }
 
-daysToClosePriceList 'Кол-во дней через которое прайс с компанией исключается из регистра' = DATA INTEGER ();
+daysToClosePriceList 'Кол-во дней через которое прайс исключается из регистра' = DATA INTEGER ();
 priceListTypeToClosePriceList  = DATA DataPriceListType();
 nameOperationToClosePriceList 'Вид цен для исключения из регистра прайсов с компанией' = name(priceListTypeToClosePriceList());
 
 closePriceLists 'Исключить прайсы с компанией из регистра до даты' () {
     NEWSESSION {
-        FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) 
+        FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) AND company(d)
                 AND NOT exclude(d)  ORDER d DO {
             
             LOCAL notSkip = BOOLEAN ();
             FOR in(priceList(d), Stock s) AND in(d, DataPriceListType t) DO {
                 IF priceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
+                    notSkip() <- TRUE;
+                    logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
+                    BREAK;
+                }
+            }
+            
+            IF NOT notSkip() THEN {
+                exclude(d) <- TRUE;
+                logToFile('closePriceList', CONCAT '-', 'CLOSE', date(d), number(d), company(d), idBarcodeSku(d));
+            }
+            IF (GROUP SUM 1 IF CHANGED (exclude(UserPriceListDetail dd))) > 99 THEN {
+                logToFile('closePriceList',CONCAT '-', 'APPLY');
+                APPLY;
+            }
+        }
+        
+        APPLY;
+    }
+}
+
+priceListTypeToClosePriceListNotCompany  = DATA DataPriceListType();
+nameOperationToClosePriceListNotCompany 'Вид цен для исключения из регистра прайсов без компании' = name(priceListTypeToClosePriceListNotCompany());
+
+closePriceListsNotCompany 'Исключить прайсы без компании из регистра до даты' () {
+    NEWSESSION {
+        FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceListNotCompany()) AND NOT company(d)
+                AND NOT exclude(d)  ORDER d DO {
+            
+            LOCAL notSkip = BOOLEAN ();
+            FOR in(priceList(d), Stock s) AND in(d, DataPriceListType t) DO {
+                IF priceListLedgerA(t, sku(d), s, 2040_01_01_00:00) == d THEN {
                     notSkip() <- TRUE;
                     logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), idBarcodeSku(d), name(s), name(t));
                     BREAK;
@@ -385,14 +416,20 @@ closePriceLists 'Исключить прайсы с компанией из ре
     }
 }
 
-
-EXTEND FORM options PROPERTIES () daysToClosePriceList, nameOperationToClosePriceList, closePriceLists;
+EXTEND FORM options PROPERTIES () daysToClosePriceList, nameOperationToClosePriceList, closePriceLists,
+    nameOperationToClosePriceListNotCompany, closePriceListsNotCompany
+;
 
 DESIGN options {
     price {
-        MOVE PROPERTY (daysToClosePriceList());
-        MOVE PROPERTY (nameOperationToClosePriceList());
-        MOVE PROPERTY (closePriceLists());
+        NEW closePriceList{
+            caption = 'Очистка рекистра цен';
+            MOVE PROPERTY (daysToClosePriceList());
+            MOVE PROPERTY (nameOperationToClosePriceList());
+            MOVE PROPERTY (closePriceLists());
+            MOVE PROPERTY (nameOperationToClosePriceListNotCompany());
+            MOVE PROPERTY (closePriceListsNotCompany());
+        }
     }
 }
 
