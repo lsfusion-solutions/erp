@@ -1,6 +1,6 @@
 MODULE ImportSupermag;
 
-REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage;
+REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck;
 
 host 'Хост' = DATA VARISTRING[30]();
 base 'База' = DATA VARISTRING[100]();
@@ -427,8 +427,8 @@ EXTEND FORM integrationData PROPERTIES importDepartmentStore();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importDepartmentStore()); } }
 
 id = DATA VARISTRING[100](UserPriceListDetail);
-userPriceListDetail (id, userPriceList) = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), userPriceList(d);
-userPriceListDetail (id, idUserPriceList) = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), id(userPriceList(d));
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), userPriceList(d);
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), id(userPriceList(d));
 
 importPriceListSupplier 'Импорт прайсов поставщика' () {
     
@@ -506,6 +506,69 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
 
 EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importPriceListSupplier()); } }
+
+importPriceListRetail 'Импорт розничных прайсов' () {
+    
+    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL reason = INTEGER (INTEGER);
+    LOCAL posted = INTEGER (INTEGER);
+    LOCAL idStore = INTEGER (INTEGER);
+    LOCAL comment = VARISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM SMActs a, SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'11.03.19\' AND a.REASON != 0 AND a.id = s.id' TO file;
+    
+    IMPORT TABLE FROM file() TO id, date, reason, posted, idStore, comment;
+    
+    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
+        id(p) <- id(i);
+    }
+    
+    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
+        
+        operation(p) <- PriceList.operation(TEXT (reason(i)));
+        number(p) <- VARISTRING[28] (id(p));
+        date(p) <- date(i);
+        time(p) <- 00:00;
+        fromDate(p) <- date(i);
+        fromTime(p) <- 00:00;
+        isPosted(p) <- posted(i) == 0 OR posted(i) == 2;
+        note(p) <- comment(i);
+        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
+    }
+    
+    LOCAL type = VARISTRING[2](INTEGER);
+    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL oldPrice = NUMERIC[19,4](INTEGER);
+    LOCAL idItem = VARISTRING[50](INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM SMSpecActs d, SMActs a, SMSpec sd WHERE a.id = d.docid AND TRUNC(a.EXECDATE) >= \'11.03.19\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
+    
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, oldPrice, idItem;
+    
+    id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+    
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) DO NEW d = UserPriceListDetail {
+        id(d) <- id(i);
+        userPriceList(d) <- userPriceList(idDoc(i));
+    }
+    
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
+        sku(d) <- item(idItem(i));
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('retail');
+        priceBefore(d) <- NUMERIC[16,4](oldPrice(i));
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importPriceListRetail();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importPriceListRetail()); } }
 
 importCalcPriceListType 'Импорт расчетных видов цен' () {
     
