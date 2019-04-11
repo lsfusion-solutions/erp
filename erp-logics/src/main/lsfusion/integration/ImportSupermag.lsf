@@ -522,6 +522,18 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     IMPORT TABLE FROM file() TO id, date, reason, posted, idStore, comment;
     
+    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO NEW o = PriceList.Operation {
+        id(o) <- VARISTRING[100](r);
+        name(o) <- VARISTRING[100](r);
+        allRoles(o) <- TRUE;
+        groupType(o) <- SystemGroupType.skuGroupType;
+        dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
+        needStock(o) <- TRUE;
+        show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail';
+        change(DataPriceListType t, o) <- id(t) == 'retail';
+        in(Currency c, o) <- c == defaultCurrency();
+    }
+    
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
         id(p) <- id(i);
     }
@@ -545,19 +557,19 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL oldPrice = NUMERIC[19,4](INTEGER);
     LOCAL idItem = VARISTRING[50](INTEGER);
-    
+
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
             EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND TRUNC(a.EXECDATE) >= \'11.03.19\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, oldPrice, idItem;
-    
+
     id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
-    
+
     FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) DO NEW d = UserPriceListDetail {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
-    
+
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('retail');
