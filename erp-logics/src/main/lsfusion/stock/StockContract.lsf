@@ -111,6 +111,7 @@ partyB (ContractSku contract) += customer(contract);
 
 @defineInStockGroupObject(customer, contractSku);
 
+
 inPartyB (Stock stock, ContractSku contract) += inCustomer(stock,contract);
 
 countCustomersStock (ContractSku contract)= GROUP SUM 1 IF inCustomer(Stock stock,contract);
@@ -335,4 +336,38 @@ DESIGN legalEntity {
             caption = 'Договоры на поставку';
         }
     }
+}
+
+overCopyUser  ABSTRACT LIST ( UserContractSku, UserContractSku);
+copyUser 'Копировать' (UserContractSku from) { 
+    IF (from IS UserContractSku) THEN {
+        NEWSESSION  {
+            NEW to = UserContractSku {
+                overCopyUser(from, to);
+                SHOW userContractSku OBJECTS c = to DOCKED NOCANCEL;    
+            }
+        }
+    }
+} CHANGEKEY 'F5' TOOLBAR;
+
+overCopyUser(UserContractSku from, UserContractSku to) +{
+    word(to) <- word(from);
+    file(to) <- file(from);
+    dateFrom(to) <- dateFrom(from);
+    dateTo(to) <- dateTo(from);
+    currency(to) <- currency(from);
+    typeExchange(to) <- typeExchange(from);
+    paymentCondition(to) <- paymentCondition(from);
+    type(to) <- type(from); 
+    note(to) <- note(from);   
+        
+    supplier(to) <- supplier(from);
+    allSupplierStocks(to) <- allSupplierStocks(from);    
+    dataInSupplier(StockGroup g,to) <- dataInSupplier(g,from) WHERE dataInSupplier(g,from);
+    dataInSupplier(Stock g,to) <- dataInSupplier(g,from) WHERE dataInSupplier(g,from);        
+    customer(to) <- customer(from);
+    allCustomerStocks(to) <- allCustomerStocks(from);    
+    dataInCustomer(StockGroup g,to) <- dataInCustomer(g,from) WHERE dataInCustomer(g,from);
+    dataInCustomer(Stock g,to) <- dataInCustomer(g,from) WHERE dataInCustomer(g,from);        
+    isDataDefault(to) <- isDataDefault(from);     
 }
