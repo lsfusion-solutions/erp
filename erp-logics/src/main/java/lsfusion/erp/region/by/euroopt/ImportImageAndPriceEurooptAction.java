@@ -122,32 +122,12 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
                                         if (prices.size() >= 1) {
                                             BigDecimal price1 = prices.get(0);
                                             if (price1 != null) {
-                                                JSONObject jsonObject = new JSONObject();
-                                                jsonObject.put("idPriceList", idPriceList);
-                                                jsonObject.put("isPosted", true);
-                                                jsonObject.put("idOperation", id);
-                                                jsonObject.put("idUserPriceListDetail", idPriceList + "/" + idPriceListDetail);
-                                                jsonObject.put("idBarcodeSku", idBarcode);
-                                                jsonObject.put("idDataPriceListType", id + "_p");
-                                                jsonObject.put("namePriceListType", name + "(акция)");
-                                                jsonObject.put("pricePriceListDetail", price1);
-                                                jsonObject.put("inPriceListPriceListType", true);
-                                                pricesJSON.put(jsonObject);
+                                                pricesJSON.put(getPriceJSON(idPriceList, id, idPriceListDetail, idBarcode, name, price1, true));
                                             }
                                             if (prices.size() >= 2) {
                                                 BigDecimal price2 = prices.get(1);
                                                 if (price2 != null) {
-                                                    JSONObject jsonObject = new JSONObject();
-                                                    jsonObject.put("idPriceList", idPriceList);
-                                                    jsonObject.put("isPosted", true);
-                                                    jsonObject.put("idOperation", id);
-                                                    jsonObject.put("idUserPriceListDetail", idPriceList + "/" + idPriceListDetail);
-                                                    jsonObject.put("idBarcodeSku", idBarcode);
-                                                    jsonObject.put("idDataPriceListType", id);
-                                                    jsonObject.put("namePriceListType", name);
-                                                    jsonObject.put("pricePriceListDetail", price2);
-                                                    jsonObject.put("inPriceListPriceListType", true);
-                                                    pricesJSON.put(jsonObject);
+                                                    pricesJSON.put(getPriceJSON(idPriceList, id, idPriceListDetail, idBarcode, name, price2, false));
                                                 }
                                             }
                                             idPriceListDetail++;
@@ -169,6 +149,19 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
             context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного импортированного товара", "Ошибка"));
         }
         return Arrays.asList(imagesJSON, pricesJSON);
+    }
+
+    private JSONObject getPriceJSON(String idPriceList, String id, int idPriceListDetail, String idBarcode, String namePriceListType, BigDecimal price, boolean action) {
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put("idPriceList", idPriceList);
+        jsonObject.put("idOperation", id);
+        jsonObject.put("idUserPriceListDetail", idPriceList + "/" + idPriceListDetail);
+        jsonObject.put("idBarcodeSku", idBarcode);
+        jsonObject.put("idDataPriceListType", id);
+        jsonObject.put("namePriceListType", namePriceListType);
+        jsonObject.put("pricePriceListDetail", price);
+        jsonObject.put("action", action);
+        return jsonObject;
     }
 
     private RawFileData getImage(NetLayer lowerNetLayer, String barcode, String mainPage, String smallImage) {
