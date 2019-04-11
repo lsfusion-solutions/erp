@@ -1,6 +1,8 @@
 MODULE ImportEuroopt;
 
-REQUIRE System, Item, ItemDescription, ItemNutrition, ImportUserPriceList, PurchasePack;
+REQUIRE System, Item, ItemDescription, ItemNutrition, ImportUserPriceList, PurchasePack, Competitor;
+
+PRIORITY Competitor;
 
 CLASS MainPage 'Главная страница' {
     edostavka 'https://e-dostavka.by',
@@ -55,13 +57,46 @@ captionMainPage() = staticCaption(mainPage());
 synchronizeItemsFile = DATA LOCAL JSONFILE ();
 synchronizeItems 'Синхронизировать списки товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.SynchronizeItemsEurooptAction' ();
 
+synchronizeItemsJSON 'Синхронизировать списки товаров' () {
+    
+    LOCAL urlGroup = VARISTRING[255](INTEGER);
+    LOCAL urlList = VARISTRING[255](INTEGER);
+    LOCAL urlItem = VARISTRING[255](INTEGER);
+    LOCAL nameGroup = VARISTRING[100](INTEGER);
+    
+    synchronizeItems();
+    
+    IMPORT JSON FROM synchronizeItemsFile() TO urlGroup = itemGroupURL, urlList = stepUrl, urlItem = href, nameGroup = itemGroupTitle;
+        
+    FOR [GROUP SUM 1 BY lower(urlGroup(INTEGER i))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
+        url(eig) <- url;
+    }
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlGroup(ii))](VARSTRING[255] url) AND EurooptItemGroup eig = eurooptItemGroup(url) DO {
+        title(eig) <- nameGroup(i);
+        mainPage(eig) <- mainPage();
+    }
+    
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlList(ii))](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
+        url(eil) <- urlList(i);
+        eurooptItemGroup(eil) <- eurooptItemGroup(urlGroup(i));
+    }
+    
+    FOR [GROUP SUM 1 BY lower(urlItem(INTEGER i))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
+        url(ei) <- url;
+    }
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlItem(ii))](VARSTRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
+        eurooptItemList(ei) <- eurooptItemList(urlList(i));
+    }
+    APPLY;
+}
+
 synchronizeItemsEdostavka 'Синхронизировать списки товаров E-dostavka' () {
     mainPage() <- MainPage.edostavka;
-    synchronizeItems();
+    synchronizeItemsJSON();
 }
 synchronizeItemsGipermall 'Синхронизировать списки товаров Gipermall' () {
     mainPage() <- MainPage.gipermall;
-    synchronizeItems();
+    synchronizeItemsJSON();
 }
 
 onlyBarcode 'Импортировать только штрихкоды' = DATA BOOLEAN();
@@ -69,13 +104,57 @@ onlyBarcode 'Импортировать только штрихкоды' = DATA 
 importItemsInfoFile = DATA LOCAL JSONFILE ();
 importItemsInfo 'Импортировать информацию о товарах'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportItemsInfoEurooptAction' ();
 
+importItemsInfoJSON 'Импортировать информацию о товарах' () {
+
+    LOCAL itemURL = VARISTRING[255](INTEGER);
+    LOCAL idBarcode = VARISTRING[15](INTEGER);
+    LOCAL noBarcode = BOOLEAN (INTEGER);
+    LOCAL captionItem = VARISTRING[255](INTEGER);
+    LOCAL netWeight = NUMERIC[11,5](INTEGER);
+    LOCAL descriptionItem = TEXT (INTEGER);
+    LOCAL compositionItem = VARISTRING[1000](INTEGER);
+    LOCAL proteinsItem = NUMERIC[8,2](INTEGER);
+    LOCAL fatsItem = NUMERIC[8,2](INTEGER);
+    LOCAL carbohydratesItem = NUMERIC[8,2](INTEGER);
+    LOCAL energyItem = NUMERIC[8,2](INTEGER);
+    LOCAL manufacturerItem = VARISTRING[255](INTEGER);
+    LOCAL UOMItem = VARISTRING[255](INTEGER);
+    LOCAL brandItem = VARISTRING[255](INTEGER);
+    
+    importItemsInfo();
+    
+    IMPORT JSON FROM importItemsInfoFile() TO itemURL = itemURL, idBarcode = idBarcode, noBarcode = noBarcode, captionItem = captionItem, netWeight = netWeight, 
+        descriptionItem = descriptionItem, compositionItem = compositionItem, proteinsItem = proteinsItem, fatsItem = fatsItem, carbohydratesItem = carbohydratesItem, 
+        energyItem = energyItem, manufacturerItem = manufacturerItem, UOMItem = UOMItem, brandItem = brandItem;
+        
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](VARSTRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
+        noBarcode(ei) <- noBarcode(i);
+        idBarcode(ei) <- idBarcode(i);
+    }
+    
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](VARSTRING[255] url) AND Item s == sku(eurooptItem(url)) AND NOT onlyBarcode() DO {
+        caption(s) <- captionItem(i) WHERE NOT caption(s);
+        netWeight(s) <- netWeight(i) WHERE NOT netWeight(s);
+        description(s) <- descriptionItem(i) WHERE NOT description(s);
+        composition(s) <- compositionItem(i) WHERE NOT composition(s);
+        proteins(s) <- proteinsItem(i) WHERE NOT proteins(s);
+        fats(s) <- fatsItem(i) WHERE NOT fats(s);
+        carbohydrates(s) <- carbohydratesItem(i) WHERE NOT carbohydrates(s);
+        energy(s) <- energyItem(i) WHERE NOT energy(s);
+        manufacturer(s) <- manufacturerName(manufacturerItem(i)) WHERE NOT manufacturer(s);
+        UOM(s) <- UOMName(UOMItem(i)) WHERE NOT UOM(s);
+        brand(s) <- brandName(brandItem(i)) WHERE NOT brand(s);
+    }
+    APPLY;
+}
+
 importItemsInfoEdostavka 'Импортировать информацию о товарах E-dostavka' () {
     mainPage() <- MainPage.edostavka;
-    importItemsInfo();
+    importItemsInfoJSON();
 }
 importItemsInfoGipermall 'Импортировать информацию о товарах Gipermall' () {
     mainPage() <- MainPage.gipermall;
-    importItemsInfo();
+    importItemsInfoJSON();
 }
 
 importImages 'Импортировать изображения' = DATA BOOLEAN();
@@ -85,13 +164,80 @@ importImageFile = DATA LOCAL JSONFILE ();
 importPriceFile = DATA LOCAL JSONFILE ();
 importImageAndPrice 'Импортировать изображения и цены товаров'  INTERNAL  'lsfusion.erp.region.by.euroopt.ImportImageAndPriceEurooptAction' ();
 
+importImagesJSON 'Импортировать изображения товаров' () {
+    
+    LOCAL idPriceList = VARISTRING[255](INTEGER);
+    LOCAL idOperation = VARISTRING[100](INTEGER);
+    LOCAL idUserPriceListDetail = VARISTRING[100](INTEGER);
+    LOCAL idBarcodeSku = VARISTRING[15](INTEGER);
+    LOCAL idDataPriceListType = VARISTRING[100](INTEGER);
+    LOCAL namePriceListType = VARISTRING[100](INTEGER);
+    LOCAL pricePriceListDetail = NUMERIC[16,5](INTEGER);
+    LOCAL action = BOOLEAN (INTEGER);
+    
+    importImageAndPrice();
+    
+    IMPORT JSON FROM importPriceFile() TO idPriceList = idPriceList, idOperation = idOperation, idUserPriceListDetail = idUserPriceListDetail, idBarcodeSku = idBarcodeSku, 
+        idDataPriceListType = idDataPriceListType, namePriceListType = namePriceListType, pricePriceListDetail = pricePriceListDetail, action = action;
+     
+    FOR [GROUP SUM 1 BY namePriceListType(INTEGER i)](VARSTRING[100] name) AND NOT competitor(name) DO NEW c = Competitor {
+        name(c) <- name;
+    }
+       
+    FOR [GROUP SUM 1 BY idPriceList(INTEGER i)](VARSTRING[15] id) AND NOT priceList(id) DO NEW p = PriceList {
+        id(p) <- id;
+    }
+    
+    FOR [GROUP SUM 1 BY idUserPriceListDetail(INTEGER i)](VARSTRING[15] id) AND NOT priceListDetail(id) DO NEW d = PriceListDetail {
+        id(d) <- id;
+    }
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii BY priceListDetail(idUserPriceListDetail(ii))](PriceListDetail d) DO {
+        sku(d) <- skuBarcode(idBarcodeSku(i));
+        priceList(d) <- priceList(idPriceList(i));
+    }
+    
+    FOR [GROUP SUM 1 BY priceList(idPriceList(INTEGER i)), competitor(namePriceListType(i))](PriceList p, Competitor c) DO {
+        in(p, c) <- TRUE;
+    }
+    
+    FOR imported(INTEGER i) AND PriceListDetail d = priceListDetail(idUserPriceListDetail(i)) AND Competitor c = competitor(namePriceListType(i)) DO {
+        IF action(i) THEN {
+            promotionPrice(d, c) <- pricePriceListDetail(i);
+        }
+        ELSE {
+            price(d, c) <- pricePriceListDetail(i);
+        }
+    }
+    
+    APPLY;
+}
+
+importPricesJSON 'Импортировать цены товаров' () {
+    
+    LOCAL image = TEXT (INTEGER);
+    LOCAL idBarcode = VARISTRING[15](INTEGER);
+    
+    importImageAndPrice();
+    
+    IMPORT JSON FROM importImageFile() TO image = image, idBarcode = idBarcode;
+        
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY idBarcode(ii)](VARSTRING[15] id) AND Item s == skuBarcode(id) DO {
+        
+        image(s) <- decode(image(i),'base64') WHERE NOT image(s);
+    }
+    APPLY;
+}
+
 importImageAndPriceEdostavka 'Импортировать изображения и цены товаров E-dostavka' () {
     mainPage() <- MainPage.edostavka;
-    importImageAndPrice();
+    importImagesJSON();
+    importPricesJSON();
 }
 importImageAndPriceGipermall 'Импортировать изображения и цены товаров Gipermall' () {
     mainPage() <- MainPage.gipermall;
-    importImageAndPrice();
+    importImagesJSON();
+    importPricesJSON();
 }
 
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
