@@ -620,6 +620,17 @@ DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListTyp
 id = DATA VARSTRING[100](Range.Range);
 range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
 
+nameImport 'Наименование для импорта' = DATA VARSTRING[50](Store);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
+EXTEND FORM store PROPERTIES nameImport(s);
+
+DESIGN store {
+    headerExtraParams {
+        MOVE PROPERTY (nameImport(s));
+    }
+}
+
 importRange 'Импорт ассортиментных матриц' () {
     
     LOCAL id = VARSTRING[50] (INTEGER);
@@ -632,7 +643,7 @@ importRange 'Импорт ассортиментных матриц' () {
     
     IMPORT TABLE FROM file() TO id, name;
     
-    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(name(s), replace(name(i), ' nS', ''));
+    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
     
     FOR itemGroupRoot(ItemGroup g, 2) == g AND NOT range(id(g)) DO NEW r = Range.Range {
         id(r) <- id(g);
