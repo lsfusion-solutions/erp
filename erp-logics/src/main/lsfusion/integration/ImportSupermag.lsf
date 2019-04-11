@@ -110,6 +110,7 @@ importItem 'Импорт товаров' () {
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
+    LOCAL vat = NUMERIC[8,4] (INTEGER);
     
     LOCAL imported = BOOLEAN (Item);
     LOCAL imported = BOOLEAN (Barcode);
@@ -118,11 +119,11 @@ importItem 'Импорт товаров' () {
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT card.ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3' TO file;
     
-    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, scale, width, length, height;
+    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
     
     
-    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
-        id(s) <-id(i);
+    FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](VARISTRING[100] id) DO NEW s = Item {
+        id(s) <- id;
     }
     
     FOR Item s = item(id(INTEGER i)) DO {
@@ -136,6 +137,7 @@ importItem 'Импорт товаров' () {
         inactive(s) <- accepted(i) != 1;
         passScales(s) <- scale(i) == '1';
         imported(s) <- TRUE;
+        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == vat(i) AND c = defaultCountry();
     }
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
