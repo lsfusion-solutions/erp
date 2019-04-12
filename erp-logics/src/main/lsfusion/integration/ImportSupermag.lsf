@@ -6,8 +6,11 @@ host 'Хост' = DATA VARISTRING[30]();
 base 'База' = DATA VARISTRING[100]();
 login 'Логин' = DATA VARISTRING[100]();
 password 'Пароль' = DATA VARISTRING[100]();
+days 'Кол-во дней для импорта' = DATA INTEGER ();
+dateFrom 'Дата с' () = sum(currentDate(), -days());
+dateFromText () = toDateDDMMYY(dateFrom());
 
-EXTEND FORM integrationData PROPERTIES () host, base, login, password;
+EXTEND FORM integrationData PROPERTIES () host, base, login, password, days;
 
 DESIGN integrationData {
     pane {
@@ -19,6 +22,7 @@ DESIGN integrationData {
                 MOVE PROPERTY (base());
                 MOVE PROPERTY (login());
                 MOVE PROPERTY (password());
+                MOVE PROPERTY (days());
             }
             NEW supermagButtons { }
         }
@@ -315,6 +319,12 @@ importLegalEntity 'Импорт организаций' () {
     
     FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
         id(s) <- VARISTRING[100] (id(i));
+        
+        NEW w = Warehouse {
+            name(w) <- VARISTRING[150](shortName(i));
+            address(w) <- VARISTRING[150](faddress(i));
+            legalEntity(w) <- s;
+        }
     }
     
     FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
@@ -443,10 +453,11 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL title = VARISTRING[255] (INTEGER);
     LOCAL paymentDelay = INTEGER (INTEGER);
     LOCAL isCalendarDelay = VARISTRING[1] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT q.ID, q.CREATEDAT, q.DOCSTATE, q.BEGINSAT, q.ENDSAT, q.CLIENTINDEX, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY FROM Supermag.SvDocNoPriceCQ q, Supermag.SVDocumentsCO cc WHERE q.docco = cc.id AND q.ENDSAT >= \'11.03.19\'' TO file;
+        EXEC 'SELECT q.ID, q.CREATEDAT, q.DOCSTATE, q.BEGINSAT, q.ENDSAT, q.CLIENTINDEX, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY FROM Supermag.SvDocNoPriceCQ q, Supermag.SVDocumentsCO cc WHERE q.docco = cc.id AND q.ENDSAT >= \'' + dateFromText() + '\'' TO file;
     
     IMPORT TABLE FROM file() TO id, date, posted, begin, end, idCompany, title, paymentDelay, isCalendarDelay;
     
@@ -467,6 +478,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         company(p) <- legalEntity(TEXT (idCompany(i)));
         note(p) <- title(i);
         allStocks(p) <- NULL;
+        imported(p) <- TRUE;
     }
     
     LOCAL type = VARISTRING[2](INTEGER);
@@ -475,9 +487,10 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL idItem = VARISTRING[50](INTEGER);
     LOCAL packSize = NUMERIC[14,3](INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT qd.DOCTYPE, qd.DOCID, qd.SPECITEM, q.CREATEDAT, qd.ARTICLE, qd.PACKSIZE, cd.itemPrice FROM Supermag.SVSpecNoPriceCQ qd, Supermag.SvDocNoPriceCQ q, Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE qd.docid=q.id AND q.docco = cc.id AND cd.docid = cc.id AND cd.article = qd.article AND q.CREATEDAT >= \'11.03.19\'' TO file;
+            EXEC 'SELECT qd.DOCTYPE, qd.DOCID, qd.SPECITEM, q.CREATEDAT, qd.ARTICLE, qd.PACKSIZE, cd.itemPrice FROM Supermag.SVSpecNoPriceCQ qd, Supermag.SvDocNoPriceCQ q, Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE qd.docid=q.id AND q.docco = cc.id AND cd.docid = cc.id AND cd.article = qd.article AND q.ENDSAT >= \'' + dateFromText() + '\'' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, date, idItem, packSize, price;
     
@@ -491,18 +504,23 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
+        imported(d) <- TRUE;
     }
     
     LOCAL idStock = INTEGER (INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT q.ID, cl.locationid FROM Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.id = cl.id' TO file;
+        EXEC 'SELECT q.ID, cl.locationid FROM Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.id = cl.id AND q.ENDSAT >= \'' + dateFromText() + '\'' TO file;
     
     IMPORT TABLE FROM file() TO idDoc, idStock;
     
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](UserPriceList p, DepartmentStore s) DO {
         dataIn(p, s) <- TRUE;
     }
+    
+    DELETE UserPriceList p WHERE toDate(p) >= dateFrom() AND id(operation(p)) == 'supplier' AND NOT imported(p);
+    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFrom() AND id(operation(d)) == 'supplier' AND NOT imported(d);
+    
     APPLY;
 }
 
@@ -517,10 +535,11 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL posted = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
     LOCAL comment = VARISTRING[255] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'11.03.19\' AND a.REASON != 0 AND a.id = s.id' TO file;
+        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromText() + '\' AND a.REASON != 0 AND a.id = s.id' TO file;
     
     IMPORT TABLE FROM file() TO id, date, reason, posted, idStore, comment;
     
@@ -550,7 +569,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         fromTime(p) <- 00:00;
         isPosted(p) <- posted(i) == 0 OR posted(i) == 2;
         note(p) <- comment(i);
+        dataIn(p, StockGroup s) <- NULL;
         dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
+        imported(p) <- TRUE;
     }
     
     LOCAL type = VARISTRING[2](INTEGER);
@@ -559,9 +580,10 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL oldPrice = NUMERIC[19,4](INTEGER);
     LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND TRUNC(a.EXECDATE) >= \'11.03.19\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND TRUNC(a.EXECDATE) >= \'' + dateFromText() + '\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, oldPrice, idItem;
 
@@ -571,12 +593,16 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
-
+    
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('retail');
         priceBefore(d) <- NUMERIC[16,4](oldPrice(i));
+        imported(d) <- TRUE;
     }
+    
+    DELETE UserPriceList p WHERE date(p) >= dateFrom() AND NOT id(operation(p)) == 'supplier' AND NOT id(operation(p)) == 'promotion' AND NOT imported(p);
+    DELETE UserPriceListDetail d WHERE  date(d) >= dateFrom() AND NOT id(operation(d)) == 'supplier' AND NOT id(operation(d)) == 'promotion' AND NOT imported(d);
     
     APPLY;
 }
