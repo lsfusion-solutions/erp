@@ -52,21 +52,27 @@ MOQ 'MOQ' = ABSTRACT NUMERIC[16,5] (Sku);
 overRecommendedQuantity  ABSTRACT LIST ( UserOrderDetail,Sku);
 skipCeil = ABSTRACT BOOLEAN (Sku,UserOrder);
 ceilRecommendedQuantity(Sku sku, NUMERIC[16,5] r) = IF (MIN MOQ(sku), amountPack(sku)) > 0 THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) ELSE (IF split(sku) THEN r ELSE ceil(r));
+useCustomRecommended = ABSTRACT BOOLEAN (UserOrder);
+fillRecommendedQuantityStockCustom  ABSTRACT (UserOrder);
 
 fillRecommendedQuantityStock 'Заполнить рекомендуемым'(UserOrder userOrder)  { 
-    LOCAL in = BOOLEAN (Sku);
-    in(Sku sku) <- prevPriceA(
-                              ledgerPriceListType(priceListType(userOrder, sku)),
-                              sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
-                          AND NOT limitRecommendedQuantity(sku, userOrder); 
-    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)
-        NEW d = UserOrderDetail DO {
-            userOrder(d) <- userOrder;
-            sku(d) <- sku;
-            quantity (d) <- IF skipCeil(sku,userOrder) THEN (IF split(sku) THEN r ELSE ceil(r)) 
-                                                          ELSE ceilRecommendedQuantity(sku, r);
-            overRecommendedQuantity(d,sku);
-        }
+    IF NOT useCustomRecommended(userOrder) THEN {
+        LOCAL in = BOOLEAN (Sku);
+        in(Sku sku) <- prevPriceA(
+                                  ledgerPriceListType(priceListType(userOrder, sku)),
+                                  sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
+                              AND NOT limitRecommendedQuantity(sku, userOrder); 
+        FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW d = UserOrderDetail DO {
+                userOrder(d) <- userOrder;
+                sku(d) <- sku;
+                quantity (d) <- IF skipCeil(sku,userOrder) THEN (IF split(sku) THEN r ELSE ceil(r)) 
+                                                              ELSE ceilRecommendedQuantity(sku, r);
+                overRecommendedQuantity(d,sku);
+        }  
+    } ELSE {
+        fillRecommendedQuantityStockCustom(userOrder);
+    }
+
 } TOOLBAR CONFIRM;
                               
 EXTEND FORM userOrder
