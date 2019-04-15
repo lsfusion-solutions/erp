@@ -1,6 +1,7 @@
 package equ.clt;
 
 import lsfusion.base.remote.RMIUtils;
+import lsfusion.base.remote.ZipClientSocketFactory;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -25,9 +26,6 @@ public class EquipmentServerBootstrap {
         logger.info("Server is starting...");
 
         initSpringContext();
-        
-        RMIUtils.initRMI();
-        RMIUtils.overrideRMIHostName(serverHost);
 
         try {
             equ = (EquipmentServer) springContext.getBean("equipmentServer");
