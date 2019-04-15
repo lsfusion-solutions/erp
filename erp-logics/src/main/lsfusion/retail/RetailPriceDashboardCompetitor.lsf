@@ -4,11 +4,15 @@ REQUIRE Competitor, RetailPriceDashboard;
 
 NAMESPACE Competitor;
 
+backgroundCompare (Competitor c, Sku sk, Stock d, DATETIME dt) = CASE
+    WHEN currentOwn(sk,d,dt) <= price(c, sk, DATE (dt)) THEN RGB(204,255,204)
+    WHEN currentOwn(sk,d,dt) > price(c, sk, DATE (dt)) THEN RGB(255,117,117);
+  
 EXTEND FORM retailPriceDashboard
     
     OBJECTS c = Competitor
     PROPERTIES name(c) SHOWIF NULL 
-    PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c)
+    PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c) BACKGROUND backgroundCompare(c, sk, d, dt)
     ORDER name(c)
 ;
 
