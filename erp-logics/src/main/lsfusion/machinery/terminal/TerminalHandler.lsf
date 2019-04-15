@@ -1,6 +1,6 @@
 MODULE TerminalHandler; //для работы терминалов нужна зависимость equ-srv в pom.xml, создать lsfusion-bootstrap.xml 
 
-REQUIRE Terminal, MachineryPriceTransaction, Item;
+REQUIRE Terminal, MachineryPriceTransaction, Item, Warehouse;
 
 process 'Обработка документа ТСД' (terminalDocument)  ABSTRACT LIST ( TerminalDocument);
 process (TerminalDocument document) + { 
@@ -39,8 +39,7 @@ portTerminalServer 'Порт' = DATA INTEGER ();
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
 
-useAccountPrice 'Использовать учетные цены' = ABSTRACT CASE BOOLEAN (Stock);
-currentPriceInTerminal 'Розничная цена' (Barcode barcode, Stock stock) = IF useAccountPrice(stock) 
+currentPriceInTerminal 'Розничная цена' (Barcode barcode, Stock stock) = IF stock IS Warehouse
     THEN currentAccountPriceA(sku(barcode), stock) 
     ELSE currentRetailPricingPrice(sku(barcode), stock);     
 
