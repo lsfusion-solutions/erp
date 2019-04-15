@@ -8,10 +8,16 @@ lastProduct (Sku s,Stock st)= GROUP LAST Product p
         ORDER fromDate(BOM(p)), p 
         WHERE in(BOM(p),st) AND sku(p) == s AND isActive(BOM(p));   
         
-lastOrderProduct (Sku s,Stock st)= GROUP LAST product(ProductDetail d)
-        ORDER date(d), d 
-        WHERE sku(d) == s AND productsStock(d)==st AND date(d) <= currentDate();     
+//lastOrderProduct (Sku s,Stock st)= GROUP LAST product(ProductDetail d)
+//        ORDER date(d), d 
+//        WHERE sku(d) == s AND productsStock(d)==st AND date(d) <= currentDate() AND isPosted(d);     
         
+lastProductDetailProduct (Sku s,Stock st)= GROUP LAST (ProductDetail d)
+        ORDER date(d), d 
+        WHERE product(d) AND sku(d) == s AND productsStock(d)==st AND date(d) <= currentDate() AND isPosted(d);             
+seriesNumberlastProductDetailProduct 'Серия/номер ПЗ' (Sku s,Stock st) = seriesNumber(lastProductDetailProduct(s,st));    
+
+lastOrderProduct (Sku s,Stock st) = product(lastProductDetailProduct(s,st));    
 productOver (Sku s, Stock st) = OVERRIDE  lastOrderProduct(s,st), lastProduct(s,st); 
 numberProduct 'Спецификация (номер)' (Sku s,Stock st) = number(BOM(productOver(s,st)));
 seriesProduct 'Спецификация (серия)' (Sku s,Stock st) = series(BOM(productOver(s,st)));
@@ -70,7 +76,8 @@ FORM LabelProduct 'Печать ценников СП'
     OBJECTS s = Sku
     PROPERTIES selectLabel(s,ds)
     PROPERTIES(s) READONLY id, name, idBarcode, expiryDays, hoursExpiryPack 
-    PROPERTIES(s,ds)  seriesProduct READONLY ON  CONTEXTMENU showBOM(s,ds), numberProduct READONLY ON  CONTEXTMENU showBOM(s,ds), manufactureDate ON CHANGE changeManufactureDate(s,ds), 
+    PROPERTIES(s,ds)  seriesProduct READONLY ON  CONTEXTMENU showBOM(s,ds), numberProduct READONLY ON  CONTEXTMENU showBOM(s,ds), 
+                      seriesNumberlastProductDetailProduct READONLY, manufactureDate ON CHANGE changeManufactureDate(s,ds), 
                       manufactureTime ON CHANGE changeManufactureTime(s,ds),
                       expiryDate, 
                       expiryTime             
