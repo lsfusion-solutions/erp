@@ -865,3 +865,87 @@ DESIGN integrationData {
         }
     }
 }
+
+dateFromOrder 'Дата с' = DATA DATE ();
+
+importOrder 'Импорт заказов' () {
+    
+    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL docstate = INTEGER (INTEGER);
+    LOCAL idSupplier = INTEGER (INTEGER);
+    LOCAL idStock = INTEGER (INTEGER);
+    LOCAL comment = VARISTRING[255] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL supplyDate = DATE (INTEGER);
+    LOCAL supplyTimeMin = INTEGER (INTEGER);
+    LOCAL supplyTimeTillMin = INTEGER (INTEGER);
+    LOCAL sql = TEXT ();
+    
+    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from SMDocuments D, SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and d.location = 75 and dd.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'';
+
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC sql() TO file;
+    
+    IMPORT TABLE FROM file() TO id, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
+    
+    FOR id(INTEGER i) AND NOT userOrder(id(i)) DO NEW o = UserOrder {
+        id(o) <- id(i);
+    }
+    
+    FOR UserOrder o == userOrder(id(INTEGER i)) DO {
+        
+        number(o) <- id(i);
+        operation(o) <- Purchase.operation('purchaseWarehouseSupplier');
+        isPosted(o) <- docstate(i) == 2;
+        supplier(o) <- legalEntity(VARISTRING[100] (idSupplier(i)));
+        supplierStock(o) <- stock(VARISTRING[100] (idSupplier(i)));
+        customerStock(o) <- stock(VARISTRING[100] (idStock(i)));
+        customer(o) <- legalEntity(stock(VARISTRING[100] (idStock(i))));
+        date(o) <- date(i);
+        time(o) <- 00:00;
+        shipmentDate(o) <- supplyDate(i);
+        shipmentTime(o) <- sumMinutes(00:00, supplyTimeMin(i));
+    }
+    
+    LOCAL type = VARISTRING[2](INTEGER);
+    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL totalPrice = NUMERIC[19,4](INTEGER);
+    LOCAL quantity = NUMERIC[14,3](INTEGER);
+    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM SMSpecOR dd, SMDocOR o, SMDocuments d WHERE dd.DOCID = o.id AND d.docstate IN (1, 2) AND d.location = 75 AND o.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'' TO file;
+    
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
+
+    id(INTEGER i) <- CONCAT '', 'O', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+
+    FOR userOrder(idDoc(INTEGER i)) AND NOT userOrderDetail(id(i)) DO NEW d = UserOrderDetail {
+        id(d) <- id(i);
+        userOrder(d) <- userOrder(idDoc(i));
+    }
+    
+    FOR UserOrderDetail d = userOrderDetail(id(INTEGER i)) DO {
+        sku(d) <- item(idItem(i));
+        quantity(d) <- quantity(i);
+        price(d) <- NUMERIC[16,4](price(i));
+        sum(d) <- NUMERIC[16,4](totalPrice(i));
+        dataIndex(d) <- specItem(i);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder();
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW orders {
+            type = CONTAINERH;
+            MOVE PROPERTY (importOrder());
+            MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
+        } 
+    } 
+}
