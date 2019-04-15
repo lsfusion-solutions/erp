@@ -515,6 +515,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
         imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
     }
     
     LOCAL idStock = INTEGER (INTEGER);
@@ -524,8 +525,8 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     IMPORT TABLE FROM file() TO idDoc, idStock;
     
-    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](UserPriceList p, DepartmentStore s) DO {
-        dataIn(p, s) <- TRUE;
+    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
+        dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
     }
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
@@ -571,6 +572,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail';
         change(DataPriceListType t, o) <- id(t) == 'retail';
         in(Currency c, o) <- c == defaultCurrency();
+        doNotSetStocksUserPriceList(o) <- TRUE;
     }
     
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
@@ -618,6 +620,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('retail');
         priceBefore(d) <- NUMERIC[16,4](oldPrice(i));
         imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
     }
     
     DELETE UserPriceList p WHERE date(p) >= dateFromR() AND NOT id(operation(p)) == 'supplier' AND NOT id(operation(p)) == 'promotion' AND NOT imported(p);
@@ -724,8 +727,8 @@ importRange 'Импорт ассортиментных матриц' () {
     
     rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(id(i))) AND level(g, itemGroup(id(range(rr))));
     
-    FOR Item s == item(id(INTEGER i)) AND Store st == store(i) AND RangeRev r == rangeRev(i) DO {
-        include(r, st, s) <- TRUE;
+    FOR [GROUP SUM 1 BY rangeRev(INTEGER i)](RangeRev r) DO {
+        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(id(i))](r, st, s);
     }
     
     APPLY;
@@ -752,15 +755,16 @@ idDetail 'Код строки'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock
 
 idSku 'Код товара'= DATA LOCAL VARSTRING[100](INTEGER);
 
-quantity 'Количество'= DATA LOCAL NUMERIC[16,5](INTEGER);
-price 'Цена'= DATA LOCAL NUMERIC[19,4](INTEGER);
-vat 'Ставка НДС поставщика'= DATA LOCAL NUMERIC[10,5](INTEGER);
+quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
+price 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
+retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
+vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
 importInit 'Импорт остатков' ()  {
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC scriptImportInit() TO file;
     
-    IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, date;
+    IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
     idSupplier(INTEGER r) <- OVERRIDE VARISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
     idCustomerStock(INTEGER r) <- VARISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
@@ -806,15 +810,10 @@ importInit 'Импорт остатков' ()  {
         retailVAT(d) <- VAT(sku(idSku(r)));
         valueRetailVAT(d) <- valueVAT(sku(idSku(r)));
         price(d) <- NUMERIC[16,4](price(r));
-             
-//        retailPrice(d) <- shipPrice(r) IF customerStock(d) IS DepartmentStore;
-        
-//        shipmentPrice(d) <-CASE 
-//                            WHEN shipPrice(r) THEN shipPrice(r) 
-//                            WHEN customerStock(d) IS DepartmentStore THEN retailPrice(d)
-//                            ELSE price(r);
-//        shipmentSum(d) <- shipSum(r);
+        retailPrice(d) <- NUMERIC[16,4](retailPrice(r));
+        shipmentPrice(d) <- NUMERIC[16,4](OVERRIDE retailPrice(r), price(r));
         incl(d) <- TRUE;
+        dataIndex(d) <- spec(r);
     }
     FOR [GROUP SUM 1 IF imported(INTEGER in) BY idCustomerStock(in)](VARSTRING[100] st) DO {
         quantity(Purchase.UserInvoiceDetail d) <- 0.0 WHERE operation(d) == Purchase.operation('initial') AND st == id(customerStock(d)) AND NOT incl(d);
