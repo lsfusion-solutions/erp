@@ -29,8 +29,6 @@ CLASS ScalesModel 'Модель весов' : Model;
 
 name 'Наименование' = DATA VARISTRING[110](ScalesModel);
 
-scalesName (scalesModel) = GROUP AGGR ScalesModel sscalesModel WHERE sscalesModel IS ScalesModel BY name (sscalesModel);
-
 name(ScalesModel model) += name(model) IF model IS ScalesModel;
 
 maxText 'MAX допустимое колич. дополнительных текстов' = DATA INTEGER (ScalesModel) IN base;
@@ -46,8 +44,9 @@ FORM scalesModel 'Модель весов'
 
 FORM scalesModels 'Модели весов'
     OBJECTS m=ScalesModel
-    PROPERTIES(m) READONLY name, note, handler, maxProduct
-    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(m) READONLY name, sid, note, handler, maxProduct
+    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE
+    LIST ScalesModel OBJECT m
 ;
 
 // Весы
@@ -202,12 +201,14 @@ FORM labelFormats 'Форматы этикеток весов'
 ;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
+scalesSID (model) = GROUP MAX ScalesModel smodel BY sid (smodel) IF smodel IS ScalesModel;
 
-loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110] stringOne, VARSTRING[200] stringTwo)  { 
-    IF NOT scalesName(stringOne) THEN {
+loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110] iname,  VARSTRING[20] isid, VARSTRING[200] ihandler)  { 
+    IF NOT scalesSID(iname) THEN {
         NEW sm = ScalesModel {
-             name(sm) <- stringOne;
-             handler(sm) <- stringTwo;
+             name(sm) <- iname;
+             sid(sm) <- isid;
+             handler(sm) <- ihandler;
         }
     }
 }

@@ -47,6 +47,10 @@ public class DigiHandler extends ScalesHandler {
     protected String getLogPrefix() {
         return "Digi SM300: ";
     }
+
+    protected Integer getMaxCompositionLinesCount() {
+        return 9;
+    }
     
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {
@@ -185,8 +189,9 @@ public class DigiHandler extends ScalesHandler {
             }
         }
 
-        if(compositionLines.size() > 9)
-            compositionLines = compositionLines.subList(0, 9);
+        Integer maxCompositionLinesCount = getMaxCompositionLinesCount();
+        if(maxCompositionLinesCount != null && compositionLines.size() > maxCompositionLinesCount)
+            compositionLines = compositionLines.subList(0, maxCompositionLinesCount);
 
         int itemNameLength = maxNameLength != null ? Math.min(item.name.length(), maxNameLength) : item.name.length();
         String itemName = item.name.substring(0, itemNameLength);
