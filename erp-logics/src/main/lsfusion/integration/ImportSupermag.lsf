@@ -739,7 +739,7 @@ EXTEND FORM integrationData PROPERTIES importRange();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importRange()); } }
 
 scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
-useConstraint 'Сохранять, даже если есть ограничения' = DATA LOCAL BOOLEAN ();
+useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN ();
 
 date 'Дата ТТН' = DATA LOCAL DATE (INTEGER);
 num 'Номер ТТН' = DATA LOCAL VARSTRING[28](INTEGER);
@@ -761,9 +761,25 @@ price 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
+in 'Отм.' = DATA BOOLEAN (DepartmentStore);
+stocks 'Склады для импорта' () = GROUP CONCAT id(DepartmentStore st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
+
+FORM dialogDepartmentStores 'Склады'
+    OBJECTS d = DepartmentStore
+    PROPERTIES (d) in
+    PROPERTIES (d) READONLY id, name, nameStore
+    FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' in(d)
+    ORDER nameStore(d), name(d)
+;
+
+DESIGN dialogDepartmentStores {
+    size = (600, 600);
+}
+
 importInit 'Импорт остатков' ()  {
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC scriptImportInit() TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocks()) TO file;
     
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
@@ -828,13 +844,10 @@ importInit 'Импорт остатков' ()  {
     IF useConstraint() THEN {
         setNoCancelInTransaction();             
     }     
-    APPLY;
-
-    disableDocumentLog() <- NULL;	    
-    APPLY;    
+    APPLY; 
 } 
 
-EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog;
+EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, stocks ON CHANGE { SHOW dialogDepartmentStores; };
 
 DESIGN integrationData {
     supermag {
@@ -846,21 +859,29 @@ DESIGN integrationData {
                 MOVE supermagButtons { fill = 1; }
             }
             NEW supermagRight {
-                caption = 'Импорт остатков';
                 fill = 1;
-                NEW supermagTopRight {
-                    type = CONTAINERH;
-                    MOVE PROPERTY (disableDocumentLog()) { alignment = CENTER; }
-                    MOVE PROPERTY (useConstraint()) { alignment = CENTER; }
-                    MOVE PROPERTY (importInit());
+                NEW stocks {
+                    caption = 'Склады для импорта';
+                    alignment = STRETCH;
+                    MOVE PROPERTY (stocks()) { caption = ''; alignment = STRETCH; }
                 }
-                NEW supermagScript {
+                NEW importBalance {
+                    caption = 'Импорт остатков';
                     fill = 1;
-                    caption = 'Скрипт для импорта остатков';
-                    MOVE PROPERTY (scriptImportInit()) { 
-                        caption = ''; 
+                    NEW supermagTopRight {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (disableDocumentLog()) { alignment = CENTER; }
+                        MOVE PROPERTY (useConstraint()) { alignment = CENTER; }
+                        MOVE PROPERTY (importInit());
+                    }
+                    NEW supermagScript {
                         fill = 1;
-                        charWidth = 100; 
+                        caption = 'Скрипт для импорта остатков';
+                        MOVE PROPERTY (scriptImportInit()) { 
+                            caption = ''; 
+                            fill = 1;
+                            charWidth = 100; 
+                        }
                     }
                 }
             }
@@ -883,7 +904,7 @@ importOrder 'Импорт заказов' () {
     LOCAL supplyTimeTillMin = INTEGER (INTEGER);
     LOCAL sql = TEXT ();
     
-    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and d.location = 75 and dd.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'';
+    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and d.location IN (' + stocks() + ') and dd.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'';
 
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC sql() TO file;
@@ -919,7 +940,7 @@ importOrder 'Импорт заказов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM Supermag.SMSpecOR dd, Supermag.SMDocOR o, Supermag.SMDocuments d WHERE dd.DOCID = o.id AND d.docstate IN (1, 2) AND d.location = 75 AND o.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'' TO file;
+            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM Supermag.SMSpecOR dd, Supermag.SMDocOR o, Supermag.SMDocuments d WHERE dd.DOCID = o.id AND d.docstate IN (1, 2) AND d.location IN (' + stocks() + ') AND o.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
