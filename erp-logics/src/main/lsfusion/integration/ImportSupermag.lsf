@@ -558,7 +558,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id' TO file;
+        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
     
     IMPORT TABLE FROM file() TO id, date, reason, posted, idStore, comment;
     
@@ -587,7 +587,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         time(p) <- 00:00;
         fromDate(p) <- date(i);
         fromTime(p) <- 00:00;
-        isPosted(p) <- posted(i) == 0 OR posted(i) == 2;
+        isPosted(p) <- posted(i) > 1;
         note(p) <- comment(i);
         dataIn(p, StockGroup s) <- NULL;
         dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
