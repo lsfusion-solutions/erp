@@ -1,6 +1,6 @@
 MODULE RevaluationPurchaseInvoicePharmacyBy;
 
-REQUIRE InvoiceRevaluation, SaleManufacturingPrice, SaleShipment, PurchaseManufacturingPricePharmacyBy;
+REQUIRE InvoiceRevaluation, SaleManufacturingPrice, SaleShipment, PurchaseManufacturingPricePharmacyBy, PurchaseShipment;
 
 NAMESPACE Purchase;
 
@@ -135,19 +135,19 @@ fillInvoiceUser 'Заполнить на основе накладной'(Revalu
 @defineDocumentInterfaceProperty (invoice, createRevaluation, 'Создать акт переоценки (склад)');
 
 //-- До                                                                                accountPriceListType
-@defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, curManufacturing, ' РОЦ до');
-//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, curManufacturing, sku, stockProp);
-@defineDocumentInterfaceDetailDataSumPrefix (invoice, curManufacturing, ' РОЦ до');
-@deriveDocumentDetailSumPrefix(userInvoice, curManufacturing, currency, quantity);
+@defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, afterManufacturing, ' РОЦ после');
+//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, afterManufacturing, sku, stockProp);
+@defineDocumentInterfaceDetailDataSumPrefix (invoice, afterManufacturing, ' РОЦ после');
+@deriveDocumentDetailSumPrefix(userInvoice, afterManufacturing, currency, quantity);
 
-@defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, curShipment, ' учетная до');
-//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, accountPriceListType, curShipment, sku, stockProp);
-@defineDocumentInterfaceDetailDataSumPrefix (invoice, curShipment, ' учетная до');
-@deriveDocumentDetailSumPrefix(userInvoice, curShipment, currency, quantity);
+@defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, afterShipment, ' учетная после');
+//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, accountPriceListType, afterShipment, sku, stockProp);
+@defineDocumentInterfaceDetailDataSumPrefix (invoice, afterShipment, ' учетная после');
+@deriveDocumentDetailSumPrefix(userInvoice, afterShipment, currency, quantity);
 
 // -- Разница
-@defineDocumentInterfaceDetailDiffSumPrefix (invoice, manufacturingSum, , cur, ' дооценки (РОЦ)');
-@defineDocumentInterfaceDetailDiffSumPrefix (invoice, shipmentSum, , cur, ' дооценки (учетная)');
+@defineDocumentInterfaceDetailDiffSumPrefix (invoice, manufacturingSum, after, , ' дооценки (РОЦ)');
+@defineDocumentInterfaceDetailDiffSumPrefix (invoice, shipmentSum, after, , ' дооценки (учетная)');
 
 // ---- Суммы по документу ---- //
 @defineDocumentInterfaceHeaderSumPrefix (invoice, diffManufacturing, ' дооценки (РОЦ)');
@@ -225,8 +225,8 @@ EXTEND FORM userInvoice
     
 
     PROPERTIES(d)   BACKGROUND backgroundRevaluation(i) SHOWIF createRevaluation(i) BEFORE deleteid
-                    curManufacturingPrice, curManufacturingSum,
-                    curShipmentPrice, curShipmentSum, nameReason
+                    afterManufacturingPrice, afterManufacturingSum,
+                    afterShipmentPrice, afterShipmentSum, nameReason
 ;
 DESIGN userInvoice {
     headerCreateDocuments {
@@ -252,7 +252,7 @@ EXTEND FORM revaluationInvoices
     PROPERTIES (d) READONLY BACKGROUND backgroundRevaluation(i)  toRevaluation
 ;
 
-needToRevaluation (InvoiceDetail detail) = curShipmentPrice(detail) != shipmentPrice(detail)
+needToRevaluation (InvoiceDetail detail) = afterShipmentPrice(detail) != shipmentPrice(detail)
                                                AND quantity(detail) 
                                                AND createRevaluation(detail)
                                                AND isStockSku(detail) MATERIALIZED;
@@ -272,7 +272,7 @@ revaluation(InvoiceRevaluationDetail detail) += invoiceRevaluation(detail);
 index(InvoiceRevaluationDetail detail) += index(detail);
 
 date(InvoiceRevaluation revaluation) += date(revaluation);
-time(InvoiceRevaluation revaluation) += time(revaluation);
+time(InvoiceRevaluation revaluation) += sumSeconds(time(revaluation),1);
 
 repricingCommittee(InvoiceRevaluation revaluation) += repricingCommittee(invoice(revaluation));
 numberDisposal(InvoiceRevaluation revaluation) += numberDisposal(invoice(revaluation));
@@ -299,7 +299,7 @@ note(InvoiceRevaluation revaluation) += noteInvoice(revaluation);
 currency  (InvoiceRevaluation invoiceRevaluation) = currency(invoice(invoiceRevaluation));
 currency (InvoiceRevaluation revaluation) += currency(revaluation);
 
-skipChangeLedger (InvoiceRevaluation revaluation) += revaluation IS InvoiceRevaluation;
+//skipChangeLedger (InvoiceRevaluation revaluation) += revaluation IS InvoiceRevaluation;
 operation(InvoiceRevaluation revaluation) += revaluationOperation(invoice(revaluation));
 reason(InvoiceRevaluation revaluation) += reason(invoice(revaluation));
 
@@ -313,17 +313,17 @@ sku(InvoiceRevaluationDetail revaluationDetail) +=  sku(revaluationDetail);
 quantity(InvoiceRevaluationDetail revaluationDetail) += quantity(invoiceDetail(revaluationDetail));
 batch(InvoiceRevaluationDetail revaluationDetail) += batch[Invoice.InvoiceDetail](invoiceDetail(revaluationDetail));
 
-curManufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += curManufacturingPrice(invoiceDetail(revaluationDetail));
-curManufacturingSum(InvoiceRevaluationDetail revaluationDetail) += curManufacturingSum(invoiceDetail(revaluationDetail));
+curManufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += manufacturingPrice(invoiceDetail(revaluationDetail));
+curManufacturingSum(InvoiceRevaluationDetail revaluationDetail) += manufacturingSum(invoiceDetail(revaluationDetail));
 
-curPrice(InvoiceRevaluationDetail revaluationDetail) += curShipmentPrice(invoiceDetail(revaluationDetail));
-curSum(InvoiceRevaluationDetail revaluationDetail) += curShipmentSum(invoiceDetail(revaluationDetail));
+curPrice(InvoiceRevaluationDetail revaluationDetail) += shipmentPrice(invoiceDetail(revaluationDetail));
+curSum(InvoiceRevaluationDetail revaluationDetail) += shipmentSum(invoiceDetail(revaluationDetail));
 
-manufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += manufacturingPrice(invoiceDetail(revaluationDetail));
-manufacturingSum(InvoiceRevaluationDetail revaluationDetail) += manufacturingSum(invoiceDetail(revaluationDetail));
+manufacturingPrice(InvoiceRevaluationDetail revaluationDetail) += afterManufacturingPrice(invoiceDetail(revaluationDetail));
+manufacturingSum(InvoiceRevaluationDetail revaluationDetail) += afterManufacturingSum(invoiceDetail(revaluationDetail));
 
-price(InvoiceRevaluationDetail revaluationDetail) += shipmentPrice(invoiceDetail(revaluationDetail));
-sum(InvoiceRevaluationDetail revaluationDetail) += shipmentSum(invoiceDetail(revaluationDetail));
+price(InvoiceRevaluationDetail revaluationDetail) += afterShipmentPrice(invoiceDetail(revaluationDetail));
+sum(InvoiceRevaluationDetail revaluationDetail) += afterShipmentSum(invoiceDetail(revaluationDetail));
 
 invoiceDetail(InvoiceRevaluationDetail revaluationDetail) += invoiceDetail(revaluationDetail);
 reason(InvoiceRevaluationDetail revaluationDetail) += reason(invoiceDetail(revaluationDetail));
@@ -333,21 +333,25 @@ close(InvoiceRevaluation revaluation) + {  close(invoice(revaluation)); }
 edit(InvoiceRevaluationDetail d) + {  edit(invoiceDetail(d)); }
 show(InvoiceRevaluationDetail d) + {  show(invoiceDetail(d)); }
 
-curShipmentPrice (UserInvoiceDetail d)  <- round2(incomeManufacturingPrice(d) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d))
-                                                WHEN DO CHANGED(sku(d)) OR
-                                                     CHANGED(supplierStock(d)) OR
-                                                     CHANGED(incomeManufacturingPrice(d)) OR CHANGED(extraCostPrice(d)) OR
-                                                     CHANGED(customCostPrice(d)) OR CHANGED(certificateCostPrice(d)) OR
-                                                     (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
-                                                     CHANGED(batch(d));
+WHEN LOCAL  CHANGED(sku(UserInvoiceDetail d)) OR
+            CHANGED(supplierStock(d)) OR
+            CHANGED(afterManufacturingPrice(d)) OR
+            CHANGED(calcShipmentPrice(d)) OR
+            (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
+            CHANGED(batch(d)) DO {
+    afterShipmentPrice(d) <- OVERRIDE afterManufacturingPrice(d) IF maxSellingPrice(d), calcShipmentPrice(d);            
+}
 
-curManufacturingPrice (UserInvoiceDetail d)  <- round2(incomeManufacturingPrice(d) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d))
-                                                WHEN DO CHANGED(sku(d)) OR
-                                                     CHANGED(supplierStock(d)) OR
-                                                     CHANGED(incomeManufacturingPrice(d)) OR CHANGED(extraCostPrice(d)) OR
-                                                     CHANGED(customCostPrice(d)) OR CHANGED(certificateCostPrice(d)) OR
-                                                     (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
-                                                     CHANGED(batch(d));
+WHEN LOCAL  CHANGED(sku(UserInvoiceDetail d)) OR
+            CHANGED(supplierStock(d)) OR
+            CHANGED(incomeManufacturingPrice(d)) OR CHANGED(extraCostPrice(d)) OR
+            CHANGED(customCostPrice(d)) OR CHANGED(certificateCostPrice(d)) OR
+            (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
+            CHANGED(batch(d)) DO {
+    afterManufacturingPrice (d)  <- round2(OVERRIDE (MIN incomeManufacturingPrice(d), maxSellingPrice(d)) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d), 
+                                                    (incomeManufacturingPrice(d) (+) extraCostPrice(d) (+) customCostPrice(d) (+) certificateCostPrice(d)));            
+}                                                  
+
 DESIGN userRevaluation {
     PROPERTY (diffManufacturingSumUserRevaluationDetail(p)) {caption='Сумма изменения РОЦ';}
     PROPERTY (curManufacturingPrice(d)) {caption='РОЦ до';}
