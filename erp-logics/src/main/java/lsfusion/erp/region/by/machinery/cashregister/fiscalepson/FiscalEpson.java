@@ -203,8 +203,10 @@ public class FiscalEpson {
 
     public static void discountItem(ReceiptItem item, Boolean isReturn, DecimalFormat formatter) throws RuntimeException {
         if (item.discount != null && item.discount.doubleValue() != 0.0) {
+            double correctionAmount = Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue());
+            logger.info(String.format("Epson Discount: quantity %s, discount %s, total discount %s", item.quantity, item.discount, correctionAmount));
             epsonActiveXComponent.setProperty("Article", new Variant(""));
-            epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue())));
+            epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(correctionAmount));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
             checkErrors(true);
             printLine(getFiscalString("Сумма со скидкой", item.sumPos != null ? formatter.format(item.sumPos) : "0,00"));
