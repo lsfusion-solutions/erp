@@ -325,6 +325,7 @@ importLegalEntity 'Импорт организаций' () {
             address(w) <- VARISTRING[150](faddress(i));
             id(w) <- VARISTRING[100](id(i));
             legalEntity(w) <- s;
+            stockGroup(w) <- warehouseGroup('external');
         }
     }
     
@@ -833,7 +834,7 @@ importInit 'Импорт остатков' ()  {
     APPLY;    
 } 
 
-EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit;
+EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog;
 
 DESIGN integrationData {
     supermag {
@@ -849,7 +850,8 @@ DESIGN integrationData {
                 fill = 1;
                 NEW supermagTopRight {
                     type = CONTAINERH;
-                    MOVE PROPERTY (useConstraint());
+                    MOVE PROPERTY (disableDocumentLog()) { alignment = CENTER; }
+                    MOVE PROPERTY (useConstraint()) { alignment = CENTER; }
                     MOVE PROPERTY (importInit());
                 }
                 NEW supermagScript {
@@ -881,7 +883,7 @@ importOrder 'Импорт заказов' () {
     LOCAL supplyTimeTillMin = INTEGER (INTEGER);
     LOCAL sql = TEXT ();
     
-    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from SMDocuments D, SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and d.location = 75 and dd.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'';
+    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and d.location = 75 and dd.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'';
 
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC sql() TO file;
@@ -917,7 +919,7 @@ importOrder 'Импорт заказов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM SMSpecOR dd, SMDocOR o, SMDocuments d WHERE dd.DOCID = o.id AND d.docstate IN (1, 2) AND d.location = 75 AND o.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'' TO file;
+            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM Supermag.SMSpecOR dd, Supermag.SMDocOR o, Supermag.SMDocuments d WHERE dd.DOCID = o.id AND d.docstate IN (1, 2) AND d.location = 75 AND o.orderdate >= \'' + toDateDDMMYY(dateFromOrder()) + '\'' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -948,4 +950,11 @@ DESIGN integrationData {
             MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
         } 
     } 
+}
+
+rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
+
+WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
+    include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
+    include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
 }
