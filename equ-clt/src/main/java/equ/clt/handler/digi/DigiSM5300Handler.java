@@ -8,6 +8,11 @@ public class DigiSM5300Handler extends DigiHandler {
         super(springContext);
     }
 
+    protected String getLogPrefix() {
+        return "Digi SM5300: ";
+    }
+
+
     @Override
     protected Integer getMaxCompositionLinesCount() {
         return null; //has no limits
