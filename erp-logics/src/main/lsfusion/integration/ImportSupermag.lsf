@@ -991,3 +991,100 @@ WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
     include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
     include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
 }
+
+daysPromotion 'Кол-во дней для импорта акционных прайсов' = DATA INTEGER ();
+dateFromP () = sum(currentDate(), -daysPromotion());
+dateFromPT () = toDateDDMMYY(dateFromP());
+
+importPriceListPromotion 'Импорт акционных прайсов' () {
+    
+    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL begin = DATETIME (INTEGER);
+    LOCAL end = DATETIME (INTEGER);
+    LOCAL posted = INTEGER (INTEGER);
+    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, CREATEDAT, DATEBEGIN, DATEEND, DOCSTATE, NAME FROM Supermag.SVDocumentsMA WHERE DATEEND >= \'' + dateFromPT() + '\'' TO file;
+    
+    IMPORT TABLE FROM file() TO id, date, begin, end, posted, name;
+    
+    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
+        id(p) <- id(i);
+    }
+    
+    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
+        
+        operation(p) <- PriceList.operation('promotion');
+        number(p) <- VARISTRING[28] (id(p));
+        date(p) <- date(i);
+        time(p) <- 00:00;
+        isPosted(p) <- posted(i) != 1;
+        fromDate(p) <- DATE (begin(i));
+        fromTime(p) <- TIME (begin(i));
+        toDate(p) <- DATE (end(i));
+        toTime(p) <- TIME (end(i));
+        note(p) <- name(i);
+        fromPriceBeforeDate(p) <- sum(DATE (begin(i)), -1);
+        fromPriceBeforeTime(p) <- 00:00;
+        toPriceBeforeDate(p) <- sum(DATE (end(i)), 1);
+        allStocks(p) <- NULL;
+        imported(p) <- TRUE;
+    }
+    
+    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA a WHERE d.DOCID = a.id AND a.DATEEND >= \'' + dateFromPT() + '\'' TO file;
+    
+    IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
+    
+    id(INTEGER i) <- CONCAT '', 'P', idDoc(i), specItem(i) WHERE imported(i); 
+    
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) DO NEW d = UserPriceListDetail {
+        id(d) <- id(i);
+        userPriceList(d) <- userPriceList(idDoc(i));
+    }
+    
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
+        sku(d) <- item(idItem(i));
+        imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
+        priceBefore(d) <- OVERRIDE (GROUP MAX prevPriceA(dataPriceListType('retail'), sku(d), Stock st, fromDateTime(userPriceList(idDoc(i)))) IF in(userPriceList(idDoc(i)), st)), 0.0;
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('promotion');
+    }
+    
+    LOCAL idStock = INTEGER (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA d WHERE a.AUCID = d.id AND d.DATEEND >= \'' + dateFromPT() + '\'' TO file;
+    
+    IMPORT TABLE FROM file() TO idDoc, idStock;
+    
+    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
+        dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
+    }
+    
+    DELETE UserPriceList p WHERE toDate(p) >= dateFromP() AND id(operation(p)) == 'promotion' AND NOT imported(p);
+    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromP() AND id(operation(d)) == 'promotion' AND NOT imported(d);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importPriceListPromotion(), daysPromotion();
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW supermagPromo {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPriceListPromotion());
+            MOVE PROPERTY (daysPromotion()) { caption = 'Кол-во дней'; alignment = CENTER; }
+        } 
+    } 
+}
