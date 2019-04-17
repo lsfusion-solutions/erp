@@ -142,6 +142,11 @@ importItem 'Импорт товаров' () {
         passScales(s) <- scale(i) == '1';
         imported(s) <- TRUE;
         VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == vat(i) AND c = defaultCountry();
+        
+        IF NOT packBarcode(s) THEN NEW b = Barcode {
+            packBarcode(s) <- b;
+            sku(b) <- s;
+        }
     }
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
@@ -150,7 +155,7 @@ importItem 'Импорт товаров' () {
     name(INTEGER i) <- left(name(i), 15);
     
     FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
-        id(b) <- name(i);
+        id(b) <- VARISTRING[15] (name(i));
     }
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
@@ -180,6 +185,11 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     IMPORT TABLE FROM file() TO id, property, value;
     
     FOR property(INTEGER i) == 'packsize2' DO {
+        
+        IF item(id(i)) AND NOT packBarcode(item(id(i))) THEN NEW b = Barcode {
+            packBarcode(Item s) <- b WHERE s == item(id(i));
+            sku(b) <- item(id(i));
+        }
         amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(id(i)));
     }
     
@@ -448,8 +458,8 @@ daysSupplier 'Кол-во дней для импорта прайсов пост
 dateFromS () = sum(currentDate(), -daysSupplier());
 dateFromST () = toDateDDMMYY(dateFromS());
 daysRetail 'Кол-во дней для импорта розничных прайсов' = DATA INTEGER ();
-dateFromR () = sum(currentDate(), -daysSupplier());
-dateFromRT () = toDateDDMMYY(dateFromS());
+dateFromR () = sum(currentDate(), -daysRetail());
+dateFromRT () = toDateDDMMYY(dateFromR());
 
 EXTEND FORM integrationData PROPERTIES () daysSupplier, daysRetail;
 
@@ -550,6 +560,7 @@ DESIGN integrationData {
 importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL time = DATETIME (INTEGER);
     LOCAL date = DATE (INTEGER);
     LOCAL reason = INTEGER (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
@@ -559,9 +570,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
+        EXEC 'SELECT a.ID, a.EXECTIME, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
     
-    IMPORT TABLE FROM file() TO id, date, reason, posted, idStore, comment;
+    IMPORT TABLE FROM file() TO id, time, date, reason, posted, idStore, comment;
     
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO NEW o = PriceList.Operation {
         id(o) <- VARISTRING[100](r);
@@ -584,10 +595,10 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         
         operation(p) <- PriceList.operation(TEXT (reason(i)));
         number(p) <- VARISTRING[28] (id(p));
-        date(p) <- date(i);
-        time(p) <- 00:00;
-        fromDate(p) <- date(i);
-        fromTime(p) <- 00:00;
+        date(p) <- OVERRIDE date(i), DATE (time(i));
+        time(p) <- OVERRIDE TIME (time(i)), 00:00;
+        fromDate(p) <- OVERRIDE date(i), DATE (time(i));
+        fromTime(p) <- OVERRIDE TIME (time(i)), 00:00;
         isPosted(p) <- posted(i) > 1;
         note(p) <- comment(i);
         dataIn(p, StockGroup s) <- NULL;
@@ -757,7 +768,7 @@ idDetail 'Код строки'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock
 idSku 'Код товара'= DATA LOCAL VARSTRING[100](INTEGER);
 
 quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
-price 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
+price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
 retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
