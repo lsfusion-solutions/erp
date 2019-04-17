@@ -560,8 +560,7 @@ DESIGN integrationData {
 importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL id = VARISTRING[50] (INTEGER);
-    LOCAL time = DATETIME (INTEGER);
-    LOCAL date = DATE (INTEGER);
+    LOCAL dateTime = DATETIME (INTEGER);
     LOCAL reason = INTEGER (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
@@ -570,9 +569,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, a.EXECTIME, TRUNC(a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
+        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
     
-    IMPORT TABLE FROM file() TO id, time, date, reason, posted, idStore, comment;
+    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
     
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO NEW o = PriceList.Operation {
         id(o) <- VARISTRING[100](r);
@@ -595,11 +594,11 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         
         operation(p) <- PriceList.operation(TEXT (reason(i)));
         number(p) <- VARISTRING[28] (id(p));
-        date(p) <- OVERRIDE date(i), DATE (time(i));
-        time(p) <- OVERRIDE TIME (time(i)), 00:00;
-        fromDate(p) <- OVERRIDE date(i), DATE (time(i));
-        fromTime(p) <- OVERRIDE TIME (time(i)), 00:00;
-        isPosted(p) <- posted(i) > 1;
+        date(p) <- DATE (dateTime(i));
+        time(p) <- TIME (dateTime(i));
+        fromDate(p) <- DATE (dateTime(i));
+        fromTime(p) <- TIME (dateTime(i));
+        isPosted(p) <- posted(i) != 1;
         note(p) <- comment(i);
         dataIn(p, StockGroup s) <- NULL;
         dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
@@ -616,7 +615,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND TRUNC(a.EXECDATE) >= \'' + dateFromRT() + '\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= \'' + dateFromRT() + '\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, oldPrice, idItem;
 
