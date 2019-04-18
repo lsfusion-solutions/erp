@@ -365,8 +365,10 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                                                 sumReceiptDetail, ceunifol, extraDiscountSum));
                                     }
 
+                                    BigDecimal sumCard = rs.getBigDecimal("NEOPPRIC");
                                     for (SalesInfo salesInfo : currentSalesInfoList) {
-                                        salesInfo.sumCash = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
+                                        salesInfo.sumCard = isSale ? sumCard : safeNegate(sumCard);
+                                        salesInfo.sumCash = safeSubtract(isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail), salesInfo.sumCard);
                                         salesInfo.discountSumReceipt = safeAdd(salesInfo.discountSumReceipt, extraDiscountSum);
                                         salesInfoList.add(salesInfo);
                                     }
