@@ -11,50 +11,7 @@ backgroundCompare (Competitor c, Sku sk, Stock d, DATETIME dt) = CASE
 EXTEND FORM retailPriceDashboard
     
     OBJECTS c = Competitor
-    PROPERTIES name(c) SHOWIF NULL 
+    PROPERTIES (c) SHOWIF NULL name, order 
     PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c) BACKGROUND backgroundCompare(c, sk, d, dt)
-    ORDER name(c)
+    ORDER order(c), name(c)
 ;
-
-//Миграция прайсов конкурентов для Острова
-
-migratePricesOstrov() {
-    
-    IF NOT competitor('e-dostavka') THEN NEW c = Competitor { name(c) <- 'e-dostavka'; }
-    IF NOT competitor('Мила') THEN NEW c = Competitor { name(c) <- 'Мила'; }
-    
-    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'euroopt' OR id(t) == 'euroopt_p') BY priceList(d)](UserPriceList up) 
-        DO NEW p = Competitor.PriceList {
-        
-        date(p) <- date(up);
-        in(p, Competitor c) <- name(c) == 'e-dostavka';
-        note(p) <- 'Цены e-dostavka';
-        
-            FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'euroopt' OR id(t) == 'euroopt_p') BY priceList(d), d](up, UserPriceListDetail ud) 
-                DO NEW d = Competitor.PriceListDetail {
-                
-                priceList(d) <- p;
-                sku(d) <- sku(ud);
-                price(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'euroopt') WHERE c = competitor('e-dostavka');
-                promotionPrice(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'euroopt_p') WHERE c = competitor('e-dostavka');
-        }
-    }
-    
-    FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'mila' OR id(t) == 'mila_p') BY priceList(d)](UserPriceList up) 
-        DO NEW p = Competitor.PriceList {
-        
-        date(p) <- date(up);
-        in(p, Competitor c) <- name(c) == 'Мила';
-        note(p) <- 'Цены Мила';
-        
-            FOR [GROUP SUM 1 IF price(UserPriceListDetail d, LedgerPriceListType t) AND inCompare(t) AND (id(t) == 'mila' OR id(t) == 'mila_p') BY priceList(d), d](up, UserPriceListDetail ud) 
-                DO NEW d = Competitor.PriceListDetail {
-                
-                priceList(d) <- p;
-                sku(d) <- sku(ud);
-                price(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'mila') WHERE c = competitor('Мила');
-                promotionPrice(d, Competitor c) <- (GROUP MAX price(ud, LedgerPriceListType t) IF id(t) == 'mila_p') WHERE c = competitor('Мила');
-        }
-    }
-    APPLY;
-}

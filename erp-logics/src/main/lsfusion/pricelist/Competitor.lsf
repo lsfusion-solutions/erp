@@ -10,22 +10,26 @@ TABLE competitor (Competitor);
 name 'Наименование' = DATA VARISTRING[100] (Competitor) CHARWIDTH 15;
 competitor = GROUP MAX Competitor c BY name(c);
 
+order 'Порядок' = DATA INTEGER (Competitor);
+
 FORM competitor 'Конкурент'
     OBJECTS c = Competitor PANEL
-    PROPERTIES(c) name
+    PROPERTIES(c) name, order
     
     EDIT Competitor OBJECT c
 ;
 
 FORM competitors 'Конкуренты'
     OBJECTS c = Competitor
-    PROPERTIES(c) READONLY name
+    PROPERTIES(c) READONLY name, order
     PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
+    ORDER order(c), name(c)
 ;
 
 FORM dialogCompetitors 'Конкуренты'
     OBJECTS c = Competitor
-    PROPERTIES(c) READONLY name
+    PROPERTIES(c) READONLY name, order
+    ORDER order(c), name(c)
     
     LIST Competitor OBJECT c
 ;
@@ -41,7 +45,7 @@ date 'Дата' = DATA DATE (PriceList);
 dateTimeCreated 'Дата/время создания' = DATA DATETIME (PriceList);
 
 in 'Вкл.' = DATA BOOLEAN (PriceList, Competitor);
-competitors 'Конкуренты' (PriceList p) = GROUP CONCAT name(Competitor c) IF in(p, c), ', ' ORDER name(c) CHARWIDTH 20;
+competitors 'Конкуренты' (PriceList p) = GROUP CONCAT name(Competitor c) IF in(p, c), ', ' ORDER order(c), name(c), c CHARWIDTH 20;
 
 createdUser = DATA User(PriceList);
 nameCreatedUser 'Создан пользователем' (PriceList p) = name(createdUser(p));
@@ -82,7 +86,7 @@ columnSku 'Колонка штрихкода в xls' = DATA INTEGER (PriceListTy
 
 in 'Вкл.' = DATA BOOLEAN (PriceListType, Competitor);
 column 'Колонка цены в xls' =  DATA INTEGER (PriceListType, Competitor);
-competitors 'Конкуренты' (PriceListType t) = GROUP CONCAT name(Competitor c) IF in(t, c), ', ' ORDER name(c), c CHARWIDTH 20;
+competitors 'Конкуренты' (PriceListType t) = GROUP CONCAT name(Competitor c) IF in(t, c), ', ' ORDER order(c), name(c), c CHARWIDTH 20;
 
 WHEN LOCAL SETCHANGED (column(PriceListType t, Competitor c)) AND NOT in(t, c) DO {
     in(t, c) <- TRUE;
@@ -93,8 +97,8 @@ FORM priceListType 'Тип прайса'
     PROPERTIES(o) name, columnSku
 
     OBJECTS c = Competitor
-    PROPERTIES in(o, c), name(c) READONLY, column(o, c) 
-    ORDER name(c)
+    PROPERTIES in(o, c), order(c) READONLY, name(c) READONLY, column(o, c) 
+    ORDER order(c), name(c)
 
     EDIT PriceListType OBJECT o
 ;
@@ -125,14 +129,14 @@ FORM priceList 'Прайс'
     ORDER date(p)
 
     OBJECTS c = Competitor
-    PROPERTIES in(p, c), name(c) READONLY 
+    PROPERTIES in(p, c), name(c) READONLY, order(c) READONLY 
     FILTERGROUP in FILTER 'Отмеченные' in(p, c)
-    ORDER name(c)
+    ORDER order(c), name(c)
 
     OBJECTS cc = Competitor
-    PROPERTIES (cc) READONLY name SHOWIF NULL 
+    PROPERTIES (cc) READONLY SHOWIF NULL name, order 
     FILTERS in(p, cc)
-    ORDER name(cc)
+    ORDER order(cc), name(cc)
 
     OBJECTS d = PriceListDetail
     PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
@@ -174,9 +178,9 @@ FORM priceLists 'Прайсы'
     ORDER date(p)
 
     OBJECTS cc = Competitor
-    PROPERTIES (cc) READONLY name SHOWIF NULL 
+    PROPERTIES (cc) READONLY SHOWIF NULL name, order 
     FILTERS in(p, cc)
-    ORDER name(cc)
+    ORDER order(cc), name(cc)
 
     OBJECTS d = PriceListDetail
     PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
