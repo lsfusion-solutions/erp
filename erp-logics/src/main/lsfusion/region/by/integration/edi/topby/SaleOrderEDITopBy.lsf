@@ -190,12 +190,14 @@ function(Sale.UserOrder o) = IF isCancel(o) THEN '27' ELSE (IF (GROUP SUM 1 IF u
 exported 'Экспортирован' = DATA BOOLEAN (Sale.UserOrder);
 exportedCanceled 'Экспортирован (отмена)' = DATA BOOLEAN (Sale.UserOrder);
 sendSaleOrderSupplier 'Отправить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
-EXTEND FORM Sale.orders PROPERTIES(o) isCancel READONLY, exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o);
+sendCancelSaleOrderSupplier 'Отменить (поставщик)'  ABSTRACT LIST (Sale.UserOrder);
+EXTEND FORM Sale.orders PROPERTIES(o) isCancel READONLY, exported READONLY, exportedCanceled READONLY, sendSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o), sendCancelSaleOrderSupplier PANEL SHOWIF orderDocumentNumber(o);
 DESIGN Sale.orders {
     actionContainer {
         NEW edi {
             caption = 'EDI';
             MOVE PROPERTY (sendSaleOrderSupplier(o));
+            MOVE PROPERTY (sendCancelSaleOrderSupplier(o));
         }
     }
 }
@@ -316,3 +318,4 @@ sendSupplierSaleOrderTopBy (Sale.UserOrder o) {
 }
 
 sendSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(customer(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE sendSupplierSaleOrderTopBy(o); }
+sendCancelSaleOrderSupplier(Sale.UserOrder o) + { IF EDIProvider(customer(o)) == EDIProvider.topBy THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE { isCancel(o) <- TRUE; sendSupplierSaleOrderTopBy(o); } }
