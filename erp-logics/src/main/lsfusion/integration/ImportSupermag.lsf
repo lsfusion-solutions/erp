@@ -453,7 +453,7 @@ dateFromS () = sum(currentDate(), -daysSupplier());
 dateFromST () = toDateDDMMYY(dateFromS());
 daysRetail 'Кол-во дней для импорта розничных прайсов' = DATA INTEGER ();
 dateFromR () = sum(currentDate(), -daysRetail());
-dateFromRT () = toDateDDMMYY(dateFromR());
+dateFromRT () = toDateDDMMYYYY(dateFromR());
 
 EXTEND FORM integrationData PROPERTIES () daysSupplier, daysRetail;
 
@@ -563,7 +563,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= \'' + dateFromRT() + '\' AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
+        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= CAST(\'' + dateFromRT() + '\' AS DATE) AND a.REASON != 0 AND a.id = s.id AND s.docState > 0' TO file;
     
     IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
     
@@ -609,7 +609,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd WHERE a.id = d.docid AND d.id = sd.id AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= \'' + dateFromRT() + '\' AND d.DocType (+)= sd.DocType and d.DocID (+)= sd.DocID and d.SpecItem (+)= sd.SpecItem' TO file;
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, d.OLDPRICE, sd.ARTICLE FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd, Supermag.SMDocuments s WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= CAST(\'' + dateFromRT() + '\' AS DATE) AND d.DocType = sd.DocType and d.DocID = sd.DocID and d.SpecItem = sd.SpecItem and sd.docid = s.id and a.REASON != 0 and s.docstate > 0' TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, oldPrice, idItem;
 
