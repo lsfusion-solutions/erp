@@ -142,11 +142,6 @@ importItem 'Импорт товаров' () {
         passScales(s) <- scale(i) == '1';
         imported(s) <- TRUE;
         VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == vat(i) AND c = defaultCountry();
-        
-        IF NOT packBarcode(s) THEN NEW b = Barcode {
-            packBarcode(s) <- b;
-            sku(b) <- s;
-        }
     }
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
@@ -184,12 +179,11 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     
     IMPORT TABLE FROM file() TO id, property, value;
     
-    FOR property(INTEGER i) == 'packsize2' DO {
-        
-        IF item(id(i)) AND NOT packBarcode(item(id(i))) THEN NEW b = Barcode {
-            packBarcode(Item s) <- b WHERE s == item(id(i));
-            sku(b) <- item(id(i));
-        }
+    FOR property(INTEGER i) == 'packsize2' AND Item s = item(id(i)) AND NOT packBarcode(item(id(i))) DO NEW b = Barcode {
+        packBarcode(s) <- b;
+        sku(b) <- s;
+    }
+    FOR property(INTEGER i) == 'packsize2' AND item(id(i)) DO {
         amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(id(i)));
     }
     
@@ -930,7 +924,7 @@ importOrder 'Импорт заказов' () {
     FOR UserOrder o == userOrder(id(INTEGER i)) DO {
         
         number(o) <- id(i);
-        operation(o) <- Purchase.operation('purchaseWarehouseSupplier');
+        operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- docstate(i) == 2;
         supplier(o) <- legalEntity(VARISTRING[100] (idSupplier(i)));
         supplierStock(o) <- stock(VARISTRING[100] (idSupplier(i)));
