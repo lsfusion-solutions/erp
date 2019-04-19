@@ -448,9 +448,8 @@ importDepartmentStore 'Импорт отделов магазинов' () {
 EXTEND FORM integrationData PROPERTIES importDepartmentStore();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importDepartmentStore()); } }
 
-id = DATA VARISTRING[100](UserPriceListDetail);
-userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), userPriceList(d);
-userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d), id(userPriceList(d));
+id = DATA VARISTRING[100](UserPriceListDetail) INDEXED;
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
 
 daysSupplier 'Кол-во дней для импорта прайсов поставщика' = DATA INTEGER ();
 dateFromS () = sum(currentDate(), -daysSupplier());
@@ -512,12 +511,12 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     id(INTEGER i) <- CONCAT '', 'S', type(i), idDoc(i), specItem(i) WHERE imported(i); 
     
-    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) DO NEW d = UserPriceListDetail {
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
     
-    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
         imported(d) <- TRUE;
@@ -638,12 +637,12 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
 
     skip(INTEGER i) <- withoutPrice() AND imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
     
-    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) AND NOT skip(i) DO NEW d = UserPriceListDetail {
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) AND NOT skip(i) DO NEW d = UserPriceListDetail {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
     
-    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) AND NOT skip(i) DO {
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) AND NOT skip(i) DO {
         sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('retail');
         imported(d) <- TRUE;
@@ -1071,12 +1070,12 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     
     id(INTEGER i) <- CONCAT '', 'P', idDoc(i), specItem(i) WHERE imported(i); 
     
-    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i), idDoc(i)) DO NEW d = UserPriceListDetail {
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
     
-    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i), idDoc(i)) DO {
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
         sku(d) <- item(idItem(i));
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
