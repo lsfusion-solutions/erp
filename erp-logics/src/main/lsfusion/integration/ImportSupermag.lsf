@@ -365,7 +365,7 @@ importStore 'Импорт магазинов' () {
     
     IMPORT TABLE FROM file() TO id, name;
     
-    FOR id(INTEGER i) AND id(i) != 0 AND NOT store(TEXT (id(i))) DO NEW g = Store {
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT stockGroup(TEXT (id(i))) DO NEW g = Store {
         id(g) <- VARISTRING[100] (id(i));
         legalEntity(g) <- legalEntity('534');
     }
@@ -422,11 +422,11 @@ importDepartmentStore 'Импорт отделов магазинов' () {
     
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany;
     
-    FOR id(INTEGER i) AND NOT departmentStore(TEXT (id(i))) DO NEW s = DepartmentStore {
+    FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) DO NEW s = DepartmentStore {
         id(s) <- VARISTRING[100] (id(i));
     }
     
-    FOR DepartmentStore s = departmentStore(TEXT (id(INTEGER i))) DO {
+    FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) DO {
         
         name(s) <- VARISTRING[150](name(i));
         store(s) <- store(TEXT (idClass(i)));
@@ -531,7 +531,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     IMPORT TABLE FROM file() TO idDoc, idStock;
     
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
-        dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
+        dataIn(p, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (idStock(i)))](p, s);
     }
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
