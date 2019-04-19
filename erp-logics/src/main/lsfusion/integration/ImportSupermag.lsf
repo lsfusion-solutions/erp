@@ -793,13 +793,14 @@ price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
 retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
-in 'Отм.' = DATA BOOLEAN (DepartmentStore);
-stocks 'Склады для импорта' () = GROUP CONCAT id(DepartmentStore st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
+in 'Отм.' = DATA BOOLEAN (Stock);
+stocks 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
 
 FORM dialogDepartmentStores 'Склады'
-    OBJECTS d = DepartmentStore
+    OBJECTS d = Stock
     PROPERTIES (d) in
     PROPERTIES (d) READONLY id, name, nameStore
+    FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' in(d)
     ORDER nameStore(d), name(d)
@@ -811,6 +812,8 @@ DESIGN dialogDepartmentStores {
 
 skipSetContractSku(Purchase.UserInvoice i) += idOperation(i) == 'firstinput';
 
+deleteInvoiceDetails 'Удалять строки, которых нету в импорте или обнулять количество' = DATA BOOLEAN ();
+
 importInit 'Импорт остатков' ()  {
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocks()) TO file;
@@ -820,7 +823,8 @@ importInit 'Импорт остатков' ()  {
     idSupplier(INTEGER r) <- OVERRIDE VARISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
     idCustomerStock(INTEGER r) <- VARISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
     date(INTEGER r) <- 2018_01_01 WHERE imported(r) AND NOT date(r);
-     
+    retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(VARISTRING[100] (idCustomerStockInt(r))) IS Warehouse;
+    
     LOCAL supplier = LegalEntity(INTEGER);
     supplier(INTEGER r) <- legalEntity(idSupplier(r)) WHERE imported(r); 
 
@@ -866,7 +870,7 @@ importInit 'Импорт остатков' ()  {
         incl(d) <- TRUE;
         dataIndex(d) <- spec(r);
     }
-    FOR [GROUP SUM 1 IF imported(INTEGER in) BY idCustomerStock(in)](VARSTRING[100] st) DO {
+    FOR [GROUP SUM 1 IF imported(INTEGER in) BY idCustomerStock(in)](VARSTRING[100] st) AND deleteInvoiceDetails() DO {
         quantity(Purchase.UserInvoiceDetail d) <- 0.0 WHERE operation(d) == Purchase.operation('initial') AND st == id(customerStock(d)) AND NOT incl(d);
         shipmentQuantity(Purchase.UserInvoiceDetail d) <- 0.0 WHERE operation(d) == Purchase.operation('initial') AND st == id(customerStock(d)) AND NOT incl(d);
         shipmentSum(Purchase.UserInvoiceDetail d) <- 0.0 WHERE operation(d) == Purchase.operation('initial') AND st == id(customerStock(d)) AND NOT incl(d); 
@@ -881,7 +885,7 @@ importInit 'Импорт остатков' ()  {
     APPLY; 
 } 
 
-EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, stocks ON CHANGE { SHOW dialogDepartmentStores; };
+EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, deleteInvoiceDetails, stocks ON CHANGE { SHOW dialogDepartmentStores; };
 
 DESIGN integrationData {
     supermag {
@@ -906,6 +910,7 @@ DESIGN integrationData {
                         type = CONTAINERH;
                         MOVE PROPERTY (disableDocumentLog()) { alignment = CENTER; }
                         MOVE PROPERTY (useConstraint()) { alignment = CENTER; }
+                        MOVE PROPERTY (deleteInvoiceDetails()) { alignment = CENTER; }
                         MOVE PROPERTY (importInit());
                     }
                     NEW supermagScript {
