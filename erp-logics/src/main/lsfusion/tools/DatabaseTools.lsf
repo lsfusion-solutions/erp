@@ -1,0 +1,173 @@
+MODULE DatabaseTools;
+
+REQUIRE Tools, Reflection, SQLUtils;
+
+NAMESPACE Tools;
+
+
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](Table);
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
+
+curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
+curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
+curRows 'Тек. Количество записей' = DATA LOCAL NESTED INTEGER (Table);
+
+reindex 'REINDEX' (Table t) {
+    runSQL('REINDEX TABLE ' + sid(t));
+    NEWSESSION {
+        indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
+        APPLY;
+    }
+} ASON CONTEXTMENU sid[Table];
+
+vacuum 'VACUUM FULL' (Table t) {
+    runSQL('VACUUM FULL ' + sid(t));
+    NEWSESSION {
+        dataSize(t) <- [FORMULA NUMERIC[15,3] 'pg_table_size($1) /1024/1024.0'](lower(sid(t)));
+        indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
+        APPLY;
+    }
+} ASON CONTEXTMENU sid[Table];
+
+loadCurSize 'Заполнить размеры таблиц'(){
+    EXTERNAL SQL 'LOCAL'
+        EXEC 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
+             'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
+        TO file;
+    
+    IMPORT FROM file() FIELDS VARSTRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
+        curDataSize(Table t) <- t_size WHERE lower(sid(t)) == table;
+        curIndexSize(Table t) <- i_size WHERE lower(sid(t)) == table;
+    }
+}
+
+grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001)-(OVERRIDE B, 0.001))/(OVERRIDE B, 0.001)), 0.0)](a,b);
+dataVacuumCoeff = DATA NUMERIC[5,2]();
+vacuumCoeff 'Коэффициент роста' () = OVERRIDE dataVacuumCoeff(), 0.1;
+
+dataGrow(Table t) = grow(curDataSize(t), dataSize(t));
+needVacuum(Table t) = dataGrow(t) > vacuumCoeff();
+backgroundData(Table t) = IF needVacuum(t) THEN RGB (255, 80, 80) ELSE RGB (255, 179, 179);
+
+indexGrow(Table t) = grow(curIndexSize(t), indexSize(t));
+needReindex(Table t) = indexGrow(t) > vacuumCoeff();
+backgroundIndex(Table t) = IF needReindex(t) THEN RGB (255, 80, 169) ELSE RGB (255, 179, 217);
+
+CLASS VacuumOrderType 'Сортировка'{
+    totalSize 'По возрастанию размера',
+    growSizeDesc 'По убыванию прироста'
+};
+TABLE vacuumOrderType (VacuumOrderType);
+
+name 'Наименование' (VacuumOrderType o) = staticCaption(o) IF o IS VacuumOrderType CHARWIDTH 15;
+
+FORM dialogVacuumOrderTypes 'Сортировка'
+    OBJECTS o = VacuumOrderType
+    PROPERTIES(o) READONLY name
+    
+    LIST VacuumOrderType OBJECT o
+;
+dataVacuumOrderType = DATA VacuumOrderType();
+vacuumOrderType() = OVERRIDE dataVacuumOrderType(), VacuumOrderType.totalSize;
+nameVacuumOrderType 'Сортировка'() = name(vacuumOrderType());
+
+vacuumOrder(Table t) = CASE 
+    WHEN vacuumOrderType() == VacuumOrderType.totalSize THEN curDataSize(t) (+) curIndexSize(t)
+    WHEN vacuumOrderType() == VacuumOrderType.growSizeDesc THEN (dataSize(t) (-) curDataSize(t)) (+) (indexSize(t) (-) curIndexSize(t))
+    ;
+
+smartVacuum 'Smart VACUUM'() {
+    logToFile('database-tools', 'Smart VACUUM - starting');
+    
+    loadCurSize();
+    
+    EXPORT CSV '|' HEADER 
+        FROM sid(Table t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
+        WHERE curDataSize(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t TO file;
+    IF file() THEN {
+        logToFile('database-tools', 'Smart VACUUM - plan for today:');
+        logToFile('database-tools', file());
+    }
+    
+    FOR curDataSize(Table t)  AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
+        IF needVacuum(t) THEN {
+            logToFile('database-tools', 'Smart VACUUM - VACUUM FULL ' + sid(t) + ' start');
+            vacuum(t);
+            logToFile('database-tools', 'Smart VACUUM - VACUUM FULL ' + sid(t) + ' end');
+        } ELSE {
+            logToFile('database-tools', 'Smart VACUUM - REINDEX TABLE ' + sid(t) + ' start');
+            reindex(t);
+            logToFile('database-tools', 'Smart VACUUM - REINDEX TABLE ' + sid(t) + ' end');
+        }
+    }
+    
+    logToFile('database-tools', 'Smart VACUUM - ended');
+}
+
+
+//статистика
+recalculateStatsForm 'Пересчет статистики' (Table t) {
+    recalculateStats(t);
+} ASON CONTEXTMENU sid[Table];
+
+loadCurRows 'Заполнить количество записей'(){
+    EXTERNAL SQL 'LOCAL'
+        EXEC 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
+        TO file;
+    
+    IMPORT FROM file() FIELDS VARSTRING[100] table, LONG size DO {
+        curRows(Table t) <- size WHERE lower(sid(t)) == table;
+    }
+}
+
+needStats(Table t) = curRows(t) / (OVERRIDE rows(t) IF rows(t) > 0, 1) >= 10 OR rows(t) / (OVERRIDE curRows(t) IF curRows(t) > 0, 1) >= 10;
+backgroundRows(Table t) = IF needStats(t) THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
+
+EXTEND FORM tools
+    OBJECTS t =  Table
+    PROPERTIES (t) READONLY sid
+    PROPERTIES (t) skipVacuum
+    PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
+    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize
+    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows
+    FILTERGROUP grow
+        FILTER 'VACUUM' needVacuum(t)
+        FILTER 'REINDEX' needReindex(t)
+        FILTER 'Пересчет статистики' needStats(t)
+        FILTER 'Любые' needVacuum(t) OR needReindex(t) OR needStats(t)
+    
+    PROPERTIES () loadCurSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows
+    
+    EVENTS 
+        ON INIT loadCurSize(),
+        ON INIT loadCurRows()
+;
+
+DESIGN tools{
+    pane{
+        NEW dbMain{
+            caption = 'Таблицы';
+            type =CONTAINERH;
+            NEW dbLeft{
+                MOVE PROPERTY (formApply());
+                MOVE PROPERTY (formCancel());
+                NEW vacuum {
+                    caption = 'Упаковка';
+                    MOVE PROPERTY (loadCurSize());
+                    MOVE PROPERTY (vacuumCoeff());
+                    MOVE PROPERTY (nameVacuumOrderType());
+                    MOVE PROPERTY (smartVacuum());
+                }
+                NEW stats{
+                    caption = 'Статистика';
+                    MOVE PROPERTY (loadCurRows());
+                }
+                MOVE PROPERTY (formRefresh());
+            }
+            NEW dbRight{
+                fill = 1;
+                MOVE BOX (t);
+            }
+        }
+    }
+}
