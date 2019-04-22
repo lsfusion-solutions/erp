@@ -1240,3 +1240,62 @@ DESIGN integrationData {
         } 
     } 
 }
+
+dateCheckBalance 'Дата сверки' = DATA DATE ();
+synchronizeBalance 'Привести остатки к данным Супермага' = DATA BOOLEAN ();
+
+hostBalance 'Хост для сверки остатков' = DATA LOCAL ISTRING[100]();
+    
+checkBalance 'Сверить остатки' () {
+    
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL idStock = INTEGER (INTEGER);
+    LOCAL quantity = NUMERIC[19,4](INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+            EXEC 'SELECT ARTICLE, STORELOC, QUANTITY FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
+
+    IMPORT TABLE FROM file() TO idItem, idStock, quantity;
+    
+    FOR synchronizeBalance() AND [GROUP SUM 1 BY stock(TEXT (idStock(INTEGER i)))](Stock st) AND NOT userInvoice('equal_balance_' + id(st)) DO NEW i = Purchase.UserInvoice {
+        id(i) <- 'equal_balance_' + id(st);
+        operation(i) <- Purchase.operation('initial');
+        customer(i) <- legalEntity(st);
+        customerStock(i) <- st;
+        isPosted(i) <- TRUE;
+        date(i) <- 2010_01_01;
+    }
+    
+    FOR Item s == item(idItem(INTEGER i)) AND Stock st = stock(TEXT (idStock(i))) AND NOT (OVERRIDE balanceB(s, st, dateCheckBalance()), 0.0) == quantity(i) DO {
+        
+        logToFile('checkBalance', CONCAT ' ', toDateDDMMYY(dateCheckBalance()), 'Товар: ' + id(s), 'Склад: ' + id(st), 'Остаток (фьюжн): ' + balanceB(s, st, dateCheckBalance()), 'Остаток (супермаг): ' + quantity(i));
+        
+        IF synchronizeBalance() THEN {
+            
+            IF NOT [GROUP MAX Purchase.UserInvoiceDetail dd BY userInvoice(dd), sku(dd)](userInvoice('equal_balance'), s) THEN NEW d = Purchase.UserInvoiceDetail {
+                userInvoice(d) <- userInvoice('equal_balance_' + id(st));
+                sku(d) <- s;
+            }
+            
+            FOR Purchase.UserInvoiceDetail d == [GROUP MAX Purchase.UserInvoiceDetail dd BY userInvoice(dd), sku(dd)](userInvoice('equal_balance_' + id(st)), s) DO {
+                quantity(d) <- quantity(d) (+) quantity(i) (-) balanceB(s, st, dateCheckBalance());
+            }
+        }
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () dateCheckBalance, synchronizeBalance, checkBalance;
+
+DESIGN integrationData {
+    supermagRight {
+        NEW check {
+            caption = 'Сверка остатков';
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY (checkBalance());
+            MOVE PROPERTY (dateCheckBalance()) { alignment = CENTER; }
+            MOVE PROPERTY (synchronizeBalance()) { alignment = CENTER; }
+        }
+    }
+}
