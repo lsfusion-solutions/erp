@@ -7,6 +7,17 @@ REQUIRE Item, Store, LegalEntityBy;
 //------------------//PI_SAP_ArticleHierarchyObject.xml
 dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' = DATA VARSTRING[255] ();
 
+isCSO 'КСО' = DATA BOOLEAN (CustomGroupType);
+EXTEND FORM customGroupType
+    PROPERTIES (t) isCSO
+;
+EXTEND FORM dialogCustomGroupType
+    PROPERTIES (t) READONLY isCSO
+;
+EXTEND FORM customGroupTypes
+    PROPERTIES (t) READONLY isCSO
+;
+
 GROUP Header EXTID 's:Header';
 GROUP To EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To': Header ;
 GROUP Action EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action': Header ;
@@ -18,13 +29,8 @@ GROUP Message EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' :items;
 GROUP itemO EXTID 'Item';
 
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
-//    PROPERTIES  IN Header  hh1 = 'http://localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To'    
-//    PROPERTIES  IN Header hh2 = 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:Action'
-//    PROPERTIES  IN To ='1' ATTR EXTID 's:mustUnderstand'   
-//    PROPERTIES  IN To ='localhost:8733/Design_Time_Addresses/PI_GP_Service_Library/Service1/PI_GP_Service.svc' EXTID 'value'    
-//    PROPERTIES  IN Action ='1' ATTR EXTID 's:mustUnderstand'   
-//    PROPERTIES  IN Action ='http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects' EXTID 'value'   
-    
+    OBJECTS  type = CustomGroupType PANEL   
+     
     PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN head h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN head h2 = 'SAP ERP' EXTID 'Sender'
@@ -39,23 +45,23 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  = 'U' IF i IS Item EXTID 'ChangeType'  
          
     PROPERTIES  =idBarcode(i) EXTID 'ArticleId' IN itemO
-    PROPERTIES  ='kso' IF i IS Item EXTID 'HierarchyId' IN itemO
-    PROPERTIES  =id(customGroup(customGroupType('kso'), i)) EXTID 'NodeId' IN itemO
+    PROPERTIES  =id(type) IF i IS Item EXTID 'HierarchyId' IN itemO
+    PROPERTIES  =id(customGroup(type, i)) EXTID 'NodeId' IN itemO
                     
-    FILTERS customGroup(customGroupType('kso'), i), active(i) 
+    FILTERS customGroup(type, i), active(i) 
 ;
 httpHeadersAHO(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects';
     
-articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (){
-    EXPORT ArticleHierarchyObject XML TO System.exportFile;     
+articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (CustomGroupType type){
+    EXPORT ArticleHierarchyObject OBJECTS type = type XML TO System.exportFile;     
     LOCAL result = FILE();
     
     TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', 'Sending')));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleHierarchyObject', 'Sending')));
         EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAHO PARAMS System.exportFile() TO result;  
     } CATCH {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
         logToFile('CSO', (CONCAT '\n', 'ArticleHierarchyObject',resultString()));            
     }                  
@@ -76,6 +82,7 @@ LanguageId = ABSTRACT CASE VARSTRING[3](Item, INTEGER);
 LanguageId (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN 'RU';
 
 FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
+    OBJECTS type = CustomGroupType PANEL   
     
     PROPERTIES IN headL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headL h1 = 'SAP PI' EXTID 'Receiver'
@@ -94,20 +101,20 @@ FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envel
     OBJECTS gg = (ii = Item, int=INTEGER) EXTID 'ArticleHierarchyDescriptionData' IN ArticleText
     PROPERTIES (ii,int) Description, LanguageId
     FILTERS iterate(int,1,countDescription(ii)), ii==i                    
-    FILTERS customGroup(customGroupType('kso'), i), active(i)       
+    FILTERS customGroup(type, i), active(i)       
 ; 
 httpHeadersAM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage';
     
-articleMessage 'Наименование товаров КСО (ArticleMessage)' (){
-    EXPORT ArticleMessage XML TO System.exportFile;
+articleMessage 'Наименование товаров КСО (ArticleMessage)' (CustomGroupType type){
+    EXPORT ArticleMessage OBJECTS type = type XML TO System.exportFile;
     LOCAL result = FILE();
     
     TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', 'Sending')));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleMessage', 'Sending')));
         EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAM PARAMS System.exportFile() TO result; 
     } CATCH { 
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
         logToFile('CSO', (CONCAT '\n', 'ArticleMessage',resultString()));        
     }                    
@@ -121,7 +128,9 @@ GROUP itemI EXTID 'Item';
 GROUP DocumentData : itemI;
 GROUP ArticleDocumentData : DocumentData;
 
-FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'           
+FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
+    OBJECTS type = CustomGroupType PANEL 
+          
     PROPERTIES IN headI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headI         h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headI         h2 = 'SAP ERP' EXTID 'Sender'
@@ -138,21 +147,21 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemI
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
     PROPERTIES  IN ArticleDocumentData    =image(i) EXTID 'Object'    
-    FILTERS customGroup(customGroupType('kso'), i), active(i)       
+    FILTERS customGroup(type, i), active(i)       
 ; 
 
 httpHeadersADM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage';
 
-articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
-    EXPORT ArticleDocumentMessage XML TO System.exportFile;    
+articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (CustomGroupType type){
+    EXPORT ArticleDocumentMessage OBJECTS type = type XML TO System.exportFile;    
     LOCAL result = FILE();
     
     TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', 'Sending')));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleDocumentMessage', 'Sending')));
         EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersADM PARAMS System.exportFile() TO result;  
     } CATCH {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
         logToFile('CSO', (CONCAT '\n', 'ArticleDocumentMessage',resultString()));    
     }           
@@ -170,7 +179,9 @@ GROUP Node: itemC;
 GROUP NodeText;
 GROUP ArticleHierarchyDescriptionDataC EXTID 'ArticleHierarchyDescriptionData' :NodeText;
 
-FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'         
+FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'     
+    OBJECTS type = CustomGroupType PANEL 
+      
     PROPERTIES IN headC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headC  = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headC  = 'SAP ERP' EXTID 'Sender'
@@ -182,10 +193,10 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     PROPERTIES IN itemsC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
     PROPERTIES  IN MessageC  = 'U' EXTID 'ChangeType'  
     PROPERTIES IN itemC                                ='P1' EXTID 'DistributionChannel'    
-    PROPERTIES IN ArticleHierarchyDescriptionData      = name(customGroupType('kso')) EXTID  'Description'
+    PROPERTIES IN ArticleHierarchyDescriptionData      = name(type) EXTID  'Description'
     PROPERTIES IN ArticleHierarchyDescriptionData      ='RU' EXTID  'LanguageId' 
 
-    PROPERTIES IN itemC                                ='kso' EXTID 'HierarchyId'                
+    PROPERTIES IN itemC                                =id(type) EXTID 'HierarchyId'                
     
     OBJECTS    i = CustomGroup EXTID 'ArticleHierarchyNode' IN Node          
 
@@ -202,21 +213,21 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     FILTERS in1 == 1     
     PROPERTIES                                        = '0' IF in1 IS INTEGER  EXTID  'value'  
                 
-    FILTERS customGroupType('kso') == customGroupType(i)
+    FILTERS type == customGroupType(i)
 ;
 
 httpHeadersAH(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies';
     
-articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
-    EXPORT ArticleHierarchy XML TO System.exportFile;     
+articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (CustomGroupType type){
+    EXPORT ArticleHierarchy OBJECTS type = type XML TO System.exportFile;     
     LOCAL result = FILE();
     
     TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', 'Sending')));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleHierarchy', 'Sending')));
         EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAH PARAMS System.exportFile() TO result;  
     } CATCH { 
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', id(type), 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
         fileToString(result(), 'UTF-8');
         logToFile('CSO', (CONCAT '\n', 'ArticleHierarchy',resultString()));               
     }
@@ -224,7 +235,13 @@ articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
 }
 
 EXTEND FORM integrationData 
-    PROPERTIES() dataExchangeRegisterAddress, articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
+    PROPERTIES() dataExchangeRegisterAddress
+    
+    OBJECTS typeCSO = CustomGroupType PANEL 
+    PROPERTIES (typeCSO) name SELECTOR 
+    FILTERS isCSO(typeCSO)
+
+    PROPERTIES(typeCSO) articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
 ;
 
 DESIGN integrationData {
@@ -232,10 +249,11 @@ DESIGN integrationData {
         NEW kso {
             caption = 'КСО';
             MOVE PROPERTY (dataExchangeRegisterAddress());
-            MOVE PROPERTY (articleHierarchyObject());
-            MOVE PROPERTY (articleMessage());
-            MOVE PROPERTY (articleDocumentMessage());
-            MOVE PROPERTY (articleHierarchy());            
+            MOVE PROPERTY (name(typeCSO));
+            MOVE PROPERTY (articleHierarchyObject(typeCSO));
+            MOVE PROPERTY (articleMessage(typeCSO));
+            MOVE PROPERTY (articleDocumentMessage(typeCSO));
+            MOVE PROPERTY (articleHierarchy(typeCSO));            
         }
     }
 }
