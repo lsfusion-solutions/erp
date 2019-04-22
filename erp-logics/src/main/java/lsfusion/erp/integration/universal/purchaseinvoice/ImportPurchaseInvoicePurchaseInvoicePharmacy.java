@@ -45,25 +45,25 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
                             break;
                         case "nameCountry":
                             countryField = nameCountryField;
-                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countryName[VARISTRING[50]]").getMapping(countryField));
+                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countryName[ISTRING[50]]").getMapping(countryField));
                             keys.add(importCountryKey);
                             props.add(new ImportProperty(countryField, LM.findProperty("name[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                             break;
                         case "nameOriginCountry":
                             countryField = nameOriginCountryField;
-                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countryOrigin[VARISTRING[50]]").getMapping(countryField));
+                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countryOrigin[ISTRING[50]]").getMapping(countryField));
                             keys.add(importCountryKey);
                             props.add(new ImportProperty(countryField, LM.findProperty("nameOrigin[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                             break;
                         case "importCodeCountry":
                             if(skuImportCodeLM != null) {
                                 countryField = countryIdImportCodeField;
-                                importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), skuImportCodeLM.findProperty("countryIdImportCode[VARSTRING[100]]").getMapping(countryField));
+                                importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), skuImportCodeLM.findProperty("countryIdImportCode[STRING[100]]").getMapping(countryField));
                                 importCountryKey.skipKey = preImportCountries;
                                 keys.add(importCountryKey);
 
                                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) skuImportCodeLM.findClass("ImportCode"),
-                                        skuImportCodeLM.findProperty("countryImportCode[VARSTRING[100]]").getMapping(countryIdImportCodeField));
+                                        skuImportCodeLM.findProperty("countryImportCode[STRING[100]]").getMapping(countryIdImportCodeField));
                                 importCodeKey.skipKey = preImportCountries;
                                 keys.add(importCodeKey);
                                 props.add(new ImportProperty(countryField, skuImportCodeLM.findProperty("countryId[ImportCode]").getMapping(importCodeKey)));
@@ -84,7 +84,7 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
                 } else {
                     ImportField nameImportCountryField = new ImportField(LM.findProperty("name[Country]"));
                     ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
-                            LM.findProperty("countryName[VARISTRING[50]]").getMapping(nameImportCountryField));
+                            LM.findProperty("countryName[ISTRING[50]]").getMapping(nameImportCountryField));
                     keys.add(importCountryKey);
                     props.add(new ImportProperty(nameImportCountryField, LM.findProperty("name[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                     props.add(new ImportProperty(nameImportCountryField, LM.findProperty("importCountry[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),

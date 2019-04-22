@@ -22,7 +22,7 @@ quantityShipmentDetail (invoice, shipment) = GROUP SUM quantity(ShipmentDetail s
 relationInvoice 'Связь' (Shipment shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
 invoices 'Накладные' (Shipment shipment) = GROUP
-                                                CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
+                                                CONCAT STRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                 ORDER invoice CHARWIDTH 30;
 
 shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
@@ -104,7 +104,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     relationInvoice 'Связь'(Shipment shipment)  = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, shipment);
 
     invoices 'Накладные'(Shipment shipment)  = GROUP
-                                                    CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
+                                                    CONCAT STRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, shipment) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
     shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
@@ -221,7 +221,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     TABLE invoiceUserShipment (Invoice, UserShipment);
     include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) CHARWIDTH 10;
     includeInvoices 'Накладные в приемке'(UserShipment userShipment)  = GROUP
-                                                        CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, userShipment) , ', '
+                                                        CONCAT STRING[255](description(Invoice invoice)) IF include(invoice, userShipment) , ', '
                                                         ORDER invoice IN invoices CHARWIDTH 30 MATERIALIZED;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment PANEL

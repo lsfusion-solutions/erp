@@ -46,7 +46,7 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
 //    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 //;
 
-sendPurchaseOrder (EOrder o, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] outputDir, VARSTRING[100] provider) {
+sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     TRY {
         IF login AND password AND host AND port THEN {
             LOCAL error = TEXT();
@@ -115,17 +115,17 @@ sendTopBy 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.ed
 send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.topBy AND NOT isCancel(o) THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {IF useLSF() THEN sendPurchaseOrderTopBy(o); ELSE sendTopBy(o);} }
 cancel(EOrder o) + {IF EDIProvider(supplier(o)) == EDIProvider.topBy AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {IF useLSF() THEN sendPurchaseOrderTopBy(o); ELSE sendTopBy(o);} }
 
-ordrspDocumentNumber = DATA LOCAL NESTED VARSTRING[28]();
+ordrspDocumentNumber = DATA LOCAL NESTED STRING[28]();
 ordrspDocumentDate = DATA LOCAL NESTED DATETIME();
 ordrspResponseType = DATA LOCAL NESTED INTEGER();
-ordrspBuyerGLN = DATA LOCAL NESTED VARSTRING[13]();
-ordrspDestinationGLN = DATA LOCAL NESTED VARSTRING[13]();
-ordrspSupplierGLN = DATA LOCAL NESTED VARSTRING[13]();
-ordrspOrderNumber = DATA LOCAL NESTED VARSTRING[28]();
+ordrspBuyerGLN = DATA LOCAL NESTED STRING[13]();
+ordrspDestinationGLN = DATA LOCAL NESTED STRING[13]();
+ordrspSupplierGLN = DATA LOCAL NESTED STRING[13]();
+ordrspOrderNumber = DATA LOCAL NESTED STRING[28]();
 ordrspDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
 ordrspDeliveryDateTimeSecond = DATA LOCAL NESTED DATETIME();
 ordrspComment = DATA LOCAL NESTED TEXT();
-ordrspGTIN = DATA LOCAL NESTED VARSTRING[15](INTEGER);
+ordrspGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
 ordrspAction = DATA LOCAL NESTED INTEGER(INTEGER);
 ordrspQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 ordrspQuantityAccepted = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
@@ -147,7 +147,7 @@ FORM ordrsp
 
 indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'ordrsp' AND NOT invoices THEN {
         TRY {
             IMPORT ordrsp XML FROM data(i);
@@ -168,7 +168,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                                             WHEN ordrspResponseType() == 4 THEN EOrderResponseType.changed
                                             WHEN ordrspResponseType() == 27 THEN EOrderResponseType.cancelled
                                             WHEN ordrspResponseType() == 29 THEN EOrderResponseType.accepted;
-                        note(r) <- VARSTRING[100](ordrspComment());
+                        note(r) <- STRING[100](ordrspComment());
                         supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
                         customer(r) <- legalEntityGLN(ordrspBuyerGLN());
                         customerStock(r) <- companyStockGLN(ordrspDestinationGLN());
@@ -299,17 +299,17 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
     }
 }
 
-desadvDocumentNumber = DATA LOCAL NESTED VARSTRING[28]();
+desadvDocumentNumber = DATA LOCAL NESTED STRING[28]();
 desadvDocumentDate = DATA LOCAL NESTED DATETIME();
-desadvDeliveryNoteNumber = DATA LOCAL NESTED VARSTRING[28]();
+desadvDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 desadvDeliveryNoteDate = DATA LOCAL NESTED DATE();
-desadvBuyerGLN = DATA LOCAL NESTED VARSTRING[13]();
-desadvDestinationGLN = DATA LOCAL NESTED VARSTRING[13]();
-desadvSupplierGLN = DATA LOCAL NESTED VARSTRING[13]();
-desadvOrderNumber = DATA LOCAL NESTED VARSTRING[28]();
+desadvBuyerGLN = DATA LOCAL NESTED STRING[13]();
+desadvDestinationGLN = DATA LOCAL NESTED STRING[13]();
+desadvSupplierGLN = DATA LOCAL NESTED STRING[13]();
+desadvOrderNumber = DATA LOCAL NESTED STRING[28]();
 desadvDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
 desadvComment = DATA LOCAL NESTED TEXT();
-desadvGTIN = DATA LOCAL NESTED VARSTRING[15](INTEGER);
+desadvGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
 desadvQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 desadvQuantityDespatch = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 desadvVAT = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
@@ -331,7 +331,7 @@ FORM desadv
                   desadvLineItemAmount EXTID 'lineItemAmount', desadvLineItemAmountCharges EXTID 'lineItemAmountCharges'
 ;
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'desadv' AND NOT invoices THEN {
         TRY {
             IMPORT desadv XML FROM data(i);
@@ -350,7 +350,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
                         dateTime(a) <- desadvDocumentDate();
                         deliveryNoteNumber(a) <- desadvDeliveryNoteNumber();
                         deliveryNoteDateTime(a) <- toDateTime(desadvDeliveryNoteDate());
-                        note(a) <- VARSTRING[100](desadvComment());
+                        note(a) <- STRING[100](desadvComment());
                         supplier(a) <- legalEntityStockGLN(desadvSupplierGLN());
                         customer(a) <- legalEntityGLN(desadvBuyerGLN());
                         customerStock(a) <- companyStockGLN(desadvDestinationGLN());

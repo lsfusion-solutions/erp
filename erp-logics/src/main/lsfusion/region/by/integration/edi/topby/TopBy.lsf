@@ -12,12 +12,12 @@ EXTEND CLASS EDIProvider {
 
 useLSF 'Использовать lsf' = DATA BOOLEAN ();
 useLSFInvoice 'Использовать lsf' = DATA BOOLEAN ();
-loginTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
-passwordTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
-hostTopBy 'Хост' = DATA VARSTRING[100] ();
+loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] ();
+passwordTopBy 'Пароль TopBy' = DATA STRING[100] () ECHO;
+hostTopBy 'Хост' = DATA STRING[100] ();
 portTopBy 'Порт' = DATA INTEGER ();
-archiveDirTopBy 'Папка принятых сообщений' = DATA VARSTRING[100] ();
-outputDirTopBy 'Папка отправленных сообщений' = DATA VARSTRING[100] ();
+archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
+outputDirTopBy 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 confirmNotFoundOrders 'Подтверждать ответы по которым не найден заказ' = DATA BOOLEAN ();
@@ -62,7 +62,7 @@ eInvoicesFailed = DATA LOCAL NESTED INTEGER();
 blrwbrCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 
-overReceiveMessages ABSTRACT LIST (INTEGER, VARSTRING[100], VARSTRING[100], VARSTRING[100], INTEGER, TEXT, VARSTRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, VARSTRING[100]);
+overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], STRING[100], INTEGER, TEXT, STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
 
 META receiveMessages (namespace)
     GROUP body###namespace EXTID namespace##':Body';
@@ -80,7 +80,7 @@ META receiveMessages (namespace)
                       data EXTID 'Data'
     ;
     
-    receiveMessages###namespace (VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) {
+    receiveMessages###namespace (STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) {
         TRY {
             IF login AND password AND host AND port THEN {
                 LOCAL xml = XMLFILE();
@@ -174,14 +174,14 @@ receiveTopBy 'Получить сообщения' {
 }
 
 GROUP reference;
-messageDocumentNumber = DATA LOCAL NESTED VARSTRING[24]();
+messageDocumentNumber = DATA LOCAL NESTED STRING[24]();
 messageDocumentDate = DATA LOCAL NESTED DATETIME();
 documentType = DATA LOCAL NESTED TEXT();
-documentNumber = DATA LOCAL NESTED VARSTRING[28]();
-code = DATA LOCAL NESTED VARSTRING[10]();
-description = DATA LOCAL NESTED VARSTRING[1000]();
+documentNumber = DATA LOCAL NESTED STRING[28]();
+code = DATA LOCAL NESTED STRING[10]();
+description = DATA LOCAL NESTED STRING[1000]();
 
-description (VARSTRING[10] code) = CASE
+description (STRING[10] code) = CASE
     WHEN code == '1251' THEN 'Сообщение прочитано получателем'
     WHEN code == '1252' THEN 'Сообщение принято учётной системой получателя'
     WHEN code == '2650' THEN 'Извещение о прочтении';
@@ -204,15 +204,15 @@ FORM exportSystemMessage FORMEXTID 'SYSTEMMESSAGE'
     PROPERTIES IN reference VALUE(documentNumber) EXTID 'documentNumber', VALUE(code) EXTID 'code', VALUE(description) EXTID 'description'
 ;
 
-envelopeLogin = DATA LOCAL NESTED VARSTRING[100]();
-envelopePassword = DATA LOCAL NESTED VARSTRING[100]();
-envelopeFilename = DATA LOCAL NESTED VARSTRING[50]();
+envelopeLogin = DATA LOCAL NESTED STRING[100]();
+envelopePassword = DATA LOCAL NESTED STRING[100]();
+envelopeFilename = DATA LOCAL NESTED STRING[50]();
 envelopeDocumentDate = DATA LOCAL NESTED DATETIME();
-envelopeDocumentNumber = DATA LOCAL NESTED VARSTRING[50]();
-envelopeSender = DATA LOCAL NESTED VARSTRING[13]();
-envelopeReceiver = DATA LOCAL NESTED VARSTRING[13]();
-envelopeDeliveryPoint = DATA LOCAL NESTED VARSTRING[13]();
-envelopeDocumentType = DATA LOCAL NESTED VARSTRING[13]();
+envelopeDocumentNumber = DATA LOCAL NESTED STRING[50]();
+envelopeSender = DATA LOCAL NESTED STRING[13]();
+envelopeReceiver = DATA LOCAL NESTED STRING[13]();
+envelopeDeliveryPoint = DATA LOCAL NESTED STRING[13]();
+envelopeDocumentType = DATA LOCAL NESTED STRING[13]();
 envelopeContent = DATA LOCAL NESTED TEXT();
 
 FORM envelope
@@ -241,7 +241,7 @@ FORM envelope
 //    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 //;
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' AND NOT invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
@@ -424,7 +424,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
 }
 //todo: вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
 //возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
@@ -538,19 +538,19 @@ GROUP blrapnReferenceDocument EXTID 'ReferenceDocument': acknowledgement;
 GROUP blrapnShipper EXTID 'Shipper': acknowledgement;
 GROUP blrapnReceiver EXTID 'Receiver': acknowledgement;
 GROUP blrapnErrorOrAcknowledgement EXTID 'ErrorOrAcknowledgement': acknowledgement;
-blrapnDocumentNumber = DATA LOCAL NESTED VARSTRING[24]();
+blrapnDocumentNumber = DATA LOCAL NESTED STRING[24]();
 blrapnDateTime = DATA LOCAL NESTED DATETIME();
-blrapnMsgSender = DATA LOCAL NESTED VARSTRING[13]();
-blrapnMsgReceiver = DATA LOCAL NESTED VARSTRING[13]();
-blrapnDeliveryNoteId = DATA LOCAL NESTED VARSTRING[28]();
+blrapnMsgSender = DATA LOCAL NESTED STRING[13]();
+blrapnMsgReceiver = DATA LOCAL NESTED STRING[13]();
+blrapnDeliveryNoteId = DATA LOCAL NESTED STRING[28]();
 blrapnDeliveryNoteDate = DATA LOCAL NESTED DATE();
-blrapnReferenceDocumentType = DATA LOCAL NESTED VARSTRING[6]();
-blrapnReferenceDocumentId = DATA LOCAL NESTED VARSTRING[70]();
+blrapnReferenceDocumentType = DATA LOCAL NESTED STRING[6]();
+blrapnReferenceDocumentId = DATA LOCAL NESTED STRING[70]();
 blrapnReferenceDocumentDate = DATA LOCAL NESTED DATETIME();
-blrapnShipper = DATA LOCAL NESTED VARSTRING[28]();
-blrapnReceiver = DATA LOCAL NESTED VARSTRING[28]();
-belrapnCode = DATA LOCAL NESTED VARSTRING[8]();
-belrapnDescription = DATA LOCAL NESTED VARSTRING[1000]();
+blrapnShipper = DATA LOCAL NESTED STRING[28]();
+blrapnReceiver = DATA LOCAL NESTED STRING[28]();
+belrapnCode = DATA LOCAL NESTED STRING[8]();
+belrapnDescription = DATA LOCAL NESTED STRING[1000]();
 
 FORM importBlrapn
     PROPERTIES() IN acknowledgement blrapnDocumentNumber EXTID 'DocumentID', blrapnDateTime EXTID 'CreationDateTime', blrapnDeliveryNoteId EXTID 'DeliveryNoteID'
@@ -580,7 +580,7 @@ FORM exportBlrapn FORMEXTID 'BLRAPN'
         code = '2650' EXTID 'Code' IN blrapnErrorOrAcknowledgement
 ;
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrapn' AND invoices THEN {
         TRY {
             IMPORT importBlrapn XML FROM data(i);
@@ -778,7 +778,7 @@ overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VA
     }
 }
 
-hostEDSServiceTopBy 'Хост EDSService' = DATA VARSTRING[100] ();
+hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] ();
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerTopBy 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 

@@ -357,7 +357,7 @@ paymentTerminalModel (Receipt receipt) = paymentTerminalModel(cashRegister(recei
 sidPaymentTerminalModel 'Код модели' (Receipt receipt) = sid(paymentTerminalModel(receipt));
 
 postPaymentTerminal 'Оплата через платёжный терминал'  ABSTRACT LIST ( Receipt);
-postPaymentTerminalReceiptResult = DATA LOCAL VARSTRING[100] (); 
+postPaymentTerminalReceiptResult = DATA LOCAL STRING[100] (); 
 
 FORM postReceiptPayment 'Оплата по чеку'
     OBJECTS r = Receipt PANEL
@@ -642,7 +642,7 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
 
 focusQuantity  ABSTRACT LIST ( ReceiptDetail); 
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, VARSTRING[30] barcode)  { 
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, STRING[30] barcode)  { 
     NEW d = ReceiptSaleDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -666,7 +666,7 @@ defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt r
                                  BY batch(d), receipt(d)] (batch, receipt)) > 0
           BY sku(batch); 
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, VARSTRING[30] barcode)  { 
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[30] barcode)  { 
     NEW d = ReceiptSaleDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -699,13 +699,13 @@ GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрихкоду
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
-preProcessBarcode  ABSTRACT LIST ( VARSTRING[30], Receipt);
-overChangeBarcodeSale  ABSTRACT LIST FIRST ( VARSTRING[30], Receipt);
+preProcessBarcode  ABSTRACT LIST ( STRING[30], Receipt);
+overChangeBarcodeSale  ABSTRACT LIST FIRST ( STRING[30], Receipt);
 
 changeBarcodeSale(Receipt receipt)  { 
-    INPUT s = VARSTRING[30] DO {
+    INPUT s = STRING[30] DO {
         consumedChangeBarcodeSaleReceipt() <- NULL;
-        LOCAL barcode = VARSTRING[30] ();
+        LOCAL barcode = STRING[30] ();
         barcode() <- processedBarcode(s);
         preProcessBarcode(barcode(), receipt);
         overChangeBarcodeSale(barcode(), receipt);
@@ -863,7 +863,7 @@ DESIGN options {
 
 returnQuantity 'Количество возврата' (receiptDetail) = ABSTRACT NUMERIC[16,5] (ReceiptReturnDetail);
 
-createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, VARSTRING[30] barcode)  { 
+createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[30] barcode)  { 
     NEW d = ReceiptReturnDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -1029,8 +1029,8 @@ searchSkuReturn 'Поиск'(Receipt receipt)  {
 
 // Дисконтные карты
 
-overChangeBarcodeDiscountCard(VARSTRING[30] string, Receipt receipt)  { 
-    IF discountString(string) AND receipt IS Receipt AND string IS VARSTRING[30] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
+overChangeBarcodeDiscountCard(STRING[30] string, Receipt receipt)  { 
+    IF discountString(string) AND receipt IS Receipt AND string IS STRING[30] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
         IF dateTo(discountString(string)) < date(receipt) THEN
             MESSAGE 'Закончился срок действия карты';
         ELSE
@@ -1039,10 +1039,10 @@ overChangeBarcodeDiscountCard(VARSTRING[30] string, Receipt receipt)  {
     }
 } TOOLBAR;
 
-overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + {  overChangeBarcodeDiscountCard(string, receipt); }
+overChangeBarcodeSale(STRING[30] string, Receipt receipt) + {  overChangeBarcodeDiscountCard(string, receipt); }
 
 FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной карты'
-    OBJECTS (n = VARSTRING[28], s = BPSTRING[2]) PANEL
+    OBJECTS (n = STRING[28], s = BPSTRING[2]) PANEL
     PROPERTIES number = VALUE(n), series = VALUE(s)
 ;
 
@@ -1114,7 +1114,7 @@ closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister)  {
     apply();
 } CONFIRM IN receiptZReport;
 
-fiscalNumber = DATA LOCAL VARSTRING[28] (ZReport);
+fiscalNumber = DATA LOCAL STRING[28] (ZReport);
 closeCurrentZReport 'Закрыть Z-отчет'()  { 
     CANCEL NESTED(fiscalNumber[ZReport]);
     time(ZReport z) <- currentTime() WHERE z == currentZReport();
@@ -1266,7 +1266,7 @@ FORM POS
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
 
-    OBJECTS bs = VARSTRING[30] PANEL
+    OBJECTS bs = STRING[30] PANEL
     PROPERTIES(bs) SHOWIF currentZReport() barcodeSale = VALUE ON CHANGE changeBarcodeSale(r) EVENTID 'SCANNER'
 
     OBJECTS pc = PromotionCondition GRID

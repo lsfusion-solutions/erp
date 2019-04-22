@@ -8,14 +8,14 @@ NAMESPACE PriceList;
 
 CLASS DataPriceListType 'Пользовательский вид цены' : LedgerPriceListType;
 
-@defineExternalizable(dataPriceListType, VARSTRING[100]);
+@defineExternalizable(dataPriceListType, STRING[100]);
 id (DataPriceListType p) += id(p);
 
 batchLedger 'Использовать для партий свои цены' = DATA BOOLEAN (DataPriceListType);
 batch (DataPriceListType priceListType, Stock stock) += WHEN priceListType IS DataPriceListType AND isCompany(stock)
                                                         THEN batchLedger(priceListType);
 
-name 'Наименование' = DATA VARISTRING[50](DataPriceListType);
+name 'Наименование' = DATA ISTRING[50](DataPriceListType);
 name(DataPriceListType type) += name(type) IF type IS DataPriceListType;
 
 includeVAT 'Цена с НДС' = DATA BOOLEAN (DataPriceListType);
@@ -95,7 +95,7 @@ CLASS UserPriceListDetail 'Строка прайса (польз.)' : PriceListD
 @defineDocumentInterface(priceList);
 @deriveDocumentHeaderTimePrefix(UserPriceList, );
 
-@defineExternalizable(userPriceList, VARSTRING[100]);
+@defineExternalizable(userPriceList, STRING[100]);
 
 // Шапка
 
@@ -242,7 +242,7 @@ in 'Отм' (PriceList priceList, Stock stock) =
 @defineBackgroundNearestBoolean(allStocks, in, priceList, stock, inParent, isCompany);                    
 
 stocks 'Склады' (PriceList priceList) = GROUP
-                                       CONCAT VARISTRING[250] (name(Stock stock)) IF in(priceList, stock) , ', '
+                                       CONCAT ISTRING[250] (name(Stock stock)) IF in(priceList, stock) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (PriceListDetail d) = stocks(priceList(d));                                       
 // История
@@ -487,16 +487,16 @@ showDateTime 'Даты действия' =  ABSTRACT BOOLEAN (PriceList);
 showDateTimeUser 'Даты действия' =  DATA BOOLEAN (PriceList);  
 showDateTime(PriceList p) += showDateTimeUser(p);
 
-originalNameSku 'Наименование поставщика' = ABSTRACT VARISTRING[255] (PriceListDetail);
-originalNameSku 'Наименование поставщика' = DATA VARISTRING[255] (UserPriceListDetail);
+originalNameSku 'Наименование поставщика' = ABSTRACT ISTRING[255] (PriceListDetail);
+originalNameSku 'Наименование поставщика' = DATA ISTRING[255] (UserPriceListDetail);
 originalNameSku(UserPriceListDetail d) += originalNameSku(d);
 
 showOriginalNameSku 'Наименование поставщика' = ABSTRACT BOOLEAN (PriceList);
 showOriginalNameSku 'Наименование поставщика' = DATA BOOLEAN (UserPriceList) IN documentPrm;
 showOriginalNameSku(UserPriceList d) += showOriginalNameSku(d); 
 
-originalIdBarcodeSku 'Штрихкод поставщика' = ABSTRACT VARSTRING[15] (PriceListDetail) CHARWIDTH 15 NOFLEX;
-originalIdBarcodeSku 'Штрихкод поставщика' = DATA VARSTRING[15] (UserPriceListDetail) CHARWIDTH 15 NOFLEX;
+originalIdBarcodeSku 'Штрихкод поставщика' = ABSTRACT STRING[15] (PriceListDetail) CHARWIDTH 15 NOFLEX;
+originalIdBarcodeSku 'Штрихкод поставщика' = DATA STRING[15] (UserPriceListDetail) CHARWIDTH 15 NOFLEX;
 originalIdBarcodeSku(UserPriceListDetail d) += originalIdBarcodeSku(d);
 
 showOriginalIdBarcodeSku 'Штрихкод поставщика' = ABSTRACT BOOLEAN (PriceList);

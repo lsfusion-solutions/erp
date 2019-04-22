@@ -24,14 +24,14 @@ DESIGN options {
 }
 
 item = DATA Item (ItemLog) INDEXED;
-id 'Код' = DATA VARSTRING[100](ItemLog) CHARWIDTH 10;
-idBarcode 'Основной штрихкод' =  DATA VARSTRING[15](ItemLog) CHARWIDTH 15;
+id 'Код' = DATA STRING[100](ItemLog) CHARWIDTH 10;
+idBarcode 'Основной штрихкод' =  DATA STRING[15](ItemLog) CHARWIDTH 15;
 
-name 'Наименование' = DATA VARISTRING[255] (ItemLog)  CHARWIDTH 30 IN id;
+name 'Наименование' = DATA ISTRING[255] (ItemLog)  CHARWIDTH 30 IN id;
 
-hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (ItemLog); 
-userLogin 'Логин пользователя' = DATA VARSTRING[100] (ItemLog); 
-nameContact 'Имя пользователя' =  DATA VARSTRING[100] (ItemLog) IN id;
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (ItemLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (ItemLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (ItemLog) IN id;
 dateTimeSession 'Время' = DATA DATETIME (ItemLog) IN id;
 dateSession 'Дата' (ItemLog d) = DATE(dateTimeSession(d));
 
@@ -54,7 +54,7 @@ CLASS TypeChange 'Тип изменения' {
 typeChange= DATA TypeChange (ItemLog);
 nameTypeChange 'Тип изменения' (ItemLog l) = staticCaption(typeChange(l)) IN id;
 
-note 'Примечание' = DATA VARSTRING[500] (ItemLog) CHARWIDTH 20;
+note 'Примечание' = DATA STRING[500] (ItemLog) CHARWIDTH 20;
 
 file 'Файл' = DATA FILE (ItemLog);
 openFile 'Открыть Файл' (ItemLog l)  { open(file(l)); } TOOLBAR;
@@ -70,9 +70,9 @@ WHEN SET(Item i IS Item) IF NOT disableItemLog() DO {
         typeChange(d) <- TypeChange.add;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
-        note(d) <- VARSTRING[500]('Добавлен товар');             
+        note(d) <- STRING[500]('Добавлен товар');             
     }
 }
 WHEN DROPPED(Item i IS Item) IF NOT disableItemLog() DO {
@@ -83,9 +83,9 @@ WHEN DROPPED(Item i IS Item) IF NOT disableItemLog() DO {
         typeChange(d) <- TypeChange.delete;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
-        note(d) <- VARSTRING[500]('Удален товар');         
+        note(d) <- STRING[500]('Удален товар');         
     }
 }
 
@@ -97,10 +97,10 @@ NEW d = ItemLog {
         name(d) <- nameAttribute(sku(b));     
         
         typeChange(d) <- TypeChange.changeBarcode;
-        note(d) <- VARSTRING[500](CONCAT ' ', 'До: '+PREV(id(b))+'.', 'После: '+id(b));              
+        note(d) <- STRING[500](CONCAT ' ', 'До: '+PREV(id(b))+'.', 'После: '+id(b));              
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
 
     }
@@ -114,10 +114,10 @@ WHEN SET(Barcode b IS Barcode) AND sku(b) IS Item IF NOT disableItemLog()  DO {
         name(d) <- nameAttribute(sku(b));     
         
         typeChange(d) <- TypeChange.addBarcode;
-        note(d) <- VARSTRING[500]('Штрихкод: '+id(b));      
+        note(d) <- STRING[500]('Штрихкод: '+id(b));      
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
 
     }
@@ -130,10 +130,10 @@ WHEN DROPPED(Barcode b IS Barcode) AND PREV(sku(b)) IS Item IF NOT disableItemLo
         name(d) <- nameAttribute(PREV(sku(b)));     
         
         typeChange(d) <- TypeChange.deleteBarcode;
-        note(d) <- VARSTRING[500]('Штрихкод (до): '+PREV(id(b)));      
+        note(d) <- STRING[500]('Штрихкод (до): '+PREV(id(b)));      
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
 
     }
@@ -146,10 +146,10 @@ WHEN (SET ((value(Item i, ItemAttribute ia)))) IF NOT disableItemLog()  DO {
         name(d) <- nameAttribute(i);   
 
         typeChange(d) <- TypeChange.addAttribute;
-        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+':', value(i,ia));      
+        note(d) <- STRING[500](CONCAT ' ',staticCaption(ia)+':', value(i,ia));      
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }
@@ -162,10 +162,10 @@ WHEN (SETCHANGED ((value(Item i, ItemAttribute ia))) AND PREV(value(i,ia))) IF N
         name(d) <- nameAttribute(i);   
 
         typeChange(d) <- TypeChange.changeAttribute;
-        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia))+'.', 'После: '+value(i,ia));      
+        note(d) <- STRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia))+'.', 'После: '+value(i,ia));      
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }
@@ -179,10 +179,10 @@ WHEN (SETCHANGED ((value(Item i, ItemAttribute ia))) AND PREV(value(i,ia))) IF N
 //        name(d) <- nameAttribute(i);   
 //
 //        typeChange(d) <- TypeChange.changeAttribute;
-//        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+':', 'до - '+PREV(value(i,ia))+';', 'после - '+value(i,ia))+';';      
+//        note(d) <- STRING[500](CONCAT ' ',staticCaption(ia)+':', 'до - '+PREV(value(i,ia))+';', 'после - '+value(i,ia))+';';      
 //        hostnameComputer(d) <- hostnameCurrentComputer();
 //        userLogin(d) <- login(currentUser()); 
-//        nameContact(d) <- VARSTRING[100](name(currentUser()));
+//        nameContact(d) <- STRING[100](name(currentUser()));
 //        dateTimeSession(d) <- currentDateTime();   
 //    }
 //}
@@ -195,10 +195,10 @@ WHEN (DROPPED ((value(Item i, ItemAttribute ia))) AND PREV(value(i,ia))) IF NOT 
         name(d) <- nameAttribute(i);   
         
         typeChange(d) <- TypeChange.deleteAttribute;
-        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia)));      
+        note(d) <- STRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia)));      
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }
@@ -259,9 +259,9 @@ replaceBefore (Item i, Item item) + {
         typeChange(d) <- TypeChange.replace;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
-        note(d) <- VARSTRING[500]('В товар ' + nameAttribute(item));             
+        note(d) <- STRING[500]('В товар ' + nameAttribute(item));             
     }
 }
 
@@ -275,7 +275,7 @@ replaceAfter (Item i) + {
         typeChange(d) <- TypeChange.replace;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
         note(d) <- 'Из товаров (удалены): ' + replaceDelNames();             
     }

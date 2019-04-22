@@ -10,7 +10,7 @@ loadLookups () + {
 
 exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo)  { 
     FOR iterate(DATE date, dFrom, dTo) DO {
-        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
+        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
                             departmentStore = departmentStore(r),
                             number = number(r), cashRegister = cashRegister(r), employee = employee(r),
                             sumReceiptDetail = sumReceiptDetail(r), discountSumReceiptDetail = discountSumReceiptDetail(r),
@@ -23,7 +23,7 @@ exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo)  {
     }
     runKillTask('receipt', dFrom, dTo);
     FOR iterate(DATE date, dFrom, dTo) DO {
-        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
+        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
                             departmentStore = departmentStore(d),
                             cashRegister = cashRegister(receipt(d)), employee = employee(receipt(d)),
                             sku = sku(d), group1 = skuGroup2(sku(d)), group2 = skuGroup3(sku(d)), group3 = skuGroup4(sku(d)), group4 = skuGroup5(sku(d)), 
@@ -52,9 +52,9 @@ nameGroupsReceipt = CONCAT ', ', (OVERRIDE exprGroup1Receipt(), '\'\'') + ' AS n
                                            (OVERRIDE exprGroup2Receipt(), '\'\'') + ' AS nameGroup2',
                                            (OVERRIDE exprGroup3Receipt(), '\'\'') + ' AS nameGroup3';
 
-nameGroup1Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup2Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup3Receipt = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup1Receipt = DATA LOCAL STRING[255] (INTEGER);
+nameGroup2Receipt = DATA LOCAL STRING[255] (INTEGER);
+nameGroup3Receipt = DATA LOCAL STRING[255] (INTEGER);
 
 sumReceiptDetail 'Сумма' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 discountSumReceiptDetail 'Сумма скидки' = DATA LOCAL NUMERIC[18,4] (INTEGER);
@@ -228,9 +228,9 @@ nameGroupsReceiptDetail = CONCAT ', ', (OVERRIDE exprGroup1ReceiptDetail(), '\'\
                                            (OVERRIDE exprGroup2ReceiptDetail(), '\'\'') + ' AS nameGroup2',
                                            (OVERRIDE exprGroup3ReceiptDetail(), '\'\'') + ' AS nameGroup3';
 
-nameGroup1ReceiptDetail = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup2ReceiptDetail = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup3ReceiptDetail = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup1ReceiptDetail = DATA LOCAL STRING[255] (INTEGER);
+nameGroup2ReceiptDetail = DATA LOCAL STRING[255] (INTEGER);
+nameGroup3ReceiptDetail = DATA LOCAL STRING[255] (INTEGER);
 
 sum 'Сумма' = DATA LOCAL NUMERIC[18,4] (INTEGER);
 discountSum 'Сумма скидки' = DATA LOCAL NUMERIC[18,4] (INTEGER);
@@ -272,7 +272,7 @@ deleteIncludeSkusReceiptDetail 'Сбросить отмеченные'()  {
 nameIncludeSkusReceiptDetail 'Товары (все)' = GROUP CONCAT replace(name(Sku sku), '\n', '') IF dataIncludeReceiptDetail(sku), ', ' ORDER sku CHARWIDTH 20;
 nameIncludeBarcodesReceiptDetail 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(Sku sku)) IF dataIncludeReceiptDetail(sku), ',' ORDER sku CHARWIDTH 20;
 
-commaBarcodeIdReceiptDetail 'Список ШК' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+commaBarcodeIdReceiptDetail 'Список ШК' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaBarcodeIdReceiptDetail 'Добавить' ()  { 
     IF commaBarcodeIdReceiptDetail() THEN {
@@ -322,7 +322,7 @@ changeIncludeSkusReceiptDetail()  {
     DIALOG dialogSkuReceiptDetail;
 }
 changeIncludeBarcodesReceiptDetail()  { 
-    INPUT s = VARISTRING[4000] DO {
+    INPUT s = ISTRING[4000] DO {
         dataIncludeReceiptDetail(Sku sku) <- TRUE IF [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
 }

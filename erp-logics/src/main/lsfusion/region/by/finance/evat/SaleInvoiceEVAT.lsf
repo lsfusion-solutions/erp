@@ -7,15 +7,15 @@ NAMESPACE Sale;
 EXTEND CLASS Sale.Invoice : EVATDocument;
 name(Sale.Invoice document) += description(document);
 isPosted[EVATDocument](Invoice document) += isPosted(document);
-number[EVATDocument](Invoice document) += VARSTRING[100](number(document));
-series[EVATDocument](Invoice document) += VARSTRING[2](series(document));
+number[EVATDocument](Invoice document) += STRING[100](number(document));
+series[EVATDocument](Invoice document) += STRING[2](series(document));
 dateTime[EVATDocument](Invoice document) += dateTime(document);
 
 EXTEND CLASS SaleReturn.Invoice : EVATDocument;
 name(SaleReturn.Invoice document) += description(document);
 isPosted[EVATDocument](SaleReturn.Invoice document) += isPosted(document);
-number[EVATDocument](SaleReturn.Invoice document) += VARSTRING[28](number(document));
-series[EVATDocument](SaleReturn.Invoice document) += VARSTRING[2](series(document));
+number[EVATDocument](SaleReturn.Invoice document) += STRING[28](number(document));
+series[EVATDocument](SaleReturn.Invoice document) += STRING[2](series(document));
 dateTime[EVATDocument](SaleReturn.Invoice document) += dateTime(document);
 
 
@@ -51,8 +51,8 @@ sumWithVATRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [ GROUP S
 customer[EVATDocument](Sale.Invoice i) += customer(i);
 customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 
-extraCode 'Код ТНВЭД' = ABSTRACT VARSTRING[10] (InvoiceDetail);
-extraCode 'Код ТНВЭД' = ABSTRACT VARSTRING[10] (SaleReturn.InvoiceDetail);
+extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (InvoiceDetail);
+extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (SaleReturn.InvoiceDetail);
 // в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo)  { 
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
@@ -83,13 +83,13 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         branchCodeCustomer(e) <- branchCode(customerStock(i));        
         
         //Грузоотправитель
-        consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+        consignor(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
         countryCodeConsignor (e) <- sid(country(supplier(i)));
         unpConsignor (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
         shippingAddressConsignor(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
         
         //Грузополучатель
-        consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+        consignee(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
         countryCodeConsignee (e) <- sid(country(customer(i)));
         unpConsignee (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
         shippingAddressConsignee(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
@@ -148,13 +148,13 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         branchCodeCustomer(e) <- branchCode(customerStock(i));
         
         //Грузоотправитель
-        consignor(e) <- VARISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+        consignor(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
         countryCodeConsignor (e) <- sid(country(customer(i)));
         unpConsignor (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
         shippingAddressConsignor(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
 
         //Грузополучатель
-        consignee(e) <- VARISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+        consignee(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
         countryCodeConsignee (e) <- sid(country(supplier(i)));
         unpConsignee (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
         shippingAddressConsignee(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));

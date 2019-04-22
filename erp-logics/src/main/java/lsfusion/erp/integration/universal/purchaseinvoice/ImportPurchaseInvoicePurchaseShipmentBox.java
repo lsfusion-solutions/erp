@@ -27,7 +27,7 @@ public class ImportPurchaseInvoicePurchaseShipmentBox extends ImportDefaultPurch
             if (showField(userInvoiceDetailsList, "idBox")) {
                 ImportField idBoxField = new ImportField(LM.findProperty("id[Box]"));
                 ImportKey<?> boxKey = new ImportKey((ConcreteCustomClass) LM.findClass("Box"),
-                        LM.findProperty("box[VARSTRING[100]]").getMapping(idBoxField));
+                        LM.findProperty("box[STRING[100]]").getMapping(idBoxField));
                 keys.add(boxKey);
                 props.add(new ImportProperty(idBoxField, LM.findProperty("id[Box]").getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
                 props.add(new ImportProperty(idBoxField, LM.findProperty("box[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),

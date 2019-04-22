@@ -4,7 +4,7 @@ REQUIRE GiftCardItem;
 
 NAMESPACE GiftCard;
 
-prefixGiftCard 'Префикс генерации подарочных сертификатов' = DATA VARSTRING[10] ();
+prefixGiftCard 'Префикс генерации подарочных сертификатов' = DATA STRING[10] ();
 lengthGiftCard 'Длина номера при генерации подарочных сертификатов' = DATA INTEGER ();
 
 EXTEND FORM options PROPERTIES() prefixGiftCard, lengthGiftCard;
@@ -66,7 +66,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
         WHILE num() <= toGiftCard(d) DO {
             NEW g = GiftCard {
                 giftCardPurchaseDetail(g) <- d;
-                number(g) <- (OVERRIDE prefixGiftCard(), VARSTRING[10]('') ) + (OVERRIDE lpadStringWithZero(num(), lengthGiftCard()) , VARSTRING[28](num()));
+                number(g) <- (OVERRIDE prefixGiftCard(), STRING[10]('') ) + (OVERRIDE lpadStringWithZero(num(), lengthGiftCard()) , STRING[28](num()));
                 id(g) <- number(g);
                 departmentStore(g) <- departmentStore(d);
                 sku(g) <- sku(d);
@@ -251,14 +251,14 @@ DESIGN giftCardPurchase {
 
 }
 
-fromNumberFilter 'Номер с' = DATA LOCAL VARSTRING[30]();
-toNumberFilter 'Номер по' = DATA LOCAL VARSTRING[30]();
+fromNumberFilter 'Номер с' = DATA LOCAL STRING[30]();
+toNumberFilter 'Номер по' = DATA LOCAL STRING[30]();
 filterDepartmentStore 'Магазин' = DATA LOCAL DepartmentStore();
 nameStoreFilter 'Магазин (выпущен)' = name(filterDepartmentStore());
 
 //numberFilter(GiftCard g) = (toInteger(right(number(g), lengthGiftCard())) >= toInteger(right(fromNumberFilter(), lengthGiftCard())) OR NOT fromNumberFilter())
 //                                        AND (toInteger(right(number(g), lengthGiftCard())) <= toInteger(right(toNumberFilter(), lengthGiftCard())) OR NOT toNumberFilter());
-numberReport 'Номер' (VARSTRING[30] number) = OVERRIDE 
+numberReport 'Номер' (STRING[30] number) = OVERRIDE 
     toInteger(right(number, lengthGiftCard())),
     toInteger(number);
 numberFilter(GiftCard g) = (numberReport(g) >= numberReport(fromNumberFilter()) OR NOT fromNumberFilter())

@@ -17,9 +17,9 @@ FORM mainPages
 CLASS EurooptItemGroup 'Группа товаров';
 TABLE eurooptItemGroup (EurooptItemGroup);
 
-title 'Заголовок' = DATA VARSTRING[100] (EurooptItemGroup);
+title 'Заголовок' = DATA STRING[100] (EurooptItemGroup);
 mainPage 'Главная страница' = DATA MainPage (EurooptItemGroup);
-url 'URL' = DATA VARSTRING[255] (EurooptItemGroup) INDEXED;
+url 'URL' = DATA STRING[255] (EurooptItemGroup) INDEXED;
 in 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemGroup);
 eurooptItemGroup = GROUP AGGR EurooptItemGroup e BY url(e);
 delete (EurooptItemGroup g, MainPage m) = g IS EurooptItemGroup AND mainPage(g) == m;
@@ -28,7 +28,7 @@ CLASS EurooptItemList 'Список товаров';
 TABLE eurooptItemList (EurooptItemList);
 
 eurooptItemGroup = DATA EurooptItemGroup(EurooptItemList);
-url 'URL' = DATA VARSTRING[255] (EurooptItemList) INDEXED;
+url 'URL' = DATA STRING[255] (EurooptItemList) INDEXED;
 mainPage(EurooptItemList l) = mainPage(eurooptItemGroup(l));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItemList);
 in 'Вкл.'(EurooptItemList e) = OVERRIDE dataIn(e), in(eurooptItemGroup(e));
@@ -39,11 +39,11 @@ CLASS EurooptItem 'Товар';
 TABLE eurooptItem (EurooptItem);
 
 eurooptItemList = DATA EurooptItemList(EurooptItem);
-idBarcode 'Штрихкод' (EurooptItem e) = DATA VARSTRING[15](EurooptItem);
+idBarcode 'Штрихкод' (EurooptItem e) = DATA STRING[15](EurooptItem);
 noBarcode 'Без штрихкода' (EurooptItem e) = DATA BOOLEAN(EurooptItem);
 sku(EurooptItem e) = skuBarcode(idBarcode(e));
 name 'Наименование' (EurooptItem e) = name(sku(e));
-url 'URL' = DATA VARSTRING[255] (EurooptItem) INDEXED;
+url 'URL' = DATA STRING[255] (EurooptItem) INDEXED;
 mainPage(EurooptItem e) = mainPage(eurooptItemList(e));
 dataIn 'Вкл.' = DATA LOCAL BOOLEAN (EurooptItem);
 in 'Вкл.'(EurooptItem e) = OVERRIDE dataIn(e), in(eurooptItemList(e));
@@ -59,32 +59,32 @@ synchronizeItems 'Синхронизировать списки товаров' 
 
 synchronizeItemsJSON 'Синхронизировать списки товаров' () {
     
-    LOCAL urlGroup = VARISTRING[255](INTEGER);
-    LOCAL urlList = VARISTRING[255](INTEGER);
-    LOCAL urlItem = VARISTRING[255](INTEGER);
-    LOCAL nameGroup = VARISTRING[100](INTEGER);
+    LOCAL urlGroup = ISTRING[255](INTEGER);
+    LOCAL urlList = ISTRING[255](INTEGER);
+    LOCAL urlItem = ISTRING[255](INTEGER);
+    LOCAL nameGroup = ISTRING[100](INTEGER);
     
     synchronizeItems();
     
     IMPORT JSON FROM synchronizeItemsFile() TO urlGroup = itemGroupURL, urlList = stepUrl, urlItem = href, nameGroup = itemGroupTitle;
         
-    FOR [GROUP SUM 1 BY lower(urlGroup(INTEGER i))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
+    FOR [GROUP SUM 1 BY lower(urlGroup(INTEGER i))](STRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
         url(eig) <- url;
     }
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlGroup(ii))](VARSTRING[255] url) AND EurooptItemGroup eig = eurooptItemGroup(url) DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlGroup(ii))](STRING[255] url) AND EurooptItemGroup eig = eurooptItemGroup(url) DO {
         title(eig) <- nameGroup(i);
         mainPage(eig) <- mainPage();
     }
     
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlList(ii))](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlList(ii))](STRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
         url(eil) <- urlList(i);
         eurooptItemGroup(eil) <- eurooptItemGroup(urlGroup(i));
     }
     
-    FOR [GROUP SUM 1 BY lower(urlItem(INTEGER i))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
+    FOR [GROUP SUM 1 BY lower(urlItem(INTEGER i))](STRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
         url(ei) <- url;
     }
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlItem(ii))](VARSTRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(urlItem(ii))](STRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
         eurooptItemList(ei) <- eurooptItemList(urlList(i));
     }
     APPLY;
@@ -106,20 +106,20 @@ importItemsInfo 'Импортировать информацию о товара
 
 importItemsInfoJSON 'Импортировать информацию о товарах' () {
 
-    LOCAL itemURL = VARISTRING[255](INTEGER);
-    LOCAL idBarcode = VARISTRING[15](INTEGER);
+    LOCAL itemURL = ISTRING[255](INTEGER);
+    LOCAL idBarcode = ISTRING[15](INTEGER);
     LOCAL noBarcode = BOOLEAN (INTEGER);
-    LOCAL captionItem = VARISTRING[255](INTEGER);
+    LOCAL captionItem = ISTRING[255](INTEGER);
     LOCAL netWeight = NUMERIC[11,5](INTEGER);
     LOCAL descriptionItem = TEXT (INTEGER);
-    LOCAL compositionItem = VARISTRING[1000](INTEGER);
+    LOCAL compositionItem = ISTRING[1000](INTEGER);
     LOCAL proteinsItem = NUMERIC[8,2](INTEGER);
     LOCAL fatsItem = NUMERIC[8,2](INTEGER);
     LOCAL carbohydratesItem = NUMERIC[8,2](INTEGER);
     LOCAL energyItem = NUMERIC[8,2](INTEGER);
-    LOCAL manufacturerItem = VARISTRING[255](INTEGER);
-    LOCAL UOMItem = VARISTRING[255](INTEGER);
-    LOCAL brandItem = VARISTRING[255](INTEGER);
+    LOCAL manufacturerItem = ISTRING[255](INTEGER);
+    LOCAL UOMItem = ISTRING[255](INTEGER);
+    LOCAL brandItem = ISTRING[255](INTEGER);
     
     importItemsInfo();
     
@@ -127,12 +127,12 @@ importItemsInfoJSON 'Импортировать информацию о това
         descriptionItem = descriptionItem, compositionItem = compositionItem, proteinsItem = proteinsItem, fatsItem = fatsItem, carbohydratesItem = carbohydratesItem, 
         energyItem = energyItem, manufacturerItem = manufacturerItem, UOMItem = UOMItem, brandItem = brandItem;
         
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](VARSTRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](STRING[255] url) AND EurooptItem ei = eurooptItem(url) DO {
         noBarcode(ei) <- noBarcode(i);
         idBarcode(ei) <- idBarcode(i);
     }
     
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](VARSTRING[255] url) AND Item s == sku(eurooptItem(url)) AND NOT onlyBarcode() DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY lower(itemURL(ii))](STRING[255] url) AND Item s == sku(eurooptItem(url)) AND NOT onlyBarcode() DO {
         caption(s) <- captionItem(i) WHERE NOT caption(s);
         netWeight(s) <- netWeight(i) WHERE NOT netWeight(s);
         description(s) <- descriptionItem(i) WHERE NOT description(s);
@@ -166,12 +166,12 @@ importImageAndPrice 'Импортировать изображения и цен
 
 importImagesJSON 'Импортировать изображения товаров' () {
     
-    LOCAL idPriceList = VARISTRING[255](INTEGER);
-    LOCAL idOperation = VARISTRING[100](INTEGER);
-    LOCAL idUserPriceListDetail = VARISTRING[100](INTEGER);
-    LOCAL idBarcodeSku = VARISTRING[15](INTEGER);
-    LOCAL idDataPriceListType = VARISTRING[100](INTEGER);
-    LOCAL namePriceListType = VARISTRING[100](INTEGER);
+    LOCAL idPriceList = ISTRING[255](INTEGER);
+    LOCAL idOperation = ISTRING[100](INTEGER);
+    LOCAL idUserPriceListDetail = ISTRING[100](INTEGER);
+    LOCAL idBarcodeSku = ISTRING[15](INTEGER);
+    LOCAL idDataPriceListType = ISTRING[100](INTEGER);
+    LOCAL namePriceListType = ISTRING[100](INTEGER);
     LOCAL pricePriceListDetail = NUMERIC[16,5](INTEGER);
     LOCAL action = BOOLEAN (INTEGER);
     
@@ -180,15 +180,15 @@ importImagesJSON 'Импортировать изображения товаро
     IMPORT JSON FROM importPriceFile() TO idPriceList = idPriceList, idOperation = idOperation, idUserPriceListDetail = idUserPriceListDetail, idBarcodeSku = idBarcodeSku, 
         idDataPriceListType = idDataPriceListType, namePriceListType = namePriceListType, pricePriceListDetail = pricePriceListDetail, action = action;
      
-    FOR [GROUP SUM 1 BY namePriceListType(INTEGER i)](VARSTRING[100] name) AND NOT competitor(name) DO NEW c = Competitor {
+    FOR [GROUP SUM 1 BY namePriceListType(INTEGER i)](STRING[100] name) AND NOT competitor(name) DO NEW c = Competitor {
         name(c) <- name;
     }
        
-    FOR [GROUP SUM 1 BY idPriceList(INTEGER i)](VARSTRING[15] id) AND NOT priceList(id) DO NEW p = PriceList {
+    FOR [GROUP SUM 1 BY idPriceList(INTEGER i)](STRING[15] id) AND NOT priceList(id) DO NEW p = PriceList {
         id(p) <- id;
     }
     
-    FOR [GROUP SUM 1 BY idUserPriceListDetail(INTEGER i)](VARSTRING[15] id) AND NOT priceListDetail(id) DO NEW d = PriceListDetail {
+    FOR [GROUP SUM 1 BY idUserPriceListDetail(INTEGER i)](STRING[15] id) AND NOT priceListDetail(id) DO NEW d = PriceListDetail {
         id(d) <- id;
     }
     
@@ -216,13 +216,13 @@ importImagesJSON 'Импортировать изображения товаро
 importPricesJSON 'Импортировать цены товаров' () {
     
     LOCAL image = TEXT (INTEGER);
-    LOCAL idBarcode = VARISTRING[15](INTEGER);
+    LOCAL idBarcode = ISTRING[15](INTEGER);
     
     importImageAndPrice();
     
     IMPORT JSON FROM importImageFile() TO image = image, idBarcode = idBarcode;
         
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY idBarcode(ii)](VARSTRING[15] id) AND Item s == skuBarcode(id) DO {
+    FOR INTEGER i == [GROUP MIN INTEGER ii BY idBarcode(ii)](STRING[15] id) AND Item s == skuBarcode(id) DO {
         
         image(s) <- decode(image(i),'base64') WHERE NOT image(s);
     }
@@ -264,12 +264,12 @@ exportGipermall 'Экспорт товаров Gipermall (xls)' ()  {
 }
 
 importEuroopt 'Импорт товаров (xls)' ()  { 
-    LOCAL NESTED titleItemGroup = VARSTRING[100] (INTEGER);
-    LOCAL NESTED urlItemGroup = VARSTRING[255] (INTEGER);
-    LOCAL NESTED urlItemList = VARSTRING[255] (INTEGER);
-    LOCAL NESTED url = VARSTRING[255] (INTEGER);
-    LOCAL NESTED noBarcode = VARSTRING[1] (INTEGER);
-    LOCAL NESTED idBarcode = VARSTRING[15] (INTEGER);
+    LOCAL NESTED titleItemGroup = STRING[100] (INTEGER);
+    LOCAL NESTED urlItemGroup = STRING[255] (INTEGER);
+    LOCAL NESTED urlItemList = STRING[255] (INTEGER);
+    LOCAL NESTED url = STRING[255] (INTEGER);
+    LOCAL NESTED noBarcode = STRING[1] (INTEGER);
+    LOCAL NESTED idBarcode = STRING[15] (INTEGER);
     
     INPUT f = EXCELFILE DO { 
         DELETE EurooptItem e WHERE e IS EurooptItem;
@@ -280,20 +280,20 @@ importEuroopt 'Импорт товаров (xls)' ()  {
         IMPORT XLS NOHEADER
                       FROM f AS EXCELFILE TO titleItemGroup=B, urlItemGroup=C, urlItemList=D, url=E, noBarcode=F, idBarcode=G;
                       
-        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemGroup(ii))](VARSTRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
+        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemGroup(ii))](STRING[255] url) AND NOT eurooptItemGroup(url) NEW eig = EurooptItemGroup DO {
             url(eig) <- urlItemGroup(i);
             title(eig) <- titleItemGroup(i);
             mainPage(eig) <- mainPage();
         }
         apply();
         
-        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemList(ii))](VARSTRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
+        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(urlItemList(ii))](STRING[255] url) AND NOT eurooptItemList(url) NEW eil = EurooptItemList DO {
             url(eil) <- urlItemList(i);
             eurooptItemGroup(eil) <- eurooptItemGroup(urlItemGroup(i));
         }
         apply();
         
-        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(url(ii))](VARSTRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
+        FOR INTEGER i == [GROUP MIN INTEGER ii IF ii >= 2 BY lower(url(ii))](STRING[255] url) AND NOT eurooptItem(url) NEW ei = EurooptItem DO {
             url(ei) <- url(i);
             eurooptItemList(ei) <- eurooptItemList(urlItemList(i));
             noBarcode(ei) <- TRUE IF noBarcode(i) == '1';

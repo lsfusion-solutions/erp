@@ -99,7 +99,7 @@ public class TerminalDocumentEquipmentServer {
 
                 ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("id[TerminalDocument]"));
                 ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocument"),
-                        terminalLM.findProperty("terminalDocument[VARSTRING[1000]]").getMapping(idTerminalDocumentField));
+                        terminalLM.findProperty("terminalDocument[STRING[1000]]").getMapping(idTerminalDocumentField));
                 keys.add(terminalDocumentKey);
                 props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("id[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentField);
@@ -132,7 +132,7 @@ public class TerminalDocumentEquipmentServer {
 
                 ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directory[GroupTerminal]"));
                 ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("GroupTerminal"),
-                        terminalLM.findProperty("groupTerminalDirectory[VARSTRING[100]]").getMapping(directoryGroupTerminalField));
+                        terminalLM.findProperty("groupTerminalDirectory[STRING[100]]").getMapping(directoryGroupTerminalField));
                 keys.add(groupTerminalKey);
                 props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findProperty("groupTerminal[TerminalDocument]").getMapping(terminalDocumentKey),
                         terminalLM.object(terminalLM.findClass("GroupTerminal")).getMapping(groupTerminalKey)));
@@ -154,7 +154,7 @@ public class TerminalDocumentEquipmentServer {
 
                 ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findProperty("id[TerminalDocumentType]"));
                 ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentType"),
-                        terminalLM.findProperty("terminalDocumentType[VARSTRING[100]]").getMapping(idTerminalDocumentTypeField));
+                        terminalLM.findProperty("terminalDocumentType[STRING[100]]").getMapping(idTerminalDocumentTypeField));
                 terminalDocumentTypeKey.skipKey = true;
                 keys.add(terminalDocumentTypeKey);
                 props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("id[TerminalDocumentType]").getMapping(terminalDocumentTypeKey)));
@@ -172,7 +172,7 @@ public class TerminalDocumentEquipmentServer {
 
                 ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("id[TerminalDocumentDetail]"));
                 ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentDetail"),
-                        terminalLM.findProperty("terminalIdTerminalId[VARSTRING[1000],VARSTRING[1000]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
+                        terminalLM.findProperty("terminalIdTerminalId[STRING[1000],STRING[1000]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
                 keys.add(terminalDocumentDetailKey);
                 props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findProperty("id[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("terminalDocument[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey),

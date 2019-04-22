@@ -7,8 +7,8 @@ NAMESPACE Purchase;
 EXTEND CLASS Invoice : EVATDocument;
 name(Invoice document) += description(document);
 isPosted[EVATDocument](Invoice document) += isPosted(document);
-number[EVATDocument](Invoice document) += VARSTRING[100](number(document));
-series[EVATDocument](Invoice document) += VARSTRING[2](series(document));
+number[EVATDocument](Invoice document) += STRING[100](number(document));
+series[EVATDocument](Invoice document) += STRING[2](series(document));
 dateTime[EVATDocument](Invoice document) += dateTime(document);
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
@@ -27,14 +27,14 @@ createEVATPurchaseInvoice (EVAT e, Invoice i)  {
     status(e) <- EVATStatus.original;
     legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
     legalEntityStatusCustomer(e) <- LegalEntityStatus.customer;
-    declarationCustomer(e) <- VARSTRING[100](number(declaration(i)));
+    declarationCustomer(e) <- STRING[100](number(declaration(i)));
            
     date(e) <- date(i);
     
     numberContract (e) <- number(contractSku(i));
     dateContract (e) <- dateFrom(contractSku(i));
     codeDocType (e) <- 609;
-    valueDocType(e) <- VARSTRING[100] ('invoice');
+    valueDocType(e) <- STRING[100] ('invoice');
 //        blankCodeDoc (e) <- OVERRIDE '402861', blankCodeDoc();
     seriesDoc(e) <- series(i);
     numberDoc(e) <- number(i);
@@ -49,13 +49,13 @@ createEVATPurchaseInvoice (EVAT e, Invoice i)  {
     branchCodeCustomer(e) <- branchCode(customerStock(i));
     
     //Грузоотправитель
-    consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+    consignor(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
     countryCodeConsignor (e) <- sid(country(supplier(i)));
     unpConsignor (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
     shippingAddressConsignor(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
     
     //Грузополучатель
-    consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+    consignee(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
     countryCodeConsignee (e) <- sid(country(customer(i)));
     unpConsignee (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
     shippingAddressConsignee(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
@@ -66,7 +66,7 @@ createEVATPurchaseInvoice (EVAT e, Invoice i)  {
 createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed)  { 
     evat(ed) <- e;
     
-    name(ed) <- VARSTRING[255](OVERRIDE documentNameSku(id), nameSku(id));
+    name(ed) <- STRING[255](OVERRIDE documentNameSku(id), nameSku(id));
     sku(ed) <- sku(id);
     code(ed) <- OVERRIDE codeCustomsGroup(id), codeCustomsGroup(defaultCountry(), sku(id));
     UOM(ed) <- UOM(sku(id));

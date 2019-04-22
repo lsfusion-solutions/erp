@@ -8,8 +8,8 @@ CLASS ABSTRACT GroupMachinery 'Группы оборудования';
 TABLE groupMachinery (GroupMachinery);
 
 npp 'Порядковый номер' = DATA INTEGER (GroupMachinery) IN id NONULL; 
-name 'Наименование' = DATA VARISTRING[200] (GroupMachinery) IN id CHARWIDTH 10;
-directory = ABSTRACT VARSTRING[200] (GroupMachinery);
+name 'Наименование' = DATA ISTRING[200] (GroupMachinery) IN id CHARWIDTH 10;
+directory = ABSTRACT STRING[200] (GroupMachinery);
 
 inactive 'Неактивный' = ABSTRACT BOOLEAN (GroupMachinery);
 active 'Активный' (GroupMachinery group) = group IS GroupMachinery AND NOT inactive(group);
@@ -23,7 +23,7 @@ groupMachineryNpp = GROUP AGGR GroupMachinery groupMachinery BY npp(groupMachine
 stock = ABSTRACT Stock (GroupMachinery) MATERIALIZED;
 idStock 'Склад' (GroupMachinery groupMachinery) = id(stock(groupMachinery));
 nameStock 'Склад' (GroupMachinery groupMachinery) = name(stock(groupMachinery));
-section 'Секция' (GroupMachinery groupMachinery) = DATA VARSTRING[100] (GroupMachinery);
+section 'Секция' (GroupMachinery groupMachinery) = DATA STRING[100] (GroupMachinery);
 
 // фильтрация по группам товаров
 
@@ -79,11 +79,11 @@ idPriceListType 'Вид цен' (GroupMachinery groupMachinery) = id(priceListTy
 CLASS ABSTRACT Model 'Модель';
 TABLE model (Model);
 
-name 'Наименование' = ABSTRACT VARISTRING[110](Model);
+name 'Наименование' = ABSTRACT ISTRING[110](Model);
 
-sid 'Код' = DATA VARSTRING[20] (Model) IN base;
-note 'Примечание' = DATA VARSTRING[200] (Model) IN base;
-handler 'Обработчик' = DATA VARSTRING[200] (Model) IN base;
+sid 'Код' = DATA STRING[20] (Model) IN base;
+note 'Примечание' = DATA STRING[200] (Model) IN base;
+handler 'Обработчик' = DATA STRING[200] (Model) IN base;
 maxProduct 'MAX допустимое колич. товаров' = DATA INTEGER (Model) IN base;
 
 //---------------------------- типы оборудования  ----------------------------------------//
@@ -91,7 +91,7 @@ CLASS ABSTRACT Machinery 'Оборудование';
 TABLE machinery(Machinery);
 
 groupMachinery = ABSTRACT GroupMachinery (Machinery) MATERIALIZED;
-dataDirectory = ABSTRACT VARSTRING[200] (Machinery);
+dataDirectory = ABSTRACT STRING[200] (Machinery);
 overDirectory (Machinery machinery) = OVERRIDE dataDirectory(machinery), directory(groupMachinery(machinery));
 nppGroupMachinery 'Номер группы' (Machinery machinery) = npp(groupMachinery(machinery));
 nameGroupMachinery 'Группа' (Machinery machinery) = name(groupMachinery(machinery));
@@ -105,11 +105,11 @@ handlerModel 'Обработчик' (GroupMachinery machinery) = handler(model(m
 handlerModel (Machinery machinery) = handlerModel(groupMachinery(machinery));
 
 npp 'Порядковый номер' = DATA INTEGER (Machinery) IN base NONULL;
-shortDescription 'Краткое описание' = DATA VARSTRING[10] (Machinery) IN base;
-overNpp 'Номер' (Machinery machinery) = OVERRIDE shortDescription(machinery), VARSTRING[10](npp(machinery));
-description 'Описание' = DATA VARSTRING[200] (Machinery) IN base;
+shortDescription 'Краткое описание' = DATA STRING[10] (Machinery) IN base;
+overNpp 'Номер' (Machinery machinery) = OVERRIDE shortDescription(machinery), STRING[10](npp(machinery));
+description 'Описание' = DATA STRING[200] (Machinery) IN base;
 
-port 'Адрес/порт' = DATA VARSTRING[100] (Machinery) IN base CHARWIDTH 20;
+port 'Адрес/порт' = DATA STRING[100] (Machinery) IN base CHARWIDTH 20;
 ports 'Адрес/порт' = GROUP CONCAT port(Machinery m), ',' BY groupMachinery(m) CHARWIDTH 20;
 
 overInactive = ABSTRACT BOOLEAN (Machinery);

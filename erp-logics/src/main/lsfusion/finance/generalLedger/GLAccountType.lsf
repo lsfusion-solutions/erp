@@ -16,11 +16,11 @@ PRIORITY Utils;
 CLASS GLAccountType 'План счетов';
 TABLE GLAccountType(GLAccountType);
 
-name 'Наименование' = DATA VARISTRING[150](GLAccountType);
+name 'Наименование' = DATA ISTRING[150](GLAccountType);
 
 currency = DATA Currency (GLAccountType);
 nameCurrency 'Валюта' (GLAccountType GLAccountType)= name(currency(GLAccountType));
-id 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) CHARWIDTH 15;
+id 'Идентификатор' = DATA STRING[20] (GLAccountType) CHARWIDTH 15;
 
 GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType GLAccountType WHERE GLAccountType IS GLAccountType
     BY id(GLAccountType);
@@ -43,20 +43,20 @@ FORM GLAccountTypes 'Планы счетов'
 CLASS GLAccount 'Счет';
 TABLE GLAccount(GLAccount);
 
-name 'Наименование' = DATA VARSTRING[255] (GLAccount) CHARWIDTH 40;
+name 'Наименование' = DATA STRING[255] (GLAccount) CHARWIDTH 40;
 GLAccountType = DATA GLAccountType (GLAccount) AUTOSET;
 nameGLAccountType 'План счетов' (GLAccount GLAccount)= name(GLAccountType(GLAccount));
 nameCurrency 'Валюта' (GLAccount GLAccount) = nameCurrency(GLAccountType(GLAccount));
 
-id 'Идентификатор' = DATA VARSTRING[20] (GLAccount) CHARWIDTH 5;
+id 'Идентификатор' = DATA STRING[20] (GLAccount) CHARWIDTH 5;
 
 TABLE GLAccountGLAccount(GLAccount, GLAccount);
 @defineHierarchy(GLAccount);
 
-canonicalId 'Канонический код' (GLAccount GLAccount) = VARSTRING[255](
+canonicalId 'Канонический код' (GLAccount GLAccount) = STRING[255](
                            (GROUP CONCAT id(GLAccount parent), ' / ' ORDER DESC level(GLAccount, parent)))
                            CHARWIDTH 50 MATERIALIZED;
-canonicalNames 'Каноническое имя' (GLAccount GLAccount) = VARSTRING[255](
+canonicalNames 'Каноническое имя' (GLAccount GLAccount) = STRING[255](
                            (GROUP CONCAT name(GLAccount parent), ' / ' ORDER DESC level(GLAccount, parent)))
                            CHARWIDTH 50 MATERIALIZED;
 
@@ -173,14 +173,14 @@ NAVIGATOR {
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultGLAccountType 'Добавить значение плана счетов'(VARISTRING[150] iname, VARSTRING[20] isid, BPSTRING[3] isidCurrency)  { 
+loadDefaultGLAccountType 'Добавить значение плана счетов'(ISTRING[150] iname, STRING[20] isid, BPSTRING[3] isidCurrency)  { 
     NEW t = GLAccountType {
         name(t) <- iname;
         id (t) <- isid;
         currency(t) <- currencyShortName(isidCurrency);
     }
 }
-loadDefaultGLAccount 'Добавить значение счета'(VARSTRING[255] iname, VARSTRING[20] isid, VARSTRING[20] sidType, VARSTRING[20] sidParent)  { 
+loadDefaultGLAccount 'Добавить значение счета'(STRING[255] iname, STRING[20] isid, STRING[20] sidType, STRING[20] sidParent)  { 
     NEW g = GLAccount {
         name(g) <- iname;
         id(g) <- isid;

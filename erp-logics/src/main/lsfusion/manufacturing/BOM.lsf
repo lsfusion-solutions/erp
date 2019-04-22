@@ -78,9 +78,9 @@ isProductGroup 'Фильтр готовые изделия (группа)' (Sku 
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-id 'Код' = ABSTRACT VARSTRING[100] (Material) MATERIALIZED INDEXED CHARWIDTH 10;
+id 'Код' = ABSTRACT STRING[100] (Material) MATERIALIZED INDEXED CHARWIDTH 10;
 
-name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) MATERIALIZED INDEXED CHARWIDTH 40;
+name 'Наименование' (material) = ABSTRACT ISTRING[255] (Material) MATERIALIZED INDEXED CHARWIDTH 40;
 
 UOM (material) = ABSTRACT UOM (Material) MATERIALIZED;
 shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN base;
@@ -161,12 +161,12 @@ CLASS BOM 'Спецификация' : Document;
 TABLE BOM (BOM);
 TABLE employeeBOM(Employee, BOM); 
 
-@defineExternalizable(BOM, VARSTRING[100]);
+@defineExternalizable(BOM, STRING[100]);
 
 @defineDocumentHeaderTimePrefix(BOM, , ' документа');
 @deriveDocumentHeaderTimePrefix(BOM, );
 
-name 'Наименование' = DATA VARISTRING[100](BOM);
+name 'Наименование' = DATA ISTRING[100](BOM);
 
 @defineDocumentHeaderCreated(BOM);
 @defineDocumentHeaderNote(BOM);
@@ -174,7 +174,7 @@ name 'Наименование' = DATA VARISTRING[100](BOM);
 @defineNumbered(BOM);
 @defineNumeratedDefault(BOM, 'Спецификации', 'СП');
   
-description 'Название спецификации' (BOM BOM) = VARSTRING[200](CONCAT ' ', name(BOM), 
+description 'Название спецификации' (BOM BOM) = STRING[200](CONCAT ' ', name(BOM), 
                                                                           '№'+seriesNumber(BOM)) CHARWIDTH 30; 
     
 
@@ -188,7 +188,7 @@ active 'Активная' = BOM b IS BOM AND NOT inactive(b);
 CLASS Product 'Изделие' : Material, DocumentDetail;
 TABLE product (Product);
 
-@defineExternalizable(product, VARSTRING[100], ext);
+@defineExternalizable(product, STRING[100], ext);
 
 EXTEND FORM materials
 
@@ -221,15 +221,15 @@ description 'Название документа' (Product product) = descriptio
 @defineDocumentDetailIndexPersistent (BOM, Product);
 @defineDocumentDetailActionsCustom (BOM, Product);
 
-products 'Изделия' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameSku(Product p), ' ('+idSku(p)+')'), ', '
+products 'Изделия' (BOM) = GROUP CONCAT ISTRING[2000](CONCAT '', nameSku(Product p), ' ('+idSku(p)+')'), ', '
                                        ORDER index(p), p
                                        BY BOM(p) CHARWIDTH 30 MATERIALIZED;
 
-idProducts 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSku(Product p)), ', '
+idProducts 'Коды' (BOM) = GROUP CONCAT STRING[255](idSku(Product p)), ', '
                                       ORDER index(p), p
                                       BY BOM(p) CHARWIDTH 13 MATERIALIZED; 
                                                                               
-fullName 'Полное название' (BOM BOM) = VARISTRING[2000] (CONCAT '/',
+fullName 'Полное название' (BOM BOM) = ISTRING[2000] (CONCAT '/',
                                                               products(BOM),                                                                  
                                                               name(BOM)) CHARWIDTH 30;
                                        
@@ -243,7 +243,7 @@ priceCoeff (Product product) = pricePercent(product) / 100 MATERIALIZED;
 
 pricePercent 'Удельный вес цен, %' = GROUP SUM pricePercent(Product product) BY BOM(product) MATERIALIZED IN documentSum;
 
-name(Product material) += VARISTRING[255] (CONCAT '/',
+name(Product material) += ISTRING[255] (CONCAT '/',
                                               description(BOM(material)),
                                               nameSku(material));
 
@@ -284,9 +284,9 @@ FORM products 'Изделия'
 CLASS Component 'Компонент' : DocumentDetail;
 TABLE component (Component);
 
-//nameComponent 'Наименование' = DATA VARISTRING[100](Component);
+//nameComponent 'Наименование' = DATA ISTRING[100](Component);
 
-@defineExternalizable(component, VARSTRING[100], ext);
+@defineExternalizable(component, STRING[100], ext);
 
 @defineDocumentRelation (BOM, Component, ' (компонент)');
 @defineDocumentDetailTimePrefix(BOM, Component, , ' документа');
@@ -304,14 +304,14 @@ id 'Код компонента' (Component component)= id(material(component));
 sku 'Sku' (Component c) = sku(material(c)) MATERIALIZED INDEXED;
 
 
-components 'Компоненты' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameMaterial(Component component), ' ('+id(component)+')'), ', '
+components 'Компоненты' (BOM) = GROUP CONCAT ISTRING[2000](CONCAT '', nameMaterial(Component component), ' ('+id(component)+')'), ', '
                                        ORDER index(component), component
                                        BY BOM(component) CHARWIDTH 30 MATERIALIZED;
-idComponents 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](id(Component component)), ', '
+idComponents 'Коды' (BOM) = GROUP CONCAT STRING[255](id(Component component)), ', '
                                        ORDER index(component), component
                                        BY BOM(component) CHARWIDTH 20 MATERIALIZED;                                       
                                      
-name 'Компонент' (Component component) = VARSTRING[255](CONCAT '/', description(BOM(component)), 
+name 'Компонент' (Component component) = STRING[255](CONCAT '/', description(BOM(component)), 
                                                      nameMaterial(component)) MATERIALIZED;
                                       
 
@@ -885,7 +885,7 @@ EXTEND FORM components
 //-------------------------------- Комиссия для акта контрольной проработки ----------------------------------//
 CLASS ManufacturingCommittee 'Комиссия производство' : Committee;
 
-name 'Наименование' = DATA VARISTRING[150](ManufacturingCommittee);
+name 'Наименование' = DATA ISTRING[150](ManufacturingCommittee);
 
 name(ManufacturingCommittee committee) += name(committee) IF committee IS ManufacturingCommittee;
 

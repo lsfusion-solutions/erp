@@ -34,7 +34,7 @@ CLASS Operation 'Операции ABC-отчета';
 TABLE operation (Operation);
 
 name 'Наименование' = DATA BPSTRING[100] (Operation) IN documentHeader;
-@defineExternalizable(operation, VARSTRING[100]);
+@defineExternalizable(operation, STRING[100]);
 
 percA 'A, %' = DATA NUMERIC[8,3](Operation);
 percB 'B, %' = DATA NUMERIC[8,3](Operation);
@@ -357,17 +357,17 @@ indexMarkupBest 'Номер п/п (доход)' = DATA INTEGER (Sku, SnapshotABC
 partitionMarkupBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
 
 percMarkupOrder 'Накопленный процент (доход)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
-statusMarkup 'Рейтинг (доход)' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
+statusMarkup 'Рейтинг (доход)' = DATA ISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 
 percInSumSold 'Удельный вес (сумма), %'= DATA NUMERIC[18,4] (Sku, SnapshotABC);
 indexSumBest 'Номер п/п (сумма)' = DATA INTEGER (Sku, SnapshotABC);
 partitionSumBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с накоплением
 
 percSumOrder 'Накопленный процент (сумма)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
-statusSum 'Рейтинг (сумма)' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
+statusSum 'Рейтинг (сумма)' = DATA ISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 
-statusAll 'Рейтинг ABC' = DATA VARISTRING[2] (Sku, SnapshotABC) CHARWIDTH 7;
-statusGlobal 'Рейтинг общий' = DATA VARISTRING[3] (Sku, SnapshotABC) CHARWIDTH 7;
+statusAll 'Рейтинг ABC' = DATA ISTRING[2] (Sku, SnapshotABC) CHARWIDTH 7;
+statusGlobal 'Рейтинг общий' = DATA ISTRING[3] (Sku, SnapshotABC) CHARWIDTH 7;
 
 backgroundStatusMarkup(Sku sku, SnapshotABC s) = CASE 
     WHEN  statusMarkup(sku,s) == 'A' THEN RGB(204,255,204)
@@ -384,7 +384,7 @@ averageSold 'Средняя продажа за день' = DATA NUMERIC[16,5] (
 dispersionSold 'Дисперсия однодневных продаж' = DATA NUMERIC[16,5] (Sku, SnapshotABC);
 percKoeffVar 'Коэффициент вариации' = DATA NUMERIC[14,4] (Sku, SnapshotABC);
 
-statusQuantity 'Рейтинг XYZ' = DATA VARISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
+statusQuantity 'Рейтинг XYZ' = DATA ISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 backgroundStatusQuantity(Sku sku, SnapshotABC s) = CASE 
     WHEN  statusQuantity(sku,s) == 'X' THEN RGB(204,255,204)
     WHEN  statusQuantity(sku,s) == 'Y' THEN RGB(255, 250, 205)
@@ -613,7 +613,7 @@ inDays 'Вкл.' = DATA BOOLEAN (Operation, INTEGER);
 countDaysIn (Operation t) = GROUP SUM 1 IF inDays(t,INTEGER i);
 
 daysIn 'Числа' (Operation t)  = GROUP
-    CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
+    CONCAT STRING[2](INTEGER i) IF inDays(t,i), ', '
     ORDER i CHARWIDTH 10;
     
 DOWsIn 'Дни недели' (Operation t)  = GROUP
@@ -718,8 +718,8 @@ deleteSnapshotsABC 'Удалить старые ABC-отчеты'() {
 }
 
 orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION SUM 1 ORDER sort(g) BY groupType(g), parent(g);
-canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
-nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
+canonicalOrderSort 'Порядок' (SkuGroup g) = STRING[250]((GROUP CONCAT lpad(STRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
+nameLevel4 'Наименование' (SkuGroup g) = STRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 FORM snapshotABC 'ABC-отчет'                                   
     OBJECTS r = SnapshotABC PANEL

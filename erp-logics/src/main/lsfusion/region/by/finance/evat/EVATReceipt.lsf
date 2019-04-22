@@ -20,14 +20,14 @@ DESIGN options {
 
 customer = DATA LOCAL NESTED LegalEntity();
 range = DATA LOCAL NESTED Range();
-customerStr = DATA LOCAL NESTED VARSTRING[150]();
-unpStr = DATA LOCAL NESTED VARSTRING[9]();
+customerStr = DATA LOCAL NESTED STRING[150]();
+unpStr = DATA LOCAL NESTED STRING[9]();
 
 FORM findCustomer 'Поиск покупателя'
-    OBJECTS c = VARSTRING[150] PANEL
+    OBJECTS c = STRING[150] PANEL
     PROPERTIES name = VALUE(c)
     
-    OBJECTS u = VARSTRING[9] PANEL
+    OBJECTS u = STRING[9] PANEL
     PROPERTIES unp = VALUE(u)
 ;
 
@@ -42,13 +42,13 @@ DESIGN findCustomer {
 
 
 FORM inputData 'Новый покупатель'
-    OBJECTS cu = VARSTRING[150] PANEL
+    OBJECTS cu = STRING[150] PANEL
     PROPERTIES name = VALUE(cu)
     
-    OBJECTS un = VARSTRING[9] PANEL
+    OBJECTS un = STRING[9] PANEL
     PROPERTIES unp = VALUE(un)
 
-    OBJECTS a = VARSTRING[150] PANEL
+    OBJECTS a = STRING[150] PANEL
     PROPERTIES address = VALUE(a)   
 ;
 
@@ -92,9 +92,9 @@ FORM selectCustomer 'Выбор покупателя'
              AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT())
 ;
 
-countLegalEntitiesByName(VARSTRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l),str) AND str !='' 
+countLegalEntitiesByName(STRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l),str) AND str !='' 
                                                         AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
-countLegalEntitiesByUNP(VARSTRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l),str)  AND str !='' 
+countLegalEntitiesByUNP(STRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l),str)  AND str !='' 
                                                         AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
 overCreateEVATReceipt 'Создать ЭСЧФ'  ABSTRACT ( EVAT, Receipt);
 
@@ -145,19 +145,19 @@ createEVAT 'Создать ЭСЧФ' (Receipt r)  {
 	                date(e) <- date(r);
 	                codeDocType (e) <- 603;
 	               // blankCodeDoc (e) <- OVERRIDE blankCodeDoc(), '402861';
-	                numberDoc(e) <- VARSTRING[100](number(r));
+	                numberDoc(e) <- STRING[100](number(r));
 	                unpSender(e) <- UNP(legalEntityDepartmentStore(r));
 	        
 	                supplier(e) <- legalEntityDepartmentStore(r);
 	                customer(e) <- customer();  
 	                
 	                //Грузоотправитель
-	                consignor(e) <- VARISTRING[200](OVERRIDE fullName(legalEntityDepartmentStore(r)), name(legalEntityDepartmentStore(r)));
+	                consignor(e) <- ISTRING[200](OVERRIDE fullName(legalEntityDepartmentStore(r)), name(legalEntityDepartmentStore(r)));
 	                countryCodeConsignor (e) <- sid(country(legalEntityDepartmentStore(r)));
 	                unpConsignor (e) <- OVERRIDE UNPForeign(legalEntityDepartmentStore(r)), UNP(legalEntityDepartmentStore(r)); 
 	                shippingAddressConsignor(e) <- address(departmentStore(r));
 	                //Грузополучатель
-	                consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer()), name(customer()));
+	                consignee(e) <- ISTRING[200](OVERRIDE fullName(customer()), name(customer()));
 	                countryCodeConsignee (e) <- sid(country(customer()));
 	                unpConsignee (e) <- OVERRIDE UNPForeign(customer()), UNP(customer()); 
 	                shippingAddressConsignee(e) <- address(stock(customer()));

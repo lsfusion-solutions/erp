@@ -118,7 +118,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             if (orderObject == null && showField(orderDetailsList, "idOrder")) {
                 idOrderField = new ImportField(findProperty("id[Order]"));
                 orderKey = new ImportKey((CustomClass) findClass("Production.Order"),
-                        findProperty("order[VARSTRING[100]]").getMapping(idOrderField));
+                        findProperty("order[STRING[100]]").getMapping(idOrderField));
                 keys.add(orderKey);
                 props.add(new ImportProperty(idOrderField, findProperty("id[Order]").getMapping(orderKey)));
                 fields.add(idOrderField);
@@ -156,7 +156,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             if (showField(orderDetailsList, "idProductsStock")) {
                 ImportField idProductsStockOrderField = new ImportField(findProperty("id[Stock]"));
                 ImportKey<?> productsStockOrderKey = new ImportKey((CustomClass) findClass("Stock"),
-                        findProperty("stock[VARSTRING[100]]").getMapping(idProductsStockOrderField));
+                        findProperty("stock[STRING[100]]").getMapping(idProductsStockOrderField));
                 productsStockOrderKey.skipKey = true;
                 keys.add(productsStockOrderKey);
                 props.add(new ImportProperty(idProductsStockOrderField, findProperty("productsStock[Order]").getMapping(orderObject == null ? orderKey : orderObject),
@@ -168,7 +168,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             ImportField idSkuField = new ImportField(findProperty("id[Sku]"));
             ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("sku[VARSTRING[100]]").getMapping(idSkuField));
+                    findProperty("sku[STRING[100]]").getMapping(idSkuField));
             keys.add(skuKey);
             fields.add(idSkuField);
             for (int i = 0; i < orderDetailsList.size(); i++)
@@ -176,7 +176,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             ImportField idBOMField = new ImportField(findProperty("id[BOM]"));
             ImportKey<?> BOMKey = new ImportKey((ConcreteCustomClass) findClass("BOM"),
-                    findProperty("BOM[VARSTRING[100]]").getMapping(idBOMField));
+                    findProperty("BOM[STRING[100]]").getMapping(idBOMField));
             keys.add(BOMKey);
             props.add(new ImportProperty(idBOMField, findProperty("id[BOM]").getMapping(BOMKey)));
             props.add(new ImportProperty(idBOMField, findProperty("number[BOM]").getMapping(BOMKey)));
@@ -186,7 +186,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             
             ImportField extIdProductField = new ImportField(findProperty("extId[Product]"));
             ImportKey<?> productKey = new ImportKey((CustomClass) findClass("Product"),
-                    findProperty("extProduct[VARSTRING[100]]").getMapping(extIdProductField));
+                    findProperty("extProduct[STRING[100]]").getMapping(extIdProductField));
             keys.add(productKey);
             props.add(new ImportProperty(extIdProductField, findProperty("extId[Product]").getMapping(productKey)));
             props.add(new ImportProperty(idBOMField, findProperty("BOM[Product]").getMapping(productKey),
@@ -199,7 +199,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             ImportField idProductDetailField = new ImportField(findProperty("id[ProductDetail]"));
             ImportKey<?> productDetailKey = new ImportKey((CustomClass) findClass("Production.ProductDetail"),
-                    findProperty("productDetail[VARSTRING[100]]").getMapping(idProductDetailField));
+                    findProperty("productDetail[STRING[100]]").getMapping(idProductDetailField));
             keys.add(productDetailKey);
             props.add(new ImportProperty(idProductDetailField, findProperty("id[ProductDetail]").getMapping(productDetailKey)));
             if(orderObject == null)

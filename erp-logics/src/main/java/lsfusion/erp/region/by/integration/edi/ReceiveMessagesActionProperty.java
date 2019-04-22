@@ -400,7 +400,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     BLRWBR blrwbr = parseBLRWBR(subXML, documentId);
 
                     //создаём BLRAPN и подписываем
-                    ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
+                    ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[STRING[28]]").readClasses(context, new DataObject(blrwbr.deliveryNoteNumber));
                     if (eInvoiceObject instanceof DataObject) {
                         String aliasEDSService = (String) findProperty("aliasEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
                         String passwordEDSService = (String) findProperty("passwordEDSServiceSupplier[EInvoice]").read(context, eInvoiceObject);
@@ -553,7 +553,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField numberEOrderMessage = new ImportField(findProperty("number[EOrderMessage]"));
             ImportKey<?> eOrderMessageKey = new ImportKey((CustomClass) findClass("EOrderMessage"),
-                    findProperty("eOrderMessage[VARSTRING[24]]").getMapping(numberEOrderMessage));
+                    findProperty("eOrderMessage[STRING[24]]").getMapping(numberEOrderMessage));
             keys.add(eOrderMessageKey);
             props.add(new ImportProperty(numberEOrderMessage, findProperty("number[EOrderMessage]").getMapping(eOrderMessageKey)));
             fields.add(numberEOrderMessage);
@@ -572,7 +572,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField numberEOrderField = new ImportField(findProperty("number[EOrder]"));
             ImportKey<?> eOrderKey = new ImportKey((CustomClass) findClass("EOrder"),
-                    findProperty("eOrder[VARSTRING[28]]").getMapping(numberEOrderField));
+                    findProperty("eOrder[STRING[28]]").getMapping(numberEOrderField));
             eOrderKey.skipKey = true;
             keys.add(eOrderKey);
             props.add(new ImportProperty(numberEOrderField, findProperty("eOrder[EOrderMessage]").getMapping(eOrderMessageKey),
@@ -674,7 +674,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField idEOrderResponseField = new ImportField(findProperty("id[EOrderResponse]"));
             ImportKey<?> eOrderResponseKey = new ImportKey((CustomClass) findClass("EOrderResponse"),
-                    findProperty("eOrderResponse[VARSTRING[100]]").getMapping(idEOrderResponseField));
+                    findProperty("eOrderResponse[STRING[100]]").getMapping(idEOrderResponseField));
             keys.add(eOrderResponseKey);
             props.add(new ImportProperty(idEOrderResponseField, findProperty("id[EOrderResponse]").getMapping(eOrderResponseKey)));
             fields.add(idEOrderResponseField);
@@ -701,7 +701,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNSupplierEOrderResponseField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderResponseField));
+                    findProperty("legalEntityStockGLN[STRING[13]]").getMapping(GLNSupplierEOrderResponseField));
             supplierKey.skipKey = true;
             keys.add(supplierKey);
             props.add(new ImportProperty(GLNSupplierEOrderResponseField, findProperty("supplier[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -710,7 +710,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerEOrderResponseField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNCustomerEOrderResponseField));
+                    findProperty("legalEntityGLN[STRING[13]]").getMapping(GLNCustomerEOrderResponseField));
             customerKey.skipKey = true;
             keys.add(customerKey);
             props.add(new ImportProperty(GLNCustomerEOrderResponseField, findProperty("customer[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -719,7 +719,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerStockEOrderResponseField = new ImportField(findProperty("GLN[Stock]"));
             ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderResponseField));
+                    findProperty("companyStockGLN[STRING[13]]").getMapping(GLNCustomerStockEOrderResponseField));
             customerStockKey.skipKey = true;
             keys.add(customerStockKey);
             props.add(new ImportProperty(GLNCustomerStockEOrderResponseField, findProperty("customerStock[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -728,7 +728,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField numberEOrderField = new ImportField(findProperty("number[EOrder]"));
             ImportKey<?> eOrderKey = new ImportKey((CustomClass) findClass("EOrder"),
-                    findProperty("eOrder[VARSTRING[28]]").getMapping(numberEOrderField));
+                    findProperty("eOrder[STRING[28]]").getMapping(numberEOrderField));
             eOrderKey.skipKey = true;
             keys.add(eOrderKey);
             props.add(new ImportProperty(numberEOrderField, findProperty("eOrder[EOrderResponse]").getMapping(eOrderResponseKey),
@@ -745,7 +745,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField idEOrderResponseDetailField = new ImportField(findProperty("id[EOrderResponseDetail]"));
             ImportKey<?> eOrderResponseDetailKey = new ImportKey((CustomClass) findClass("EOrderResponseDetail"),
-                    findProperty("eOrderResponseDetail[VARSTRING[100]]").getMapping(idEOrderResponseDetailField));
+                    findProperty("eOrderResponseDetail[STRING[100]]").getMapping(idEOrderResponseDetailField));
             keys.add(eOrderResponseDetailKey);
             props.add(new ImportProperty(numberEOrderField, findProperty("orderResponse[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
                     object(findClass("EOrderResponse")).getMapping(eOrderResponseKey)));
@@ -755,7 +755,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             if (first) {
                 ImportField barcodeEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
-                        findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
+                        findProperty("skuBarcode[STRING[15]]").getMapping(barcodeEOrderResponseDetailField));
                 skuBarcodeKey.skipKey = true;
                 keys.add(skuBarcodeKey);
                 props.add(new ImportProperty(barcodeEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
@@ -764,7 +764,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             } else {
                 ImportField GTINEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
-                        findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderResponseDetailField));
+                        findProperty("skuGTIN[STRING[15]]").getMapping(GTINEOrderResponseDetailField));
                 skuGTINKey.skipKey = true;
                 keys.add(skuGTINKey);
                 props.add(new ImportProperty(GTINEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
@@ -889,7 +889,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField idEOrderDespatchAdviceField = new ImportField(findProperty("id[EOrderDespatchAdvice]"));
             ImportKey<?> eOrderDespatchAdviceKey = new ImportKey((CustomClass) findClass("EOrderDespatchAdvice"),
-                    findProperty("eOrderDespatchAdvice[VARSTRING[100]]").getMapping(idEOrderDespatchAdviceField));
+                    findProperty("eOrderDespatchAdvice[STRING[100]]").getMapping(idEOrderDespatchAdviceField));
             keys.add(eOrderDespatchAdviceKey);
             props.add(new ImportProperty(idEOrderDespatchAdviceField, findProperty("id[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
             fields.add(idEOrderDespatchAdviceField);
@@ -916,7 +916,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNSupplierEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityStockGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderDespatchAdviceField));
+                    findProperty("legalEntityStockGLN[STRING[13]]").getMapping(GLNSupplierEOrderDespatchAdviceField));
             supplierKey.skipKey = true;
             keys.add(supplierKey);
             props.add(new ImportProperty(GLNSupplierEOrderDespatchAdviceField, findProperty("supplier[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
@@ -925,7 +925,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNCustomerEOrderDespatchAdviceField));
+                    findProperty("legalEntityGLN[STRING[13]]").getMapping(GLNCustomerEOrderDespatchAdviceField));
             customerKey.skipKey = true;
             keys.add(customerKey);
             props.add(new ImportProperty(GLNCustomerEOrderDespatchAdviceField, findProperty("customer[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
@@ -934,7 +934,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField GLNCustomerStockEOrderDespatchAdviceField = new ImportField(findProperty("GLN[Stock]"));
             ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                    findProperty("companyStockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderDespatchAdviceField));
+                    findProperty("companyStockGLN[STRING[13]]").getMapping(GLNCustomerStockEOrderDespatchAdviceField));
             customerStockKey.skipKey = true;
             keys.add(customerStockKey);
             props.add(new ImportProperty(GLNCustomerStockEOrderDespatchAdviceField, findProperty("customerStock[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
@@ -943,7 +943,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField numberEOrderField = new ImportField(findProperty("number[EOrder]"));
             ImportKey<?> eOrderKey = new ImportKey((CustomClass) findClass("EOrder"),
-                    findProperty("eOrder[VARSTRING[28]]").getMapping(numberEOrderField));
+                    findProperty("eOrder[STRING[28]]").getMapping(numberEOrderField));
             eOrderKey.skipKey = true;
             keys.add(eOrderKey);
             props.add(new ImportProperty(numberEOrderField, findProperty("eOrder[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
@@ -956,7 +956,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField idEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[EOrderDespatchAdviceDetail]"));
             ImportKey<?> eOrderDespatchAdviceDetailKey = new ImportKey((CustomClass) findClass("EOrderDespatchAdviceDetail"),
-                    findProperty("eOrderDespatchAdviceDetail[VARSTRING[100]]").getMapping(idEOrderDespatchAdviceDetailField));
+                    findProperty("eOrderDespatchAdviceDetail[STRING[100]]").getMapping(idEOrderDespatchAdviceDetailField));
             keys.add(eOrderDespatchAdviceDetailKey);
             props.add(new ImportProperty(numberEOrderField, findProperty("orderDespatchAdvice[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
                     object(findClass("EOrderDespatchAdvice")).getMapping(eOrderDespatchAdviceKey)));
@@ -966,7 +966,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             if (first) {
                 ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
-                        findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
+                        findProperty("skuBarcode[STRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
                 skuBarcodeKey.skipKey = true;
                 keys.add(skuBarcodeKey);
                 props.add(new ImportProperty(barcodeEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
@@ -975,7 +975,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             } else {
                 ImportField GTINEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
                 ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
-                        findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderDespatchAdviceDetailField));
+                        findProperty("skuGTIN[STRING[15]]").getMapping(GTINEOrderDespatchAdviceDetailField));
                 skuGTINKey.skipKey = true;
                 keys.add(skuGTINKey);
                 props.add(new ImportProperty(GTINEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
@@ -1086,7 +1086,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             try (ExecutionContext.NewSession newContext = context.newSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[VARSTRING[28], INTEGER]").readClasses(newContext, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel != null ? 1 : 0));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumberIsCancel[STRING[28], INTEGER]").readClasses(newContext, new DataObject(blrwbl.deliveryNoteNumber), new DataObject(blrwbl.isCancel != null ? 1 : 0));
                 if (eInvoiceObject instanceof NullValue) {
                     eInvoiceObject = newContext.addObject((ConcreteCustomClass) findClass("EInvoice"));
 
@@ -1098,18 +1098,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     findProperty("deliveryNoteNumber[EInvoice]").change(blrwbl.deliveryNoteNumber, newContext, (DataObject) eInvoiceObject);
                     findProperty("isCancel[EInvoice]").change(blrwbl.isCancel, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue supplierObject = findProperty("legalEntityStockGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.supplierGLN));
+                    ObjectValue supplierObject = findProperty("legalEntityStockGLN[STRING[13]]").readClasses(newContext, new DataObject(blrwbl.supplierGLN));
                     findProperty("supplier[EInvoice]").change(supplierObject, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue customerObject = findProperty("legalEntityGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerGLN));
+                    ObjectValue customerObject = findProperty("legalEntityGLN[STRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerGLN));
                     findProperty("customer[EInvoice]").change(customerObject, newContext, (DataObject) eInvoiceObject);
 
-                    ObjectValue customerStockObject = findProperty("companyStockGLN[VARSTRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerStockGLN));
+                    ObjectValue customerStockObject = findProperty("companyStockGLN[STRING[13]]").readClasses(newContext, new DataObject(blrwbl.customerStockGLN));
                     findProperty("customerStock[EInvoice]").change(customerStockObject, newContext, (DataObject) eInvoiceObject);
 
                     ImportField idEInvoiceDetailField = new ImportField(findProperty("id[EInvoiceDetail]"));
                     ImportKey<?> eInvoiceDetailKey = new ImportKey((CustomClass) findClass("EInvoiceDetail"),
-                            findProperty("eInvoiceDetail[VARSTRING[100]]").getMapping(idEInvoiceDetailField));
+                            findProperty("eInvoiceDetail[STRING[100]]").getMapping(idEInvoiceDetailField));
                     keys.add(eInvoiceDetailKey);
                     props.add(new ImportProperty(idEInvoiceDetailField, findProperty("eInvoice[EInvoiceDetail]").getMapping(eInvoiceDetailKey),
                             object(findClass("EInvoice")).getMapping(eInvoiceObject)));
@@ -1178,7 +1178,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         if (reference != null) {
             String documentType = reference.getChildText("documentType");
             if (documentType != null && (documentType.equals("BLRWBL") || documentType.equals("SYSTEMMESSAGE"))) {
-                String invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[VARSTRING[28]]").read(context, new DataObject(trim(reference.getChildText("documentNumber"))));
+                String invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[STRING[28]]").read(context, new DataObject(trim(reference.getChildText("documentNumber"))));
                 String code = reference.getChildText("code");
                 String description = getDescriptionByCode(reference.getChildText("description"), code);
 
@@ -1220,11 +1220,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                 String invoiceNumber = referenceDocumentElement.getChildText("ID");
                 if (type.equals("BLRAPN"))
-                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrapn[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrapn[STRING[28]]").read(context, new DataObject(invoiceNumber));
                 else if (type.equals("BLRWBR"))
-                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbr[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbr[STRING[28]]").read(context, new DataObject(invoiceNumber));
                 else if (type.equals("BLRWBL") && receiveSupplierMessages)
-                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[VARSTRING[28]]").read(context, new DataObject(invoiceNumber));
+                    invoiceNumber = (String) findProperty("deliveryNoteNumberEInvoiceBlrwbl[STRING[28]]").read(context, new DataObject(invoiceNumber));
 
                 Element errorOrAcknowledgementElement = acknowledgementElement.getChild("ErrorOrAcknowledgement");
                 if (errorOrAcknowledgementElement != null) {
@@ -1247,7 +1247,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField numberEInvoiceMessageField = new ImportField(findProperty("number[EInvoiceMessage]"));
             ImportKey<?> eInvoiceMessageKey = new ImportKey((CustomClass) findClass("EInvoiceMessage"),
-                    findProperty("eInvoiceMessage[VARSTRING[24]]").getMapping(numberEInvoiceMessageField));
+                    findProperty("eInvoiceMessage[STRING[24]]").getMapping(numberEInvoiceMessageField));
             keys.add(eInvoiceMessageKey);
             props.add(new ImportProperty(numberEInvoiceMessageField, findProperty("number[EInvoiceMessage]").getMapping(eInvoiceMessageKey)));
             fields.add(numberEInvoiceMessageField);
@@ -1266,7 +1266,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField deliveryNoteNumberField = new ImportField(findProperty("deliveryNoteNumber[EInvoice]"));
             ImportKey<?> eInvoiceKey = new ImportKey((CustomClass) findClass("EInvoice"),
-                    findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[28]]").getMapping(deliveryNoteNumberField));
+                    findProperty("eInvoiceDeliveryNoteNumber[STRING[28]]").getMapping(deliveryNoteNumberField));
             eInvoiceKey.skipKey = true;
             keys.add(eInvoiceKey);
             props.add(new ImportProperty(deliveryNoteNumberField, findProperty("eInvoice[EInvoiceMessage]").getMapping(eInvoiceMessageKey),
@@ -1293,10 +1293,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             try (ExecutionContext.NewSession newContext = context.newSession()) {
 
-                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[VARSTRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.invoiceNumber));
+                ObjectValue eInvoiceObject = findProperty("eInvoiceDeliveryNoteNumber[STRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.invoiceNumber));
                 if (eInvoiceObject instanceof DataObject) {
 
-                    ObjectValue eInvoiceMessageObject = findProperty("eInvoiceMessage[VARSTRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.documentNumber));
+                    ObjectValue eInvoiceMessageObject = findProperty("eInvoiceMessage[STRING[24]]").readClasses(newContext, new DataObject(invoiceMessage.documentNumber));
                     if (eInvoiceMessageObject instanceof NullValue) {
                         eInvoiceMessageObject = newContext.addObject((ConcreteCustomClass) findClass("EInvoiceMessage"));
                         findProperty("number[EInvoiceMessage]").change(invoiceMessage.documentNumber, newContext, (DataObject) eInvoiceMessageObject);
@@ -1454,7 +1454,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
-            if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null) {
+            if (findProperty("eOrder[STRING[28]]").read(context, new DataObject(orderNumber)) == null) {
                 sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber), disableConfirmation, sendReplies);
             }
 

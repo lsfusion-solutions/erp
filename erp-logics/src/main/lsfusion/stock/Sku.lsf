@@ -11,15 +11,15 @@ CLASS ABSTRACT Sku 'SKU';
 CLASS UOM 'Единица измерения';
 TABLE UOM (UOM);
 
-@defineExternalizable(UOM, VARSTRING[100]);
+@defineExternalizable(UOM, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](UOM) CHARWIDTH 7;
+name 'Наименование' = DATA ISTRING[50](UOM) CHARWIDTH 7;
 UOMName = GROUP AGGR UOM uom BY name(uom); 
-shortName 'Краткое наименование' = DATA VARISTRING[100](UOM) CHARWIDTH 3;  ////
+shortName 'Краткое наименование' = DATA ISTRING[100](UOM) CHARWIDTH 3;  ////
 
 base = DATA UOM(UOM);
 shortNameBase 'Базовая ед.изм.' (UOM UOM) = shortName(base(UOM)) IN base;
-genitiveName 'Ед. изм. (родительный)' = DATA VARSTRING[20](UOM) IN base;
+genitiveName 'Ед. изм. (родительный)' = DATA STRING[20](UOM) IN base;
 factor 'Коэффициент пересчета в баз.ед.' = DATA NUMERIC[14,3] (UOM) IN base;
 
 split 'Дробный' = DATA BOOLEAN (UOM);
@@ -55,9 +55,9 @@ FORM UOMs 'Единицы измерений'
 CLASS ABSTRACT Group 'Классификатор SKU';
 TABLE group(Group);
 
-name 'Наименование' = ABSTRACT VARISTRING[250](Group) MATERIALIZED INDEXED;
+name 'Наименование' = ABSTRACT ISTRING[250](Group) MATERIALIZED INDEXED;
 order 'Порядок' = ABSTRACT INTEGER (Group) MATERIALIZED CHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (Group) IN id CHARWIDTH 10;
+id 'Код' = ABSTRACT STRING[100] (Group) IN id CHARWIDTH 10;
 
 TABLE groupGroup(Group, Group);
 @defineHierarchyAbstract(group);
@@ -76,7 +76,7 @@ FORM groups 'Классификаторы SKU'
 ;
 
 CLASS ABSTRACT GroupType 'Тип классификатора SKU';
-name 'Наименование' = ABSTRACT VARISTRING[100](GroupType) CHARWIDTH 10;
+name 'Наименование' = ABSTRACT ISTRING[100](GroupType) CHARWIDTH 10;
 
 FORM groupTypes 'Типы классификатора SKU'
     OBJECTS g = GroupType
@@ -90,7 +90,7 @@ nameDefaultGroupType 'Классификатор по умолчанию для 
 CLASS SystemGroupType 'Системный тип классификатор SKU' : GroupType;
 TABLE systemGroupType(SystemGroupType);
 
-name(SystemGroupType type) += VARISTRING[100](staticCaption(type)) IF type IS SystemGroupType;
+name(SystemGroupType type) += ISTRING[100](staticCaption(type)) IF type IS SystemGroupType;
 
 groupType = ABSTRACT GroupType (Group) MATERIALIZED INDEXED;
 nameGroupType 'Тип классификатора SKU' (Group group) = name(groupType(group));
@@ -114,10 +114,10 @@ CLASS CustomGroup 'Дополнительный классификатор SKU' 
 TABLE customGroup (CustomGroup);
 
 
-id '{integration.id}' = DATA VARSTRING[100] (CustomGroup) IN id INDEXED CHARWIDTH 10;
+id '{integration.id}' = DATA STRING[100] (CustomGroup) IN id INDEXED CHARWIDTH 10;
 id(CustomGroup group) += id(group) IF group IS CustomGroup;
 
-name 'Наименование' = DATA VARISTRING[250](CustomGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[250](CustomGroup) MATERIALIZED INDEXED CHARWIDTH 20;
 
 name(CustomGroup group) += name(group) IF group IS CustomGroup;
 
@@ -129,9 +129,9 @@ parent (CustomGroup group) += parent(group);
 CLASS CustomGroupType 'Тип дополнительного классификатора SKU' : GroupType;
 TABLE customGroupType (CustomGroupType);
 
-@defineExternalizable(customGroupType, VARSTRING[100]);
+@defineExternalizable(customGroupType, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](CustomGroupType);
+name 'Наименование' = DATA ISTRING[50](CustomGroupType);
 
 name(CustomGroupType type) += name(type) IF type IS CustomGroupType;
 
@@ -219,11 +219,11 @@ DESIGN customGroups {
 CLASS ABSTRACT SkuGroup 'Группа SKU' : Group;
 TABLE skuGroup (SkuGroup);
 
-name 'Наименование' = ABSTRACT VARISTRING[250](SkuGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = ABSTRACT ISTRING[250](SkuGroup) MATERIALIZED INDEXED CHARWIDTH 20;
 order 'Порядок' = ABSTRACT INTEGER (SkuGroup) CHARWIDTH 2;
-id 'Код' = ABSTRACT VARSTRING[100] (SkuGroup) IN id CHARWIDTH 10;
+id 'Код' = ABSTRACT STRING[100] (SkuGroup) IN id CHARWIDTH 10;
 
-sort = OVERRIDE lpad(VARSTRING[250](order(SkuGroup g)), 20, '0'), name(g);  
+sort = OVERRIDE lpad(STRING[250](order(SkuGroup g)), 20, '0'), name(g);  
 
 name(SkuGroup group) += name(group) IF group IS SkuGroup;
 order(SkuGroup group) += order(group) IF group IS SkuGroup;
@@ -246,7 +246,7 @@ EXTEND CLASS SystemGroupType { skuGroupType 'Основной' }
 parent(SkuGroup skuGroup) += parent(skuGroup);
 
 TABLE skuGroupLanguage(SkuGroup, Language);
-name 'Наименование (иностр.)' = ABSTRACT VARSTRING[110] (SkuGroup, Language) MATERIALIZED CHARWIDTH 40 INDEXED;
+name 'Наименование (иностр.)' = ABSTRACT STRING[110] (SkuGroup, Language) MATERIALIZED CHARWIDTH 40 INDEXED;
 
 name 'Наименование (иностр.)' (SkuGroup skuGroup, Stock stock) = IF language(stock) THEN name(skuGroup, language(stock)) ELSE name(skuGroup);
 
@@ -278,8 +278,8 @@ TABLE sku(Sku) FULL;
 TABLE legalEntitySku(LegalEntity, Sku);
 TABLE countrySku(Country, Sku);
 
-@defineExternalizableAbstract(sku, VARSTRING[100]);
-extId = ABSTRACT VARSTRING[100](Sku);
+@defineExternalizableAbstract(sku, STRING[100]);
+extId = ABSTRACT STRING[100](Sku);
 overId(Sku s) = OVERRIDE extId(s), id(s);
 
 skuGroup (sku) = ABSTRACT SkuGroup (Sku) MATERIALIZED INDEXED;
@@ -316,7 +316,7 @@ idSkuGroup6 'Вид (код)' (Sku sku) = id(skuGroup6(sku));
 groupType(SkuGroup group) += SystemGroupType.skuGroupType IF group IS SkuGroup;
 group(SystemGroupType type, Sku sku) += WHEN CLASS(skuGroup(sku)) AND type == SystemGroupType.skuGroupType THEN skuGroup(sku);
 
-name 'Наименование' (sku) = ABSTRACT VARISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED IN base;
+name 'Наименование' (sku) = ABSTRACT ISTRING[255] (Sku) MATERIALIZED CHARWIDTH 30 INDEXED IN base;
 
 UOM (sku) = ABSTRACT UOM (Sku) MATERIALIZED;
 nameUOM 'Ед. изм.' (Sku sku) = name(UOM(sku)) IN base;
@@ -334,7 +334,7 @@ overNetWeight 'Вес нетто' (Sku sku) = OVERRIDE netWeight(sku), 1.0 IF sk
 grossWeight 'Вес брутто' = ABSTRACT NUMERIC[11,5] (Sku) MATERIALIZED;
 overGrossWeight 'Вес брутто' (Sku sku) = OVERRIDE grossWeight(sku), 1.0 IF sku IS Sku;
 volume 'Объем' = ABSTRACT NUMERIC[9,3] (Sku) MATERIALIZED;
-composition 'Состав' = ABSTRACT VARSTRING[1000] (Sku) MATERIALIZED CHARWIDTH 40;
+composition 'Состав' = ABSTRACT STRING[1000] (Sku) MATERIALIZED CHARWIDTH 40;
 
 skuType = ABSTRACT SkuType (Sku) MATERIALIZED INDEXED;
 nameSkuType 'Тип товара' (Sku s) = staticCaption(skuType(s)) CHARWIDTH 5;
@@ -908,7 +908,7 @@ META defineDocumentInterfaceHeaderItemQuantityTriple (object1, object2, object3,
 END
 // ------------------------------------------------ Стандартные значения --------------------------------------- //
 
-loadDefaultUOM 'Добавить ед.изм.'(VARISTRING[50] stringOne, VARISTRING[100] stringTwo, NUMERIC[14,3] numeric, BOOLEAN split, NUMERIC[11,5] netWeight, NUMERIC[11,5] grossWeight)  { 
+loadDefaultUOM 'Добавить ед.изм.'(ISTRING[50] stringOne, ISTRING[100] stringTwo, NUMERIC[14,3] numeric, BOOLEAN split, NUMERIC[11,5] netWeight, NUMERIC[11,5] grossWeight)  { 
     NEW u = UOM {
        name(u) <- stringOne;
        shortName(u) <- stringTwo;

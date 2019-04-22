@@ -10,9 +10,9 @@ GROUP itemArticle 'Артикул' : base;
 CLASS Article 'Артикул';
 TABLE article(Article);
 
-@defineExternalizable(article, VARSTRING[100]);
-caption 'Название' = DATA VARISTRING[255](Article) IN itemBase CHARWIDTH 20;
-originalCaption 'Наименование (ориг.)' = DATA VARISTRING[100] (Article) IN itemOriginal CHARWIDTH 20;
+@defineExternalizable(article, STRING[100]);
+caption 'Название' = DATA ISTRING[255](Article) IN itemBase CHARWIDTH 20;
+originalCaption 'Наименование (ориг.)' = DATA ISTRING[100] (Article) IN itemOriginal CHARWIDTH 20;
 
 itemGroup 'Группа товара' = DATA ItemGroup(Article);
 nameItemGroup 'Группа товара' (Article Article) = name(itemGroup(Article));
@@ -77,7 +77,7 @@ image 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
 loadImage 'Загрузить изображение' (Article a)  { INPUT =image(a) CHANGE; }
 
 saveImage 'Сохранить изображение' (Article article)  { 
-    LOCAL fileName=VARSTRING[255]();
+    LOCAL fileName=STRING[255]();
     fileName() <- OVERRIDE caption(article), id(article);
     WRITE CLIENT DIALOG image(article) TO fileName();
 } ASON CONTEXTMENU image[Article];
@@ -220,8 +220,8 @@ CONSTRAINT brand(article(Item i)) AND brand(i) AND equalBrandItemArticle() AND N
 CLASS Color 'Цвет товара';
 TABLE color (Color);
 
-@defineExternalizable(color, VARSTRING[100]);
-name 'Наименование' = DATA VARISTRING[50](Color) CHARWIDTH 15;
+@defineExternalizable(color, STRING[100]);
+name 'Наименование' = DATA ISTRING[50](Color) CHARWIDTH 15;
 colorName 'Цвет' = GROUP AGGR Color color BY name(color);
 
 FORM color 'Цвет товара'
@@ -285,8 +285,8 @@ overReplace (UOM new,UOM o) + {
     UOM(Article article) <- new WHERE UOM(article) == o;
 }
 //  Состав
-composition 'Состав' = DATA VARSTRING[255] (Article) IN itemBase CHARWIDTH 30;
-originalComposition 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal CHARWIDTH 30;
+composition 'Состав' = DATA STRING[255] (Article) IN itemBase CHARWIDTH 30;
+originalComposition 'Состав (ориг.)' = DATA STRING[255] (Article) IN itemOriginal CHARWIDTH 30;
 
 EXTEND FORM article PROPERTIES(a) composition, originalComposition, nameUOM;
 EXTEND FORM articles PROPERTIES(a) BEFORE nameColor(a) READONLYIF isReadonly() nameUOM, composition, originalComposition;
@@ -308,9 +308,9 @@ EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWei
 CLASS Gender 'Пол';
 TABLE gender (Gender);
 
-@defineExternalizable(gender, VARSTRING[100]);
-name 'Наименование' = DATA VARISTRING[50](Gender);
-shortName 'Краткое наименование' = DATA VARISTRING[10] (Gender);
+@defineExternalizable(gender, STRING[100]);
+name 'Наименование' = DATA ISTRING[50](Gender);
+shortName 'Краткое наименование' = DATA ISTRING[10] (Gender);
 
 FORM gender 'Пол'
     OBJECTS t=Gender PANEL
@@ -354,14 +354,14 @@ EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGe
 CLASS Size 'Размер товара';
 TABLE size(Size);
 
-@defineExternalizable(size, VARSTRING[100]);
+@defineExternalizable(size, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](Size) CHARWIDTH 5;
+name 'Наименование' = DATA ISTRING[50](Size) CHARWIDTH 5;
 sizeName = GROUP MAX Size size BY name(size);
 shortName 'Краткое наименование' = DATA BPISTRING[10](Size);
 order 'Порядок' = DATA INTEGER (Size);
 
-nameOriginal 'Наименование (оригинальное)' = DATA VARISTRING[50](Size);
+nameOriginal 'Наименование (оригинальное)' = DATA ISTRING[50](Size);
 sizeNameOriginal = GROUP MAX Size size BY nameOriginal(size);
 
 sizeName = GROUP MAX Size size BY name(size), nameOriginal(size);
@@ -386,7 +386,7 @@ DESIGN sizes { BOX { size = (600, 400); } }
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
 
 nameOriginalSize 'Размер (оригинальный)' (Item item) = nameOriginal(size(item)) IN itemArticle;
-dataOriginalSize 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
+dataOriginalSize 'Размер (оригинальный)' = DATA ISTRING[50](Item);
 originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE dataOriginalSize(i), nameOriginalSize(i) CHARWIDTH 3;
 @implementItemAttribute(originalSize, 'Размер (оригинальный)', String, itemOriginalSize);
 
@@ -467,9 +467,9 @@ NAVIGATOR {
 CLASS SizeGroup 'Размерная сетка';
 TABLE sizeGroup(SizeGroup);
  
-@defineExternalizable(sizeGroup, VARSTRING[100]);
+@defineExternalizable(sizeGroup, STRING[100]);
  
-name 'Наименование' = DATA VARISTRING[50](SizeGroup);
+name 'Наименование' = DATA ISTRING[50](SizeGroup);
 shortName 'Краткое наименование' = DATA BPISTRING[10](SizeGroup);
 
 TABLE sizeGroupSize(SizeGroup, Size);

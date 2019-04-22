@@ -7,15 +7,15 @@ REQUIRE System, Stock, Sku, Hierarchy, Barcode, PriceListType, PriceListCalc;
 CLASS ItemGroup 'Товарная группа' : SkuGroup;
 TABLE itemGroup (ItemGroup);
 
-@defineExternalizable(itemGroup, VARSTRING[100]);
+@defineExternalizable(itemGroup, STRING[100]);
 @defineNumeratedID(ItemGroup, 'Товарные группы');
 
 GROUP paramsItemGroup 'Параметры' : base;
 
-extId 'Код' = DATA VARSTRING[100] (ItemGroup);
+extId 'Код' = DATA STRING[100] (ItemGroup);
 overId 'Код' (ItemGroup g) = OVERRIDE extId(g), id(g);
 
-name 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[250](ItemGroup) IN base CHARWIDTH 20;
 order 'Порядок' = DATA INTEGER (ItemGroup) CHARWIDTH 2 IN paramsItemGroup;
 
 name(ItemGroup group) += name(group) IF group IS ItemGroup;
@@ -134,9 +134,9 @@ DESIGN options {
 };
 
 
-id 'Код' = DATA VARSTRING[100] (Item) IN id INDEXED CHARWIDTH 10;
+id 'Код' = DATA STRING[100] (Item) IN id INDEXED CHARWIDTH 10;
 
-TABLE itemId (VARSTRING[100]);
+TABLE itemId (STRING[100]);
 item (id) = GROUP AGGR (Item item) BY id (item) MATERIALIZED TABLE itemId; // нужно MATERIALIZED, чтобы не допускало одинаковых кодов, а кидала UPDATE_CONFLICT
 
 @defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
@@ -324,9 +324,9 @@ DESIGN item {
     }
 }
 
-seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
+seekBarcode 'Штрихкод' = DATA LOCAL STRING[15] ();
 seekSkuBarcode()  { 
-    INPUT s = VARSTRING[15] DO {
+    INPUT s = STRING[15] DO {
         seek(skuBarcode(s, currentDate()));
         IF NOT skuBarcode(s, currentDate()) THEN
             MESSAGE 'Штрихкод не найден';
@@ -472,7 +472,7 @@ META defineItemAttribute (attribute, caption, group)
 END
 
 // Объявление
-value = ABSTRACT VARISTRING[255] (Item, ItemAttribute) MATERIALIZED;
+value = ABSTRACT ISTRING[255] (Item, ItemAttribute) MATERIALIZED;
 
 META defineItemAttribute(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
@@ -727,14 +727,14 @@ NAVIGATOR {
 
 // -------------------------------------------- Формирование наименования ----------------------------------- //
 
-prefixInName 'Префикс' = DATA VARSTRING[20] (ItemAttribute);
-postfixInName 'Постфикс' = DATA VARSTRING[20] (ItemAttribute);
+prefixInName 'Префикс' = DATA STRING[20] (ItemAttribute);
+postfixInName 'Постфикс' = DATA STRING[20] (ItemAttribute);
 
 EXTEND FORM itemOptions PROPERTIES(ia) prefixInName, postfixInName;
 
 completeName (Item item, ItemAttribute attribute) = CONCAT '', prefixInName(attribute) IF item IS Item, value(item, attribute), postfixInName(attribute) IF item IS Item;
 
-overName 'Наименование (перегруженное)' = ABSTRACT VARISTRING[255](Item);
+overName 'Наименование (перегруженное)' = ABSTRACT ISTRING[255](Item);
 
 META defineItemAttributeName (prefix, caption, group)
     @defineItemDefaultValueCustom(numberInName###prefix, 'Порядковый номер в наименовании'##caption, INTEGER, itemAttribute);
@@ -749,7 +749,7 @@ META defineItemAttributeName (prefix, caption, group)
     nameConcat###prefix##Attribute (Item item) = GROUP CONCAT completeName(item, ItemAttribute attribute)
                                                    IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' ORDER numberInName###prefix(attribute, item), attribute MATERIALIZED;
     name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE overName(item),
-                            VARISTRING[255](
+                            ISTRING[255](
                     nameConcat###prefix##Attribute(item))
                     IN group MATERIALIZED CHARWIDTH 40 INDEXED;
     
@@ -767,7 +767,7 @@ END
 // Строка
 CLASS StringItemAttribute 'Строковый атрибут' : ItemAttribute;
 
-value = ABSTRACT CASE EXCLUSIVE VARISTRING[255] (Item, StringItemAttribute) MATERIALIZED;
+value = ABSTRACT CASE EXCLUSIVE ISTRING[255] (Item, StringItemAttribute) MATERIALIZED;
 value(Item item, StringItemAttribute attribute) += value(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
@@ -781,7 +781,7 @@ END
 CLASS IntegerItemAttribute 'Целочисленный атрибут' : ItemAttribute;
 
 value = ABSTRACT CASE EXCLUSIVE INTEGER (Item, IntegerItemAttribute) MATERIALIZED;
-string(Item item, IntegerItemAttribute attribute) = VARSTRING[255](value(item, attribute));
+string(Item item, IntegerItemAttribute attribute) = STRING[255](value(item, attribute));
 value(Item item, IntegerItemAttribute attribute) += string(item, attribute);
 
 META defineIntegerItemAttribute(attribute, caption, group)
@@ -792,7 +792,7 @@ END
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
 value = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) MATERIALIZED;
-string(Item item, DoubleItemAttribute attribute) = VARSTRING[255]([ FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
+string(Item item, DoubleItemAttribute attribute) = STRING[255]([ FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
 value(Item item, DoubleItemAttribute attribute) += string(item, attribute);
 
 META defineDoubleItemAttribute(attribute, type, caption, group)
@@ -1007,7 +1007,7 @@ META defineItemFilterValue(object, captionProp, o)
     FORM object###session 'Добавить'    
         OBJECTS gg = ItemGroup PANEL 
            
-        OBJECTS v = VARISTRING[100] PANEL    
+        OBJECTS v = ISTRING[100] PANEL    
         PROPERTIES (v) val = VALUE 
     ;    
     
@@ -1038,7 +1038,7 @@ META defineItemFilterValue(object, captionProp, o)
     add###object 'Добавить'(ItemGroup gg)  { 
         DIALOG object###session OBJECTS gg = gg, v INPUT DO {
             LOCAL loc = ###object();
-            LOCAL localName = VARISTRING[100]();
+            LOCAL localName = ISTRING[100]();
             localName() <- IF trimAttributes() THEN trim(v) ELSE v;
             NEWSESSION NESTED (localName, loc) {
                 IF object##Name(localName()) THEN {
@@ -1074,20 +1074,20 @@ skipExtractAttribute = ABSTRACT BOOLEAN (Item);
 
 // -------------- Символьное --------------------- //
 FORM extractStringAttributeItem 'Выделение атрибута'
-    OBJECTS from = VARSTRING[100] PANEL
+    OBJECTS from = STRING[100] PANEL
     PROPERTIES(from) from = VALUE
     
-    OBJECTS to = VARSTRING[100] PANEL
+    OBJECTS to = STRING[100] PANEL
     PROPERTIES(to) to = VALUE
 ;
 
-possibleStringAttributeValue = DATA LOCAL BOOLEAN (VARSTRING[100]);
-changePossibleStringAttributeValue(VARSTRING[100] v)  { 
+possibleStringAttributeValue = DATA LOCAL BOOLEAN (STRING[100]);
+changePossibleStringAttributeValue(STRING[100] v)  { 
     SEEK extractStringAttributeItem.to = v;
 }
  
 EXTEND FORM extractStringAttributeItem
-    OBJECTS v = VARSTRING[100] GRID
+    OBJECTS v = STRING[100] GRID
     PROPERTIES(v) value = VALUE ON CHANGE changePossibleStringAttributeValue(v) 
     FILTERS possibleStringAttributeValue(v)
     ORDER value
@@ -1112,7 +1112,7 @@ DESIGN extractStringAttributeItem {
     }
 }
 
-assignStringToFrom(VARSTRING[100] from)  { 
+assignStringToFrom(STRING[100] from)  { 
     SEEK extractStringAttributeItem.to = from; 
 } 
 EXTEND FORM extractStringAttributeItem
@@ -1123,7 +1123,7 @@ EXTEND FORM extractStringAttributeItem
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaption 'Выделить из названия'(Item i)  { 
         IF i IS Item THEN {
-            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [ GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
+            possibleStringAttributeValue(STRING[100] s) <- TRUE IF [ GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
                 LOCAL object = ###object();
                 object() <- identityObject(trim(to));
@@ -1159,7 +1159,7 @@ END
 META defineItemExtractPrimitiveAttribute(property, form)
     extract###property##FromCaption 'Выделить из названия'(Item i)  { 
         IF i IS Item THEN {
-            possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
+            possibleStringAttributeValue(STRING[100] s) <- NULL;
             DIALOG form OBJECTS from INPUT, to INPUT DO {
                 LOCAL selected = BOOLEAN (Item);
                 selected(Item item) <- isSubstring(caption(item), from) == 1 AND [ FILTER items.i](item) AND NOT skipExtractAttribute(item);
@@ -1191,7 +1191,7 @@ END
 
 // -------------- Числовое --------------------- //
 FORM extractDoubleAttributeItem 'Выделение атрибута'
-    OBJECTS from = VARSTRING[100] PANEL
+    OBJECTS from = STRING[100] PANEL
     PROPERTIES(from) from = VALUE
     
     OBJECTS to = NUMERIC[20,7] PANEL
@@ -1211,8 +1211,8 @@ DESIGN extractDoubleAttributeItem {
     }
 }
 
-assignDoubleToFrom(VARSTRING[100] from)  { 
-    SEEK extractDoubleAttributeItem.to = toInteger(replace(from AS VARSTRING[100], '%', ''));
+assignDoubleToFrom(STRING[100] from)  { 
+    SEEK extractDoubleAttributeItem.to = toInteger(replace(from AS STRING[100], '%', ''));
 } 
 EXTEND FORM extractDoubleAttributeItem
     EVENTS 
@@ -1248,20 +1248,20 @@ EXTEND FORM dialogItemGroups
 // ------ Базовые свойства товара ------ //
 
 // Название
-caption 'Название' = DATA VARISTRING[255] (Item) CHARWIDTH 20 IN itemBase;
+caption 'Название' = DATA ISTRING[255] (Item) CHARWIDTH 20 IN itemBase;
 @defineItemAttribute(caption, , 'Название', itemBase);
 WHEN LOCAL FORMS item, items SETCHANGED (caption(Item i)) AND trimAttributes() DO {
     caption(i) <- trim(caption(i));
 } 
 
-@defineItemGroupDefaultValue(caption, 'Название', VARISTRING[255]);
+@defineItemGroupDefaultValue(caption, 'Название', ISTRING[255]);
 
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
 extractStringCaption 'Заменить в названии'(Item i)  { 
     IF i IS Item THEN {
-        possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
+        possibleStringAttributeValue(STRING[100] s) <- NULL;
         DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
             LOCAL selected = BOOLEAN (Item);
             selected(Item item) <- isSubstring(caption(item), from) == 1 AND [ FILTER items.i](item) AND NOT skipExtractAttribute(item);
@@ -1283,7 +1283,7 @@ extractStringCaption 'Заменить в названии'(Item i)  {
     }
 } ASON CONTEXTMENU caption[Item];
 
-@defineStringItemAttribute(originalCaption, VARISTRING[100], 'Название (ориг.)', itemOriginal);
+@defineStringItemAttribute(originalCaption, ISTRING[100], 'Название (ориг.)', itemOriginal);
 @defineItemAttributeBatch (originalCaption, 'Название (ориг.)');
 
 // Единица измерения
@@ -1313,14 +1313,14 @@ EXTEND CLASS Brand {
     none 'Без бренда'
 }
 
-@defineExternalizable(brand, VARSTRING[100]);
+@defineExternalizable(brand, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[50](Brand);
+name 'Наименование' = DATA ISTRING[50](Brand);
 brandName = GROUP NAGGR Brand brand BY name(brand);
 
 emptyName 'Наименование' (Brand b) = OVERRIDE name(b), 'Не задан';
 
-site 'Адрес сайта' = DATA VARISTRING[100](Brand);
+site 'Адрес сайта' = DATA ISTRING[100](Brand);
 
 FORM brand 'Бренд'
     OBJECTS t=Brand PANEL
@@ -1377,14 +1377,14 @@ INDEX country(Item i);
 CLASS Manufacturer 'Производитель товара';
 TABLE manufacturer(Manufacturer);
 
-@defineExternalizable(manufacturer, VARSTRING[200]);
+@defineExternalizable(manufacturer, STRING[200]);
 
-name 'Наименование' = DATA VARISTRING[200](Manufacturer) IN id CHARWIDTH 15;
+name 'Наименование' = DATA ISTRING[200](Manufacturer) IN id CHARWIDTH 15;
 manufacturerName = GROUP NAGGR Manufacturer m BY name(m);
-address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
+address 'Адрес производителя' = DATA STRING[255] (Manufacturer) CHARWIDTH 20;
 
-originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) CHARWIDTH 15;
-originalAddress 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) CHARWIDTH 20;
+originalName 'Наименование (ориг.)' = DATA ISTRING[100](Manufacturer) CHARWIDTH 15;
+originalAddress 'Адрес производителя (ориг.)' = DATA STRING[255] (Manufacturer) CHARWIDTH 20;
 
 country = DATA Country (Manufacturer);
 nameCountry 'Страна' = name(country(Manufacturer m)) CHARWIDTH 20;
@@ -1432,14 +1432,14 @@ addressManufacturer 'Адрес производителя' (Item item) = addres
 INDEX manufacturer(Item i);
 
 //  Состав
-@defineStringItemAttribute(composition, VARSTRING[1000], 'Состав', itemBase);
+@defineStringItemAttribute(composition, STRING[1000], 'Состав', itemBase);
 @defineItemAttributeBatchClass (composition, 'Состав', sku);
 composition (Item sku) += composition(sku);
 DESIGN items{
     PROPERTY (composition(i)){charWidth = 40;}
 }
 
-@defineStringItemAttribute(originalComposition, VARSTRING[255], 'Состав (ориг.)', itemOriginal);
+@defineStringItemAttribute(originalComposition, STRING[255], 'Состав (ориг.)', itemOriginal);
 
 // Тара
 skuType = DATA SkuType (Item) NONULL;
@@ -1568,7 +1568,7 @@ CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
 
 
 saveImage 'Сохранить изображение' (Item item)  { 
-    LOCAL fileName=VARSTRING[255]();
+    LOCAL fileName=STRING[255]();
     fileName() <- nameAttribute(item);
     WRITE CLIENT DIALOG image(item) TO fileName();
 } ASON CONTEXTMENU image[Item];
@@ -1602,14 +1602,14 @@ DESIGN items {
 }    
 // Кассы
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
-dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
+dataTitleCashRegister 'Наименование для касс' = DATA STRING[100] (Barcode);
 titleCashRegister 'Наименование для касс' = OVERRIDE dataTitleCashRegister(Barcode barcode), nameCashRegisterAttribute(sku(barcode)) CHARWIDTH 30;
 loadDefaultItemAttributes() + { 
     numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
-dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
+dataTitleScales 'Наименование для весов' = DATA STRING[100] (Barcode);
 titleScales 'Наименование для весов' = OVERRIDE dataTitleScales(Barcode barcode), nameScalesAttribute(sku(barcode)) CHARWIDTH 30;
 loadDefaultItemAttributes() + { 
     numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
@@ -1809,7 +1809,7 @@ DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
 
 copy(Item sku) + {  copy(sku); }
 
-createItemBarcode (VARSTRING[15] barcode, DATE date) { 
+createItemBarcode (STRING[15] barcode, DATE date) { 
 	NEWSESSION {
 	
 	    LOCAL copy = BOOLEAN();
@@ -1843,7 +1843,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date) {
 	}
 }
 
-createSkuBarcode(VARSTRING[15] barcode, DATE date) + {  createItemBarcode(barcode, date); }
+createSkuBarcode(STRING[15] barcode, DATE date) + {  createItemBarcode(barcode, date); }
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
@@ -1881,7 +1881,7 @@ DESIGN confirmReplaceItem {
 
 replaceBefore  ABSTRACT ( Sku, Sku);
 replaceAfter  ABSTRACT ( Sku);
-replaceDelNames 'Удаленные товары' = DATA LOCAL NESTED VARSTRING[500]();
+replaceDelNames 'Удаленные товары' = DATA LOCAL NESTED STRING[500]();
 
 replace 'Объединить' (Item item) { 
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
@@ -2092,7 +2092,7 @@ DESIGN options {
 CLASS PriceSegment 'Ценовой сегмент';
 TABLE priceSegment (PriceSegment);
 
-name 'Наименование' = DATA VARISTRING[100](PriceSegment) CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[100](PriceSegment) CHARWIDTH 10;
 priceSegment = GROUP AGGR PriceSegment p BY name(p);
 
 FORM priceSegment 'Ценовые сегменты'
@@ -2126,7 +2126,7 @@ EXTEND FORM legalEntity
 //----------------------- Переход на новый основной классификатор ---------------------------//
 
 FORM copyToCustomGroupDialog 'Создать копию основного классификатора'
-    OBJECTS i = VARSTRING[100] PANEL, n = VARSTRING[50] PANEL
+    OBJECTS i = STRING[100] PANEL, n = STRING[50] PANEL
     PROPERTIES id = VALUE(i), name = VALUE(n)
 ;
 DESIGN copyToCustomGroupDialog {
@@ -2236,7 +2236,7 @@ overOkReplaceToItemGroupDialog 'OK' (CustomGroupType t) {
                     printToLog('' + currentDateTime() + ' ERROR ' + applyMessage());
                 } ELSE {
                     printToLog('' + currentDateTime() + ' Changing ids');
-                    id(ItemGroup g) <- VARSTRING[100](replace(id(g),'tst_',''));
+                    id(ItemGroup g) <- STRING[100](replace(id(g),'tst_',''));
                     setNoCancelInTransaction();
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {

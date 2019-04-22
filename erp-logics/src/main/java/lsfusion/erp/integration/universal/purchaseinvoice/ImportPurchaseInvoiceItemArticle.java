@@ -28,7 +28,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "idItemGroup")) {
                 ImportField idItemGroupField = new ImportField(LM.findProperty("id[ItemGroup]"));
                 ImportKey<?> itemGroupKey = new ImportKey((CustomClass) LM.findClass("ItemGroup"),
-                        LM.findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+                        LM.findProperty("itemGroup[STRING[100]]").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
                 itemGroupKey.skipKey = true;
                 props.add(new ImportProperty(idItemGroupField, LM.findProperty("itemGroup[Article]").getMapping(articleKey),
@@ -87,7 +87,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "idColor")) {
                 ImportField idColorField = new ImportField(LM.findProperty("id[Color]"));
                 ImportKey<?> colorKey = new ImportKey((CustomClass) LM.findClass("Color"),
-                        LM.findProperty("color[VARSTRING[100]]").getMapping(idColorField));
+                        LM.findProperty("color[STRING[100]]").getMapping(idColorField));
                 keys.add(colorKey);
                 props.add(new ImportProperty(idColorField, LM.findProperty("id[Color]").getMapping(colorKey), getReplaceOnlyNull(defaultColumns, "idColor")));
                 props.add(new ImportProperty(idColorField, LM.findProperty("color[Item]").getMapping(itemKey),
@@ -108,7 +108,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "idSize")) {
                 ImportField idSizeField = new ImportField(LM.findProperty("id[Size]"));
                 ImportKey<?> sizeKey = new ImportKey((CustomClass) LM.findClass("Size"),
-                        LM.findProperty("size[VARSTRING[100]]").getMapping(idSizeField));
+                        LM.findProperty("size[STRING[100]]").getMapping(idSizeField));
                 keys.add(sizeKey);
                 props.add(new ImportProperty(idSizeField, LM.findProperty("id[Size]").getMapping(sizeKey), getReplaceOnlyNull(defaultColumns, "idSize")));
                 props.add(new ImportProperty(idSizeField, LM.findProperty("size[Item]").getMapping(itemKey),
@@ -137,7 +137,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "idBrand")) {
                 ImportField idBrandField = new ImportField(LM.findProperty("id[Brand]"));
                 ImportKey<?> brandKey = new ImportKey((CustomClass) LM.findClass("Brand"),
-                        LM.findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
+                        LM.findProperty("brand[STRING[100]]").getMapping(idBrandField));
                 keys.add(brandKey);
                 props.add(new ImportProperty(idBrandField, LM.findProperty("id[Brand]").getMapping(brandKey), getReplaceOnlyNull(defaultColumns, "idBrand")));
                 props.add(new ImportProperty(idBrandField, LM.findProperty("brand[Article]").getMapping(articleKey),
@@ -158,7 +158,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "UOMItem")) {
                 ImportField idUOMField = new ImportField(LM.findProperty("id[UOM]"));
                 ImportKey<?> UOMKey = new ImportKey((CustomClass) LM.findClass("UOM"),
-                        LM.findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+                        LM.findProperty("UOM[STRING[100]]").getMapping(idUOMField));
                 keys.add(UOMKey);
                 props.add(new ImportProperty(idUOMField, LM.findProperty("UOM[Article]").getMapping(articleKey),
                         object(LM.findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOM")));
@@ -170,7 +170,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             if (showField(userInvoiceDetailsList, "idManufacturer")) {
                 ImportField idManufacturerField = new ImportField(LM.findProperty("id[Manufacturer]"));
                 ImportKey<?> manufacturerKey = new ImportKey((CustomClass) LM.findClass("Manufacturer"),
-                        LM.findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
+                        LM.findProperty("manufacturer[STRING[100]]").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
                 props.add(new ImportProperty(idManufacturerField, LM.findProperty("manufacturer[Article]").getMapping(articleKey),
                         object(LM.findClass("Manufacturer")).getMapping(manufacturerKey), getReplaceOnlyNull(defaultColumns, "idManufacturer")));
@@ -190,7 +190,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
             LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[BPSTRING[2]]") :
-                    (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
+                    (showNameCountry ? LM.findProperty("countryName[ISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[ISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null :

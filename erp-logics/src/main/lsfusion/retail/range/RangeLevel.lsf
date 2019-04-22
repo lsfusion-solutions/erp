@@ -14,7 +14,7 @@ EXTEND FORM ranges
 
 CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
-name 'Название' = DATA VARISTRING[10] (RangeLevel) CHARWIDTH 3 NOFLEX IN id;
+name 'Название' = DATA ISTRING[10] (RangeLevel) CHARWIDTH 3 NOFLEX IN id;
 rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
  
 prevLevel (RangeLevel level) = PARTITION PREV level IF level IS RangeLevel ORDER level ;
@@ -244,7 +244,7 @@ changeLevel (Range r, StoreType t, DATE d) {
     }
 }
 changeWYSLevel (Range r, StoreType t, DATE d) { 
-    INPUT s = VARISTRING[10] DO 
+    INPUT s = ISTRING[10] DO 
         IF s THEN {
             dataLevel (r, t, d) <- [ GROUP MAX RangeLevel l BY name(l)](s);
             excludeLevel (r, t, d) <- NULL;
@@ -289,7 +289,7 @@ changeLevel (Range r, Store st, DATE d) {
 }              
 
 changeWYSLevel (Range r, Store st, DATE d) { 
-    INPUT s = VARISTRING[10] DO 
+    INPUT s = ISTRING[10] DO 
         IF s THEN {
             dataLevel (r, st, d) <- [ GROUP MAX RangeLevel l BY name(l)](s);
             excludeLevel (r, st, d) <- NULL;
@@ -336,7 +336,7 @@ DESIGN options {
     }
 }
     
-addCommaStoreId 'Список магазинов (код)' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+addCommaStoreId 'Список магазинов (код)' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 addCommaRangeLevel = DATA LOCAL RangeLevel(Range);
 nameAddCommaRangeLevel 'Уровень' (Range r) = name(addCommaRangeLevel(r));
 
@@ -703,9 +703,9 @@ DESIGN storeRange{
 
 importXls 'Импорт' (RangeRev v)  { 
     INPUT f = EXCELFILE DO {
-        LOCAL barcode = VARSTRING[15] (INTEGER);
-        LOCAL name = VARSTRING[255] (INTEGER);
-        LOCAL level = VARSTRING[10] (INTEGER);
+        LOCAL barcode = STRING[15] (INTEGER);
+        LOCAL name = STRING[255] (INTEGER);
+        LOCAL level = STRING[10] (INTEGER);
         
         LOCAL message = TEXT ();
         IMPORT XLS NOHEADER FROM f TO barcode = A, name = B, level = C;
@@ -732,9 +732,9 @@ importXls 'Импорт' (RangeRev v)  {
 
 changeXls 'Импорт (замена)' (RangeRev v)  { 
     INPUT f = EXCELFILE DO {
-        LOCAL barcode = VARSTRING[15] (INTEGER);
-        LOCAL name = VARSTRING[255] (INTEGER);
-        LOCAL level = VARSTRING[10] (INTEGER);
+        LOCAL barcode = STRING[15] (INTEGER);
+        LOCAL name = STRING[255] (INTEGER);
+        LOCAL level = STRING[10] (INTEGER);
         
         LOCAL message = TEXT ();
         IMPORT XLS NOHEADER FROM f TO barcode = A, name = B, level = C;

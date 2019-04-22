@@ -23,7 +23,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         logToFile('druid', 'Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
-            EXPORT CSV ',' HEADER FROM dateTime = [FORMULA VARSTRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+            EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
                                 group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)), group5 = skuGroup6(sku(b)),
@@ -136,13 +136,13 @@ isSupplierGroup = ABSTRACT CASE BOOLEAN ();
 isSupplierGroup() += WHEN gSupplierTurnover() THEN TRUE;
 isSupplierGroup() += WHEN gSupplierStockTurnover() THEN TRUE;
 
-nameGroup1Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup2Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
-nameGroup3Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
-barcodeSku = DATA LOCAL VARSTRING[15] (INTEGER);
-group1Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
-group2Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
-group3Turnover = DATA LOCAL VARSTRING[255] (INTEGER);
+nameGroup1Turnover = DATA LOCAL STRING[255] (INTEGER);
+nameGroup2Turnover = DATA LOCAL STRING[255] (INTEGER);
+nameGroup3Turnover = DATA LOCAL STRING[255] (INTEGER);
+barcodeSku = DATA LOCAL STRING[15] (INTEGER);
+group1Turnover = DATA LOCAL STRING[255] (INTEGER);
+group2Turnover = DATA LOCAL STRING[255] (INTEGER);
+group3Turnover = DATA LOCAL STRING[255] (INTEGER);
 
 quantitySold 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
 costSumSold 'Продано (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
@@ -310,7 +310,7 @@ deleteIncludeBrands 'Сбросить отмеченные'()  {
 
 nameIncludeBrands 'Брэнд (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Brand b),'')) IF include(b), ', ' ORDER b CHARWIDTH 20;
 
-commaBrandId 'Список кодов' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+commaBrandId 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaBrandId 'Добавить' ()  { 
     IF commaBrandId() THEN {
@@ -357,7 +357,7 @@ deleteIncludeManufacturers 'Сбросить отмеченные'()  {
 
 nameIncludeManufacturers 'Производитель (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Manufacturer m),'')) IF include(m), ', ' ORDER m CHARWIDTH 20;
 
-commaManufacturerId 'Список кодов' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+commaManufacturerId 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaManufacturerId 'Добавить' ()  { 
     IF commaManufacturerId() THEN {
@@ -395,7 +395,7 @@ deleteIncludeCountries 'Сбросить отмеченные'()  {
 
 nameIncludeCountries 'Страны (все)' () = GROUP CONCAT TEXT((OVERRIDE name(Country c),'')) IF include(c), ', ' ORDER c CHARWIDTH 20;
 
-commaCountryId 'Список кодов' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+commaCountryId 'Список кодов' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaCountryId 'Добавить' ()  { 
     IF commaCountryId() THEN {
@@ -461,7 +461,7 @@ nameIncludeBarcodes 'ШК (все)' = GROUP CONCAT TEXT(idBarcode(Sku sku)) IF d
 countIncludeSkus () = GROUP SUM 1 IF dataInclude(Sku sku);
 indexIncludeSku (Sku sku) = PARTITION SUM 1 ORDER sku IF dataInclude(sku);
 
-commaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+commaBarcodeId 'Список ШК' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaBarcodeId 'Добавить' ()  { 
     IF commaBarcodeId() THEN {
@@ -523,7 +523,7 @@ changeIncludeSkus()  {
     DIALOG dialogSku;
 }
 changeIncludeBarcodes()  { 
-    INPUT s = VARISTRING[4000] DO {
+    INPUT s = ISTRING[4000] DO {
         dataInclude(Sku sku) <- TRUE IF [GROUP SUM 1 IF isWordInCSV(id(Barcode barcode), replace(s,' ',',')) == 1 BY sku(barcode)](sku);
     }
 }
@@ -644,13 +644,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                                               sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
                                               turnover = turnover, costBalance = costBalance, daysOnStock = daysOnStock, barcodeSku = barcodeSku;
             
-            LOCAL localNameGroup1 = VARSTRING[255] (INTEGER);
-            LOCAL localNameGroup2 = VARSTRING[255] (INTEGER);
-            LOCAL localNameGroup3 = VARSTRING[255] (INTEGER);
-            LOCAL localGroup1 = VARSTRING[255] (INTEGER);
-            LOCAL localGroup2 = VARSTRING[255] (INTEGER);
-            LOCAL localGroup3 = VARSTRING[255] (INTEGER);
-            LOCAL localBarcodeSku = VARSTRING[15] (INTEGER);
+            LOCAL localNameGroup1 = STRING[255] (INTEGER);
+            LOCAL localNameGroup2 = STRING[255] (INTEGER);
+            LOCAL localNameGroup3 = STRING[255] (INTEGER);
+            LOCAL localGroup1 = STRING[255] (INTEGER);
+            LOCAL localGroup2 = STRING[255] (INTEGER);
+            LOCAL localGroup3 = STRING[255] (INTEGER);
+            LOCAL localBarcodeSku = STRING[15] (INTEGER);
             LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
             LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
             LOCAL localVATSupplierB = NUMERIC[18,4] (INTEGER);
@@ -910,7 +910,7 @@ DESIGN turnoverReport {
 META defineSelectFromXls (in, class)
     set###in###class##Xls 'Отметка из xls' ()  { 
     
-        LOCAL barcode = VARSTRING[13](INTEGER);
+        LOCAL barcode = STRING[13](INTEGER);
         
         INPUT f = EXCELFILE DO {
             IMPORT XLS NOHEADER FROM f AS EXCELFILE TO barcode;

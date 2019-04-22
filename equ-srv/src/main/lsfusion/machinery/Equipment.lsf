@@ -9,10 +9,10 @@ NAMESPACE Machinery;
 CLASS EquipmentServer 'Сервер оборудования';
 TABLE equipmentServer (EquipmentServer);
 
-name 'Наименование' = DATA VARISTRING[50](EquipmentServer) IN id;
+name 'Наименование' = DATA ISTRING[50](EquipmentServer) IN id;
 timeId 'Включать в код чека время' = DATA BOOLEAN(EquipmentServer);
 
-sid 'Идентификатор' = DATA VARSTRING[20] (EquipmentServer) IN id;
+sid 'Идентификатор' = DATA STRING[20] (EquipmentServer) IN id;
 sidTo(equipmentServer) = GROUP AGGR EquipmentServer eequipmentServer WHERE eequipmentServer IS EquipmentServer BY sid (eequipmentServer);
 timeFrom 'Начало работы' = DATA TIME (EquipmentServer) IN base;
 timeTo 'Окончание работы' = DATA TIME (EquipmentServer) IN base;
@@ -24,7 +24,7 @@ skipTroublesDelay 'Загрузка транзакций проблемных г
 minutesTroubleMachineryGroup 'Минимальный возраст проблемной транзакции (минут)' = DATA INTEGER (EquipmentServer) IN base;
 selectTop 'Кол-во считываемых транзакций' = DATA INTEGER (EquipmentServer) IN base;
 ignoreReceiptsAfterDocumentsClosedDate 'Не принимать реализацию по закрытым документам' = DATA BOOLEAN (EquipmentServer) IN base;
-ignoreReceiptsAfterDocumentsClosedDate(VARSTRING[100] sid) = ignoreReceiptsAfterDocumentsClosedDate(sidTo(sid));
+ignoreReceiptsAfterDocumentsClosedDate(STRING[100] sid) = ignoreReceiptsAfterDocumentsClosedDate(sidTo(sid));
 logStackTrace 'Логировать Stack Trace' = DATA BOOLEAN (EquipmentServer) IN base;
 overrideCashiers 'Перезаписывать имена кассиров при приёме реализации' = DATA BOOLEAN (EquipmentServer) IN base;
 //---------------------------- Ошибки сервера оборудования ----------------------------//
@@ -32,8 +32,8 @@ overrideCashiers 'Перезаписывать имена кассиров пр�
 CLASS EquipmentServerError 'Ошибки';
 TABLE equipmentServerError (EquipmentServerError);
 
-data 'Сообщение об ошибке' = DATA VARSTRING[200] (EquipmentServerError) IN base;
-extraData 'Дополнительная информация' = DATA VARSTRING[200] (EquipmentServerError) IN base;
+data 'Сообщение об ошибке' = DATA STRING[200] (EquipmentServerError) IN base;
+extraData 'Дополнительная информация' = DATA STRING[200] (EquipmentServerError) IN base;
 erTrace 'След ошибки' = DATA TEXT (EquipmentServerError) IN base;
 date 'Время возникновения' = DATA DATETIME (EquipmentServerError) IN base;
 toDate 'Дата возникновения' = DATE(date(EquipmentServerError e));
@@ -56,7 +56,7 @@ equipmentServer 'Сервер оборудования (ID)' = DATA EquipmentSer
 //---------------------------- Монитор процессов сервера оборудования ----------------------------//
 
 needLogProcesses = DATA BOOLEAN (EquipmentServer);
-needLogProcesses(VARSTRING[100] sid) = needLogProcesses(sidTo(sid));
+needLogProcesses(STRING[100] sid) = needLogProcesses(sidTo(sid));
 logProcesses 'Записать в лог текущие процессы' (EquipmentServer e)  { 
     NEWSESSION { needLogProcesses(e) <- TRUE; apply();}
 } TOOLBAR;

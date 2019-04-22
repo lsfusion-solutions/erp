@@ -6,9 +6,9 @@ NAMESPACE RetailCRM;
 
 CLASS DiscountCard 'Дисконтная карта';
 TABLE discountCard (DiscountCard);
-@defineExternalizable(discountCard, VARSTRING[100]);
+@defineExternalizable(discountCard, STRING[100]);
 
-number 'Номер' = DATA VARSTRING[28] (DiscountCard) IN numbered INDEXED CHARWIDTH 13;
+number 'Номер' = DATA STRING[28] (DiscountCard) IN numbered INDEXED CHARWIDTH 13;
 series 'Серия' = DATA BPSTRING[2] (DiscountCard) IN numbered CHARWIDTH 3 NOFLEX;
  
 WHEN useLoweredNumber() AND CHANGED(number(DiscountCard o))
@@ -29,36 +29,36 @@ seriesNumber 'Серия/Номер' (DiscountCard o) =
 discountSeriesNumber (discountCard) = GROUP AGGR DiscountCard ddiscountCard WHERE ddiscountCard IS DiscountCard BY seriesNumber (ddiscountCard);
 discountNumber (discountCard) = GROUP MAX DiscountCard ddiscountCard BY number(ddiscountCard) IF ddiscountCard IS DiscountCard;
 
-discountString (VARSTRING[28] discountCard) = OVERRIDE discountSeriesNumber(discountCard), discountNumber(discountCard);  
+discountString (STRING[28] discountCard) = OVERRIDE discountSeriesNumber(discountCard), discountNumber(discountCard);  
 toLong = FORMULA NUMERIC[18,0] 'to_number(REPLACE(($1),\',\',\'.\'), \'999999999999999999\')';
 longNumber (DiscountCard d) = toLong(number(d));
 
 // Держатель
 legalEntity (discountCard) = DATA LegalEntity(DiscountCard) INDEXED;
 
-overNameLegalEntity = ABSTRACT VARISTRING[150] (DiscountCard);
+overNameLegalEntity = ABSTRACT ISTRING[150] (DiscountCard);
 nameLegalEntity 'Держатель дисконтной карты' (DiscountCard dc) = OVERRIDE overNameLegalEntity(dc), name(legalEntity(dc)) IN id CHARWIDTH 30;
 
-overFirstNameContact = ABSTRACT VARISTRING[100] (DiscountCard);
+overFirstNameContact = ABSTRACT ISTRING[100] (DiscountCard);
 firstNameContact 'Имя' (DiscountCard dc) = OVERRIDE overFirstNameContact(dc), firstName(legalEntity(dc)) IN id CHARWIDTH 15;
 
-overLastNameContact = ABSTRACT VARISTRING[100] (DiscountCard);
+overLastNameContact = ABSTRACT ISTRING[100] (DiscountCard);
 lastNameContact 'Фамилия' (DiscountCard dc) = OVERRIDE overLastNameContact(dc), lastName(legalEntity(dc)) IN id CHARWIDTH 15;
 
 overBirthdayContact = ABSTRACT DATE (DiscountCard);
 birthdayContact 'День рождения' (DiscountCard dc) = OVERRIDE overBirthdayContact(dc), birthday(legalEntity(dc)) IN id;
 
-overPhoneLegalEntity = ABSTRACT VARISTRING[100] (DiscountCard);
+overPhoneLegalEntity = ABSTRACT ISTRING[100] (DiscountCard);
 phoneLegalEntity 'Телефон' (DiscountCard dc) = OVERRIDE overPhoneLegalEntity(dc), phone(legalEntity(dc)) CHARWIDTH 15;
 
-overEmailLegalEntity = ABSTRACT VARISTRING[400] (DiscountCard);
+overEmailLegalEntity = ABSTRACT ISTRING[400] (DiscountCard);
 emailLegalEntity 'E-mail' (DiscountCard dc) = OVERRIDE overEmailLegalEntity(dc), email(legalEntity(dc)) CHARWIDTH 15;
 
-overAddressLegalEntity = ABSTRACT VARISTRING[150] (DiscountCard);
+overAddressLegalEntity = ABSTRACT ISTRING[150] (DiscountCard);
 addressLegalEntity 'Адрес' (DiscountCard dc) = OVERRIDE overAddressLegalEntity(dc), address(legalEntity(dc)) IN id CHARWIDTH 30;
 
 
-middleNameHttpServerContact = ABSTRACT VARISTRING[100] (DiscountCard);
+middleNameHttpServerContact = ABSTRACT ISTRING[100] (DiscountCard);
 numberSexHttpServerContact = ABSTRACT INTEGER (DiscountCard);
 skipLoad = ABSTRACT BOOLEAN (DiscountCard);
 
@@ -66,16 +66,16 @@ skipLoad = ABSTRACT BOOLEAN (DiscountCard);
 CLASS DiscountCardType 'Тип дисконтной карты';
 TABLE discountCardType (DiscountCardType);
 
-dataName = DATA VARISTRING[100](DiscountCardType);
+dataName = DATA ISTRING[100](DiscountCardType);
 name 'Тип карты' (DiscountCardType t) = OVERRIDE dataName(t), staticCaption(t);
 changeName (DiscountCardType t) {
-    INPUT s = VARISTRING[100] DO dataName(t) <- s;
+    INPUT s = ISTRING[100] DO dataName(t) <- s;
 }
 
 discountCardType = DATA DiscountCardType(DiscountCard) INDEXED;
 nameDiscountCardType 'Тип карты' = name(discountCardType(DiscountCard d));
 
-@defineExternalizable(discountCardType, VARSTRING[10]);
+@defineExternalizable(discountCardType, STRING[10]);
 idDiscountCardType 'Тип дисконтной карты' (DiscountCard d) = id(discountCardType(d));
 
 FORM discountCardType 'Тип дисконтной карты'
@@ -107,7 +107,7 @@ date (DiscountCard discountCard) <- currentDate() WHEN SET(discountCard IS Disco
 
 dateTo 'Дата окончания действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
 
-name 'Наименование' = DATA VARSTRING[100] (DiscountCard);
+name 'Наименование' = DATA STRING[100] (DiscountCard);
 initialSum 'Начальная сумма' (discountCard) = DATA NUMERIC[18,4] (DiscountCard);
 
 percent 'Процент скидки' (discountCard) = DATA NUMERIC[18,4] (DiscountCard);
@@ -147,9 +147,9 @@ overGenerateDiscountCard  ABSTRACT LIST ( DiscountCard);
 generateDiscountCards 'Сгенерировать дисконтные карты'()  { 
     DIALOG generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard(), n INPUT, quantityCards INPUT, t INPUT, p INPUT CHECK DO {
         IF   quantityCards <= 100000 THEN { 
-            FOR iterateLong(LONG i, curValue(n), curValue(n) + quantityCards - 1) AND NOT discountSeriesNumber(CONCAT '', series(n), VARISTRING[28](i)) NEW d = DiscountCard DO {
+            FOR iterateLong(LONG i, curValue(n), curValue(n) + quantityCards - 1) AND NOT discountSeriesNumber(CONCAT '', series(n), ISTRING[28](i)) NEW d = DiscountCard DO {
                 numerator(d) <- n;
-                number(d) <- VARISTRING[28](i);
+                number(d) <- ISTRING[28](i);
                 series(d) <- series(n);
                 discountCardType(d) <- t;
                 percent(d) <- p;

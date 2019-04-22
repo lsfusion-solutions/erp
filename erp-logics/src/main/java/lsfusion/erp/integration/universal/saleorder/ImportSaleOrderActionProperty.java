@@ -161,7 +161,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ImportField idUserOrderDetailField = new ImportField(findProperty("id[UserOrderDetail]"));
             ImportKey<?> orderDetailKey = new ImportKey((CustomClass) findClass("Sale.UserOrderDetail"),
-                    findProperty("userOrderDetail[VARSTRING[100]]").getMapping(idUserOrderDetailField));
+                    findProperty("userOrderDetail[STRING[100]]").getMapping(idUserOrderDetailField));
             keys.add(orderDetailKey);
             props.add(new ImportProperty(idUserOrderDetailField, findProperty("id[UserOrderDetail]").getMapping(orderDetailKey)));
             props.add(new ImportProperty(orderObject, findProperty("userOrder[UserOrderDetail]").getMapping(orderDetailKey)));
@@ -194,7 +194,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
+                    findProperty("extBarcode[STRING[100]]").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
             barcodeKey.skipKey = true;
             fields.add(idBarcodeSkuField);
@@ -203,7 +203,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
             ImportField idBatchField = new ImportField(findProperty("id[Batch]"));
             ImportKey<?> batchKey = new ImportKey((CustomClass) findClass("Batch"),
-                    findProperty("batch[VARSTRING[100]]").getMapping(idBatchField));
+                    findProperty("batch[STRING[100]]").getMapping(idBatchField));
             props.add(new ImportProperty(idBatchField, findProperty("batch[UserOrderDetail]").getMapping(orderDetailKey),
                     object(findClass("Batch")).getMapping(batchKey)));
             fields.add(idBatchField);
@@ -235,7 +235,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             if (showField(orderDetailsList, "idManufacturer")) {
                 ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
                 ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) findClass("Manufacturer"),
-                        findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
+                        findProperty("manufacturer[STRING[100]]").getMapping(idManufacturerField));
                 keys.add(manufacturerKey);
                 props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey)));
                 props.add(new ImportProperty(idManufacturerField, findProperty("manufacturer[Item]").getMapping(itemKey),
@@ -248,7 +248,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             if (showField(orderDetailsList, "idCustomer")) {
                 ImportField idCustomerField = new ImportField(findProperty("id[LegalEntity]"));
                 ImportKey<?> customerKey = new ImportKey((ConcreteCustomClass) findClass("LegalEntity"),
-                        findProperty("legalEntity[VARSTRING[100]]").getMapping(idCustomerField));
+                        findProperty("legalEntity[STRING[100]]").getMapping(idCustomerField));
                 keys.add(customerKey);
                 props.add(new ImportProperty(idCustomerField, findProperty("customer[UserOrder]").getMapping(orderObject),
                         object(findClass("LegalEntity")).getMapping(customerKey), getReplaceOnlyNull(importColumns, "idCustomer")));
@@ -260,7 +260,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             if (showField(orderDetailsList, "idCustomerStock")) {
                 ImportField idCustomerStockField = new ImportField(findProperty("id[Stock]"));
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                        findProperty("stock[VARSTRING[100]]").getMapping(idCustomerStockField));
+                        findProperty("stock[STRING[100]]").getMapping(idCustomerStockField));
                 keys.add(customerStockKey);
                 props.add(new ImportProperty(idCustomerStockField, findProperty("customerStock[UserOrder]").getMapping(orderObject),
                         object(findClass("Stock")).getMapping(customerStockKey), getReplaceOnlyNull(importColumns, "idCustomerStock")));
@@ -655,7 +655,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
     }
 
     private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idCustomerStock));
+        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idCustomerStock));
         ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(session, (DataObject) customerStockObject));
         return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(session, customerObject));
     }

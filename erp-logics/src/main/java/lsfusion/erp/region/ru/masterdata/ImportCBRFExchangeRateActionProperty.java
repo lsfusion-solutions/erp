@@ -77,10 +77,10 @@ public class ImportCBRFExchangeRateActionProperty extends InternalAction {
             ImportField dateField = new ImportField(DateClass.instance);
 
             ImportKey<?> typeExchangeRUKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeRUField));
+                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeRUField));
 
             ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeForeignField));
+                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
 
             ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
                     findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));

@@ -27,10 +27,10 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
             if (showField(userInvoiceDetailsList, "importCodeManufacturer")) {
                 ImportField manufacturerIdImportCodeField = new ImportField(LM.findProperty("manufacturerId[ImportCode]"));
                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) LM.findClass("ImportCode"),
-                        LM.findProperty("manufacturerImportCode[VARSTRING[100]]").getMapping(manufacturerIdImportCodeField));
+                        LM.findProperty("manufacturerImportCode[STRING[100]]").getMapping(manufacturerIdImportCodeField));
                 keys.add(importCodeKey);
                 ImportKey<?> manufacturerKey = new ImportKey((ConcreteCustomClass) LM.findClass("Manufacturer"),
-                        LM.findProperty("manufacturerIdImportCode[VARSTRING[100]]").getMapping(manufacturerIdImportCodeField));
+                        LM.findProperty("manufacturerIdImportCode[STRING[100]]").getMapping(manufacturerIdImportCodeField));
                 keys.add(manufacturerKey);
                 props.add(new ImportProperty(manufacturerIdImportCodeField, LM.findProperty("manufacturerId[ImportCode]").getMapping(importCodeKey)));
                 props.add(new ImportProperty(manufacturerIdImportCodeField, LM.findProperty("manufacturer[ImportCode]").getMapping(importCodeKey),
@@ -53,10 +53,10 @@ public class ImportPurchaseInvoiceSkuImportCode extends ImportDefaultPurchaseInv
             if (showField(userInvoiceDetailsList, "importCodeUOM")) {
                 ImportField UOMIdImportCodeField = new ImportField(LM.findProperty("UOMId[ImportCode]"));
                 ImportKey<?> importCodeKey = new ImportKey((ConcreteCustomClass) LM.findClass("ImportCode"),
-                        LM.findProperty("UOMImportCode[VARSTRING[100]]").getMapping(UOMIdImportCodeField));
+                        LM.findProperty("UOMImportCode[STRING[100]]").getMapping(UOMIdImportCodeField));
                 keys.add(importCodeKey);
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) LM.findClass("UOM"),
-                        LM.findProperty("UOMIdImportCode[VARSTRING[100]]").getMapping(UOMIdImportCodeField));
+                        LM.findProperty("UOMIdImportCode[STRING[100]]").getMapping(UOMIdImportCodeField));
                 keys.add(UOMKey);
                 props.add(new ImportProperty(UOMIdImportCodeField, LM.findProperty("UOMId[ImportCode]").getMapping(importCodeKey)));
                 props.add(new ImportProperty(UOMIdImportCodeField, LM.findProperty("UOM[ImportCode]").getMapping(importCodeKey),

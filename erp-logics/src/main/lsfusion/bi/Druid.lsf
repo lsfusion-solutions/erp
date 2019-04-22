@@ -2,17 +2,17 @@ MODULE Druid;
 
 REQUIRE Utils, Time, Authentication;
 
-host 'Хост для подключения' = DATA VARSTRING[100] ();
-port 'Порт для подключения' = DATA VARSTRING[10] ();
+host 'Хост для подключения' = DATA STRING[100] ();
+port 'Порт для подключения' = DATA STRING[10] ();
 overPort 'Порт для подключения' = OVERRIDE port(), '8082';
 maxRowCount 'Максимальное количество записей' = DATA INTEGER ();
 // ----------------- Загрузка данных ------------------- //
 
-exportDirectory 'Путь для экспорта файлов' = DATA VARSTRING[500] ();
+exportDirectory 'Путь для экспорта файлов' = DATA STRING[500] ();
 // file:///mnt/backup/csv/
 // ftp://ftpuser:f7y45cnb@195.201.124.251:21/csv/
 
-importDirectory 'Путь для импорта файлов' = DATA VARSTRING[500] ();
+importDirectory 'Путь для импорта файлов' = DATA STRING[500] ();
 // /mnt/backup/csv/
 
 
@@ -41,7 +41,7 @@ DESIGN integrationData {
     }
 } 
 
-runImportTask(VARSTRING[100] id, DATE date)  { 
+runImportTask(STRING[100] id, DATE date)  { 
     LOCAL template = FILE();
     READ 'file://bi/' + id + '.json' TO template;
     fileToString(template(), 'UTF-8');
@@ -54,7 +54,7 @@ runImportTask(VARSTRING[100] id, DATE date)  {
     EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultFile() TO result;
 }
 
-ingestBatch (VARSTRING[100] id, DATE date)  { 
+ingestBatch (STRING[100] id, DATE date)  { 
     logToFile('druid', '' + currentDateTime() + ' Started WRITE to ' + exportDirectory() + id + date);
     WRITE exportFile() TO exportDirectory() + id + date;
     logToFile('druid', '' + currentDateTime() + 'Ended WRITE ');
@@ -71,7 +71,7 @@ loadLookups () + {
 
 escapeJSONValue (TEXT t) = replace(replace(replace(replace(replace(t, '\\', '\\\\'), '"', '\\"'), '\n', ''), '\r', ''), '\t', '');
 
-loadLookup (VARSTRING[100] id, TEXT json)  { 
+loadLookup (STRING[100] id, TEXT json)  { 
     IF json != '' THEN {
         printToLog('' + currentDateTime() + ' Started Load lookup ' + id);    
         stringToFile('\{ "version": "' + lpad(TEXT([ FORMULA LONG 'SELECT EXTRACT (epoch FROM ($1))'](currentDateTime())), 12, '0') + '", "lookupExtractorFactory": \{ "type": "map", "injective" : true, "map": \{' + json + ' \} \} \}', 'UTF-8', 'json');
@@ -95,7 +95,7 @@ DESIGN integrationData {
     }
 }
 
-runKillTask(VARSTRING[100] id, DATE dFrom, DATE dTo)  { 
+runKillTask(STRING[100] id, DATE dFrom, DATE dTo)  { 
     stringToFile('\{ "type":"kill", "dataSource" : "' + id + '", "interval" : "' + dFrom + '/' + sum(dTo, 1) + '" \}' 
                                                        , 'UTF-8', 'json');
     
@@ -153,7 +153,7 @@ query(TEXT q)  {
 
 // ----------------- Обращение к метаданным ------------------- //
 
-dataSource 'Данные' = DATA LOCAL VARSTRING[100] (INTEGER);
+dataSource 'Данные' = DATA LOCAL STRING[100] (INTEGER);
 
 readDataSource()  { 
     LOCAL result = FILE();
@@ -168,10 +168,10 @@ readDataSource()  {
     dataSource(INTEGER i) <- getWord(resultString(), ',', i) IF iterate(i, 1, INTEGER(wordCount(resultString(), ',')));
 }
 
-dimension 'Измерения' = DATA LOCAL VARSTRING[100] (INTEGER);
-measure 'Метрики' = DATA LOCAL VARSTRING[100] (INTEGER);
+dimension 'Измерения' = DATA LOCAL STRING[100] (INTEGER);
+measure 'Метрики' = DATA LOCAL STRING[100] (INTEGER);
 
-readDimensionsAndMeasures (VARSTRING[100] ds)  { 
+readDimensionsAndMeasures (STRING[100] ds)  { 
     LOCAL result = FILE();
     EXTERNAL HTTP GET 'http://' + host() + ':' + overPort() + '/druid/v2/datasources/' + ds  TO result;
     
@@ -196,7 +196,7 @@ readDimensionsAndMeasures (VARSTRING[100] ds)  {
 selD 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
 selM 'Вкл' = DATA LOCAL BOOLEAN (INTEGER);
 
-runQuery 'Выполнить' (VARSTRING[100] ds)  { 
+runQuery 'Выполнить' (STRING[100] ds)  { 
 
     LOCAL dimensions = TEXT();
     dimensions () <- (GROUP CONCAT dimension(INTEGER i) IF selD(i), ',');

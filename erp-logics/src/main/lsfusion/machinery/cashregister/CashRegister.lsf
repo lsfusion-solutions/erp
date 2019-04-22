@@ -28,7 +28,7 @@ allowReceiptsAfterDocumentsClosedDate 'Разрешить приём реали�
 // Модели
 CLASS CashRegisterModel 'Модель касс' : Model;
 
-name 'Наименование' = DATA VARISTRING[110](CashRegisterModel);
+name 'Наименование' = DATA ISTRING[110](CashRegisterModel);
 
 name(CashRegisterModel model) += name(model) IF model IS CashRegisterModel;
 
@@ -73,9 +73,9 @@ is (GroupCashRegister machinery) = machinery IS GroupCashRegister;
 groupCashRegister = DATA GroupCashRegister (CashRegister) NONULL DELETE;
 groupMachinery(CashRegister machinery) += groupCashRegister(machinery);
 
-directory 'Директория обмена с кассами' = DATA VARSTRING[200] (GroupCashRegister) IN base;
+directory 'Директория обмена с кассами' = DATA STRING[200] (GroupCashRegister) IN base;
 directory (GroupCashRegister groupMachinery) += directory(groupMachinery);
-dataDirectory 'Директория обмена с кассой' = DATA VARSTRING[200] (CashRegister);
+dataDirectory 'Директория обмена с кассой' = DATA STRING[200] (CashRegister);
 dataDirectory (CashRegister machinery) += dataDirectory(machinery);
 
 startDate 'Дата начала продаж' = DATA DATE (GroupCashRegister) IN base;
@@ -104,12 +104,12 @@ countCashRegister 'Кол-во касс' (store) = GROUP SUM countCashRegister(D
 countDataCashRegister 'Кол-во магазинов' = DATA INTEGER (Store);
 countChainStoresOver 'Кол-во касс' (Store store) = OVERRIDE countDataCashRegister(store), countCashRegister(store); 
 
-registrationNumber 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
+registrationNumber 'Регистрационный номер кассы' = DATA STRING[100] (CashRegister) IN base;
 
 date 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
 
-logPath 'Путь логов кассы' = DATA VARSTRING[255] (CashRegister) IN base;
-ip 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
+logPath 'Путь логов кассы' = DATA STRING[255] (CashRegister) IN base;
+ip 'IP кассы' = DATA STRING[100] (CashRegister) IN base;
 comPort 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRate 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
 overBaudRate 'Скорость кассы' (CashRegister c) = OVERRIDE baudRate(c), 9600 IF sidModel(groupCashRegister(c)) == 'VMK';
@@ -154,7 +154,7 @@ showSection(GroupCashRegister gcr) = showSection(model(gcr));
 
 overChangeDirectory  ABSTRACT LIST ( GroupCashRegister);
 changeDirectory(GroupCashRegister group)  {     
-    INPUT s = VARSTRING[200] DO {
+    INPUT s = STRING[200] DO {
         directory(group) <- s;
         overChangeDirectory(group);
     }
@@ -342,7 +342,7 @@ EXTEND FORM stores
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 cashRegisterSID (model) = GROUP MAX CashRegisterModel cmodel BY sid (cmodel) IF cmodel IS CashRegisterModel;
 
-loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer, BOOLEAN useValueIdUOM)  { 
+loadDefaultCashRegisterModel 'Добавить модель касс'(ISTRING[110] iname, STRING[20] isid, STRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer, BOOLEAN useValueIdUOM)  { 
     IF NOT cashRegisterSID(isid) THEN {
         NEW crm = CashRegisterModel {
              name(crm) <- iname;
@@ -374,7 +374,7 @@ loadDefaultGroup 'Сгенерировать группу касс'(PriceListTyp
                 numCashRegister() <- numCashRegister() + 1;
                 npp(c) <- numCashRegister();
                 cashRegisterModel(g) <- model;
-                description(c) <- CONCAT ' ', 'Касса', VARSTRING[255](numCashRegister()), '(', name(stock), ')';
+                description(c) <- CONCAT ' ', 'Касса', STRING[255](numCashRegister()), '(', name(stock), ')';
             }
         }
     }

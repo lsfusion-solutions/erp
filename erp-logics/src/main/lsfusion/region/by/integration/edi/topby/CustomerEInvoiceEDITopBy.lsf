@@ -4,23 +4,23 @@ REQUIRE EInvoiceEDI, TopBy;
 
 NAMESPACE EDI;
 
-blradfDocumentNumber = DATA LOCAL NESTED VARSTRING[28]();
+blradfDocumentNumber = DATA LOCAL NESTED STRING[28]();
 GROUP actDif EXTID 'ActDif';
-blradfActDifNumber = DATA LOCAL NESTED VARSTRING[28]();
-blradfDeliveryNoteNumber = DATA LOCAL NESTED VARSTRING[28]();
+blradfActDifNumber = DATA LOCAL NESTED STRING[28]();
+blradfDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blradfDateTime = DATA LOCAL NESTED DATETIME();
-blradfFunctionCode = DATA LOCAL NESTED VARSTRING[3]();
+blradfFunctionCode = DATA LOCAL NESTED STRING[3]();
 GROUP blradfSupplier EXTID 'Supplier' : actDif;
-blradfSupplierGLN = DATA LOCAL NESTED VARSTRING[13]();
+blradfSupplierGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blradfBuyer EXTID 'Buyer' : actDif;
-blradfCustomerGLN = DATA LOCAL NESTED VARSTRING[13]();
+blradfCustomerGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blradfShipTo EXTID 'ShipTo' : actDif;
-blradfCustomerStockGLN = DATA LOCAL NESTED VARSTRING[13]();
+blradfCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
 GROUP actDifLineItem EXTID 'ActDifLineItem';
 blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
-blradfLineItemID = DATA LOCAL NESTED VARSTRING[14](INTEGER);
-blradfLineItemBuyerID = DATA LOCAL NESTED VARSTRING[35](INTEGER);
-blradfLineItemName = DATA LOCAL NESTED VARSTRING[500](INTEGER);
+blradfLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
+blradfLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
 blradfQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 blradfQuantityReceived = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 blradfValueVAT = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
@@ -51,7 +51,7 @@ FORM blradf
                   blradfAmountReceived EXTID 'AmountReceived'
 ;
 
-overReceiveMessages(INTEGER i, VARSTRING[100] login, VARSTRING[100] password, VARSTRING[100] host, INTEGER port, TEXT url, VARSTRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, VARSTRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blradf' AND invoices THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
@@ -230,7 +230,7 @@ FORM exportBlradf FORMEXTID 'BLRADF'
                         totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
 ;
 
-signAndSendCustomerECreditNote (ECreditNote c, VARSTRING[100] provider) {
+signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
@@ -296,7 +296,7 @@ signAndSendCustomerECreditNote (ECreditNote c, VARSTRING[100] provider) {
                                     logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
                                     //NEWSESSION NESTED LOCAL {
                                         exportedCustomer(c) <- TRUE;
-                                        blradf(c) <- VARSTRING[14](resultMilliseconds());
+                                        blradf(c) <- STRING[14](resultMilliseconds());
                                         blradfDate(c) <- blradfDateTime();
                                         APPLY NESTED LOCAL;
                                     //}

@@ -240,7 +240,7 @@ public class StopListEquipmentServer {
             BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
             Map<String, Integer> stockPluNumberMap = new HashMap();
             for(String idStock : idStockSet) {
-                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[VARSTRING[100],Item]").read(session, new DataObject(idStock), skuObject);
+                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
@@ -292,7 +292,7 @@ public class StopListEquipmentServer {
             try (DataSession session = server.createSession()) {
                 DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
                 for (String idStock : idStockSet) {
-                    DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                    DataObject stockObject = (DataObject) stopListLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
                     stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
                 }
                 session.applyException(BL, stack);

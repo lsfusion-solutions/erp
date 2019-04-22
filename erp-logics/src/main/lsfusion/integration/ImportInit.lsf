@@ -13,33 +13,33 @@ useConstraint 'Сохранять, даже если есть ограничен
 importBatch 'Сохранить коды партий' = DATA LOCAL NESTED BOOLEAN ();
 
 date 'Дата ТТН' = DATA LOCAL NESTED DATE (INTEGER);
-num 'Номер ТТН' = DATA LOCAL NESTED VARSTRING[28](INTEGER);
-series 'Серия ТТН' = DATA LOCAL NESTED VARSTRING[2](INTEGER);
+num 'Номер ТТН' = DATA LOCAL NESTED STRING[28](INTEGER);
+series 'Серия ТТН' = DATA LOCAL NESTED STRING[2](INTEGER);
 seriesNumber 'Серия/номер ТТН'(INTEGER i) = OVERRIDE (CONCAT '', series(i), num(i)), 'nodoc' IF imported(i);
 
-idSupplier 'Код поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-UNPSupplier 'УНП поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
+idSupplier 'Код поставщика'= DATA LOCAL NESTED STRING[100](INTEGER);
+UNPSupplier 'УНП поставщика'= DATA LOCAL NESTED STRING[100](INTEGER);
 
-idSupplierStock 'Код склада поставщика'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-idCustomerStock 'Код склада покупателя'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-idOperation 'Код операции'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
+idSupplierStock 'Код склада поставщика'= DATA LOCAL NESTED STRING[100](INTEGER);
+idCustomerStock 'Код склада покупателя'= DATA LOCAL NESTED STRING[100](INTEGER);
+idOperation 'Код операции'= DATA LOCAL NESTED STRING[100](INTEGER);
 operation (INTEGER i) = OVERRIDE inputOperation() IF inputOperation(), Purchase.operation(idOperation(i));
 
-idSku 'Код товара'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-barcode 'Штрихкод товара'= DATA LOCAL NESTED VARSTRING[100](INTEGER);
-skuMapping 'Код товара в существующей базе' = DATA LOCAL NESTED VARSTRING[100](INTEGER); // нужен для привязки дробных товаров
-nameSku 'Наименование товара' = DATA LOCAL NESTED VARISTRING[255](INTEGER);
-nameUOM 'Ед.изм.' = DATA LOCAL NESTED VARSTRING[255](INTEGER);
+idSku 'Код товара'= DATA LOCAL NESTED STRING[100](INTEGER);
+barcode 'Штрихкод товара'= DATA LOCAL NESTED STRING[100](INTEGER);
+skuMapping 'Код товара в существующей базе' = DATA LOCAL NESTED STRING[100](INTEGER); // нужен для привязки дробных товаров
+nameSku 'Наименование товара' = DATA LOCAL NESTED ISTRING[255](INTEGER);
+nameUOM 'Ед.изм.' = DATA LOCAL NESTED STRING[255](INTEGER);
 UOM (INTEGER i) = OVERRIDE  UOMName(nameUOM(i)), UOM(nameUOM(i));
-idSkuGroup 'Код группы' = DATA LOCAL NESTED VARSTRING[100](INTEGER);
-splitSku 'Дробный (0/1)'  = DATA LOCAL NESTED VARSTRING[100](INTEGER);
+idSkuGroup 'Код группы' = DATA LOCAL NESTED STRING[100](INTEGER);
+splitSku 'Дробный (0/1)'  = DATA LOCAL NESTED STRING[100](INTEGER);
 sku (INTEGER i) = OVERRIDE sku(skuMapping(i)), 
                                   sku(idSku(i)), 
                                   skuBarcode(barcode(i)) IF NOT length(barcode(i)) > 7, 
                                   sku(barcode(i));
 item (INTEGER i) = OVERRIDE idSku(i), barcode(i), skuMapping(i);
 
-part 'Код партии'=  DATA LOCAL NESTED VARSTRING[100](INTEGER );
+part 'Код партии'=  DATA LOCAL NESTED STRING[100](INTEGER );
 indexBatch(INTEGER i) =PARTITION SUM 1 ORDER idCustomerStock(i), i BY part(i);
 quantity 'Количество'= DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 price 'Цена'= DATA LOCAL NESTED NUMERIC[14,4](INTEGER);
@@ -50,7 +50,7 @@ shipPrice 'Цена учетная розничная ' = DATA LOCAL NESTED NUME
 shipSum 'Учетная сумма' = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 expiry 'Годен до (дата)'= DATA LOCAL NESTED DATE (INTEGER);
 
-mapField = ABSTRACT VARSTRING[15](Sku);
+mapField = ABSTRACT STRING[15](Sku);
 
 FORM exportInit 'Экспорт'
     OBJECTS st = Stock PANEL SUBREPORT 
@@ -63,14 +63,14 @@ FORM exportInit 'Экспорт'
                 idSupplier = id(supplier(invoiceDetail(bt))),
                 idSupplierStock = id(supplierStock(invoiceDetail(bt))),
                 idCustomerStock = (id(st) IF bt IS Batch),
-                operation = (VARSTRING[10]('') IF bt IS Batch),
+                operation = (STRING[10]('') IF bt IS Batch),
                 idSku = id(sku(bt)),
                 barcode = idBarcode(sku(bt)), 
                 nameSku = name(sku(bt)),
                 nameUOM = name(UOM(sku(bt))),
                 idSkuGroup = id(skuGroup(sku(bt))),
                 splitSku = (IF (passScales(sku(bt)) OR split(sku(bt)))  THEN '1' ELSE '0') , 
-                part = (OVERRIDE id(bt), VARSTRING[100](bt)),
+                part = (OVERRIDE id(bt), STRING[100](bt)),
                 quantity = currentBalance(bt,st),
                 price = priceA(SystemLedgerPriceListType.supplierPricingPriceListType, sku(bt), st,currentDateTime()),
                 manPrice = priceA(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, sku(bt), st,currentDateTime()),
@@ -79,7 +79,7 @@ FORM exportInit 'Экспорт'
                 shipPrice = accountPriceA(bt, st),
                 shipSum = currentAccountSum(bt, st),
                 expiry = expiryDate(bt),
-                skuMapping = (OVERRIDE mapField(sku(bt)), VARSTRING[15]('') IF bt IS Batch)                       
+                skuMapping = (OVERRIDE mapField(sku(bt)), STRING[15]('') IF bt IS Batch)                       
                 
     FILTERS currentBalance(bt,st)
     
@@ -131,17 +131,17 @@ importInitCustom 'Импорт остатков' ()  {
     part(INTEGER r) <- NULL WHERE quantity(r) == 0.0 AND NOT sku(r);
     
     IF newItem() THEN {
-        FOR INTEGER  rr = [ GROUP MIN INTEGER r IF supplier(r) AND NOT itemGroup(idSkuGroup(r)) BY idSkuGroup(r)](VARSTRING[100] str)  NEW it = ItemGroup DO {
+        FOR INTEGER  rr = [ GROUP MIN INTEGER r IF supplier(r) AND NOT itemGroup(idSkuGroup(r)) BY idSkuGroup(r)](STRING[100] str)  NEW it = ItemGroup DO {
             id(it) <- str;
             parent(it) <- GROUP MIN ItemGroup gr IF gr IS ItemGroup AND NOT parent(gr);
         }
-        FOR INTEGER  rr = [  GROUP MIN INTEGER r IF supplier(r)  AND NOT UOM(r)  BY nameUOM(r)](VARSTRING[100] str)  NEW it = UOM DO {
+        FOR INTEGER  rr = [  GROUP MIN INTEGER r IF supplier(r)  AND NOT UOM(r)  BY nameUOM(r)](STRING[100] str)  NEW it = UOM DO {
             id(it) <- str;
             shortName(it) <- str;
-            name(it) <- VARISTRING[50](str);
+            name(it) <- ISTRING[50](str);
         }
                 
-        FOR INTEGER  rr = [GROUP MIN INTEGER r IF supplier(r) AND NOT sku(r) BY idSku(r)](VARSTRING[100] str)  NEW it = Item DO {
+        FOR INTEGER  rr = [GROUP MIN INTEGER r IF supplier(r) AND NOT sku(r) BY idSku(r)](STRING[100] str)  NEW it = Item DO {
             id(it) <- str;
             caption(it) <- nameSku(rr);
             itemGroup(it) <- itemGroup(idSkuGroup(rr));
@@ -155,13 +155,13 @@ importInitCustom 'Импорт остатков' ()  {
                     generateBarcode(it);
                 } ELSE {
                     NEW b = Barcode {
-                        id(b) <- VARSTRING[15](barcode(rr));
+                        id(b) <- STRING[15](barcode(rr));
                         sku(b) <- it;
                     }                 
                 }               
             }
         } 
-        FOR INTEGER  rr = [GROUP MIN INTEGER r IF supplier(r) AND NOT sku(r) BY barcode(r)](VARSTRING[100] bar)  NEW it = Item DO {
+        FOR INTEGER  rr = [GROUP MIN INTEGER r IF supplier(r) AND NOT sku(r) BY barcode(r)](STRING[100] bar)  NEW it = Item DO {
             IF defaultNumeratorItem() THEN {
                 id(it) <- CONCAT '', series(defaultNumeratorItem()), curStringValue(defaultNumeratorItem());  
                 incrementValueSession(defaultNumeratorItem());
@@ -178,7 +178,7 @@ importInitCustom 'Импорт остатков' ()  {
                     generateBarcode(it);
                 } ELSE {
                     NEW b = Barcode {
-                        id(b) <- VARSTRING[15](barcode(rr));
+                        id(b) <- STRING[15](barcode(rr));
                         sku(b) <- it;
                     }                 
                 }               
@@ -187,14 +187,14 @@ importInitCustom 'Импорт остатков' ()  {
     }    
     
     //шапки
-    FOR [GROUP MIN INTEGER r IF r > 0 BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
-        AND NOT Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) 
+    FOR [GROUP MIN INTEGER r IF r > 0 BY idCustomerStock(r), idSupplier(r), seriesNumber(r)](ISTRING[100] idCustomerStock, ISTRING[100] idSupplier, ISTRING[100] num) 
+        AND NOT Purchase.userInvoice(CONCAT '_', STRING[100](idCustomerStock), STRING[100](idSupplier), STRING[100](num)) 
         NEW i = Purchase.UserInvoice DO {
         
-        id(i) <- CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num);
+        id(i) <- CONCAT '_', STRING[100](idCustomerStock), STRING[100](idSupplier), STRING[100](num);
     }
-    FOR INTEGER r == [GROUP MIN INTEGER ir BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](VARISTRING[100] idCustomerStock, VARISTRING[100] idSupplier, VARISTRING[100] num) 
-        AND Purchase.UserInvoice i == Purchase.userInvoice(CONCAT '_', VARSTRING[100](idCustomerStock), VARSTRING[100](idSupplier), VARSTRING[100](num)) DO {
+    FOR INTEGER r == [GROUP MIN INTEGER ir BY idCustomerStock(ir), idSupplier(ir), seriesNumber(ir)](ISTRING[100] idCustomerStock, ISTRING[100] idSupplier, ISTRING[100] num) 
+        AND Purchase.UserInvoice i == Purchase.userInvoice(CONCAT '_', STRING[100](idCustomerStock), STRING[100](idSupplier), STRING[100](num)) DO {
         
         supplier(i) <- OVERRIDE supplier(r), legalEntity(stock(idCustomerStock(r)));
         supplierStock(i) <- IF supplier(r) THEN minStock(supplier(r)) ELSE stock(idCustomerStock(r));
@@ -240,7 +240,7 @@ importInitCustom 'Импорт остатков' ()  {
     FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(CONCAT '_', idCustomerStock(INTEGER r), idSupplier(r), seriesNumber(r), item(r), part(r)) AND indexBatch(r) > 1  AND importBatch() DO {
         batch(d) <- batch(part(r));
     }
-    FOR [GROUP SUM 1 IF imported(INTEGER in) BY operation(in), idCustomerStock(in)](Purchase.Operation o, VARSTRING[100] st) DO {
+    FOR [GROUP SUM 1 IF imported(INTEGER in) BY operation(in), idCustomerStock(in)](Purchase.Operation o, STRING[100] st) DO {
         quantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
         shipmentQuantity(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d);
         shipmentSum(Purchase.UserInvoiceDetail d ) <- 0.0 WHERE o==operation(d) AND st == id(customerStock(d)) AND NOT incl(d); 

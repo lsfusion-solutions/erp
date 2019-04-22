@@ -18,9 +18,9 @@ DESIGN options {
 CLASS ABSTRACT COMPLEX PriceListType 'Вид цены';
 TABLE priceListType(PriceListType);
 
-@defineExternalizableAbstract(priceListType, VARSTRING[100]);
+@defineExternalizableAbstract(priceListType, STRING[100]);
 
-name 'Наименование' = ABSTRACT VARISTRING[100](PriceListType);
+name 'Наименование' = ABSTRACT ISTRING[100](PriceListType);
 
 includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED COMPLEX;
 
@@ -75,7 +75,7 @@ CONSTRAINT currency(roundCondition(PriceListType priceListType)) != currency(pri
 
 CLASS ABSTRACT BasePriceListType 'Базовый вид цены' : PriceListType;
 
-name 'Наименование' = ABSTRACT VARISTRING[100](BasePriceListType);
+name 'Наименование' = ABSTRACT ISTRING[100](BasePriceListType);
 name(BasePriceListType type) += name(type) IF type IS BasePriceListType;
 
 priceB (type, sku, stock, dateTime) = ABSTRACT NUMERIC[16,4] (BasePriceListType, Sku, Stock, DATETIME);
@@ -101,7 +101,7 @@ FORM basePriceListTypes 'Базовые виды цен'
 // --------------------------- Системные виды цен ------------------------- //
 CLASS SystemPriceListType 'Системный вид цены' : BasePriceListType;
 
-name(SystemPriceListType type) += VARISTRING[100](staticCaption(type)) IF type IS SystemPriceListType;
+name(SystemPriceListType type) += ISTRING[100](staticCaption(type)) IF type IS SystemPriceListType;
 
 priceB (type, sku, stock, dateTime) = ABSTRACT CASE EXCLUSIVE NUMERIC[16,4] (SystemPriceListType, Sku, Stock, DATETIME);
 priceA (type, sku, stock, dateTime) = ABSTRACT CASE EXCLUSIVE NUMERIC[16,4] (SystemPriceListType, Sku, Stock, DATETIME);

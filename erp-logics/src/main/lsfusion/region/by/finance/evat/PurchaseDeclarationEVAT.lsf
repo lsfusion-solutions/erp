@@ -8,8 +8,8 @@ EXTEND CLASS Declaration : EVATDocument;
 name(Declaration document) += description(document);
 isPosted(Declaration document) += isPosted(document);
 needCreateEVAT(Declaration document) += WHEN document IS Declaration THEN TRUE;
-number[EVATDocument](Declaration document) += VARSTRING[100](number(document));
-series[EVATDocument](Declaration document) += VARSTRING[2](series(document));
+number[EVATDocument](Declaration document) += STRING[100](number(document));
+series[EVATDocument](Declaration document) += STRING[2](series(document));
 dateTime[EVATDocument](Declaration document) += dateTime(document);
 
 EXTEND CLASS EVATType { declaration 'Декларация' }
@@ -62,13 +62,13 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         declarationCustomer(e) <- OVERRIDE number(d), 'не задан';
         
         //Грузоотправитель
-        consignor(e) <- VARISTRING[200](OVERRIDE fullName(supplier(e)), name(supplier(e)));
+        consignor(e) <- ISTRING[200](OVERRIDE fullName(supplier(e)), name(supplier(e)));
         unpConsignor (e) <- OVERRIDE UNPForeign(supplier(e)), UNP(supplier(e)); 
         countryCodeConsignor (e) <- sid(country(supplier(e)));
         shippingAddressConsignor(e) <- address([ GROUP MIN supplierStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));
         
         //Грузополучатель
-        consignee(e) <- VARISTRING[200](OVERRIDE fullName(customer(e)), name(customer(e)));
+        consignee(e) <- ISTRING[200](OVERRIDE fullName(customer(e)), name(customer(e)));
         countryCodeConsignee (e) <- sid(country(customer(e)));
         unpConsignee (e) <- UNP(customer(e)); 
         shippingAddressConsignee(e) <- address([ GROUP MIN customerStock(InvoiceDetail id) IF currency(id) == currency(declaration(id)) BY declaration(id)](d));

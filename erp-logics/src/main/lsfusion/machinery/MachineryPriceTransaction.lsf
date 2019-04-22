@@ -10,7 +10,7 @@ TABLE priceTransactionDocument (PriceTransactionDocument);
 
 isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 isPosted 'Проведен' (PriceTransactionDocument document) = NOT isDraft(document);
-description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) MATERIALIZED;
+description 'Название документа загрузки' = ABSTRACT STRING[200] (PriceTransactionDocument) MATERIALIZED;
 skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 
 sent 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
@@ -20,7 +20,7 @@ isClosed 'Закрыт' = ABSTRACT BOOLEAN (PriceTransactionDocument);
 date 'Дата' = ABSTRACT DATE (PriceTransactionDocument);
 time 'Время' = ABSTRACT TIME (PriceTransactionDocument);
 series 'Серия' = ABSTRACT BPSTRING[2] (PriceTransactionDocument);
-number 'Номер' = ABSTRACT VARSTRING[28] (PriceTransactionDocument);
+number 'Номер' = ABSTRACT STRING[28] (PriceTransactionDocument);
 stock 'Склад' = ABSTRACT Stock (PriceTransactionDocument);
 legalEntity 'Организация' = ABSTRACT LegalEntity (PriceTransactionDocument);
 nameLegalEntity 'Организация' (PriceTransactionDocument document) = name(legalEntity(document));
@@ -91,7 +91,7 @@ END
 CLASS ABSTRACT MachineryPriceTransaction 'Загрузка прайса в оборудование';
 TABLE machineryPriceTransaction (MachineryPriceTransaction);
 
-@defineExternalizable(machineryPriceTransaction, VARSTRING[100]);
+@defineExternalizable(machineryPriceTransaction, STRING[100]);
 
 @defineCreated(MachineryPriceTransaction);
 
@@ -130,7 +130,7 @@ process 'Требуется загрузка' (MachineryPriceTransaction machine
 
 
 // Основание
-comment 'Примечание' = DATA VARSTRING[100] (MachineryPriceTransaction);
+comment 'Примечание' = DATA STRING[100] (MachineryPriceTransaction);
 
 priceTransactionDocument = DATA PriceTransactionDocument (MachineryPriceTransaction) INDEXED;
 descriptionPriceTransactionDocument 'Основание загрузки' (MachineryPriceTransaction transaction) =
@@ -176,7 +176,7 @@ TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
 
 in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode) INDEXED;
 
-name 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
+name 'Наименование' = DATA STRING[255] (MachineryPriceTransaction, Barcode);
 name(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
 
 price 'Цена' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
@@ -232,7 +232,7 @@ transactionPrice 'Текущая цена в оборудовании' (Barcode 
 
 transactionPrice 'Текущая цена в оборудовании' (Sku sku, Stock stock) =
     transactionPrice(barcode(sku), stock) MATERIALIZED TABLE extraSkuStock;
-transactionPriceIdBarcodeId 'Текущая цена в оборудовании' (VARSTRING[15] sku, VARSTRING[100] stock) = transactionPrice(skuBarcode(sku), stock(stock));
+transactionPriceIdBarcodeId 'Текущая цена в оборудовании' (STRING[15] sku, STRING[100] stock) = transactionPrice(skuBarcode(sku), stock(stock));
 
 countDaysClearMachineryPriceTransaction 'За сколько дней хранить загрузки прайсов в оборудование' = DATA INTEGER (); 
 
@@ -255,7 +255,7 @@ clearApplicationLog () + {
 CLASS MachineryPriceTransactionError 'Ошибка';
 TABLE machineryPriceTransactionError (MachineryPriceTransactionError);
 
-data 'Сообщение об ошибке' = DATA VARSTRING[200] (MachineryPriceTransactionError) IN base;
+data 'Сообщение об ошибке' = DATA STRING[200] (MachineryPriceTransactionError) IN base;
 date 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
 toDate 'Дата возникновения' (MachineryPriceTransactionError d) = DATE(date(d));
 errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
@@ -453,8 +453,8 @@ dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL IN id;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
 startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
 //todo: rename idDiscountCardFrom, idDiscountCardTo -> numberDiscountCardFrom, numberDiscountCardTo
-idDiscountCardFrom 'Номер дисконтной карты (с)' = DATA VARSTRING[100] (RequestExchange);
-idDiscountCardTo 'Номер дисконтной карты (по)' = DATA VARSTRING[100] (RequestExchange);
+idDiscountCardFrom 'Номер дисконтной карты (с)' = DATA STRING[100] (RequestExchange);
+idDiscountCardTo 'Номер дисконтной карты (по)' = DATA STRING[100] (RequestExchange);
 requestExchangeType 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NONULL;
 nameRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticName(requestExchangeType(requestExchange)) IN id;
 captionRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticCaption(requestExchangeType(requestExchange));
@@ -487,7 +487,7 @@ TABLE requestExchangeError (RequestExchangeError);
 erTrace 'След ошибки' = DATA TEXT (RequestExchangeError);
 date 'Время' = DATA DATETIME (RequestExchangeError);
 requestExchange = DATA RequestExchange (RequestExchangeError);
-note 'Примечание' = DATA VARSTRING[100] (RequestExchange) CHARWIDTH 30;
+note 'Примечание' = DATA STRING[100] (RequestExchange) CHARWIDTH 30;
 
 inGroupMachinery (Stock stock) = [ GROUP SUM 1 BY stock(GroupMachinery gr)](stock);
 CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED BY stock[RequestExchange]
@@ -699,7 +699,7 @@ createMachineryPriceTransactionSnapshot = DATA LOCAL BOOLEAN (); // загруз
 createMachineryPriceTransaction = DATA LOCAL BOOLEAN (Sku);
 
 createMachineryPriceTransactionDocument = DATA LOCAL PriceTransactionDocument();
-createMachineryPriceTransactionComment = DATA LOCAL VARSTRING[100] ();
+createMachineryPriceTransactionComment = DATA LOCAL STRING[100] ();
 
 createAttribute  ABSTRACT LIST ( MachineryPriceTransaction);
 createAttribute  ABSTRACT LIST ( MachineryPriceTransaction, Stock);
@@ -1291,8 +1291,8 @@ DESIGN machineryPriceTransactions{
 
 @defineMachineryPriceTransactionAttribute(split, 'Дробный товар', BOOLEAN);
 @defineMachineryPriceTransactionAttribute(passScales, 'Передавать на весы', BOOLEAN);
-@defineMachineryPriceTransactionAttribute(shortNameUOM, 'Единица измерения', VARSTRING[100]);
-@defineMachineryPriceTransactionAttribute(idUOM, 'Код единицы измерения', VARSTRING[100]);
+@defineMachineryPriceTransactionAttribute(shortNameUOM, 'Единица измерения', STRING[100]);
+@defineMachineryPriceTransactionAttribute(idUOM, 'Код единицы измерения', STRING[100]);
 @defineMachineryPriceTransactionAttributeStock(expiryDate, 'Срок годности (дата)', DATE);
 
 expiryDays 'Срок годности в днях' = expiryDays(sku(Barcode barcode));

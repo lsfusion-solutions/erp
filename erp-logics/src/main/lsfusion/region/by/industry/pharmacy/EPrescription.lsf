@@ -3,11 +3,11 @@ MODULE EPrescription;
 REQUIRE Utils, Integration, Retail, POSPharmacy, LegalEntityBy;
 
 //------------- Настройки -------------
-clientId 'Идентификатор' = DATA VARSTRING[150]();
-clientSecret 'Секретный ключ' = DATA VARSTRING[150]();
-scopes 'Scopes' = DATA VARSTRING[1000]();
-urlToken 'URL для получения токена' = DATA VARSTRING[255]();
-urlAPI 'URL к API' = DATA VARSTRING[255]();
+clientId 'Идентификатор' = DATA STRING[150]();
+clientSecret 'Секретный ключ' = DATA STRING[150]();
+scopes 'Scopes' = DATA STRING[1000]();
+urlToken 'URL для получения токена' = DATA STRING[255]();
+urlAPI 'URL к API' = DATA STRING[255]();
 
 EXTEND FORM integrationData
     PROPERTIES() clientId, clientSecret, scopes, urlToken, urlAPI
@@ -50,7 +50,7 @@ CLASS MedicationPrescriptionStatus 'Статус' {
     stopped 'Стоп'
 }
 TABLE medicationPrescriptionStatus (MedicationPrescriptionStatus);
-code  = DATA VARSTRING[100] (MedicationPrescriptionStatus);
+code  = DATA STRING[100] (MedicationPrescriptionStatus);
 onStarted() + { 
     code(MedicationPrescriptionStatus s) <- 'active' WHERE s == MedicationPrescriptionStatus.active; 
     code(MedicationPrescriptionStatus s) <- 'on-hold' WHERE s == MedicationPrescriptionStatus.onhold; 
@@ -72,13 +72,13 @@ name 'Наименование' (MedicamentType t) = staticCaption(t);
 CLASS Client 'Клиент';
 TABLE client(Client);
 
-@defineExternalizable(client, VARSTRING[100]);
+@defineExternalizable(client, STRING[100]);
 
-idCard 'Номер карты' = DATA VARSTRING[16] (Client) CHARWIDTH 16;
+idCard 'Номер карты' = DATA STRING[16] (Client) CHARWIDTH 16;
 clientCard = GROUP AGGR Client client BY idCard(client);
 
-family 'Фамилия' = DATA VARSTRING[100] (Client);
-given 'Имя и отчество' = DATA VARSTRING[100] (Client);
+family 'Фамилия' = DATA STRING[100] (Client);
+given 'Имя и отчество' = DATA STRING[100] (Client);
 
 gender 'Пол' = DATA Gender (Client);
 nameGender 'Пол' (Client c) = name(gender(c));
@@ -98,27 +98,27 @@ FORM clients 'Клиенты'
 CLASS EPrescription 'Электронный рецепт';
 TABLE ePrescription(EPrescription);
 
-@defineExternalizable(ePrescription, VARSTRING[100]);
+@defineExternalizable(ePrescription, STRING[100]);
 
 
-seriesNumber 'Серия и номер' = DATA VARSTRING[13] (EPrescription);
+seriesNumber 'Серия и номер' = DATA STRING[13] (EPrescription);
 
 client 'Клиент' = DATA Client(EPrescription) NONULL DELETE;
 
-nameOrganization 'Наименование мед. учреждения' = DATA VARSTRING[255] (EPrescription);
-addressOrganization 'Адрес мед. учреждения' = DATA VARSTRING[255] (EPrescription);
-idOrganization = DATA VARSTRING[100] (EPrescription);
+nameOrganization 'Наименование мед. учреждения' = DATA STRING[255] (EPrescription);
+addressOrganization 'Адрес мед. учреждения' = DATA STRING[255] (EPrescription);
+idOrganization = DATA STRING[100] (EPrescription);
 
-namePractitioner 'ФИО врача' = DATA VARSTRING[100] (EPrescription);
-idPractitioner = DATA VARSTRING[100] (EPrescription);
+namePractitioner 'ФИО врача' = DATA STRING[100] (EPrescription);
+idPractitioner = DATA STRING[100] (EPrescription);
 
 startValidityPeriod 'Действует с' = DATA DATE (EPrescription);
 endValidityPeriod 'Действует по' = DATA DATE (EPrescription);
 
 medication 'Выписано по' = DATA Medication (EPrescription);
 nameMedication 'Выписано по' (EPrescription ep) = name(medication(ep));
-dosageInstruction 'Инструкция по дозировке и способу применения ' = DATA VARSTRING[255] (EPrescription);
-note 'Дополнительная информация' = DATA VARSTRING[1000] (EPrescription);
+dosageInstruction 'Инструкция по дозировке и способу применения ' = DATA STRING[255] (EPrescription);
+note 'Дополнительная информация' = DATA STRING[1000] (EPrescription);
 dateWritten 'Дата выписки' = DATA DATE (EPrescription);
 
 //active 'Активный' = DATA BOOLEAN (EPrescription);
@@ -134,13 +134,13 @@ medicamentType 'Тип лекарственного средства' = DATA Med
 nameMedicamentType 'Тип лекарственного средства' (EPrescription ep) = name(medicamentType(ep));
 
 //международное
-internationalNonproprietaryId 'Код лекарственного средства' = DATA VARSTRING[100] (EPrescription);
-internationalNonproprietaryName 'Наименование' = DATA VARSTRING[100] (EPrescription);
+internationalNonproprietaryId 'Код лекарственного средства' = DATA STRING[100] (EPrescription);
+internationalNonproprietaryName 'Наименование' = DATA STRING[100] (EPrescription);
 
 //торговое
-tradeId 'Код лекарственного средства' = DATA VARSTRING[100] (EPrescription);
-tradeName 'Наименование' = DATA VARSTRING[100] (EPrescription);
-tradeProductForm 'Лекарственная форма' = DATA VARSTRING[100] (EPrescription);
+tradeId 'Код лекарственного средства' = DATA STRING[100] (EPrescription);
+tradeName 'Наименование' = DATA STRING[100] (EPrescription);
+tradeProductForm 'Лекарственная форма' = DATA STRING[100] (EPrescription);
 
 FORM ePrescriptions 'Электронные рецепты'
     OBJECTS ep = EPrescription
@@ -227,7 +227,7 @@ DESIGN ePrescriptionClient {
     }
 }
 
-token = DATA LOCAL NESTED VARSTRING[2500]();
+token = DATA LOCAL NESTED STRING[2500]();
 
 httpHeadersToken(TEXT name) = CASE
     WHEN name == 'Content-Type' THEN 'application/x-www-form-urlencoded';
@@ -249,45 +249,45 @@ getToken () {
 }
 
 GROUP resource;
-resourceType = DATA LOCAL VARSTRING[100] (INTEGER);
-idClient = DATA LOCAL VARSTRING[100] (INTEGER);
-gender = DATA LOCAL VARSTRING[10] (INTEGER);
+resourceType = DATA LOCAL STRING[100] (INTEGER);
+idClient = DATA LOCAL STRING[100] (INTEGER);
+gender = DATA LOCAL STRING[10] (INTEGER);
 birthDate = DATA LOCAL DATE (INTEGER);
 active = DATA LOCAL BOOLEAN (INTEGER);
 
 entryName = DATA LOCAL INTEGER (INTEGER);
-use = DATA LOCAL VARSTRING[100] (INTEGER);
+use = DATA LOCAL STRING[100] (INTEGER);
 
 nameFamily = DATA LOCAL INTEGER (INTEGER);
-family = DATA LOCAL VARSTRING[100] (INTEGER);
+family = DATA LOCAL STRING[100] (INTEGER);
 
 nameGiven = DATA LOCAL INTEGER (INTEGER);
-given = DATA LOCAL VARSTRING[100] (INTEGER);
+given = DATA LOCAL STRING[100] (INTEGER);
 
 subEntry = DATA LOCAL INTEGER (INTEGER);
-subResourceType = DATA LOCAL VARSTRING[100] (INTEGER);
-subId = DATA LOCAL VARSTRING[100] (INTEGER);
-subStatus = DATA LOCAL VARSTRING[20] (INTEGER);
-subNote = DATA LOCAL VARSTRING[1000] (INTEGER);
+subResourceType = DATA LOCAL STRING[100] (INTEGER);
+subId = DATA LOCAL STRING[100] (INTEGER);
+subStatus = DATA LOCAL STRING[20] (INTEGER);
+subNote = DATA LOCAL STRING[1000] (INTEGER);
 subDateWritten = DATA LOCAL DATE (INTEGER);
 
 subEntryIdentifier = DATA LOCAL INTEGER (INTEGER);
-identifierSystem = DATA LOCAL VARSTRING[255] (INTEGER);
-seriesNumber = DATA LOCAL VARSTRING[13] (INTEGER);
+identifierSystem = DATA LOCAL STRING[255] (INTEGER);
+seriesNumber = DATA LOCAL STRING[13] (INTEGER);
 
 subEntryDosageInstruction = DATA LOCAL INTEGER (INTEGER);
-dosageInstruction = DATA LOCAL VARSTRING[100] (INTEGER);
+dosageInstruction = DATA LOCAL STRING[100] (INTEGER);
 
 subEntryExtension = DATA LOCAL INTEGER (INTEGER);
-extensionURL = DATA LOCAL VARSTRING[255] (INTEGER);
+extensionURL = DATA LOCAL STRING[255] (INTEGER);
 factor = DATA LOCAL NUMERIC[3,2] (INTEGER);
 GROUP valueCodeableConcept;
 extensionCoding = DATA LOCAL INTEGER (INTEGER);
-system = DATA LOCAL VARSTRING[255] (INTEGER);
-code = DATA LOCAL VARSTRING[15] (INTEGER);
+system = DATA LOCAL STRING[255] (INTEGER);
+code = DATA LOCAL STRING[15] (INTEGER);
 
 GROUP medication: resource;
-subMedication = DATA LOCAL VARSTRING[20] (INTEGER);
+subMedication = DATA LOCAL STRING[20] (INTEGER);
 
 GROUP dispense: resource;
 GROUP validityPeriod: dispense;
@@ -297,47 +297,47 @@ GROUP quantity: dispense;
 subQuantity = DATA LOCAL NUMERIC[16,5] (INTEGER);
 
 subEntryContained = DATA LOCAL INTEGER (INTEGER);
-containedResourceType = DATA LOCAL VARSTRING[100] (INTEGER);
-containedId = DATA LOCAL VARSTRING[20] (INTEGER);
+containedResourceType = DATA LOCAL STRING[100] (INTEGER);
+containedId = DATA LOCAL STRING[20] (INTEGER);
 isBrand = DATA LOCAL BOOLEAN (INTEGER);
 GROUP code;
 containedSubCoding = DATA LOCAL INTEGER (INTEGER);
-subSystem = DATA LOCAL VARSTRING[255] (INTEGER);
-subCode = DATA LOCAL VARSTRING[100] (INTEGER);
-subDisplay = DATA LOCAL VARSTRING[100] (INTEGER);
+subSystem = DATA LOCAL STRING[255] (INTEGER);
+subCode = DATA LOCAL STRING[100] (INTEGER);
+subDisplay = DATA LOCAL STRING[100] (INTEGER);
 GROUP product;
 GROUP form: product;
 containedFormCoding = DATA LOCAL INTEGER (INTEGER);
-formSystem = DATA LOCAL VARSTRING[255] (INTEGER);
-formCode = DATA LOCAL VARSTRING[100] (INTEGER);
-formDisplay = DATA LOCAL VARSTRING[100] (INTEGER);
+formSystem = DATA LOCAL STRING[255] (INTEGER);
+formCode = DATA LOCAL STRING[100] (INTEGER);
+formDisplay = DATA LOCAL STRING[100] (INTEGER);
 
 GROUP patient: resource;
-subPatient = DATA LOCAL VARSTRING[100] (INTEGER);
+subPatient = DATA LOCAL STRING[100] (INTEGER);
 
 GROUP prescriber: resource;
-subPrescriber = DATA LOCAL VARSTRING[100] (INTEGER);
+subPrescriber = DATA LOCAL STRING[100] (INTEGER);
 
 GROUP name: resource;
-subUse = DATA LOCAL VARSTRING[100] (INTEGER);
+subUse = DATA LOCAL STRING[100] (INTEGER);
 
 subEntrySubFamily = DATA LOCAL INTEGER (INTEGER);
-subFamily = DATA LOCAL VARSTRING[100] (INTEGER);
+subFamily = DATA LOCAL STRING[100] (INTEGER);
 
 subEntrySubGiven = DATA LOCAL INTEGER (INTEGER);
-subGiven = DATA LOCAL VARSTRING[100] (INTEGER);
+subGiven = DATA LOCAL STRING[100] (INTEGER);
 
 subEntryPractitionerRole = DATA LOCAL INTEGER (INTEGER);
 GROUP managingOrganization;
-subOrganization = DATA LOCAL VARSTRING[100] (INTEGER);
+subOrganization = DATA LOCAL STRING[100] (INTEGER);
 
-subName = DATA LOCAL VARSTRING[255] (INTEGER);
+subName = DATA LOCAL STRING[255] (INTEGER);
 
 subEntryAddress = DATA LOCAL INTEGER (INTEGER);
-address = DATA LOCAL VARSTRING[255] (INTEGER);
+address = DATA LOCAL STRING[255] (INTEGER);
 
 subEntryAuthorizingPrescription = DATA LOCAL INTEGER (INTEGER);
-subPrescription = DATA LOCAL VARSTRING[100] (INTEGER);
+subPrescription = DATA LOCAL STRING[100] (INTEGER);
 
 GROUP quantitySold EXTID 'quantity': resource;
 quantitySold = DATA LOCAL NUMERIC[16,5] (INTEGER);
@@ -426,7 +426,7 @@ FORM importBundle
 httpHeadersPrescription(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'Bearer ' + token();
 
-getPrescription 'Получить рецепты' (VARSTRING[16] card) {
+getPrescription 'Получить рецепты' (STRING[16] card) {
     IF card THEN {
         getToken();
         LOCAL result = FILE();
@@ -438,8 +438,8 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
             IMPORT importBundle JSON FROM result();
             
             FOR resourceType(INTEGER i) == 'Patient'  AND Client c == client(idClient(i)) DO {
-                family(c) <- VARSTRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
-                given(c) <- VARSTRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
+                family(c) <- STRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
+                given(c) <- STRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
                 gender(c) <- GROUP MAX Gender g IF getWord(staticName(g),'.',2) == gender(i);
                 active(c) <- active(i);
             }
@@ -447,8 +447,8 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
             FOR resourceType(INTEGER i) == 'Patient'  AND NOT client(idClient(i)) DO NEW c = Client {
                 id(c) <- idClient(i);
                 idCard(c) <- card;
-                family(c) <- VARSTRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
-                given(c) <- VARSTRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
+                family(c) <- STRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
+                given(c) <- STRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
                 gender(c) <- GROUP MAX Gender g IF getWord(staticName(g),'.',2) == gender(i);
                 birthday(c) <- birthDate(i);
                 active(c) <- active(i);
@@ -468,7 +468,7 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
                 dateWritten(ep) <- subDateWritten(i);
                 //active(ep) <- TRUE IF subStatus(i) == 'active';
                 status(ep) <- medicationPrescriptionStatus(subStatus(i));
-                dosageInstruction(ep) <- VARSTRING[255](GROUP CONCAT dosageInstruction(INTEGER j) IF subEntryDosageInstruction(j) == i,' ');
+                dosageInstruction(ep) <- STRING[255](GROUP CONCAT dosageInstruction(INTEGER j) IF subEntryDosageInstruction(j) == i,' ');
                 medication(ep) <- CASE WHEN subMedication(i) == '#internalMedication1' THEN Medication.trade
                                        WHEN subMedication(i) == '#internalMedication2' THEN Medication.internationalNonproprietary;
                 startValidityPeriod(ep) <- subStart(i);
@@ -504,12 +504,12 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
                                         formSystem(j) == 'http://www.pharma.by/Справочник.ЛекарственнаяФорма' AND
                                         containedId(containedFormCoding(j)) == 'internalMedication1' AND
                                         isBrand(containedFormCoding(j));
-                idPractitioner(ep) <- VARSTRING[100](getWord(subPrescriber(i),'/',2));
-                namePractitioner(ep) <- VARSTRING[100](CONCAT ' ', (GROUP CONCAT subFamily(INTEGER j) IF subResourceType(subEntrySubFamily(j)) == 'Practitioner' AND subId(subEntrySubFamily(j)) == idPractitioner(ep) AND subUse(subEntrySubFamily(j)) == 'official', ' '),
+                idPractitioner(ep) <- STRING[100](getWord(subPrescriber(i),'/',2));
+                namePractitioner(ep) <- STRING[100](CONCAT ' ', (GROUP CONCAT subFamily(INTEGER j) IF subResourceType(subEntrySubFamily(j)) == 'Practitioner' AND subId(subEntrySubFamily(j)) == idPractitioner(ep) AND subUse(subEntrySubFamily(j)) == 'official', ' '),
                                       (GROUP CONCAT subGiven(INTEGER j) IF subResourceType(subEntrySubGiven(j)) == 'Practitioner' AND subId(subEntrySubGiven(j)) == idPractitioner(ep) AND subUse(subEntrySubGiven(j)) == 'official', ' '));
-                idOrganization(ep) <- VARSTRING[100](GROUP MAX getWord(subOrganization(INTEGER j),'/',2) IF subResourceType(subEntryPractitionerRole(j)) == 'Practitioner' AND subId(subEntryPractitionerRole(j)) == idPractitioner(ep));
-                nameOrganization(ep) <- VARSTRING[255](GROUP MAX subName(INTEGER j) IF subResourceType(j) == 'Organization' AND subId(j) == idOrganization(ep));
-                addressOrganization(ep) <- VARSTRING[255](GROUP CONCAT address(INTEGER j) IF subResourceType(subEntryAddress(j)) == 'Organization' AND subId(subEntryAddress(j)) == idOrganization(ep), ' ');
+                idOrganization(ep) <- STRING[100](GROUP MAX getWord(subOrganization(INTEGER j),'/',2) IF subResourceType(subEntryPractitionerRole(j)) == 'Practitioner' AND subId(subEntryPractitionerRole(j)) == idPractitioner(ep));
+                nameOrganization(ep) <- STRING[255](GROUP MAX subName(INTEGER j) IF subResourceType(j) == 'Organization' AND subId(j) == idOrganization(ep));
+                addressOrganization(ep) <- STRING[255](GROUP CONCAT address(INTEGER j) IF subResourceType(subEntryAddress(j)) == 'Organization' AND subId(subEntryAddress(j)) == idOrganization(ep), ' ');
             }
             logToFile('EPrescription', result());
         } CATCH {
@@ -520,22 +520,22 @@ getPrescription 'Получить рецепты' (VARSTRING[16] card) {
     }
 }
 
-card 'Номер карты' = DATA LOCAL NESTED VARSTRING[16]();
+card 'Номер карты' = DATA LOCAL NESTED STRING[16]();
 
 getPrescription 'Получить рецепты' () {
     getPrescription(card());
     DIALOG ePrescriptionClient OBJECTS c = client(idClient(0));
 }
 
-getFromFile 'Загрузить из файла' (VARSTRING[16] card) {
+getFromFile 'Загрузить из файла' (STRING[16] card) {
     INPUT f = FILE DO {
         //LOCAL f = FILE();
         //READ 'C://Users/Ini/Desktop/ER.json' TO f;
         IMPORT importBundle JSON CHARSET 'CP1251' FROM f;
         
         FOR resourceType(INTEGER i) == 'Patient'  AND Client c == client(idClient(i)) DO {
-            family(c) <- VARSTRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
-            given(c) <- VARSTRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
+            family(c) <- STRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
+            given(c) <- STRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
             gender(c) <- GROUP MAX Gender g IF getWord(staticName(g),'.',2) == gender(i);
             active(c) <- active(i);
         }
@@ -543,8 +543,8 @@ getFromFile 'Загрузить из файла' (VARSTRING[16] card) {
         FOR resourceType(INTEGER i) == 'Patient'  AND NOT client(idClient(i)) DO NEW c = Client {
             id(c) <- idClient(i);
             idCard(c) <- card;
-            family(c) <- VARSTRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
-            given(c) <- VARSTRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
+            family(c) <- STRING[100](GROUP CONCAT family(INTEGER j) IF entryName(nameFamily(j)) == i AND use(nameFamily(j)) == 'official', ' ');
+            given(c) <- STRING[100](GROUP CONCAT given(INTEGER j) IF entryName(nameGiven(j)) == i AND use(nameGiven(j)) == 'official', ' ');
             gender(c) <- GROUP MAX Gender g IF getWord(staticName(g),'.',2) == gender(i);
             birthday(c) <- birthDate(i);
             active(c) <- active(i);
@@ -564,7 +564,7 @@ getFromFile 'Загрузить из файла' (VARSTRING[16] card) {
             dateWritten(ep) <- subDateWritten(i);
             //active(ep) <- TRUE IF subStatus(i) == 'active';
             status(ep) <- medicationPrescriptionStatus(subStatus(i));
-            dosageInstruction(ep) <- VARSTRING[255](GROUP CONCAT dosageInstruction(INTEGER j) IF subEntryDosageInstruction(j) == i,' ');
+            dosageInstruction(ep) <- STRING[255](GROUP CONCAT dosageInstruction(INTEGER j) IF subEntryDosageInstruction(j) == i,' ');
             medication(ep) <- CASE WHEN subMedication(i) == '#internalMedication1' THEN Medication.trade
                                    WHEN subMedication(i) == '#internalMedication2' THEN Medication.internationalNonproprietary;
             startValidityPeriod(ep) <- subStart(i);
@@ -600,12 +600,12 @@ getFromFile 'Загрузить из файла' (VARSTRING[16] card) {
                                     formSystem(j) == 'http://www.pharma.by/Справочник.ЛекарственнаяФорма' AND
                                     containedId(containedFormCoding(j)) == 'internalMedication1' AND
                                     isBrand(containedFormCoding(j));
-            idPractitioner(ep) <- VARSTRING[100](getWord(subPrescriber(i),'/',2));
-            namePractitioner(ep) <- VARSTRING[100](CONCAT ' ', (GROUP CONCAT subFamily(INTEGER j) IF subResourceType(subEntrySubFamily(j)) == 'Practitioner' AND subId(subEntrySubFamily(j)) == idPractitioner(ep) AND subUse(subEntrySubFamily(j)) == 'official', ' '),
+            idPractitioner(ep) <- STRING[100](getWord(subPrescriber(i),'/',2));
+            namePractitioner(ep) <- STRING[100](CONCAT ' ', (GROUP CONCAT subFamily(INTEGER j) IF subResourceType(subEntrySubFamily(j)) == 'Practitioner' AND subId(subEntrySubFamily(j)) == idPractitioner(ep) AND subUse(subEntrySubFamily(j)) == 'official', ' '),
                                   (GROUP CONCAT subGiven(INTEGER j) IF subResourceType(subEntrySubGiven(j)) == 'Practitioner' AND subId(subEntrySubGiven(j)) == idPractitioner(ep) AND subUse(subEntrySubGiven(j)) == 'official', ' '));
-            idOrganization(ep) <- VARSTRING[100](GROUP MAX getWord(subOrganization(INTEGER j),'/',2) IF subResourceType(subEntryPractitionerRole(j)) == 'Practitioner' AND subId(subEntryPractitionerRole(j)) == idPractitioner(ep));
-            nameOrganization(ep) <- VARSTRING[255](GROUP MAX subName(INTEGER j) IF subResourceType(j) == 'Organization' AND subId(j) == idOrganization(ep));
-            addressOrganization(ep) <- VARSTRING[255](GROUP CONCAT address(INTEGER j) IF subResourceType(subEntryAddress(j)) == 'Organization' AND subId(subEntryAddress(j)) == idOrganization(ep), ' ');
+            idOrganization(ep) <- STRING[100](GROUP MAX getWord(subOrganization(INTEGER j),'/',2) IF subResourceType(subEntryPractitionerRole(j)) == 'Practitioner' AND subId(subEntryPractitionerRole(j)) == idPractitioner(ep));
+            nameOrganization(ep) <- STRING[255](GROUP MAX subName(INTEGER j) IF subResourceType(j) == 'Organization' AND subId(j) == idOrganization(ep));
+            addressOrganization(ep) <- STRING[255](GROUP CONCAT address(INTEGER j) IF subResourceType(subEntryAddress(j)) == 'Organization' AND subId(subEntryAddress(j)) == idOrganization(ep), ' ');
         }
     }
 }
@@ -617,8 +617,8 @@ getFromFile 'Загрузить из файла' () {
 
 //коды для товаров
 GROUP itemEPrescription 'Электронный рецепт' : public;
-internationalNonproprietaryId 'Код МНН' = DATA VARSTRING[100] (Item) IN itemEPrescription CHARWIDTH 10;
-tradeId 'Код ТН' = DATA VARSTRING[100] (Item) IN itemEPrescription CHARWIDTH 10;
+internationalNonproprietaryId 'Код МНН' = DATA STRING[100] (Item) IN itemEPrescription CHARWIDTH 10;
+tradeId 'Код ТН' = DATA STRING[100] (Item) IN itemEPrescription CHARWIDTH 10;
 
 EXTEND FORM item
     PROPERTIES(i) internationalNonproprietaryId, tradeId
@@ -657,7 +657,7 @@ WHEN LOCAL CHANGED(filterEPrescription()) DO {
     filterMedication() <- IF filterEPrescription() THEN Medication.trade ELSE NULL;
 }
 
-overChangeBarcode (VARSTRING[30] string, Receipt receipt) + {
+overChangeBarcode (STRING[30] string, Receipt receipt) + {
     IF receipt IS Receipt AND length(string) == 16 THEN {
         getPrescription(string);
         filterClient() <- clientCard(string);
@@ -733,7 +733,7 @@ incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescrip
 incorrectReceipt(Receipt r) += WHEN (GROUP SUM 1 IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](EPrescription p))
                                THEN TEXT('Не задано количество доз для товаров, отпускаемых по рецепту ' + (GROUP CONCAT (CONCAT ' ', seriesNumber(EPrescription p), 'от ' + dateWritten(p)) IF [GROUP SUM 1 IF in(EPrescription ep, r) AND NOT dosageQuantity(ep,r) BY ep](p),', '));
 
-idEPrescription 'Код' = DATA VARSTRING[20] (LegalEntity) CHARWIDTH 15;
+idEPrescription 'Код' = DATA STRING[20] (LegalEntity) CHARWIDTH 15;
 
 EXTEND FORM legalEntity
     PROPERTIES(l) idEPrescription
@@ -793,7 +793,7 @@ httpHeadersDispense(TEXT name) = CASE
     WHEN name == 'Authorization' THEN 'Bearer ' + token()
     WHEN name == 'Content-Type' THEN 'application/json';
 
-idMedicationDispense 'Код регистрации отпуска' = DATA VARSTRING[100] (EPrescription, Receipt);
+idMedicationDispense 'Код регистрации отпуска' = DATA STRING[100] (EPrescription, Receipt);
 
 postDispense 'Повторить регистрацию отпуска' (EPrescription ep, Receipt r) {
     IF NOT idMedicationDispense(ep,r) THEN {

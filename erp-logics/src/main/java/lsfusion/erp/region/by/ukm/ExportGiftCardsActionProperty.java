@@ -260,7 +260,7 @@ public class ExportGiftCardsActionProperty extends DefaultExportActionProperty {
 
         ImportField numberGiftCardField = new ImportField(findProperty("number[GiftCard]"));
         ImportKey<?> giftCardKey = new ImportKey((CustomClass) findClass("GiftCard"),
-                findProperty("giftCardSeriesNumber[VARSTRING[30]]").getMapping(numberGiftCardField));
+                findProperty("giftCardSeriesNumber[STRING[30]]").getMapping(numberGiftCardField));
         giftCardKey.skipKey = true;
         keys.add(giftCardKey);
         fields.add(numberGiftCardField);

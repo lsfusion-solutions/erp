@@ -73,12 +73,12 @@ public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
         fields.add(idCustomsRateField);
 
         ImportKey<?> registrationCustomsRateKey = new ImportKey((CustomClass) findClass("RegistrationCustomsRate"),
-                findProperty("registrationCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
+                findProperty("registrationCustomsRate[STRING[100]]").getMapping(idCustomsRateField));
         keys.add(registrationCustomsRateKey);
         props.add(new ImportProperty(idCustomsRateField, findProperty("id[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey)));
 
         ImportKey<?> dutyCustomsRateKey = new ImportKey((CustomClass) findClass("DutyCustomsRate"),
-                findProperty("dutyCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
+                findProperty("dutyCustomsRate[STRING[100]]").getMapping(idCustomsRateField));
         keys.add(dutyCustomsRateKey);
         props.add(new ImportProperty(idCustomsRateField, findProperty("id[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
 
@@ -135,7 +135,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
         fields.add(idCustomsRateField);
        
         ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) findClass("VATCustomsRate"),
-                findProperty("VATCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
+                findProperty("VATCustomsRate[STRING[100]]").getMapping(idCustomsRateField));
         keys.add(VATCustomsRateKey);
         props.add(new ImportProperty(idCustomsRateField, findProperty("id[VATCustomsRate]").getMapping(VATCustomsRateKey)));
        

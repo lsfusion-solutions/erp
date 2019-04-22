@@ -6,7 +6,7 @@ REQUIRE GeneralLedger;
 
 CLASS ABSTRACT Dimension 'Субконто';
 TABLE dimension(Dimension);
-name 'Название' = ABSTRACT VARISTRING[255] (Dimension) CHARWIDTH 40 MATERIALIZED;
+name 'Название' = ABSTRACT ISTRING[255] (Dimension) CHARWIDTH 40 MATERIALIZED;
 
 FORM dimensions 'Субконто'
     OBJECTS d = Dimension
@@ -19,14 +19,14 @@ TABLE dimensionType(DimensionType);
 
 name 'Наименование' (DimensionType type) = staticCaption(type) IF type IS DimensionType;
 
-id 'Идентификатор' = DATA VARSTRING[20] (DimensionType) CHARWIDTH 3;
+id 'Идентификатор' = DATA STRING[20] (DimensionType) CHARWIDTH 3;
 dimensionType = ABSTRACT CASE EXCLUSIVE DimensionType (Dimension) MATERIALIZED;
 nameDimensionType 'Тип субконто' (Dimension dimension) = name(dimensionType(dimension));
 
 TABLE GLAccountDimensionType(GLAccount, DimensionType);
 order 'Порядковый номер' = DATA INTEGER (GLAccount,DimensionType);
 dimensionsType 'Субконто' (GLAccount GLAccount) = GROUP
-                                                CONCAT VARSTRING[255](name(DimensionType dimensionType)) IF order (GLAccount,dimensionType) , ', '
+                                                CONCAT STRING[255](name(DimensionType dimensionType)) IF order (GLAccount,dimensionType) , ', '
                                                 ORDER order (GLAccount,dimensionType) CHARWIDTH 40 MATERIALIZED;
 
 overCopy(GLAccount from, GLAccount to) + { 
@@ -139,10 +139,10 @@ orderDebit 'Порядковый номер' (GeneralLedger ledger, DimensionTyp
 orderCredit 'Порядковый номер' (GeneralLedger ledger, DimensionType dimensionType)=  order(credit(ledger), dimensionType);
 
 dimensionsDebit 'Субконто (дебет)' (GeneralLedger ledger) = GROUP
-                                                CONCAT VARSTRING[255](nameDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
+                                                CONCAT STRING[255](nameDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                 ORDER orderDebit (ledger, dimensionType) CHARWIDTH 40;
 dimensionsCredit 'Субконто (кредит)' (GeneralLedger ledger) = GROUP
-                                                CONCAT VARSTRING[255](nameCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
+                                                CONCAT STRING[255](nameCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                 ORDER orderCredit (ledger, dimensionType) CHARWIDTH 40;
 
 FORM dimensionType 'Тип субконто'
@@ -268,7 +268,7 @@ EXTEND FORM generalLedgers
 CLASS UserDimension 'Субконто (польз.)' : Dimension;
 
 TABLE userDimension(UserDimension);
-name 'Название' = DATA VARISTRING[255] (UserDimension) CHARWIDTH 40;
+name 'Название' = DATA ISTRING[255] (UserDimension) CHARWIDTH 40;
 name(UserDimension dimension)+= name(dimension);
 
 dimensionType = DATA DimensionType (UserDimension);
@@ -302,30 +302,30 @@ NAVIGATOR {
 }
 // ------------------- Субконто для проводок --------------- //
 
-id = ABSTRACT VARISTRING[100](Dimension) MATERIALIZED;
+id = ABSTRACT ISTRING[100](Dimension) MATERIALIZED;
 //idDimension(dimension) += idGLAccount(dimension);
-id(UserDimension dimension) += VARISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
+id(UserDimension dimension) += ISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
 
-overIdDebit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
+overIdDebit = ABSTRACT CASE EXCLUSIVE ISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
 idDebit 'Субконто (дебет)' (GeneralLedger generalLedger, DimensionType dimensionType) =
     OVERRIDE overIdDebit(generalLedger, dimensionType),
              id(debit(generalLedger, dimensionType));
 
-overIdCredit = ABSTRACT CASE EXCLUSIVE VARISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
+overIdCredit = ABSTRACT CASE EXCLUSIVE ISTRING[20](GeneralLedger, DimensionType) MATERIALIZED;
 idCredit 'Субконто (кредит)' (GeneralLedger generalLedger, DimensionType dimensionType) =
     OVERRIDE overIdCredit(generalLedger, dimensionType),
              id(credit(generalLedger, dimensionType));
 
 idDimensionsDebit 'Субконто (дебет)' (GeneralLedger ledger) = GROUP
-                                                                       CONCAT VARSTRING[255](idDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
+                                                                       CONCAT STRING[255](idDebit(ledger, DimensionType dimensionType)) IF orderDebit(ledger, dimensionType) , ', '
                                                                     ORDER orderDebit (ledger, dimensionType) CHARWIDTH 5;
 
 idDimensionsCredit 'Субконто (кредит)' (GeneralLedger ledger) = GROUP
-                                                                         CONCAT VARSTRING[255](idCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
+                                                                         CONCAT STRING[255](idCredit(ledger, DimensionType dimensionType)) IF orderCredit(ledger, dimensionType) , ', '
                                                                       ORDER orderCredit (ledger, dimensionType) CHARWIDTH 5;
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, VARSTRING[20] sidType, VARSTRING[20] sidAccount, DimensionType type)  { 
+loadDefaultGLAccount 'Добавить субконто'(INTEGER integer, STRING[20] sidType, STRING[20] sidAccount, DimensionType type)  { 
     order(GLAccount g,type) <- integer WHERE g == GLAccountIdTypeIdGLAccount(sidType, sidAccount);
 }
 loadDefaultDimensionGLAccounts 'Загрузить стандартный субконто для счетов' ()  ABSTRACT LIST ( ) IN loadDefault;

@@ -8,7 +8,7 @@ GROUP nutrition 'Энергетическая ценность' : base;
 
 showNutrition 'Отображать энергетическую ценность' = DATA BOOLEAN(BOM) IN documentPrm;
 
-recipes 'Номер по сборнику рецептов' = DATA VARSTRING[100] (BOM) IN documentPrm CHARWIDTH 5;
+recipes 'Номер по сборнику рецептов' = DATA STRING[100] (BOM) IN documentPrm CHARWIDTH 5;
 recipes 'Номер по сборнику рецептов' (Product product) = recipes(BOM(product));
 
 // Энергетическая ценность компонент
@@ -43,7 +43,7 @@ fats 'Жиры 100г, г' =  DATA NUMERIC[8,2](Product);
 carbohydrates 'Углеводы 100г, г' = DATA NUMERIC[8,2](Product);
 proteins 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
 energy 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
-productYield 'Выход' = DATA VARSTRING[100] (Product) CHARWIDTH 20;
+productYield 'Выход' = DATA STRING[100] (Product) CHARWIDTH 20;
 
 //-- округление по (ТР ТС 022/2011)     
 humidityParamsRound (NUMERIC[18,5] nu) = CASE 
@@ -61,13 +61,13 @@ carbohydratesItem 'Углеводы 100г, г (товар)' (Product p) = carboh
 proteinsItem 'Белки 100г, г (товар)' (Product p) = proteins(sku(p));
 energyItem 'Энерг.ценность на 100г, ккал (товар)' (Product p) = energy(sku(p));
 
-composition 'Состав' = DATA VARSTRING[2550] (Product) CHARWIDTH 30;
+composition 'Состав' = DATA STRING[2550] (Product) CHARWIDTH 30;
 components 'Компоненты' (Product product)= components(BOM(product));
 composition(Product product) <- components(product) WHEN CHANGED(components(product));
 
 changeComposition 'Записать в товар'(Product product)  { 
     FOR sku(product) == Sku item DO {
-        composition[Item](item) <- VARSTRING[1000](composition(product));
+        composition[Item](item) <- STRING[1000](composition(product));
     }
 } ASON CONTEXTMENU composition[Product];
 
@@ -83,10 +83,10 @@ fullDescription 'Описание (полное)' = DATA TEXT (Product);
 CLASS StateStandart 'СТБ';
 TABLE stateStandart (StateStandart);
   
-name 'Наименование' = DATA VARISTRING[100](StateStandart);
+name 'Наименование' = DATA ISTRING[100](StateStandart);
 number 'Номер' = DATA BPSTRING[50](StateStandart);   
 note 'Примечание' = DATA BPSTRING[250](StateStandart);  
-@defineExternalizable(stateStandart, VARSTRING[100]); 
+@defineExternalizable(stateStandart, STRING[100]); 
 stateStandartName = GROUP MAX StateStandart stateStandart BY name (stateStandart); 
 
 FORM stateStandart 'СТБ'

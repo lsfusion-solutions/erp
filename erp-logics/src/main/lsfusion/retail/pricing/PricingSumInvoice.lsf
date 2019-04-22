@@ -186,7 +186,7 @@ META defineInvoicePricingRelation(sign, stockProp)
     quantityPricingDetail (invoice, pricing) = GROUP SUM quantity(PricingDetail pricingDetail) BY invoice(invoiceDetail(pricingDetail)), pricing(pricingDetail);
 
     invoices 'Накладные'(Pricing pricing)  = GROUP
-                                                    CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, pricing) , ', '
+                                                    CONCAT STRING[255](description(Invoice invoice)) IF quantityPricingDetail(invoice, pricing) , ', '
                                                     ORDER invoice IN invoice CHARWIDTH 30 MATERIALIZED;
 
     pricing 'Кол-во (расценено)' (invoiceDetail) = GROUP SUM quantity(PricingDetail pricingDetail) IF isPosted(pricingDetail)
@@ -311,5 +311,5 @@ META defineInvoicePricingRelation(sign, stockProp)
     ;
 
     invoiceDetail(InvoicePricingDetail pricingDetail) += invoiceDetail(pricingDetail);
-    descriptionDocument(Pricing pricing) += VARSTRING[255](invoices(pricing));
+    descriptionDocument(Pricing pricing) += STRING[255](invoices(pricing));
 END

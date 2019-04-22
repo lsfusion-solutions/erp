@@ -9,7 +9,7 @@ CLASS SnapshotType 'Тип аналитического отчета';
 TABLE snapshotType (SnapshotType);
 
 name 'Наименование' = DATA BPSTRING[100] (SnapshotType) IN documentHeader;
-@defineExternalizable(snapshotType, VARSTRING[100]);
+@defineExternalizable(snapshotType, STRING[100]);
 isBatch 'По партиям' = DATA BOOLEAN (SnapshotType);
 
 isQuantity 'Количество' = DATA BOOLEAN (SnapshotType);
@@ -740,7 +740,7 @@ deleteIncludeSkus 'Сбросить отмеченные'(Snapshot r)  {
     dataInclude(r,Sku b) <- NULL;
 };
 
-addCommaBarcodeId 'Список ШК' = DATA LOCAL VARISTRING[4000]() CHARWIDTH 30 NOFLEX;
+addCommaBarcodeId 'Список ШК' = DATA LOCAL ISTRING[4000]() CHARWIDTH 30 NOFLEX;
 
 addCommaBarcodeId 'Добавить' (Snapshot s)  { 
     IF addCommaBarcodeId() THEN {
@@ -1381,7 +1381,7 @@ inDays 'Вкл.' = DATA BOOLEAN (SnapshotType, INTEGER);
 countDaysIn (SnapshotType t) = GROUP SUM 1 IF inDays(t,INTEGER i);
 
 daysIn 'Числа' (SnapshotType t)  = GROUP
-    CONCAT VARSTRING[2](INTEGER i) IF inDays(t,i), ', '
+    CONCAT STRING[2](INTEGER i) IF inDays(t,i), ', '
     ORDER i CHARWIDTH 10;
     
 DOWsIn 'Дни недели' (SnapshotType t)  = GROUP
@@ -1496,8 +1496,8 @@ changeFilterSnapshotSupplier()  {
 }
 
 orderSort 'Порядок (внутри группы)' (SkuGroup g) = PARTITION SUM 1 ORDER sort(g) BY groupType(g), parent(g);
-canonicalOrderSort 'Порядок' (SkuGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
-nameLevel4 'Наименование' (SkuGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
+canonicalOrderSort 'Порядок' (SkuGroup g) = STRING[250]((GROUP CONCAT lpad(STRING[3](orderSort(SkuGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
+nameLevel4 'Наименование' (SkuGroup g) = STRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 FORM snapshot 'Аналитический отчет'                                   
     OBJECTS r = Snapshot PANEL

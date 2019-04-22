@@ -21,7 +21,7 @@ CLASS InventoryCommittee 'Комиссия для инвентаризации' 
 // Комиссия инвентаризации
 GROUP inventoryCommittee 'Комиссия' : public;
 
-name 'Наименование' = DATA VARISTRING[150](InventoryCommittee);
+name 'Наименование' = DATA ISTRING[150](InventoryCommittee);
 
 name(InventoryCommittee committee) += name(committee) IF committee IS InventoryCommittee;
 
@@ -127,7 +127,7 @@ is (Inventory o) = o IS Inventory;
 isBatch 'По партиям' (inventory) = DATA BOOLEAN (Inventory);
 isSku (Inventory inventory) = inventory IS Inventory AND NOT isBatch(inventory);
 
-name 'Название инвентаризации' = DATA VARSTRING[100] (Inventory) IN documentPrm CHARWIDTH 50;
+name 'Название инвентаризации' = DATA STRING[100] (Inventory) IN documentPrm CHARWIDTH 50;
 
 timeFrom 'Начато' (inventory) = DATA DATETIME (Inventory) IN documentPrm;
 timeTo 'Закончено' (inventory) = DATA DATETIME (Inventory) IN documentPrm;
@@ -234,7 +234,7 @@ countListInventory 'Кол-во описей' = GROUP SUM 1 BY inventory(ListInv
 
 @defineDocumentDetailIndex(inventory, ListInventory);
 
-name 'Номер описи' = ABSTRACT CASE VARSTRING[100](ListInventory) CHARWIDTH 20;
+name 'Номер описи' = ABSTRACT CASE STRING[100](ListInventory) CHARWIDTH 20;
 name(ListInventory listInventory) +=  WHEN listInventory IS ListInventory THEN 'Опись ' + index(listInventory);
 
 isBatch (ListInventory listInventory) = isBatch(inventory(listInventory));
@@ -322,7 +322,7 @@ TABLE collationSheet (CollationSheet);
 @defineDocumentRelation(inventory, CollationSheet);
 
 @defineDocumentHeaderStock(collationSheet, stock, 'Склад');
-numberDisposal 'Основание для инвентаризации'  = DATA VARISTRING[100] (CollationSheet) IN documentPrm CHARWIDTH 20;
+numberDisposal 'Основание для инвентаризации'  = DATA ISTRING[100] (CollationSheet) IN documentPrm CHARWIDTH 20;
 
 @defineDocumentDetailTime(inventory, CollationSheet);
 @defineDocumentDetailPosted(inventory, CollationSheet);
@@ -1464,7 +1464,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory)  {
 	}
 } TOOLBAR IMAGE 'add.png';
 
-changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page)  { 
+changeAddDetailInputIdSku(STRING[100] idSku, PageInventory page)  { 
     IF sku(idSku) THEN {  
         NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
@@ -1483,7 +1483,7 @@ changeAddDetailInput(PageInventory page)  {
 addDetailInput 'Код товара:' (page) = DATA LOCAL BPSTRING[20] (PageInventory) TOOLBAR CHANGEKEY 'F5' 
                                                                         ON CHANGE { changeAddDetailInput(page); } CHARWIDTH 10;  
                                                                      
-changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page)  { 
+changeAddDetailInputBarcode(STRING[15] barcode, PageInventory page)  { 
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
         NEW  d = PageInventoryDetail {
             pageInventory(d) <- page;   
@@ -1496,10 +1496,10 @@ changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page)  {
     }
 } 
 changeAddDetailInputBarcode(PageInventory page)  { 
-    INPUT s = VARSTRING[15] DO 
+    INPUT s = STRING[15] DO 
         changeAddDetailInputBarcode(s, page);
 }
-addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL VARSTRING[15] (PageInventory) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
+addDetailInputBarcode 'Штрихкод товара:' (page) = DATA LOCAL STRING[15] (PageInventory) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                         ON CHANGE { changeAddDetailInputBarcode(page); } CHARWIDTH 15;
 
 EXTEND FORM listInventory
@@ -2134,7 +2134,7 @@ WHEN SET (isPosted(Inventory i)) AND fillClosedDate() DO {
 
 isClosed[Document](ListInventory d) += isClosed(inventory(d));
 isPosted[Document](ListInventory d) += isPosted(inventory(d));
-number[Document](ListInventory d) += VARSTRING[28](CONCAT '/', number(inventory(d)), name(d));
+number[Document](ListInventory d) += STRING[28](CONCAT '/', number(inventory(d)), name(d));
 series[Document](ListInventory d) += series(inventory(d));
 date[Document](ListInventory d) += date(d);
 supplierStock[Document](ListInventory d) += stock(d);

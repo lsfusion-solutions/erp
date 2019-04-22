@@ -101,7 +101,7 @@ public class ImportTNVEDClassifierActionProperty extends InternalAction {
         ImportField dateField = new ImportField(DateClass.instance);
 
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
-        ImportKey<?> customsZoneKey = new ImportKey((CustomClass) findClass("CustomsZone"), findProperty("customsZone[VARISTRING[50]]").getMapping(nameCustomsZoneField));
+        ImportKey<?> customsZoneKey = new ImportKey((CustomClass) findClass("CustomsZone"), findProperty("customsZone[ISTRING[50]]").getMapping(nameCustomsZoneField));
         ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"), findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(vatField));
 
         List<ImportProperty<?>> properties = new ArrayList<>();

@@ -113,7 +113,7 @@ CONSTRAINT notNullInvoiceVAT() AND isItem(sku(InvoiceDetail detail)) AND isPoste
 
 shortDescription (Invoice invoice) = seriesNumber(invoice) + ' от ' + date(invoice);
 
-extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT VARSTRING[1500] (InvoiceDetail) CHARWIDTH 30;
+extraDescription 'Доп. наименование' (invoiceDetail) = ABSTRACT STRING[1500] (InvoiceDetail) CHARWIDTH 30;
 
 editSku 'Редактировать SKU' (InvoiceDetail d)  { NEWSESSION { edit(sku(d)); } } TOOLBAR;
 
@@ -146,7 +146,7 @@ negativeValueInvoices 'Запретить ввод отрицательных з
 
 skipConsignment = ABSTRACT BOOLEAN (InvoiceDetail) MATERIALIZED;  
 
-taxNumberSupplier 'Налоговый номер постащика' = ABSTRACT VARSTRING[9] (Invoice);
+taxNumberSupplier 'Налоговый номер постащика' = ABSTRACT STRING[9] (Invoice);
 
 EXTEND FORM options
     PROPERTIES() negativeValueInvoices
@@ -192,8 +192,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     createdTime (UserInvoice invoice) += createdTime(invoice) IF invoice IS UserInvoice;
     createdUser[Invoice.Invoice] (Invoice invoice) += createdUser(invoice);    
     
-    @defineExternalizable(userInvoice, VARSTRING[100]);
-    @defineExternalizable(userInvoiceDetail, VARSTRING[100]);
+    @defineExternalizable(userInvoice, STRING[100]);
+    @defineExternalizable(userInvoiceDetail, STRING[100]);
                                                                
     invoice[Invoice.InvoiceDetail] (InvoiceDetail detail) += invoice(detail);
     date[Invoice.Invoice] (Invoice invoice) += date(invoice);
@@ -256,7 +256,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
     CONSTRAINT isPosted(UserInvoice i) AND NOT isStockInvoices() AND NOT stockProp##Stock(i) 
         MESSAGE 'Для накладной'##sign##' должен быть задан склад';   
-    CONSTRAINT  equalsSeriesNumberInvoices() AND [GROUP SUM 1 IF isPosted(Invoice i) AND NOT skipEqualsSeriesNumber(i) AND (date(i) >= dateFromEqualsSeriesNumberInvoices() OR NOT dateFromEqualsSeriesNumberInvoices()) BY seriesNumber(i)](VARSTRING[28] series) >1
+    CONSTRAINT  equalsSeriesNumberInvoices() AND [GROUP SUM 1 IF isPosted(Invoice i) AND NOT skipEqualsSeriesNumber(i) AND (date(i) >= dateFromEqualsSeriesNumberInvoices() OR NOT dateFromEqualsSeriesNumberInvoices()) BY seriesNumber(i)](STRING[28] series) >1
         MESSAGE 'Запрещено вводить накладные'##sign##' с одинаковым "Серия/номер"';
     
     @defineDocumentInterfaceClosed(invoice);

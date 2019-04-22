@@ -49,7 +49,7 @@ changedComputer (PromotionDetail detail) <- currentComputer() WHEN CHANGED(detai
 promotion 'Акция' = DATA Promotion (PromotionDetail) INDEXED NONULL DELETE;
 countPromotionDetail 'Кол-во строк' (Promotion p) = GROUP SUM 1 BY promotion(PromotionDetail d);
 
-name 'Наименование' = DATA VARISTRING[100] (Promotion) CHARWIDTH 30;
+name 'Наименование' = DATA ISTRING[100] (Promotion) CHARWIDTH 30;
 fromDate 'Дата с' = DATA DATE (Promotion);
 toDate 'Дата по' = DATA DATE (Promotion);
 
@@ -78,7 +78,7 @@ in 'Отм' (Promotion promotion, Stock stock) =
 @defineBackgroundNearestBoolean(allStocks, in, promotion, stock, inParent, isCompany);
 
 stocks 'Склады' (Promotion promotion) = GROUP
-                                       CONCAT VARISTRING[250] (name(Stock stock)) IF in(promotion, stock) , ', '
+                                       CONCAT ISTRING[250] (name(Stock stock)) IF in(promotion, stock) , ', '
                                        ORDER stock CHARWIDTH 20 MATERIALIZED;
 stocks 'Склады' (PromotionDetail d) = stocks(promotion(d));
 
@@ -86,10 +86,10 @@ stocks 'Склады' (PromotionDetail d) = stocks(promotion(d));
 CLASS PromotionType 'Тип акции';
 TABLE promotionType (PromotionType);
 
-id 'Код' = DATA VARISTRING[100] (PromotionType) IN base;
+id 'Код' = DATA ISTRING[100] (PromotionType) IN base;
 promotionType(id) = GROUP AGGR (PromotionType type) BY id(type);
 
-name 'Наименование' = DATA VARISTRING[100] (PromotionType) IN base CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[100] (PromotionType) IN base CHARWIDTH 10;
 
 FORM promotionType 'Тип акции'
     OBJECTS o = PromotionType PANEL
@@ -128,10 +128,10 @@ nameOverPromotionType 'Тип акции' (PromotionDetail detail) = name(overPr
 CLASS ExtraPromotionType 'Тип подакции';
 TABLE extraPromotionType (ExtraPromotionType);
 
-id 'Код' = DATA VARSTRING[100] (ExtraPromotionType) IN id CHARWIDTH 5;
+id 'Код' = DATA STRING[100] (ExtraPromotionType) IN id CHARWIDTH 5;
 extraPromotionType(id) = GROUP AGGR (ExtraPromotionType type) BY id(type);
 
-name 'Наименование' = DATA VARISTRING[100] (ExtraPromotionType) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[100] (ExtraPromotionType) IN id CHARWIDTH 20;
 
 FORM extraPromotionType 'Тип подакции'
     OBJECTS o = ExtraPromotionType PANEL
@@ -190,10 +190,10 @@ recalculateCountStocks (PromotionDetail d)  {
 CLASS Flyer 'Листовка';
 TABLE flyer (Flyer);
 
-id 'Код' = DATA VARSTRING[100] (Flyer) IN id CHARWIDTH 5;
+id 'Код' = DATA STRING[100] (Flyer) IN id CHARWIDTH 5;
 flyer(id) = GROUP AGGR (Flyer flyer) BY id(flyer);
 
-name 'Наименование' = DATA VARISTRING[100] (Flyer) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[100] (Flyer) IN id CHARWIDTH 20;
 
 FORM flyer 'Листовка'
     OBJECTS o = Flyer PANEL
@@ -256,10 +256,10 @@ discount 'Акционная скидка' = DATA NUMERIC[8,3] (PromotionDetail)
 CLASS PromoType 'Тип промо';
 TABLE promoType (PromoType);
 
-id 'Код' = DATA VARSTRING[100] (PromoType) IN id CHARWIDTH 5;
+id 'Код' = DATA STRING[100] (PromoType) IN id CHARWIDTH 5;
 promoType(id) = GROUP AGGR (PromoType type) BY id(type);
 
-name 'Наименование' = DATA VARISTRING[100] (PromoType) IN id CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[100] (PromoType) IN id CHARWIDTH 20;
 
 FORM promoType 'Тип промо'
     OBJECTS o = PromoType PANEL
@@ -298,10 +298,10 @@ nameOverPromoType 'Тип промо' (PromotionDetail detail) = name(overPromoT
 CLASS DiscountType 'Тип скидки';
 TABLE discountType (DiscountType);
 
-id 'Код' = DATA VARSTRING[100] (DiscountType) IN base;
+id 'Код' = DATA STRING[100] (DiscountType) IN base;
 discountType(id) = GROUP AGGR (DiscountType type) BY id(type);
 
-name 'Наименование' = DATA VARISTRING[100] (DiscountType) IN base CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[100] (DiscountType) IN base CHARWIDTH 10;
 
 discountType 'Тип скидки' = DATA DiscountType (PromotionDetail);
 nameDiscountType 'Тип скидки' (PromotionDetail detail) = name(discountType(detail));
@@ -309,10 +309,10 @@ nameDiscountType 'Тип скидки' (PromotionDetail detail) = name(discountT
 CLASS DiscountingType 'Тип начисления скидки';
 TABLE discountingType (DiscountingType);
 
-id 'Код' = DATA VARSTRING[100] (DiscountingType) IN base;
+id 'Код' = DATA STRING[100] (DiscountingType) IN base;
 discountingType(id) = GROUP AGGR (DiscountingType type) BY id(type);
 
-name 'Наименование' = DATA VARISTRING[100] (DiscountingType) IN base CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[100] (DiscountingType) IN base CHARWIDTH 10;
 
 discountingType 'Тип начисления скидки/бонуса' = DATA DiscountingType (PromotionDetail);
 nameDiscountingType 'Тип начисления скидки/бонуса' (PromotionDetail detail) = name(discountingType(detail));
@@ -327,7 +327,7 @@ elevator 'Лифты' = DATA BOOLEAN (PromotionDetail);
 sms 'СМС рассылка' = DATA BOOLEAN (PromotionDetail);
 email 'E-mail рассылка' = DATA BOOLEAN (PromotionDetail);
 
-comment 'Замечания' = DATA VARISTRING[255] (PromotionDetail) CHARWIDTH 50;
+comment 'Замечания' = DATA ISTRING[255] (PromotionDetail) CHARWIDTH 50;
 
 approved 'Утвержден' = DATA BOOLEAN (PromotionDetail);
 

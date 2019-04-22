@@ -234,7 +234,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         try (DataSession session = createSession()) {
             List<TransactionInfo> transactionList = new ArrayList<>();
 
-            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
             Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
             Integer selectTop = (Integer) equipmentLM.findProperty("selectTop[EquipmentServer]").read(session, equipmentServerObject);
@@ -946,7 +946,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         }
                     }
 
-                    ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
+                    ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
                     Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(outerSession, equipmentServerObject);
                     if (maxThreads == null || maxThreads <= 1)
                         return importSalesInfoSingleThread(stack, sidEquipmentServer, directory, salesInfoList);
@@ -965,7 +965,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         String result = null;
 
         try (DataSession session = createSession()) {
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
             if (numberAtATime == null) numberAtATime = salesInfoList.size();
 
@@ -1032,7 +1032,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             Timestamp timeStart = getCurrentTimestamp();
 
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
             boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
@@ -1062,7 +1062,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             returnKeys.add(cashRegisterKey);
             giftCardKeys.add(cashRegisterKey);
 
-            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+            ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[STRING[100]]").getMapping(idZReportField));
             saleKeys.add(zReportKey);
             returnKeys.add(zReportKey);
             giftCardKeys.add(zReportKey);
@@ -1079,7 +1079,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
             ImportField skipReceiptField = new ImportField(zReportLM.findProperty("skip[Receipt]"));
 
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
             saleKeys.add(receiptKey);
             returnKeys.add(receiptKey);
             giftCardKeys.add(receiptKey);
@@ -1100,7 +1100,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             returnFields.add(idEmployeeField);
             giftCardFields.add(idEmployeeField);
 
-            ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+            ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
             saleKeys.add(employeeKey);
             returnKeys.add(employeeKey);
             giftCardKeys.add(employeeKey);
@@ -1129,7 +1129,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleFields.add(idBarcodeReceiptDetailField);
             returnFields.add(idBarcodeReceiptDetailField);
 
-            ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[VARSTRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+            ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[STRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
             saleKeys.add(skuKey);
             returnKeys.add(skuKey);
 
@@ -1166,7 +1166,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (zReportSectionLM != null) {
                 saleFields.add(idSectionField);
             }
-            ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[VARSTRING[100]]").getMapping(idSectionField));
+            ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[STRING[100]]").getMapping(idSectionField));
             if (sectionKey != null) {
                 saleKeys.add(sectionKey);
                 returnKeys.add(sectionKey);
@@ -1223,7 +1223,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]"));
                 giftCardFields.add(sumReceiptGiftCardSaleDetailField);
 
-                giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+                giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
                 giftCardKeys.add(giftCardKey);
 
                 isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
@@ -1273,7 +1273,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
             saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
 
-            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+            ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
             saleKeys.add(receiptSaleDetailKey);
 
             saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
@@ -1324,7 +1324,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
             returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+            ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
             returnKeys.add(receiptReturnDetailKey);
             returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
             returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
@@ -1339,7 +1339,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                     zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
 
-            ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
+            ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
             receiptSaleDetailReceiptReturnDetailKey.skipKey = true;
             returnKeys.add(receiptSaleDetailReceiptReturnDetailKey);
             returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceipt[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
@@ -1370,7 +1370,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
                 giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
                 giftCardKeys.add(receiptGiftCardSaleDetailKey);
                 giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
                 giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
@@ -1427,7 +1427,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         for (int start = 0; true;) {
 
             try (DataSession session = createSession()) {
-                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
                 Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                 if (numberAtATime == null)
                     numberAtATime = salesInfoList.size();
@@ -1527,29 +1527,29 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 List<ImportProperty<?>> returnProperties = new ArrayList<>();
                 List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
 
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[STRING[100]]").getMapping(idZReportField));
                 saleKeys.add(zReportKey);
 
                 ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
                 cashRegisterKey.skipKey = true;
                 saleKeys.add(cashRegisterKey);
 
-                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+                ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
                 saleKeys.add(receiptKey);
 
-                ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[VARSTRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+                ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[STRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
                 saleKeys.add(skuKey);
 
-                ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+                ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
                 saleKeys.add(employeeKey);
 
                 ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
                 if(discountCardKey != null)
                     saleKeys.add(discountCardKey);
 
-                ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+                ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
 
-                ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[VARSTRING[100]]").getMapping(idSectionField));
+                ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[STRING[100]]").getMapping(idSectionField));
                 if(sectionKey != null)
                     saleKeys.add(sectionKey);
 
@@ -1587,7 +1587,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
                 saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
 
-                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
                 saleKeys.add(receiptSaleDetailKey);
 
                 saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
@@ -1640,7 +1640,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
                 returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
                 returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
                 returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
                 returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
@@ -1654,7 +1654,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                         zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
 
-                ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
+                ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
                 receiptSaleDetailReceiptReturnDetailKey.skipKey = true;
                 returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceipt[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                         zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptSaleDetailReceiptReturnDetailKey)));
@@ -1684,7 +1684,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
                     giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                    receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                    receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
                     giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
                     giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
                     giftCardProperties.add(new ImportProperty(priceReceiptGiftCardSaleDetailField, giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
@@ -1856,7 +1856,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         String message = formatCompleteMessageMultiThread(mainSession, salesInfoList, start, finish, dataSize, left, timeStart, directory);
 
         try (DataSession session = createSession()) {
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
             equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
@@ -1870,7 +1870,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart, directory);
         
         try (DataSession session = createSession()) {
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
             equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
@@ -2092,7 +2092,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             RemoteException, SQLException {
         try (DataSession session = createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerError"));
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer, StringClass.get(20)));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer, StringClass.get(20)));
             equLM.findProperty("equipmentServer[EquipmentServerError]").change(equipmentServerObject, session, errorObject);
             equLM.findProperty("data[EquipmentServerError]").change(exception.toString(), session, errorObject);
             if(extraData != null)
@@ -2114,7 +2114,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         try {
             ThreadLocalContext.assureRmi(this);
             try (DataSession session = createSession()) {
-                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer));
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
                     Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
                     Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
@@ -2229,7 +2229,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     barcodeMap.put(sale.itemObject, barcode);
                 }
                 if (barcode == null && sale.idItem != null) {
-                    barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                    barcode = trim((String) itemLM.findProperty("idBarcodeSku[STRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
                     //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
                     if (barcode == null)
                         barcode = appendCheckDigitToBarcode(sale.idItem, 7, true);

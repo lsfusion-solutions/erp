@@ -19,14 +19,14 @@ succeeded 'Выполнен' = DATA BOOLEAN (DeleteBarcode);
 dateTimeProcessing 'Принят в обработку' = DATA DATETIME (DeleteBarcode);
 dateTimeSucceeded 'Дата выполнения' = DATA DATETIME (DeleteBarcode);
 barcodeObject = DATA LONG (DeleteBarcode) NONULL;
-barcode 'Штрихкод' = DATA VARSTRING[100] (DeleteBarcode) NONULL;
-idSku 'Код товара' = DATA VARSTRING[100] (DeleteBarcode) NONULL;
-nameSku 'Наименование товара' = DATA VARISTRING[255] (DeleteBarcode) NONULL;
-idUOMSku 'Код единицы измерения товара' = DATA VARSTRING[100] (DeleteBarcode);
-shortNameUOMSku 'Ед. изм. товара' = DATA VARSTRING[100] (DeleteBarcode);
+barcode 'Штрихкод' = DATA STRING[100] (DeleteBarcode) NONULL;
+idSku 'Код товара' = DATA STRING[100] (DeleteBarcode) NONULL;
+nameSku 'Наименование товара' = DATA ISTRING[255] (DeleteBarcode) NONULL;
+idUOMSku 'Код единицы измерения товара' = DATA STRING[100] (DeleteBarcode);
+shortNameUOMSku 'Ед. изм. товара' = DATA STRING[100] (DeleteBarcode);
 valueVATSku 'НДС, %' = DATA NUMERIC[10,5] (DeleteBarcode);
-idItemGroup 'Код группы товара' = DATA VARSTRING[100] (DeleteBarcode);
-nameItemGroup 'Наименование группы товара' = DATA VARSTRING[250] (DeleteBarcode);
+idItemGroup 'Код группы товара' = DATA STRING[100] (DeleteBarcode);
+nameItemGroup 'Наименование группы товара' = DATA STRING[250] (DeleteBarcode);
 
 finishDeleteBarcode(INTEGER nppGroupMachinery, BOOLEAN markSucceeded)  { 
     IF markSucceeded THEN {
@@ -37,7 +37,7 @@ finishDeleteBarcode(INTEGER nppGroupMachinery, BOOLEAN markSucceeded)  {
     }
 }
 
-succeedDeleteBarcode(INTEGER nppGroupMachinery, VARSTRING[28] barcode)  { 
+succeedDeleteBarcode(INTEGER nppGroupMachinery, STRING[28] barcode)  { 
     succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery) AND barcode(d) == barcode;
     dateTimeSucceeded(DeleteBarcode d) <- currentDateTime() WHERE NOT dateTimeSucceeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery) AND barcode(d) == barcode;
 }
@@ -46,7 +46,7 @@ CLASS DeleteBarcodeError 'Ошибка';
 TABLE deleteBarcodeError (DeleteBarcodeError);
 
 groupMachinery = DATA GroupMachinery(DeleteBarcodeError) NONULL;
-data 'Сообщение об ошибке' = DATA VARSTRING[200] (DeleteBarcodeError) IN base;
+data 'Сообщение об ошибке' = DATA STRING[200] (DeleteBarcodeError) IN base;
 date 'Время возникновения' = DATA DATETIME (DeleteBarcodeError) IN base;
 errorTrace 'След исключения' = DATA TEXT (DeleteBarcodeError) IN base;
 
@@ -72,7 +72,7 @@ NAVIGATOR {
 }
 
 WHEN DROPPED (Barcode b IS Barcode) AND PREV(id(b)) AND NOT disableDeleteBarcode() DO {
-    FOR GroupMachinery gm == [GROUP MIN GroupMachinery ggm IF active(ggm) AND ggm IS GroupCashRegister BY directory(ggm)](VARSTRING[200] dir) NEW d = DeleteBarcode DO {
+    FOR GroupMachinery gm == [GROUP MIN GroupMachinery ggm IF active(ggm) AND ggm IS GroupCashRegister BY directory(ggm)](STRING[200] dir) NEW d = DeleteBarcode DO {
         barcodeObject(d) <- LONG(b);
         barcode(d) <- PREV (id(b));
         idSku(d) <- PREV(idSku(b));

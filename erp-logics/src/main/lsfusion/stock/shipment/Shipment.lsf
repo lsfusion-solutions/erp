@@ -208,7 +208,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     CLASS UserShipmentDimension : ShipmentDimension;
     TABLE shipmentDimension (ShipmentDimension);
 
-    name 'Наименование' = ABSTRACT VARISTRING[100](ShipmentDimension);
+    name 'Наименование' = ABSTRACT ISTRING[100](ShipmentDimension);
 
     shipmentDimension = ABSTRACT ShipmentDimension (ShipmentDetail);
     nameShipmentDimension 'Регистр хранения' (ShipmentDetail detail) = name(shipmentDimension(detail));
@@ -221,7 +221,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     userShipmentDetail(shipment, sku, dimension) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail), shipmentDimension(detail);
     userShipmentDetail(shipment, sku) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail);
 
-    addDetailBarcodeUserShipmentDetail(UserShipment shipment, VARSTRING[15] barcode, ShipmentDimension dimension)  { 
+    addDetailBarcodeUserShipmentDetail(UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension)  { 
         LOCAL dialogBarcodeSku = Sku ();
         dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
 
@@ -271,10 +271,10 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     }
 
     changeAddDetailInputBarcodeDimensionUserShipmentDetail(UserShipment userShipment)  { 
-        INPUT s = VARSTRING[15] DO
+        INPUT s = STRING[15] DO
             addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(s), shipmentDimension(userShipment));
     };
-    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL VARSTRING[15] (UserShipment) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL STRING[15] (UserShipment) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcodeDimensionUserShipmentDetail(userShipment); }
 
 // --------------------------- Формы --------------------------------- //

@@ -8,7 +8,7 @@ TABLE stockDocumentLedger (StockDocumentLedger) FULL;
 CLASS ABSTRACT IncStockDocumentLedger 'Учетный документ (приход)' : StockDocumentLedger;
 CLASS ABSTRACT OutStockDocumentLedger 'Учетный документ (расход)' : StockDocumentLedger;
 
-type 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (StockDocumentLedger) MATERIALIZED;
+type 'Тип процесса' (ledger) = ABSTRACT STRING[50] (StockDocumentLedger) MATERIALIZED;
 
 overOrder  (ledger) = ABSTRACT INTEGER (StockDocumentLedger);
 order 'Порядок' = OVERRIDE overOrder(StockDocumentLedger l), 1000000 IF l IS StockDocumentLedger;
@@ -25,7 +25,7 @@ isOpened 'Не закрыт' (StockDocumentLedger ledger) = ledger IS StockDocum
 stock (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN id;
 
-number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
+number 'Номер документа' (ledger) = ABSTRACT STRING[28] (StockDocumentLedger) MATERIALIZED;
 series 'Серия документа' (ledger) = ABSTRACT BPSTRING[2] (StockDocumentLedger) MATERIALIZED;
 seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) CHARWIDTH 7; 
 
@@ -38,14 +38,14 @@ nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock
 operation 'Операция' (ledger) = ABSTRACT Operation(StockDocumentLedger) MATERIALIZED;
 isReturn 'Возврат' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 
-captionStockDocument 'Название операции в товарном отчете (закупка)' = ABSTRACT VARISTRING[100] (Operation);
-returnCaptionStockDocument 'Название операции в товарном отчете (возврат)' = ABSTRACT VARISTRING[100] (Operation);
+captionStockDocument 'Название операции в товарном отчете (закупка)' = ABSTRACT ISTRING[100] (Operation);
+returnCaptionStockDocument 'Название операции в товарном отчете (возврат)' = ABSTRACT ISTRING[100] (Operation);
 
 nameOperation 'Операция' (StockDocumentLedger ledger) = IF isReturn(ledger) 
     THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
     ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
-description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (StockDocumentLedger) MATERIALIZED IN id;
+description 'Название документа' (ledger) = ABSTRACT STRING[200] (StockDocumentLedger) MATERIALIZED IN id;
 
 skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentLedger) MATERIALIZED;
 active (StockDocumentLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
@@ -437,7 +437,7 @@ END
 
 META implementStockDocumentLedgerOver (concrete, stockProp, objClass)
 
-    number###stockProp##DocumentLedger = ABSTRACT VARSTRING[28] (objClass) MATERIALIZED;
+    number###stockProp##DocumentLedger = ABSTRACT STRING[28] (objClass) MATERIALIZED;
     series###stockProp##DocumentLedger = ABSTRACT BPSTRING[2] (objClass) MATERIALIZED;
 
     series[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE series###stockProp##DocumentLedger(ledger), series(ledger);
@@ -483,7 +483,7 @@ META implementStockDocumentLedgerOut (concrete, stockProp, NS)
     @implementStockDocumentLedger (concrete, stockProp, NS);
 END
 documentsClosedDate 'Дата закрытия документов' = DATA DATE(Stock);
-documentsClosedDate (VARSTRING[100] idStock) = documentsClosedDate(stock(idStock));
+documentsClosedDate (STRING[100] idStock) = documentsClosedDate(stock(idStock));
 
 allowChangeStockDocumentClosed 'Разрешить корректировать документы до даты закрытия' = DATA BOOLEAN (CustomUser);
 EXTEND FORM employee
@@ -585,14 +585,14 @@ CLASS UserStockDocumentDetail 'Строка учетного документа 
 @defineDocumentDetailDescription(userStockDocument, UserStockDocumentDetail);
 
 @defineDocumentHeaderNote(UserStockDocument);
-note 'Примечание' = DATA VARSTRING[100] (UserStockDocumentDetail) CHARWIDTH 30 IN documentPrm;
+note 'Примечание' = DATA STRING[100] (UserStockDocumentDetail) CHARWIDTH 30 IN documentPrm;
 
 @defineNumeratedDefault(UserStockDocument, 'Учетный документ', 'УД');
 
 @defineDocumentHeaderCreated(UserStockDocument);
 @defineDocumentPosted(userStockDocument);
 @defineDocumentClosed(userStockDocument);
-id = DATA VARSTRING[100] (UserStockDocumentDetail);
+id = DATA STRING[100] (UserStockDocumentDetail);
 userStockDocumentDetail (id, UserStockDocument) = GROUP AGGR UserStockDocumentDetail detail WHERE detail IS UserStockDocumentDetail BY id(detail), userStockDocument(detail);
 
 sumContainer 'Сумма (+/-), тара' = DATA NUMERIC[18,4] (UserStockDocumentDetail); 

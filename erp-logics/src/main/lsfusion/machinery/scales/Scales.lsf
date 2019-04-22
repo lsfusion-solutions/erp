@@ -12,7 +12,7 @@ CONSTRAINT stock(GroupScales s) AND NOT isCompany(stock(s))
     CHECKED BY stock[GroupScales]
         MESSAGE 'Для группы весов должен быть задан склад, который принадлежит компании.';
 
-directory 'Каталог обмена' = DATA VARSTRING[200] (GroupScales) IN base;
+directory 'Каталог обмена' = DATA STRING[200] (GroupScales) IN base;
 directory (GroupScales groupMachinery) += directory(groupMachinery);
 pieceCode 'Код для штучных товаров' = DATA BPSTRING[2] (GroupScales) IN base;
 weightCode 'Код для весовых товаров' = DATA BPSTRING[2] (GroupScales) IN base;
@@ -27,7 +27,7 @@ priority(GroupScales g) += priority(g);
 // Модели
 CLASS ScalesModel 'Модель весов' : Model;
 
-name 'Наименование' = DATA VARISTRING[110](ScalesModel);
+name 'Наименование' = DATA ISTRING[110](ScalesModel);
 
 name(ScalesModel model) += name(model) IF model IS ScalesModel;
 
@@ -60,7 +60,7 @@ groupMachinery(Scales machinery) += groupScales(machinery);
 scalesModel = DATA ScalesModel (GroupScales);
 model(GroupScales groupMachinery) += scalesModel(groupMachinery);
 
-number 'Заводской(серийный) номер' = DATA VARSTRING[100] (Scales) IN base;
+number 'Заводской(серийный) номер' = DATA STRING[100] (Scales) IN base;
 date 'Дата следующей обязательной поверки' = DATA DATE (Scales) IN base;
 
 groupScales (npp) = GROUP AGGR GroupScales groupScales WHERE groupScales IS GroupScales BY npp(groupScales);  
@@ -171,7 +171,7 @@ DESIGN cellScales {
 CLASS LabelFormat 'Формат этикетки';
 TABLE labelFormat (LabelFormat);
 
-name 'Наименование' = DATA VARISTRING[50](LabelFormat);
+name 'Наименование' = DATA ISTRING[50](LabelFormat);
 
 id 'Код формата этикетки' = DATA INTEGER (LabelFormat) IN base;
 idTo (labelFormat) = GROUP AGGR LabelFormat llabelFormat WHERE llabelFormat IS LabelFormat BY id(llabelFormat);
@@ -203,7 +203,7 @@ FORM labelFormats 'Форматы этикеток весов'
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 scalesSID (model) = GROUP MAX ScalesModel smodel BY sid (smodel) IF smodel IS ScalesModel;
 
-loadDefaultScalesModel 'Добавить модель весов'(VARISTRING[110] iname,  VARSTRING[20] isid, VARSTRING[200] ihandler)  { 
+loadDefaultScalesModel 'Добавить модель весов'(ISTRING[110] iname,  STRING[20] isid, STRING[200] ihandler)  { 
     IF NOT scalesSID(iname) THEN {
         NEW sm = ScalesModel {
              name(sm) <- iname;
@@ -232,7 +232,7 @@ loadDefaultGroup 'Сгенерировать группу весов'(PriceListT
                 numScales() <- numScales() + 1;
                 npp(s) <- numScales();
                 scalesModel(g) <- model;
-                description(s) <- CONCAT ' ', 'Весы', VARSTRING[255](numScales()), '(', name(stock), ')';
+                description(s) <- CONCAT ' ', 'Весы', STRING[255](numScales()), '(', name(stock), ')';
             }
         }
     }

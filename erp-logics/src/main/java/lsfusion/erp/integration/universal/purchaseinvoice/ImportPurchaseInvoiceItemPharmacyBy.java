@@ -27,7 +27,7 @@ public class ImportPurchaseInvoiceItemPharmacyBy extends ImportDefaultPurchaseIn
             if (showField(userInvoiceDetailsList, "pharmacyPriceGroupItem")) {
                 ImportField idPharmacyPriceGroupField = new ImportField(LM.findProperty("id[PharmacyPriceGroup]"));
                 ImportKey<?> pharmacyPriceGroupKey = new ImportKey((ConcreteCustomClass) LM.findClass("PharmacyPriceGroup"),
-                        LM.findProperty("pharmacyPriceGroup[VARSTRING[100]]").getMapping(idPharmacyPriceGroupField));
+                        LM.findProperty("pharmacyPriceGroup[STRING[100]]").getMapping(idPharmacyPriceGroupField));
                 keys.add(pharmacyPriceGroupKey);
                 props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("id[PharmacyPriceGroup]").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
                 props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("name[PharmacyPriceGroup]").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));

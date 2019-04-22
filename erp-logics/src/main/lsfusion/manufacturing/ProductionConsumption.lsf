@@ -125,7 +125,7 @@ descriptionIndexComponentDetail 'Строка компонента' (UserConsump
 quantityConsumptionDetail (order, consumption) = GROUP SUM quantity(ConsumptionDetail consumptionDetail) BY order(componentDetail(consumptionDetail)), consumption(consumptionDetail);
 
 orders 'Заказы' (Consumption consumption) = GROUP
-                                                CONCAT VARSTRING[255](description(Order order)) IF quantityConsumptionDetail(order, consumption) , ', '
+                                                CONCAT STRING[255](description(Order order)) IF quantityConsumptionDetail(order, consumption) , ', '
                                                 ORDER order IN order CHARWIDTH 30;
 
 consumed 'Кол-во (списано)' (componentDetail) = GROUP SUM quantity(ConsumptionDetail consumptionDetail) IF isPosted(consumptionDetail)
@@ -285,7 +285,7 @@ operation = ABSTRACT Operation(Consumption);
 // Товарный отчет
 @implementStockDocumentLedgerOutOver(Consumption, stock);
 operation[StockDocumentLedger] (Consumption ledger) += operation(ledger);
-typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (Consumption) MATERIALIZED;
+typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT STRING[50] (Consumption) MATERIALIZED;
 sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (Consumption) MATERIALIZED;
 
 type(Consumption l) += OVERRIDE typeStockDocumentLedger(l), 'Списание сырья (пр-во)' IF l IS Consumption;
@@ -373,7 +373,7 @@ stock(OrderConsumption consumption) += componentsStock(order(consumption));
 isPosted(OrderConsumption consumption) += isPosted(order(consumption));
 isClosed(OrderConsumption consumption) += isClosed(order(consumption));
 
-consumptionNumber 'Номер' = ABSTRACT VARSTRING[28] (Order);
+consumptionNumber 'Номер' = ABSTRACT STRING[28] (Order);
 consumptionSeries 'Серия' = ABSTRACT BPSTRING[2] (Order);
 
 isDefaultNumber (Order o) = o IS Order AND NOT (consumptionNumber(o) OR consumptionSeries(o));

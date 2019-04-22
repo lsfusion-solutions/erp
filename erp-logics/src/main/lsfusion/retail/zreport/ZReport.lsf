@@ -30,7 +30,7 @@ DESIGN options {
 CLASS ZReport 'Z-отчет (открытый)';
 TABLE zReport (ZReport);
 
-@defineExternalizable(zReport, VARSTRING[100]);
+@defineExternalizable(zReport, STRING[100]);
 @defineDocumentHeaderTime(ZReport);
 @defineDocumentHeaderCreated(ZReport);
 
@@ -63,7 +63,7 @@ basis 'Основание' (ZReport zReport) = 'Z-отчет №' + number(zRepo
 departmentStore(ZReport zReport) <- departmentStore(cashRegister(zReport))
     WHEN CHANGED(cashRegister(zReport));
 
-description 'Название документа' (ZReport zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' +overNumberCashRegister(zReport),
+description 'Название документа' (ZReport zReport) =  STRING[200] (CONCAT '', 'Продажа по кассе ' +overNumberCashRegister(zReport),
                                             ' отдела ' + nameDepartmentStore(zReport),
                                             ' от ' + date(zReport)) IN id;
     
@@ -74,7 +74,7 @@ CLASS Receipt 'Чек';
 TABLE receipt (Receipt);
 
 @defineCreated(Receipt);
-@defineExternalizable(receipt, VARSTRING[100]);
+@defineExternalizable(receipt, STRING[100]);
 
 
 CLASS ABSTRACT ReceiptDetail 'Строка чека';
@@ -88,7 +88,7 @@ CLASS ReceiptReturnDetail 'Строка возврата' : ReceiptDetail;
 TABLE receiptReturnDetail (ReceiptReturnDetail);
 is(ReceiptReturnDetail receiptReturnDetail) = receiptReturnDetail IS ReceiptReturnDetail;
 
-@defineExternalizable(receiptDetail, VARSTRING[100]);
+@defineExternalizable(receiptDetail, STRING[100]);
 
 number 'Номер позиции чека' = DATA INTEGER (ReceiptDetail); 
 
@@ -245,13 +245,13 @@ changeDialogSku(ReceiptDetail detail)   {
         sku(detail) <- s;
 } TOOLBAR;
 
-overBNameSku  = ABSTRACT  VARISTRING[255](ReceiptDetail);
+overBNameSku  = ABSTRACT  ISTRING[255](ReceiptDetail);
 
 nameSku 'Товар' (ReceiptDetail d) = OVERRIDE overBNameSku(d), name(sku(d)) IN id CHARWIDTH 20;
 
 nameCashRegisterSku (ReceiptDetail d) = OVERRIDE nameCashRegisterAttribute(sku(d)), nameSku(d);
 
-boardNameSku 'Товар' = ABSTRACT VARISTRING[255] (ReceiptDetail);
+boardNameSku 'Товар' = ABSTRACT ISTRING[255] (ReceiptDetail);
 overNameSku 'Товар' (ReceiptDetail d) = OVERRIDE boardNameSku(d), nameSku(d);
 
 explicitBatchLedger(Receipt receipt) = explicitBatchLedger(departmentStore(zReport(receipt)));
@@ -266,7 +266,7 @@ maxNumberReceipt 'Максимальный номер чека' (zReport) = GROU
 
 GROUP receiptDiscount 'Дисконтная карта' : public;
 
-idBarcode 'Штрихкод' (receiptDetail) = DATA VARSTRING[15] (ReceiptDetail) CHARWIDTH 14 NOFLEX;
+idBarcode 'Штрихкод' (receiptDetail) = DATA STRING[15] (ReceiptDetail) CHARWIDTH 14 NOFLEX;
 
 // Возвраты
 
@@ -459,10 +459,10 @@ signedSumVAT 'Сумма НДС' (ReceiptDetail d) = IF d IS ReceiptReturnDetail
 // используется только для приема реализации из внешних касс
 description 'Название документа' (Receipt receipt) = 'Чек № ' + number(receipt) + ' от ' + dateTime(receipt);
 
-overDescriptionNumber = ABSTRACT VARISTRING[28] (Receipt);
-description (ReceiptSaleDetail receiptDetail) = VARSTRING[200]('Продажа № ' + (OVERRIDE overDescriptionNumber(receipt(receiptDetail)),VARISTRING[28](number(receipt(receiptDetail)))) + ' от ' + dateTime(receipt(receiptDetail)) + ' на ' + (OVERRIDE description(cashRegister(receipt(receiptDetail))), ''));
+overDescriptionNumber = ABSTRACT ISTRING[28] (Receipt);
+description (ReceiptSaleDetail receiptDetail) = STRING[200]('Продажа № ' + (OVERRIDE overDescriptionNumber(receipt(receiptDetail)),ISTRING[28](number(receipt(receiptDetail)))) + ' от ' + dateTime(receipt(receiptDetail)) + ' на ' + (OVERRIDE description(cashRegister(receipt(receiptDetail))), ''));
 
-description (ReceiptReturnDetail receiptDetail) = VARSTRING[200]('Возврат № ' + (OVERRIDE overDescriptionNumber(receipt(receiptDetail)),VARISTRING[28](number(receipt(receiptDetail)))) + ' от ' + dateTime(receipt(receiptDetail)) + ' на ' + (OVERRIDE description(cashRegister(receipt(receiptDetail))), ''));
+description (ReceiptReturnDetail receiptDetail) = STRING[200]('Возврат № ' + (OVERRIDE overDescriptionNumber(receipt(receiptDetail)),ISTRING[28](number(receipt(receiptDetail)))) + ' от ' + dateTime(receipt(receiptDetail)) + ' на ' + (OVERRIDE description(cashRegister(receipt(receiptDetail))), ''));
 
 description 'Название документа' (ReceiptDetail receiptDetail) = MULTI description[ReceiptReturnDetail](receiptDetail), description[ReceiptSaleDetail](receiptDetail);
 
@@ -474,7 +474,7 @@ description 'Название документа' (ReceiptDetail receiptDetail) 
 CLASS Payment 'Оплата по чеку';
 TABLE payment (Payment);
 
-@defineExternalizable(payment, VARSTRING[100]);
+@defineExternalizable(payment, STRING[100]);
 
 CLASS PaymentMeans 'Форма оплаты'{
     paymentMeansCash 'Наличные',
@@ -493,7 +493,7 @@ FORM paymentMeans
 CLASS PaymentType 'Тип платежа';
 TABLE paymentType (PaymentType);
 
-name 'Наименование' = DATA VARISTRING[110](PaymentType) IN id CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[110](PaymentType) IN id CHARWIDTH 10;
 
 paymentMeans (paymentType) = DATA PaymentMeans (PaymentType);
 namePaymentMeans 'Форма оплаты' (PaymentType paymentType) = staticCaption(paymentMeans(paymentType)) IN id CHARWIDTH 10;
@@ -810,7 +810,7 @@ filterZReportDepartmentStore  = DATA LOCAL DepartmentStore ();
 nameFilterZReportDepartmentStore 'Отдел магазина' = name(filterZReportDepartmentStore()) CHARWIDTH 15;          
 filterDepartmentStore (ZReport z) = departmentStore(z) == filterZReportDepartmentStore() OR (z IS ZReport AND NOT filterZReportDepartmentStore());
  
-filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL VARSTRING[10] ();
+filterZReportCashRegister 'Касса Z-отчета'   = DATA LOCAL STRING[10] ();
 filterCashRegister (ZReport z) = overNumberCashRegister(z) == filterZReportCashRegister() OR (z IS ZReport AND NOT filterZReportCashRegister()); 
 
 lastDateTimeReceipt 'Время последнего чека'  = GROUP LAST dateTime(Receipt b)
@@ -1017,7 +1017,7 @@ DESIGN zReports {
 
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
-loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, BPSTRING[10] sid)  { 
+loadDefaultType 'Добавить тип оплаты'(ISTRING[110] string, PaymentMeans paymentMeans, BPSTRING[10] sid)  { 
     NEW p = PaymentType {
         name(p) <- string;
         paymentMeans(p) <- paymentMeans;
@@ -1074,7 +1074,7 @@ CLASS ZReportOperation {
     zReportReturn 'Возврат через кассу'
 } : Operation.Operation;
 
-name(ZReportOperation o) += VARISTRING[100](staticCaption(o)) IF o IS ZReportOperation;
+name(ZReportOperation o) += ISTRING[100](staticCaption(o)) IF o IS ZReportOperation;
 
 
 showToShow (ZReport z) = z IS ZReport AND NOT showEdit(z);

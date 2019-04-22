@@ -132,7 +132,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     return null;
 
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
                 BigDecimal price = null;
                 BigDecimal oldPrice = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
@@ -652,7 +652,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportField idTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocument]"));
                 ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocument"),
-                        terminalHandlerLM.findProperty("terminalDocument[VARSTRING[1000]]").getMapping(idTerminalDocumentField));
+                        terminalHandlerLM.findProperty("terminalDocument[STRING[1000]]").getMapping(idTerminalDocumentField));
                 keys.add(terminalDocumentKey);
                 props.add(new ImportProperty(idTerminalDocumentField, terminalHandlerLM.findProperty("id[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentField);
@@ -663,7 +663,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportField idTerminalDocumentTypeField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocumentType]"));
                 ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocumentType"),
-                        terminalHandlerLM.findProperty("terminalDocumentType[VARSTRING[100]]").getMapping(idTerminalDocumentTypeField));
+                        terminalHandlerLM.findProperty("terminalDocumentType[STRING[100]]").getMapping(idTerminalDocumentTypeField));
                 terminalDocumentTypeKey.skipKey = true;
                 keys.add(terminalDocumentTypeKey);
                 props.add(new ImportProperty(idTerminalDocumentTypeField, terminalHandlerLM.findProperty("terminalDocumentType[TerminalDocument]").getMapping(terminalDocumentKey),
@@ -686,7 +686,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                     ImportField idTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocumentDetail]"));
                     ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalHandlerLM.findClass("TerminalDocumentDetail"),
-                            terminalHandlerLM.findProperty("terminalIdTerminalId[VARSTRING[1000],VARSTRING[1000]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
+                            terminalHandlerLM.findProperty("terminalIdTerminalId[STRING[1000],STRING[1000]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
                     keys.add(terminalDocumentDetailKey);
                     props.add(new ImportProperty(idTerminalDocumentDetailField, terminalHandlerLM.findProperty("id[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     props.add(new ImportProperty(idTerminalDocumentField, terminalHandlerLM.findProperty("terminalDocument[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey),
@@ -744,10 +744,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
 
-                ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
+                ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[STRING[1000]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject, session, (DataObject) terminalDocumentObject);
                 if(idTerminal != null) {
-                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                     if (terminalObject instanceof DataObject)
                         terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
                 }
@@ -772,7 +772,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
                 boolean checkIdTerminal = terminalHandlerLM.findProperty("checkIdTerminal[]").read(session) != null;
-                ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
+                ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                 if(checkIdTerminal) {
                      if(terminalObject instanceof DataObject) {
                         return terminalHandlerLM.findProperty("blocked[Terminal]").read(session, terminalObject) == null;
@@ -822,7 +822,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
                 DataObject result = authenticated ? (DataObject) customUser : null;
                 if(result != null) {
-                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
+                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                     if(terminalObject instanceof DataObject) {
                         terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(new Timestamp(Calendar.getInstance().getTime().getTime()), session, (DataObject) terminalObject);
                         terminalHandlerLM.findProperty("lastUser[Terminal]").change(result, session, (DataObject) terminalObject);

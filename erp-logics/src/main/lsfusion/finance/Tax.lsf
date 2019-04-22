@@ -62,7 +62,7 @@ rangeType(Range range) <- RangeType.common WHEN SET(range IS Range);     /// п�
 CLASS ABSTRACT TaxUnitGroup 'Группа налогового субъекта';
 TABLE taxUnitGroup(TaxUnitGroup);
 
-name 'Наименование' = ABSTRACT VARISTRING[150](TaxUnitGroup);
+name 'Наименование' = ABSTRACT ISTRING[150](TaxUnitGroup);
 
 TABLE taxUnitGroupTaxUnitGroup(TaxUnitGroup, TaxUnitGroup);
 @defineHierarchyAbstract (taxUnitGroup);
@@ -71,14 +71,14 @@ CLASS ABSTRACT TaxUnit 'Налоговый субъект';
 TABLE taxUnit(TaxUnit);
 
 taxUnitGroup = ABSTRACT TaxUnitGroup (TaxUnit) MATERIALIZED;
-description 'Название налогового субъекта' = ABSTRACT VARISTRING[255] (TaxUnit) MATERIALIZED;
+description 'Название налогового субъекта' = ABSTRACT ISTRING[255] (TaxUnit) MATERIALIZED;
 
 TABLE rangeTaxUnit (Range, TaxUnit);
 in 'Вкл.' (range, taxUnit) = DATA BOOLEAN (Range, TaxUnit);
 in (Range range, TaxUnit taxUnit) => isUnitsType(range) RESOLVE RIGHT;
 
 extra 'Дополнительная' = DATA BOOLEAN (Range); // Когда несколько расчетных ставок
-note 'Примечание' = DATA VARISTRING[100] (Range);
+note 'Примечание' = DATA ISTRING[100] (Range);
 
 range 'Шкала по налогу и субъекту' (tax, TaxUnit taxUnit) = GROUP AGGR Range range
                                                                        WHERE in(range, taxUnit) AND Tax.taxVAT == tax(range) AND NOT extra(range) BY tax(range);

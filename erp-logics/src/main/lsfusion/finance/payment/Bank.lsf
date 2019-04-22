@@ -8,20 +8,20 @@ TABLE bankDate (Bank, DATE);
 
 GROUP bank 'Информация о банке' : base;
 
-@defineExternalizable(bank, VARSTRING[100]);
+@defineExternalizable(bank, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[200](Bank) CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[200](Bank) CHARWIDTH 20;
 
-MFO 'Код BIC' = DATA VARSTRING[11] (Bank) IN bank;
-oldMFO 'Код МФО (устарел)' = DATA VARSTRING[10] (Bank);
-department 'Отдел банка' = DATA VARSTRING[100] (Bank) IN bank;
+MFO 'Код BIC' = DATA STRING[11] (Bank) IN bank;
+oldMFO 'Код МФО (устарел)' = DATA STRING[10] (Bank);
+department 'Отдел банка' = DATA STRING[100] (Bank) IN bank;
 CBU 'ЦБУ' = DATA BPSTRING[3] (Bank) IN bank;
-info 'Дополнительные сведения' = DATA VARSTRING[100] (Bank) IN bank;
+info 'Дополнительные сведения' = DATA STRING[100] (Bank) IN bank;
 
 country = DATA Country (Bank);
 nameCountry 'Страна' (Bank bank) = name(country(bank)) IN bank CHARWIDTH 10;
 
-@defineHistorizable(address, , 'Адрес банка', VARSTRING[150], bank, nameBank, bank);
+@defineHistorizable(address, , 'Адрес банка', STRING[150], bank, nameBank, bank);
 
 code 'Код банка' (Bank b) = right(MFO(b),3);
 
@@ -78,8 +78,8 @@ GROUP account 'Банковская информация' : base;
 inactive 'Неактивная' = DATA BOOLEAN (Account);
 active 'Активная' (Account a) = a IS Account AND NOT inactive(a);
 
-number 'Номер расчетного счета'  = DATA VARSTRING[50] (Account) IN account CHARWIDTH 28 NOFLEX;
-numberNew 'Номер расчетного счета IBAN'  = DATA VARSTRING[50] (Account) IN account CHARWIDTH 28 NOFLEX;
+number 'Номер расчетного счета'  = DATA STRING[50] (Account) IN account CHARWIDTH 28 NOFLEX;
+numberNew 'Номер расчетного счета IBAN'  = DATA STRING[50] (Account) IN account CHARWIDTH 28 NOFLEX;
 
 account (number) = GROUP MAX Account account BY number(account); // WHERE account IS Account;
 
@@ -111,7 +111,7 @@ MFOBank 'Код BIC банка покупателя' (LegalEntity legalEntity) =
 equals 'Основной' (LegalEntity legalEntity, Account account) = userAccount(legalEntity) == account;
 
 accountID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR Account account WHERE account IS Account BY number(account), id(legalEntity(account));
-legalEntityAccount (VARSTRING[20] number) = legalEntity(account(number)); 
+legalEntityAccount (STRING[20] number) = legalEntity(account(number)); 
 
 // Валюта
 currency = DATA Currency (Account) NONULL;
@@ -119,7 +119,7 @@ currency(Account account) <- currency(legalEntity(account))
     WHEN SET(legalEntity(account));
 nameCurrency 'Валюта счета' = name(currency(Account account)) IN account;
 
-note 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
+note 'Примечание'  = DATA STRING[50] (Account) IN account;
 
 FORM account 'Расчетный счет'
     OBJECTS a = Account PANEL
@@ -202,8 +202,8 @@ importBIC 'Импортировать коды BIC' () {  //запускать �
         oldMFO(b) <- MFO(b);
     }
     
-    LOCAL codeBIC = VARSTRING[10] (INTEGER);    
-    LOCAL codeMFO = VARSTRING[10] (INTEGER);
+    LOCAL codeBIC = STRING[10] (INTEGER);    
+    LOCAL codeMFO = STRING[10] (INTEGER);
     
     INPUT f = EXCELFILE DO {
         IMPORT XLS NOHEADER FROM f AS EXCELFILE TO codeBIC = A, codeMFO = C;
@@ -224,10 +224,10 @@ importIBAN 'Импортировать номера счетов IBAN' () {
             numberNew(a) <- number(a) WHERE length(number(a)) < 15;
         }
         
-        LOCAL unp = VARSTRING[50] (INTEGER);    
-        LOCAL name = VARSTRING[100] (INTEGER);    
-        LOCAL numberOld = VARSTRING[50] (INTEGER);    
-        LOCAL numberNew = VARSTRING[50] (INTEGER);
+        LOCAL unp = STRING[50] (INTEGER);    
+        LOCAL name = STRING[100] (INTEGER);    
+        LOCAL numberOld = STRING[50] (INTEGER);    
+        LOCAL numberNew = STRING[50] (INTEGER);
         
         INPUT f = EXCELFILE DO {
             IMPORT XLS NOHEADER FROM f AS EXCELFILE TO unp, name, numberOld, numberNew;

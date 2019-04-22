@@ -54,7 +54,7 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 
 // ---------------------  Склады, для которых действует график заказов
 
-stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) CHARWIDTH 20 MATERIALIZED;
+stocks 'Склады' (scheduleOrder) = ABSTRACT STRING[500] (ScheduleOrder) CHARWIDTH 20 MATERIALIZED;
 
 addScheduleOrderSupplierCustomer 'Добавить'  ABSTRACT LIST ( LegalEntity, LegalEntity) IMAGE 'add.png' CHANGEKEY 'INSERT' HIDE TOOLBAR;
 
@@ -102,7 +102,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder) = name(supplierStock(scheduleOrder));
 
     @defineDocumentHeaderCreated(ScheduleOrder);
-    note 'Примечание' = DATA VARISTRING[100] (ScheduleOrder) CHARWIDTH 30 IN documentPrm;
+    note 'Примечание' = DATA ISTRING[100] (ScheduleOrder) CHARWIDTH 30 IN documentPrm;
  
     supplierStock(ScheduleOrder scheduleOrder) += supplierStock(scheduleOrder);
     
@@ -150,7 +150,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
          
          
     
-    stocks 'Склады' (ScheduleOrder scheduleOrder) = VARSTRING[500]((GROUP
+    stocks 'Склады' (ScheduleOrder scheduleOrder) = STRING[500]((GROUP
                                            CONCAT name(Stock stock) IF in(scheduleOrder, stock) , ', '
                                            ORDER stock)) CHARWIDTH 20 MATERIALIZED IN id;
     stocks(ScheduleOrder scheduleOrder) += stocks(scheduleOrder);            
@@ -173,7 +173,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dayLastOrder 'Дата последнего заказа' = DATA DATE (ScheduleOrder);
 
     //свойства "По числам"
-    stringNumber 'Числа месяца поставок (указывать через запятую)' = DATA VARSTRING[100] (ScheduleOrder);
+    stringNumber 'Числа месяца поставок (указывать через запятую)' = DATA STRING[100] (ScheduleOrder);
     transferDay 'День на который переносить поставки с Субботы и Воскресенья (ИД)' = DATA DOW (ScheduleOrder);
     nameTransferDay 'День на который переносить поставки с Субботы и Воскресенья' (ScheduleOrder scheduleOrder) = staticCaption(transferDay(scheduleOrder));
     CONSTRAINT transferDay(ScheduleOrder scheduleOrder) != DOW.friday AND transferDay(scheduleOrder) != DOW.monday CHECKED MESSAGE 'Выберите день с ПН по ПТ';
@@ -888,11 +888,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     dateOrder 'Дата заказа' = DATA DATE (ScheduleOrderDetailLog);
     dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetailLog);
-    nameSupplier 'Поставщик' = DATA VARSTRING[150] (ScheduleOrderDetailLog);
-    nameCustomerStock 'Склад покупателя' = DATA VARSTRING[150] (ScheduleOrderDetailLog);
+    nameSupplier 'Поставщик' = DATA STRING[150] (ScheduleOrderDetailLog);
+    nameCustomerStock 'Склад покупателя' = DATA STRING[150] (ScheduleOrderDetailLog);
     
     
-    nameUser 'Имя пользователя' = DATA VARSTRING[100] (ScheduleOrderDetailLog);
+    nameUser 'Имя пользователя' = DATA STRING[100] (ScheduleOrderDetailLog);
     dateTime 'Время изменения' = DATA DATETIME (ScheduleOrderDetailLog);
     
     typeChange= DATA TypeChange (ScheduleOrderDetailLog);
@@ -905,7 +905,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             dateSupply(l) <- dateSupply(d);
             nameSupplier(l) <- nameSupplier(d);
             nameCustomerStock(l) <- nameCustomerStock(d);
-            nameUser(l) <- VARISTRING[100](name(currentUser()));
+            nameUser(l) <- ISTRING[100](name(currentUser()));
             dateTime(l) <- currentDateTime();
             typeChange(l) <- TypeChange.add;
         }
@@ -917,7 +917,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             dateSupply(l) <- PREV(dateSupply(d));
             nameSupplier(l) <- PREV(nameSupplier(d));
             nameCustomerStock(l) <- PREV(nameCustomerStock(d));
-            nameUser(l) <- VARISTRING[100](name(currentUser()));
+            nameUser(l) <- ISTRING[100](name(currentUser()));
             dateTime(l) <- currentDateTime();
             typeChange(l) <- TypeChange.delete;
         }

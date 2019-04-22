@@ -30,12 +30,12 @@ descriptionBinOrder 'Заказ' (UserBinTransferDetail userBinTransferDetail) =
 quantityBinTransferDetail (binOrder, binTransfer) = GROUP SUM quantity(BinTransferDetail binTransferDetail) BY binOrder(binOrderDetail(binTransferDetail)), binTransfer(binTransferDetail);
 countBinTransferDetail(binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail);
 binOrders 'Заказы' (BinTransfer binTransfer) = GROUP
-                                         CONCAT VARSTRING[255](description(BinOrder binOrder)) IF quantityBinTransferDetail(binOrder, binTransfer) , ', '
+                                         CONCAT STRING[255](description(BinOrder binOrder)) IF quantityBinTransferDetail(binOrder, binTransfer) , ', '
                                          ORDER binOrder
                                          IN binOrder CHARWIDTH 30 MATERIALIZED;
                                          
 binTransfers 'Перемещения' (BinOrder binOrder) = GROUP
-                                         CONCAT VARSTRING[255](description(BinTransfer binTransfer)) IF countBinTransferDetail(binOrder, binTransfer) , ', '
+                                         CONCAT STRING[255](description(BinTransfer binTransfer)) IF countBinTransferDetail(binOrder, binTransfer) , ', '
                                          ORDER binTransfer
                                          IN binTransfer CHARWIDTH 30;                                             
 
@@ -305,20 +305,20 @@ GROUP binOrders 'Перемещение по заказам' : base;
 include 'Вкл. в перемещение' = ABSTRACT BOOLEAN (BinOrder, BinTransfer) CHARWIDTH 10;
 countIncludeBinOrders (BinTransfer i) = GROUP SUM 1 IF include(BinOrder o,i);
 includeBinOrders 'Заказы в перемещении' (BinTransfer binTransfer) = GROUP
-                                                    CONCAT VARSTRING[255](description(BinOrder binOrder)) IF include(binOrder, binTransfer) , ', '
+                                                    CONCAT STRING[255](description(BinOrder binOrder)) IF include(binOrder, binTransfer) , ', '
                                                     ORDER binOrder IN binOrders CHARWIDTH 30;
 
 includeBinOrders 'Заказы в перемещении' (UserBinTransfer userBinTransfer) = GROUP
-                                                    CONCAT VARSTRING[255](description(BinOrder binOrder)) IF include(binOrder, userBinTransfer) , ', '
+                                                    CONCAT STRING[255](description(BinOrder binOrder)) IF include(binOrder, userBinTransfer) , ', '
                                                     ORDER binOrder IN binOrders CHARWIDTH 30;
 include(BinOrder binOrder,UserBinTransfer binTransfer) += include(binOrder,binTransfer);    
 
 numberBinOrders 'Заказы в перемещении' (BinTransfer binTransfer) = GROUP
-                                                 CONCAT VARSTRING[255](number(BinOrder binOrder)) IF include(binOrder, binTransfer) , ', '
+                                                 CONCAT STRING[255](number(BinOrder binOrder)) IF include(binOrder, binTransfer) , ', '
                                                  ORDER binOrder IN binOrders CHARWIDTH 30;
 
 numberBinOrders 'Заказы в перемещении' (UserBinTransfer userBinTransfer) = GROUP
-                                                 CONCAT VARSTRING[255](number(BinOrder binOrder)) IF include(binOrder, userBinTransfer) , ', '
+                                                 CONCAT STRING[255](number(BinOrder binOrder)) IF include(binOrder, userBinTransfer) , ', '
                                                  ORDER binOrder IN binOrders CHARWIDTH 30;                                                   
 
 FORM includeBinOrdersUserBinTransfer 'Заказы'

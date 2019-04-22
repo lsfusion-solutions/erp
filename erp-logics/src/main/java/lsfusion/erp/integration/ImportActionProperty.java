@@ -132,7 +132,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+                    findProperty("itemGroup[STRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             fields.add(idItemGroupField);
             for (int i = 0; i < parentGroupsList.size(); i++)
@@ -140,7 +140,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idParentGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> parentGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idParentGroupField));
+                    findProperty("itemGroup[STRING[100]]").getMapping(idParentGroupField));
             keys.add(parentGroupKey);
             props.add(new ImportProperty(idParentGroupField, findProperty("parent[ItemGroup]").getMapping(itemGroupKey),
                     LM.object(findClass("ItemGroup")).getMapping(parentGroupKey)));
@@ -172,7 +172,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+                    findProperty("itemGroup[STRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey)));
             fields.add(idItemGroupField);
@@ -209,7 +209,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWareField = new ImportField(warePurchaseInvoiceLM.findProperty("id[Ware]"));
             ImportKey<?> wareKey = new ImportKey((CustomClass) warePurchaseInvoiceLM.findClass("Ware"),
-                    warePurchaseInvoiceLM.findProperty("ware[VARSTRING[100]]").getMapping(idWareField));
+                    warePurchaseInvoiceLM.findProperty("ware[STRING[100]]").getMapping(idWareField));
             keys.add(wareKey);
             props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findProperty("id[Ware]").getMapping(wareKey)));
             fields.add(idWareField);
@@ -269,7 +269,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
         ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+                findProperty("UOM[STRING[100]]").getMapping(idUOMField));
         keys.add(UOMKey);
         props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey)));
         fields.add(idUOMField);
@@ -311,7 +311,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField idItemField = new ImportField(findProperty("id[Item]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("item[VARSTRING[100]]").getMapping(idItemField));
+                findProperty("item[STRING[100]]").getMapping(idItemField));
         keys.add(itemKey);
         props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
         fields.add(idItemField);
@@ -329,7 +329,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         if (showItemField(itemsList, "idItemGroup")) {
             ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+                    findProperty("itemGroup[STRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                     LM.object(findClass("ItemGroup")).getMapping(itemGroupKey)));
@@ -341,7 +341,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         if (showItemField(itemsList, "idBrand")) {
             ImportField idBrandField = new ImportField(findProperty("id[Brand]"));
             ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
-                    findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
+                    findProperty("brand[STRING[100]]").getMapping(idBrandField));
             keys.add(brandKey);
             props.add(new ImportProperty(idBrandField, findProperty("id[Brand]").getMapping(brandKey)));
             props.add(new ImportProperty(idBrandField, findProperty("brand[Item]").getMapping(itemKey),
@@ -359,7 +359,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField nameCountryField = new ImportField(findProperty("name[Country]"));
         ImportKey<?> countryKey = new ImportKey((CustomClass) findClass("Country"),
-                findProperty("countryName[VARISTRING[50]]").getMapping(nameCountryField));
+                findProperty("countryName[ISTRING[50]]").getMapping(nameCountryField));
         keys.add(countryKey);
         props.add(new ImportProperty(nameCountryField, findProperty("name[Country]").getMapping(countryKey)));
         props.add(new ImportProperty(nameCountryField, findProperty("country[Item]").getMapping(itemKey),
@@ -370,7 +370,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField extIdBarcodeField = new ImportField(findProperty("extId[Barcode]"));
         ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                findProperty(/*"barcodeIdDate"*/"extBarcode[VARSTRING[100]]").getMapping(extIdBarcodeField));
+                findProperty(/*"barcodeIdDate"*/"extBarcode[STRING[100]]").getMapping(extIdBarcodeField));
         keys.add(barcodeKey);
         props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                 LM.object(findClass("Item")).getMapping(itemKey)));
@@ -387,7 +387,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
         ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+                findProperty("UOM[STRING[100]]").getMapping(idUOMField));
         UOMKey.skipKey = true;
         keys.add(UOMKey);
         props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
@@ -454,7 +454,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWareField = new ImportField(warePurchaseInvoiceLM.findProperty("id[Ware]"));
             ImportKey<?> wareKey = new ImportKey((CustomClass) warePurchaseInvoiceLM.findClass("Ware"),
-                    warePurchaseInvoiceLM.findProperty("ware[VARSTRING[100]]").getMapping(idWareField));
+                    warePurchaseInvoiceLM.findProperty("ware[STRING[100]]").getMapping(idWareField));
             keys.add(wareKey);
             props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findProperty("id[Ware]").getMapping(wareKey)));
             props.add(new ImportProperty(idWareField, warePurchaseInvoiceLM.findProperty("ware[Item]").getMapping(itemKey),
@@ -485,7 +485,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWriteOffRateField = new ImportField(writeOffItemLM.findProperty("id[WriteOffRate]"));
             ImportKey<?> writeOffRateKey = new ImportKey((CustomClass) writeOffItemLM.findClass("WriteOffRate"),
-                    writeOffItemLM.findProperty("writeOffRate[VARSTRING[100]]").getMapping(idWriteOffRateField));
+                    writeOffItemLM.findProperty("writeOffRate[STRING[100]]").getMapping(idWriteOffRateField));
             keys.add(writeOffRateKey);
             props.add(new ImportProperty(idWriteOffRateField, writeOffItemLM.findProperty("writeOffRate[Country,Item]").getMapping(defaultCountryObject, itemKey),
                     LM.object(writeOffItemLM.findClass("WriteOffRate")).getMapping(writeOffRateKey)));
@@ -499,7 +499,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idRetailCalcPriceListTypeField = new ImportField(findProperty("id[CalcPriceListType]"));
             ImportKey<?> retailCalcPriceListTypeKey = new ImportKey((CustomClass) findClass("CalcPriceListType"),
-                    findProperty("calcPriceListType[VARSTRING[100]]").getMapping(idRetailCalcPriceListTypeField));
+                    findProperty("calcPriceListType[STRING[100]]").getMapping(idRetailCalcPriceListTypeField));
             keys.add(retailCalcPriceListTypeKey);
             props.add(new ImportProperty(idRetailCalcPriceListTypeField, findProperty("id[CalcPriceListType]").getMapping(retailCalcPriceListTypeKey)));
             fields.add(idRetailCalcPriceListTypeField);
@@ -524,7 +524,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idBaseCalcPriceListTypeField = new ImportField(findProperty("id[CalcPriceListType]"));
             ImportKey<?> baseCalcPriceListTypeKey = new ImportKey((CustomClass) findClass("CalcPriceListType"),
-                    findProperty("calcPriceListType[VARSTRING[100]]").getMapping(idBaseCalcPriceListTypeField));
+                    findProperty("calcPriceListType[STRING[100]]").getMapping(idBaseCalcPriceListTypeField));
             keys.add(baseCalcPriceListTypeKey);
             props.add(new ImportProperty(idBaseCalcPriceListTypeField, findProperty("id[CalcPriceListType]").getMapping(baseCalcPriceListTypeKey)));
             fields.add(idBaseCalcPriceListTypeField);
@@ -546,7 +546,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         ImportField extIdBarcodePackField = new ImportField(findProperty("extId[Barcode]"));
         ImportKey<?> barcodePackKey = new ImportKey((CustomClass) findClass("Barcode"),
-                findProperty(/*"barcodeIdDate"*/"extBarcode[VARSTRING[100]]").getMapping(extIdBarcodePackField));
+                findProperty(/*"barcodeIdDate"*/"extBarcode[STRING[100]]").getMapping(extIdBarcodePackField));
         keys.add(barcodePackKey);
         props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodePackKey)));
         props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodePackKey),
@@ -588,7 +588,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         if (showItemField(itemsList, "idManufacturer")) {
             ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
             ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
-                    findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
+                    findProperty("manufacturer[STRING[100]]").getMapping(idManufacturerField));
             keys.add(manufacturerKey);
             props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey)));
             props.add(new ImportProperty(idManufacturerField, findProperty("manufacturer[Item]").getMapping(itemKey),
@@ -618,7 +618,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField nameCustomsZoneField = new ImportField(findProperty("name[CustomsZone]"));
             ImportKey<?> customsZoneKey = new ImportKey((CustomClass) findClass("CustomsZone"),
-                    findProperty("customsZone[VARISTRING[50]]").getMapping(nameCustomsZoneField));
+                    findProperty("customsZone[ISTRING[50]]").getMapping(nameCustomsZoneField));
             keys.add(customsZoneKey);
             props.add(new ImportProperty(nameCustomsZoneField, findProperty("name[CustomsZone]").getMapping(customsZoneKey)));
             props.add(new ImportProperty(nameCustomsZoneField, findProperty("customsZone[CustomsGroup]").getMapping(customsGroupKey),
@@ -663,7 +663,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idUserInvoiceField = new ImportField(findProperty("id[UserInvoice]"));
                 ImportKey<?> userInvoiceKey = new ImportKey((CustomClass) findClass("Purchase.UserInvoice"),
-                        findProperty("userInvoice[VARSTRING[100]]").getMapping(idUserInvoiceField));
+                        findProperty("userInvoice[STRING[100]]").getMapping(idUserInvoiceField));
                 keys.add(userInvoiceKey);
                 props.add(new ImportProperty(idUserInvoiceField, findProperty("id[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(idUserInvoiceField);
@@ -672,7 +672,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idUserInvoiceDetailField = new ImportField(findProperty("id[UserInvoiceDetail]"));
                 ImportKey<?> userInvoiceDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserInvoiceDetail"),
-                        findProperty("userInvoiceDetail[VARSTRING[100]]").getMapping(idUserInvoiceDetailField));
+                        findProperty("userInvoiceDetail[STRING[100]]").getMapping(idUserInvoiceDetailField));
                 keys.add(userInvoiceDetailKey);
                 props.add(new ImportProperty(idUserInvoiceDetailField, findProperty("id[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 props.add(new ImportProperty(idUserInvoiceField, findProperty("userInvoice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
@@ -684,7 +684,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idCustomerStockField = new ImportField(findProperty("id[Stock]"));
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                        findProperty("stock[VARSTRING[100]]").getMapping(idCustomerStockField));
+                        findProperty("stock[STRING[100]]").getMapping(idCustomerStockField));
                 customerStockKey.skipKey = skipKeys;
                 keys.add(customerStockKey);
                 props.add(new ImportProperty(idCustomerStockField, findProperty("id[Stock]").getMapping(customerStockKey)));
@@ -699,7 +699,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idSupplierField = new ImportField(findProperty("id[LegalEntity]"));
                 ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                        findProperty("legalEntity[VARSTRING[100]]").getMapping(idSupplierField));
+                        findProperty("legalEntity[STRING[100]]").getMapping(idSupplierField));
                 supplierKey.skipKey = skipKeys;
                 keys.add(supplierKey);
                 props.add(new ImportProperty(idSupplierField, findProperty("supplier[UserInvoice]").getMapping(userInvoiceKey),
@@ -711,7 +711,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idSupplierStockField = new ImportField(findProperty("id[Stock]"));
                 ImportKey<?> supplierStockKey = new ImportKey((CustomClass) findClass("Stock"),
-                        findProperty("stock[VARSTRING[100]]").getMapping(idSupplierStockField));
+                        findProperty("stock[STRING[100]]").getMapping(idSupplierStockField));
                 supplierStockKey.skipKey = skipKeys;
                 keys.add(supplierStockKey);
                 props.add(new ImportProperty(idSupplierStockField, findProperty("id[Stock]").getMapping(supplierStockKey)));
@@ -810,7 +810,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idItemField = new ImportField(findProperty("id[Item]"));
                 ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                        findProperty("item[VARSTRING[100]]").getMapping(idItemField));
+                        findProperty("item[STRING[100]]").getMapping(idItemField));
                 itemKey.skipKey = skipKeys && !userInvoiceCreateNewItems;
                 keys.add(itemKey);
                 if (userInvoiceCreateNewItems)
@@ -930,7 +930,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (showField(dataUserInvoiceDetail, "idBin")) {
                     ImportField binUserInvoiceDetailField = new ImportField(findProperty("id[Bin]"));
                     ImportKey<?> binKey = new ImportKey((CustomClass) findClass("Bin"),
-                            findProperty("bin[VARSTRING[100]]").getMapping(binUserInvoiceDetailField));
+                            findProperty("bin[STRING[100]]").getMapping(binUserInvoiceDetailField));
                     keys.add(binKey);
                     props.add(new ImportProperty(binUserInvoiceDetailField, findProperty("id[Bin]").getMapping(binKey)));
                     props.add(new ImportProperty(binUserInvoiceDetailField, findProperty("name[Bin]").getMapping(binKey)));
@@ -983,7 +983,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (showField(dataUserInvoiceDetail, "idContract")) {
                     ImportField userContractSkuField = new ImportField(findProperty("id[UserContractSku]"));
                     ImportKey<?> userContractSkuKey = new ImportKey((CustomClass) findClass("UserContractSku"),
-                            findProperty("userContractSku[VARSTRING[100]]").getMapping(userContractSkuField));
+                            findProperty("userContractSku[STRING[100]]").getMapping(userContractSkuField));
                     userContractSkuKey.skipKey = skipKeys;
                     keys.add(userContractSkuKey);
                     props.add(new ImportProperty(userContractSkuField, findProperty("contractSku[Purchase.Invoice]").getMapping(userInvoiceKey),
@@ -997,7 +997,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     if (showField(dataUserInvoiceDetail, "numberDeclaration")) {
                         ImportField numberDeclarationField = new ImportField(findProperty("number[Declaration]"));
                         ImportKey<?> declarationKey = new ImportKey((CustomClass) findClass("Declaration"),
-                                findProperty("declaration[VARSTRING[100]]").getMapping(numberDeclarationField));
+                                findProperty("declaration[STRING[100]]").getMapping(numberDeclarationField));
                         keys.add(declarationKey);
                         props.add(new ImportProperty(numberDeclarationField, findProperty("number[Declaration]").getMapping(declarationKey)));
                         props.add(new ImportProperty(numberDeclarationField, findProperty("id[Declaration]").getMapping(declarationKey)));
@@ -1146,7 +1146,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 try(ExecutionContext.NewSession newContext = context.newSession()) {
 
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Coordinated", StringClass.get(100)));
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[STRING[100]]").readClasses(newContext, new DataObject("Coordinated", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
                         ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
@@ -1164,14 +1164,14 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ImportField idItemField = new ImportField(findProperty("id[Item]"));
                     ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
                     ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                            findProperty("item[VARSTRING[100]]").getMapping(idItemField));
+                            findProperty("item[STRING[100]]").getMapping(idItemField));
                     itemKey.skipKey = true;
                     keys.add(itemKey);
                     ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                            importUserPriceListLM.findProperty("userPriceListDetailIdId[VARSTRING[100],VARSTRING[100]]").getMapping(idItemField, idUserPriceListField));
+                            importUserPriceListLM.findProperty("userPriceListDetailIdId[STRING[100],STRING[100]]").getMapping(idItemField, idUserPriceListField));
                     keys.add(userPriceListDetailKey);
                     ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                            findProperty("userPriceList[VARSTRING[100]]").getMapping(idUserPriceListField));
+                            findProperty("userPriceList[STRING[100]]").getMapping(idUserPriceListField));
                     keys.add(userPriceListKey);
                     props.add(new ImportProperty(idItemField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
                             LM.object(findClass("Item")).getMapping(itemKey)));
@@ -1187,7 +1187,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
                     ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                            findProperty("legalEntity[VARSTRING[100]]").getMapping(idLegalEntityField));
+                            findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
                     legalEntityKey.skipKey = skipKeys;
                     keys.add(legalEntityKey);
                     props.add(new ImportProperty(idLegalEntityField, findProperty("company[UserPriceList]").getMapping(userPriceListKey),
@@ -1198,7 +1198,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportField idDepartmentStoreField = new ImportField(storeLM.findProperty("id[DepartmentStore]"));
                     ImportKey<?> departmentStoreKey = new ImportKey((CustomClass) storeLM.findClass("DepartmentStore"),
-                            storeLM.findProperty("departmentStore[VARSTRING[100]]").getMapping(idDepartmentStoreField));
+                            storeLM.findProperty("departmentStore[STRING[100]]").getMapping(idDepartmentStoreField));
                     keys.add(departmentStoreKey);
                     fields.add(idDepartmentStoreField);
                     for (int i = 0; i < priceListStoresList.size(); i++)
@@ -1260,7 +1260,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 ServerLoggers.importLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
 
                 try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
-                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
+                    ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[STRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
                         ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
@@ -1278,14 +1278,14 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ImportField idItemField = new ImportField(findProperty("id[Item]"));
                     ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
                     ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                            findProperty("item[VARSTRING[100]]").getMapping(idItemField));
+                            findProperty("item[STRING[100]]").getMapping(idItemField));
                     itemKey.skipKey = true;
                     keys.add(itemKey);
                     ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                            importUserPriceListLM.findProperty("userPriceListDetailIdId[VARSTRING[100],VARSTRING[100]]").getMapping(idItemField, idUserPriceListField));
+                            importUserPriceListLM.findProperty("userPriceListDetailIdId[STRING[100],STRING[100]]").getMapping(idItemField, idUserPriceListField));
                     keys.add(userPriceListDetailKey);
                     ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                            findProperty("userPriceList[VARSTRING[100]]").getMapping(idUserPriceListField));
+                            findProperty("userPriceList[STRING[100]]").getMapping(idUserPriceListField));
                     keys.add(userPriceListKey);
                     props.add(new ImportProperty(idItemField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
                             LM.object(findClass("Item")).getMapping(itemKey)));
@@ -1301,7 +1301,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
                     ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                            findProperty("legalEntity[VARSTRING[100]]").getMapping(idLegalEntityField));
+                            findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
                     legalEntityKey.skipKey = skipKeys;
                     keys.add(legalEntityKey);
                     props.add(new ImportProperty(idLegalEntityField, findProperty("company[UserPriceList]").getMapping(userPriceListKey),
@@ -1362,7 +1362,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntity[VARSTRING[100]]").getMapping(idLegalEntityField));
+                    findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
             keys.add(legalEntityKey);
             props.add(new ImportProperty(idLegalEntityField, findProperty("id[LegalEntity]").getMapping(legalEntityKey)));
             fields.add(idLegalEntityField);
@@ -1371,7 +1371,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField numberAccountField = new ImportField(findProperty("number[Bank.Account]"));
             ImportKey<?> accountKey = new ImportKey((CustomClass) findClass("Bank.Account"),
-                    findProperty("accountID[VARSTRING[20],VARSTRING[100]]").getMapping(numberAccountField, idLegalEntityField));
+                    findProperty("accountID[STRING[20],STRING[100]]").getMapping(numberAccountField, idLegalEntityField));
             keys.add(accountKey);
             props.add(new ImportProperty(numberAccountField, findProperty("number[Bank.Account]").getMapping(accountKey)));
             props.add(new ImportProperty(idLegalEntityField, findProperty("legalEntity[Bank.Account]").getMapping(accountKey),
@@ -1458,7 +1458,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField idChainStoresField = new ImportField(storeLM.findProperty("id[ChainStores]"));
                 ImportKey<?> chainStoresKey = new ImportKey((CustomClass) storeLM.findClass("ChainStores"),
-                        storeLM.findProperty("chainStores[VARSTRING[100]]").getMapping(idChainStoresField));
+                        storeLM.findProperty("chainStores[STRING[100]]").getMapping(idChainStoresField));
                 keys.add(chainStoresKey);
                 props.add(new ImportProperty(idChainStoresField, storeLM.findProperty("id[ChainStores]").getMapping(chainStoresKey)));
                 fields.add(idChainStoresField);
@@ -1475,7 +1475,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idBankField = new ImportField(findProperty("id[Bank]"));
             ImportKey<?> bankKey = new ImportKey((CustomClass) findClass("Bank"),
-                    findProperty("bank[VARSTRING[100]]").getMapping(idBankField));
+                    findProperty("bank[STRING[100]]").getMapping(idBankField));
             keys.add(bankKey);
             props.add(new ImportProperty(idBankField, findProperty("id[Bank]").getMapping(bankKey)));
             props.add(new ImportProperty(idBankField, findProperty("name[Bank]").getMapping(bankKey), true));
@@ -1487,7 +1487,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField nameCountryField = new ImportField(findProperty("name[Country]"));
             ImportKey<?> countryKey = new ImportKey((CustomClass) findClass("Country"),
-                    findProperty("countryName[VARISTRING[50]]").getMapping(nameCountryField));
+                    findProperty("countryName[ISTRING[50]]").getMapping(nameCountryField));
             keys.add(countryKey);
             props.add(new ImportProperty(nameCountryField, findProperty("name[Country]").getMapping(countryKey)));
             props.add(new ImportProperty(nameCountryField, findProperty("country[LegalEntity]").getMapping(legalEntityKey),
@@ -1510,7 +1510,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idLegalEntityGroupField = new ImportField(findProperty("id[LegalEntityGroup]"));
             ImportKey<?> legalEntityGroupKey = new ImportKey((CustomClass) findClass("LegalEntityGroup"),
-                    findProperty("legalEntityGroup[VARSTRING[100]]").getMapping(idLegalEntityGroupField));
+                    findProperty("legalEntityGroup[STRING[100]]").getMapping(idLegalEntityGroupField));
             keys.add(legalEntityGroupKey);
             props.add(new ImportProperty(idLegalEntityGroupField, findProperty("id[LegalEntityGroup]").getMapping(legalEntityGroupKey)));
             props.add(new ImportProperty(idLegalEntityGroupField, findProperty("name[LegalEntityGroup]").getMapping(legalEntityGroupKey)));
@@ -1544,7 +1544,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idEmployeeField = new ImportField(findProperty("id[Employee]"));
             ImportKey<?> employeeKey = new ImportKey((CustomClass) findClass("Employee"),
-                    findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+                    findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
             keys.add(employeeKey);
             props.add(new ImportProperty(idEmployeeField, findProperty("id[Employee]").getMapping(employeeKey)));
             fields.add(idEmployeeField);
@@ -1565,7 +1565,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idPositionField = new ImportField(findProperty("id[Position]"));
             ImportKey<?> positionKey = new ImportKey((CustomClass) findClass("Position"),
-                    findProperty("position[VARSTRING[100]]").getMapping(idPositionField));
+                    findProperty("position[STRING[100]]").getMapping(idPositionField));
             keys.add(positionKey);
             props.add(new ImportProperty(idPositionField, findProperty("id[Position]").getMapping(positionKey)));
             props.add(new ImportProperty(idPositionField, findProperty("position[Employee]").getMapping(employeeKey),
@@ -1604,7 +1604,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWarehouseGroupField = new ImportField(findProperty("id[WarehouseGroup]"));
             ImportKey<?> warehouseGroupKey = new ImportKey((CustomClass) findClass("WarehouseGroup"),
-                    findProperty("warehouseGroup[VARSTRING[100]]").getMapping(idWarehouseGroupField));
+                    findProperty("warehouseGroup[STRING[100]]").getMapping(idWarehouseGroupField));
             keys.add(warehouseGroupKey);
             props.add(new ImportProperty(idWarehouseGroupField, findProperty("id[WarehouseGroup]").getMapping(warehouseGroupKey)));
             fields.add(idWarehouseGroupField);
@@ -1641,7 +1641,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWarehouseField = new ImportField(findProperty("id[Warehouse]"));
             ImportKey<?> warehouseKey = new ImportKey((CustomClass) findClass("Warehouse"),
-                    findProperty("warehouse[VARSTRING[100]]").getMapping(idWarehouseField));
+                    findProperty("warehouse[STRING[100]]").getMapping(idWarehouseField));
             keys.add(warehouseKey);
             props.add(new ImportProperty(idWarehouseField, findProperty("id[Warehouse]").getMapping(warehouseKey)));
             fields.add(idWarehouseField);
@@ -1662,7 +1662,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntity[VARSTRING[100]]").getMapping(idLegalEntityField));
+                    findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
             keys.add(legalEntityKey);
             props.add(new ImportProperty(idLegalEntityField, findProperty("id[LegalEntity]").getMapping(legalEntityKey)));
             props.add(new ImportProperty(idLegalEntityField, findProperty("legalEntity[Warehouse]").getMapping(warehouseKey),
@@ -1673,7 +1673,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWarehouseGroupField = new ImportField(findProperty("id[WarehouseGroup]"));
             ImportKey<?> warehouseGroupKey = new ImportKey((CustomClass) findClass("WarehouseGroup"),
-                    findProperty("warehouseGroup[VARSTRING[100]]").getMapping(idWarehouseGroupField));
+                    findProperty("warehouseGroup[STRING[100]]").getMapping(idWarehouseGroupField));
             keys.add(warehouseGroupKey);
             props.add(new ImportProperty(idWarehouseGroupField, findProperty("warehouseGroup[Warehouse]").getMapping(warehouseKey),
                     LM.object(findClass("WarehouseGroup")).getMapping(warehouseGroupKey)));
@@ -1705,7 +1705,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idStoreField = new ImportField(storeLM.findProperty("id[Store]"));
             ImportKey<?> storeKey = new ImportKey((CustomClass) storeLM.findClass("Store"),
-                    storeLM.findProperty("store[VARSTRING[100]]").getMapping(idStoreField));
+                    storeLM.findProperty("store[STRING[100]]").getMapping(idStoreField));
             keys.add(storeKey);
             props.add(new ImportProperty(idStoreField, storeLM.findProperty("id[Store]").getMapping(storeKey)));
             fields.add(idStoreField);
@@ -1726,7 +1726,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idLegalEntityField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> legalEntityKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntity[VARSTRING[100]]").getMapping(idLegalEntityField));
+                    findProperty("legalEntity[STRING[100]]").getMapping(idLegalEntityField));
             legalEntityKey.skipKey = skipKeys;
             keys.add(legalEntityKey);
             props.add(new ImportProperty(idLegalEntityField, storeLM.findProperty("legalEntity[Store]").getMapping(storeKey),
@@ -1737,7 +1737,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idChainStoresField = new ImportField(storeLM.findProperty("id[ChainStores]"));
             ImportKey<?> chainStoresKey = new ImportKey((CustomClass) storeLM.findClass("ChainStores"),
-                    storeLM.findProperty("chainStores[VARSTRING[100]]").getMapping(idChainStoresField));
+                    storeLM.findProperty("chainStores[STRING[100]]").getMapping(idChainStoresField));
             keys.add(chainStoresKey);
             fields.add(idChainStoresField);
             for (int i = 0; i < storesList.size(); i++)
@@ -1745,7 +1745,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField storeTypeField = new ImportField(storeLM.findProperty("name[StoreType]"));
             ImportKey<?> storeTypeKey = new ImportKey((CustomClass) storeLM.findClass("StoreType"),
-                    storeLM.findProperty("storeType[VARISTRING[100],VARSTRING[100]]").getMapping(storeTypeField, idChainStoresField));
+                    storeLM.findProperty("storeType[ISTRING[100],STRING[100]]").getMapping(storeTypeField, idChainStoresField));
             keys.add(storeTypeKey);
             props.add(new ImportProperty(idChainStoresField, storeLM.findProperty("chainStores[StoreType]").getMapping(storeTypeKey),
                     storeLM.object(storeLM.findClass("ChainStores")).getMapping(chainStoresKey)));
@@ -1780,7 +1780,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idDepartmentStoreField = new ImportField(storeLM.findProperty("id[DepartmentStore]"));
             ImportKey<?> departmentStoreKey = new ImportKey((CustomClass) storeLM.findClass("DepartmentStore"),
-                    storeLM.findProperty("departmentStore[VARSTRING[100]]").getMapping(idDepartmentStoreField));
+                    storeLM.findProperty("departmentStore[STRING[100]]").getMapping(idDepartmentStoreField));
             keys.add(departmentStoreKey);
             props.add(new ImportProperty(idDepartmentStoreField, storeLM.findProperty("id[DepartmentStore]").getMapping(departmentStoreKey)));
             fields.add(idDepartmentStoreField);
@@ -1795,7 +1795,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idStoreField = new ImportField(storeLM.findProperty("id[Store]"));
             ImportKey<?> storeKey = new ImportKey((CustomClass) storeLM.findClass("Store"),
-                    storeLM.findProperty("store[VARSTRING[100]]").getMapping(idStoreField));
+                    storeLM.findProperty("store[STRING[100]]").getMapping(idStoreField));
             keys.add(storeKey);
             props.add(new ImportProperty(idStoreField, storeLM.findProperty("store[DepartmentStore]").getMapping(departmentStoreKey),
                     storeLM.object(storeLM.findClass("Store")).getMapping(storeKey)));
@@ -1827,7 +1827,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idBankField = new ImportField(findProperty("id[Bank]"));
             ImportKey<?> bankKey = new ImportKey((CustomClass) findClass("Bank"),
-                    findProperty("bank[VARSTRING[100]]").getMapping(idBankField));
+                    findProperty("bank[STRING[100]]").getMapping(idBankField));
             keys.add(bankKey);
             props.add(new ImportProperty(idBankField, findProperty("id[Bank]").getMapping(bankKey)));
             fields.add(idBankField);
@@ -1888,7 +1888,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idWriteOffRateField = new ImportField(writeOffItemLM.findProperty("id[WriteOffRate]"));
             ImportKey<?> writeOffRateKey = new ImportKey((CustomClass) writeOffItemLM.findClass("WriteOffRate"),
-                    writeOffItemLM.findProperty("writeOffRate[VARSTRING[100]]").getMapping(idWriteOffRateField));
+                    writeOffItemLM.findProperty("writeOffRate[STRING[100]]").getMapping(idWriteOffRateField));
             keys.add(writeOffRateKey);
             props.add(new ImportProperty(idWriteOffRateField, writeOffItemLM.findProperty("id[WriteOffRate]").getMapping(writeOffRateKey)));
             fields.add(idWriteOffRateField);
@@ -1909,7 +1909,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField nameCountryField = new ImportField(findProperty("name[Country]"));
             ImportKey<?> countryKey = new ImportKey((CustomClass) findClass("Country"),
-                    findProperty("countryName[VARISTRING[50]]").getMapping(nameCountryField));
+                    findProperty("countryName[ISTRING[50]]").getMapping(nameCountryField));
             keys.add(countryKey);
             props.add(new ImportProperty(nameCountryField, writeOffItemLM.findProperty("country[WriteOffRate]").getMapping(writeOffRateKey),
                     LM.object(findClass("Country")).getMapping(countryKey)));
@@ -1941,7 +1941,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idUserContractSkuField = new ImportField(findProperty("id[UserContractSku]"));
             ImportKey<?> userContractSkuKey = new ImportKey((CustomClass) findClass("UserContractSku"),
-                    findProperty("userContractSku[VARSTRING[100]]").getMapping(idUserContractSkuField));
+                    findProperty("userContractSku[STRING[100]]").getMapping(idUserContractSkuField));
             keys.add(userContractSkuKey);
             props.add(new ImportProperty(idUserContractSkuField, findProperty("id[UserContractSku]").getMapping(userContractSkuKey)));
             fields.add(idUserContractSkuField);
@@ -1968,7 +1968,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idSupplierField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntity[VARSTRING[100]]").getMapping(idSupplierField));
+                    findProperty("legalEntity[STRING[100]]").getMapping(idSupplierField));
             supplierKey.skipKey = skipKeys;
             keys.add(supplierKey);
             props.add(new ImportProperty(idSupplierField, findProperty("supplier[ContractSku]").getMapping(userContractSkuKey),
@@ -1979,7 +1979,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField idCustomerField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
-                    findProperty("legalEntity[VARSTRING[100]]").getMapping(idCustomerField));
+                    findProperty("legalEntity[STRING[100]]").getMapping(idCustomerField));
             customerKey.skipKey = skipKeys;
             keys.add(customerKey);
             props.add(new ImportProperty(idCustomerField, findProperty("customer[ContractSku]").getMapping(userContractSkuKey),

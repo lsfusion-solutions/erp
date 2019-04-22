@@ -11,9 +11,9 @@ TABLE statisticGroupType (StatisticGroupType);
 country = DATA Country (StatisticGroupType);
 nameCountry 'Страна' (StatisticGroupType type)= name(country(type)) IN base;
 
-name 'Наименование' = DATA VARISTRING[100](StatisticGroupType);
+name 'Наименование' = DATA ISTRING[100](StatisticGroupType);
 
-id 'Идентификатор' = DATA VARSTRING[20] (StatisticGroupType) CHARWIDTH 3;
+id 'Идентификатор' = DATA STRING[20] (StatisticGroupType) CHARWIDTH 3;
 
 statisticGroupTypeId (string1) = GROUP AGGR StatisticGroupType type WHERE type IS StatisticGroupType
     BY id(type);
@@ -50,7 +50,7 @@ DESIGN options{
 CLASS StatisticGroup 'Статистическая группа': Group;
 TABLE statisticGroup(StatisticGroup);
 
-name 'Наименование' = DATA VARISTRING[250](StatisticGroup) CHARWIDTH 30;
+name 'Наименование' = DATA ISTRING[250](StatisticGroup) CHARWIDTH 30;
 
 CLASS GroupStatic 'Ед. изм.' {
     statisticLiter 'Литр',
@@ -95,11 +95,11 @@ nameCountry 'Страна' (StatisticGroup statisticGroup)= name(country(statist
 unitMeasure 'Ед. изм. ИД' (statisticGroup) = DATA GroupStatic (StatisticGroup);
 nameUOM 'Ед. изм.' (StatisticGroup statisticGroup) = staticCaption(unitMeasure(statisticGroup)) CHARWIDTH 15 NOFLEX;
 
-dataNameReportUOM 'Ед. изм. для отчёта' = DATA VARISTRING[100](StatisticGroup);
+dataNameReportUOM 'Ед. изм. для отчёта' = DATA ISTRING[100](StatisticGroup);
 nameReportUOM 'Ед. изм. для отчёта' (StatisticGroup statisticGroup) = OVERRIDE dataNameReportUOM(statisticGroup), nameUOM(statisticGroup) CHARWIDTH 15 NOFLEX; 
 
 sid 'Код группы' (statisticGroup) = DATA BPSTRING[12] (StatisticGroup)  CHARWIDTH 12 NOFLEX;
-canonicalNumber 'Канонический код' (StatisticGroup statisticGroup) = VARSTRING[255](
+canonicalNumber 'Канонический код' (StatisticGroup statisticGroup) = STRING[255](
                            (GROUP CONCAT sid(StatisticGroup parent), ' / ' ORDER DESC level(statisticGroup, parent)))
                            CHARWIDTH 50 MATERIALIZED;
 
@@ -112,13 +112,13 @@ sidParent 'Код родительского объекта' (StatisticGroup sta
 
 conversionFactor 'Коэффициент перевода' (statisticGroup) = DATA NUMERIC[14,5] (StatisticGroup);
 
-id(StatisticGroup g) += VARSTRING[100](sid(g)) IF g IS StatisticGroup; 
+id(StatisticGroup g) += STRING[100](sid(g)) IF g IS StatisticGroup; 
 
-sort = OVERRIDE lpad(VARSTRING[250](sid(StatisticGroup g)), 20, '0'), name(g);  
+sort = OVERRIDE lpad(STRING[250](sid(StatisticGroup g)), 20, '0'), name(g);  
 
 orderSort 'Порядок (внутри группы)' (StatisticGroup g) = PARTITION SUM 1 ORDER sort(g) BY groupType(g), parent(g);
-canonicalOrderSort 'Порядок (полный)' (StatisticGroup g) = VARSTRING[250]((GROUP CONCAT lpad(VARSTRING[3](orderSort(StatisticGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
-nameLevel4 'Наименование (со сдвигом)' (StatisticGroup g) = VARSTRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
+canonicalOrderSort 'Порядок (полный)' (StatisticGroup g) = STRING[250]((GROUP CONCAT lpad(STRING[3](orderSort(StatisticGroup parent)), 3, '0') , '.' ORDER DESC level(g, parent)));
+nameLevel4 'Наименование (со сдвигом)' (StatisticGroup g) = STRING[100](repeat('    ', INTEGER(level(g))-1)) + name(g);
 
 
 
@@ -851,7 +851,7 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
  
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
-loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, BPSTRING[3] isidCountry)  { 
+loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(ISTRING[100] iname, STRING[20] isid, BPSTRING[3] isidCountry)  { 
      NEW t = StatisticGroupType {
          name(t) <- iname;
          id (t) <- isid;
@@ -859,7 +859,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
      }
  }
  
- loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, BPSTRING[12] sidParent, VARISTRING[250] iname, BPSTRING[12] isid, GroupStatic groupStatic, value)  { 
+ loadDefaultStatistic 'Добавить значение статистические группы'(STRING[20] sidType, BPSTRING[12] sidParent, ISTRING[250] iname, BPSTRING[12] isid, GroupStatic groupStatic, value)  { 
      NEW g = StatisticGroup {
          groupType(g) <- statisticGroupTypeId(sidType);
          parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
@@ -885,7 +885,7 @@ copy 'Копировать' (StatisticGroupType type)  {
 	       
 	    NEW t = StatisticGroupType {
 	        country(t) <- country(type);
-	        name(t) <- VARISTRING[100](name(type) +' (копия)');         
+	        name(t) <- ISTRING[100](name(type) +' (копия)');         
 	
 	        LOCAL prev =  StatisticGroup (StatisticGroup);   
 	        LOCAL new =  StatisticGroup (StatisticGroup);   

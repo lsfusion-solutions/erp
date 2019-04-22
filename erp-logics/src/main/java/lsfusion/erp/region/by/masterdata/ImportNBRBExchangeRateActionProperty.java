@@ -58,10 +58,10 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
             ImportField dateField = new ImportField(DateClass.instance);
 
             ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeBYRField));
+                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeBYRField));
 
             ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeForeignField));
+                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
 
             ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
                     findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));

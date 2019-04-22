@@ -10,7 +10,7 @@ NAMESPACE Sale;
 CLASS StatisticReportType 'Тип статистического отчета';
 CLASS StatisticReportTypeDetail 'Строка типа статистического отчета';
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReportType) CHARWIDTH 20 IN documentPrm;
+name 'Наименование' = DATA ISTRING[255] (StatisticReportType) CHARWIDTH 20 IN documentPrm;
 statisticReportType = GROUP AGGR StatisticReportType s BY name(s);
 
 @defineDocument(statisticReportType);
@@ -29,8 +29,8 @@ isPositiveReport 'Только положительные' = DATA BOOLEAN (Stati
 
 //------------------------------ Строки -------------------------------//
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReportTypeDetail);
-nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
+name 'Наименование' = DATA ISTRING[255] (StatisticReportTypeDetail);
+nameUOM 'Ед. изм.' = DATA ISTRING[100] (StatisticReportTypeDetail);
 round 'Точность' = DATA INTEGER (StatisticReportTypeDetail);
 
 statisticGroup  = DATA StatisticGroup (StatisticReportTypeDetail);
@@ -124,7 +124,7 @@ DESIGN statisticReportType {
 copy 'Копировать' (StatisticReportType type)  { 
 	NEWSESSION {
 	    NEW r = StatisticReportType {
-	        name(r) <- VARISTRING[255](name(type)+ ' (копия)');  
+	        name(r) <- ISTRING[255](name(type)+ ' (копия)');  
 	         
 	        statisticGroupType (r) <- statisticGroupType (type);        
 	        isSumReport (r) <- isSumReport (type);
@@ -206,7 +206,7 @@ DESIGN statisticReportTypes {
 }
 
 //загрузка стандартных данных
-loadDefaultStatisticReportType 'Добавить тип статистического отчета' (VARSTRING[255] name, VARSTRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate)  { 
+loadDefaultStatisticReportType 'Добавить тип статистического отчета' (STRING[255] name, STRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate)  { 
     NEW s = StatisticReportType {
         name(s) <- name;
         statisticGroupType(s) <- statisticGroupTypeId(group);
@@ -215,7 +215,7 @@ loadDefaultStatisticReportType 'Добавить тип статистическ
     }
 }
 
-loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, BPSTRING[12] group, VARSTRING[100] nameUOM, INTEGER round)  { 
+loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (STRING[255] type, INTEGER index, STRING[255] name, STRING[10] number, BPSTRING[12] group, STRING[100] nameUOM, INTEGER round)  { 
     NEW d = StatisticReportTypeDetail {
         statisticReportType(d) <- statisticReportType(type);
         index(d) <- index;
@@ -235,7 +235,7 @@ loadDefaultStStatisticReportType 'Загрузить стандартные ст
 CLASS StatisticReport 'Статистический отчет';
 CLASS StatisticReportDetail 'Строка статистического отчета';
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReport) CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[255] (StatisticReport) CHARWIDTH 20;
 @defineDocument(statisticReport);
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
@@ -357,7 +357,7 @@ WHEN LOCAL SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND is
 
 region = DATA Region (StatisticReport);
 nameRegion 'Регион' (StatisticReport r) = name(region(r));
-consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport) CHARWIDTH 20;
+consolidateStocks 'Склады/Регионы' = DATA STRING[255](StatisticReport) CHARWIDTH 20;
 
 nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE 
     WHEN isStock(r) THEN nameStock(r) 
@@ -365,8 +365,8 @@ nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE
     WHEN isConsolidate(r) THEN consolidateStocks(r);
 //------------------------------ Строки -------------------------------//
 
-name 'Наименование' = DATA VARISTRING[255] (StatisticReportDetail);
-nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
+name 'Наименование' = DATA ISTRING[255] (StatisticReportDetail);
+nameUOM 'Ед. изм.' = DATA ISTRING[100] (StatisticReportDetail);
 round 'Точность' = DATA INTEGER (StatisticReportDetail);
 number 'Код строки' = DATA BPSTRING[10] (StatisticReportDetail);
 
@@ -767,7 +767,7 @@ createSumReport 'Создать суммарный отчет'() {
 	    NEW s = StatisticReport {
 	        statisticReportType(s) <- (GROUP MAX statisticReportType(StatisticReport r) IF in(r));
 	        reportKind(s) <- ReportKind.consolidate;
-	        consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',');
+	        consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](ISTRING[255] str), ',');
 	        fromDate(s) <- (GROUP MIN fromDate(StatisticReport r) IF in(r));
 	        toDate(s) <- (GROUP MAX toDate(StatisticReport r) IF in(r));
 	        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));

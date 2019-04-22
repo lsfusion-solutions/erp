@@ -26,7 +26,7 @@ nameSku 'SKU' (RangeLog l) = name(sku(l)) CHARWIDTH 30;
 idSku 'Код' (RangeLog l) = id(sku(l));
 idBarcodeSku'Штрихкод' (RangeLog l) = idBarcode(sku(l));
 
-name 'Наименование матрицы' = DATA VARISTRING[255] (RangeLog)  CHARWIDTH 30 IN id;
+name 'Наименование матрицы' = DATA ISTRING[255] (RangeLog)  CHARWIDTH 30 IN id;
 
 range= DATA Range (RangeLog);
 
@@ -34,9 +34,9 @@ range= DATA Range (RangeLog);
 level = DATA RangeLevel (RangeLog);
 nameLevel 'Уровень' (RangeLog l) = name(level(l));
 
-hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (RangeLog); 
-userLogin 'Логин пользователя' = DATA VARSTRING[100] (RangeLog); 
-nameContact 'Имя пользователя' =  DATA VARSTRING[100] (RangeLog) IN id;
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (RangeLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (RangeLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (RangeLog) IN id;
 dateTimeSession 'Время' = DATA DATETIME (RangeLog) IN id;
 dateSession 'Дата' (RangeLog d) = DATE(dateTimeSession(d));
 timeSession 'Время' (RangeLog d) = TIME(dateTimeSession(d));
@@ -55,7 +55,7 @@ CLASS TypeChange 'Тип изменения' {
 typeChange= DATA TypeChange (RangeLog);
 nameTypeChange 'Тип изменения' (RangeLog l) = staticCaption(typeChange(l)) IN id;
 
-note 'Примечание' = DATA VARSTRING[500] (RangeLog) CHARWIDTH 20;
+note 'Примечание' = DATA STRING[500] (RangeLog) CHARWIDTH 20;
 isLast (RangeRev v) = rangeRev(range(v),currentDate()) == v;
 
 rangeRev 'Версия' = GROUP LAST RangeRev rev
@@ -75,7 +75,7 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND NOT PREV(level(rangeRev(
         typeChange(d) <- TypeChange.add;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }
@@ -86,11 +86,11 @@ WHEN (SETCHANGED (level(rangeRev(Range r), Sku s))) AND PREV(level(rangeRev(r),s
         name(d) <- name(r);
         level(d) <- level(rangeRev(r),s);
         dateTimeRev(d) <- dateTime(rangeRev(r));        
-        note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
+        note(d) <- STRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
         typeChange(d) <- TypeChange.change;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }
@@ -99,11 +99,11 @@ WHEN (DROPPED (level(rangeRev(Range r), Sku s) AS RangeLevel) )  AND NOT disable
         range(d) <- r;
         sku(d) <- s;
         name(d) <- name(r);
-        note(d) <- VARSTRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
+        note(d) <- STRING[500](CONCAT ' ','До: '+PREV(name(level(rangeRev(r),s))), '. Версия: '+PREV(dateTime(rangeRev(r))));  
         typeChange(d) <- TypeChange.delete;
         hostnameComputer(d) <- hostnameCurrentComputer();
         userLogin(d) <- login(currentUser()); 
-        nameContact(d) <- VARSTRING[100](name(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
     }
 }

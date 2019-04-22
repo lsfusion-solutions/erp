@@ -14,8 +14,8 @@ labelBaseCoeff = ABSTRACT CASE NUMERIC[9,3](Sku);
 dataLabelBaseCoeff 'Коэффициент за базовую единицу' = DATA NUMERIC[9,3](Item);
 labelBaseCoeff(Item i) += WHEN dataLabelBaseCoeff(i) THEN dataLabelBaseCoeff(i);
 
-labelBaseName = ABSTRACT CASE VARSTRING[20](Sku);
-dataLabelBaseName 'Базовая единица' = DATA VARSTRING[20](Item);
+labelBaseName = ABSTRACT CASE STRING[20](Sku);
+dataLabelBaseName 'Базовая единица' = DATA STRING[20](Item);
 labelBaseName(Item i) += WHEN dataLabelBaseName(i) THEN dataLabelBaseName(i);
 
 EXTEND FORM item 
@@ -59,7 +59,7 @@ basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = basePriceRu
 
 basePriceKop 'Копейки (за б.е.)' (Sku d, NUMERIC[16,4] price) = OVERRIDE round0((basePrice(d, price) (-) basePriceRub(d, price)) * 100.0), 0.00 IF basePrice(d, price);
 basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = basePriceKop(sku(d), price(d));
-basePriceKopText 'Копейки (за б.е.)' (LabelTransactionDetail d) = lpad(VARSTRING[2](INTEGER(basePriceKop(sku(d), price(d)))) , 2, '0') ;
+basePriceKopText 'Копейки (за б.е.)' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER(basePriceKop(sku(d), price(d)))) , 2, '0') ;
 
 baseRetailPrice 'Цена за базовую единицу до' (Sku d, NUMERIC[16,4] retailPrice) = IF printFullPrice(skuGroup(d)) AND NOT (volumeMinPrice(d) OR skipFullPrice(d)) THEN CASE 
                                                                                                           WHEN labelBaseCoeff(d) THEN round2(retailPrice / labelBaseCoeff(d))

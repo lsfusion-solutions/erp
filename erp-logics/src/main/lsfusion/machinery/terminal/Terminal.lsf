@@ -17,7 +17,7 @@ inactive(GroupTerminal g) += inactive(g);
 CLASS TerminalModel 'Модель ТСД' : Model;
 TABLE terminalModel (TerminalModel);
 
-name 'Наименование' = DATA VARISTRING[110](TerminalModel);
+name 'Наименование' = DATA ISTRING[110](TerminalModel);
 
 name(TerminalModel model) += name(model) IF model IS TerminalModel;
 
@@ -40,7 +40,7 @@ TABLE terminal (Terminal);
 groupTerminal = DATA GroupTerminal (Terminal) NONULL DELETE;
 groupMachinery(Terminal machinery) += groupTerminal(machinery);
 
-directory 'Директория обмена с ТСД' = DATA VARSTRING[100] (GroupTerminal) IN base;
+directory 'Директория обмена с ТСД' = DATA STRING[100] (GroupTerminal) IN base;
 directory (GroupTerminal groupMachinery) += directory(groupMachinery);
 groupTerminalDirectory (npp) = GROUP MAX GroupTerminal groupTerminal BY directory(groupTerminal);
 
@@ -60,9 +60,9 @@ FORM terminal 'ТСД'
 CLASS TerminalHandbookType 'Вид справочника ТСД';
 TABLE terminalHandbookType(TerminalHandbookType);
 
-@defineExternalizable(terminalHandbookType, VARSTRING[100]);
+@defineExternalizable(terminalHandbookType, STRING[100]);
 
-name 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
+name 'Наименование' = DATA STRING[100] (TerminalHandbookType);
 propertyID 'Свойство ID' = DATA Property (TerminalHandbookType);
 canonicalNamePropertyID 'Свойство ID' (t) = canonicalName(propertyID(t)) CHARWIDTH 30; 
 propertyName 'Свойство наименование' = DATA Property (TerminalHandbookType);
@@ -98,7 +98,7 @@ CLASS GroupTerminalDocumentType 'Группа типов документов';
 TABLE groupTerminalDocumentType (GroupTerminalDocumentType);
 TABLE groupTerminalDocumentTypeUserRole (GroupTerminalDocumentType, UserRole);
 
-name 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base CHARWIDTH 10;
+name 'Наименование группы' = DATA STRING[200] (GroupTerminalDocumentType) IN base CHARWIDTH 10;
 groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
 nameGroupTerminalDocumentType 'Группа типов документов' (GroupTerminal groupTerminal) = name(groupTerminalDocumentType(groupTerminal));
 skip 'Не передавать в онлайн-режиме' = DATA BOOLEAN (GroupTerminalDocumentType) IN base;
@@ -111,10 +111,10 @@ groupTerminalDocumentType 'Группа типов документов' = DATA 
 nameGroupTerminalDocumentType 'Группа типов документов' (TerminalDocumentType terminalDocumentType) = name(groupTerminalDocumentType(terminalDocumentType));
 notSkip (TerminalDocumentType terminalDocumentType) = NOT skip(groupTerminalDocumentType(terminalDocumentType));
 
-name 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+name 'Название' = DATA STRING[200] (TerminalDocumentType) IN base;
 flag 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
 
-@defineExternalizable(terminalDocumentType, VARSTRING[100]);
+@defineExternalizable(terminalDocumentType, STRING[100]);
 
 terminalHandbookType1 = DATA TerminalHandbookType (TerminalDocumentType);
 idTerminalHandbookType1 'Код' (TerminalDocumentType terminalDocumentType) = 
@@ -122,7 +122,7 @@ idTerminalHandbookType1 'Код' (TerminalDocumentType terminalDocumentType) =
 nameTerminalHandbookType1 'Имя' (TerminalDocumentType terminalDocumentType) = 
     name(terminalHandbookType1(terminalDocumentType));
 
-nameInHandbook1 'Наименование в справочнике 1' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+nameInHandbook1 'Наименование в справочнике 1' = DATA STRING[200] (TerminalDocumentType) IN base;
 nameInHandbook1(TerminalDocumentType terminalDocumentType) <- nameTerminalHandbookType1(terminalDocumentType) 
     WHEN CHANGED(terminalHandbookType1(terminalDocumentType));
 
@@ -132,7 +132,7 @@ idTerminalHandbookType2 'Код' (TerminalDocumentType terminalDocumentType) =
 nameTerminalHandbookType2 'Имя' (TerminalDocumentType terminalDocumentType) = 
     name(terminalHandbookType2(terminalDocumentType));
 
-nameInHandbook2 'Наименование в справочнике 2' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+nameInHandbook2 'Наименование в справочнике 2' = DATA STRING[200] (TerminalDocumentType) IN base;
 nameInHandbook2(TerminalDocumentType terminalDocumentType) <- nameTerminalHandbookType2(terminalDocumentType) 
     WHEN CHANGED(terminalHandbookType2(terminalDocumentType));
 
@@ -232,16 +232,16 @@ DESIGN groupsTerminal {
 CLASS TerminalDocument 'Документ ТСД';
 TABLE terminalDocument (TerminalDocument);
 
-TABLE terminalDocumentId(VARISTRING[1000]);
+TABLE terminalDocumentId(ISTRING[1000]);
 
-id 'Код' = DATA VARSTRING[1000] (TerminalDocument) IN id INDEXED CHARWIDTH 10;
+id 'Код' = DATA STRING[1000] (TerminalDocument) IN id INDEXED CHARWIDTH 10;
 terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) MATERIALIZED TABLE terminalDocumentId;
 
-title 'Имя' = DATA VARSTRING[1000] (TerminalDocument) IN base CHARWIDTH 20;
-comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base CHARWIDTH 20;
+title 'Имя' = DATA STRING[1000] (TerminalDocument) IN base CHARWIDTH 20;
+comment 'Комментарий' = DATA STRING[100] (TerminalDocument) IN base CHARWIDTH 20;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
-idTerminalHandbookType1 'Код в справочнике 1' = DATA VARSTRING[100] (TerminalDocument) IN base;
-idTerminalHandbookType2 'Код в справочнике 2' = DATA VARSTRING[100] (TerminalDocument) IN base;
+idTerminalHandbookType1 'Код в справочнике 1' = DATA STRING[100] (TerminalDocument) IN base;
+idTerminalHandbookType2 'Код в справочнике 2' = DATA STRING[100] (TerminalDocument) IN base;
 
 terminalDocumentType = DATA TerminalDocumentType (TerminalDocument);
 nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) CHARWIDTH 20;
@@ -277,32 +277,32 @@ CLASS TerminalDocumentDetail 'Строка документа ТСД';
 TABLE terminalDocumentDetail (TerminalDocumentDetail);
 TABLE sessionTerminalDocumentDetail (Session, TerminalDocumentDetail);
 
-id 'Код' = DATA VARSTRING[1000] (TerminalDocumentDetail) IN id INDEXED CHARWIDTH 10;
+id 'Код' = DATA STRING[1000] (TerminalDocumentDetail) IN id INDEXED CHARWIDTH 10;
 
 number 'Номер' = DATA INTEGER (TerminalDocumentDetail) IN base;
 index 'Номер строки ' (TerminalDocumentDetail d) =
     PARTITION SUM 1
     ORDER number(d), d BY terminalDocument(d) CHARWIDTH 4;
-barcode 'Штрихкод' = DATA VARSTRING[15] (TerminalDocumentDetail) IN base;
+barcode 'Штрихкод' = DATA STRING[15] (TerminalDocumentDetail) IN base;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
 price 'Цена' = DATA NUMERIC[16,4] (TerminalDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[18,4] (TerminalDocumentDetail) IN base;
 sum(TerminalDocumentDetail d) <- round2(quantity(d) * price(d)) WHEN CHANGED(quantity(d)) OR CHANGED(price(d)); 
 
-comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
+comment 'Комментарий' = DATA STRING[100] (TerminalDocumentDetail) IN base;
 dateTimeScan 'Время сканирования' = DATA DATETIME (TerminalDocumentDetail) IN base;
 
 extraDate1 'Дата 1' = DATA DATE (TerminalDocumentDetail) IN base;
 extraDate2 'Дата 2' = DATA DATE (TerminalDocumentDetail) IN base;
-extraField1 'Поле 1' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
-extraField2 'Поле 2' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
-extraField3 'Поле 3' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
+extraField1 'Поле 1' = DATA STRING[100] (TerminalDocumentDetail) IN base;
+extraField2 'Поле 2' = DATA STRING[100] (TerminalDocumentDetail) IN base;
+extraField3 'Поле 3' = DATA STRING[100] (TerminalDocumentDetail) IN base;
 
 stock 'Склад' (TerminalDocumentDetail detail) = stock(terminalDocument(detail)) MATERIALIZED INDEXED;  
 
 sku = DATA Sku (TerminalDocumentDetail) INDEXED;
 nameSku 'Наименование' (TerminalDocumentDetail d) = name(sku(d));
-dataName 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail);
+dataName 'Наименование' = DATA STRING[200] (TerminalDocumentDetail);
 name 'Наименование' (TerminalDocumentDetail d) = OVERRIDE dataName(d), nameSku(d) IN base;
 
 WHEN LOCAL SETCHANGED(barcode(TerminalDocumentDetail d)) DO {
@@ -556,7 +556,7 @@ END
 terminalSID (model) = GROUP MAX TerminalModel tmodel BY sid (tmodel) IF tmodel IS TerminalModel;
 
 // Модели терминалов сбора данных
-loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] sid, VARISTRING[110] name, VARSTRING[200] handler)  { 
+loadDefaultTerminalModel 'Добавить модель терминала'(STRING[20] sid, ISTRING[110] name, STRING[200] handler)  { 
     IF NOT terminalSID(sid) THEN {
         NEW tm = TerminalModel {
              sid(tm) <- sid;   
@@ -570,7 +570,7 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
-loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s)  { 
+loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(STRING[100] n, STRING[100] s)  { 
     NEW t = TerminalHandbookType {
         name(t) <- n;
         id(t) <- s;
@@ -584,7 +584,7 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String)  { 
+loadDefault 'Добавить тип документа ТСД'(STRING[200] nameString, GroupTerminalDocumentType gtdt, STRING[100] idTypeString, INTEGER flagInteger, STRING[100] handbook1String, STRING[100] handbook2String)  { 
     NEW tdt = TerminalDocumentType {
         name(tdt) <- nameString;
         groupTerminalDocumentType(tdt) <- gtdt;

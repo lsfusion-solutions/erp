@@ -209,16 +209,16 @@ currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt
 
 pharmacyDescription 'Партия' (Batch batch) = CONCAT '', nameSku(batch), '/ ' + nameManufacturer(batch), '/ ' + nameCountry(batch);             
 
-filterBarcode 'Поиск по штрих коду' = DATA LOCAL NESTED VARISTRING[30]();
+filterBarcode 'Поиск по штрих коду' = DATA LOCAL NESTED ISTRING[30]();
 filterBarcode 'Ввести штрих код' (Batch bt) = sku(barcode(filterBarcode()))==sku(bt) OR NOT filterBarcode();
 
 consumedChangeBarcodeReceipt = DATA LOCAL BOOLEAN();
-overChangeBarcode ABSTRACT LIST FIRST ( VARSTRING[30], Receipt);
+overChangeBarcode ABSTRACT LIST FIRST ( STRING[30], Receipt);
 
 changeBarcode(Receipt receipt) {
-    INPUT s = VARSTRING[30] DO {
+    INPUT s = STRING[30] DO {
         consumedChangeBarcodeReceipt() <- NULL;
-        LOCAL barcode = VARSTRING[30] ();
+        LOCAL barcode = STRING[30] ();
         barcode() <- processedBarcode(s);
         overChangeBarcode(barcode(), receipt);
         IF NOT consumedChangeBarcodeReceipt() THEN {
@@ -232,7 +232,7 @@ filterPrice 'Поиск по цене' = DATA LOCAL NESTED NUMERIC[16,4]();
 filterPrice 'Ввести цену' (Batch bt, Receipt r) = currentPOSPrice(bt, r)==filterPrice() OR NOT filterPrice();
 
 //фильтр по цене
-filterNameSku 'Поиск по наименованию' = DATA LOCAL NESTED VARISTRING[20]();
+filterNameSku 'Поиск по наименованию' = DATA LOCAL NESTED ISTRING[20]();
 filterNameSku 'Ввести наименование' (Batch bt) = isISubstring(prevNameSku(bt), filterNameSku()) OR NOT filterNameSku();
 filterNameSku 'Ввести наименование' (Sku sku) = isISubstring(name(sku), filterNameSku()) OR NOT filterNameSku();
 

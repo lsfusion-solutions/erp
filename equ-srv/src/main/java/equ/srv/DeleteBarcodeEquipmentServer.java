@@ -128,7 +128,7 @@ class DeleteBarcodeEquipmentServer {
     static void succeedDeleteBarcode(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
         try (DataSession session = server.createSession()) {
             for (String barcode : deleteBarcodeSet) {
-                deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, VARSTRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
+                deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, STRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
             }
             session.applyException(BL, stack);
         } catch (Exception e) {

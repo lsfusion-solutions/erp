@@ -10,9 +10,9 @@ REQUIRE System,
 CLASS WarehouseGroup 'Группа складов' : StockGroup;
 TABLE warehouseGroup (WarehouseGroup);
 
-@defineExternalizable(warehouseGroup, VARSTRING[100]);
+@defineExternalizable(warehouseGroup, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](WarehouseGroup);
+name 'Наименование' = DATA ISTRING[100](WarehouseGroup);
 
 id(WarehouseGroup g) += id(g);
 name(WarehouseGroup group) += name(group) IF group IS WarehouseGroup;
@@ -46,12 +46,12 @@ TABLE warehouse(Warehouse);
 
 isWarehouse (Stock s) = s IS Warehouse;
 
-@defineExternalizable(warehouse, VARSTRING[100]);
+@defineExternalizable(warehouse, STRING[100]);
 id (Warehouse s) += id(s);
 
-name 'Наименование' = DATA VARISTRING[150](Warehouse) INDEXED;
-fullName 'Наименование полное' = DATA VARISTRING[150](Warehouse) INDEXED CHARWIDTH 20;
-phone 'Телефон' = DATA VARISTRING[100](Warehouse);
+name 'Наименование' = DATA ISTRING[150](Warehouse) INDEXED;
+fullName 'Наименование полное' = DATA ISTRING[150](Warehouse) INDEXED CHARWIDTH 20;
+phone 'Телефон' = DATA ISTRING[100](Warehouse);
 phone(Warehouse st) += phone(st);
 name(Warehouse stock) += name(stock) IF stock IS Warehouse;
 fullName(Warehouse stock) += (OVERRIDE fullName(stock), name(stock)) IF stock IS Warehouse;
@@ -66,10 +66,10 @@ legalEntity (warehouse) = DATA LegalEntity (Warehouse) INDEXED NONULL DELETE;
 nameLegalEntity 'Организация' (Warehouse warehouse) = name(legalEntity(warehouse)) IN base CHARWIDTH 20;
 legalEntity (Warehouse stock) += legalEntity(stock);
 
-address 'Адрес' = DATA VARSTRING[150] (Warehouse);
+address 'Адрес' = DATA STRING[150] (Warehouse);
 address(Warehouse stock) += address(stock);
 
-email 'E-mail для заказов' = DATA VARSTRING[300] (Warehouse) CHARWIDTH 30;
+email 'E-mail для заказов' = DATA STRING[300] (Warehouse) CHARWIDTH 30;
 email(Warehouse stock) += email(stock);
 
 latitude 'Координата X' = DATA NUMERIC[10,5](Warehouse);
@@ -290,7 +290,7 @@ defaultWarehouse (LegalEntity legalEntity)= GROUP MIN Warehouse stock IF in(lega
 addressDefaultWarehouse 'Адрес основного склада' (LegalEntity legalEntity) = address(defaultWarehouse(legalEntity)) IN law;
 
 changeWarehouse(LegalEntity legalEntity)  { 
-    INPUT s = VARSTRING[100] DO {
+    INPUT s = STRING[100] DO {
         IF defaultWarehouse(legalEntity) THEN {
             address(Warehouse w) <- s WHERE w == defaultWarehouse(legalEntity);        
         } ELSE {
@@ -298,7 +298,7 @@ changeWarehouse(LegalEntity legalEntity)  {
                 legalEntity(w) <- legalEntity;
                 warehouseGroup(w) <- allWarehouseGroup();                
                 address(w) <- s;    
-                name(w) <- VARISTRING[150]('Склад '+(name(legalEntity(w))));    
+                name(w) <- ISTRING[150]('Склад '+(name(legalEntity(w))));    
             }
         }
     }

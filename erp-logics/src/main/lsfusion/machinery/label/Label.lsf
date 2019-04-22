@@ -9,7 +9,7 @@ CLASS PrintOrientation 'Ориентация' {
 }
 TABLE printOrientation(PrintOrientation);
 
-fileTemplate 'Файл шаблона' = DATA VARSTRING[200] (PrintOrientation);
+fileTemplate 'Файл шаблона' = DATA STRING[200] (PrintOrientation);
 
 FORM printOrientation 'Ориентация'
     OBJECTS o = PrintOrientation PANEL 
@@ -33,16 +33,16 @@ onStarted() + {
 CLASS LabelType 'Тип ценника';
 TABLE labelType(LabelType);
 
-name 'Наименование' = DATA VARISTRING[50](LabelType);
+name 'Наименование' = DATA ISTRING[50](LabelType);
 
-@defineExternalizable(labelType, VARSTRING[100]);
+@defineExternalizable(labelType, STRING[100]);
 width 'Ширина' = DATA INTEGER (LabelType);
 height 'Высота' = DATA INTEGER (LabelType);
 
 orientation = DATA PrintOrientation (LabelType);
 nameOrientation 'Ориентация' (LabelType labelType) = staticCaption(orientation(labelType));
 
-fileTemplate 'Файл шаблона' = DATA VARSTRING[200] (LabelType);
+fileTemplate 'Файл шаблона' = DATA STRING[200] (LabelType);
 
 priceListType = DATA PriceListType (LabelType);
 namePriceListType 'Вид цен' (LabelType labelType) = name(priceListType(labelType));
@@ -164,7 +164,7 @@ inactive 'Неактивный' = DATA BOOLEAN (LabelType);
 active 'Активный' (LabelType t) = t IS LabelType AND NOT inactive(t);
 
 TABLE labelTypeComputer(LabelType, Computer);
-customPrinter 'Имя принтера по умолчанию' = DATA VARSTRING[250] (LabelType, Computer);
+customPrinter 'Имя принтера по умолчанию' = DATA STRING[250] (LabelType, Computer);
 
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType PANEL
@@ -276,7 +276,7 @@ CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий з
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
 isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
-description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) MATERIALIZED;
+description 'Название документа загрузки' = ABSTRACT STRING[200] (PriceTransactionDocument) MATERIALIZED;
 skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) MATERIALIZED;
 
 printed 'Распечатан' = DATA BOOLEAN (PriceTransactionDocument);
@@ -382,7 +382,7 @@ batch = DATA Batch (LabelTransactionDetail) INDEXED;
 nameBatch 'Партия' (LabelTransactionDetail d) = name(batch(d));
 
 quantity 'Кол-во' = DATA INTEGER (LabelTransactionDetail);
-name 'Наименование' = DATA VARSTRING[255] (LabelTransactionDetail);  
+name 'Наименование' = DATA STRING[255] (LabelTransactionDetail);  
 price 'Цена' = DATA NUMERIC[16,4] (LabelTransactionDetail);
 retailPrice 'Цена до'  = DATA NUMERIC[16,4] (LabelTransactionDetail);
 overRetailPrice = ABSTRACT NUMERIC[16,4] (LabelTransactionDetail);
@@ -398,8 +398,8 @@ priceLabelTransactionDetail 'Текущая цена на ценниках' (sku
           ORDER createdTime(ledger), ledger
           BY sku(ledger), departmentStore(ledger) MATERIALIZED TABLE extraSkuStock;
 
-firstSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
-secondSort = ABSTRACT VALUE VARSTRING[100] (LabelTransactionDetail);
+firstSort = ABSTRACT VALUE STRING[100] (LabelTransactionDetail);
+secondSort = ABSTRACT VALUE STRING[100] (LabelTransactionDetail);
 
 skipPrint 'Пропустить' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
 skip 'Не печатать на ценник' = ABSTRACT CASE BOOLEAN (LabelTransactionDetail);
@@ -673,7 +673,7 @@ META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
 END
 
 // ---------- Атрибуты по умолчанию ------ //
-@defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
+@defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', ISTRING[100], Sku, shortNameUOM);
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
 
 documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
@@ -703,9 +703,9 @@ WHEN LOCAL FORMS customLabelTransaction
                                                 count(labelType(d), sku(d));
 }
 
-@defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', VARSTRING[100], Sku, nameSkuGroup);
+@defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', STRING[100], Sku, nameSkuGroup);
 
-@defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
+@defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', STRING[50], Sku, nameCountry);
 manufactureDateBatch 'Дата изготовления'  = DATA DATE (LabelTransactionDetail);
 createAttribute(LabelTransactionDetail d) +
     {  manufactureDateBatch(d) <- manufactureDate(lastOrderBatch(sku(d), departmentStore(d))); }
@@ -1403,13 +1403,13 @@ DESIGN currentBalanceSkuStock {
 trunc = FORMULA INTEGER 'trunc($1)';
 
 priceRubB 'Рубли' (LabelTransactionDetail d) = trunc(price(d));
-priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(priceRubB(d) (-) price(d))*100.0)), '' IF priceRubB(d)), 2, '0');
+priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE STRING[2](round0(abs(priceRubB(d) (-) price(d))*100.0)), '' IF priceRubB(d)), 2, '0');
 
 retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = trunc(retailPrice(d));
-retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(retailPriceRubB(d) (-) retailPrice(d))*100.0)), '' IF retailPriceRubB(d)), 2, '0');
+retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE STRING[2](round0(abs(retailPriceRubB(d) (-) retailPrice(d))*100.0)), '' IF retailPriceRubB(d)), 2, '0');
 
 discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = trunc(discountSum(d));
-discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE VARSTRING[2](round0(abs(discountPriceRubB(d) (-) discountSum(d))*100.0)), '' IF discountPriceRubB(d)), 2, '0');
+discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE STRING[2](round0(abs(discountPriceRubB(d) (-) discountSum(d))*100.0)), '' IF discountPriceRubB(d)), 2, '0');
 
 EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;
 EXTEND FORM customLabelTransaction PROPERTIES(d) priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;

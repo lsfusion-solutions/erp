@@ -14,14 +14,14 @@ captionStatus 'Статус'(EVATLog el) = staticCaption(status(el));
 serverStatus 'Статус на сервере' = DATA EVATServerStatus (EVATLog);
 captionServerStatus 'Статус на сервере'(EVATLog el) = staticCaption(serverStatus(el));  
 
-numberDocument 'Номер ЭСЧФ' = DATA VARSTRING[28] (EVATLog) IN id;
+numberDocument 'Номер ЭСЧФ' = DATA STRING[28] (EVATLog) IN id;
 dateDocument 'Дата ЭСЧФ' = DATA DATE(EVATLog) IN id;
-numberDocDocument 'Номер документа' = DATA VARSTRING[100] (EVATLog) IN id;
-seriesDocDocument 'Серия документа' = DATA VARSTRING[100] (EVATLog) IN id;
+numberDocDocument 'Номер документа' = DATA STRING[100] (EVATLog) IN id;
+seriesDocDocument 'Серия документа' = DATA STRING[100] (EVATLog) IN id;
 
-hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (EVATLog); 
-userLogin 'Логин пользователя' = DATA VARSTRING[100] (EVATLog); 
-nameContact 'Имя пользователя' =  DATA VARSTRING[100] (EVATLog) IN id;
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (EVATLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (EVATLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (EVATLog) IN id;
 dateTimeSession 'Время' = DATA DATETIME (EVATLog) IN id;
 dateSession 'Дата' (EVATLog el) = DATE(dateTimeSession(el));
 
@@ -42,7 +42,7 @@ CLASS TypeEVATChange 'Тип изменения' {
 
 typeChange= DATA TypeEVATChange (EVATLog);
 nameTypeChange 'Тип изменения' (EVATLog l) = staticCaption(typeChange(l)) IN id;
-note 'Примечание' = DATA VARSTRING[255] (EVATLog) CHARWIDTH 20;
+note 'Примечание' = DATA STRING[255] (EVATLog) CHARWIDTH 20;
 
 WHEN SET (EVAT e IS EVAT) DO {
     NEW el = EVATLog {        
@@ -56,9 +56,9 @@ WHEN SET (EVAT e IS EVAT) DO {
         typeChange(el) <- TypeEVATChange.add;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255]('Добавлен документ');              
+        note(el) <- STRING[255]('Добавлен документ');              
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }
@@ -75,9 +75,9 @@ WHEN DROPPED (EVAT e IS EVAT) DO {
         typeChange(el) <- TypeEVATChange.delete;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255]('Удален документ');         
+        note(el) <- STRING[255]('Удален документ');         
         supplier(el) <- PREV (supplier(e));
         customer(el) <- PREV (customer(e));
     }
@@ -95,9 +95,9 @@ WHEN CHANGED (exported(EVAT e)) DO {
         typeChange(el) <- TypeEVATChange.export;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255](IF exported(e) THEN 'Выгружен' ELSE 'Не выгружен');              
+        note(el) <- STRING[255](IF exported(e) THEN 'Выгружен' ELSE 'Не выгружен');              
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }
@@ -115,9 +115,9 @@ WHEN CHANGED(status(EVAT e)) DO {
         typeChange(el) <- TypeEVATChange.changeStatus;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(status(e)) THEN PREV(captionStatus(e)) ELSE '');      
+        note(el) <- STRING[255](CONCAT '','Предыдущее значение: ', IF PREV(status(e)) THEN PREV(captionStatus(e)) ELSE '');      
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }
@@ -135,9 +135,9 @@ WHEN CHANGED(statusServerStatus(EVAT e)) DO {
         typeChange(el) <- TypeEVATChange.changeServerStatus;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(statusServerStatus(e)) THEN PREV(captionServerStatus(e)) ELSE '');      
+        note(el) <- STRING[255](CONCAT '','Предыдущее значение: ', IF PREV(statusServerStatus(e)) THEN PREV(captionServerStatus(e)) ELSE '');      
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }
@@ -155,9 +155,9 @@ WHEN SETCHANGED(number(EVAT e)) AND PREV(number(e))  DO {
         typeChange(el) <- TypeEVATChange.changeNumber;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', PREV(number(e)));      
+        note(el) <- STRING[255](CONCAT '','Предыдущее значение: ', PREV(number(e)));      
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }
@@ -175,9 +175,9 @@ WHEN SETCHANGED(customer(EVAT e)) AND PREV(customer(e))  DO {
         typeChange(el) <- TypeEVATChange.changeCustomer;
         hostnameComputer(el) <- hostnameCurrentComputer();
         userLogin(el) <- login(currentUser()); 
-        nameContact(el) <- VARSTRING[100](name(currentUser()));
+        nameContact(el) <- STRING[100](name(currentUser()));
         dateTimeSession(el) <- currentDateTime();             
-        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', PREV(nameCustomer(e)));      
+        note(el) <- STRING[255](CONCAT '','Предыдущее значение: ', PREV(nameCustomer(e)));      
         supplier(el) <- supplier(e);
         customer(el) <- customer(e);
     }

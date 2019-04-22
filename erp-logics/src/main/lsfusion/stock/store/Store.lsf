@@ -7,9 +7,9 @@ REQUIRE System, Utils, Historizable, EmployeeStock, Tax, LegalEntity, Retail, Ba
 CLASS ChainStores 'Торговая сеть' : StockGroup;
 TABLE chainStores (ChainStores);
 
-@defineExternalizable(chainStores, VARSTRING[100]);
+@defineExternalizable(chainStores, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](ChainStores) IN id;
+name 'Наименование' = DATA ISTRING[100](ChainStores) IN id;
 
 id(ChainStores g) += id(g);
 name(ChainStores group) += name(group) IF group IS ChainStores;
@@ -19,9 +19,9 @@ name(ChainStores group) += name(group) IF group IS ChainStores;
 CLASS StoreType 'Формат магазина' : StockGroup;
 TABLE storeType (StoreType);
 
-@defineExternalizable(storeType, VARSTRING[100]);
+@defineExternalizable(storeType, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](StoreType);
+name 'Наименование' = DATA ISTRING[100](StoreType);
 
 // Неактивный
 inactive 'Неактивный' = DATA BOOLEAN (StoreType);
@@ -79,11 +79,11 @@ FORM chainStoreses 'Торговые сети'
 CLASS Store 'Магазин' : StockGroup, TaxUnit, POI;
 TABLE store (Store);
 
-@defineExternalizable(store, VARSTRING[100]);
+@defineExternalizable(store, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](Store) INDEXED IN id;
+name 'Наименование' = DATA ISTRING[100](Store) INDEXED IN id;
 
-phone 'Телефон магазина' = DATA VARSTRING[100] (Store) CHARWIDTH 20;
+phone 'Телефон магазина' = DATA STRING[100] (Store) CHARWIDTH 20;
 
 id[StockGroup](Store g) += id(g);
 name[StockGroup](Store group) += name(group) IF group IS Store;
@@ -111,10 +111,10 @@ region = DATA Region (Store);
 region(Store sg) += region(sg);
 nameRegion 'Регион' (Store store) = name(region(store));
 
-address 'Адрес' = DATA VARISTRING[150] (Store);
+address 'Адрес' = DATA ISTRING[150] (Store);
 mainAddress (Store store) += address(store);
 
-email 'E-mail' (warehouse) = DATA VARSTRING[300] (Store) CHARWIDTH 30;
+email 'E-mail' (warehouse) = DATA STRING[300] (Store) CHARWIDTH 30;
 
 latitude 'Координата X' = DATA NUMERIC[10,5](Store);
 longitude 'Координата Y' = DATA NUMERIC[10,5](Store);
@@ -171,11 +171,11 @@ CLASS DepartmentStore 'Отдел магазина' : Stock;
 TABLE departmentStore (DepartmentStore);
 TABLE departmentStoreDate (DepartmentStore, DATE);
 
-@defineExternalizable(departmentStore, VARSTRING[100]);
+@defineExternalizable(departmentStore, STRING[100]);
 id (DepartmentStore s) += id(s);
 
-name 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED CHARWIDTH 20 IN id;
-fullName 'Наименование полное' = DATA VARISTRING[150](DepartmentStore) INDEXED CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[150](DepartmentStore) INDEXED CHARWIDTH 20 IN id;
+fullName 'Наименование полное' = DATA ISTRING[150](DepartmentStore) INDEXED CHARWIDTH 20;
 
 name(DepartmentStore stock) += name(stock) IF stock IS DepartmentStore;
 fullName(DepartmentStore stock) += (OVERRIDE fullName(stock), name(stock)) IF stock IS DepartmentStore;
@@ -210,7 +210,7 @@ autoCloseOrders (DepartmentStore stock) += autoCloseOrders(stock);
 
 nameLegalEntity 'Компания' (DepartmentStore departmentStore) = name(legalEntity(departmentStore));
 
-dataPhone 'Телефон' = DATA VARSTRING[100] (DepartmentStore); 
+dataPhone 'Телефон' = DATA STRING[100] (DepartmentStore); 
 phone 'Телефон магазина' (DepartmentStore d) = OVERRIDE dataPhone(d), phone(store(d));
 phone(DepartmentStore st) += phone(st);
 
@@ -359,7 +359,7 @@ DESIGN departmentStores {
 @extendFormFilterStockAccess(d, departmentStores, company);
 
 change(Store store)  { 
-    INPUT s = VARSTRING[100] DO {
+    INPUT s = STRING[100] DO {
         name(store) <- s;
         IF s THEN {
             FOR store(DepartmentStore dep) == store AND name(store) DO {

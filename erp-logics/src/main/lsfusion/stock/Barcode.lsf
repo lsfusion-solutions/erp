@@ -5,14 +5,14 @@ REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document;
 CLASS Barcode 'Штрих код';
 TABLE barcode (Barcode);
 
-id 'Штрих код' = DATA VARSTRING[15] (Barcode) IN id CHARWIDTH 15 NOFLEX INDEXED DEFAULTCOMPARE 'CONTAINS';
+id 'Штрих код' = DATA STRING[15] (Barcode) IN id CHARWIDTH 15 NOFLEX INDEXED DEFAULTCOMPARE 'CONTAINS';
 WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
-@defineExternalizable(barcode, VARSTRING[100], ext);
+@defineExternalizable(barcode, STRING[100], ext);
 
 dataDate 'Дата действия' = DATA DATE (Barcode);
 date 'Дата действия' = OVERRIDE dataDate(Barcode barcode), (2001_01_01 IF barcode IS Barcode) IN base MATERIALIZED;
 
-caption 'Описание' = DATA VARISTRING[30](Barcode);
+caption 'Описание' = DATA ISTRING[30](Barcode);
 
 barcode (id, DATE date) =
     GROUP LAST Barcode barcode
@@ -20,7 +20,7 @@ barcode (id, DATE date) =
           WHERE date(barcode) <= (date AS DATE)
           BY id(barcode) COMPLEX;
 
-barcode (VARSTRING[15] id) = barcode(id, currentDate());
+barcode (STRING[15] id) = barcode(id, currentDate());
 active 'Активный' (Barcode barcode) = barcode(id(barcode)) == barcode MATERIALIZED;
 
 WHEN CHANGED(id(Barcode b) IF active(b)) AND NOT CHANGED(extId(b)) DO
@@ -38,7 +38,7 @@ completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode
 
 allowIncorrectBarcode 'Разрешить некорректные штрихкоды' = DATA BOOLEAN();
 
-incorrectBarcode (VARSTRING[15] id) = (length(id) == 8 AND completeBarcode(left(id,7)) != id) OR 
+incorrectBarcode (STRING[15] id) = (length(id) == 8 AND completeBarcode(left(id,7)) != id) OR 
                                            (length(id) == 12 AND completeBarcode('0'+left(id,11)) != '0'+id) OR
                                            (length(id) == 13 AND completeBarcode(left(id,12)) != id) OR 
                                            (length(id) != 8 AND length(id) != 12 AND length(id) != 13);
@@ -97,9 +97,9 @@ nameSku 'Наименование' (Barcode barcode) = name(sku(barcode)) IN id;
 
 idSku 'Код SKU' (Barcode b) = overId(sku(b)) IN id;
 
-skuBarcode (VARSTRING[15] id, DATE date) = sku(barcode(id, date));
-skuBarcode (VARSTRING[15] id) = skuBarcode(id, currentDate());
-idSkuBarcode (VARSTRING[15] id) = id(skuBarcode(id));
+skuBarcode (STRING[15] id, DATE date) = sku(barcode(id, date));
+skuBarcode (STRING[15] id) = skuBarcode(id, currentDate());
+idSkuBarcode (STRING[15] id) = id(skuBarcode(id));
 
 dataBarcode = DATA Barcode (Sku);
 CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода';
@@ -119,7 +119,7 @@ changePrimary(Barcode barcode, Sku sku)  {
 allBarcodes 'Все штрих-коды' = GROUP CONCAT id(Barcode b) IF id(b), ',' ORDER id(b), b BY sku(b);
 
 idBarcode 'Штрихкод' (Sku sku) = id(barcode(sku)) IN base MATERIALIZED INDEXED;
-idBarcodeSku 'Штрихкод' (VARSTRING[100] id) = id(barcode(sku(id)));
+idBarcodeSku 'Штрихкод' (STRING[100] id) = id(barcode(sku(id)));
 idBarcodeSku 'Штрихкод' (Batch batch) = idBarcode(sku(batch));
 idBarcodeSku 'Штрихкод' (SkuLedger skuLedger) = idBarcode(sku(skuLedger));
 dataDateBarcode 'Дата' (Sku sku) = dataDate(barcode(sku));
@@ -132,7 +132,7 @@ shortNameUOM 'Единица измерения' (Barcode barcode) = shortName(U
 idUOM 'Код единицы измерения' (Barcode barcode) = id(UOM(barcode));
 
 changeBarcode(Sku sku)  { 
-    INPUT s = VARSTRING[15] DO
+    INPUT s = STRING[15] DO
         IF s THEN { 
             IF barcode(sku) THEN {
                 id(Barcode b) <- s WHERE barcode(sku)== b;     
@@ -185,14 +185,14 @@ FORM barcodeDialog 'Штрих код'
 
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
-overPreprocessedBarcode = ABSTRACT CASE VARSTRING[15] (VARSTRING[15]);
-processedBarcode (VARSTRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS VARSTRING[15]; 
+overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
+processedBarcode (STRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[15]; 
 
 // ----------------------------------- Форма по вводу штрихкода ---------------------------- //
 
-barcodeInput 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
+barcodeInput 'Штрихкод' = DATA LOCAL STRING[15] () EVENTID 'SCANNER';
 changeBarcodeInput()  { 
-    INPUT s = VARSTRING[15] DO {
+    INPUT s = STRING[15] DO {
         barcodeInput() <- processedBarcode(s);
         formOk();
     }
@@ -215,7 +215,7 @@ DESIGN barcodeInput {
 
 sessionSku = DATA LOCAL Sku();
 
-createSkuBarcode  ABSTRACT LIST ( VARSTRING[15], DATE);
+createSkuBarcode  ABSTRACT LIST ( STRING[15], DATE);
 
 skuAdded = DATA Sku(User);
 setAddedUser(Sku sku)  { 
@@ -232,7 +232,7 @@ END
 notFormSku 'Не открывать форму SKU  при поиске штрихкода' = DATA BOOLEAN ();
 notCreateItem 'Не создавать товар на основе при поиске штрихкода' = DATA BOOLEAN ();
 isShowErrorBarcode() = notFormSku() AND notCreateItem();
-errorMessageNotFormSku 'Сообщение об ошибке при поиске штрихкода' = DATA VARSTRING[100]();
+errorMessageNotFormSku 'Сообщение об ошибке при поиске штрихкода' = DATA STRING[100]();
 
 EXTEND FORM options
     PROPERTIES () notFormSku, notCreateItem, errorMessageNotFormSku SHOWIF isShowErrorBarcode()
@@ -248,7 +248,7 @@ DESIGN options {
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail(object, sku) = GROUP MAX ###idetail detail BY object(detail), skuProp(detail);
 
-create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp)  { 
+create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  { 
     LOCAL dialogBarcodeDetail = idetailClass();
     dialogBarcodeDetail() <- idetail(object, skuProp);
     IF dialogBarcodeDetail() IS idetailClass THEN {
@@ -267,7 +267,7 @@ create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp)  {
     setAddedUser(skuProp);
 }
 
-    addDetailBarcode###idetail(###object object, VARSTRING[15] barcode)  { 
+    addDetailBarcode###idetail(###object object, STRING[15] barcode)  { 
         LOCAL dialogBarcode###skuProp = Sku ();
         dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
 
@@ -307,10 +307,10 @@ create###idetail##New (###object object, VARSTRING[15] barcode, Sku skuProp)  {
     } TOOLBAR CHANGEKEY 'F4';
 
     changeAddDetailInputBarcode###idetail(###object object)  { 
-        INPUT s = VARSTRING[15] DO
+        INPUT s = STRING[15] DO
             addDetailBarcode###idetail(object, processedBarcode(s));
     };
-    addDetailInputBarcode###idetail 'Ввод штрихкода:' (object) = DATA LOCAL VARSTRING[15] (###object) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcode###idetail 'Ввод штрихкода:' (object) = DATA LOCAL STRING[15] (###object) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcode###idetail(object); }
 END
 
@@ -320,9 +320,9 @@ END
 
 // ----------------------------------- Расширение подбора товаров ---------------------------- //
 
-seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
+seekBarcode 'Штрихкод' = DATA LOCAL STRING[15] ();
 seekSkuBarcode()  { 
-    INPUT s = VARSTRING[15] DO {
+    INPUT s = STRING[15] DO {
         seekBarcode() <- NULL;
         seekBarcode() <- s;
         seek(skuBarcode(seekBarcode(), currentDate()));

@@ -171,7 +171,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 return true;
 
             boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
-            LP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[BPSTRING[15]]");
+            LP iGroupAggr = findProperty(isItemKey ? "item[STRING[100]]" : "skuBarcode[BPSTRING[15]]");
 
             if(settings.isCheckExistence()) {
                 for (Iterator<UserPriceListDetail> iterator = userPriceListDetailList.iterator(); iterator.hasNext();) {
@@ -202,7 +202,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
+                    findProperty("extBarcode[STRING[100]]").getMapping(idBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 barcodeKey.skipKey = true;
             keys.add(barcodeKey);
@@ -214,7 +214,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField idExtraBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> extraBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idExtraBarcodeSkuField));
+                    findProperty("extBarcode[STRING[100]]").getMapping(idExtraBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 extraBarcodeKey.skipKey = true;
             keys.add(extraBarcodeKey);
@@ -226,7 +226,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> packBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdPackBarcodeSkuField));
+                    findProperty("extBarcode[STRING[100]]").getMapping(extIdPackBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 packBarcodeKey.skipKey = true;
             keys.add(packBarcodeKey);
@@ -280,7 +280,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (showField(userPriceListDetailList, "idItemGroup")) {
                 ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
                 ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
-                        findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
+                        findProperty("itemGroup[STRING[100]]").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
                 props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                         object(findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
@@ -292,7 +292,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (itemArticleLM != null && showField(userPriceListDetailList, "articleItem")) {
                 ImportField idArticleItemField = new ImportField(itemArticleLM.findProperty("idArticle[Item]"));
                 ImportKey<?> articleKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Article"),
-                        itemArticleLM.findProperty("article[VARSTRING[100]]").getMapping(idArticleItemField));
+                        itemArticleLM.findProperty("article[STRING[100]]").getMapping(idArticleItemField));
                 keys.add(articleKey);
                 props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("id[Article]").getMapping(articleKey)));
                 props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("article[Item]").getMapping(itemKey),
@@ -319,7 +319,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField idUserPriceListDetailField = new ImportField(findProperty("id[UserPriceListDetail]"));
             ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
-                    findProperty("userPriceListDetail[VARSTRING[100],UserPriceList]").getMapping(idUserPriceListDetailField, userPriceListObject));
+                    findProperty("userPriceListDetail[STRING[100],UserPriceList]").getMapping(idUserPriceListDetailField, userPriceListObject));
             keys.add(userPriceListDetailKey);
             props.add(new ImportProperty(userPriceListObject, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
             props.add(new ImportProperty(idUserPriceListDetailField, findProperty("id[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
@@ -372,7 +372,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (showField(userPriceListDetailList, "idUOMItem")) {
                 ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
-                        findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
+                        findProperty("UOM[STRING[100]]").getMapping(idUOMField));
                 keys.add(UOMKey);
                 props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
                 props.add(new ImportProperty(idUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
@@ -464,7 +464,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
                 ImportField countryVATField = new ImportField(findProperty("name[Country]"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
-                        findProperty("countryName[VARISTRING[50]]").getMapping(countryVATField));
+                        findProperty("countryName[ISTRING[50]]").getMapping(countryVATField));
                 keys.add(countryKey);
                 props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VAT[Item,Country]").getMapping(itemKey, countryKey),
                         object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
@@ -491,7 +491,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             if (itemFoodLM != null && showField(userPriceListDetailList, "alcoholItem")) {
                 ImportField nameAlcoholField = new ImportField(itemFoodLM.findProperty("name[Alcohol]"));
                 ImportKey<?> alcoholKey = new ImportKey((ConcreteCustomClass) itemFoodLM.findClass("Alcohol"),
-                        itemFoodLM.findProperty("alcoholName[VARISTRING[50]]").getMapping(nameAlcoholField));
+                        itemFoodLM.findProperty("alcoholName[ISTRING[50]]").getMapping(nameAlcoholField));
                 keys.add(alcoholKey);
                 props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("name[Alcohol]").getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
                 props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("alcohol[Item]").getMapping(itemKey),
@@ -512,7 +512,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
             LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[BPSTRING[2]]") :
-                    (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
+                    (showNameCountry ? LM.findProperty("countryName[ISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[ISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
             ImportKey<?> countryKey = countryField == null ? null :
@@ -614,13 +614,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
+                    findProperty("extBarcode[STRING[100]]").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            LP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[BPSTRING[15]]");
+            LP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[STRING[100]]" : "skuBarcode[BPSTRING[15]]");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
@@ -628,7 +628,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField idUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findProperty("id[UserAdjustmentDetail]"));
             ImportKey<?> userAdjustmentDetailKey = new ImportKey((ConcreteCustomClass) stockAdjustmentLM.findClass("UserAdjustmentDetail"),
-                    stockAdjustmentLM.findProperty("userAdjustmentDetail[VARSTRING[100],UserAdjustment]").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
+                    stockAdjustmentLM.findProperty("userAdjustmentDetail[STRING[100],UserAdjustment]").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
             keys.add(userAdjustmentDetailKey);
             props.add(new ImportProperty(userAdjustmentObject, stockAdjustmentLM.findProperty("userAdjustment[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey)));
             props.add(new ImportProperty(idUserAdjustmentDetailField, stockAdjustmentLM.findProperty("id[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey)));

@@ -3,10 +3,10 @@ MODULE ImportSupermag;
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
         PurchaseInvoice, PurchaseShipment, PricingPurchase;
 
-host 'Хост' = DATA VARISTRING[30]();
-base 'База' = DATA VARISTRING[100]();
-login 'Логин' = DATA VARISTRING[100]();
-password 'Пароль' = DATA VARISTRING[100]();
+host 'Хост' = DATA ISTRING[30]();
+base 'База' = DATA ISTRING[100]();
+login 'Логин' = DATA ISTRING[100]();
+password 'Пароль' = DATA ISTRING[100]();
 
 EXTEND FORM integrationData PROPERTIES () host, base, login, password;
 
@@ -34,8 +34,8 @@ idOrder (ItemGroup g) = GROUP CONCAT TEXT (order(ItemGroup gg)) + '.' IF level(g
 importItemGroup 'Импорт товарных групп' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL tree = VARISTRING[100] (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACARDCLASS' TO file;
@@ -48,12 +48,12 @@ importItemGroup 'Импорт товарных групп' () {
     }
     
     FOR id(INTEGER i) AND id(i) != 0 AND NOT itemGroup(TEXT (id(i))) DO NEW g = ItemGroup {
-        id(g) <- VARISTRING[100] (id(i));
+        id(g) <- ISTRING[100] (id(i));
     }
     
     LOCAL level = INTEGER (INTEGER);
     LOCAL parent = TEXT (INTEGER);
-    LOCAL idOrder = VARISTRING[20](ItemGroup);
+    LOCAL idOrder = ISTRING[20](ItemGroup);
     
     level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
     parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
@@ -86,11 +86,11 @@ importUOM 'Импорт единиц измерений' () {
     IMPORT TABLE FROM file() TO id, name, abb;
     
     FOR id(INTEGER i) AND NOT UOM(TEXT (id(i))) DO NEW u = UOM {
-        id(u) <- VARISTRING[100] (id(i));
+        id(u) <- ISTRING[100] (id(i));
     }
     
     FOR UOM u = UOM(TEXT (id(INTEGER i))) DO {
-        id(u) <- VARISTRING[100] (id(i));
+        id(u) <- ISTRING[100] (id(i));
         name(u) <- name(i);
         shortName(u) <- abb(i);
         factor(u) <- 1;
@@ -110,7 +110,7 @@ importItem 'Импорт товаров' () {
     LOCAL idClass = INTEGER (INTEGER);
     LOCAL country = TEXT (INTEGER);
     LOCAL accepted = INTEGER (INTEGER);
-    LOCAL scale = VARSTRING[1] (INTEGER);
+    LOCAL scale = STRING[1] (INTEGER);
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
@@ -129,7 +129,7 @@ importItem 'Импорт товаров' () {
     
     logToFile('importSupermag', 'importItem_2');
     
-    FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](VARISTRING[100] id) DO NEW s = Item {
+    FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](ISTRING[100] id) DO NEW s = Item {
         id(s) <- id;
     }
     
@@ -160,7 +160,7 @@ importItem 'Импорт товаров' () {
     name(INTEGER i) <- left(name(i), 15);
     
     FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
-        id(b) <- VARISTRING[15] (name(i));
+        id(b) <- ISTRING[15] (name(i));
     }
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
@@ -183,8 +183,8 @@ DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItem()); } }
 
 importItemAttribute 'Импорт доп. свойств товаров' () {
     
-    LOCAL id = VARISTRING[50] (INTEGER);
-    LOCAL property = VARISTRING[50] (INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL property = ISTRING[50] (INTEGER);
     LOCAL value = TEXT (INTEGER);
     
     LOCAL file = FILE ();
@@ -208,7 +208,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     logToFile('importSupermag', 'importItemAttribute_3');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == '1' BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
-        name(b) <- VARISTRING[50] (name);
+        name(b) <- ISTRING[50] (name);
     }
     FOR property(INTEGER i) == '1' DO {
         brand(Item s) <- brandName(value(i)) WHERE s == item(id(i));
@@ -217,7 +217,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     logToFile('importSupermag', 'importItemAttribute_4');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manufacturer' BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
-        name(m) <- VARISTRING[200] (name);
+        name(m) <- ISTRING[200] (name);
     }
     FOR property(INTEGER i) == 'manufacturer' DO {
         manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(id(i));
@@ -226,7 +226,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     logToFile('importSupermag', 'importItemAttribute_5');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
-        name(c) <- VARISTRING[50] (name);
+        name(c) <- ISTRING[50] (name);
     }
     FOR property(INTEGER i) == 'manCountry' DO {
         country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(id(i));
@@ -243,20 +243,20 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     
     FOR property(INTEGER i) == 'expDate' DO {
         expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(id(i));
-        expiryText(Item s) <- VARISTRING[100] (value(i)) WHERE s = item(id(i));
+        expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(id(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_8');
     
     FOR property(INTEGER i) == 'storeTemperature' DO {
-        conditionsText(Item s) <- VARISTRING[100] (value(i)) WHERE s = item(id(i));
+        conditionsText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(id(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_9');
     
     FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
         AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
-        conditionsText(Item s) <- CONCAT '', conditionsText(s), ', влажность: ' + VARISTRING[100] (value(i)) WHERE s = item(id(i));
+        conditionsText(Item s) <- CONCAT '', conditionsText(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(id(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_10');
@@ -274,8 +274,8 @@ idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + 
 importSupplierGroup 'Импорт групп поставщиков' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL tree = VARISTRING[100] (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SASUPPLIERCLASS' TO file;
@@ -308,8 +308,8 @@ DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSupplierGroup())
 importCustomerGroup 'Импорт групп покупателей' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL tree = VARISTRING[100] (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACLIENTCLASS' TO file;
@@ -341,19 +341,19 @@ DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCustomerGroup())
 importLegalEntity 'Импорт организаций' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
-    LOCAL shortName = VARISTRING[255] (INTEGER);
-    LOCAL inn = VARISTRING[20] (INTEGER);
-    LOCAL address = VARISTRING[255] (INTEGER);
-    LOCAL faddress = VARISTRING[255] (INTEGER);
-    LOCAL tel = VARISTRING[40] (INTEGER);
-    LOCAL fax = VARISTRING[40] (INTEGER);
-    LOCAL email = VARISTRING[255] (INTEGER);
-    LOCAL okpo = VARISTRING[40] (INTEGER);
-    LOCAL kpp = VARISTRING[9] (INTEGER);
-    LOCAL commentary = VARISTRING[255] (INTEGER);
-    LOCAL gln = VARISTRING[13] (INTEGER);
-    LOCAL own = VARISTRING[1] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL shortName = ISTRING[255] (INTEGER);
+    LOCAL inn = ISTRING[20] (INTEGER);
+    LOCAL address = ISTRING[255] (INTEGER);
+    LOCAL faddress = ISTRING[255] (INTEGER);
+    LOCAL tel = ISTRING[40] (INTEGER);
+    LOCAL fax = ISTRING[40] (INTEGER);
+    LOCAL email = ISTRING[255] (INTEGER);
+    LOCAL okpo = ISTRING[40] (INTEGER);
+    LOCAL kpp = ISTRING[9] (INTEGER);
+    LOCAL commentary = ISTRING[255] (INTEGER);
+    LOCAL gln = ISTRING[13] (INTEGER);
+    LOCAL own = ISTRING[1] (INTEGER);
     LOCAL clientClass = INTEGER (INTEGER);
     LOCAL supplierClass = INTEGER (INTEGER);
     
@@ -364,26 +364,26 @@ importLegalEntity 'Импорт организаций' () {
     IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass;
     
     FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
-        id(s) <- VARISTRING[100] (id(i));
+        id(s) <- ISTRING[100] (id(i));
         
         NEW w = Warehouse {
-            name(w) <- VARISTRING[150](shortName(i));
-            address(w) <- VARISTRING[150](faddress(i));
-            id(w) <- VARISTRING[100](id(i));
+            name(w) <- ISTRING[150](shortName(i));
+            address(w) <- ISTRING[150](faddress(i));
+            id(w) <- ISTRING[100](id(i));
             legalEntity(w) <- s;
             stockGroup(w) <- warehouseGroup('external');
         }
     }
     
     FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
-        fullName(s) <- VARISTRING[200] (name(i));
-        name(s) <- VARISTRING[150] (OVERRIDE shortName(i), name(i));
+        fullName(s) <- ISTRING[200] (name(i));
+        name(s) <- ISTRING[150] (OVERRIDE shortName(i), name(i));
         UNP(s) <- left(inn(i), 9);
-        dataAddress(s, DATE d) <- VARISTRING[150] (address(i)) WHERE d == currentDate();
-        dataPostAddress(s, DATE d) <- VARISTRING[150](faddress(i)) WHERE d == currentDate();
+        dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
+        dataPostAddress(s, DATE d) <- ISTRING[150](faddress(i)) WHERE d == currentDate();
         dataPhone(s, DATE d) <- CONCAT ', ', tel(i), fax(i) WHERE d == currentDate();
         email(s) <- email(i);
-        OKPO(s) <- VARISTRING[20] (okpo(i));
+        OKPO(s) <- ISTRING[20] (okpo(i));
         note(s) <- commentary(i);
         GLN(s) <- gln(i);
         isCompany(s) <- own(i) == '1';
@@ -408,7 +408,7 @@ importStore 'Импорт магазинов' () {
     IMPORT TABLE FROM file() TO id, name;
     
     FOR id(INTEGER i) AND id(i) != 0 AND NOT stockGroup(TEXT (id(i))) DO NEW g = Store {
-        id(g) <- VARISTRING[100] (id(i));
+        id(g) <- ISTRING[100] (id(i));
         legalEntity(g) <- legalEntity('534');
     }
     
@@ -452,9 +452,9 @@ DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStoreType()); } 
 importDepartmentStore 'Импорт отделов магазинов' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
     LOCAL idClass = INTEGER (INTEGER);
-    LOCAL address = VARISTRING[255] (INTEGER);
+    LOCAL address = ISTRING[255] (INTEGER);
     LOCAL idFormat = INTEGER (INTEGER);
     LOCAL idCompany = INTEGER (INTEGER);
     
@@ -465,17 +465,17 @@ importDepartmentStore 'Импорт отделов магазинов' () {
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany;
     
     FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) DO NEW s = DepartmentStore {
-        id(s) <- VARISTRING[100] (id(i));
+        id(s) <- ISTRING[100] (id(i));
     }
     
     FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) DO {
         
-        name(s) <- VARISTRING[150](name(i));
+        name(s) <- ISTRING[150](name(i));
         store(s) <- store(TEXT (idClass(i)));
     }
     
     FOR INTEGER i = [GROUP LAST INTEGER ii ORDER idFormat(ii), address(ii) BY store(TEXT (idClass(ii)))](Store st) DO {
-        address(st) <- VARISTRING[150](address(i));
+        address(st) <- ISTRING[150](address(i));
         storeType(st) <- storeType('T' + idFormat(i));
         legalEntity(st) <- legalEntity(TEXT (idCompany(i)));
     }
@@ -486,7 +486,7 @@ importDepartmentStore 'Импорт отделов магазинов' () {
 EXTEND FORM integrationData PROPERTIES importDepartmentStore();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importDepartmentStore()); } }
 
-id = DATA VARISTRING[100](UserPriceListDetail) INDEXED;
+id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
 userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
 
 daysSupplier 'Кол-во дней для импорта прайсов поставщика' = DATA INTEGER ();
@@ -497,15 +497,15 @@ EXTEND FORM integrationData PROPERTIES () daysSupplier;
 
 importPriceListSupplier 'Импорт прайсов поставщика' () {
     
-    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
     LOCAL date = DATE (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
     LOCAL begin = DATE (INTEGER);
     LOCAL end = DATE (INTEGER);
     LOCAL idCompany = INTEGER (INTEGER);
-    LOCAL title = VARISTRING[255] (INTEGER);
+    LOCAL title = ISTRING[255] (INTEGER);
     LOCAL paymentDelay = INTEGER (INTEGER);
-    LOCAL isCalendarDelay = VARISTRING[1] (INTEGER);
+    LOCAL isCalendarDelay = ISTRING[1] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
@@ -525,7 +525,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
         
         operation(p) <- PriceList.operation('supplier');
-        number(p) <- VARISTRING[28] (id(p));
+        number(p) <- ISTRING[28] (id(p));
         date(p) <- date(i);
         time(p) <- 00:00;
         isPosted(p) <- posted(i) == 0 OR posted(i) == 2;
@@ -540,10 +540,10 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     logToFile('importSupermag', 'importPriceListSupplier_3');
     
-    LOCAL type = VARISTRING[2](INTEGER);
-    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
-    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL packSize = NUMERIC[14,3](INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
@@ -629,12 +629,12 @@ DESIGN PriceList.operation {
 
 importPriceListRetail 'Импорт розничных прайсов' (DATE df, DATE dt) {
     
-    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
     LOCAL dateTime = DATETIME (INTEGER);
     LOCAL reason = INTEGER (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
-    LOCAL comment = VARISTRING[255] (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
@@ -649,8 +649,8 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
     logToFile('importSupermag', 'importPriceListRetail_2');
     
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO NEW o = PriceList.Operation {
-        id(o) <- VARISTRING[100](r);
-        name(o) <- VARISTRING[100](r);
+        id(o) <- ISTRING[100](r);
+        name(o) <- ISTRING[100](r);
         allRoles(o) <- TRUE;
         groupType(o) <- SystemGroupType.skuGroupType;
         dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
@@ -669,7 +669,7 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
         
         operation(p) <- PriceList.operation(TEXT (reason(i)));
-        number(p) <- VARISTRING[28] (id(p));
+        number(p) <- ISTRING[28] (id(p));
         date(p) <- DATE (dateTime(i));
         time(p) <- TIME (dateTime(i));
         fromDate(p) <- DATE (dateTime(i));
@@ -684,11 +684,11 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
     
     logToFile('importSupermag', 'importPriceListRetail_3');
     
-    LOCAL type = VARISTRING[2](INTEGER);
-    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
-    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL aReason = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     LOCAL skip = BOOLEAN (INTEGER);
@@ -750,7 +750,7 @@ DESIGN integrationData {
 importCalcPriceListType 'Импорт расчетных видов цен' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL name = VARISTRING[50] (INTEGER);
+    LOCAL name = ISTRING[50] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
@@ -758,7 +758,7 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
     IMPORT TABLE FROM file() TO id, name;
     
     FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
-        id(s) <- VARISTRING[100] (id(i));
+        id(s) <- ISTRING[100] (id(i));
     }
     
     FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {
@@ -778,9 +778,9 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
     
     IMPORT TABLE FROM file() TO id, idGroup, markup;
     
-    LOCAL idItemGroup = VARSTRING[100](INTEGER);
+    LOCAL idItemGroup = STRING[100](INTEGER);
     
-    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, VARSTRING[100](idGroup(i));
+    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
     
     FOR id(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (id(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
         dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
@@ -794,10 +794,10 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
 
-id = DATA VARSTRING[100](Range.Range);
+id = DATA STRING[100](Range.Range);
 range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
 
-nameImport 'Наименование для импорта' = DATA VARSTRING[50](Store);
+nameImport 'Наименование для импорта' = DATA STRING[50](Store);
 
 EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
 EXTEND FORM store PROPERTIES nameImport(s);
@@ -810,8 +810,8 @@ DESIGN store {
 
 importRange 'Импорт ассортиментных матриц' () {
     
-    LOCAL id = VARSTRING[50] (INTEGER);
-    LOCAL name = VARISTRING[50] (INTEGER);
+    LOCAL id = STRING[50] (INTEGER);
+    LOCAL name = ISTRING[50] (INTEGER);
     LOCAL store = Store(INTEGER);
     LOCAL rangeRev = RangeRev(INTEGER);
     
@@ -824,7 +824,7 @@ importRange 'Импорт ассортиментных матриц' () {
     
     FOR itemGroupRoot(ItemGroup g, 2) == g AND NOT range(id(g)) DO NEW r = Range.Range {
         id(r) <- id(g);
-        name(r) <- VARISTRING[100](name(g));
+        name(r) <- ISTRING[100](name(g));
         inData(r, g) <- TRUE;
         
         NEW rr = RangeRev {
@@ -849,19 +849,19 @@ scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
 useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN ();
 
 date 'Дата ТТН' = DATA LOCAL DATE (INTEGER);
-num 'Номер ТТН' = DATA LOCAL VARSTRING[28](INTEGER);
-series 'Серия ТТН' = DATA LOCAL VARSTRING[2](INTEGER);
+num 'Номер ТТН' = DATA LOCAL STRING[28](INTEGER);
+series 'Серия ТТН' = DATA LOCAL STRING[2](INTEGER);
 spec 'Код для импорта' = DATA LOCAL INTEGER (INTEGER);
 
 idSupplierInt 'Код поставщика'= DATA LOCAL INTEGER (INTEGER);
-idSupplier 'Код поставщика'= DATA LOCAL VARISTRING[100] (INTEGER);
+idSupplier 'Код поставщика'= DATA LOCAL ISTRING[100] (INTEGER);
 idCustomerStockInt 'Код склада покупателя'= DATA LOCAL INTEGER (INTEGER);
-idCustomerStock 'Код склада покупателя'= DATA LOCAL VARISTRING[100] (INTEGER);
+idCustomerStock 'Код склада покупателя'= DATA LOCAL ISTRING[100] (INTEGER);
 
 id 'Код накладной'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock(i), series(i), num(i)), 'nodoc' IF imported(i);
 idDetail 'Код строки'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock(i), series(i), num(i), spec(i)), 'nodoc' IF imported(i);
 
-idSku 'Код товара'= DATA LOCAL VARSTRING[100](INTEGER);
+idSku 'Код товара'= DATA LOCAL STRING[100](INTEGER);
 
 quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
 price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
@@ -901,10 +901,10 @@ importInit 'Импорт остатков' ()  {
        
     logToFile('importSupermag', 'importInit_2');
     
-    idSupplier(INTEGER r) <- OVERRIDE VARISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
-    idCustomerStock(INTEGER r) <- VARISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
+    idSupplier(INTEGER r) <- OVERRIDE ISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
+    idCustomerStock(INTEGER r) <- ISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
     date(INTEGER r) <- 2018_01_01 WHERE imported(r) AND NOT date(r);
-    retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(VARISTRING[100] (idCustomerStockInt(r))) IS Warehouse;
+    retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(ISTRING[100] (idCustomerStockInt(r))) IS Warehouse;
     
     LOCAL supplier = LegalEntity(INTEGER);
     supplier(INTEGER r) <- legalEntity(idSupplier(r)) WHERE imported(r); 
@@ -912,10 +912,10 @@ importInit 'Импорт остатков' ()  {
     LOCAL incl =  BOOLEAN (Purchase.UserInvoiceDetail);
     
     //шапки
-    FOR [GROUP SUM 1 BY id(INTEGER r)](VARISTRING[100] id) AND NOT Purchase.userInvoice(id) DO NEW i = Purchase.UserInvoice {
+    FOR [GROUP SUM 1 BY id(INTEGER r)](ISTRING[100] id) AND NOT Purchase.userInvoice(id) DO NEW i = Purchase.UserInvoice {
         id(i) <- id;
     }
-    FOR INTEGER r == [GROUP MIN INTEGER ir BY id(ir)](VARISTRING[100] id) AND Purchase.UserInvoice i == Purchase.userInvoice(id) DO {
+    FOR INTEGER r == [GROUP MIN INTEGER ir BY id(ir)](ISTRING[100] id) AND Purchase.UserInvoice i == Purchase.userInvoice(id) DO {
         
         supplier(i) <- OVERRIDE supplier(r), legalEntity(stock(idCustomerStock(r)));
         supplierStock(i) <- IF supplier(r) THEN minStock(supplier(r)) ELSE stock(idCustomerStock(r));
@@ -1023,11 +1023,11 @@ dateFromOrder 'Дата с' = DATA DATE ();
 
 importOrder 'Импорт заказов' () {
     
-    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
     LOCAL docstate = INTEGER (INTEGER);
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL idStock = INTEGER (INTEGER);
-    LOCAL comment = VARISTRING[255] (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL date = DATE (INTEGER);
     LOCAL supplyDate = DATE (INTEGER);
     LOCAL supplyTimeMin = INTEGER (INTEGER);
@@ -1054,10 +1054,10 @@ importOrder 'Импорт заказов' () {
         number(o) <- id(i);
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- docstate(i) == 2;
-        supplier(o) <- legalEntity(VARISTRING[100] (idSupplier(i)));
-        supplierStock(o) <- stock(VARISTRING[100] (idSupplier(i)));
-        customerStock(o) <- stock(VARISTRING[100] (idStock(i)));
-        customer(o) <- legalEntity(stock(VARISTRING[100] (idStock(i))));
+        supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
+        supplierStock(o) <- stock(ISTRING[100] (idSupplier(i)));
+        customerStock(o) <- stock(ISTRING[100] (idStock(i)));
+        customer(o) <- legalEntity(stock(ISTRING[100] (idStock(i))));
         date(o) <- date(i);
         time(o) <- 00:00;
         shipmentDate(o) <- supplyDate(i);
@@ -1066,13 +1066,13 @@ importOrder 'Импорт заказов' () {
     
     logToFile('importSupermag', 'importOrder_3');
     
-    LOCAL type = VARISTRING[2](INTEGER);
-    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL totalPrice = NUMERIC[19,4](INTEGER);
     LOCAL quantity = NUMERIC[14,3](INTEGER);
-    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
@@ -1128,12 +1128,12 @@ dateFromPT () = toDateDDMMYY(dateFromP());
 
 importPriceListPromotion 'Импорт акционных прайсов' () {
     
-    LOCAL id = VARISTRING[50] (INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
     LOCAL date = DATE (INTEGER);
     LOCAL begin = DATETIME (INTEGER);
     LOCAL end = DATETIME (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
-    LOCAL name = VARISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
@@ -1153,7 +1153,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
         
         operation(p) <- PriceList.operation('promotion');
-        number(p) <- VARISTRING[28] (id(p));
+        number(p) <- ISTRING[28] (id(p));
         date(p) <- date(i);
         time(p) <- 00:00;
         isPosted(p) <- posted(i) != 1;
@@ -1171,9 +1171,9 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     
     logToFile('importSupermag', 'importPriceListPromotion_3');
     
-    LOCAL idDoc = VARISTRING[50](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
-    LOCAL idItem = VARISTRING[50](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     

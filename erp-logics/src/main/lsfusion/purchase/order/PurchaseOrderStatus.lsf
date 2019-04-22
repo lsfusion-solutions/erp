@@ -55,7 +55,7 @@ isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
 isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
 isRejected(UserOrder o) += isRejected(o);  
 
-status 'Статус заказа' = ABSTRACT CASE VARISTRING[20] (Order);
+status 'Статус заказа' = ABSTRACT CASE ISTRING[20] (Order);
 calcStatus 'Статус заказа' = CASE
     WHEN isClosed(Order o) THEN 'Закрыт'
     WHEN shippedOrderDetail(o) THEN 'Принят'
@@ -97,7 +97,7 @@ EXTEND FORM orders
     PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
 ;
 
-fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () CHARWIDTH 30;
+fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA STRING[300] () CHARWIDTH 30;
 notUseUserEmail 'Не использовать E-mail пользователя' = DATA BOOLEAN ();  
 messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
 
@@ -144,13 +144,13 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
 ; }
 
-overEmailList = ABSTRACT VARSTRING[800](Order);
+overEmailList = ABSTRACT STRING[800](Order);
 
 EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
-notEmailSend = DATA VARSTRING[10](Purchase.Order);
+notEmailSend = DATA STRING[10](Purchase.Order);
 
 logSendDocumentOrder(Purchase.Order o)  { 
 	NEW d = DocumentLog {
@@ -160,10 +160,10 @@ logSendDocumentOrder(Purchase.Order o)  {
 	    seriesDocument(d) <- series(o); 
 	    dateDocument(d) <- date(o);
 	    typeChange(d) <- TypeChange.email;
-	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE VARSTRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
+	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
 	    hostnameComputer(d) <- hostnameCurrentComputer();
 	    userLogin(d) <- login(currentUser()); 
-	    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+	    nameContact(d) <- STRING[100](name[Contact](currentUser()));
 	    dateTimeSession(d) <- currentDateTime();  
 	    supplierStock(d) <- supplierStock(o);
 	    customerStock(d) <- customerStock(o);
@@ -206,7 +206,7 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
     selected(Order o) <- NULL;
 }
 
-provider 'Доставка' = ABSTRACT CASE VARISTRING[20] (Order);
+provider 'Доставка' = ABSTRACT CASE ISTRING[20] (Order);
 provider(Order o) += WHEN (OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o))) THEN 'e-mail';
 
 EXTEND FORM orders

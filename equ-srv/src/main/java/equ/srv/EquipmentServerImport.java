@@ -25,13 +25,13 @@ public class EquipmentServerImport {
             List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
+            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[STRING[100]]").getMapping(idPaymentField));
             keys.add(paymentKey);
             props.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
             fields.add(idPaymentField);
 
             ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
             keys.add(receiptKey);
             props.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
@@ -78,13 +78,13 @@ public class EquipmentServerImport {
             List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
+            ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[STRING[100]]").getMapping(idPaymentField));
             keys.add(paymentKey);
             props.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
             fields.add(idPaymentField);
 
             ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+            ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
             keys.add(receiptKey);
             props.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
@@ -130,13 +130,13 @@ public class EquipmentServerImport {
             List<ImportKey<?>> paymentGiftCardKeys = new ArrayList<>();
 
             ImportField idPaymentGiftCardField = new ImportField(giftCardLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentGiftCardField));
+            ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[STRING[100]]").getMapping(idPaymentGiftCardField));
             paymentGiftCardKeys.add(paymentGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idPaymentGiftCardField, giftCardLM.findProperty("id[Payment]").getMapping(paymentGiftCardKey)));
             paymentGiftCardFields.add(idPaymentGiftCardField);
 
             ImportField idReceiptGiftCardField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptGiftCardField));
+            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptGiftCardField));
             paymentGiftCardKeys.add(receiptGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idReceiptGiftCardField, giftCardLM.findProperty("receipt[Payment]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("Receipt")).getMapping(receiptGiftCardKey)));
@@ -158,7 +158,7 @@ public class EquipmentServerImport {
             paymentGiftCardFields.add(numberPaymentGiftCardField);
 
             ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
-            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
             paymentGiftCardKeys.add(giftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
@@ -206,13 +206,13 @@ public class EquipmentServerImport {
             List<ImportKey<?>> paymentGiftCardKeys = new ArrayList<>();
 
             ImportField idPaymentGiftCardField = new ImportField(giftCardLM.findProperty("id[Payment]"));
-            ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentGiftCardField));
+            ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[STRING[100]]").getMapping(idPaymentGiftCardField));
             paymentGiftCardKeys.add(paymentGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idPaymentGiftCardField, giftCardLM.findProperty("id[Payment]").getMapping(paymentGiftCardKey)));
             paymentGiftCardFields.add(idPaymentGiftCardField);
 
             ImportField idReceiptGiftCardField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
-            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptGiftCardField));
+            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptGiftCardField));
             paymentGiftCardKeys.add(receiptGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idReceiptGiftCardField, giftCardLM.findProperty("receipt[Payment]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("Receipt")).getMapping(receiptGiftCardKey)));
@@ -234,7 +234,7 @@ public class EquipmentServerImport {
             paymentGiftCardFields.add(numberPaymentGiftCardField);
 
             ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
-            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[STRING[100]]").getMapping(idGiftCardField));
             paymentGiftCardKeys.add(giftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));

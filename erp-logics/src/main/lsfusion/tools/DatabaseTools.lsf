@@ -35,7 +35,7 @@ loadCurSize 'Заполнить размеры таблиц'(){
              'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
         TO file;
     
-    IMPORT FROM file() FIELDS VARSTRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
+    IMPORT FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
         curDataSize(Table t) <- t_size WHERE lower(sid(t)) == table;
         curIndexSize(Table t) <- i_size WHERE lower(sid(t)) == table;
     }
@@ -115,7 +115,7 @@ loadCurRows 'Заполнить количество записей'(){
         EXEC 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
         TO file;
     
-    IMPORT FROM file() FIELDS VARSTRING[100] table, LONG size DO {
+    IMPORT FROM file() FIELDS STRING[100] table, LONG size DO {
         curRows(Table t) <- size WHERE lower(sid(t)) == table;
     }
 }

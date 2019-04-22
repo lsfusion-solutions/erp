@@ -13,7 +13,7 @@ DESIGN options {
 CLASS CustomsZone 'Таможенная зона';
 TABLE customsZone(CustomsZone);
 
-name 'Наименование' = DATA VARISTRING[50](CustomsZone) IN id;
+name 'Наименование' = DATA ISTRING[50](CustomsZone) IN id;
 
 customsZone (name) = GROUP AGGR CustomsZone customsZone WHERE customsZone IS CustomsZone BY name(customsZone);
 
@@ -26,12 +26,12 @@ nameDefaultTypeExchange  'Тип обмена (по умолч.)' (CustomsZone c
 CLASS CustomsGroup 'Позиция ТН ВЭД';
 TABLE customsGroup (CustomsGroup);
 
-name 'Наименование' = DATA VARISTRING[1000](CustomsGroup) CHARWIDTH 30;
+name 'Наименование' = DATA ISTRING[1000](CustomsGroup) CHARWIDTH 30;
 
 hasCode 'Есть код' = DATA BOOLEAN (CustomsGroup) IN base;
 dateFrom 'Дата с' = DATA DATE (CustomsGroup) IN base;
 dateTo 'Дата по' = DATA DATE (CustomsGroup) IN base;
-code 'Код' = DATA VARSTRING[10](CustomsGroup) IN base CHARWIDTH 10;
+code 'Код' = DATA STRING[10](CustomsGroup) IN base CHARWIDTH 10;
 
 customsGroup (code) = GROUP AGGR CustomsGroup customsGroup WHERE customsGroup IS CustomsGroup BY code(customsGroup);
 nearestCustomsGroup  (BPSTRING[10] code) = GROUP MIN CustomsGroup customsGroup IF startsWith(code(customsGroup), code AS BPSTRING[10]) == 1;
@@ -85,10 +85,10 @@ EXTEND CLASS VATCustomsException {
     none 'Отсутствует'
 }
 
-@defineExternalizable(VATCustomsRate, VARSTRING[100]);
-@defineExternalizable(dutyCustomsRate, VARSTRING[100]);
-@defineExternalizable(registrationCustomsRate, VARSTRING[100]);
-@defineExternalizable(VATCustomsException, VARSTRING[100]);
+@defineExternalizable(VATCustomsRate, STRING[100]);
+@defineExternalizable(dutyCustomsRate, STRING[100]);
+@defineExternalizable(registrationCustomsRate, STRING[100]);
+@defineExternalizable(VATCustomsException, STRING[100]);
 
 // НДС
 range = DATA Range(VATCustomsRate);
@@ -117,7 +117,7 @@ registration 'Таможенный сбор' (CustomsGroup customsGroup, DATE da
 registration 'Таможенный сбор' (CustomsGroup customsGroup) = registration(customsGroup, currentDate());
 
 // Льгота НДС
-name 'Наименование' = DATA VARISTRING[150](VATCustomsException) IN base;
+name 'Наименование' = DATA ISTRING[150](VATCustomsException) IN base;
 number 'Номер' (VATCustomsException VATCustomsException) = PARTITION SUM 1 ORDER VATCustomsException BY customsGroup(VATCustomsException);
 VATCustomsException (customsGroup, number) = GROUP AGGR VATCustomsException VATCustomsException BY code(customsGroup(VATCustomsException)), number(VATCustomsException);
 
@@ -132,7 +132,7 @@ dataValueVATCustomsException 'Льгота НДС, %' (CustomsGroup customsGroup
 
 countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 IF VATCustomsException VATCustomsException IS VATCustomsException BY customsGroup(VATCustomsException) MATERIALIZED;
 
-nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT VARSTRING[255](name(VATCustomsException VATCustomsException))  , ', ' BY customsGroup(VATCustomsException);
+nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT STRING[255](name(VATCustomsException VATCustomsException))  , ', ' BY customsGroup(VATCustomsException);
 
 //
 customsGroup = ABSTRACT CustomsGroup(Country, Sku);
@@ -263,11 +263,11 @@ add 'Добавить'(CustomsGroup customsGroup)  {
 } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
 
-caption 'Наименование' = DATA LOCAL VARISTRING[255]() CHARWIDTH 20;
-article 'Артикул' = DATA LOCAL VARSTRING[100]() CHARWIDTH 10;
+caption 'Наименование' = DATA LOCAL ISTRING[255]() CHARWIDTH 20;
+article 'Артикул' = DATA LOCAL STRING[100]() CHARWIDTH 10;
 originalCustomsGroup 'ТНВЭД (ориг)' = DATA LOCAL BPSTRING[100] () CHARWIDTH 10 NOFLEX;
-composition 'Состав' = DATA LOCAL VARSTRING[255]() CHARWIDTH 40;
-gender 'Пол' = DATA LOCAL VARSTRING[50]();
+composition 'Состав' = DATA LOCAL STRING[255]() CHARWIDTH 40;
+gender 'Пол' = DATA LOCAL STRING[50]();
 
 FORM customsGroups 'Позиции ТН ВЭД'
     OBJECTS cz = CustomsZone PANEL

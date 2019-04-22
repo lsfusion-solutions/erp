@@ -16,7 +16,7 @@ DESIGN options {
 CLASS Ownership 'Форма собственности';
 TABLE ownership (Ownership);
 
-name 'Наименование' = DATA VARISTRING[100](Ownership);
+name 'Наименование' = DATA ISTRING[100](Ownership);
 
 shortName 'Cокращенное название' = DATA BPSTRING[10] (Ownership) IN base CHARWIDTH 6 NOFLEX;
 ownershipShortName (string) = GROUP NAGGR Ownership ownership WHERE ownership IS Ownership BY shortName (ownership);
@@ -45,11 +45,11 @@ CLASS LegalEntity 'Организация' : TaxUnitGroup;
 TABLE legalEntity (LegalEntity);
 TABLE legalEntityDate (LegalEntity, DATE);
 
-@defineExternalizable(legalEntity, VARSTRING[100]);
+@defineExternalizable(legalEntity, STRING[100]);
 
 @defineNumeratedID(LegalEntity, 'Организации');
 
-name 'Наименование' = DATA VARISTRING[150](LegalEntity) IN id INDEXED CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[150](LegalEntity) IN id INDEXED CHARWIDTH 20;
 
 name(LegalEntity group) += name(group) IF group IS LegalEntity;
 
@@ -74,7 +74,7 @@ shortNameOwnership 'Форма собственности (сокр.)' = shortNa
 CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
     CHECKED BY ownership[LegalEntity] MESSAGE 'Страна формы собственности должна совпадать со страной организации';
 
-fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law CHARWIDTH 50;
+fullName 'Полное наименование' = DATA ISTRING[200] (LegalEntity) IN law CHARWIDTH 50;
 
 setFullName 'Заполнить из наименования' (LegalEntity l)  { 
     fullName(l) <- CONCAT ' ', nameOwnership(l), name(l);
@@ -82,15 +82,15 @@ setFullName 'Заполнить из наименования' (LegalEntity l)  
 
 notCalcServiceStatus 'Не заполнять статус качества сервиса' = DATA BOOLEAN(LegalEntity);
 
-@defineHistorizable(address, , 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
-@defineHistorizable(postAddress, , 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
+@defineHistorizable(address, , 'Юридический адрес', STRING[150], legalEntity, nameLegalEntity, law);
+@defineHistorizable(postAddress, , 'Почтовый адрес', STRING[150], legalEntity, nameLegalEntity, law);
 
 GROUP contact 'Контактная информация' : public;
 
-@defineHistorizable(phone, , 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contact);
-email 'E-mail' = DATA VARSTRING[400] (LegalEntity) IN contact CHARWIDTH 50;
-site 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact CHARWIDTH 50;
-contacts 'Контактные лица' = DATA VARSTRING[300] (LegalEntity) IN contact CHARWIDTH 50;
+@defineHistorizable(phone, , 'Телефон/факс', STRING[100], legalEntity, nameLegalEntity, contact);
+email 'E-mail' = DATA STRING[400] (LegalEntity) IN contact CHARWIDTH 50;
+site 'Сайт' = DATA STRING[100] (LegalEntity) IN contact CHARWIDTH 50;
+contacts 'Контактные лица' = DATA STRING[300] (LegalEntity) IN contact CHARWIDTH 50;
 
 GROUP management 'Управление' : public;
 
@@ -114,8 +114,8 @@ active 'Активная' (LegalEntity l) = l IS LegalEntity AND NOT inactive(l)
 CLASS LegalEntityGroup 'Группа организаций' ;
 TABLE legalEntityGroup(LegalEntityGroup);
 
-@defineExternalizable(legalEntityGroup, VARSTRING[100]);
-name 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
+@defineExternalizable(legalEntityGroup, STRING[100]);
+name 'Наименование' = DATA ISTRING[100](LegalEntityGroup);
 legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) MATERIALIZED INDEXED AUTOSET;
 nameLegalEntityGroup 'Группа организаций' (LegalEntity legalEntity) = name(legalEntityGroup(legalEntity));
 order 'Порядок' = DATA INTEGER (LegalEntityGroup);
@@ -145,11 +145,11 @@ GROUP license 'Лицензионная информация' : base;
 CLASS License 'Лицензия';
 TABLE license (License);
 
-number 'Номер лицензии' = DATA VARSTRING[100] (License) IN license;
+number 'Номер лицензии' = DATA STRING[100] (License) IN license;
 dateFrom 'Действует с ' = DATA DATE (License) IN license;
 dateTo 'Действует по ' = DATA DATE (License) IN license;
 
-description(License license) = VARSTRING[150]( CONCAT '; ', '№ '+number(license),
+description(License license) = STRING[150]( CONCAT '; ', '№ '+number(license),
                                                            'с '+ dateFrom(license),
                                                            'по '+ dateTo(license));
 
@@ -267,7 +267,7 @@ replace 'Объединить'(LegalEntity legalEntity)  {
 
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
 
-dataNameBooker 'ФИО главного бухгалтера' = DATA VARISTRING[250](LegalEntity);
+dataNameBooker 'ФИО главного бухгалтера' = DATA ISTRING[250](LegalEntity);
 nameBooker 'Главный бухгалтер' (LegalEntity l) = OVERRIDE dataNameBooker(l), nameCustomUserBooker(l) IN management;
 
 changeBooker(LegalEntity le)  {    
@@ -283,7 +283,7 @@ changeBooker(LegalEntity le)  {
 deleteBooker 'Удалить' (LegalEntity l, DATE d)  { dataBooker(l, d) <- NULL; } IMAGE 'delete.png';
 EXTEND FORM dialogBookerLegalEntity PROPERTIES deleteBooker(a, d) TOOLBAR;
 
-dataNameChief 'ФИО руководителя' = DATA VARISTRING[250](LegalEntity);
+dataNameChief 'ФИО руководителя' = DATA ISTRING[250](LegalEntity);
 nameChief 'Руководитель' (LegalEntity l) = OVERRIDE dataNameChief(l), nameCustomUserChief(l) IN management;
 
 changeChief(LegalEntity le)  {    

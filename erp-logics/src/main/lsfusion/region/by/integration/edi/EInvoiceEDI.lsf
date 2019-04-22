@@ -16,26 +16,26 @@ importedCustomer 'Импортирован (покупатель)' = DATA BOOLEA
 dateTimeCreated 'Создан' = DATA DATETIME (ECreditNote);
 dateTimeCreated(ECreditNote c) <- currentDateTime() WHEN (c IS ECreditNote);
 
-@defineExternalizable(eCreditNote, VARSTRING[100]);
+@defineExternalizable(eCreditNote, STRING[100]);
 dateTime 'Дата/время документа' = DATA DATETIME (ECreditNote);
-number 'Номер' = DATA VARSTRING[28] (ECreditNote);
+number 'Номер' = DATA STRING[28] (ECreditNote);
 eCreditNoteNumber (number) = GROUP NAGGR ECreditNote e BY number(e);
 
-blrapn = DATA VARSTRING[14] (ECreditNote);
+blrapn = DATA STRING[14] (ECreditNote);
 eCreditNoteBlrapn (number) = GROUP MAX ECreditNote e BY blrapn(e);
-blradf = DATA VARSTRING[14] (ECreditNote);
+blradf = DATA STRING[14] (ECreditNote);
 blradfDate = DATA DATETIME (ECreditNote);
 eCreditNoteBlradf (number) = GROUP MAX ECreditNote e BY blradf(e);
 
-actDifNumber 'Номер акта приемки' = DATA VARSTRING[28] (ECreditNote) IN id;
+actDifNumber 'Номер акта приемки' = DATA STRING[28] (ECreditNote) IN id;
 eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
 actDifDateTime 'Дата акта приемки' = DATA DATETIME (ECreditNote);
 
-deliveryNoteNumber 'Серия и номер накладной, к которой относится акт' = DATA VARSTRING[28] (ECreditNote) IN id;
+deliveryNoteNumber 'Серия и номер накладной, к которой относится акт' = DATA STRING[28] (ECreditNote) IN id;
 eCreditNoteDeliveryNoteNumber (number) = GROUP NAGGR ECreditNote e BY deliveryNoteNumber(e);
 deliveryNoteDateTime 'Дата накладной в формате ГГГГММДД, к которой относится акт приемки' = DATA DATETIME (ECreditNote);
 
-contractId 'Номер Договора, на основании которого выставляется акт приемки' = DATA VARSTRING[70] (ECreditNote);
+contractId 'Номер Договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
 contractDate 'Дата договора в формате ГГГГММДД, на основании которого выставляется акт приемки' = DATA DATE (ECreditNote);
 
 actDifNumberECreditNoteBlrapn(number) = actDifNumber(eCreditNoteBlrapn(number));
@@ -61,7 +61,7 @@ glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(c
 nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(customerStock(c));
 addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
 
-currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA VARSTRING[3] (ECreditNote);
+currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (ECreditNote);
 
 isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
 //isCancelNumber (ECreditNote c) = IF isCancel(c) THEN 1 ELSE 0;
@@ -69,7 +69,7 @@ isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
 
 CLASS ECreditNoteDetail 'Строка электронной акта приемки EDI';
 TABLE eCreditNoteDetail(ECreditNoteDetail); 
-@defineExternalizable(eCreditNoteDetail, VARSTRING[100]);
+@defineExternalizable(eCreditNoteDetail, STRING[100]);
 
 
 
@@ -103,10 +103,10 @@ signAndSendCustomerCreditNoteEDI 'Подписать и отправить (по
 eCreditNote = DATA ECreditNote(ECreditNoteDetail) NONULL DELETE INDEXED;
 
 lineItemNumber 'Порядковый номер товара' = DATA INTEGER (ECreditNoteDetail);
-lineItemID 'GTIN товара' = DATA VARSTRING[100] (ECreditNoteDetail);
-lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA VARSTRING[100] (ECreditNoteDetail);
-lineItemName 'Наименование товара' = DATA VARSTRING[500] (ECreditNoteDetail);
-lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA VARSTRING[3] (ECreditNoteDetail);
+lineItemID 'GTIN товара' = DATA STRING[100] (ECreditNoteDetail);
+lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA STRING[100] (ECreditNoteDetail);
+lineItemName 'Наименование товара' = DATA STRING[500] (ECreditNoteDetail);
+lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA STRING[3] (ECreditNoteDetail);
 
 quantityOrdered 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
 quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
@@ -133,13 +133,13 @@ FORM dialogECreditNote 'Выбор электронного акта прием�
 CLASS ECreditNoteMessage 'Сообщение по акту приемки EDI';
 TABLE eCreditNoteMessage(ECreditNoteMessage);
 
-number 'Номер' = DATA VARSTRING[24] (ECreditNoteMessage);
+number 'Номер' = DATA STRING[24] (ECreditNoteMessage);
 eCreditNoteMessage (number) = GROUP AGGR ECreditNoteMessage e BY number(e);
 eCreditNote 'Акт приемки' = DATA ECreditNote (ECreditNoteMessage) NONULL DELETE INDEXED;
 numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = number(eCreditNote(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMessage);
-code 'Код сообщения' = DATA VARSTRING[10] (ECreditNoteMessage);
-description 'Текст сообщения' = DATA VARSTRING[1000] (ECreditNoteMessage);
+code 'Код сообщения' = DATA STRING[10] (ECreditNoteMessage);
+description 'Текст сообщения' = DATA STRING[1000] (ECreditNoteMessage);
 
 backgroundVAT 'Цвет' (ECreditNoteDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
                                                    THEN RGB(255,0,0);

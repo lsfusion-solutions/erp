@@ -15,11 +15,11 @@ META createGroup(object, name, number)
 END 
 
 order 'Номер' = DATA LOCAL INTEGER(INTEGER);
-nameGroup 'Группировка' = DATA LOCAL VARSTRING[100](INTEGER);
+nameGroup 'Группировка' = DATA LOCAL STRING[100](INTEGER);
 
 countGroup = OVERRIDE (GROUP MAX order(INTEGER i)), 0;
 
-addGroup(INTEGER i, VARSTRING[100] name)  { 
+addGroup(INTEGER i, STRING[100] name)  { 
     nameGroup(i) <- name;
     order(i) <- (OVERRIDE (GROUP MAX order(INTEGER in)), 0) + 1;
 }
@@ -55,10 +55,10 @@ inReturn 'Возврат' = DATA LOCAL BOOLEAN (Operation.Operation);
 
 inSkuLedger = DATA LOCAL BOOLEAN (SkuLedger);
 
-nameGroup1 = DATA LOCAL VARSTRING[255] (SkuLedger);
-nameGroup2 = DATA LOCAL VARSTRING[255] (SkuLedger);
-nameGroup3 = DATA LOCAL VARSTRING[255] (SkuLedger);
-barcodeSku = DATA LOCAL VARSTRING[15] (SkuLedger);
+nameGroup1 = DATA LOCAL STRING[255] (SkuLedger);
+nameGroup2 = DATA LOCAL STRING[255] (SkuLedger);
+nameGroup3 = DATA LOCAL STRING[255] (SkuLedger);
+barcodeSku = DATA LOCAL STRING[15] (SkuLedger);
 
 META setNameGroup(number)
     setNameGroup##number () { 
@@ -79,7 +79,7 @@ META setNameGroup(number)
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
         }
         IF order(6) == number THEN {
-            nameGroup##number(SkuLedger sl) <- (OVERRIDE VARSTRING[255](date(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE STRING[255](date(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
         }
         IF order(7) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameLegalEntity(stock(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
@@ -138,14 +138,14 @@ DESIGN options {
     }
 }
 
-barcodeSku(VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP MAX barcodeSku(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-sum 'Сумма' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM sum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-sumVAT 'Сумма НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM sumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costSumVAT 'Сумма НДС поставщика' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costSumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costSum 'Сумма поставщика без НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costVATSum 'Сумма поставщика с НДС' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM costVATSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-markup 'Торговая надбавка' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-quantity 'Количество' (VARSTRING[255] g1, VARSTRING[255] g2, VARSTRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+barcodeSku(STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP MAX barcodeSku(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+sum 'Сумма' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+sumVAT 'Сумма НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costSumVAT 'Сумма НДС поставщика' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costSum 'Сумма поставщика без НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+costVATSum 'Сумма поставщика с НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costVATSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+markup 'Торговая надбавка' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+quantity 'Количество' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
 
 inBackSheetGroup () = GROUP CONCAT name(Group g) IF dataInSession(g) ,';';
 
@@ -160,7 +160,7 @@ FORM printGroupOperationNew 'Отчет по операциям'
     PROPERTIES() countGroup
     PROPERTIES() inBackSheetGroup, inBackSheetOperation, dFrom, dTo 
     
-    OBJECTS d = (g1 = VARSTRING[255], g2 = VARSTRING[255], g3 = VARSTRING[255]) SUBREPORT
+    OBJECTS d = (g1 = STRING[255], g2 = STRING[255], g3 = STRING[255]) SUBREPORT
     PROPERTIES nameGroup1 = VALUE(g1), nameGroup2 = VALUE(g2), nameGroup3 = VALUE(g3)
     PROPERTIES(g1,g2,g3) barcodeSku SHOWIF gSku(),
                          sum, sumVAT, costSumVAT, costSum, costVATSum, markup, quantity
@@ -258,7 +258,7 @@ changeStocksBackSheet(GroupType gt, DATE df, DATE dt)  {
 CLASS SettingOperations 'Настройка операций';
 TABLE settingOperations(SettingOperations);
 
-name 'Наименование' = DATA VARISTRING[100](SettingOperations);
+name 'Наименование' = DATA ISTRING[100](SettingOperations);
 inSession 'Отм.' = DATA BOOLEAN (SettingOperations,Operation.Operation);
 inReturn 'Возврат' = DATA BOOLEAN (SettingOperations, Operation.Operation);
 
@@ -271,7 +271,7 @@ FORM settingOperations 'Настройка операций'
     
 ;
 
-name1 'Наименование' = DATA LOCAL VARSTRING[15] ();
+name1 'Наименование' = DATA LOCAL STRING[15] ();
 a'Сохранить операции' (){
         NEW so = SettingOperations {
             name(so)<-name1() WHERE so IS SettingOperations;

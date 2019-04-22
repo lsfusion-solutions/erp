@@ -154,12 +154,12 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     
     public LP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
         if(keyType == null || keyType.equals("item"))
-            return findProperty("item[VARSTRING[100]]");
+            return findProperty("item[STRING[100]]");
         else if(keyType.equals("barcode"))
             return findProperty("skuBarcode[BPSTRING[15]]");
         else if(skuImportCodeLM != null && keyType.equals("importCode"))
             return skuImportCodeLM.findProperty("skuImportCode[BPSTRING[100]]");
-        else return findProperty("skuBatch[VARSTRING[100]]");
+        else return findProperty("skuBatch[STRING[100]]");
     }
 
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {

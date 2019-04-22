@@ -6,7 +6,7 @@ REQUIRE ZReport;
 CLASS GiftCard 'Подарочный сертификат';
 TABLE giftCard(GiftCard);
 
-id 'Код' = DATA VARSTRING[100] (GiftCard) IN id INDEXED CHARWIDTH 10;
+id 'Код' = DATA STRING[100] (GiftCard) IN id INDEXED CHARWIDTH 10;
 giftCard (id) = GROUP MAX (GiftCard giftCard) BY id (giftCard);
 countGiftCard = GROUP SUM 1 BY id (GiftCard giftCard);
 
@@ -40,14 +40,14 @@ date 'Дата' = ABSTRACT DATE (GiftCardLedger);
 seriesNumber 'Серия/Номер' (GiftCardLedger l) = seriesNumber(giftCard(l));
 sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger);
 signedSum 'Сумма' (GiftCardLedger ledger) = IF ledger IS UseGiftCard THEN -sum(ledger) ELSE sum(ledger);
-description 'Описание' = ABSTRACT VARSTRING[100] (GiftCardLedger);
-numberDocument 'Документ' = ABSTRACT VARSTRING[30](GiftCardLedger);
+description 'Описание' = ABSTRACT STRING[100] (GiftCardLedger);
+numberDocument 'Документ' = ABSTRACT STRING[30](GiftCardLedger);
 departmentStore = ABSTRACT DepartmentStore (GiftCardLedger);
 nameDepartmentStore 'Отдел магазина' (GiftCardLedger g) = name(departmentStore(g));
 nameLegalEntity 'Компания' (GiftCardLedger g) = name(legalEntity(departmentStore(g))) CHARWIDTH 10;
 show 'Просмотреть'  ABSTRACT LIST ( GiftCardLedger) TOOLBAR;
 
-namePaymentType 'Тип платежа' = ABSTRACT VARISTRING[110] (GiftCardLedger);
+namePaymentType 'Тип платежа' = ABSTRACT ISTRING[110] (GiftCardLedger);
 
 currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);
 
@@ -111,7 +111,7 @@ numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDo
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, SaleGiftCard;
 TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
 
-@defineExternalizable(receiptGiftCardSaleDetail, VARSTRING[100]);
+@defineExternalizable(receiptGiftCardSaleDetail, STRING[100]);
 
 giftCard = DATA GiftCard (ReceiptGiftCardSaleDetail);
 
@@ -167,10 +167,10 @@ dateTime(ReceiptGiftCardSaleDetail detail) += dateTime(receipt(detail));
 date(ReceiptGiftCardSaleDetail detail) += date(receipt(detail));
 sum(ReceiptGiftCardSaleDetail detail) += sum(detail) (+) extraSum(detail);
 description(ReceiptGiftCardSaleDetail detail) += OVERRIDE 'Возврат' IF isReturn(detail), 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
-numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt(detail)));
+numberDocument(ReceiptGiftCardSaleDetail detail) += STRING[30](number(receipt(detail)));
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
 isReturn(ReceiptGiftCardSaleDetail detail) += isReturn(detail);
-namePaymentType(ReceiptGiftCardSaleDetail detail) += VARISTRING[110](namePaymentType(detail));
+namePaymentType(ReceiptGiftCardSaleDetail detail) += ISTRING[110](namePaymentType(detail));
 
 edit (ReceiptGiftCardSaleDetail d) + {  DIALOG zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED; }
 
@@ -327,7 +327,7 @@ isUsedTotal 'Погашен полностью' (GiftCard giftCard) = TRUE IF us
 CLASS PaymentGiftCard : Payment, UseGiftCard;
 TABLE paymentGiftCard(PaymentGiftCard);
 
-@defineExternalizable(paymentGiftCard, VARSTRING[100]);
+@defineExternalizable(paymentGiftCard, STRING[100]);
 
 giftCard = DATA GiftCard (PaymentGiftCard) INDEXED;
 seriesNumberGiftCard 'Серия/номер' (PaymentGiftCard payment) = seriesNumber(giftCard(payment));
@@ -340,7 +340,7 @@ dateTime(PaymentGiftCard payment) += dateTime(receiptPayment(payment)) IF paymen
 date(PaymentGiftCard payment) += date(receiptPayment(payment)) IF payment IS PaymentGiftCard;
 sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
 description(PaymentGiftCard payment) += 'Погашение' IF payment IS PaymentGiftCard;
-numberDocument(PaymentGiftCard payment) += VARSTRING[30](number(receiptPayment(payment))) IF payment IS PaymentGiftCard;
+numberDocument(PaymentGiftCard payment) += STRING[30](number(receiptPayment(payment))) IF payment IS PaymentGiftCard;
 departmentStore(PaymentGiftCard payment) += departmentStore(receiptPayment(payment)) IF payment IS PaymentGiftCard;
 
 edit(PaymentGiftCard d) + { 

@@ -143,13 +143,13 @@ public class SendSalesEquipmentServer {
                 ImportField idCashDocumentField = new ImportField(cashOperationLM.findProperty("id[CashDocument]"));
 
                 ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) cashOperationLM.findClass("IncomeCashOperation"),
-                        cashOperationLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                        cashOperationLM.findProperty("cashDocument[STRING[100]]").getMapping(idCashDocumentField));
                 keysIncome.add(incomeCashOperationKey);
                 propsIncome.add(new ImportProperty(idCashDocumentField, cashOperationLM.findProperty("id[CashDocument]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(idCashDocumentField);
 
                 ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) cashOperationLM.findClass("OutcomeCashOperation"),
-                        cashOperationLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                        cashOperationLM.findProperty("cashDocument[STRING[100]]").getMapping(idCashDocumentField));
                 keysOutcome.add(outcomeCashOperationKey);
                 propsOutcome.add(new ImportProperty(idCashDocumentField, cashOperationLM.findProperty("id[CashDocument]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(idCashDocumentField);
@@ -204,7 +204,7 @@ public class SendSalesEquipmentServer {
                 fieldsOutcome.add(sumCashOutcomeCashOperationField);
 
                 ImportField idEmployeeField = new ImportField(cashOperationLM.findProperty("id[Employee]"));
-                ImportKey<?> employeeKey = new ImportKey((CustomClass) cashOperationLM.findClass("Employee"), cashOperationLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
+                ImportKey<?> employeeKey = new ImportKey((CustomClass) cashOperationLM.findClass("Employee"), cashOperationLM.findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
 
                 keysIncome.add(employeeKey);
                 propsIncome.add(new ImportProperty(idEmployeeField, cashOperationLM.findProperty("id[Employee]").getMapping(employeeKey)));
@@ -219,7 +219,7 @@ public class SendSalesEquipmentServer {
                 fieldsOutcome.add(idEmployeeField);
 
                 ImportField idZReportField = new ImportField(cashOperationLM.findProperty("id[ZReport]"));
-                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+                ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[STRING[100]]").getMapping(idZReportField));
                 zReportKey.skipKey = true;
 
                 keysIncome.add(zReportKey);
@@ -280,7 +280,7 @@ public class SendSalesEquipmentServer {
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = server.createSession()) {
 
-                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
@@ -348,7 +348,7 @@ public class SendSalesEquipmentServer {
             try {
                 for (String idZReport : idZReportList) {
                     try (DataSession session = server.createSession()) {
-                        zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
+                        zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[STRING[100]]").readClasses(session, new DataObject(idZReport)));
                         session.applyException(BL, stack);
                     }
                 }
@@ -384,7 +384,7 @@ public class SendSalesEquipmentServer {
         if(equipmentCashRegisterLM != null)
             try (DataSession session = server.createSession()) {
 
-                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
 
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);

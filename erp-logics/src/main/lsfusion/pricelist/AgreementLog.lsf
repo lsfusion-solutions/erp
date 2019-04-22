@@ -9,15 +9,15 @@ TABLE agreementLog(AgreementLog);
 
 document = DATA Agreement (AgreementLog);// INDEXED;
 
-seriesNumber 'Серия/Номер' = DATA VARSTRING[28] (AgreementLog) IN id;
+seriesNumber 'Серия/Номер' = DATA STRING[28] (AgreementLog) IN id;
 dateTimeDocument 'Дата и время соглашения' = DATA DATETIME(AgreementLog) IN id;
 fromDateTime 'Дата/время с' = DATA DATETIME(AgreementLog);
 toDateTime 'Дата/время по' = DATA DATETIME(AgreementLog);
-suppliers 'Поставщики' = DATA VARSTRING[1500] (AgreementLog) CHARWIDTH 30 IN id;
+suppliers 'Поставщики' = DATA STRING[1500] (AgreementLog) CHARWIDTH 30 IN id;
 
-hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (AgreementLog); 
-userLogin 'Логин пользователя' = DATA VARSTRING[100] (AgreementLog); 
-nameContact 'Имя пользователя' =  DATA VARSTRING[100] (AgreementLog) IN id;
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (AgreementLog); 
+userLogin 'Логин пользователя' = DATA STRING[100] (AgreementLog); 
+nameContact 'Имя пользователя' =  DATA STRING[100] (AgreementLog) IN id;
 dateTimeSession 'Время' = DATA DATETIME (AgreementLog) IN id;
 dateSession 'Дата' (AgreementLog el) = DATE(dateTimeSession(el));
 
@@ -31,7 +31,7 @@ CLASS TypeAgreementChange 'Тип изменения' {
 
 typeChange= DATA TypeAgreementChange (AgreementLog);
 nameTypeChange 'Тип изменения' (AgreementLog l) = staticCaption(typeChange(l)) IN id;
-note 'Примечание' = DATA VARSTRING[255] (AgreementLog) CHARWIDTH 20;
+note 'Примечание' = DATA STRING[255] (AgreementLog) CHARWIDTH 20;
 
 WHEN SET (Agreement e IS Agreement) DO {
     NEW l = AgreementLog {        
@@ -43,9 +43,9 @@ WHEN SET (Agreement e IS Agreement) DO {
         typeChange(l) <- TypeAgreementChange.add;
         hostnameComputer(l) <- hostnameCurrentComputer();
         userLogin(l) <- login(currentUser()); 
-        nameContact(l) <- VARSTRING[100](name(currentUser()));
+        nameContact(l) <- STRING[100](name(currentUser()));
         dateTimeSession(l) <- currentDateTime();             
-        note(l) <- VARSTRING[255]('Добавлен документ');              
+        note(l) <- STRING[255]('Добавлен документ');              
         suppliers(l) <- supplier(e);
     }
 }
@@ -59,9 +59,9 @@ WHEN DROPPED (Agreement e IS Agreement) DO {
         typeChange(l) <- TypeAgreementChange.delete;
         hostnameComputer(l) <- hostnameCurrentComputer();
         userLogin(l) <- login(currentUser()); 
-        nameContact(l) <- VARSTRING[100](name(currentUser()));
+        nameContact(l) <- STRING[100](name(currentUser()));
         dateTimeSession(l) <- currentDateTime();             
-        note(l) <- VARSTRING[255]('Удален документ');         
+        note(l) <- STRING[255]('Удален документ');         
         suppliers(l) <- PREV (supplier(e));
     }
 }
@@ -76,9 +76,9 @@ WHEN CHANGED(fromDateTime(Agreement e)) DO {
         typeChange(l) <- TypeAgreementChange.changeFrom;
         hostnameComputer(l) <- hostnameCurrentComputer();
         userLogin(l) <- login(currentUser()); 
-        nameContact(l) <- VARSTRING[100](name(currentUser()));
+        nameContact(l) <- STRING[100](name(currentUser()));
         dateTimeSession(l) <- currentDateTime();             
-        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(fromDateTime(e)) THEN VARSTRING[20](PREV(fromDateTime(e))) ELSE 'пусто');      
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', IF PREV(fromDateTime(e)) THEN STRING[20](PREV(fromDateTime(e))) ELSE 'пусто');      
         suppliers(l) <- supplier(e);
     }
 }  
@@ -93,9 +93,9 @@ WHEN CHANGED(toDateTime(Agreement e)) DO {
         typeChange(l) <- TypeAgreementChange.changeTo;
         hostnameComputer(l) <- hostnameCurrentComputer();
         userLogin(l) <- login(currentUser()); 
-        nameContact(l) <- VARSTRING[100](name(currentUser()));
+        nameContact(l) <- STRING[100](name(currentUser()));
         dateTimeSession(l) <- currentDateTime();             
-        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(toDateTime(e)) THEN VARSTRING[20](PREV(toDateTime(e))) ELSE 'пусто');      
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', IF PREV(toDateTime(e)) THEN STRING[20](PREV(toDateTime(e))) ELSE 'пусто');      
         suppliers(l) <- supplier(e);
     }
 }      
@@ -110,9 +110,9 @@ WHEN CHANGED(supplier(Agreement e)) DO {
         typeChange(l) <- TypeAgreementChange.changeSuppliers;
         hostnameComputer(l) <- hostnameCurrentComputer();
         userLogin(l) <- login(currentUser()); 
-        nameContact(l) <- VARSTRING[100](name(currentUser()));
+        nameContact(l) <- STRING[100](name(currentUser()));
         dateTimeSession(l) <- currentDateTime();             
-        note(l) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(supplier(e)) THEN VARSTRING[150](PREV(supplier(e))) ELSE 'пусто');      
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', IF PREV(supplier(e)) THEN STRING[150](PREV(supplier(e))) ELSE 'пусто');      
         suppliers(l) <- supplier(e);
     }
 }      

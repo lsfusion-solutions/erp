@@ -141,7 +141,7 @@ EXTEND FORM declarations
 // ---------------------------------- Накладные --------------------------------------------------------//
 
 // свойства товаров
-overNameCustoms = ABSTRACT VARISTRING[255](UserInvoiceDetail);
+overNameCustoms = ABSTRACT ISTRING[255](UserInvoiceDetail);
 nameCustoms 'Наименование (декл.)' (UserInvoiceDetail d) = OVERRIDE overNameCustoms(d), name(sku(d));
 
 // страна производства
@@ -398,7 +398,7 @@ declarationDeclarationInvoiceDetail (UserInvoiceDetail detail) = declaration(dec
 //userInvoiceDetailDeclarationInvoiceDetail = DATA UserInvoiceDetail (DeclarationInvoiceDetail) NONULL DELETE;
 //userInvoiceDeclarationInvoiceDetail (d) = userInvoiceUserInvoiceDetail(userInvoiceDetailDeclarationInvoiceDetail(d));  
 
-nameCustoms 'Наименование' = DATA VARISTRING[255] (DeclarationInvoiceDetail) IN id;
+nameCustoms 'Наименование' = DATA ISTRING[255] (DeclarationInvoiceDetail) IN id;
 
 //UOMDeclarationInvoiceDetail 'Ед. изм.' (d) = UOMUserInvoiceDetail (userInvoiceDetailDeclarationInvoiceDetail(d)) MATERIALIZED;
 
@@ -515,7 +515,7 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
     IF NOT filterUserInvoiceDetail(declaration) THEN {
         DELETE DeclarationInvoiceDetail d WHERE declaration(d) == declaration;
     
-        LOCAL dNameCustoms = VARISTRING[255] (UserInvoiceDetail);
+        LOCAL dNameCustoms = ISTRING[255] (UserInvoiceDetail);
         dNameCustoms(UserInvoiceDetail d) <- nameCustoms(d) WHERE declaration(d) == declaration;
     
         LOCAL dUOM = UOM (UserInvoiceDetail);
@@ -533,8 +533,8 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
         LOCAL dPrice = NUMERIC[16,4] (UserInvoiceDetail);
         dPrice(UserInvoiceDetail d) <- overridePriceUser(d) WHERE declaration(d) == declaration;
         
-        LOCAL quantity = NUMERIC[16,5] (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
-        quantity(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+        LOCAL quantity = NUMERIC[16,5] (ISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        quantity(ISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
             [ GROUP SUM quantity(UserInvoiceDetail d) IF declaration(d) == declaration
                                            BY declaration(d),
                                               dNameCustoms(d),
@@ -544,8 +544,8 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
                                               dCountry(d),
                                               dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
                                                
-        LOCAL sum = NUMERIC[18,4] (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
-        sum(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+        LOCAL sum = NUMERIC[18,4] (ISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        sum(ISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
             [ GROUP SUM sum(UserInvoiceDetail d)
                                            BY declaration(d),
                                               dNameCustoms(d),
@@ -555,8 +555,8 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
                                               dCountry(d),
                                               dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
 
-        LOCAL index = INTEGER (VARISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
-        index(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
+        LOCAL index = INTEGER (ISTRING[255], UOM, CustomsGroup, VATCustomsException, Country, NUMERIC[16,4]);
+        index(ISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) <- 
             [ GROUP MAX indexDeclaration(UserInvoiceDetail d)
                                            BY declaration(d),
                                               dNameCustoms(d),
@@ -566,7 +566,7 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
                                               dCountry(d),
                                               dPrice(d)](declaration, customsName, UOM, customsGroup, customsException, country, price);
     
-        FOR NUMERIC[16,5] quantity == quantity(VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) AND
+        FOR NUMERIC[16,5] quantity == quantity(ISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) AND
             NUMERIC[18,4] sum == sum(customsName, UOM, customsGroup, customsException, country, price) ORDER
             index(customsName, UOM, customsGroup, customsException, country, price) NEW dd=DeclarationInvoiceDetail DO {
             // Ключи
@@ -687,8 +687,8 @@ date 'Дата' (DeclarationDetail d) = date(declaration(d));
 homeCurrency (DeclarationDetail d) = homeCurrency(declaration(d));
 
 // Первичные свойства для строк деклараций
-nameCustoms 'Наименование' = DATA VARISTRING[255](DeclarationDetail);
-extraName 'Дополнительная информация' = ABSTRACT VARSTRING[617] (DeclarationDetail);
+nameCustoms 'Наименование' = DATA ISTRING[255](DeclarationDetail);
+extraName 'Дополнительная информация' = ABSTRACT STRING[617] (DeclarationDetail);
 
 UOM = DATA UOM(DeclarationDetail);
 idUOM 'Код ед. изм.' (DeclarationDetail declarationDetail) = id(UOM(declarationDetail));
@@ -785,8 +785,8 @@ DESIGN options {
     }
 }
 
-numberOrder (DeclarationDetail d) = ABSTRACT VALUE VARSTRING[100] (DeclarationDetail);
-numberOrder (DeclarationDetail d) += VARSTRING[100](codeCustomsGroup(d) IF NOT notOrderCustomsGroup());
+numberOrder (DeclarationDetail d) = ABSTRACT VALUE STRING[100] (DeclarationDetail);
+numberOrder (DeclarationDetail d) += STRING[100](codeCustomsGroup(d) IF NOT notOrderCustomsGroup());
 numberDefault 'Номер' (DeclarationDetail d) =
         PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d)
         ORDER numberOrder(d), d BY declaration(d);
@@ -878,8 +878,8 @@ number 'Номер' (DeclarationAdjustment declarationAdjustment) = DATA INTEGER
 declarationAdjustment (declarationAdjustment, number) = GROUP AGGR DeclarationAdjustment d BY declaration(d), number(d);
 
 date 'Дата' = DATA DATE (DeclarationAdjustment);
-name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
-note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) CHARWIDTH 30;
+name 'Наименование' = DATA ISTRING[150] (DeclarationAdjustment);
+note 'Примечание' = DATA STRING[100](DeclarationAdjustment) CHARWIDTH 30;
 homeSum 'Стоимость корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
 dutySum 'Пошлина корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
 VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail);
@@ -1533,8 +1533,8 @@ CLASS CustomsDocument 'Дополнительные документы декл�
 TABLE customsDocument(CustomsDocument);
 
 order 'Порядок' = DATA INTEGER (CustomsDocument);
-id 'Код' = DATA VARSTRING[20] (CustomsDocument);
-name 'Наименование' = DATA VARSTRING[150] (CustomsDocument);
+id 'Код' = DATA STRING[20] (CustomsDocument);
+name 'Наименование' = DATA STRING[150] (CustomsDocument);
 date 'Дата' = DATA DATE (CustomsDocument);
 sum 'Сумма' = DATA NUMERIC[18,4] (CustomsDocument);
 declaration = DATA Declaration (CustomsDocument);
@@ -1610,7 +1610,7 @@ TABLE payment (Payment);
 @defineDocumentDetailIndex(declaration, Payment);
 @defineDocumentDetailActions(declaration, Payment);
 
-name 'Наименование' = DATA VARISTRING[50](Payment);
+name 'Наименование' = DATA ISTRING[50](Payment);
 
 currency = DATA Currency (Payment);
 nameCurrency 'Валюта' = name(currency(Payment p)) CHARWIDTH 15;

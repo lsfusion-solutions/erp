@@ -10,7 +10,7 @@ GROUP Task 'Задачи';
 // Модуль задачи
 CLASS Type 'Тип задачи';
 TABLE type (Type);
-dataName = DATA VARSTRING[100](Type);
+dataName = DATA STRING[100](Type);
 name (Type t) = OVERRIDE dataName(t), staticCaption(t) CHARWIDTH 15;
 
 FORM type 'Тип задачи'
@@ -39,11 +39,11 @@ type = ABSTRACT Type (Task) MATERIALIZED;
 nameType 'Тип задачи' (Task t)= name(type(t)) CHARWIDTH 20;
 
 dateTimeStart 'Дата/время начала' = ABSTRACT DATETIME (Task) MATERIALIZED CHARWIDTH 10;
-description 'Описание' = ABSTRACT VARISTRING[1000](Task) MATERIALIZED CHARWIDTH 30;
+description 'Описание' = ABSTRACT ISTRING[1000](Task) MATERIALIZED CHARWIDTH 30;
 run 'Выполнить'  ABSTRACT ( Task);
 endOfTheDay 'До конца дня' = ABSTRACT BOOLEAN (Task) MATERIALIZED;
 countDays 'Кол-во дней' = ABSTRACT INTEGER (Task) MATERIALIZED CHARWIDTH 3 NOFLEX;
-id 'ИД' = ABSTRACT VARSTRING[30] (Task) MATERIALIZED; 
+id 'ИД' = ABSTRACT STRING[30] (Task) MATERIALIZED; 
 
 dateStart 'Дата начала' (Task t) = DATE(dateTimeStart(t));
 deadlineDate (Task t) = jumpWorkdays(defaultCountry(),dateStart(t), countDays(t));
@@ -111,9 +111,9 @@ nameType 'Тип задачи' (TaskLog l) = name(type(l));
 
 startDateTime 'Дата/время начала' = DATA DATETIME (TaskLog);
 deadlineDateTime 'Выполнить до' = DATA DATETIME (TaskLog);
-description 'Описание' = DATA VARSTRING[1000](TaskLog);
+description 'Описание' = DATA STRING[1000](TaskLog);
 
-userName 'Имя пользователя' = DATA VARSTRING[100] (TaskLog);
+userName 'Имя пользователя' = DATA STRING[100] (TaskLog);
 dateTimeSession 'Время выполнения' = DATA DATETIME (TaskLog);
 dateSession'Дата выполнения' (TaskLog l) = DATE(dateTimeSession(l));
 timeSession 'Время выполнения' (TaskLog l) = TIME(dateTimeSession(l));
@@ -175,15 +175,15 @@ FORM notification
 ;
 
 notificationStart = ABSTRACT RICHTEXT (Task);
-subjectNotificationStart = ABSTRACT VARSTRING[100] (Task);
+subjectNotificationStart = ABSTRACT STRING[100] (Task);
 
 hasAttachment = ABSTRACT BOOLEAN (Task);
 attachment = ABSTRACT FILE (Task);
-attachmentName = ABSTRACT VARSTRING[100] (Task);
+attachmentName = ABSTRACT STRING[100] (Task);
 
 generateAttachment (Task t)  ABSTRACT LIST ( Task);
 
-emailTask 'Почта для отсылки уведомлений по задачам'= DATA VARSTRING[300] () CHARWIDTH 30 IN documentPrm; 
+emailTask 'Почта для отсылки уведомлений по задачам'= DATA STRING[300] () CHARWIDTH 30 IN documentPrm; 
 EXTEND FORM options
     PROPERTIES () emailTask
 ;
@@ -301,7 +301,7 @@ END
 META defineAppTaskNotification (NS, cls, taskName, taskCaption)
 
     notificationStart###taskName taskCaption = DATA RICHTEXT ();
-    subjectNotificationStart###taskName taskCaption = DATA VARSTRING[100] ();
+    subjectNotificationStart###taskName taskCaption = DATA STRING[100] ();
     
     EXTEND FORM options
         PROPERTIES NS###notificationStart###taskName = notificationStart###taskName(), NS###subjectNotificationStart###taskName = subjectNotificationStart###taskName()
@@ -322,7 +322,7 @@ META defineAppTaskNotification (NS, cls, taskName, taskCaption)
                                                                 '<br>'+'Крайний срок ' +'<b>'+toDateDDMMYY(deadline(t))+'</b>',
                                                                 '<br>'+'<b>'+description(t)+'</b>'))
                                                             IF t IS Task###taskName AND notificationStart###taskName(); 
-    subjectNotificationStart(Task###taskName t) += VARSTRING[100](subjectNotificationStart###taskName()) IF t IS Task###taskName; 
+    subjectNotificationStart(Task###taskName t) += STRING[100](subjectNotificationStart###taskName()) IF t IS Task###taskName; 
 
 END
 

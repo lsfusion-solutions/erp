@@ -19,8 +19,8 @@ EXTEND FORM shipments
 @defineShipmentBatch(customerStock);
 @defineShipmentBatchDialog();
 
-@defineExternalizable(userShipment, VARSTRING[100]);
-@defineExternalizable(userShipmentDetail, VARSTRING[100]);
+@defineExternalizable(userShipment, STRING[100]);
+@defineExternalizable(userShipmentDetail, STRING[100]);
 
 in(Shipment s) += s IS Shipment;
 
@@ -229,8 +229,8 @@ price (UserShipmentDetail detail) <- shipmentPrice(invoiceDetail(detail))
 
 // ------------------------------- Коды партии ----------------------------------- //
 
-idBatch 'Код партии' = ABSTRACT VARSTRING[100] (ShipmentDetail) CHARWIDTH 10;
-idBatch 'Код партии' = DATA VARSTRING[100] (UserShipmentDetail) CHARWIDTH 10;
+idBatch 'Код партии' = ABSTRACT STRING[100] (ShipmentDetail) CHARWIDTH 10;
+idBatch 'Код партии' = DATA STRING[100] (UserShipmentDetail) CHARWIDTH 10;
 idBatch(UserShipmentDetail detail) += idBatch(detail);
 
 idBatch(InvoiceShipmentDetail detail) += idBatch(invoiceDetail(detail));
@@ -268,8 +268,8 @@ overSkipStockDocumentLedger = ABSTRACT BOOLEAN (Shipment);
 skip(Shipment l) += (isCommission(invoice(l)) IF excludeComission()) OR overSkipStockDocumentLedger(l);
 
 // -------------------------------- Наименования для документов --------------------------- //
-documentNameSku 'Наименование (для документов)' = ABSTRACT VARISTRING[255] (ShipmentDetail) CHARWIDTH 30;
-documentNameSku 'Наименование (для документов)' = DATA VARISTRING[255] (UserShipmentDetail) CHARWIDTH 30;
+documentNameSku 'Наименование (для документов)' = ABSTRACT ISTRING[255] (ShipmentDetail) CHARWIDTH 30;
+documentNameSku 'Наименование (для документов)' = DATA ISTRING[255] (UserShipmentDetail) CHARWIDTH 30;
 documentNameSku(UserShipmentDetail detail) += documentNameSku(detail);
 
 documentNameSku(InvoiceShipmentDetail detail) += documentNameSku(invoiceDetail(detail));
@@ -321,7 +321,7 @@ stockDocumentLedger(ShipmentBatch ledger) += shipment(shipmentDetail(ledger));
 cost(InvoiceDetail ledger, Batch batch) += cost (ledger, batch); 
 in (InvoiceDetail ledger, Batch batch) += TRUE IF in(ledger, batch); 
 
-name(ShipmentBatch batch) += VARISTRING[200](CONCAT '', BPSTRING[10](date(shipmentDetail(batch))), '/ ' + seriesNumber(shipment(shipmentDetail(batch))),
+name(ShipmentBatch batch) += ISTRING[200](CONCAT '', BPSTRING[10](date(shipmentDetail(batch))), '/ ' + seriesNumber(shipment(shipmentDetail(batch))),
                              '/ ' + fullNameSupplier(shipmentDetail(batch)));
   
 edit(ShipmentBatch batch) + {  edit(shipmentDetail(batch)); }

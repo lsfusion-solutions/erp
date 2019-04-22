@@ -8,10 +8,10 @@ CLASS NetworkPrinter 'Сетевой принтер';
 TABLE networkPrinter(NetworkPrinter);
 TABLE networkPrinterEmployee(NetworkPrinter, Employee);
 
-name 'Имя принтера' = DATA VARSTRING[100](NetworkPrinter) IN base;
-path 'Путь к принтеру' = DATA VARSTRING[100](NetworkPrinter) IN base;
+name 'Имя принтера' = DATA STRING[100](NetworkPrinter) IN base;
+path 'Путь к принтеру' = DATA STRING[100](NetworkPrinter) IN base;
 
-@defineExternalizable(networkPrinter, VARSTRING[100]);
+@defineExternalizable(networkPrinter, STRING[100]);
 
 stock = DATA Stock (NetworkPrinter);
 nameStock 'Склад' (NetworkPrinter p) = name(stock(p));
@@ -94,7 +94,7 @@ typeDirectPrint(LabelType lt) = OVERRIDE dataTypeDirectPrint(lt), TypeDirectPrin
 nameTypeDirectPrint 'Тип печати' (LabelType lt) = name(typeDirectPrint(lt));
 
 textTemplate 'Текст шаблона' = DATA TEXT (LabelType);
-printMessage 'Сообщение перед печатью' = DATA  VARSTRING[250] (LabelType) CHARWIDTH 50;
+printMessage 'Сообщение перед печатью' = DATA  STRING[250] (LabelType) CHARWIDTH 50;
 
 EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l), printMessage(l);
 
@@ -116,12 +116,12 @@ text (LabelTransactionDetail labelTransDet) = replace(textTemplate(labelType(lab
 formattedText = DATA LOCAL TEXT ();
 fullFormattedText = DATA LOCAL TEXT ();
 tempName = DATA  LOCAL TEXT ();
-charset = DATA  LOCAL VARSTRING[10]();
+charset = DATA  LOCAL STRING[10]();
 
 substrToWrap = FORMULA TEXT 'substring(substring(($1) from 1 for ($2)) from 1 for ($2) - CASE WHEN char_length(($1)) > ($2) THEN position(\' \' in reverse(substring(($1) from 1 for ($2)))) ELSE 0 END ) ';
 replaceFirst = FORMULA TEXT 'regexp_replace(($1),($2),($3))';
 
-toDateDDMMYYYYUS = FORMULA VARSTRING[10] 'to_char(($1),\'DD/MM/YYYY\')';
+toDateDDMMYYYYUS = FORMULA STRING[10] 'to_char(($1),\'DD/MM/YYYY\')';
 
 needCustomPrint (LabelTransaction labelTrans) += TRUE IF textTemplate(labelType(labelTrans));
 
@@ -163,8 +163,8 @@ dynamicLpad(INTEGER p, LabelType lt) = lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
 beforeDirectPrint  ABSTRACT LIST ( LabelTransaction);
 overDirectPrint  ABSTRACT LIST ( LabelTransactionDetail);
 
-overPrintNameSku = ABSTRACT VARSTRING[255](LabelTransactionDetail);
-overLabelDirectDate = ABSTRACT VARISTRING[50](LabelTransaction);
+overPrintNameSku = ABSTRACT STRING[255](LabelTransactionDetail);
+overLabelDirectDate = ABSTRACT ISTRING[50](LabelTransaction);
 
 overSkuNameLineLength = ABSTRACT INTEGER();
 skuNameLineLength() = OVERRIDE overSkuNameLineLength(), 30;
@@ -246,7 +246,7 @@ customPrint(LabelTransaction labelTrans) + {
             formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
         } ELSE formattedText() <- replace(formattedText(),'@31.13.8@', '');
         
-        formattedText() <- replace(formattedText(),'@11.10.2@', (OVERRIDE overLabelDirectDate(labelTrans), lpad(VARSTRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' ')));
+        formattedText() <- replace(formattedText(),'@11.10.2@', (OVERRIDE overLabelDirectDate(labelTrans), lpad(STRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' ')));
       
         IF nameSku(ld) THEN { 
             formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(name(ld), skuNameLineLength()));
@@ -311,7 +311,7 @@ customPrint(LabelTransaction labelTrans) + {
             formattedText() <- replace(formattedText(),'@discountPercent@', discountPercent(ld) + '%');
         } ELSE formattedText() <- replace(formattedText(),'@discountPercent@', '');
         
-        formattedText() <- replace(formattedText(),'@33.4@', VARSTRING[4](OVERRIDE quantity(ld), 1 IF ld IS LabelTransactionDetail));
+        formattedText() <- replace(formattedText(),'@33.4@', STRING[4](OVERRIDE quantity(ld), 1 IF ld IS LabelTransactionDetail));
         
         overDirectPrint(ld); 
         

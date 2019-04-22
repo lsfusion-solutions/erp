@@ -6,9 +6,9 @@ REQUIRE System, MasterData, Utils, Hierarchy, LegalEntity, I18n, Geo, EmployeeLe
 CLASS ABSTRACT StockGroup 'Группа складов';
 TABLE stockGroup (StockGroup);
 
-@defineExternalizableAbstract(stockGroup, VARSTRING[100]);
+@defineExternalizableAbstract(stockGroup, STRING[100]);
 
-name 'Наименование' = ABSTRACT VARISTRING[100](StockGroup);
+name 'Наименование' = ABSTRACT ISTRING[100](StockGroup);
 
 TABLE stockGroupStockGroup(StockGroup, StockGroup);
 @defineHierarchyAbstract(stockGroup);
@@ -62,11 +62,11 @@ TABLE stock(Stock);
 TABLE stockDate(Stock, DATE);
 TABLE legalEntityStock (LegalEntity, Stock);
 
-@defineExternalizableAbstract(stock, VARSTRING[100]);
+@defineExternalizableAbstract(stock, STRING[100]);
 
-name 'Наименование' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
-phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
-fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
+name 'Наименование' = ABSTRACT ISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
+phone 'Телефон' = ABSTRACT ISTRING[100](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
+fullName 'Наименование полное' = ABSTRACT ISTRING[150](Stock) MATERIALIZED INDEXED CHARWIDTH 20;
 
 stockGroup (stock) = ABSTRACT StockGroup (Stock) MATERIALIZED INDEXED;
 nameStockGroup 'Группа' (Stock stock) = name(stockGroup (stock));
@@ -90,7 +90,7 @@ isSeller(Stock stock) = isSeller(legalEntity(stock));
 
 notCompany(Stock stock) = NOT isCompany(stock);
 
-legalEntityId (VARSTRING[100] stock)= legalEntity(stock(stock));
+legalEntityId (STRING[100] stock)= legalEntity(stock(stock));
 
 countCompanyStock 'Кол-во складов' (StockGroup stockGroup) = GROUP
     SUM 1 IF isCompany(Stock stock)
@@ -248,10 +248,10 @@ country (Stock stock) = country(legalEntity(stock)) MATERIALIZED;
 nameCountry 'Страна' (Stock stock) = name(country(stock));
 nameCountry (Stock poi) += nameCountry(poi);
 
-address 'Адрес' (stock) = ABSTRACT VARISTRING[150] (Stock) MATERIALIZED;
+address 'Адрес' (stock) = ABSTRACT ISTRING[150] (Stock) MATERIALIZED;
 mainAddress (Stock poi) += address(poi);
 
-email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) MATERIALIZED CHARWIDTH 30;
+email 'E-mail для заказов' (stock) = ABSTRACT STRING[300] (Stock) MATERIALIZED CHARWIDTH 30;
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
 //longitudeStock 'Координата Y' = DATA NUMERIC[10,5](Stock);
@@ -275,9 +275,9 @@ active 'Активный' (Stock st) = st IS Stock AND NOT inactive(st);
 CLASS Region 'Регион';
 TABLE region (Region);
 
-@defineExternalizable(region, VARSTRING[100]);
+@defineExternalizable(region, STRING[100]);
 
-name 'Наименование' = DATA VARISTRING[100](Region) CHARWIDTH 20;
+name 'Наименование' = DATA ISTRING[100](Region) CHARWIDTH 20;
 
 region 'Регион' (stock) = ABSTRACT Region (Stock) MATERIALIZED;
 nameRegion 'Регион' (Stock stock)= name(region(stock)) CHARWIDTH 20;

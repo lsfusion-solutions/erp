@@ -9,7 +9,7 @@ invoice = DATA Invoice(EOrderDespatchAdvice);
 TABLE EOrderDespatchAdviceDetail(Purchase.UserInvoiceDetail);
 EOrderDespatchAdviceDetail = DATA EOrderDespatchAdviceDetail(Purchase.UserInvoiceDetail) TABLE EOrderDespatchAdviceDetail;
 
-digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
+digits = FORMULA STRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION SUM 1 ORDER quantityOrdered(d), d BY sku(d), eOrder(orderDespatchAdvice(d)) MATERIALIZED INDEXED;
 orderDetail (EOrderDespatchAdviceDetail ed) = GROUP 
@@ -26,8 +26,8 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
         
             invoice(a) <- i;
             fillHeader(i, eOrder(a));
-            number(i) <- VARSTRING[28](digits(deliveryNoteNumber(a)));
-            series(i) <- VARSTRING[2](left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2));
+            number(i) <- STRING[28](digits(deliveryNoteNumber(a)));
+            series(i) <- STRING[2](left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2));
             
             FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND quantityDespatch(ad) > 0.0 AND NOT skipCreateUserInvoice(orderDetail(ad))
                 ORDER ad 

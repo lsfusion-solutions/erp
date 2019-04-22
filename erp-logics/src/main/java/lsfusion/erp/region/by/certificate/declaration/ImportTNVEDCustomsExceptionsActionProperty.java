@@ -70,7 +70,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends InternalAction {
 
         ImportField idVATCustomsExceptionField = new ImportField(findProperty("id[VATCustomsException]"));
         ImportKey<?> VATCustomsExceptionKey = new ImportKey((CustomClass) findClass("VATCustomsException"),
-                findProperty("VATCustomsException[VARSTRING[100]]").getMapping(idVATCustomsExceptionField));
+                findProperty("VATCustomsException[STRING[100]]").getMapping(idVATCustomsExceptionField));
         keys.add(VATCustomsExceptionKey);
         props.add(new ImportProperty(idVATCustomsExceptionField, findProperty("id[VATCustomsException]").getMapping(VATCustomsExceptionKey)));
         fields.add(idVATCustomsExceptionField);
