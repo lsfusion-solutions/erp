@@ -199,7 +199,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             DataObject groupObject = result.getKey(i).get("loyaItemGroup");
             ImMap<Object, ObjectValue> valueEntry = result.getValue(i);
             Long idLoyaItemGroup = (Long) valueEntry.get("idLoyaItemGroup").getValue();
-            idLoyaItemGroup = idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup;
+            boolean forceNew = idLoyaItemGroup == null;
+            idLoyaItemGroup = forceNew ? (Long) groupObject.getValue() : idLoyaItemGroup;
             String nameItemGroup = trim((String) valueEntry.get("nameLoyaItemGroup").getValue());
             BigDecimal quantity = (BigDecimal) valueEntry.get("quantity").getValue();
             String descriptionItemGroup = trim((String) valueEntry.get("descriptionLoyaItemGroup").getValue());
@@ -216,7 +217,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             String idSkuGroup = trim((String) valueEntry.get("idSkuGroup").getValue());
             Integer idLoyaBrand = (Integer) valueEntry.get("idLoyaBrand").getValue();
             itemsList.add(new Item(id, captionItem, idUOMItem, isWeight(passScales, shortNameUOM), idSkuGroup, idLoyaBrand));
-            itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup, getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup)));
+            itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup, nameItemGroup, descriptionItemGroup,
+                    getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup), forceNew));
             List<GoodGroupLink> skuList = itemItemGroupsMap.get(idLoyaItemGroup);
             if (skuList == null)
                 skuList = new ArrayList<>();
@@ -242,6 +244,7 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             DataObject groupObject = emptyResult.getKey(i).get("loyaItemGroup");
             ImMap<Object, ObjectValue> valueEntry = emptyResult.getValue(i);
             Long idLoyaItemGroup = (Long) valueEntry.get("idLoyaItemGroup").getValue();
+            boolean forceNew = idLoyaItemGroup == null;
             String nameItemGroup = trim((String) valueEntry.get("nameLoyaItemGroup").getValue());
             String descriptionItemGroup = trim((String) valueEntry.get("descriptionLoyaItemGroup").getValue());
             Integer maxDiscountItemGroup = (Integer) valueEntry.get("maxDiscountLoyaItemGroup").getValue();
@@ -250,8 +253,8 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
             boolean empty = valueEntry.get("empty").getValue() != null;
             boolean active = valueEntry.get("active").getValue() != null;
             if(active && empty)
-                itemGroupsMap.put(groupObject, new GoodGroup(idLoyaItemGroup == null ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup,
-                        getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup)));
+                itemGroupsMap.put(groupObject, new GoodGroup(forceNew ? (Long) groupObject.getValue() : idLoyaItemGroup, nameItemGroup, descriptionItemGroup,
+                        getDiscountLimits(maxDiscountItemGroup, maxAllowBonusItemGroup, maxAwardBonusItemGroup), forceNew));
             if(!active && idLoyaItemGroup != null && deleteInactiveItemGroups)
                 deleteItemGroupsList.put(groupObject, idLoyaItemGroup);
         }
@@ -319,12 +322,14 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         ServerLoggers.importLogger.info("Loya: synchronizing goodGroup " + goodGroup.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
-        requestBody.put("id", goodGroup.id);
+        if(!goodGroup.forceNew) {
+            requestBody.put("id", goodGroup.id);
+        }
         requestBody.put("name", goodGroup.name == null ? "" : goodGroup.name);
         requestBody.put("description", goodGroup.description == null ? "" : goodGroup.description);
         requestBody.put("limits", goodGroup.discountLimits);
 
-        if (existsItemGroup(context, goodGroup.id)) {
+        if (!goodGroup.forceNew && existsItemGroup(context, goodGroup.id)) {
             ServerLoggers.importLogger.info("Loya: modifying goodGroup " + goodGroup.id);
             return modifyItemGroup(context, goodGroup.id, itemGroupObject, requestBody);
         } else {
@@ -813,13 +818,15 @@ public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
         String name;
         String description;
         Map<String, Integer> discountLimits;
+        boolean forceNew;
 
 
-        public GoodGroup(Long id, String name, String description, Map<String, Integer> discountLimits) {
+        public GoodGroup(Long id, String name, String description, Map<String, Integer> discountLimits, boolean forceNew) {
             this.id = id;
             this.name = name;
             this.description = description;
             this.discountLimits = discountLimits;
+            this.forceNew = forceNew;
         }
     }
 
