@@ -172,3 +172,19 @@ WHEN (CHANGED(supplier(ScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED
     AND type(o)==GenType.genDayMonth AND autoCreatedDayMonth() AND startDate(o) AND customer(o) AND supplier(o)  DO {
     reCreate(o);    
 }
+
+isEditableScheduleOrderDashboard '{system.is.editable}' = DATA LOCAL NESTED BOOLEAN();
+
+WHEN LOCAL CHANGED (isEditableScheduleOrderDashboard()) DO {
+    isEditable() <- isEditableScheduleOrderDashboard();
+}
+
+EXTEND FORM scheduleOrderDashboard
+    PROPERTIES() isEditableScheduleOrderDashboard
+;
+DESIGN scheduleOrderDashboard {
+    TOOLBARBOX {
+        REMOVE PROPERTY (isEditable());
+        MOVE PROPERTY(isEditableScheduleOrderDashboard()) BEFORE TOOLBARRIGHT;
+    }
+}
