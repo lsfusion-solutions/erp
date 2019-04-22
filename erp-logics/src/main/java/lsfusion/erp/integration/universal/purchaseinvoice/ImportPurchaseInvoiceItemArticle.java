@@ -189,7 +189,7 @@ public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoi
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[BPSTRING[2]]") :
                     (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));

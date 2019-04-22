@@ -38,7 +38,7 @@ public class EquipmentServerImport {
             fields.add(idReceiptField);
 
             ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
             keys.add(paymentKey);
             props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
@@ -91,7 +91,7 @@ public class EquipmentServerImport {
             fields.add(idReceiptField);
 
             ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
+            ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
             keys.add(paymentTypeKey);
             props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
@@ -143,7 +143,7 @@ public class EquipmentServerImport {
             paymentGiftCardFields.add(idReceiptGiftCardField);
 
             ImportField sidTypePaymentGiftCardField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentGiftCardField));
+            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentGiftCardField));
             paymentGiftCardKeys.add(paymentGiftCardTypeKey);
             paymentGiftCardProperties.add(new ImportProperty(sidTypePaymentGiftCardField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentGiftCardTypeKey)));
@@ -219,7 +219,7 @@ public class EquipmentServerImport {
             paymentGiftCardFields.add(idReceiptGiftCardField);
 
             ImportField sidTypePaymentGiftCardField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
-            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentGiftCardField));
+            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentGiftCardField));
             paymentGiftCardKeys.add(paymentGiftCardTypeKey);
             paymentGiftCardProperties.add(new ImportProperty(sidTypePaymentGiftCardField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentGiftCardTypeKey)));

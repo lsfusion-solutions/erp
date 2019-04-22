@@ -156,9 +156,9 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         if(keyType == null || keyType.equals("item"))
             return findProperty("item[VARSTRING[100]]");
         else if(keyType.equals("barcode"))
-            return findProperty("skuBarcode[STRING[15]]");
+            return findProperty("skuBarcode[BPSTRING[15]]");
         else if(skuImportCodeLM != null && keyType.equals("importCode"))
-            return skuImportCodeLM.findProperty("skuImportCode[STRING[100]]");
+            return skuImportCodeLM.findProperty("skuImportCode[BPSTRING[100]]");
         else return findProperty("skuBatch[VARSTRING[100]]");
     }
 

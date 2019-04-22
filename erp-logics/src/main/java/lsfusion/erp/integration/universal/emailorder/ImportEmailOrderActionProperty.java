@@ -120,7 +120,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
                 ImportField seriesNumberUserOrderField = new ImportField(findProperty("seriesNumber[UserOrder]"));
                 ImportKey<?> userOrderKey = new ImportKey((CustomClass) findClass("Purchase.UserOrder"),
-                        findProperty("order[STRING[18]]").getMapping(seriesNumberUserOrderField));
+                        findProperty("order[BPSTRING[18]]").getMapping(seriesNumberUserOrderField));
                 userOrderKey.skipKey = true;
                 keys.add(userOrderKey);
                 fields.add(seriesNumberUserOrderField);

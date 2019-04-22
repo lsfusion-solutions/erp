@@ -272,7 +272,7 @@ public class StopListEquipmentServer {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
                 DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
-                ObjectValue stopListObject = stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
+                ObjectValue stopListObject = stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
                 stopListLM.findProperty("stopList[StopListError]").change(stopListObject, session, errorObject);
                 stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
                 stopListLM.findProperty("date[StopListError]").change(getCurrentTimestamp(), session, errorObject);
@@ -290,7 +290,7 @@ public class StopListEquipmentServer {
     public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
-                DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
+                DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
                 for (String idStock : idStockSet) {
                     DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
                     stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);

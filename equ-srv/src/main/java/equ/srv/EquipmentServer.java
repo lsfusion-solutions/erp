@@ -1156,7 +1156,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (discountCardLM != null) {
                 saleFields.add(seriesNumberDiscountCardField);
             }
-            ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[STRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+            ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
             if (discountCardKey != null) {
                 saleKeys.add(discountCardKey);
                 returnKeys.add(discountCardKey);
@@ -1543,7 +1543,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
                 saleKeys.add(employeeKey);
 
-                ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[STRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+                ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
                 if(discountCardKey != null)
                     saleKeys.add(discountCardKey);
 

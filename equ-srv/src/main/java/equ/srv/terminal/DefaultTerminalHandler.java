@@ -82,12 +82,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
-                ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[STRING[15]]").readClasses(session, new DataObject(barcode));
+                ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, barcodeObject);
                 if(nameSkuBarcode == null)
                     return null;
                 String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
-                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[STRING[15]]").readClasses(session, new DataObject(barcode));
+                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, user);
                 BigDecimal price = null;
                 BigDecimal quantity = null;
@@ -127,11 +127,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
-                String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[STRING[15]]").readClasses(session, new DataObject(barcode)));
+                String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)));
                 if(nameSkuBarcode == null)
                     return null;
 
-                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[STRING[15]]").readClasses(session, new DataObject(barcode));
+                ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
                 BigDecimal price = null;
                 BigDecimal oldPrice = null;

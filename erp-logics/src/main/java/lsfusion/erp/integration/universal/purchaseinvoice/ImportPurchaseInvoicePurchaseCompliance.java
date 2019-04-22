@@ -27,7 +27,7 @@ public class ImportPurchaseInvoicePurchaseCompliance extends ImportDefaultPurcha
             if (showField(userInvoiceDetailsList, "numberCompliance")) {
                 ImportField numberComplianceField = new ImportField(LM.findProperty("number[Compliance]"));
                 ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClass("Compliance"),
-                        LM.findProperty("compliance[STRING[100]]").getMapping(numberComplianceField));
+                        LM.findProperty("compliance[BPSTRING[100]]").getMapping(numberComplianceField));
                 keys.add(complianceKey);
                 props.add(new ImportProperty(numberComplianceField, LM.findProperty("number[Compliance]").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                 props.add(new ImportProperty(numberComplianceField, LM.findProperty("compliance[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),

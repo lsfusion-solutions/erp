@@ -784,7 +784,7 @@ DESIGN searchSkuSaleReceipt {
 
 searchSkuSale 'Поиск'(Receipt receipt)  { 
     DIALOG searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, s INPUT DO {
-        createSaleDetail[Receipt,Sku,STRING[15]](receipt, s, idBarcode[Sku](s));
+        createSaleDetail[Receipt,Sku,BPSTRING[15]](receipt, s, idBarcode[Sku](s));
     }
 } CHANGEKEY 'F3' IN receiptSaleAction;
 
@@ -838,7 +838,7 @@ DESIGN searchBatchSaleReceipt {
 
 searchBatchSale 'Поиск'(Receipt receipt)  { 
     DIALOG searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, b INPUT DO {
-        createSaleDetail[Receipt,Batch,STRING[15]](receipt, b, idBarcodeSku[Batch](b));
+        createSaleDetail[Receipt,Batch,BPSTRING[15]](receipt, b, idBarcodeSku[Batch](b));
     }
 } CHANGEKEY 'F3' IN receiptSaleAction;
 
@@ -1042,7 +1042,7 @@ overChangeBarcodeDiscountCard(VARSTRING[30] string, Receipt receipt)  {
 overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) + {  overChangeBarcodeDiscountCard(string, receipt); }
 
 FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной карты'
-    OBJECTS (n = VARSTRING[28], s = STRING[2]) PANEL
+    OBJECTS (n = VARSTRING[28], s = BPSTRING[2]) PANEL
     PROPERTIES number = VALUE(n), series = VALUE(s)
 ;
 
@@ -1077,7 +1077,7 @@ clearDiscountCard 'Сбросить'(Receipt receipt)  {
 openZReport 'Открыть Z-отчет' (CashRegister cashRegister)  { 
     NEW z = ZReport {
         isPosted(z) <- TRUE;
-        number(z) <- STRING[255](z);
+        number(z) <- BPSTRING[255](z);
         cashRegister(z) <- cashRegister;
         departmentStore(z) <- departmentStore(cashRegister); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(cashRegister) <- z;
@@ -1091,7 +1091,7 @@ fiscalOpenZReport 'Открыть Z-отчет' ()  ABSTRACT LIST ( );
 openCurrentZReport 'Открыть Z-отчет'()  { 
     NEW z = ZReport {
         isPosted(z) <- TRUE;
-        number(z) <- STRING[255](z);
+        number(z) <- BPSTRING[255](z);
         cashRegister(z) <- currentCashRegister();
         departmentStore(z) <- departmentStore(currentCashRegister()); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(CashRegister cashRegister) <- z WHERE cashRegister == currentCashRegister();

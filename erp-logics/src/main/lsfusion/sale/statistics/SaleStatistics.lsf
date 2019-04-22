@@ -98,7 +98,7 @@ nameUOM 'Ед. изм.' (StatisticGroup statisticGroup) = staticCaption(unitMeas
 dataNameReportUOM 'Ед. изм. для отчёта' = DATA VARISTRING[100](StatisticGroup);
 nameReportUOM 'Ед. изм. для отчёта' (StatisticGroup statisticGroup) = OVERRIDE dataNameReportUOM(statisticGroup), nameUOM(statisticGroup) CHARWIDTH 15 NOFLEX; 
 
-sid 'Код группы' (statisticGroup) = DATA STRING[12] (StatisticGroup)  CHARWIDTH 12 NOFLEX;
+sid 'Код группы' (statisticGroup) = DATA BPSTRING[12] (StatisticGroup)  CHARWIDTH 12 NOFLEX;
 canonicalNumber 'Канонический код' (StatisticGroup statisticGroup) = VARSTRING[255](
                            (GROUP CONCAT sid(StatisticGroup parent), ' / ' ORDER DESC level(statisticGroup, parent)))
                            CHARWIDTH 50 MATERIALIZED;
@@ -851,7 +851,7 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
  
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
-loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, STRING[3] isidCountry)  { 
+loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, BPSTRING[3] isidCountry)  { 
      NEW t = StatisticGroupType {
          name(t) <- iname;
          id (t) <- isid;
@@ -859,7 +859,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
      }
  }
  
- loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, STRING[12] sidParent, VARISTRING[250] iname, STRING[12] isid, GroupStatic groupStatic, value)  { 
+ loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, BPSTRING[12] sidParent, VARISTRING[250] iname, BPSTRING[12] isid, GroupStatic groupStatic, value)  { 
      NEW g = StatisticGroup {
          groupType(g) <- statisticGroupTypeId(sidType);
          parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
@@ -871,7 +871,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
      }
  }
 
-loadDefaultResidentCountry 'Добавить отеч. производ'(STRING[3] idCountry, STRING[3] idCountry2)  { 
+loadDefaultResidentCountry 'Добавить отеч. производ' (BPSTRING[3] idCountry, BPSTRING[3] idCountry2)  { 
     resident(Country a,Country b) <- TRUE WHERE a == country(idCountry) AND b == country(idCountry2);
 }
 
@@ -1445,7 +1445,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     OBJECTS c = StatisticGroupType PANEL
     PROPERTIES SELECTOR name(c)
 
-    TREE stockGroupTree sta=STRING[3], stg = StockGroup PARENT parent
+    TREE stockGroupTree sta=BPSTRING[3], stg = StockGroup PARENT parent
     PROPERTIES READONLY VALUE(sta), stgTreeName = name(stg)
     PROPERTIES() allStocks DRAW sta GRID
     PROPERTIES inStat(stg)

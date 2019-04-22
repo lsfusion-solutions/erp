@@ -33,7 +33,7 @@ FORM StatusAllTypes 'Приоритет рейтинга ABC'
 CLASS Operation 'Операции ABC-отчета';
 TABLE operation (Operation);
 
-name 'Наименование' = DATA STRING[100] (Operation) IN documentHeader;
+name 'Наименование' = DATA BPSTRING[100] (Operation) IN documentHeader;
 @defineExternalizable(operation, VARSTRING[100]);
 
 percA 'A, %' = DATA NUMERIC[8,3](Operation);
@@ -133,7 +133,7 @@ FORM operation 'Операции ABC-отчет'
     PROPERTIES(t) id SHOWIF showIDs(), name, nameGroupType, levelGroup, percA, percB, percC, nameStatusAllType, percX, percY
     
 //-- выбор складов                  
-    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
     PROPERTIES VALUE(a2) READONLY, allStockInclude(t) DRAW a2 BACKGROUND backgroundAllStockInclude(t), 
                name(sg2) READONLY, include(t,sg2) BACKGROUND backgroundInclude(t,sg2),
                name(ts2) READONLY, include(t,ts2) BACKGROUND backgroundInclude(t,ts2)
@@ -603,7 +603,7 @@ TABLE operationDOW(Operation, DOW);
 in 'Вкл.' = DATA BOOLEAN (Operation, DOW);
 countDOWsIn (Operation t) = GROUP SUM 1 IF in(t,DOW d);
 oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (Operation);
-idReport 'Идентификатор для планировщика' = DATA STRING[100] (Operation);
+idReport 'Идентификатор для планировщика' = DATA BPSTRING[100] (Operation);
 countDays 'Количество дней' = DATA INTEGER (Operation);
 countDaysDelete 'Количество дней для хранения отчетов' = DATA INTEGER (Operation);
 
@@ -665,7 +665,7 @@ in (Operation type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(dat
 
 
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo)  { 
+createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE dateTo)  { 
 	NEWSESSION { 
 	    FOR idReport(Operation type) == string  DO {
 	        IF in(type, currentDate()) AND countDays(type) THEN {     
@@ -731,7 +731,7 @@ FORM snapshotABC 'ABC-отчет'
                    sumSold READONLY
                    
 //-- выбор складов                  
-    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
     PROPERTIES VALUE(a2) READONLY, allStockInclude(r) DRAW a2 BACKGROUND backgroundAllStockInclude(r), 
                name(sg2) READONLY, include(r,sg2) BACKGROUND backgroundInclude(r,sg2),
                name(ts2) READONLY, include(r,ts2) BACKGROUND backgroundInclude(r,ts2)

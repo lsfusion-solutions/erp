@@ -8,7 +8,7 @@ NAMESPACE Stock;
 CLASS SnapshotType 'Тип аналитического отчета';
 TABLE snapshotType (SnapshotType);
 
-name 'Наименование' = DATA STRING[100] (SnapshotType) IN documentHeader;
+name 'Наименование' = DATA BPSTRING[100] (SnapshotType) IN documentHeader;
 @defineExternalizable(snapshotType, VARSTRING[100]);
 isBatch 'По партиям' = DATA BOOLEAN (SnapshotType);
 
@@ -96,7 +96,7 @@ FORM snapshotType 'Тип аналитического отчета'
                   isCostVATSupplier, isNetWeight, isDate  
                      
 //-- выбор складов                  
-    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
     PROPERTIES VALUE(a2) READONLY, allStockInclude(t) DRAW a2 BACKGROUND backgroundAllStockInclude(t), 
                name(sg2) READONLY, include(t,sg2) BACKGROUND backgroundInclude(t,sg2),
                name(ts2) READONLY, include(t,ts2) BACKGROUND backgroundInclude(t,ts2)
@@ -1371,7 +1371,7 @@ TABLE snapshotTypeDOW(SnapshotType, DOW);
 in 'Вкл.' = DATA BOOLEAN (SnapshotType, DOW);
 countDOWsIn (SnapshotType t) = GROUP SUM 1 IF in(t,DOW d);
 oneReport 'Отдельный отчет для склада' = DATA BOOLEAN (SnapshotType);
-idReport 'Идентификатор для планировщика' = DATA STRING[100] (SnapshotType);
+idReport 'Идентификатор для планировщика' = DATA BPSTRING[100] (SnapshotType);
 countDays 'Количество дней' = DATA INTEGER (SnapshotType);
 countDaysDelete 'Количество дней для хранения отчетов' = DATA INTEGER (SnapshotType);
 
@@ -1430,7 +1430,7 @@ DESIGN snapshotType {
 in (SnapshotType type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDOWsIn(type))) AND
                               ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDaysIn(type)));            
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo)  { 
+createSnapshotString 'Создать отчет'(BPSTRING[100] string, DATE dateTo)  { 
 	NEWSESSION { 
 	    FOR idReport(SnapshotType type) == string  DO {
 	        IF in(type, currentDate()) AND countDays(type) THEN {     
@@ -1510,7 +1510,7 @@ FORM snapshot 'Аналитический отчет'
                    isBatch, isDate, isCost, isVATSupplier, isCostVATSupplier,
                    isNetWeight 
 //-- выбор складов                  
-    TREE stockTree2 a2 = STRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent, ts2 = Stock
     PROPERTIES VALUE(a2) READONLY, allStockInclude(r) DRAW a2 BACKGROUND backgroundAllStockInclude(r), 
                name(sg2) READONLY, include(r,sg2) BACKGROUND backgroundInclude(r,sg2),
                name(ts2) READONLY, include(r,ts2) BACKGROUND backgroundInclude(r,ts2)
@@ -1558,7 +1558,7 @@ FORM snapshot 'Аналитический отчет'
     PROPERTIES deleteIncludeLegalEntities(r) TOOLBAR
             
 //--stock    
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent, ts = Stock
     PROPERTIES READONLY VALUE(a), name(sg), name(ts)
     ORDER name(sg)
     FILTERS stringEqualsAll(a),
@@ -1688,7 +1688,7 @@ FORM snapshot 'Аналитический отчет'
     FILTERGROUP inactiveg FILTER 'Активные' active(sk1) 'F5' DEFAULT       
        
 //-- По складам           
-    TREE stockTree1 a1 = STRING[3], sg1 = StockGroup PARENT parent
+    TREE stockTree1 a1 = BPSTRING[3], sg1 = StockGroup PARENT parent
     PROPERTIES READONLY VALUE(a1), name(sg1)
     ORDER name(sg1)    
         

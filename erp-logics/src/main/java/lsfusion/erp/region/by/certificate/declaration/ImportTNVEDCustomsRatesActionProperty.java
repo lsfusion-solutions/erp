@@ -65,7 +65,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
 
         ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
-                findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
+                findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
@@ -127,7 +127,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
 
         ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
-                findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
+                findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 

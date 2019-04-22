@@ -171,7 +171,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 return true;
 
             boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
-            LP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+            LP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[BPSTRING[15]]");
 
             if(settings.isCheckExistence()) {
                 for (Iterator<UserPriceListDetail> iterator = userPriceListDetailList.iterator(); iterator.hasNext();) {
@@ -511,7 +511,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                     (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+            LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[BPSTRING[2]]") :
                     (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
             String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                     (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));
@@ -620,7 +620,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            LP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
+            LP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[BPSTRING[15]]");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));

@@ -21,7 +21,7 @@ TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
 
 parent = DATA NaturalLossGroup (SubNaturalLossGroup) AUTOSET;
 nameParent 'Родительская группа' (SubNaturalLossGroup subNaturalLossGroup) = name(parent(subNaturalLossGroup));
-code 'Код нормы естественной убыли' = DATA STRING[3] (SubNaturalLossGroup);
+code 'Код нормы естественной убыли' = DATA BPSTRING[3] (SubNaturalLossGroup);
 subNaturalLossGroupId (name) = GROUP AGGR SubNaturalLossGroup subNaturalLossGroup WHERE subNaturalLossGroup IS SubNaturalLossGroup BY code(subNaturalLossGroup);
 
 subNaturalLossGroupName = GROUP NAGGR SubNaturalLossGroup g WHERE g IS SubNaturalLossGroup BY name(g);
@@ -145,7 +145,7 @@ FORM naturalLossGroups 'Справочник норм естественной �
     OBJECTS c=Country PANEL
     PROPERTIES(c) SELECTOR name
 
-    TREE treeNaturalLoss a=STRING[3], n=NaturalLossGroup
+    TREE treeNaturalLoss a =BPSTRING[3], n=NaturalLossGroup
     PROPERTIES READONLY VALUE(a)
     PROPERTIES READONLY name(n), nameCountry(n)
     PROPERTIES NEWSESSION NEW(n), deleten=DELETE(n) 
@@ -528,14 +528,14 @@ NAVIGATOR {
 
 //------------------- Справочник норм естественной убыли----------------------------//
 
-loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string)  { 
+loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли' (BPSTRING[3] idCountry, VARISTRING[110] string)  { 
     NEW cg = NaturalLossGroup {
          name(cg) <- string;
          country(cg) <- country(idCountry);
     }
 }
 
-loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo, NUMERIC[10,5] numeric)  { 
+loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' (BPSTRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, BPSTRING[3] stringTwo, NUMERIC[10,5] numeric)  { 
     NEW g = SubNaturalLossGroup {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
@@ -554,7 +554,7 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
 }
 
 //-- Для сезонов
-overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo)  { 
+overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли' (BPSTRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, BPSTRING[3] stringTwo)  { 
     NEW g = SubNaturalLossGroup {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
@@ -563,7 +563,7 @@ overLoadDefaultSubNaturalLossGroup 'Добавить нормы естестве
     }
 }
 
-overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли'(STRING[3] id, NUMERIC[10,5] numeric, INTEGER dayFrom, INTEGER monthFrom, INTEGER dayTo, INTEGER monthTo)  { 
+overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли' (BPSTRING[3] id, NUMERIC[10,5] numeric, INTEGER dayFrom, INTEGER monthFrom, INTEGER dayTo, INTEGER monthTo)  { 
     NEW d = SubNaturalLossGroupDetail {
         subNaturalLossGroup(d) <- subNaturalLossGroupId(id);
         percent(d) <- numeric;

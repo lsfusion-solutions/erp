@@ -152,7 +152,7 @@ sidCashRegisterModel 'Код модели' (ReceiptDetail receiptDetail) = sidCa
 numberCashRegister 'Номер кассы' (ReceiptDetail receiptDetail) = overNumberCashRegister(receipt(receiptDetail));
 numberGroupCashRegister 'Номер группы касс' (ReceiptDetail receiptDetail) = numberGroupCashRegister(receipt(receiptDetail));
 
-type 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) CHARWIDTH 10 MATERIALIZED;
+type 'Тип' = ABSTRACT BPSTRING[10] (ReceiptDetail) CHARWIDTH 10 MATERIALIZED;
 type(ReceiptSaleDetail detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
 type(ReceiptReturnDetail detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 
@@ -498,7 +498,7 @@ name 'Наименование' = DATA VARISTRING[110](PaymentType) IN id CHARWI
 paymentMeans (paymentType) = DATA PaymentMeans (PaymentType);
 namePaymentMeans 'Форма оплаты' (PaymentType paymentType) = staticCaption(paymentMeans(paymentType)) IN id CHARWIDTH 10;
 
-sid 'Идентификатор' = DATA STRING[10] (PaymentType) IN base;
+sid 'Идентификатор' = DATA BPSTRING[10] (PaymentType) IN base;
 typePaymentSID (tp) = GROUP AGGR PaymentType paymentType WHERE paymentType IS PaymentType BY sid(paymentType);
 
 idTypeRegister 'Идентификатор для кассы' = DATA INTEGER (PaymentType);
@@ -943,7 +943,7 @@ EXTEND FORM zReports
     OBJECTS dt = DATE PANEL 
     PROPERTIES (dt) VALUE        
     
-    TREE treeStore1 a1=STRING[3], t1=ChainStores, st1=StoreType
+    TREE treeStore1 a1=BPSTRING[3], t1=ChainStores, st1=StoreType
     PROPERTIES READONLY VALUE(a1), name(t1), name(st1)
     FILTERS chainStores(st1) == t1
 
@@ -960,7 +960,7 @@ EXTEND FORM zReports
         
     PROPERTIES (s1,dt) READONLY countZReports, sumZReports       
     
-    TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s = Store 
+    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, s = Store 
     PROPERTIES READONLY VALUE(a), name(t), name(st), name(s)
 
     FILTERS stringEqualsAll(a)
@@ -1017,7 +1017,7 @@ DESIGN zReports {
 
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
-loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, STRING[10] sid)  { 
+loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, BPSTRING[10] sid)  { 
     NEW p = PaymentType {
         name(p) <- string;
         paymentMeans(p) <- paymentMeans;

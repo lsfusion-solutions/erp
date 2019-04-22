@@ -76,7 +76,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             this.context = context;
 
-            ObjectValue countryBelarus = findProperty("country[STRING[3]]").readClasses(context.getSession(), new DataObject("112", StringClass.get(3)));
+            ObjectValue countryBelarus = findProperty("country[BPSTRING[3]]").readClasses(context.getSession(), new DataObject("112", StringClass.get(3)));
             findProperty("defaultCountry[]").change(countryBelarus, context.getSession());
             context.apply();
 
@@ -607,7 +607,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         if (showItemField(itemsList, "codeCustomsGroup")) {
             ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
             ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
-                    findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
+                    findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
             keys.add(customsGroupKey);
             props.add(new ImportProperty(codeCustomsGroupField, findProperty("code[CustomsGroup]").getMapping(customsGroupKey)));
             props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroup[Country,Item]").getMapping(countryKey, itemKey),
@@ -1017,7 +1017,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     if (showField(dataUserInvoiceDetail, "numberCompliance")) {
                         ImportField numberComplianceField = new ImportField(findProperty("number[Compliance]"));
                         ImportKey<?> complianceKey = new ImportKey((CustomClass) findClass("Compliance"),
-                                findProperty("compliance[STRING[100]]").getMapping(numberComplianceField));
+                                findProperty("compliance[BPSTRING[100]]").getMapping(numberComplianceField));
                         keys.add(complianceKey);
                         props.add(new ImportProperty(numberComplianceField, findProperty("number[Compliance]").getMapping(complianceKey)));
                         props.add(new ImportProperty(numberComplianceField, findProperty("compliance[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
@@ -1061,7 +1061,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                 ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
                 ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                        findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                        findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
                 keys.add(currencyKey);
                 props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserInvoice]").getMapping(userInvoiceKey),
                         LM.object(findClass("Currency")).getMapping(currencyKey)));
@@ -1074,7 +1074,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                         ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context.getSession());
                         ImportField codeCustomsGroupField = new ImportField(purchaseDeclarationDetailLM.findProperty("code[CustomsGroup]"));
                         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) purchaseDeclarationDetailLM.findClass("CustomsGroup"),
-                                purchaseDeclarationDetailLM.findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
+                                purchaseDeclarationDetailLM.findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));
                         keys.add(customsGroupKey);
                         props.add(new ImportProperty(codeCustomsGroupField, purchaseDeclarationDetailLM.findProperty("customsGroup[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                                 purchaseDeclarationDetailLM.object(purchaseDeclarationDetailLM.findClass("CustomsGroup")).getMapping(customsGroupKey)));
@@ -1100,7 +1100,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (tripInvoiceLM != null && showField(dataUserInvoiceDetail, "numberTrip")) {
                     ImportField numberTripField = new ImportField(tripInvoiceLM.findProperty("number[Trip]"));
                     ImportKey<?> tripKey = new ImportKey((CustomClass) tripInvoiceLM.findClass("Trip"),
-                            tripInvoiceLM.findProperty("trip[STRING[18]]").getMapping(numberTripField));
+                            tripInvoiceLM.findProperty("trip[BPSTRING[18]]").getMapping(numberTripField));
                     keys.add(tripKey);
                     props.add(new ImportProperty(numberTripField, tripInvoiceLM.findProperty("number[Trip]").getMapping(tripKey)));
                     props.add(new ImportProperty(numberTripField, tripInvoiceLM.findProperty("trip[Invoice]").getMapping(userInvoiceKey),
@@ -1149,7 +1149,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Coordinated", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (согласованная)", newContext, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Coordinated", newContext, (DataObject) dataPriceListTypeObject);
@@ -1206,7 +1206,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
                     ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                            findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                            findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
                     keys.add(currencyKey);
                     props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserPriceList]").getMapping(userPriceListKey),
                             LM.object(findClass("Currency")).getMapping(currencyKey)));
@@ -1263,7 +1263,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[VARSTRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
                     if (dataPriceListTypeObject instanceof NullValue) {
                         dataPriceListTypeObject = newContext.addObject((ConcreteCustomClass) findClass("DataPriceListType"));
-                        ObjectValue defaultCurrency = findProperty("currencyShortName[STRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
+                        ObjectValue defaultCurrency = findProperty("currencyShortName[BPSTRING[3]]").readClasses(newContext, new DataObject("BYN", StringClass.get(3)));
                         findProperty("name[PriceListType]").change("Поставщика (предлагаемая)", newContext, (DataObject) dataPriceListTypeObject);
                         findProperty("currency[DataPriceListType]").change(defaultCurrency, newContext, (DataObject) dataPriceListTypeObject);
                         findProperty("id[DataPriceListType]").change("Offered", newContext, (DataObject) dataPriceListTypeObject);
@@ -1312,7 +1312,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
                     ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
                     ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                            findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                            findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
                     keys.add(currencyKey);
                     props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserPriceList]").getMapping(userPriceListKey),
                             LM.object(findClass("Currency")).getMapping(currencyKey)));
@@ -1439,7 +1439,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField shortNameOwnershipField = new ImportField(findProperty("shortName[Ownership]"));
             ImportKey<?> ownershipKey = new ImportKey((CustomClass) findClass("Ownership"),
-                    findProperty("ownershipShortName[STRING[10]]").getMapping(shortNameOwnershipField));
+                    findProperty("ownershipShortName[BPSTRING[10]]").getMapping(shortNameOwnershipField));
             keys.add(ownershipKey);
             props.add(new ImportProperty(shortNameOwnershipField, findProperty("shortName[Ownership]").getMapping(ownershipKey)));
             props.add(new ImportProperty(shortNameOwnershipField, findProperty("ownership[LegalEntity]").getMapping(legalEntityKey),
@@ -1500,7 +1500,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
             ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
             keys.add(currencyKey);
             props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[Bank.Account]").getMapping(accountKey),
                     LM.object(findClass("Currency")).getMapping(currencyKey)));
@@ -1990,7 +1990,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
             ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
             ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
             keys.add(currencyKey);
             props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[Contract]").getMapping(userContractSkuKey),
                     LM.object(findClass("Currency")).getMapping(currencyKey)));

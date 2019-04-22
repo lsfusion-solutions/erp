@@ -276,7 +276,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 if (showField(userInvoiceDetailsList, "currencyDocument")) {
                     ImportField shortNameCurrencyField = new ImportField(findProperty("shortName[Currency]"));
                     ImportKey<?> currencyKey = new ImportKey((CustomClass) findClass("Currency"),
-                            findProperty("currencyShortName[STRING[3]]").getMapping(shortNameCurrencyField));
+                            findProperty("currencyShortName[BPSTRING[3]]").getMapping(shortNameCurrencyField));
                     keys.add(currencyKey);
                     props.add(new ImportProperty(shortNameCurrencyField, findProperty("currency[UserInvoice]").getMapping(invoiceKey),
                             object(findClass("Currency")).getMapping(currencyKey), getReplaceOnlyNull(defaultColumns, "currencyDocument")));
@@ -405,11 +405,11 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     iField = idItemField;
                 } else if (keyType.equals("barcode")) {
                     replaceField = "barcodeItem";
-                    iGroupAggr = findProperty("skuBarcode[STRING[15]]");
+                    iGroupAggr = findProperty("skuBarcode[BPSTRING[15]]");
                     iField = idBarcodeSkuField;
                 } else if (skuImportCodeLM != null && keyType.equals("importCode")) {
                     replaceField = "idImportCode";
-                    iGroupAggr = skuImportCodeLM.findProperty("skuImportCode[STRING[100]]");
+                    iGroupAggr = skuImportCodeLM.findProperty("skuImportCode[BPSTRING[100]]");
                     iField = idImportCodeField;
                 } else {
                     replaceField = "batch";
@@ -547,7 +547,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         switch (countryKeyType) {
                             case "sidOrigin2Country":
                                 countryField = sidOrigin2CountryField;
-                                countryAggr = LM.findProperty("countrySIDOrigin2[STRING[2]]");
+                                countryAggr = LM.findProperty("countrySIDOrigin2[BPSTRING[2]]");
                                 break;
                             case "nameCountry":
                                 countryField = nameCountryField;
@@ -609,7 +609,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                         //старую логику оставляем для обратной совместимости
                         ImportField countryField = showSidOrigin2Country ? sidOrigin2CountryField :
                                 (showNameCountry ? nameCountryField : (showNameOriginCountry ? nameOriginCountryField : null));
-                        LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[STRING[2]]") :
+                        LP<?> countryAggr = showSidOrigin2Country ? LM.findProperty("countrySIDOrigin2[BPSTRING[2]]") :
                                 (showNameCountry ? LM.findProperty("countryName[VARISTRING[50]]") : (showNameOriginCountry ? LM.findProperty("countryOrigin[VARISTRING[50]]") : null));
                         String countryReplaceField = showSidOrigin2Country ? "sidOrigin2Country" :
                                 (showNameCountry ? "nameCountry" : (showNameOriginCountry ? "nameOriginCountry" : null));

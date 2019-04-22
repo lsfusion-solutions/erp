@@ -26,7 +26,7 @@ stock (ledger) = ABSTRACT Stock (StockDocumentLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (StockDocumentLedger ledger) = name(stock(ledger)) IN id;
 
 number 'Номер документа' (ledger) = ABSTRACT VARSTRING[28] (StockDocumentLedger) MATERIALIZED;
-series 'Серия документа' (ledger) = ABSTRACT STRING[2] (StockDocumentLedger) MATERIALIZED;
+series 'Серия документа' (ledger) = ABSTRACT BPSTRING[2] (StockDocumentLedger) MATERIALIZED;
 seriesNumber 'Серия/номер документа' (StockDocumentLedger ledger) = CONCAT '', series(ledger), number(ledger) CHARWIDTH 7; 
 
 legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentLedger) MATERIALIZED;
@@ -438,7 +438,7 @@ END
 META implementStockDocumentLedgerOver (concrete, stockProp, objClass)
 
     number###stockProp##DocumentLedger = ABSTRACT VARSTRING[28] (objClass) MATERIALIZED;
-    series###stockProp##DocumentLedger = ABSTRACT STRING[2] (objClass) MATERIALIZED;
+    series###stockProp##DocumentLedger = ABSTRACT BPSTRING[2] (objClass) MATERIALIZED;
 
     series[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE series###stockProp##DocumentLedger(ledger), series(ledger);
     number[###stockProp##DocumentLedger] (objClass ledger) += OVERRIDE number###stockProp##DocumentLedger(ledger), number(ledger);
@@ -811,7 +811,7 @@ closeDocumentsStocks 'Закрыть документы'()  {
 } CONFIRM TOOLBAR;
 
 FORM closingDocuments 'Закрытие периода'
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent
     PROPERTIES READONLY VALUE(a), name(sg)
     ORDER name(sg)
     FILTERS stringEqualsAll(a)

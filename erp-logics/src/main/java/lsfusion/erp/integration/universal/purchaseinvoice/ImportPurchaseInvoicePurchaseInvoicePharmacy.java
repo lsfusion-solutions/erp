@@ -39,7 +39,7 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
                     switch (countryKeyType) {
                         case "sidOrigin2Country":
                             countryField = sidOrigin2CountryField;
-                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countrySIDOrigin2[STRING[2]]").getMapping(countryField));
+                            importCountryKey = new ImportKey((CustomClass) LM.findClass("Country"), LM.findProperty("countrySIDOrigin2[BPSTRING[2]]").getMapping(countryField));
                             keys.add(importCountryKey);
                             props.add(new ImportProperty(countryField, LM.findProperty("sidOrigin2[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                             break;

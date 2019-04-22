@@ -83,10 +83,10 @@ public class ImportCBRFExchangeRateActionProperty extends InternalAction {
                     findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeForeignField));
 
             ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[STRING[3]]").getMapping(currencyField));
+                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));
 
             ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[STRING[3]]").getMapping(homeCurrencyField));
+                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(homeCurrencyField));
 
             List<ImportProperty<?>> props = new ArrayList<>();
 
@@ -137,7 +137,7 @@ public class ImportCBRFExchangeRateActionProperty extends InternalAction {
                 Element exchangeRootNode = exchangeDocument.getRootElement();
                 List exchangeList = exchangeRootNode.getChildren("Record");
 
-                String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, findProperty("currencyExtraSID[STRING[6]]").readClasses(context, new DataObject(extraSIDCurrency)));
+                String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, findProperty("currencyExtraSID[BPSTRING[6]]").readClasses(context, new DataObject(extraSIDCurrency)));
 
                 for (Object anExchangeList : exchangeList) {
 
