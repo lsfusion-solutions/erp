@@ -17,7 +17,6 @@ DESIGN integrationData {
     pane {
         NEW vat {
             caption = 'НДС';
-            MOVE PROPERTY (directoryExportVATStatement());
             MOVE PROPERTY (tax());
             MOVE PROPERTY (exciseType());
             MOVE PROPERTY (vatType());
@@ -51,7 +50,7 @@ acceptingDate 'Дата принятия на учет' = DATA DATE (UserInvoice
 
 exciseBase 'База для акциза' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 exciseBase(UserInvoiceDetail d) <- round2(sum(d) * rateExchange(d)) 
-    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d);
+    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d) AND exciseType();
     
 excisePerc 'Ставка акциза' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
     
@@ -179,11 +178,7 @@ FORM registry_document
 
 exportVatStatementXML 'Выгрузить заявление НДС (XML) ' (Invoice i){
     EXPORT registry_document  OBJECTS i = i XML CHARSET 'Windows-1251';
-    open(exportFile());
-    TRY{
-        mkdir(directoryExportVATStatement());
-        WRITE System.exportFile() TO directoryExportVATStatement() + number(i);                       
-    }
+    WRITE CLIENT DIALOG exportFile() TO 'VatStatement';
 }
 
 
