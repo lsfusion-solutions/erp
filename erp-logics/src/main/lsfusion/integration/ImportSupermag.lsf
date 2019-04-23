@@ -706,7 +706,11 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
     
     id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
 
-    skip(INTEGER i) <- withoutPrice() AND imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
+    IF withoutPrice() THEN {
+        skip(INTEGER i) <- imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
+    }
+
+    logToFile('importSupermag', 'importPriceListRetail_6');
     
     FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) AND NOT skip(i) DO NEW d = UserPriceListDetail {
         id(d) <- id(i);
@@ -719,15 +723,15 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
     }
-    
-    logToFile('importSupermag', 'importPriceListRetail_6');
-    APPLY NESTED LOCAL;
+
     logToFile('importSupermag', 'importPriceListRetail_7');
     
-    DELETE UserPriceList p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND imported(p) AND NOT withoutPrice();
-    DELETE UserPriceListDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND imported(d) AND NOT withoutPrice();
-    
-    logToFile('importSupermag', 'importPriceListRetail_8');
+    IF NOT withoutPrice() THEN {
+        DELETE UserPriceList p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
+        DELETE UserPriceListDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
+        
+        logToFile('importSupermag', 'importPriceListRetail_8');
+    }
     APPLY;
     logToFile('importSupermag', 'importPriceListRetail_9');
 }
