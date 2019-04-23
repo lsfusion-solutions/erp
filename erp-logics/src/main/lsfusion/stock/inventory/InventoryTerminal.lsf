@@ -5,22 +5,27 @@ REQUIRE Inventory, Terminal;
 NAMESPACE Terminal;
 
 detailCount 'Количество строк на страницу'  = DATA INTEGER (Inventory) IN documentPrm;
+isOneListInventory 'Импорт документов из ТСД в 1 опись' = DATA BOOLEAN (Inventory)IN documentPrm;
 
 EXTEND FORM inventory
-    PROPERTIES detailCount(in);
+    PROPERTIES detailCount(in), isOneListInventory(in);
 
 detailCount 'Количество строк на страницу' = DATA INTEGER (Inventory.Operation);
+isOneListInventory 'Импорт документов из ТСД в 1 опись' = DATA BOOLEAN (Inventory.Operation);
 
 EXTEND FORM Inventory.operation
-     PROPERTIES(o) detailCount
+     PROPERTIES(o) detailCount, isOneListInventory
  ;
 DESIGN Inventory.operation {
     paramsContainer {
         MOVE PROPERTY(detailCount(o));
+        MOVE PROPERTY(isOneListInventory(o));
     }
 }
 
 @deriveDocumentOperationProperty(Inventory, detailCount);
+
+@deriveDocumentOperationProperty(Inventory, isOneListInventory);
 
 overCreateTerminal ABSTRACT LIST (PageInventory);
 
@@ -49,6 +54,21 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
     DELETE PageInventory p WHERE  listInventory(p) == li AND NOT countPageInventoryDetail(p);
 }
 
+inOneListInventoryDetails =  GROUP SUM 1 IF include(terminalDocument(TerminalDocumentDetail tdd)) BY sku(tdd);
+quantityOneListInventoryDetails (Sku sku) = GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd);
+
+addOneListInventoryDetails(ListInventory li)  { 
+    NEW p = PageInventory {
+        listInventory(p) <- li;
+
+        FOR inOneListInventoryDetails(Sku sku) NEW pid = PageInventoryDetail DO {
+            pageInventory(pid) <- p;
+            sku(pid) <- sku;
+            quantity(pid) <- quantityOneListInventoryDetails(sku);
+        }
+    }
+}
+
 addDetailDialogTerminal 'Заполнить из документа ТСД' (ListInventory listInventory)  { 
     DIALOG terminalDocuments OBJECTS td INPUT DO {
         used(td) <- TRUE;
@@ -58,13 +78,24 @@ addDetailDialogTerminal 'Заполнить из документа ТСД' (Lis
  
 addListInventoryDialogTerminal 'Заполнить из документов ТСД' (Stock stock, Inventory inventory)  { 
     DIALOG terminalDocuments DO {
-        FOR include(TerminalDocument td) NEW  li = ListInventory DO {
-            used(td) <- TRUE;
-            stock(li) <- stock;
-            inventory(li) <- inventory;
-            include(td) <- NULL;
-            
-            addInventoryDetails(td,li);
+        IF NOT isOneListInventory(inventory) THEN {
+            FOR include(TerminalDocument td) NEW  li = ListInventory DO {
+                used(td) <- TRUE;
+                stock(li) <- stock;
+                inventory(li) <- inventory;
+                include(td) <- NULL;
+                
+                addInventoryDetails(td,li);
+            }
+        }
+        ELSE {
+            NEW  li = ListInventory {
+                used(TerminalDocument td) <- include(td) WHERE include(td);
+                inventory(li) <- inventory;
+                stock(li) <- stock;
+                addOneListInventoryDetails(li);
+                include(TerminalDocument td) <- NULL;
+            }
         }
     }
 } TOOLBAR;
