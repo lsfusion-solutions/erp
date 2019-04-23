@@ -1994,7 +1994,7 @@ FORM itemInfo 'Информация по товару'
     PROPERTIES dFrom = VALUE(df), dTo = VALUE(dt)
 
     OBJECTS s = Sku PANEL
-    PROPERTIES(s) READONLY name, nameUOM, nameSkuGroup, nameCountry, nameBrand, resident, nameManufacturer, valueVAT
+    PROPERTIES(s) READONLY id SHOWIF showIDs(), idBarcode, name, nameUOM, canonicalNameSkuGroup, nameCountry, nameBrand, resident, nameManufacturer, valueVAT
     
     OBJECTS st = Stock
     PROPERTIES(st) READONLY name 
@@ -2026,24 +2026,36 @@ DESIGN itemInfo {
     BOX {
         size = (1024, 768);
         NEW topContainer {
+            caption = 'Информация';
+            alignment = STRETCH;
             NEW firstLine {
                 type = CONTAINERH;
-                MOVE PROPERTY(name(s));
-                MOVE PROPERTY(nameUOM(s));
-                MOVE PROPERTY(nameSkuGroup(s)); 
+                fill = 1;
+                MOVE PROPERTY(name(s)) { alignment = STRETCH; }
+                NEW secondFirstLine {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (id(s));
+                    MOVE PROPERTY (idBarcode(s));
+                    MOVE PROPERTY(nameUOM(s)) { charWidth = 5; }
+                    MOVE PROPERTY(resident(s));
+                    MOVE PROPERTY(valueVAT(s));
+                }
+            }
+            MOVE PROPERTY(canonicalNameSkuGroup(s)) { 
+                alignment = STRETCH; 
+                caption = 'Товарная группа';
             }
             NEW secondLine {
                 type = CONTAINERH;
+                alignment = STRETCH;
                 MOVE PROPERTY(nameCountry(s));
                 MOVE PROPERTY(nameBrand(s));
-                MOVE PROPERTY(resident(s));
                 MOVE PROPERTY(nameManufacturer(s));
-                MOVE PROPERTY(valueVAT(s));
             }
         }
         NEW stockFilter {
-            caption = 'Склад';
-            MOVE PROPERTY(name(st1));
+            caption = 'Фильтр';
+            MOVE PROPERTY(name(st1)) { caption = 'Склад'; charWidth = 50; }
         }
         NEW bottomContainer {
             type = TABBED;
