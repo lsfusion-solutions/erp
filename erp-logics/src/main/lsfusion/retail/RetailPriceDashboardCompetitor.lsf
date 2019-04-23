@@ -15,3 +15,65 @@ EXTEND FORM retailPriceDashboard
     PROPERTIES price = price(c, sk, DATE (dt)) COLUMNS (c) HEADER name(c) BACKGROUND backgroundCompare(c, sk, d, dt)
     ORDER order(c), name(c)
 ;
+
+dateLastMoved 'Дата последнего движения' = DATA LOCAL DATE ();
+step 'Шаг процента отклонения' = DATA LOCAL NUMERIC[5,2]();
+
+price 'Цена' = DATA LOCAL NUMERIC[16,5](Sku);
+price 'Цена конкурента' = DATA LOCAL NUMERIC[16,5](Sku, Competitor);
+
+fillPrices 'Рассчитать' (DATE d, Stock st) {
+    FOR Sku sk IS Sku AND (DATE (dateTimeLastMoved(sk, st)) <= dateLastMoved() OR NOT dateLastMoved()) AND step() DO {
+        price(sk) <- priceA(dataPriceListType('retail'), sk, st, DATETIME (d));
+        price(sk, Competitor c) <- price(c, sk, d);
+    }
+}
+
+diffPercent 'Процент отклонения' (Competitor c, Sku sk) = round2((price(sk, c) - price(sk))/price(sk) * 100);
+
+quantity (Competitor c, INTEGER i) = GROUP SUM 1 BY round0(diffPercent(c, Sku sk) / step());
+quantity (INTEGER i) = GROUP SUM 1 IF quantity(Competitor c, i);
+
+FORM competitorPriceAnalyze 'Анализ цен конкурентов'
+    
+    OBJECTS d = DATE PANEL, st = DepartmentStore PANEL
+    PROPERTIES date 'Дата' = VALUE (d), name(st) SELECTOR, dateLastMoved(), fillPrices(d, st), step()
+    
+    OBJECTS i = INTEGER 
+    FILTERS quantity(i)
+    
+    OBJECTS c = Competitor
+    PROPERTIES READONLY name(c), quantity(c, i) COLUMNS (i) HEADER TEXT (step() * i) + '%'
+    
+    OBJECTS cc = Competitor
+    OBJECTS sk = Sku
+    PROPERTIES READONLY id(sk), idBarcode(sk), name(sk), price(sk), price(sk, cc) COLUMNS 'a' (cc) HEADER 'Цена ' + name(cc), 
+                                             diffPercent(cc, sk) COLUMNS 'a' (cc) HEADER '% отклонения  ' + name(cc)
+    FILTERS price(sk) OR (GROUP SUM 1 IF price(sk, Competitor r))
+;
+
+DESIGN competitorPriceAnalyze {
+    OBJECTS {
+        NEW header FIRST {
+            caption = 'Параметры';
+            type = CONTAINERH;
+            MOVE PROPERTY (date) { alignment = CENTER; }
+            MOVE PROPERTY (name(st)) { caption = 'Отдел магазина'; alignment = CENTER; }
+            MOVE PROPERTY (dateLastMoved()) { alignment = CENTER; }
+            MOVE PROPERTY (step()) { alignment = CENTER; }
+            MOVE PROPERTY (fillPrices(d, st));
+        }
+        NEW boxes {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX (c);
+            MOVE BOX (sk);
+        }
+    }
+}
+
+NAVIGATOR {
+    competitorPrices {
+        NEW competitorPriceAnalyze;
+    }
+}
