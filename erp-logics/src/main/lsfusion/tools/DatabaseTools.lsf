@@ -44,13 +44,15 @@ loadCurSize 'Заполнить размеры таблиц'(){
 grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001)-(OVERRIDE B, 0.001))/(OVERRIDE B, 0.001)), 0.0)](a,b);
 dataVacuumCoeff = DATA NUMERIC[5,2]();
 vacuumCoeff 'Коэффициент роста' () = OVERRIDE dataVacuumCoeff(), 0.1;
+dataVacuumSize = DATA NUMERIC[5,2]();
+vacuumSize 'Минимальный размер (МБ)' () = OVERRIDE dataVacuumSize(), 1.0;
 
 dataGrow(Table t) = grow(curDataSize(t), dataSize(t));
-needVacuum(Table t) = dataGrow(t) > vacuumCoeff();
+needVacuum(Table t) = dataGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
 backgroundData(Table t) = IF needVacuum(t) THEN RGB (255, 80, 80) ELSE RGB (255, 179, 179);
 
 indexGrow(Table t) = grow(curIndexSize(t), indexSize(t));
-needReindex(Table t) = indexGrow(t) > vacuumCoeff();
+needReindex(Table t) = indexGrow(t) > vacuumCoeff() AND curDataSize(t) + curIndexSize(t) > vacuumSize();
 backgroundIndex(Table t) = IF needReindex(t) THEN RGB (255, 80, 169) ELSE RGB (255, 179, 217);
 
 CLASS VacuumOrderType 'Сортировка'{
@@ -136,7 +138,7 @@ EXTEND FORM tools
         FILTER 'Пересчет статистики' needStats(t)
         FILTER 'Любые' needVacuum(t) OR needReindex(t) OR needStats(t)
     
-    PROPERTIES () loadCurSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows
+    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows
     
     EVENTS 
         ON INIT loadCurSize(),
@@ -154,6 +156,7 @@ DESIGN tools{
                 NEW vacuum {
                     caption = 'Упаковка';
                     MOVE PROPERTY (loadCurSize());
+                    MOVE PROPERTY (vacuumSize());
                     MOVE PROPERTY (vacuumCoeff());
                     MOVE PROPERTY (nameVacuumOrderType());
                     MOVE PROPERTY (smartVacuum());
