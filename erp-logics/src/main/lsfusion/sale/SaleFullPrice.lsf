@@ -16,7 +16,9 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserOrderDetail);
 percDiscount '% скидки' (UserOrderDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userOrder(d)) IF isItem(sku(d));
 percDiscount(UserOrderDetail d) += percDiscount(d);
 
-showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Order);
+@defineOperationProperty(showFullPrice, 'Показывать полную цену и скидку', paramsContainer);
+
+showFullPrice 'Показывать полную цену и скидку' (Order o) = showFullPrice(operation(o));
 
 prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userOrder(d)) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), priceStock(d), dateTime(d)) * (100.0 (-) percDiscount(userOrder(d))) / 100.0));
@@ -135,7 +137,7 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserInvoiceDetail);
 percDiscount '% скидки' (UserInvoiceDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userInvoice(d)) IF isItem(sku(d));
 percDiscount(UserInvoiceDetail d) += percDiscount(d);
 
-showFullPrice 'Показывать полную цену и скидку' = ABSTRACT BOOLEAN (Invoice);
+showFullPrice 'Показывать полную цену и скидку' (Invoice o) = showFullPrice(operation(o));
 
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userInvoice(d)) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(userInvoice(d))) / 100.0));
