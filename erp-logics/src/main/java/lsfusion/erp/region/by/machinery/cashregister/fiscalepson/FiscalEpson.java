@@ -222,9 +222,9 @@ public class FiscalEpson {
     }
 
     public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) throws RuntimeException {
+        logger.info(String.format("Epson CompleteReceipt: sumCard %s, sumGiftCard %s, sumCash %s", receipt.sumCard, receipt.sumGiftCard, receipt.sumCash));
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
-        logger.info(String.format("Epson CompleteReceipt: sumCard %s, sumGiftCard %s, sumCash %s", receipt.sumCard, receipt.sumGiftCard, receipt.sumCash));
         if(receipt.sumCard != null) {
             epsonActiveXComponent.setProperty("Amount", new Variant(receipt.sumCard.doubleValue()));
             epsonActiveXComponent.setProperty("NoncashType", new Variant(cardType == null ? 0 : cardType));
