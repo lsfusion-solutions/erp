@@ -1262,18 +1262,18 @@ checkBalance 'Сверить остатки' () {
     LOCAL quantity = NUMERIC[19,4](INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-            EXEC 'SELECT ARTICLE, STORELOC, QUANTITY FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
+            EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
 
     IMPORT TABLE FROM file() TO idItem, idStock, quantity;
     
     LOCAL balanceB = NUMERIC[16,5](Sku, Stock);
     LOCAL balanceS = NUMERIC[16,5](Sku, Stock);
     
-    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance());
+    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance()) WHERE in(st);
     balanceS(Sku sk, Stock st) <-  [GROUP MAX quantity(INTEGER i) BY item(idItem(i)), stock(TEXT (idStock(i)))](sk, st);
     
-    FOR NOT balanceB(Sku sk, Stock st) == balanceS(sk, st) DO {
-        logToFile('checkBalance', CONCAT ' ', toDateDDMMYY(dateCheckBalance()), 'Товар: ' + id(sk), 'Склад: ' + id(st), 'Остаток (фьюжн): ' + balanceB(sk, st), 'Остаток (супермаг): ' + balanceS(sk, st));
+    FOR (balanceB(Sku sk, Stock st) OR balanceS(sk, st)) AND NOT (OVERRIDE balanceB(sk, st), 0.0) == balanceS(sk, st) DO {
+        logToFile('checkBalance', CONCAT ' ', toDateDDMMYY(dateCheckBalance()), 'Товар: ' + id(sk) +  ' - ' + nameSkuGroup(sk) + ' / ' + name(sk), 'Склад: ' + id(st), 'Остаток (фьюжн): ' + balanceB(sk, st), 'Остаток (супермаг): ' + balanceS(sk, st));
     }
     
     IF synchronizeBalance() THEN {
