@@ -794,6 +794,20 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
     
     dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (id(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
     
+    LOCAL idType = INTEGER (INTEGER);
+    LOCAL idItem = STRING[15] (INTEGER);
+    
+    EXTERNAL  SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idItem, markup;
+    
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
+        dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
+    
     APPLY;
 }
 
