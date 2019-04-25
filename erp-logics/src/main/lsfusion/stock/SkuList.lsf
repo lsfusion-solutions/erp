@@ -7,12 +7,30 @@ NAMESPACE Sku;
 CLASS List 'Список SKU';
 TABLE list (List);
 
+name 'Наименование' = DATA ISTRING[250](List);
+
+@defineHierarchy(list);
+
+@defineHierarchyFilter(List, List, name);
+
+in 'Отм.' = DATA LOCAL BOOLEAN (List);
+
+moveList 'Перенести отмеченные группы в текущую'(list)  { 
+
+    FOR in(List i) DO{
+        IF i != list THEN {
+            parent(i) <- list;
+            in(i) <- NULL;
+        } ELSE {
+            MESSAGE 'Выделенная товарная группа не может совпадать с объединяемой';
+        }
+    }
+}
+
 CLASS ListDetail 'Строка списка SKU';
 TABLE listDetail(ListDetail);
 
 list = DATA List(ListDetail) NONULL DELETE;
-
-name 'Наименование' = DATA ISTRING[250](List);
 
 sku = DATA Sku(ListDetail);
 idSku 'Код товара' (ListDetail d) = id(sku(d));
@@ -73,7 +91,7 @@ CONSTRAINT sku(ListDetail d1) == sku(ListDetail d2) AND list(d1) == list(d2) AND
 
 FORM list 'Список SKU'
     OBJECTS l = List PANEL
-    PROPERTIES (l) name
+    PROPERTIES (l) name, nameParent
     ORDER name(l)
     
     OBJECTS d = ListDetail
@@ -138,37 +156,60 @@ DESIGN list {
 }
 
 FORM lists 'Списки SKU'
-    OBJECTS o = List
-    PROPERTIES (o) READONLY name
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
-    ORDER name(o)
+    
+    TREE treeGroups g=List PARENT parent
+    PROPERTIES in(g), moveList(g) TOOLBAR
+    PROPERTIES READONLYIF isReadonly() name(g), canonicalName(g)
+    PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE 
+    FILTERS inIFilterName(g) OR NOT filterNameList()
+    ORDER canonicalName(g)
     
     OBJECTS d = ListDetail
     PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
     ORDER nameSku(d)
-    FILTERS list(d) == o
+    FILTERS list(d) == g
 ;
 
 FORM dialogLists 'Списки SKU'
-    OBJECTS o = List
-    PROPERTIES(o) READONLY name
-    ORDER name(o)
+    TREE treeGroups tg=List PARENT parent
+    PROPERTIES READONLY name(tg)
+    ORDER name(tg)
+
+    OBJECTS g=List
+    PROPERTIES(g) NEWSESSION name READONLY, canonicalName READONLY, DELETE 
+    PROPERTIES(g) NEWSESSION NEW, EDIT
+    ORDER canonicalName(g)
+
+    FILTERS isParent(g, tg)
+
+    FILTERGROUP filters
+        FILTER 'Все листья' isParentLeaf(g, tg) 'F10' DEFAULT
+        FILTER 'Всех потомков' isParent(g, tg) 'F9'
+        FILTER 'Только непосредственных потомков' parent(g) == tg 'F8'
     
-    OBJECTS d = ListDetail
-    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
-    ORDER nameSku(d)
-    FILTERS list(d) == o
-    
-    LIST List OBJECT o
+    LIST List OBJECT g
 ;
+
+DESIGN dialogLists {
+    BOX {
+        size = (1280, 720);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX(TREE treeGroups);
+            MOVE BOX (g) {
+                fill = 2;
+                GRID(g) { defaultComponent = TRUE; }
+            }
+        }
+    }
+}
 
 NAVIGATOR {
     skuNavigator {
         NEW lists;
     }
 }
-
-in 'Отм.' = DATA LOCAL BOOLEAN (List);
 
 FORM dialogAddLists 'Списки SKU'
     OBJECTS o = List
