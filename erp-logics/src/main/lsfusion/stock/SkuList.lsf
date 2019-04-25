@@ -7,7 +7,11 @@ NAMESPACE Sku;
 CLASS List 'Список SKU';
 TABLE list (List);
 
-name 'Наименование' = DATA ISTRING[250](List);
+id 'Код' = DATA STRING[100](List);
+list = GROUP AGGR List l BY id(l);
+order 'Порядок' = DATA INTEGER (List) CHARWIDTH 2;
+
+name 'Наименование' = DATA ISTRING[250](List) IN base;
 
 @defineHierarchy(list);
 
@@ -91,7 +95,7 @@ CONSTRAINT sku(ListDetail d1) == sku(ListDetail d2) AND list(d1) == list(d2) AND
 
 FORM list 'Список SKU'
     OBJECTS l = List PANEL
-    PROPERTIES (l) name, nameParent
+    PROPERTIES (l) name, nameParent, order, id SHOWIF showIDs()
     ORDER name(l)
     
     OBJECTS d = ListDetail
@@ -159,10 +163,10 @@ FORM lists 'Списки SKU'
     
     TREE treeGroups g=List PARENT parent
     PROPERTIES in(g), moveList(g) TOOLBAR
-    PROPERTIES READONLYIF isReadonly() name(g), canonicalName(g)
+    PROPERTIES (g) READONLYIF isReadonly() order, id SHOWIF showIDs(), name, canonicalName
     PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE 
     FILTERS inIFilterName(g) OR NOT filterNameList()
-    ORDER canonicalName(g)
+    ORDER order(g), canonicalName(g)
     
     OBJECTS d = ListDetail
     PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
@@ -172,13 +176,13 @@ FORM lists 'Списки SKU'
 
 FORM dialogLists 'Списки SKU'
     TREE treeGroups tg=List PARENT parent
-    PROPERTIES READONLY name(tg)
-    ORDER name(tg)
+    PROPERTIES READONLY order(tg), id(tg) SHOWIF showIDs(), name(tg)
+    ORDER order(tg), name(tg)
 
     OBJECTS g=List
-    PROPERTIES(g) NEWSESSION name READONLY, canonicalName READONLY, DELETE 
+    PROPERTIES(g) NEWSESSION order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE 
     PROPERTIES(g) NEWSESSION NEW, EDIT
-    ORDER canonicalName(g)
+    ORDER order(g), canonicalName(g)
 
     FILTERS isParent(g, tg)
 
