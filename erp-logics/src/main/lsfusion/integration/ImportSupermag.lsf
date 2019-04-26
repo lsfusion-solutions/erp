@@ -1333,3 +1333,66 @@ DESIGN integrationData {
         }
     }
 }
+
+importSkuLists 'Импорт списков товаров' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACardAssort' TO file;
+    
+    IMPORT TABLE FROM file() TO id, tree, name;
+    
+    IF NOT list('all') THEN NEW g = List {
+        id(g) <- 'all';
+        name(g) <- 'Все';
+    }
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT list(TEXT (id(i))) DO NEW g = List {
+        id(g) <- ISTRING[100] (id(i));
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    LOCAL idOrder = ISTRING[20](List);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        idOrder(g) <- tree(i);
+    }
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) ORDER level(i) DO {
+        
+        parent(g) <- OVERRIDE (GROUP MAX List gg IF idOrder(gg) == parent(i)), list('all');
+    }
+    
+    LOCAL idList = INTEGER (INTEGER);
+    LOCAL idItem = ISTRING[100] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDASSORT, ARTICLE FROM Supermag.SMCardAssort' TO file;
+    
+    IMPORT TABLE FROM file() TO idList, idItem;
+    
+    LOCAL imported = BOOLEAN (ListDetail);
+    
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND NOT listDetail(s, l) DO NEW d = ListDetail {
+        list(d) <- l;
+        sku(d) <- s;
+    }
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND ListDetail d = listDetail(s, l) DO {
+        imported(d) <- TRUE;
+    }
+    
+    DELETE ListDetail d WHERE d IS ListDetail AND NOT imported(d);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importSkuLists();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSkuLists()); } }
