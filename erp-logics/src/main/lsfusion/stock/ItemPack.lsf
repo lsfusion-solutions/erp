@@ -1,13 +1,54 @@
 MODULE ItemPack;
 
-REQUIRE System,
-        Utils,
-        Stock,
-        Barcode;
+REQUIRE Item;
 
-PRIORITY Utils, Stock;
+NAMESPACE Item;
 
-NAMESPACE Pack;
+// Виды упаковок
+CLASS TransportPack 'Вид упаковки' {
+    inpack 'Внутрення упаковка',
+    outpack 'Внешняя упаковка',
+    oprow 'Ряд паллеты',
+    oppl 'Паллета'
+}
+
+name 'Наименование' (TransportPack p) = staticCaption(p) IF p IS TransportPack;
+
+FORM transportPacks 'Вид упаковки'
+    OBJECTS p = TransportPack
+    PROPERTIES(p) READONLY name
+    
+    LIST TransportPack OBJECT p
+;
+
+// штрих-код упаковки
+transportPack = DATA TransportPack (Barcode);
+nameTransportPack 'Вид упаковки' (Barcode b) = name(transportPack(b)) CHARWIDTH 20;
+
+barcode = GROUP AGGR Barcode b BY sku(b) , transportPack(b);
+
+weigth 'Масса брутто, кг' = DATA NUMERIC[11,5] (Barcode);
+
+length 'Длина, мм' = DATA NUMERIC[8,2] (Barcode);
+width 'Ширина, мм' = DATA NUMERIC[8,2] (Barcode);
+height 'Высота, мм' = DATA NUMERIC[8,2] (Barcode);
+
+EXTEND FORM item 
+    PROPERTIES (b) AFTER primary(b) nameTransportPack, weigth, length, width, height;
+
+toCopy(Barcode b) += WHEN transportPack(b) AND NOT primary(b) THEN TRUE;
+
+overCopyItem(Barcode new, Barcode old, Sku i) + { 
+    IF transportPack(old) AND i IS Sku THEN {
+        transportPack(new) <- transportPack(old);
+        weigth(new) <- weigth(old);
+        length(new) <- length(old);
+        width(new) <- width(old);
+        height(new) <- height(old);
+    }
+}
+
+// -----------------
 
 GROUP itemPack 'Упаковка товара' : public;
 
