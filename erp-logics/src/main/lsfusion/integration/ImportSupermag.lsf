@@ -1,7 +1,7 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[100]();
@@ -181,28 +181,30 @@ importItem 'Импорт товаров' () {
 EXTEND FORM integrationData PROPERTIES importItem();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItem()); } }
 
+idItem = DATA LOCAL ISTRING[50] (INTEGER);
+property = DATA LOCAL ISTRING[50] (INTEGER);
+value = DATA LOCAL TEXT (INTEGER);
+
+overImportItemAttribute ABSTRACT LIST ();
+
 importItemAttribute 'Импорт доп. свойств товаров' () {
-    
-    LOCAL id = ISTRING[50] (INTEGER);
-    LOCAL property = ISTRING[50] (INTEGER);
-    LOCAL value = TEXT (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\')' TO file;
+        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\')' TO file;
     
     logToFile('importSupermag', 'importItemAttribute_1');
     
-    IMPORT TABLE FROM file() TO id, property, value;
+    IMPORT TABLE FROM file() TO idItem, property, value;
     
     logToFile('importSupermag', 'importItemAttribute_2');
     
-    FOR property(INTEGER i) == 'packsize2' AND Item s = item(id(i)) AND NOT packBarcode(item(id(i))) DO NEW b = Barcode {
+    FOR property(INTEGER i) == 'packsize2' AND Item s = item(idItem(i)) AND NOT packBarcode(item(idItem(i))) DO NEW b = Barcode {
         packBarcode(s) <- b;
         sku(b) <- s;
     }
-    FOR property(INTEGER i) == 'packsize2' AND item(id(i)) AND NUMERIC[14,3](trim(value(i))) > 0 DO {
-        amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(id(i)));
+    FOR property(INTEGER i) == 'packsize2' AND item(idItem(i)) AND NUMERIC[14,3](trim(value(i))) > 0 DO {
+        amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(idItem(i)));
     }
     
     logToFile('importSupermag', 'importItemAttribute_3');
@@ -211,7 +213,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         name(b) <- ISTRING[50] (name);
     }
     FOR property(INTEGER i) == '1' DO {
-        brand(Item s) <- brandName(value(i)) WHERE s == item(id(i));
+        brand(Item s) <- brandName(value(i)) WHERE s == item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_4');
@@ -220,7 +222,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         name(m) <- ISTRING[200] (name);
     }
     FOR property(INTEGER i) == 'manufacturer' DO {
-        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(id(i));
+        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_5');
@@ -229,12 +231,12 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         name(c) <- ISTRING[50] (name);
     }
     FOR property(INTEGER i) == 'manCountry' DO {
-        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(id(i));
+        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_6');
     
-    FOR property(INTEGER i) == '17' AND Item s = item(id(i)) DO {
+    FOR property(INTEGER i) == '17' AND Item s = item(idItem(i)) DO {
         netWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
         grossWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
     }
@@ -242,8 +244,8 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     logToFile('importSupermag', 'importItemAttribute_7');
     
     FOR property(INTEGER i) == 'expDate' DO {
-        expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(id(i));
-        expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(id(i));
+        expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(idItem(i));
+        expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_8');
@@ -251,19 +253,51 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     LOCAL condition = ISTRING[100](Item);
     
     FOR property(INTEGER i) == 'storeTemperature' DO {
-        condition(Item s) <- ISTRING[100] (value(i)) WHERE s = item(id(i));
+        condition(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_9');
     
     FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
         AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
-        conditionsText(Item s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(id(i));
+        conditionsText(Item s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
     
+    overImportItemAttribute();
+    
     logToFile('importSupermag', 'importItemAttribute_10');
-    APPLY;
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'packType' BY value(i)](TEXT name) AND name != '' AND NOT packTypeName(name) DO NEW t = PackType {
+        name(t) <- ISTRING[100] (name);
+    }
+    FOR property(INTEGER i) == 'packType' DO {
+        packType(Item s) <- packTypeName(value(i)) WHERE s = item(idItem(i));
+    }
+    
     logToFile('importSupermag', 'importItemAttribute_11');
+    
+    FOR property(INTEGER i) == 'supName' DO {
+        originalCaption(Item s) <- ISTRING[100](value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_12');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'alcoPercent' BY value(i)](TEXT name) AND name != '' AND NOT alcoholName(name) DO NEW a = Alcohol {
+        name(a) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 'alcoPercent' DO {
+        alcohol(Item s) <- alcoholName(value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_13');
+    
+    FOR property(INTEGER i) == 'Sys.Composition' DO {
+        description(Item s) <- value(i) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_14');
+    APPLY;
+    logToFile('importSupermag', 'importItemAttribute_15');
 }
 
 EXTEND FORM items PROPERTIES (i) READONLY expiryText, conditionsText;
