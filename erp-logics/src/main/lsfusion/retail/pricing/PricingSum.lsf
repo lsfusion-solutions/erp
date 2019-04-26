@@ -22,6 +22,8 @@ name 'Наименование' = DATA ISTRING[150](PricingCommittee);
 
 name(PricingCommittee committee) += name(committee) IF committee IS PricingCommittee;
 
+inActive 'Неактивная' = DATA BOOLEAN (PricingCommittee);
+active 'Активная' (PricingCommittee pc) = pc IS PricingCommittee AND NOT inActive(pc);
 
 //@defineCommitteeEmployee(committee, chairman, 'Председатель');
 @defineCommitteeEmployeePrefix(pricingCommittee, formedMan, 'Цены сформировал');
@@ -50,7 +52,7 @@ DESIGN departmentStore {
 
 FORM pricingCommittee 'Комиссия для акта расценки'
     OBJECTS c=PricingCommittee PANEL
-    PROPERTIES(c)      name, nameFormedMan, nameCheckedMan,
+    PROPERTIES(c)      name, inActive, nameFormedMan, nameCheckedMan,
                        nameLabeledMan, nameAccountantMan, nameHeadMan
 
     TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, s=Store
@@ -107,6 +109,8 @@ FORM pricingCommitteeDialog 'Комиссии для акта расценки'
     PROPERTIES(r)      READONLY name, nameStocks, nameFormedMan, nameCheckedMan, nameLabeledMan,
                        nameAccountantMan, nameHeadMan
     PROPERTIES(r)      NEWSESSION NEW, EDIT
+    
+    FILTERGROUP active FILTER 'Активная' active(r) DEFAULT 
 
     LIST PricingCommittee OBJECT r
 ;
