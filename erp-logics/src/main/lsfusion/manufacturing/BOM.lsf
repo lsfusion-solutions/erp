@@ -606,35 +606,48 @@ overCopy  ABSTRACT LIST ( Component, Component);
 overCopy  ABSTRACT LIST ( Product, Product);
 copy 'Копировать'(BOM BOM)  { 
 	NEWSESSION {
-	    NEW b = BOM {
-	
-	        note(b) <- note(BOM);
-	        FOR BOM(Product product) == BOM NEW p=Product DO {
+	    NEW b = BOM { 
+	        overCopy(BOM, b);	      
+	        FOR BOM(Product product) == BOM ORDER index(product) NEW p=Product DO {
 	            BOM(p) <- b;
-	            sku(p) <- sku(product);
-	            quantity(p) <- quantity(product);
-	            pricePercent(p) <- pricePercent(product);
 	            overCopy(p,product);
 	        }
 	
-	        FOR BOM(Component component) == BOM NEW c=Component DO {
+	        FOR BOM(Component component) == BOM ORDER index(component) NEW c=Component DO {
 	            BOM(c) <- b;
-	            material(c) <- material(component);
-	            nettoQuantity(c) <- nettoQuantity(component);
-	            
-	            bruttoQuantity(c) <- bruttoQuantity(component);
-	            wastage(c) <- wastage(component);
 	            overCopy(c,component);
-	        }
-	        dataIn(Stock s, b) <- dataIn(s, BOM); 
-	        dataIn(StockGroup g, b) <- dataIn(g, BOM);
-	
-	        EXEC overCopy(BOM, b);
-	        
+	        }	
+	                
 	        SHOW BOM OBJECTS b = b DOCKED;
 	    }
 	}
 } TOOLBAR;
+
+overCopy (BOM from, BOM to) + { 
+    name(to) <- name(from);
+    inactive(to) <- inactive(from);
+    fromDate(to) <- fromDate(from);
+    toDate(to) <- toDate(from);    
+    note(to) <- note(from);
+    dataIn(Stock s, to) <- dataIn(s, from); 
+    dataIn(StockGroup g, to) <- dataIn(g, from);	 
+    dataNettoNetWeightComponent(to) <- dataNettoNetWeightComponent(from);
+}
+overCopy (Product to, Product from) + { 
+    sku(to) <- sku(from);
+    UOM(to) <- UOM(from);
+    quantity(to) <- quantity(from);       
+    pricePercent(to) <- pricePercent(from);        
+}
+overCopy (Component to, Component from) + {     
+    material(to) <- material(from);     
+    UOM(to) <- UOM(from);
+    nettoQuantity(to) <- nettoQuantity(from);  
+    bruttoQuantity(to) <- bruttoQuantity(from);     
+    wastage(to) <- wastage(from);          
+}
+
+
 
 edit(Product p) + {  DIALOG BOM OBJECTS b = BOM(p), p = p DOCKED; }
 
@@ -963,6 +976,13 @@ actStock  = DATA Stock (BOM);
 nameActStock 'Склад для акта' (BOM b) = name(actStock(b));
 addressActStock 'Адрес склада для акта' (BOM b) = address(actStock(b));
 
+overCopy (BOM from, BOM to) + { 
+    actStudyOfCulinaryCommittee(to) <- actStudyOfCulinaryCommittee(from);
+    company(to) <- company(from);
+    actQuantity(to) <- actQuantity(from);    
+    actStock(to) <- actStock(from);
+}
+
 CONSTRAINT  company(BOM BOM) AND NOT isCompany(company(BOM)) CHECKED BY company[BOM]
     MESSAGE 'Для спецификации выбрана организация, которая не является компанией';
 CONSTRAINT  actStock(BOM BOM) AND NOT isCompany(actStock(BOM)) CHECKED BY actStock[BOM]
@@ -1073,7 +1093,9 @@ changeQuantity(BOM BOM,Material material)  {
 componentsStock = DATA LOCAL Stock(BOM);
 nameComponentsStock 'Склад' = name(componentsStock(BOM BOM));
 prevCurrentBalance 'Остаток' (BOM BOM,Sku material) = prevCurrentBalance(material, componentsStock(BOM));
-
+overCopy (BOM from, BOM to) + { 
+    componentsStock(to) <- componentsStock(from);
+}
 CONSTRAINT componentsStock(BOM b) AND NOT isCompany(componentsStock(b))
     CHECKED BY componentsStock[BOM] MESSAGE 'Выбран склад для Спецификации, которые не принадлежит компании';
 
