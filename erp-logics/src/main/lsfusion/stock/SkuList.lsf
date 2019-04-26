@@ -46,6 +46,8 @@ nameBrandSku 'Бренд' (ListDetail d) = nameBrand(sku(d));
 nameCountrySku 'Страна' (ListDetail d) = nameCountry(sku(d));
 nameManufacturerSku 'Производитель' (ListDetail d) = nameManufacturer(sku(d));
 
+listDetail = GROUP MAX ListDetail d BY sku(d), list(d);
+
 //Доступ
 dataAccess 'Доступ разрешен' = DATA BOOLEAN (Stock, List);
 dataAccess 'Доступ разрешен' = DATA BOOLEAN (StockGroup, List);
@@ -161,6 +163,16 @@ DESIGN list {
 
 FORM lists 'Списки SKU'
     
+    OBJECTS o = List
+    PROPERTIES (o) READONLY canonicalName
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    ORDER canonicalName(o)
+    
+    OBJECTS d = ListDetail
+    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
+    ORDER nameSku(d)
+    FILTERS list(d) == o
+    
     TREE treeGroups g=List PARENT parent
     PROPERTIES in(g), moveList(g) TOOLBAR
     PROPERTIES (g) READONLYIF isReadonly() order, id SHOWIF showIDs(), name, canonicalName
@@ -168,11 +180,30 @@ FORM lists 'Списки SKU'
     FILTERS inIFilterName(g) OR NOT filterNameList()
     ORDER order(g), canonicalName(g)
     
-    OBJECTS d = ListDetail
-    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
-    ORDER nameSku(d)
-    FILTERS list(d) == g
+    OBJECTS dd = ListDetail
+    PROPERTIES(dd) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
+    ORDER nameSku(dd)
+    FILTERS isParent(list(dd), g)
 ;
+
+DESIGN lists {
+    OBJECTS {
+        NEW tab FIRST {
+            fill = 1;
+            type = TABBED;
+            NEW list {
+                caption = 'Список';
+                MOVE BOX (o);
+                MOVE BOX (d);
+            }
+            NEW tree {
+                caption = 'Дерево';
+                MOVE BOX (TREE treeGroups);
+                MOVE BOX (dd);
+            }
+        }
+    }
+}
 
 FORM dialogLists 'Списки SKU'
     TREE treeGroups tg=List PARENT parent
