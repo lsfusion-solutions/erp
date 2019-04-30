@@ -191,7 +191,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\')' TO file;
+        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\', \'brutto\', \'packbarcode\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\')' TO file;
     
     logToFile('importSupermag', 'importItemAttribute_1');
     
@@ -202,6 +202,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     FOR property(INTEGER i) == 'packsize2' AND Item s = item(idItem(i)) AND NOT packBarcode(item(idItem(i))) DO NEW b = Barcode {
         packBarcode(s) <- b;
         sku(b) <- s;
+        transportPack(b) <- TransportPack.outpack;
     }
     FOR property(INTEGER i) == 'packsize2' AND item(idItem(i)) AND NUMERIC[14,3](trim(value(i))) > 0 DO {
         amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(idItem(i)));
@@ -296,8 +297,48 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     }
     
     logToFile('importSupermag', 'importItemAttribute_14');
-    APPLY;
+    
+    FOR property(INTEGER i) == 'packbarcode' AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
+        transportPack(b) <- TransportPack.outpack;
+    }
+    FOR property(INTEGER i) == 'packbarcode' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        id(b) <- STRING[15](value(i));
+    }
     logToFile('importSupermag', 'importItemAttribute_15');
+    
+    FOR property(INTEGER i) == 'bruttoPack' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        weigth(b) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_16');
+    FOR property(INTEGER i) == 'pack_height' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        height(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_17');
+    FOR property(INTEGER i) == 'pack_length' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        length(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_18');
+    FOR property(INTEGER i) == 'pack_width' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        width(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_19');
+    
+    FOR property(INTEGER i) == 'pack_pallet' AND NUMERIC[14,3](replace(trim(value(i)), ',', '.')) > 0 AND NOT barcode(item(idItem(i)), TransportPack.oppl) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
+        transportPack(b) <- TransportPack.oppl;
+    }
+    FOR property(INTEGER i) == 'pack_pallet' AND NUMERIC[14,3](replace(trim(value(i)), ',', '.')) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.oppl) DO {
+        amount(b) <- NUMERIC[14,3](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_20');
+    FOR property(INTEGER i) == 'brutto' AND Item s == item(idItem(i)) DO {
+        grossWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_21');
+    APPLY;
+    logToFile('importSupermag', 'importItemAttribute_22');
 }
 
 EXTEND FORM items PROPERTIES (i) READONLY expiryText, conditionsText;
