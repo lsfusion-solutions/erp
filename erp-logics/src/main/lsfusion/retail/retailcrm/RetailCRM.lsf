@@ -75,7 +75,9 @@ promotionGroup (promotion) = DATA PromotionGroup(Promotion) AUTOSET NONULL;
 namePromotionGroup 'Группа акций' (Promotion promotion) = name(promotionGroup(promotion)) IN base;
 
 userOrder 'Порядок' (promotion) = DATA INTEGER (Promotion);
-order 'Порядок' (Promotion promotion) = OVERRIDE userOrder(promotion), 1 IF promotion IS Promotion MATERIALIZED;
+userOrderPromotion 'Порядок' = DATA INTEGER () CHARWIDTH 20 NOFLEX;
+
+order 'Порядок' (Promotion promotion) = OVERRIDE userOrder(promotion), userOrderPromotion() IF promotion IS Promotion , 1 IF promotion IS Promotion MATERIALIZED;
 
 userSet 'Задается кассиром' (promotion) = DATA BOOLEAN (Promotion);
 
@@ -89,6 +91,16 @@ TABLE orderPromotionType (OrderPromotionType);
 orderPromotionType (promotion) = DATA OrderPromotionType(Promotion);
 nameOrderPromotionType 'Порядок применения акции' = staticCaption(orderPromotionType(Promotion promotion)) CHARWIDTH 15;
 
+EXTEND FORM options PROPERTIES() userOrderPromotion;
+
+DESIGN options {
+    retailCRM {
+        MOVE PROPERTY(userOrderPromotion());
+    }
+}
+DESIGN integrationData{
+
+}
 FORM orderPromotionTypies 'Порядок применения акции'
     OBJECTS d = OrderPromotionType
     PROPERTIES(d) READONLY staticCaption
@@ -487,13 +499,13 @@ FORM promotionGroup 'Группа акций'
     PROPERTIES(st)     name, userOrder, inactive
 
     OBJECTS sh=Promotion
-    PROPERTIES(sh)     userOrder
+    PROPERTIES(sh)     order
     PROPERTIES(sh)     READONLY name, series, number, dateFrom, dateTo, stores,
                                 timeOfFrom, timeOfTo, minSumBill, maxSumBill,
                                 hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                                 useCurrentReceipt, allDiscountCard
     PROPERTIES(sh)     NEWSESSION copy, NEW, EDIT, DELETE 
-    ORDER userOrder(sh)
+    ORDER order(sh)
 
     FILTERS promotionGroup(sh)==st
 
