@@ -157,9 +157,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
                         id(r) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber();
                     }
-                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1)) DO NEW d = EOrderResponseDetail {
+                    LOCAL idDetail = STRING[100] (INTEGER);
+                    idDetail(INTEGER l) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1) WHERE ordrspGTIN(l);
+                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(idDetail(l)) DO NEW d = EOrderResponseDetail {
                         orderResponse(d) <- eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
-                        id(d) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1);
+                        id(d) <- idDetail(l);
                     }
                     FOR EOrderResponse r == eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) DO {
                         number(r) <- ordrspDocumentNumber();
@@ -175,7 +177,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         eOrder(r) <- eOrder(ordrspOrderNumber());
                         deliveryDateTime(r) <- ordrspDeliveryDateTimeFirst();
                         deliveryDateTimeSecond(r) <- ordrspDeliveryDateTimeSecond();
-                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1)) DO {
+                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
                             orderResponse(d) <- r;
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
                             dataGTIN(d) <- ordrspGTIN(l);
