@@ -51,7 +51,7 @@ listDetail = GROUP MAX ListDetail d BY sku(d), list(d);
 //Доступ
 dataAccess 'Доступ разрешен' = DATA BOOLEAN (Stock, List);
 dataAccess 'Доступ разрешен' = DATA BOOLEAN (StockGroup, List);
-limitAccessStock 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(Stock s, l) OR dataAccess(stockGroup(s), l);
+limitAccessStock 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(Stock s, l) OR dataAccess(stockGroup(s), l) MATERIALIZED COMPLEX;
 
 levelParent (List list, StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataAccess(parent, list) MATERIALIZED;
 nearestParent (List list, StockGroup stockGroup) = stockGroup(stockGroup, levelParent(list, stockGroup));
@@ -66,18 +66,14 @@ access 'Доступ разрешен' (List list, StockGroup stockGroup) = OVER
 access 'Доступ разрешен' (List list, Stock stock) = OVERRIDE
     dataAccess(stock, list),
     nearestIn(list, stockGroup(stock)),
-    list IS List AND stock IS Stock AND NOT limitAccessStock(list) MATERIALIZED;
-
-countAccessStock 'Кол-во доступных подразделений' (List list) =GROUP SUM 1 IF access(list, Stock stock) AND active(stock);
-defaultStock  (List list) = GROUP MIN Stock stock IF access(list, stock) AND active(stock);
-stocks  'Склады' (List list) = GROUP CONCAT name(Stock st) IF access(list, st) , ', ' ORDER name(st) CHARWIDTH 20; 
+    list IS List AND stock IS Stock AND NOT limitAccessStock(list);
 
 dataAccess 'Доступ разрешен' = DATA BOOLEAN (UserRole, List);
-limitAccessRole 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(UserRole r, l);
+limitAccessRole 'Ограничен доступ' (List l) = GROUP SUM 1 IF dataAccess(UserRole r, l) MATERIALIZED COMPLEX;
 
 access 'Доступ разрешен' (List list, UserRole role) = OVERRIDE
     dataAccess(role, list),
-    list IS List AND role IS UserRole AND NOT limitAccessRole(list) MATERIALIZED;
+    list IS List AND role IS UserRole AND NOT limitAccessRole(list);
 
 in 'Вкл.' (List l, Sku s) = TRUE IF [GROUP SUM 1 BY list(ListDetail d),  sku(d)](l, s);
 
