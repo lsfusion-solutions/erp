@@ -125,7 +125,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaActionProperty {
                 succeeded = deleteItemGroup(context, itemGroupLoyaObject, goodGroup.id) == null;
             }
         } else {
-            succeeded = uploadItemGroup(context, goodGroup, itemGroupLoyaObject) != null;
+            succeeded = uploadItemGroup(context, goodGroup, itemGroupLoyaObject) == null;
         }
         return succeeded;
     }
