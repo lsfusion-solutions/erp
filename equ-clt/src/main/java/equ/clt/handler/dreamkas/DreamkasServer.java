@@ -447,8 +447,7 @@ public class DreamkasServer {
 
     //  Возвращает цену: цена, как строка без точки, последние 2 символа - копейки
     private String getPrice(BigDecimal price) {
-        String cRet = price.setScale(2, ROUND_DOWN).toString();
-        return cRet.replace(".", "");
+        return String.valueOf(price.multiply(new BigDecimal(100)).intValue());
     }
 
     //  Возвращает ставку НДС
