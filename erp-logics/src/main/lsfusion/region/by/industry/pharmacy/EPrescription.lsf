@@ -6,11 +6,12 @@ REQUIRE Utils, Integration, Retail, POSPharmacy, LegalEntityBy;
 clientId 'Идентификатор' = DATA STRING[150]();
 clientSecret 'Секретный ключ' = DATA STRING[150]();
 scopes 'Scopes' = DATA STRING[1000]();
+useToken 'Использовать токен' = DATA BOOLEAN();
 urlToken 'URL для получения токена' = DATA STRING[255]();
 urlAPI 'URL к API' = DATA STRING[255]();
 
 EXTEND FORM integrationData
-    PROPERTIES() clientId, clientSecret, scopes, urlToken, urlAPI
+    PROPERTIES() clientId, clientSecret, scopes, useToken, urlToken, urlAPI
 ;
 
 DESIGN integrationData {
@@ -21,6 +22,7 @@ DESIGN integrationData {
         MOVE PROPERTY(clientId());
         MOVE PROPERTY(clientSecret());
         MOVE PROPERTY(scopes());
+        MOVE PROPERTY(useToken());
         MOVE PROPERTY(urlToken());
         MOVE PROPERTY(urlAPI());
        }
@@ -235,16 +237,18 @@ httpHeadersToken(TEXT name) = CASE
 httpBodyToken() = 'grant_type=client_credentials&client_id=' + clientId() + '&client_secret=' + clientSecret() + '&scope=' + scopes();
 
 getToken () {
-    LOCAL result = FILE();
-    logToFile('EPrescription', 'GET: ' + urlToken() + '\n' + httpBodyToken());
-    TRY {
-        EXTERNAL HTTP urlToken() HEADERS httpHeadersToken PARAMS httpBodyToken() TO result;
-        IMPORT JSON FROM result() TO() token = access_token;
-        logToFile('EPrescription', result());
-    } CATCH {
-        logToFile('EPrescription', messageCaughtException());
-        logToFile('EPrescription', result());
-        MESSAGE 'Ошибка авторизации';
+    IF useToken() THEN {
+        LOCAL result = FILE();
+        logToFile('EPrescription', 'GET: ' + urlToken() + '\n' + httpBodyToken());
+        TRY {
+            EXTERNAL HTTP urlToken() HEADERS httpHeadersToken PARAMS httpBodyToken() TO result;
+            IMPORT JSON FROM result() TO() token = access_token;
+            logToFile('EPrescription', result());
+        } CATCH {
+            logToFile('EPrescription', messageCaughtException());
+            logToFile('EPrescription', result());
+            MESSAGE 'Ошибка авторизации';
+        }
     }
 }
 
@@ -424,7 +428,7 @@ FORM importBundle
 ;
 
 httpHeadersPrescription(TEXT name) = CASE
-    WHEN name == 'Authorization' THEN 'Bearer ' + token();
+    WHEN name == 'Authorization' AND useToken() THEN 'Bearer ' + token();
 
 getPrescription 'Получить рецепты' (STRING[16] card) {
     IF card THEN {
@@ -790,7 +794,7 @@ textDispense(EPrescription ep, Receipt r) = '\{"resourceType": "Parameters", ' +
                                                     '"whenHandedOver": "' + toChar(date(r),'YYYY-MM-DD') + '" \} \} ] \}';
 
 httpHeadersDispense(TEXT name) = CASE
-    WHEN name == 'Authorization' THEN 'Bearer ' + token()
+    WHEN name == 'Authorization' AND useToken() THEN 'Bearer ' + token()
     WHEN name == 'Content-Type' THEN 'application/json';
 
 idMedicationDispense 'Код регистрации отпуска' = DATA STRING[100] (EPrescription, Receipt);
