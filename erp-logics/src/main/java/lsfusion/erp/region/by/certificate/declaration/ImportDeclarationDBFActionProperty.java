@@ -152,6 +152,10 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                             if (g4731 == null || !g4731.equals("ЕВРО")) {
                                 homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
                             }
+                            String g475 = trim(getDBFFieldValue(dbfFile, "G475", charset));
+                            if(g475 != null && g475.equals("УМ")) { // если УМ, то сбрасываем старое значение в 0 
+                                dutySum = BigDecimal.ZERO;
+                            }
                             BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
                             if (dutySum == null)
                                 dutySum = extraDutySum;
