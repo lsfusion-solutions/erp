@@ -64,6 +64,9 @@ public class DreamkasServer {
         if (!oJs.getKeys())
             return errBox("Ошибка парсинга ответа от WEB", oJs.eMessage, cResult, true);
         // Формируем пакет для метода PATCH
+
+        String prevCResult = cResult;
+        String lastMsg = "";
         cResult = "";
         String lPart, rPart;
         for (String cPart : oJs.cResult.split(",")) {
@@ -71,6 +74,7 @@ public class DreamkasServer {
             rPart = cPart.split(":")[1];
             if (lPart.equals("Object")) {
                 oJs.getPathValue(rPart + ".data.errors[0].message");
+                lastMsg = oJs.cResult;
                 if (oJs.cResult.equals("id must be unique")) {
                     if (cResult.length() > 0) cResult += ",";
                     cResult += aPriceList.get(Integer.parseInt(rPart));
@@ -78,7 +82,7 @@ public class DreamkasServer {
             }
         }
         if (cResult.length() == 0)
-            return errBox("Пакет для PATCH не содержит данных. Товары не переданы на сервер", "", "", false);
+            return errBox("Пакет для PATCH не содержит данных. Товары не переданы на сервер.", lastMsg, prevCResult, true);
         if (!webExec("PATCH", "products", "[" + cResult + "]"))
             return errBox(eMessage, "Товары не переданы на сервер", cResult, true); // Ошибки WEB
         if (webStatus == 204) return true;
@@ -510,8 +514,8 @@ public class DreamkasServer {
         if (eMsg2.length() > 0) eMessage += " " + eMsg2;
         if (log) {
             logMessage = eMsg;
-            if (eMsg2.length() > 0) eMessage += "\n" + eMsg2;
-            if (eMsg3.length() > 0) eMessage += "\n" + eMsg3;
+            if (eMsg2.length() > 0) logMessage += "\n" + eMsg2;
+            if (eMsg3.length() > 0) logMessage += "\n" + eMsg3;
         }
         return false;
     }
