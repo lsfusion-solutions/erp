@@ -10,7 +10,7 @@ numberFrom 'С' (GiftCardPurchaseDetail d)  = numberGiftCardString(fromGiftCard(
 //prefixGiftCard() + lpadStringWithZero(fromGiftCard(d), lengthGiftCard());
 numberTo 'По' (GiftCardPurchaseDetail d)  = numberGiftCardString(toGiftCard(d));
 //prefixGiftCard() + lpadStringWithZero(toGiftCard(d), lengthGiftCard());
-count 'Кол-во' (GiftCardPurchaseDetail d) = toGiftCard(d) - fromGiftCard(d) +1;
+count 'Кол-во' = GROUP SUM 1 BY giftCardPurchaseDetail(GiftCard g);
 
 relation = GROUP SUM 1 IF dateSold(GiftCard g) >= DATE dFrom AND dateSold(g) <= DATE dTo 
     BY numberReport(g), departmentStoreSold(g), sku(giftCardPurchaseDetail(g)), dFrom, dTo;
@@ -119,8 +119,8 @@ FORM useGiftCardPrint 'Полученные и использованные се
     PROPERTIES (d) idSku, nameSku, price, expiryDays, count, numberFrom, numberTo    
     FILTERS date(d) >=dFrom, date(d) <= dTo,
             sku(d) == i,
-            departmentStore(d) == st
-            
+            departmentStore(d) == st,
+            count(d) > 0            
             
     OBJECTS in = INTEGER 
     PROPERTIES (in,i) from, to, count, numberFrom, numberTo
