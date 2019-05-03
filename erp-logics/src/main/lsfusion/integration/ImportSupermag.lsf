@@ -1469,3 +1469,59 @@ importSkuLists 'Импорт списков товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importSkuLists();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSkuLists()); } }
+
+defaultCompany = DATA LegalEntity();
+nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
+
+EXTEND FORM options PROPERTIES nameDefaultCompany();
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY (nameDefaultCompany());
+    }
+}
+
+factoring 'Факторинг' = DATA BOOLEAN (UserContractSku);
+
+EXTEND FORM userContractSku PROPERTIES factoring(c);
+
+DESIGN userContractSku {
+    params {
+        MOVE PROPERTY (factoring(c));
+    }
+}
+
+userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
+
+importContract 'Импорт договоров' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, PROPID, PROPVAL FROM Supermag.SMClientProperties' TO file;
+    
+    IMPORT TABLE FROM file() TO id, property, value;
+    
+    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i))) AND NOT userContractSku(l, defaultCompany()) AND property(i) == '3' DO NEW c = UserContractSku {
+        supplier(c) <- l;
+        customer(c) <- defaultCompany();
+    }
+    
+    FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == '3' DO {
+        note(c) <- STRING[100](value(i));
+        currency(c) <- defaultCurrency();
+        type(c) <- ContractSkuType.sale;
+        TRY { dateFrom(c) <- OVERRIDE toDateFormat((left(trim(getWord(value(i), 'от', 2)), 10)), 'DD.MM.YYYY'), 2001_01_01; }
+        CATCH { dateFrom(c) <- 2001_01_01; }
+        number(c) <- STRING[28](replace(trim(getWord(value(i), 'от', 1)), '№', ''));
+    }
+    
+    FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == 'factor' DO {
+        factoring(c) <- value(i) == 'факторинг';
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importContract();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importContract()); } }
