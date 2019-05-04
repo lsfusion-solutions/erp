@@ -421,14 +421,20 @@ GROUP inventoryAction 'Действия' : public;
 overRecalculateBalance  ABSTRACT LIST ( Inventory);
 
 excludeBatch = ABSTRACT CASE BOOLEAN (Inventory, Batch);
+startTimeRecalculateBalance 'Остатки старт' = DATA DATETIME(Inventory);
+endTimeRecalculateBalance 'Остатки конец' = DATA DATETIME(Inventory);
+startTimeRecalculateBalance 'Остатки старт' (CollationSheet cs) = startTimeRecalculateBalance(inventory(cs));
+endTimeRecalculateBalance 'Остатки конец' (CollationSheet cs)= endTimeRecalculateBalance(inventory(cs));
+
 
 recalculateBalance 'Заполнить остатки' (Inventory inventory)  {   
+    startTimeRecalculateBalance(inventory) <- currentDateTime();
     quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
     quantityBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     
-    FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {
+    FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {        
         IF isPartly(inventory) AND isRemains(inventory) THEN { 
             quantityBalance(cs, Sku sku)
                 <- balanceB(sku, st, dt)
@@ -495,10 +501,15 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory)  {
         }
     }
     overRecalculateBalance(inventory);
+    endTimeRecalculateBalance(inventory) <- currentDateTime();    
 } CONFIRM IN inventoryAction;
 
 overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
+startTimeRecalculatePrice 'Цены старт' = DATA DATETIME(CollationSheet);
+endTimeRecalculatePrice 'Цены конец' = DATA DATETIME(CollationSheet);
+
 recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet)  { 
+    startTimeRecalculatePrice(collationSheet)<- currentDateTime();
     IF isBatch (collationSheet) THEN {
         price(PageInventoryDetail pageInventoryDetail)
             <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
@@ -550,6 +561,7 @@ recalculatePrice 'Пересчитать цены в сличительной в
                 <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)));
         }
     }
+    endTimeRecalculatePrice(collationSheet)<- currentDateTime();
 } CONFIRM IN inventoryAction;
 
 recalculatePrice 'Пересчитать цены по всей инвентаризации' (Inventory inventory)  { 
@@ -1553,6 +1565,71 @@ notShowAddListInventory = ABSTRACT BOOLEAN(Inventory);
 notShowEditListInventory = ABSTRACT BOOLEAN(Inventory);
 notShowDeleteListInventory = ABSTRACT BOOLEAN(Inventory);
 
+filterDateFrom (DocumentDetailLog i) = date(i) >= filterSkuLedgerDateFrom() OR (i IS DocumentDetailLog AND NOT filterSkuLedgerDateFrom());      
+filterDateTo (DocumentDetailLog i) = date(i) <= filterSkuLedgerDateTo() OR (i IS DocumentDetailLog AND NOT filterSkuLedgerDateTo());   
+
+FORM movementDocumentDetailSku 'Лог движение товара'
+    OBJECTS ss = (s = Sku, cs =CollationSheet) PANEL
+    PROPERTIES READONLY name(s), nameStock(cs)
+    PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
+                  
+    OBJECTS l = DocumentDetailLog
+    PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument, typeDocument, 
+                   index, idSku, nameSku, quantity, price, nameUser, date, time, note
+    PROPERTIES  READONLY
+                nameSupplierStock 'Склад поставщика' = nameSupplierStock(documentLog(l)),
+                nameCustomerStock 'Склад покупателя' = nameCustomerStock(documentLog(l))              
+                               
+    ORDER date(l)DESC, time(l) 
+    FILTERS sku(l) == s,            
+            supplierStock(documentLog(l)) == stock(cs) OR customerStock(documentLog(l)) == stock(cs),
+            filterDateFrom(l),
+            filterDateTo(l)
+            
+    FILTERGROUP posted FILTER 'Изменения после инвентаризации' dateDocument(l) <= date(cs) AND date(l) >= date(cs) 'F9' DEFAULT 
+;
+DESIGN movementDocumentDetailSku {
+    BOX {
+        NEW header {
+            alignment = STRETCH;
+            type = CONTAINERH;
+            MOVE BOX(ss){ 
+                fill = 1; 
+                type = CONTAINERH;
+                MOVE PROPERTY (name(s)){ caption = 'SKU'; fill = 1; } 
+                MOVE PROPERTY (nameStock(cs)){ caption = 'Склад'; fill = 1; } 
+            }
+            NEW filter {
+                caption = 'Фильтры';
+                type = CONTAINERH;
+                MOVE PROPERTY (filterSkuLedgerDateFrom()){caption = 'Дата изменения с';}
+                MOVE PROPERTY (filterSkuLedgerDateTo()){caption = 'Дата изменения по';}
+            }
+        }
+        MOVE BOX(l);
+    }
+    MOVE TOOLBARBOX;
+}
+movementDocumentDetailSku'Показать лог движение товара' (Sku sku, CollationSheet cs)  { NEWSESSION SHOW movementDocumentDetailSku OBJECTS s = sku, cs = cs; };
+
+backgroundDiffInventory 'Подсвечивать товары, у которых неправильные значения остатка в инвентаризации'  = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () backgroundDiffInventory
+;
+DESIGN options {
+    pane {        
+        NEW inventory {
+            caption = 'Инвентаризация';  
+            MOVE PROPERTY (backgroundDiffInventory());          
+        }
+    }
+}
+backgroundDiffInventory(CollationSheet cs, Sku s) = RGB (255,153,153) IF backgroundDiffInventory() AND
+    cs IS CollationSheet AND s IS Sku AND 
+    ( NOT quantityBalance(cs,s)==balanceB(s,stock(cs),dateTime(cs)) OR 
+    (NOT isPrice(inventory(cs)) AND NOT sumBalance(cs,s)==sumB(s,stock(cs),dateTime(cs))));
+
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1607,7 +1684,8 @@ FORM inventory 'Инвентаризация'
                                  sumContainerPageInventoryDetailCollationSheetGrid = sumContainerPageInventoryDetail, 
                                  sumContainerShortageCollationSheetGrid = sumContainerShortage,
                                  countListInventory, countPageInventory
-    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice GRID //, deletecs=DELETE TOOLBAR
+    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice GRID, startTimeRecalculateBalance READONLY , endTimeRecalculateBalance READONLY, 
+                                 startTimeRecalculatePrice READONLY , endTimeRecalculatePrice READONLY //, deletecs=DELETE TOOLBAR
     PROPERTIES (cs)  PANEL sumItemPageInventoryDetail, sumContainerPageInventoryDetail,
                                  sumItemBalance, sumContainerBalance,
                                  sumItemShortage, sumContainerShortage
@@ -1621,7 +1699,7 @@ FORM inventory 'Инвентаризация'
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS          i=Sku GRID
-    PROPERTIES(i) READONLY                      idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i), id
+    PROPERTIES(i) READONLY                      BACKGROUND backgroundDiffInventory(cs,i) idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i) ON CONTEXTMENU movementDocumentDetailSku(i,cs), id
     PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
@@ -2047,13 +2125,6 @@ overShowDelete (Inventory i) += showEditDeleteUser(i) AND isOpened(i);
 
 skipClose (Inventory i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
 
-DESIGN options {
-    pane {        
-        NEW inventory {
-            caption = 'Инвентаризация';            
-        }
-    }
-}
 
 @defineMovementSku(pageInventoryDetail, stock); //-- показываем по нажатию правой клавиши движение товара
 @defineBalancesSku(pageInventoryDetail); //-- показываем по нажатию правой клавиши остатки товара
@@ -2145,3 +2216,35 @@ quantity[DocumentDetail](PageInventoryDetail detail) += quantity(detail);
 price[DocumentDetail](PageInventoryDetail detail) += price(detail);
 
 document[DocumentDetail](PageInventoryDetail detail) += listInventory(detail);
+
+changeSku = ABSTRACT VALUE BOOLEAN (CollationSheet, Sku);
+viewChange 'Изменения' = DATA LOCAL BOOLEAN (Inventory);
+changeSku(CollationSheet cs, Sku s) +=  CHANGED(quantityPageInventoryDetail(cs,s)) OR
+                                        CHANGED(quantityBalance(cs,s)) OR
+                                        CHANGED(sumPageInventoryDetail(cs,s)) OR
+                                        CHANGED(sumBalance(cs,s)) OR
+                                        CHANGED(pricePageInventoryDetail(cs,s)) OR 
+                                        CHANGED(priceBalance(cs,s)); 
+
+GROUP prevInventory 'Значения (до)';
+
+EXTEND FORM inventory 
+    PROPERTIES (in) viewChange TOOLBAR DRAW i
+    FILTERS (viewChange(in) AND changeSku(cs,i)) OR (i IS Item AND NOT viewChange(in))
+    PROPERTIES SHOWIF viewChange(in) PANEL IN prevInventory
+               prevQP 'Кол-во по описям' = PREV(quantityPageInventoryDetail(cs,i)),
+               prevQB 'Кол-во по остаткам' = PREV(quantityBalance(cs,i)),
+               prevSP 'Сумма по описям' = PREV(sumPageInventoryDetail(cs,i)),
+               prevSB 'Сумма по остаткам' = PREV(sumBalance(cs,i)),
+               prevPP 'Цена по описям' = PREV(pricePageInventoryDetail(cs,i)),
+               prevPB 'Цена по остаткам' = PREV(priceBalance(cs,i))
+;
+DESIGN inventory {
+//    TOOLBARRIGHT(i) {
+//        MOVE PROPERTY (viewChange(in));
+//        //MOVE GROUP(,i);
+//    }
+    PANEL(i) {
+        MOVE GROUP(,i){showIf = viewChange(in);}    
+    }
+}

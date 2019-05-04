@@ -7,23 +7,27 @@ soldQuantity 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (Collation
 
 soldSum 'Объем продаж (сумма)' = DATA NUMERIC[18,4] (CollationSheet, Batch);
 soldQuantity 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (CollationSheet, Batch);
+startTimeSoldSum 'Объем продаж старт' = DATA DATETIME(CollationSheet);
+endTimeSoldSum 'Объем продаж конец' = DATA DATETIME(CollationSheet);
 
 fillSoldSum 'Заполнить объем продаж'(CollationSheet cs)   { 
     IF prevDate(cs) THEN {
+        startTimeSoldSum(cs) <- currentDateTime();
         soldSum(cs, Sku i) <- NULL;
         soldSum(cs, Sku i) <- sumSold(i, stock(cs),prevDate(cs), date(cs))
                 WHERE sumSold(i, stock(cs),prevDate(cs), date(cs)) AND (include(cs, i) OR cs IS RemainsCollationSheet) ;      
         soldQuantity(cs, Sku i) <- NULL;
-        soldQuantity(cs, Sku i) <- quantitySold(i, stock(cs),prevDate(cs), date(cs))
+        soldQuantity(cs, Sku i) <- NUMERIC[14,3] (quantitySold(i, stock(cs),prevDate(cs), date(cs)))
                 WHERE quantitySold(i, stock(cs),prevDate(cs), date(cs)) AND (include(cs, i) OR cs IS RemainsCollationSheet);           
         IF isBatch(cs) THEN {
             soldSum(cs, Batch i) <- NULL;
             soldSum(cs, Batch bt) <- sumSold(bt, stock(cs),prevDate(cs), date(cs))
                     WHERE sumSold(bt, stock(cs),prevDate(cs), date(cs)) AND (include(cs, bt) OR cs IS RemainsCollationSheet);      
             soldQuantity(cs, Batch bt) <- NULL;
-            soldQuantity(cs, Batch bt) <- quantitySold(bt, stock(cs),prevDate(cs), date(cs))
+            soldQuantity(cs, Batch bt) <- NUMERIC[14,3] (quantitySold(bt, stock(cs),prevDate(cs), date(cs)))
                     WHERE quantitySold(bt, stock(cs),prevDate(cs), date(cs)) AND (include(cs, bt) OR cs IS RemainsCollationSheet);          
-        }                    
+        }
+        endTimeSoldSum(cs) <- currentDateTime();                    
     } ELSE {
         MESSAGE 'Не задана дата предыдущей инвентаризации.';
     }
@@ -36,9 +40,20 @@ fillSoldSum 'Заполнить объем продаж'(Inventory in)   {
 } CONFIRM IN inventoryAction;
 
 EXTEND FORM inventory
-    PROPERTIES (cs) fillSoldSum GRID
+    PROPERTIES (cs) GRID fillSoldSum, startTimeSoldSum READONLY,  endTimeSoldSum READONLY
     PROPERTIES (in) fillSoldSum
     
     PROPERTIES soldSum(cs,i), soldQuantity(cs,i)
     PROPERTIES SHOWIF isBatch(in) soldSum(cs,b), soldQuantity(cs,b) 
+;
+
+changeSku(CollationSheet cs, Sku s) +=  CHANGED(soldSum(cs,s)) OR
+                                        CHANGED(soldQuantity(cs,s)); 
+
+EXTEND FORM inventory 
+
+    PROPERTIES SHOWIF viewChange(in) PANEL IN prevInventory
+               prevSQB 'Объем продаж (к-во)' = PREV(soldQuantity(cs,i)),
+               prevSSP 'Объем продаж (сумма)' = PREV(soldSum(cs,i))
+               
 ;
