@@ -10,7 +10,7 @@ indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
 
 curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
 curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
-curRows 'Тек. Количество записей' = DATA LOCAL NESTED INTEGER (Table);
+curRows 'Тек. количество записей' = DATA LOCAL NESTED INTEGER (Table);
 
 reindex 'REINDEX' (Table t) {
     runSQL('REINDEX TABLE ' + sid(t));
@@ -108,8 +108,91 @@ smartVacuum 'Smart VACUUM'() {
 
 
 //статистика
-recalculateStatsForm 'Пересчет статистики' (Table t) {
-    recalculateStats(t);
+CLASS StatisticGrowType 'Вид роста статистики'{
+    proportional 'Пропорцианально',
+    fixed 'Не изменяется'
+}
+targetStatistic 'Фикс. количество записей' = DATA INTEGER (Table);
+
+dataStatisticGrowType = DATA StatisticGrowType (TableKey);
+statisticGrowType(TableKey tk) = OVERRIDE dataStatisticGrowType (tk), StatisticGrowType.proportional;
+nameStatisticGrowType 'Вид роста статистики' (TableKey tk) = staticCaption(statisticGrowType(tk)) CHARWIDTH 20;
+
+dataStatisticGrowType = DATA StatisticGrowType (TableColumn);
+statisticGrowType(TableColumn tc) = OVERRIDE dataStatisticGrowType (tc), StatisticGrowType.proportional;
+nameStatisticGrowType 'Вид роста статистики' (TableColumn tc) = staticCaption(statisticGrowType(tc)) CHARWIDTH 20;
+
+recalculateStatsQ 'Пересчет статистики (быстрый)' (Table t) {
+    NEWSESSION {
+        
+        LOCAL quantityTopNew  = INTEGER (TableKey);
+        LOCAL quantityNew = INTEGER (TableKey);
+        LOCAL quantityTopNew = INTEGER (TableColumn);
+        LOCAL quantityNew = INTEGER (TableColumn);
+        
+        IF targetStatistic(t) THEN {
+            curRows(t) <- targetStatistic(t);
+        } ELSE {
+            EXTERNAL SQL 'LOCAL' EXEC 'ANALYZE ' + lower(sid(t));
+            
+            curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
+            
+            EXTERNAL SQL 'LOCAL'
+                EXEC 'SELECT attname, CAST (1.0-null_frac::numeric(11,10) AS numeric(11,10)) AS noNull, n_distinct::numeric(21,10),' +
+                     'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
+                TO file;
+            
+            IMPORT FROM file() FIELDS STRING[100] attname, NUMERIC[11,10] noNull, NUMERIC[21,10] n_distinct, TEXT most_common_freqs, INTEGER unique DO {
+                
+                LOCAL freq = NUMERIC[11,10](INTEGER );
+                freq(INTEGER i) <- NUMERIC[11,10](getWord(most_common_freqs, '|', i)) IF count(i, wordCount(most_common_freqs, '|'));
+                
+                FOR table(TableKey tk) == t AND lower(name(tk)) == attname DO {
+                    quantityNew(tk) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
+                    quantityTopNew(tk) <- CASE WHEN (GROUP SUM 1 IF table(TableKey tkk) == t) == 1 OR unique == 1 //количество разновидностей значений == количеству строк
+                                                    THEN curRows(t) * noNull 
+                                               WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
+                                                    THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) / 0.8  ;
+                }
+                
+                FOR table(TableColumn  tc) == t AND lower(sid(tc)) == attname AND NOT return(tc) == 'BOOLEAN' DO {
+                    quantityNew(tc) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
+                    quantityTopNew(tc) <- CASE WHEN unique == 1 //количество разновидностей значений == количеству строк
+                                                    THEN curRows(t) * noNull 
+                                               WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
+                                                    THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) /0.8  ;
+                }
+                
+                notNullQuantity(Property pt) <- curRows(t) * noNull WHERE tableSID(pt) == sid(t) AND lower(dbName(pt)) == attname;
+            }
+        }
+            
+        quantityNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantity(tk) ELSE 1.0 * curRows(t) / rows(t) * quantity(tk)
+            WHERE table(tk) == t AND NOT quantityTopNew(tk);    
+        quantityTopNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantityTop(tk) ELSE 1.0 * curRows(t) / rows(t) * quantityTop(tk)
+            WHERE table(tk) == t AND NOT quantityTopNew(tk);
+            
+        quantityNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantity(tc) ELSE 1.0 * curRows(t) / rows(t) * quantity(tc)
+            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
+        quantityTopNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantityTop(tc) ELSE 1.0 * curRows(t) / rows(t) * quantityTop(tc)
+            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
+            
+        rows(t) <- curRows(t);
+        
+        quantity(TableKey tk) <- quantityNew(tk) WHERE table(tk) == t;
+        quantityTop(TableKey tk) <- quantityTopNew(tk) WHERE table(tk) == t;
+        
+        FOR TableColumn tc = tableColumn(Property pt) AND table(tc) == t DO {
+            quantity(pt) <- quantityNew(tc);
+            quantityTop(pt) <- quantityTopNew(tc);
+        }
+            
+        notNullQuantity(Property pt) <-  1.0 * curRows(t) / rows(t) * notNullQuantity(pt)
+             WHERE tableSID(pt) == sid(t) AND targetStatistic(t);
+        
+        
+        APPLY;
+    }
 } ASON CONTEXTMENU sid[Table];
 
 loadCurRows 'Заполнить количество записей'(){
@@ -131,12 +214,20 @@ EXTEND FORM tools
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
     PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize
-    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows
+    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
         FILTER 'REINDEX' needReindex(t)
         FILTER 'Пересчет статистики' needStats(t)
         FILTER 'Любые' needVacuum(t) OR needReindex(t) OR needStats(t)
+        
+    OBJECTS tk=TableKey
+    PROPERTIES(tk) READONLY class, classSID, name, nameStatisticGrowType CHANGEABLE, quantity, quantityTop
+    FILTERS table(tk)==t
+
+    OBJECTS tc=TableColumn
+    PROPERTIES(tc) READONLY sid, caption, return, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, notNullQuantity , percentNotNull
+    FILTERS table(tc)==t
     
     PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows
     
@@ -151,8 +242,6 @@ DESIGN tools{
             caption = 'Таблицы';
             type =CONTAINERH;
             NEW dbLeft{
-                MOVE PROPERTY (formApply());
-                MOVE PROPERTY (formCancel());
                 NEW vacuum {
                     caption = 'Упаковка';
                     MOVE PROPERTY (loadCurSize());
@@ -165,11 +254,19 @@ DESIGN tools{
                     caption = 'Статистика';
                     MOVE PROPERTY (loadCurRows());
                 }
+                MOVE PROPERTY (formApply());
+                MOVE PROPERTY (formCancel());
                 MOVE PROPERTY (formRefresh());
             }
             NEW dbRight{
-                fill = 1;
+                fill = 0.7;
+                type = SPLITV;
                 MOVE BOX (t);
+                NEW dbColumns{
+                    type = TABBED;
+                    MOVE BOX (tc);
+                    MOVE BOX (tk);
+                }
             }
         }
     }
