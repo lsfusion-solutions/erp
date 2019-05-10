@@ -41,8 +41,8 @@ nameStatus 'Статус' (InternetOrder o) = name(status(o));
 status(InternetOrder o) <- StatusInternetOrder.new WHEN SET(o IS InternetOrder);
 isAgreed(InternetOrder o) = status(o) == StatusInternetOrder.agreed;
 
-CLASS InternetOrder 'Интернет-заказ';
-CLASS InternetOrderDetail 'Строка интернет-заказа';
+CLASS InternetOrder 'Интернет-заказ' : Document;
+CLASS InternetOrderDetail 'Строка интернет-заказа' : DocumentDetail;
 
 @defineExternalizable(internetOrder, STRING[100]);
 
@@ -579,6 +579,26 @@ NAVIGATOR {
         }
     }
 }
+
+isClosed[Document](InternetOrder o) += isClosed(o);
+isPosted[Document](InternetOrder o) += isPosted(o);
+number[Document](InternetOrder o) += number(o);
+series[Document](InternetOrder o) += series(o);
+date[Document](InternetOrder o) += date(o);
+
+supplier[Document](InternetOrder o) += legalEntity(supplierStock(o));
+supplierStock[Document](InternetOrder o) += supplierStock(o);
+
+index[DocumentDetail](InternetOrderDetail detail) += index(detail);
+sku[DocumentDetail](InternetOrderDetail detail) += sku(detail);
+quantity[DocumentDetail](InternetOrderDetail detail) += quantity(detail);
+price[DocumentDetail](InternetOrderDetail detail) += price(detail);
+
+document[DocumentDetail](InternetOrderDetail detail) += internetOrder(detail);
+
+@defineDocumentLogForm(internetOrders, o);
+@defineDocumentLogForm(internetOrder, o, tabbedBox);
+DESIGN internetOrder { historyTabs { caption = 'История'; } }
 
 FORM internetCatalogs 'Справочники интернет магазина'
     OBJECTS sio = StatusInternetOrder
