@@ -147,18 +147,22 @@ netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)/actQuantity(BOM
 
 overFullNameCompanyD (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
 overNettoNetWeightComponentGr(BOM b) = NUMERIC[18,5](overNettoNetWeightComponent(b)*1000.0);
-FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки'
-    OBJECTS dt=DATE PANEL SUBREPORT
-    PROPERTIES (dt) date = VALUE , extractYearBOMs 
+inPrintDT = DATA LOCAL BOOLEAN (BOM,DATE);
 
-    OBJECTS b=BOM PANEL 
+FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки'
+    OBJECTS dt=DATE SUBREPORT
+    PROPERTIES (dt) date = VALUE , extractYearBOMs 
+    FILTERS (GROUP SUM 1 IF inPrintDT(BOM bb,dt))
+    
+    OBJECTS b=BOM 
     PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
     PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompanyD, shortNameOwnershipCompany, recipes, extractYearFromDate,
                   actQuantity, nameActStock, addressActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProductD, date, netWeightProductDD, overNettoNetWeightComponentGr   
    
     PROPERTIES(b,dt) firstShortNameChief, namePositionChief
     PROPERTIES nameSkusD(b)
-
+    FILTERS inPrintDT(b,dt)
+    
     OBJECTS p = Product
     PROPERTIES(p) READONLY nameSku, shortNameUOM 
     PROPERTIES READONLY actNettoNetWeightD(p)
@@ -178,8 +182,12 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
               
 ;
 actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки (new)'(BOM BOM)   { 
-    DIALOG dialogDate OBJECTS d INPUT DO
-        PRINT actStudyOfCulinaryDoubleTreatment OBJECTS dt = d, b = BOM ;
+    DIALOG dialogDate OBJECTS d INPUT DO{
+        inPrintDT(BOM bb,DATE dd) <- NULL;
+        inPrintDT(BOM,d) <- TRUE; 
+        PRINT actStudyOfCulinaryDoubleTreatment;
+    }
+        
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
