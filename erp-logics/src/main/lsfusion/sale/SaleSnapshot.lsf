@@ -538,20 +538,21 @@ cumBalance 'Накопленный остаток' (Stock stock, Snapshot snapsh
 
 turnover 'Товарооборачиваемость, дн.' (Stock stock, Snapshot snapshot) = NUMERIC[12,3](cumBalance(stock, snapshot) /
     saleSum(stock, snapshot));          
- 
+
+//сумма остатков на начало 
 calcDataCumBalance(Sku sku, Stock stock, Snapshot snapshot, DATE dateFrom, DATE dateTo) = 
     sumA(sku, stock, snapshot) * daysInclBetweenDates(dateFrom, dateTo)
     (-)
     (GROUP
         SUM signedSum(sku, stock, DATE date) * daysInclBetweenDates(dateFrom, date) 
-        IF date >= dateFrom AND date < dateTo);
+        IF date >= dateFrom AND date <= dateTo);
 
 calcCumBalance(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
     sumA(sku, stock, dateTo) * daysInclBetweenDates(dateFrom, dateTo)
     (-)
     (GROUP
         SUM signedSum(sku, stock, DATE date) * daysInclBetweenDates(dateFrom, date) 
-        IF date >= dateFrom AND date < dateTo);
+        IF date >= dateFrom AND date <= dateTo);
  
 overCalcSaleSkuParamsInterval ABSTRACT LIST ( Snapshot, DATE, DATE); 
 calcSaleSkuParamsInterval 'Рассчитать продажи в день и товарооборачиваемость'(Snapshot snapshot, DATE dateFrom, DATE dateTo)  {    

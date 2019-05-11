@@ -167,17 +167,15 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
             }
         }
             
-        quantityNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantity(tk) ELSE 1.0 * curRows(t) / rows(t) * quantity(tk)
+        quantityNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantity(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tk)
             WHERE table(tk) == t AND NOT quantityTopNew(tk);    
-        quantityTopNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantityTop(tk) ELSE 1.0 * curRows(t) / rows(t) * quantityTop(tk)
+        quantityTopNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantityTop(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tk)
             WHERE table(tk) == t AND NOT quantityTopNew(tk);
             
-        quantityNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantity(tc) ELSE 1.0 * curRows(t) / rows(t) * quantity(tc)
+        quantityNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantity(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tc)
             WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
-        quantityTopNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantityTop(tc) ELSE 1.0 * curRows(t) / rows(t) * quantityTop(tc)
+        quantityTopNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantityTop(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tc)
             WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
-            
-        rows(t) <- curRows(t);
         
         quantity(TableKey tk) <- quantityNew(tk) WHERE table(tk) == t;
         quantityTop(TableKey tk) <- quantityTopNew(tk) WHERE table(tk) == t;
@@ -187,9 +185,10 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
             quantityTop(pt) <- quantityTopNew(tc);
         }
             
-        notNullQuantity(Property pt) <-  1.0 * curRows(t) / rows(t) * notNullQuantity(pt)
+        notNullQuantity(Property pt) <-  NUMERIC[21,10](curRows(t)) / rows(t) * notNullQuantity(pt)
              WHERE tableSID(pt) == sid(t) AND targetStatistic(t);
         
+        rows(t) <- curRows(t);
         
         APPLY;
     }
@@ -259,10 +258,11 @@ DESIGN tools{
                 MOVE PROPERTY (formRefresh());
             }
             NEW dbRight{
-                fill = 0.7;
+                fill = 1;
                 type = SPLITV;
                 MOVE BOX (t);
                 NEW dbColumns{
+                    fill = 0.4;
                     type = TABBED;
                     MOVE BOX (tc);
                     MOVE BOX (tk);
