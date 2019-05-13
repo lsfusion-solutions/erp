@@ -1,5 +1,6 @@
 package equ.clt.handler.dreamkas;
 
+import equ.api.GiftCard;
 import equ.api.SalesInfo;
 import equ.api.ZReportInfo;
 import equ.api.cashregister.CashDocument;
@@ -227,17 +228,22 @@ public class DreamkasServer {
         java.sql.Date dateZReport, dateReceipt;
         Time timeZReport, timeReceipt;
         String numberZReport, idEmployee, firstNameContact, lastNameContact, barcodeItem, cSign;
+        boolean isCancel = false;
 //        String seriesNumberDiscountCard; // пока не используется
         BigDecimal sumCard, sumCash, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail;
 //        BigDecimal discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt; // пока не используется
         // ----- шапка чека -----
-        oHeader.getPathValue("type");          // Тип продажи: Продажа (SALE), Возврат (REFUND)
+        oHeader.getPathValue("type");          // Тип продажи: Продажа (SALE), Возврат (REFUND), Аннулирование продажи (SALE_ANNUL)
         switch (oHeader.cResult) {
             case "SALE":
                 cSign = "";
                 break;
             case "REFUND":
                 cSign = "-";
+                break;
+            case "SALE_ANNUL":
+                cSign = "";
+                isCancel = true;
                 break;
             default:
                 return;
@@ -298,14 +304,14 @@ public class DreamkasServer {
 //            discountPercentReceiptDetail = null;                             // % скидки - нет
 //            discountSumReceiptDetail = null;                                 // сумма скидки, массив discount - пока нет
             // Сумма товара - реквзит отсутствует, вычисляем самостоятельно
-            sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
             if (cSign.equals("-")) quantityReceiptDetail = quantityReceiptDetail.multiply(new BigDecimal(-1));
+            sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport,
                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash,
-                    (BigDecimal) null, barcodeItem, null, null, null, quantityReceiptDetail,
-                    priceReceiptDetail, sumReceiptDetail, null, null,
-                    null, numberReceiptDetail, "", null));
+                    (Map<String, GiftCard>) null, barcodeItem, null, null, null, quantityReceiptDetail,
+                    priceReceiptDetail, sumReceiptDetail, null, null, null,
+                    null, numberReceiptDetail, "", null, isCancel, null));
         }
 
         for(SalesInfo salesInfo : salesInfoList) {
