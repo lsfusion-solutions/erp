@@ -117,7 +117,7 @@ fillInvoice 'Заполнить на основе накладной (закуп
             setPropertiesPurchaseReturnSaleReturn(d, invoiceDetail);
         }
     }
-} IN SaleReturn.invoice;
+};
 
 setPropertiesPurchaseReturnSaleReturn(SaleReturn.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
     sku(d) <- sku(invoiceDetail);
@@ -133,8 +133,6 @@ setPropertiesPurchaseReturnSaleReturn(SaleReturn.UserInvoiceDetail d, InvoiceDet
 }
 
 //----------------------------------------------------------------------------//
-
-GROUP invoice 'Информация о накладной' : base;
 
 createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
 createSaleReturnInvoice 'Создать накладную (продажа-возврат)' = DATA BOOLEAN (UserInvoice) MATERIALIZED;
@@ -174,7 +172,7 @@ quantityInvoiceDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleRetu
 
 purchaseReturnInvoices 'Накладные (закупка-возврат)' (SaleReturn.Invoice saleReturn) = GROUP
                                                         CONCAT STRING[255](description(Invoice purchaseReturn)) IF quantityInvoiceDetail (purchaseReturn, saleReturn), ', '
-                                                        ORDER purchaseReturn IN invoice CHARWIDTH 30 MATERIALIZED;
+                                                        ORDER purchaseReturn CHARWIDTH 30 MATERIALIZED;
 
 relationSaleReturn 'Связь' (SaleReturn.Invoice saleReturn) = GROUP SUM quantityInvoiceDetail (Invoice purchaseReturn, saleReturn) MATERIALIZED;
 
@@ -191,7 +189,16 @@ toInvoiced 'Не выписано' (InvoiceDetail invoiceDetail) = quantity (inv
 EXTEND FORM SaleReturn.userInvoice
     PROPERTIES(i) fillInvoice, purchaseReturnInvoices READONLY
 ;
-DESIGN SaleReturn.userInvoice { headerCreateDetail{ MOVE GROUP(invoice,i) { type = CONTAINERV; }}}
+DESIGN SaleReturn.userInvoice { 
+    headerCreateDetail{ 
+        NEW purchaseSale{
+            caption = 'Накладная (закупка-возврат)';
+            type = CONTAINERV;
+            MOVE PROPERTY (fillInvoice(i));
+            MOVE PROPERTY (purchaseReturnInvoices(i));
+        }
+    }
+}
 
 
 

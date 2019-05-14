@@ -126,7 +126,7 @@ fillInvoice 'Заполнить на основе накладной'(Purchase.U
         }
         setPropertiesPurchaseSale(userInvoice);
     }
-} IN Purchase.invoice;
+};
 
 setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
             sku(d) <- sku(invoiceDetail);
@@ -141,8 +141,6 @@ setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDet
             invoicePrice(d) <- invoicePrice(invoiceDetail);    
 }
 //----------------------------------------------------------------------------//
-
-GROUP invoice 'Информация о накладной' : base;
 
 createPurchaseInvoice 'Создать накладную (закупка)' = ABSTRACT BOOLEAN (Invoice) MATERIALIZED;
 createPurchaseInvoice 'Создать накладную (закупка)' = DATA BOOLEAN (UserInvoice) MATERIALIZED;
@@ -212,7 +210,7 @@ quantityInvoiceDetail (sale, purchase) = GROUP SUM quantity(Purchase.InvoiceDeta
 
 saleInvoices 'Накладные (продажа)' (Purchase.Invoice purchase) = GROUP
                                                         CONCAT STRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, purchase) , ', '
-                                                        ORDER sale IN invoice CHARWIDTH 30 MATERIALIZED;
+                                                        ORDER sale CHARWIDTH 30 MATERIALIZED;
 
 relationPurchase 'Связь' (Purchase.Invoice purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
 
@@ -230,8 +228,16 @@ EXTEND FORM Purchase.userInvoice
     PROPERTIES(i) fillInvoice, saleInvoices READONLY
     PROPERTIES (d) descriptionIndexInvoiceDetail
 ;
-DESIGN Purchase.userInvoice { headerCreateDetail{ MOVE GROUP(invoice,i) { type = CONTAINERV; }}}
-
+DESIGN Purchase.userInvoice { 
+    headerCreateDetail{ 
+        NEW salePurchase{
+            caption = 'Накладная (продажа)';
+            type = CONTAINERV;
+            MOVE PROPERTY (fillInvoice(i));
+            MOVE PROPERTY (saleInvoices(i));
+        }
+    }
+}
 
 
 CLASS PurchaseInvoice 'Накладная на основе накладной': Purchase.Invoice;
