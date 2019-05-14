@@ -176,7 +176,8 @@ META defineOrderInvoice(sign, stockProp)
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);
     overToInvoice = ABSTRACT CASE NUMERIC[16,5] (Batch, OrderDetail);
     overToInvoice(Batch batch, OrderDetail detail) += WHEN batch IS Batch AND detail IS OrderDetail THEN toInvoice(batch, detail);
-
+    orderCreateUserInvoice ABSTRACT LIST (UserInvoice, Order);
+    
     createDetail(UserInvoice userInvoice, Order order)  { 
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(stockProp##Stock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             // проходим по строкам, для которых не задана партия
@@ -209,6 +210,7 @@ META defineOrderInvoice(sign, stockProp)
                     fill(d, orderDetail);
                     overFill(d, orderDetail);
             }
+            orderCreateUserInvoice(userInvoice,order);
         } ELSE
             FOR order(OrderDetail orderDetail) == order AND
                 toInvoice(orderDetail) > 0 // возможно еще нужно фильтровать по складам
