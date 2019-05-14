@@ -531,12 +531,13 @@ overCopyUser(UserContractSku from, UserContractSku to) +{
     partSale(to) <- partSale(from);
     skipSaleLedger(to) <- skipSaleLedger(from);
 }
+overCreateSaleReport = ABSTRACT BOOLEAN (ContractSku);
 
 filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
     BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
 overFillData  ABSTRACT (SaleReport);
 createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo)  { 
-    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+    FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
         AND inSalereport(Stock stock) AND partyB(c) == company AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
         NEWSESSION  {
             NEW r = SaleReport {
@@ -569,7 +570,7 @@ fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
 saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
 
 createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company)  { 
-    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+    FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
         AND inSalereport(Stock stock) AND partyB(c) == company
         AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
         AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
@@ -595,7 +596,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
     }
 }
 createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company)  { 
-    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+    FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
         AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
         AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
