@@ -640,7 +640,9 @@ META defineOrderInvoice(sign, stockProp)
     overCreateMultiUserInvoice(Order o)+ {  createMultiUserInvoice(o); }
 
     // автомтатическое закрытие заказов
-    WHEN SET(order(orderDetail(InvoiceDetail d)) AND isPosted(d)) AND autoCloseOrders(stockProp###stock(d)) AND NOT isClosed(order(orderDetail(d))) DO
+    dataAutoCloseOrders 'Автоматически закрывать заказы'###sign = DATA BOOLEAN(Stock);
+    
+    WHEN SET(order(orderDetail(InvoiceDetail d)) AND isPosted(d)) AND (OVERRIDE dataAutoCloseOrders(stockProp###stock(d)), autoCloseOrders(stockProp###stock(d))) AND NOT isClosed(order(orderDetail(d))) DO
         isClosed(UserOrder o) <- TRUE WHERE o == order(orderDetail(d));
 
 END

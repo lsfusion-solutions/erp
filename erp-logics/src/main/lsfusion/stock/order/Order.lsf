@@ -243,10 +243,12 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(order(detail)) MATERIALIZED;
     closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDataDate(detail), closeDate(userOrder(detail)) MATERIALIZED;
-
-    closeDataDate(UserOrderDetail detail) <- OVERRIDE overCloseDate(detail), sum(shipmentDate(detail), quantityDaysCloseOrders(stockProp##Stock(detail)))
+    
+    dataQuantityDaysCloseOrders 'Срок автоматического закрытия заказов'###sign = DATA INTEGER(Stock);
+    
+    closeDataDate(UserOrderDetail detail) <- OVERRIDE overCloseDate(detail), sum(shipmentDate(detail), (OVERRIDE dataQuantityDaysCloseOrders(stockProp##Stock(detail)),quantityDaysCloseOrders(stockProp##Stock(detail))))
         WHEN CHANGED(shipmentDate(detail)) OR CHANGED(stockProp##Stock(detail)) OR CHANGED(overCloseDate(detail));
-    closeDate(UserOrder order) <- OVERRIDE overCloseDate(order), sum(shipmentDate(order), quantityDaysCloseOrders(stockProp##Stock(order)))
+    closeDate(UserOrder order) <- OVERRIDE overCloseDate(order), sum(shipmentDate(order), (OVERRIDE dataQuantityDaysCloseOrders(stockProp##Stock(order)),quantityDaysCloseOrders(stockProp##Stock(order))))
             WHEN CHANGED(shipmentDate(order)) OR CHANGED(stockProp##Stock(order)) OR CHANGED(overCloseDate(order));    
 
     WHEN SET (closeDate(UserOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
