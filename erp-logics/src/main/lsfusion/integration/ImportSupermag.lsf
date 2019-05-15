@@ -429,10 +429,11 @@ importLegalEntity 'Импорт организаций' () {
     LOCAL own = ISTRING[1] (INTEGER);
     LOCAL clientClass = INTEGER (INTEGER);
     LOCAL supplierClass = INTEGER (INTEGER);
+    LOCAL active = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS FROM Supermag.SVCOMPANIES' TO file;
+        EXEC 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS, ACCEPTED FROM Supermag.SVCOMPANIES' TO file;
 
     IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass;
     
@@ -463,6 +464,7 @@ importLegalEntity 'Импорт организаций' () {
         isSupplier(s) <- TRUE IF supplierClass(i);
         isCustomer(s) <- TRUE IF clientClass(i);
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup('companies') IF own(i) == '1', legalEntityGroup('S' + supplierClass(i)), legalEntityGroup('C' + clientClass(i));
+        inactive(s) <- active(i) == 2;
     }
     APPLY;
 }
@@ -1493,6 +1495,9 @@ DESIGN userContractSku {
 
 userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
 
+paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 0 
+    AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
+
 importContract 'Импорт договоров' () {
     
     LOCAL id = INTEGER (INTEGER);
@@ -1518,6 +1523,34 @@ importContract 'Импорт договоров' () {
     
     FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == 'factor' DO {
         factoring(c) <- value(i) == 'факторинг';
+    }
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, PAYMENTDELAY, SUPPLIERFLAGS, ACCEPTED FROM Supermag.SVCompanies' TO file;
+    
+    LOCAL delay = INTEGER (INTEGER);
+    LOCAL bankings = INTEGER (INTEGER);
+    LOCAL accepted = INTEGER (INTEGER);
+    
+    IMPORT TABLE FROM file() TO id, delay, bankings, accepted;
+    
+    LOCAL bank = INTEGER (INTEGER);
+    bank(INTEGER i) <- CASE WHEN bankings(i) == 26 THEN 1 ELSE 0 WHERE imported(i);
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY delay(i), bank(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
+        type(p) <- AgreementPaymentType.prepayment;
+        bankingDays(p) <- b == 1;
+        
+        NEW pp = PaymentPeriod {
+            paymentCondition(pp) <- p;
+            percent(pp) <- 0;
+            countDays(pp) <- d;
+        }
+    }
+    
+    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i))) AND UserContractSku c = userContractSku(l, defaultCompany()) DO {
+        inactive(l) <- accepted(i) == 2;
+        paymentCondition(c) <- paymentCondition(paymentPeriod(delay(i), bank(i)));
     }
     
     APPLY;
