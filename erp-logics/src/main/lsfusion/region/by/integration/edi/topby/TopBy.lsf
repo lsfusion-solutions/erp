@@ -309,7 +309,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         }
                     }
                 }
-                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' THEN {
+                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
                     logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
@@ -330,7 +330,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     }
                     orderMessagesFailed() <- orderMessagesFailed() + 1;
                 }
-                WHEN documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
+                WHEN documentType() == 'BLRWBL' THEN {
                     IF NOT receiveSupplierMessages THEN {
                         IF NOT disableConfirmation AND sendReplies THEN {
                             LOCAL contentSubXML = FILE();
@@ -428,7 +428,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
-            IF documentType() == 'BLRWBL' OR documentType() == 'SYSTEMMESSAGE' THEN {
+            IF documentType() == 'BLRWBL' THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- 'm' + messageDocumentNumber();
@@ -437,14 +437,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         dateTime(m) <- messageDocumentDate();
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
-                        //todo: нужно найти файлы с типом message чтобы понять что там передается в качестве reference document, скорее всего они не создаются потому что не определяется ссылка на документ
-                        //и почему мы игнорируем остальные типы?
-                        documentNumber() <- CASE 
-                            WHEN lower(documentType()) == 'blrwbl' AND receiveSupplierMessages THEN deliveryNoteNumberEInvoiceBlrwbl(documentNumber());
+                        documentNumber() <- deliveryNoteNumberEInvoiceBlrwbl(documentNumber());
                         eInvoice(m) <- eInvoiceDeliveryNoteNumber(documentNumber());
-                        type(m) <- CASE
-                            WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
-                            WHEN documentType() == 'SYSTEMMESSAGE' THEN EInvoiceMessageType.systemmessage_systemmessage;
+                        type(m) <- EInvoiceMessageType.systemmessage_blrwbl;
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {
@@ -497,6 +492,27 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         }
                     }
                 }
+            }
+            IF documentType() == 'SYSTEMMESSAGE' THEN {
+                logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' skipped for documentType ' + documentType());
+                IF NOT disableConfirmation THEN {
+                    LOCAL xml = XMLFILE();
+                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                    sendRequestEDI(host, port, login, password, url, xml());
+                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                    IF requestError() THEN {
+                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                    } ELSE {
+                        IF archiveDir THEN {
+                            TRY{ mkdir(archiveDir + '/received'); }
+                            WRITE data(i) TO archiveDir + '/received/' + id(i);
+                        }
+                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                    }
+                }
+                invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
