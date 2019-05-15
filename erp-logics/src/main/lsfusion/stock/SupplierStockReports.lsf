@@ -106,7 +106,7 @@ sumBSupplierFromLocal 'Сумма с НДС начало' =  DATA LOCAL NUMERIC[
 sumASupplierToLocal 'Сумма с НДС конец' =  DATA LOCAL NUMERIC[18,4](Sku); 
 supplierSumBSupplierFromLocal 'Сумма без НДС начало' =  DATA LOCAL NUMERIC[18,4](Sku); 
 supplierSumASupplierToLocal 'Сумма без НДС конец' =  DATA LOCAL NUMERIC[18,4](Sku);  
-
+resetLocSupOver ABSTRACT LIST();
 resetLocSup()  { 
     quantityPurchaseSupplierFromToLocal(Sku sk) <- NULL;
     quantitySoldSupplierLocal(Sku sk) <- NULL;
@@ -124,6 +124,7 @@ resetLocSup()  {
     supplierSumBSupplierFromLocal(Sku sk) <- NULL; 
     sumASupplierToLocal(Sku sk) <- NULL;
     supplierSumASupplierToLocal(Sku sk) <- NULL;   
+    resetLocSupOver();
 }
 inSession (Sku sk) = inSession(skuGroup(sk));       
 FORM supplierStockReportPrint 'По поставщикам'
@@ -152,7 +153,7 @@ FORM supplierStockReportPrint 'По поставщикам'
             balanceASupplierToLocal(sk)
     FILTERS inSession(skuGroup(sk)) AND st IS Stock AND dFrom IS DATE 
 ;
-
+supplierReportPrintOver ABSTRACT LIST(Stock,DATE,DATE);
 supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo)  { 
     resetLocSup();
     
@@ -189,6 +190,7 @@ supplierReportPrint 'Отчет по поставщику (xls)' (Stock st,DATE 
         IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st));
     supplierSumASupplierToLocal(Sku sku) <- NUMERIC[18,4]([ GROUP SUM balanceA(Batch batch, Stock stock, dTo) * priceInvoiceDetail(batch) 
         IF inReport(stock) AND inSession(sku(batch)) BY sku(batch), supplierStock(batch)](sku, st)); 
+    supplierReportPrintOver(st,dFrom,dTo);
 }
 
 supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo)  { 
