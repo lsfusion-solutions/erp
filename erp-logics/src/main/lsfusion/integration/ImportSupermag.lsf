@@ -453,8 +453,13 @@ importLegalEntity 'Импорт организаций' () {
         fullName(s) <- ISTRING[200] (name(i));
         name(s) <- ISTRING[150] (OVERRIDE shortName(i), name(i));
         UNP(s) <- left(inn(i), 9);
-        dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
-        dataPostAddress(s, DATE d) <- ISTRING[150](faddress(i)) WHERE d == currentDate();
+        
+        IF NOT address(s, currentDate()) == address(i) THEN {
+            dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
+        }
+        IF NOT postAddress(s, currentDate()) == faddress(i) THEN {
+            dataPostAddress(s, DATE d) <- ISTRING[150] (faddress(i)) WHERE d == currentDate();
+        }
         dataPhone(s, DATE d) <- CONCAT ', ', tel(i), fax(i) WHERE d == currentDate();
         email(s) <- email(i);
         OKPO(s) <- ISTRING[20] (okpo(i));
@@ -1558,3 +1563,71 @@ importContract 'Импорт договоров' () {
 
 EXTEND FORM integrationData PROPERTIES importContract();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importContract()); } }
+
+importBank 'Импорт банков' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = STRING[255](INTEGER);
+    LOCAL address = STRING[255](INTEGER);
+    LOCAL bic = STRING[40](INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE, ADDRESS, BIC FROM Supermag.SABanks' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, address, bic;
+    
+    FOR id(INTEGER i) AND NOT bank(TEXT (id(i))) DO NEW b = Bank {
+        id(b) <- STRING[100] (id(i));
+    }
+    
+    FOR Bank b = bank(TEXT (id(INTEGER i))) DO {
+        name(b) <- STRING[200](name(i));
+        
+        IF NOT address(b, currentDate()) == address(i) THEN {
+            dataAddress(b, DATE d) <- STRING[150](address(i)) WHERE d == currentDate() AND NOT address(b, currentDate()) == address(i);
+        }
+        MFO(b) <- STRING[11](bic(i));
+    }
+    
+    APPLY;
+}
+
+importAccount 'Импорт счетов' () {
+    
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL idBank = INTEGER (INTEGER);
+    LOCAL account = STRING[40](INTEGER);
+    LOCAL active = STRING[1](INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, BANKID, ACCOUNT, ISACTUAL FROM Supermag.SMClientBanks' TO file;
+    
+    IMPORT TABLE FROM file() TO idLegalEntity, idBank, account, active;
+    
+    FOR [GROUP SUM 1 IF legalEntity(TEXT (idLegalEntity(INTEGER i))) BY account(i), TEXT (idLegalEntity(i))](STRING[40] acc, STRING[100] id) 
+        AND NOT accountID(acc, id) DO NEW a = Bank.Account {
+        number(a) <- acc;
+        legalEntity(a) <- legalEntity(id);
+    }
+    
+    FOR Bank.Account a = accountID(account(INTEGER i), TEXT (idLegalEntity(i))) ORDER active(i) DO {
+        bank(a) <- bank(TEXT (idBank(i)));
+        inactive(a) <- active(i) == '0';
+    }
+    FOR LegalEntity l = legalEntity(TEXT (idLegalEntity(INTEGER i))) DO {
+        userAccount(l) <- Bank.defaultAccount(l);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW accounts {
+            type = CONTAINERH;
+            MOVE PROPERTY (importBank());
+            MOVE PROPERTY (importAccount());
+        } 
+    } 
+}
