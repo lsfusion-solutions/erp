@@ -67,11 +67,18 @@ baseRetailPrice 'Цена за базовую единицу до' (Sku d, NUMER
                                                                                                           WHEN netWeight(d) != 1.0 THEN round2(retailPrice / netWeight(d)) ;
 baseRetailPrice 'Цена за базовую единицу до' (LabelTransactionDetail d) = baseRetailPrice(sku(d), retailPrice(d));
 
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice;
-EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice;
+baseRetailPriceRub 'Рубли (за б.е. до)' (Sku d, NUMERIC[16,4] retailPrice) = trunc(baseRetailPrice(d, retailPrice));
+baseRetailPriceRub 'Рубли (за б.е. до)' (LabelTransactionDetail d) = baseRetailPriceRub(sku(d), retailPrice(d));
+
+baseRetailPriceKop 'Копейки (за б.е. до)' (Sku d, NUMERIC[16,4] retailPrice) = OVERRIDE round0((baseRetailPrice(d, retailPrice) (-) baseRetailPriceRub(d, retailPrice)) * 100.0), 0.00 IF baseRetailPrice(d, retailPrice);
+baseRetailPriceKop 'Копейки (за б.е. до)' (LabelTransactionDetail d) = baseRetailPriceKop(sku(d), retailPrice(d));
+baseRetailPriceKopText 'Копейки (за б.е. до)' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER(baseRetailPriceKop(sku(d), retailPrice(d)))) , 2, '0') ;
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText;
+EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText;
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice 
-    PROPERTIES(dts) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice
+    PROPERTIES(dt) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText
+    PROPERTIES(dts) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText
 ;
 
 //----------------------- Переход на новый основной классификатор ---------------------------//
