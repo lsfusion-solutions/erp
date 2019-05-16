@@ -8,6 +8,7 @@ public class DreamkasSettings implements Serializable {
     private String token = "";
     private Integer salesDays = 0;
     private Integer salesLimitReceipt = 100;
+    private Integer stepSend = 100;
 
     public DreamkasSettings () {
 
@@ -45,4 +46,11 @@ public class DreamkasSettings implements Serializable {
         this.salesLimitReceipt = salesLimitReceipt;
     }
 
+    public Integer getStepSend() {
+        return stepSend;
+    }
+
+    public void setStepSend(Integer stepSend) {
+        this.stepSend = stepSend;
+    }
 }

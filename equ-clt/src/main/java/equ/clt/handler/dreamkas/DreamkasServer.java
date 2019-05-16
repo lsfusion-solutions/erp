@@ -26,23 +26,42 @@ public class DreamkasServer {
     public String logMessage = "";                                              // Текст для лог файла
     public Integer salesDays = 10;                                              // Кол-во дней принимаемой реализации
     public Integer salesLimitReceipt = 500;                                     // Кол-во чеков за 1 запрос (200..1000)
+    public Integer stepSend = 100;                                              // Шаг передачи - количество товаров для передачи за 1 раз
     public List<CashRegisterInfo> cashRegisterInfoList;                         // Список обрабатываемых устройств
     public List<SalesInfo> salesInfoList = null;                                // Строки принятой реализацииж
     public List<CashDocument> cashDocList = null;                               // Кассовые документы (внесения, изъятия)
-    private ArrayList<String> aPriceList = new ArrayList<>();             // Массив частей JSON для выполнения PATCH
+    private ArrayList<String> aPriceList = new ArrayList<>();                   // Массив частей JSON для выполнения PATCH
 //    private Map<String, DtShift> hmShift = new HashMap<String, DtShift>();    // Map deviceId_shift:объект даты и времени
 
     //  --- Основной метод загрузки кассового сервера новыми товарами (POST) или обновление товаров (PATCH)
     public boolean sendPriceList(TransactionCashRegisterInfo transaction) throws IOException {
+        Boolean lRet = true;
         if (transaction.itemsList == null) return true;
         // Очистка БД товаров, если snapshot
         if (transaction.snapshot) {
             if (!deleteAllPLU()) return false;
         }
-        // Вначале выполняем POST - считаем, что все товары новые. Готовим текст JSON
+        // Весь список товаров в массиве aPriceList, каждый элемент Json товара
         prepPriceList(transaction);
+        // Цикл передачи в соответствии с шагом передачи
+        int imax = 0; int maxSize = aPriceList.size();
+        while (imax < maxSize) {
+            if ((imax + stepSend) > maxSize) {
+                lRet = sendPricePart(imax,maxSize - 1);
+            } else {
+                lRet = sendPricePart(imax,imax + stepSend - 1);
+            }
+            imax += stepSend;
+            if (!lRet) break;
+        }
+        return lRet;
+    }
+
+    // Передает часть товаров (stepSend) на сервер
+    private boolean sendPricePart(Integer n1,Integer n2) {
+        // Вначале выполняем POST - считаем, что все товары новые.
         cResult = "";
-        for (int i = 0; i < aPriceList.size(); i++) {
+        for (int i = n1; i <= n2; i++) {
             if (cResult.length() > 0) cResult += ",";
             cResult += aPriceList.get(i);
         }
@@ -65,7 +84,6 @@ public class DreamkasServer {
         if (!oJs.getKeys())
             return errBox("Ошибка парсинга ответа от WEB", oJs.eMessage, cResult, true);
         // Формируем пакет для метода PATCH
-
         String prevCResult = cResult;
         String lastMsg = "";
         cResult = "";
@@ -378,15 +396,16 @@ public class DreamkasServer {
         return iRet;
     }
 
-    //  Возвращает диапазон дат принимаемой реализации
+    //  Возвращает диапазон дат принимаемой реализации, salesDays
     private String getRangeDate() {
-        String cFrom, cTo;
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        cTo = "to=" + dateFormat.format(calendar.getTimeInMillis()) + "T23:59:59.999";
-        calendar.add(Calendar.DATE, -salesDays);
-        cFrom = "from=" + dateFormat.format(calendar.getTimeInMillis()) + "T00:00:00.000";
-        return cFrom + "&" + cTo;
+        String cRet;
+        long curSec = System.currentTimeMillis();
+        SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date sDate = new Date(curSec);
+        Date eDate = new Date(curSec - salesDays * 1000);
+        cRet  = "from=" + mDate.format(sDate).replace(" ","T") + "&";
+        cRet += "to="   + mDate.format(eDate).replace(" ","T");
+        return cRet;
     }
 
     //  Создает текст JSON для отправки цен (POST) и заполняет массив для выполнения PATCH
