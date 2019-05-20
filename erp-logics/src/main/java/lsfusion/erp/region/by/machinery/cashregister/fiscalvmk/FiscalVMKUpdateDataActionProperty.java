@@ -1,21 +1,15 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.col.MapFact;
-import lsfusion.base.col.interfaces.immutable.ImMap;
-import lsfusion.base.col.interfaces.immutable.ImOrderMap;
-import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
@@ -34,21 +28,6 @@ public class FiscalVMKUpdateDataActionProperty extends InternalAction {
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
-
-
-            KeyExpr customUserExpr = new KeyExpr("customUser");
-            KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-            ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
-
-            QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<>(operatorKeys);
-            operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
-            operatorQuery.addProperty("firstNameContact", findProperty("firstName[Contact]").getExpr(context.getModifier(), customUserExpr));
-            operatorQuery.addProperty("lastNameContact", findProperty("lastName[Contact]").getExpr(context.getModifier(), customUserExpr));
-
-            operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
-
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
-
 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(logPath, ip, comPort, baudRate));
