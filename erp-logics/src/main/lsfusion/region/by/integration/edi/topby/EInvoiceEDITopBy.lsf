@@ -268,7 +268,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     WRITE contentSubXML() TO archiveDir + '/sent/invoices/blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                 }
                 IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
-                    IF hostEDSServiceTopBy() AND portEDSServiceTopBy() THEN {
+                    IF overHostEDSServiceTopBy(supplier(ei)) AND overPortEDSServiceTopBy(supplier(ei)) THEN {
                         LOCAL xml = FILE();
                         fileToString(contentSubXML());
                         EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(ei),password = passwordEDSServiceSupplier(ei) XML TO xml;
@@ -276,7 +276,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         innerXML() <- resultString();
                         fileToString(xml());
                         stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                        sendRequestEDI(hostEDSServiceTopBy(), portEDSServiceTopBy(), 'eds', 'eds', ('http://' + hostEDSServiceTopBy() + ':' + portEDSServiceTopBy() + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                        sendRequestEDI(overHostEDSServiceTopBy(supplier(ei)), overPortEDSServiceTopBy(supplier(ei)), 'eds', 'eds', ('http://' + overHostEDSServiceTopBy(supplier(ei)) + ':' + overPortEDSServiceTopBy(supplier(ei)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                         IF faultstring() THEN {
                             logToFile('edi', provider + ' Parse Message ' + id(i) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -398,7 +398,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
     IF isServer() THEN {
         TRY {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-                IF hostEDSServiceTopBy() AND portEDSServiceTopBy() AND useEDSServiceForCustomerTopBy() THEN {
+                IF overHostEDSServiceTopBy(customer(ei)) AND overPortEDSServiceTopBy(customer(ei)) AND useEDSServiceForCustomerTopBy() THEN {
                     LOCAL blrapnSubXML = FILE();
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
@@ -446,7 +446,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                         innerXML() <- resultString();
                         fileToString(blrapn());
                         stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                        sendRequestEDI(hostEDSServiceTopBy(), portEDSServiceTopBy(), 'eds', 'eds', ('http://' + hostEDSServiceTopBy() + ':' + portEDSServiceTopBy() + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                        sendRequestEDI(overHostEDSServiceTopBy(customer(ei)), overPortEDSServiceTopBy(customer(ei)), 'eds', 'eds', ('http://' + overHostEDSServiceTopBy(customer(ei)) + ':' + overPortEDSServiceTopBy(customer(ei)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                         IF faultstring() THEN {
                             logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -463,7 +463,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(blrwbr());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(hostEDSServiceTopBy(), portEDSServiceTopBy(), 'eds', 'eds', ('http://' + hostEDSServiceTopBy() + ':' + portEDSServiceTopBy() + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(overHostEDSServiceTopBy(customer(ei)), overPortEDSServiceTopBy(customer(ei)), 'eds', 'eds', ('http://' + overHostEDSServiceTopBy(customer(ei)) + ':' + overPortEDSServiceTopBy(customer(ei)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRWBR ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
@@ -643,7 +643,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
     IF isServer() THEN {
         TRY {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-                IF hostEDSServiceTopBy() AND portEDSServiceTopBy() THEN {
+                IF overHostEDSServiceTopBy(supplier(ei)) AND overPortEDSServiceTopBy(supplier(ei)) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
                     IF NOT length(contractId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер Договора (или другого документа, служащего основанием отпуска)\'\n';
@@ -683,7 +683,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(hostEDSServiceTopBy(), portEDSServiceTopBy(), 'eds', 'eds', ('http://' + hostEDSServiceTopBy() + ':' + portEDSServiceTopBy() + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(overHostEDSServiceTopBy(supplier(ei)), overPortEDSServiceTopBy(supplier(ei)), 'eds', 'eds', ('http://' + overHostEDSServiceTopBy(supplier(ei)) + ':' + overPortEDSServiceTopBy(supplier(ei)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRWBL ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());

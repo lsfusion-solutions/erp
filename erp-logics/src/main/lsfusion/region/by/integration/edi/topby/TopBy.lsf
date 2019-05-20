@@ -845,6 +845,19 @@ DESIGN integrationData {
 }
 
 
+hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] (LegalEntity);
+portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER (LegalEntity);
+overHostEDSServiceTopBy 'Хост EDSService' (LegalEntity l) = OVERRIDE hostEDSServiceTopBy(l), hostEDSServiceTopBy();
+overPortEDSServiceTopBy 'Порт EDSService' (LegalEntity l) = OVERRIDE portEDSServiceTopBy(l), portEDSServiceTopBy();
+
+EXTEND FORM legalEntity PROPERTIES(l) hostEDSServiceTopBy, portEDSServiceTopBy;
+DESIGN legalEntity {
+    EDI {
+        MOVE PROPERTY(hostEDSServiceTopBy(l)) AFTER PROPERTY(passwordEDSService(l));
+         MOVE PROPERTY(portEDSServiceTopBy(l)) AFTER PROPERTY(passwordEDSService(l));
+    }
+}
+
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252') THEN TRUE ;
 good(EInvoiceMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2551' OR code(m) == '2571' OR code(m) == '2650') THEN TRUE ;
 
