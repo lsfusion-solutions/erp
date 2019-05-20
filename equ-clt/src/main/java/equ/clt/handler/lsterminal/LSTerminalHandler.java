@@ -381,7 +381,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 statement = connection.prepareStatement(sql);
                 for (TerminalDocumentType tdt : transactionInfo.terminalDocumentTypeList) {
                     if (tdt.id != null) {
-                        statement.setObject(1, "ПС" + formatValue(tdt.id));
+                        statement.setObject(1, formatValue(tdt.id));
                         statement.setObject(2, "");
                         statement.setObject(3, formatValue(tdt.name));
                         statement.setObject(4, formatValue(tdt.analytics1));
