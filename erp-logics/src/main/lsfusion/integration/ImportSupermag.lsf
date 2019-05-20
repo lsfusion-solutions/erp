@@ -164,14 +164,19 @@ importItem 'Импорт товаров' () {
     }
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
+        transportPack(b) <- NULL;
+        dataAmount(b) <- NULL;
         barcode(s) <- b;
         imported(b) <- TRUE;
+    }
+    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
+        Purchase.packBarcode(s) <- NULL; 
     }
     
     logToFile('importSupermag', 'importItem_6');
     
     DELETE Item i WHERE i IS Item AND NOT imported(i);
-    DELETE Barcode b WHERE b IS Barcode AND NOT imported(b);
+    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
 
     logToFile('importSupermag', 'importItem_7');
     APPLY;
