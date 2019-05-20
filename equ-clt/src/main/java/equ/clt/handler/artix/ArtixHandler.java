@@ -1042,8 +1042,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     JSONObject documentObject = new JSONObject(document + "}");
 
                                     Integer docType = documentObject.getInt("docType");
-                                    boolean isSale = docType == 1 || docType == 7; //sale or sale cancellation
-                                    boolean isReturn = docType == 2 || docType == 25 || docType == 8; //return or return cancellation
+                                    boolean isSale = docType == 1 || docType == 8; //sale or sale cancellation
+                                    boolean isReturn = docType == 2 || docType == 25 || docType == 7; //return or return cancellation
                                     boolean isSkip = docType == 7 || docType == 8;
                                     if (isSale || isReturn) {
 
@@ -1084,7 +1084,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             Integer paymentType = moneyPosition.getInt("valCode");
                                             Integer operationCode = moneyPosition.getInt("opCode");
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
-                                            if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && operationCode.equals(74)))) {
+                                            if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
                                                 sum = (sum != null && !isSale) ? sum.negate() : sum;
                                                 switch (paymentType) {
                                                     case 1:
