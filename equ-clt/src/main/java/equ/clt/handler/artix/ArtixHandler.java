@@ -17,6 +17,7 @@ import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Date;
@@ -551,7 +552,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                             File reqFile = new File(directory + "/sale.req");
                             if (!reqFile.exists()) {
-                                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reqFile), "utf-8"));
+                                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(reqFile), StandardCharsets.UTF_8));
                                 String data = String.format("###\n%s-%s", dateFrom, dateTo);
                                 writer.write(data);
                                 writer.close();
@@ -1087,9 +1088,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
                                                 sum = (sum != null && !isSale) ? sum.negate() : sum;
                                                 switch (paymentType) {
-                                                    case 1:
-                                                        sumCash = HandlerUtils.safeAdd(sumCash, sum);
-                                                        break;
                                                     case 4:
                                                         sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                         break;
@@ -1105,6 +1103,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         } else
                                                             sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, price));
                                                         break;
+                                                    case 1:
                                                     default:
                                                         sumCash = HandlerUtils.safeAdd(sumCash, sum);
                                                         break;
@@ -1130,7 +1129,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             String opCode = inventPosition.getString("opCode");
 
                                             // вот такой вот чит из-за того, что могут ввести код товара в кассе
-                                            String barcode = idItem != null && barcodeString != null && idItem.equals(barcodeString) ? null :
+                                            String barcode = idItem != null && idItem.equals(barcodeString) ? null :
                                                     appendCheckDigitToBarcode(barcodeString, 7, appendBarcode);
 
                                             //обнаруживаем продажу сертификатов
