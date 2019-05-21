@@ -636,7 +636,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             ps.setString(1, property.getString("code"));
                             ps.setString(2, property.getString("name"));
                             ps.setInt(3, property.getInt("flags"));
-                            ps.setString(4, property.getString("description"));
+                            ps.setString(4, property.optString("description"));
                             ps.setInt(5, version);
                             ps.setInt(6, 0);
                             ps.addBatch();
