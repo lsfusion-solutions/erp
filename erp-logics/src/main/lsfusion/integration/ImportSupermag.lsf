@@ -203,15 +203,16 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     IMPORT TABLE FROM file() TO idItem, property, value;
     
     logToFile('importSupermag', 'importItemAttribute_2');
-    
-    FOR property(INTEGER i) == 'packsize2' AND Item s = item(idItem(i)) AND NOT packBarcode(item(idItem(i))) DO NEW b = Barcode {
-        packBarcode(s) <- b;
-        sku(b) <- s;
+
+    FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
         transportPack(b) <- TransportPack.outpack;
     }
-    FOR property(INTEGER i) == 'packsize2' AND item(idItem(i)) AND NUMERIC[14,3](trim(value(i))) > 0 DO {
-        amount(Barcode b) <- NUMERIC[14,3](trim(value(i))) WHERE b == packBarcode(item(idItem(i)));
-    }
+
+    FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) AND Item s = item(idItem(i)) DO {
+        packBarcode(s) <- b;
+        amount(b) <- NUMERIC[14,3](trim(value(i)));
+   }
     
     logToFile('importSupermag', 'importItemAttribute_3');
     
