@@ -247,11 +247,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction", "priorityMPT", "filterMPT"};
+                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction",
+                    "priorityMPT", "filterMPT", "infoMPT"};
             LP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
                     "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
                     "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]",
-                    "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]");
+                    "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]", "info[MachineryPriceTransaction]");
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
             }
@@ -273,8 +274,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
                     Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
+                    String infoMPT = (String) value.get("infoMPT").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate});
+                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
                 }
             }
 
@@ -304,6 +306,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 boolean snapshotTransaction = (boolean) transaction[6];
                 String descriptionTransaction = (String) transaction[7];
                 Timestamp lastErrorDateTransaction = (Timestamp) transaction[8];
+                String infoMPT = (String) transaction[9];
 
                 boolean isCashRegisterPriceTransaction = cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"));
                 boolean isScalesPriceTransaction = scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"));
@@ -506,7 +509,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
                             cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
+                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
@@ -592,7 +595,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
-                            lastErrorDateTransaction));
+                            lastErrorDateTransaction, infoMPT));
 
                 } else if (isPriceCheckerPriceTransaction) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
@@ -642,7 +645,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
-                            snapshotTransaction, lastErrorDateTransaction));
+                            snapshotTransaction, lastErrorDateTransaction, infoMPT));
 
 
                 } else if (isTerminalPriceTransaction) {
@@ -708,7 +711,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
                             descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
                             terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
-                            nppGroupTerminal, directoryGroupTerminal));
+                            nppGroupTerminal, directoryGroupTerminal, infoMPT));
                 }
             }
             return transactionList;

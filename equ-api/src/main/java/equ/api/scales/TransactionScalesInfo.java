@@ -10,8 +10,8 @@ public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesIte
     public TransactionScalesInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery,
                                  Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                  List<ScalesItemInfo> itemsList, List<ScalesInfo> machineryInfoList, Boolean snapshot,
-                                 Timestamp lastErrorDate) {
+                                 Timestamp lastErrorDate, String info) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description, null,
-                itemsList, machineryInfoList, snapshot, lastErrorDate);
+                itemsList, machineryInfoList, snapshot, lastErrorDate, info);
     }
 }

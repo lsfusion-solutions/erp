@@ -19,9 +19,9 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList, 
                                        List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate,
                                        Integer departmentNumberGroupCashRegister, String idDepartmentStoreGroupCashRegister,
-                                       String weightCodeGroupCashRegister, String nameStockGroupCashRegister) {
+                                       String weightCodeGroupCashRegister, String nameStockGroupCashRegister, String info) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,
-                itemGroupMap, itemsList, machineryInfoList, snapshot, lastErrorDate);
+                itemGroupMap, itemsList, machineryInfoList, snapshot, lastErrorDate, info);
         this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
         this.idDepartmentStoreGroupCashRegister = idDepartmentStoreGroupCashRegister;
         this.weightCodeGroupCashRegister = weightCodeGroupCashRegister;

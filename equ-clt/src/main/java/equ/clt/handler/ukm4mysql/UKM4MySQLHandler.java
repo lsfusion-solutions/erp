@@ -7,6 +7,9 @@ import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.Pair;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -163,6 +166,15 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
                                         exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table properties", transaction.id));
+                                        exportProperties(conn, transaction, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table property_values", transaction.id));
+                                        exportPropertyValues(conn, transaction, version);
+
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table item_property_values", transaction.id));
+                                        exportItemPropertyValues(conn, transaction, useBarcodeAsId, appendBarcode, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table signal (%s)", transaction.id, "incr"));
                                         exportSignals(conn, transaction, version, true, timeout, false);
@@ -608,6 +620,89 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         } finally {
             if (ps != null)
                 ps.close();
+        }
+    }
+
+    private void exportProperties(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException, JSONException {
+        if (transaction.info != null) {
+            JSONObject infoJSON = new JSONObject(transaction.info).optJSONObject("ukm");
+            if (infoJSON != null) {
+                JSONArray properties = infoJSON.optJSONArray("properties");
+                if (properties != null) {
+                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO properties (code, name, flags, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), description=VALUES(description), deleted=VALUES(deleted)")) {
+                        for (int i = 0; i < properties.length(); i++) {
+                            JSONObject property = properties.getJSONObject(i);
+                            ps.setString(1, property.getString("code"));
+                            ps.setString(2, property.getString("name"));
+                            ps.setInt(3, property.getInt("flags"));
+                            ps.setString(4, property.getString("description"));
+                            ps.setInt(5, version);
+                            ps.setInt(6, 0);
+                            ps.addBatch();
+                        }
+                        ps.executeBatch();
+                        conn.commit();
+                    }
+                }
+            }
+        }
+    }
+
+    private void exportPropertyValues(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException, JSONException {
+        if (transaction.info != null) {
+            JSONObject infoJSON = new JSONObject(transaction.info).optJSONObject("ukm");
+            if (infoJSON != null) {
+                JSONArray propertyValues = infoJSON.optJSONArray("property_values");
+                if (propertyValues != null) {
+                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, comment, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)")) {
+                        for (int i = 0; i < propertyValues.length(); i++) {
+                            JSONObject propertyValue = propertyValues.getJSONObject(i);
+                            ps.setString(1, propertyValue.getString("property_code"));
+                            ps.setInt(2, propertyValue.getInt("id"));
+                            ps.setString(3, propertyValue.optString("const"));
+                            ps.setString(4, propertyValue.getString("description"));
+                            ps.setString(5, propertyValue.optString("comment"));
+                            ps.setInt(6, version);
+                            ps.setInt(7, 0);
+                            ps.addBatch();
+                        }
+                        ps.executeBatch();
+                        conn.commit();
+                    }
+                }
+            }
+        }
+    }
+
+    private void exportItemPropertyValues(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException, JSONException {
+        if (transaction.itemsList != null) {
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
+                for (CashRegisterItemInfo item : transaction.itemsList) {
+                    if (item.info != null) {
+                        JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
+                        if (infoJSON != null) {
+                            JSONArray itemPropertyValues = infoJSON.optJSONArray("item_property_values");
+                            if (itemPropertyValues != null) {
+                                for (int i = 0; i < itemPropertyValues.length(); i++) {
+                                    JSONObject propertyValue = itemPropertyValues.getJSONObject(i);
+                                    ps.setString(1, getId(item, useBarcodeAsId, appendBarcode));
+                                    ps.setString(2, propertyValue.getString("property_code"));
+                                    ps.setInt(3, propertyValue.getInt("property_id"));
+                                    ps.setInt(4, propertyValue.getInt("sequence"));
+                                    ps.setInt(5, version);
+                                    ps.setInt(6, 0);
+                                    ps.addBatch();
+                                }
+                            }
+                        }
+                    }
+                }
+                ps.executeBatch();
+                conn.commit();
+            }
         }
     }
 

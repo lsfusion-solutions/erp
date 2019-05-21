@@ -19,9 +19,9 @@ public class TransactionTerminalInfo extends TransactionInfo<TerminalInfo, Termi
                                    List<TerminalInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate,
                                    List<TerminalHandbookType> terminalHandbookTypeList, List<TerminalDocumentType> terminalDocumentTypeList,
                                    List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalAssortment> terminalAssortmentList,
-                                   Integer nppGroupTerminal, String directoryGroupTerminal) {
+                                   Integer nppGroupTerminal, String directoryGroupTerminal, String info) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,
-                null, itemsList, machineryInfoList, snapshot, lastErrorDate);
+                null, itemsList, machineryInfoList, snapshot, lastErrorDate, info);
         this.terminalHandbookTypeList = terminalHandbookTypeList;
         this.terminalDocumentTypeList = terminalDocumentTypeList;
         this.terminalLegalEntityList = terminalLegalEntityList;
