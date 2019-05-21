@@ -32,10 +32,12 @@ energy 'Энерг.ценность на 100г, ккал' = energy[Item](overSku
 
 // Энергетическая ценность спецификации
 
-fats 'Жиры'(BOM) = GROUP SUM fats(Component component) BY BOM(component) IN nutrition;
-carbohydrates 'Углеводы'(BOM) = GROUP SUM carbohydrates(Component component) BY BOM(component) IN nutrition;
-proteins 'Белки'(BOM) = GROUP SUM proteins(Component component) BY BOM(component) IN nutrition;
-energy 'Энерг.ценность'(BOM) = GROUP SUM energy(Component component) BY BOM(component) IN nutrition;
+skipCalcEnergy 'Не учитывать в расчёте пищевой ценности' = ABSTRACT BOOLEAN (Component);
+
+fats 'Жиры'(BOM) = GROUP SUM fats(Component component) IF NOT skipCalcEnergy(component) BY BOM(component) IN nutrition;
+carbohydrates 'Углеводы'(BOM) = GROUP SUM carbohydrates(Component component) IF NOT skipCalcEnergy(component) BY BOM(component) IN nutrition;
+proteins 'Белки'(BOM) = GROUP SUM proteins(Component component) IF NOT skipCalcEnergy(component) BY BOM(component) IN nutrition;
+energy 'Энерг.ценность'(BOM) = GROUP SUM energy(Component component) IF NOT skipCalcEnergy(component) BY BOM(component) IN nutrition;
 
 // Энергетическая ценность изделий
 

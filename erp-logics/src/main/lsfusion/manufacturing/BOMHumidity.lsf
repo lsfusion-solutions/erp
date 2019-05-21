@@ -93,6 +93,8 @@ productsUOM 'Изделия' (BOM) = GROUP CONCAT STRING[255](shortNameUOM(Produ
                                        ORDER index(p)
                                        BY BOM(p) CHARWIDTH 30 MATERIALIZED;
 
+nameBOMMaterial 'Наименование изделия' (Component c) = name(BOM(material(c)));
+
 FORM productionRecipe 'Производственная рецептура'
     OBJECTS dt=DATE PANEL SUBREPORT
     PROPERTIES (dt) date = VALUE
@@ -112,7 +114,7 @@ FORM productionRecipe 'Производственная рецептура'
 
     OBJECTS sk = Sku
     PROPERTIES(sk) READONLY name, percentDryness PANEL 
-    PROPERTIES     quantity(c,sk,dt) COLUMNS (c) HEADER nameMaterial(c)
+    PROPERTIES     quantity(c,sk,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
     PROPERTIES     READONLY quantityBom(b,sk,dt), drynessQuantityBom(b,sk,dt) PANEL
     FILTERS        quantityBom(b,sk,dt)
     
