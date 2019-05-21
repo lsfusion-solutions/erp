@@ -1,12 +1,15 @@
 package equ.clt.handler.bizerba;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
-import equ.api.scales.ScalesHandler;
+import equ.api.ItemInfo;
+import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.col.heavy.OrderedMap;
@@ -25,7 +28,7 @@ import java.util.regex.Pattern;
 
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
-public abstract class BizerbaHandler extends ScalesHandler {
+public abstract class BizerbaHandler extends DefaultScalesHandler {
 
     //Таблица PLST – список все PLUшек
     //Таблица ATST – список всех доп.текстов
@@ -65,10 +68,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
             return model + groupId;
         } else return model;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
     }
 
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList, String charset, boolean encode) throws IOException {

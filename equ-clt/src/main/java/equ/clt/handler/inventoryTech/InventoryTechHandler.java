@@ -3,7 +3,6 @@ package equ.clt.handler.inventoryTech;
 import com.google.common.base.Throwables;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
@@ -25,9 +24,7 @@ import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
 
-import static equ.clt.handler.DBFUtils.getDBFFieldValue;
-import static equ.clt.handler.DBFUtils.putField;
-import static equ.clt.handler.DBFUtils.putNumField;
+import static equ.clt.handler.DBFUtils.*;
 
 public class InventoryTechHandler extends TerminalHandler {
 
@@ -98,10 +95,6 @@ public class InventoryTechHandler extends TerminalHandler {
             sendTransactionBatchMap.put(((TransactionInfo) transaction).id, new SendTransactionBatch(exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) {
     }
 
     @Override

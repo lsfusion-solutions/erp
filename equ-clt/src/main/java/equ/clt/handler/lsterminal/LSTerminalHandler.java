@@ -3,7 +3,6 @@ package equ.clt.handler.lsterminal;
 import com.google.common.base.Throwables;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
@@ -14,8 +13,8 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -70,10 +69,6 @@ public class LSTerminalHandler extends TerminalHandler {
             sendTransactionBatchMap.put(((TransactionTerminalInfo) transactionInfo).id, new SendTransactionBatch(exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
     }
 
     @Override

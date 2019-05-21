@@ -204,22 +204,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean enabledSoftCheckInfo() throws RemoteException, SQLException {
-        return softCheck != null;
-    }
-
-    @Override
-    public List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException {
-        return softCheck == null ? null : softCheck.readSoftCheckInfo();
-    }
-
-    @Override
-    public void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException {
-        if(softCheck != null)
-            softCheck.finishSoftCheckInfo(invoiceMap);
-    }
-
-    @Override
     public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException {
         return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
     }

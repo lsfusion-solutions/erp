@@ -3,13 +3,16 @@ package equ.clt.handler.easy;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
-import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
+import equ.clt.handler.DefaultScalesHandler;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class EasyCSVHandler {
 
@@ -113,14 +116,9 @@ public class EasyCSVHandler {
             }
             return sendTransactionBatchMap;
         }
-
-        @Override
-        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-            
-        }
     }
 
-    public class EasyScalesCSVHandler extends ScalesHandler {
+    public class EasyScalesCSVHandler extends DefaultScalesHandler {
 
         public EasyScalesCSVHandler() {
         }
@@ -166,14 +164,6 @@ public class EasyCSVHandler {
                 sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
             }
             return sendTransactionBatchMap;
-        }
-
-        @Override
-        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-        }
-
-        @Override
-        public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
         }
     }
 }

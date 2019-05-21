@@ -18,10 +18,7 @@ import java.util.Set;
 
 public interface EquipmentServerInterface extends RmiServerInterface {
 
-    //sendSoftCheck consumer
-    boolean enabledSoftCheckInfo() throws RemoteException, SQLException;
-    List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
-    void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException;
+    //softCheck
     String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
 
     //processStopList consumer

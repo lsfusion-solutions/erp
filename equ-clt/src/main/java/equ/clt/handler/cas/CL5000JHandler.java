@@ -1,10 +1,13 @@
 package equ.clt.handler.cas;
 
-import equ.api.*;
-import equ.api.scales.ScalesHandler;
+import equ.api.ItemInfo;
+import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -17,7 +20,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
 
-public class CL5000JHandler extends ScalesHandler {
+public class CL5000JHandler extends DefaultScalesHandler {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
@@ -337,11 +340,6 @@ public class CL5000JHandler extends ScalesHandler {
             groupId += scales.port + ";";
         }
         return "CL5000J" + groupId;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-
     }
 
     private byte[] getBytes(String value) throws UnsupportedEncodingException {

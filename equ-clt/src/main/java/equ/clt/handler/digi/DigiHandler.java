@@ -2,13 +2,11 @@ package equ.clt.handler.digi;
 
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
-import equ.api.StopListInfo;
-import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
@@ -25,7 +23,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-public class DigiHandler extends ScalesHandler {
+public class DigiHandler extends DefaultScalesHandler {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     
@@ -401,14 +399,6 @@ public class DigiHandler extends ScalesHandler {
                     enabledScalesList.add(scales);
             }
         return enabledScalesList;
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
     }
 
     private String getWeightCode(MachineryInfo scales) {

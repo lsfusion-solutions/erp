@@ -10,10 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 public interface SoftCheckInterface extends RmiServerInterface {
-
-    List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
-
-    void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceSet) throws RemoteException, SQLException;
     
     String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceMap) throws RemoteException, SQLException;
 

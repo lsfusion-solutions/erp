@@ -2,12 +2,15 @@ package equ.clt.handler.massak;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.LittleEndianDataInputStream;
-import equ.api.*;
-import equ.api.scales.ScalesHandler;
+import equ.api.ItemInfo;
+import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -29,7 +32,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class MassaKRL10Handler extends ScalesHandler {
+public class MassaKRL10Handler extends DefaultScalesHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
@@ -120,10 +123,6 @@ public class MassaKRL10Handler extends ScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
     }
 
     private String openPort(List<String> errors, TCPPort port, String ip, boolean transaction) {

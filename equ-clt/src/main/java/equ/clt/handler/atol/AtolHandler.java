@@ -124,36 +124,6 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         return result;
     }
 
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-
-        sendSoftCheckLogger.info("Atol: Sending soft checks");
-
-        for (String directory : softCheckInfo.directorySet) {
-
-            String exchangeDirectory = directory + "/IN/";
-
-            File goodsFlagFile = createGoodsFlagFile(exchangeDirectory);
-            File goodsFile = new File(exchangeDirectory + "goods.txt");
-            PrintWriter goodsWriter = new PrintWriter(goodsFile, "cp1251");
-
-            goodsWriter.println("##@@&&");
-            goodsWriter.println("#");
-
-            for (Map.Entry<String, SoftCheckInvoice> invoiceEntry : softCheckInfo.invoiceMap.entrySet()) {
-
-                String record = format("99999", ";") + format(invoiceEntry.getKey(), ";") + format("ПРИХОД", ";") + //3
-                        ";;" + ";" + ";" + formatFlags("0", ";") + //8
-                        ";;;;;;;;" + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
-                        (invoiceEntry.getValue().idCustomerStock == null ? "1" : invoiceEntry.getValue().idCustomerStock) + ";";
-                goodsWriter.println(record);
-
-            }
-            goodsWriter.close();
-            processGoodsFlagFile(goodsFile, goodsFlagFile);
-        }
-    }
-
     private File createGoodsFlagFile(String exchangeDirectory) {
         File goodsFlagFile = new File(exchangeDirectory + "goods-flag.txt");
         if (goodsFlagFile.exists())
@@ -162,7 +132,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     private boolean processGoodsFlagFile(File goodsFile, File goodsFlagFile) throws FileNotFoundException, UnsupportedEncodingException {
-        sendSoftCheckLogger.info("Atol: waiting for processing of goods file");
+        processTransactionLogger.info("Atol: waiting for processing of goods file");
         PrintWriter flagWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(goodsFlagFile), "windows-1251"));
         flagWriter.close();
         while (!Thread.currentThread().isInterrupted() && (goodsFlagFile.exists() || !checkGoodsFile(goodsFile.getAbsolutePath()))) {
@@ -172,7 +142,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 throw Throwables.propagate(e);
             }
         }
-        sendSoftCheckLogger.info("Atol: deletion of goods file");
+        processTransactionLogger.info("Atol: deletion of goods file");
         return goodsFile.delete();
     }
 

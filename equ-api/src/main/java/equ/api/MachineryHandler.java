@@ -12,8 +12,6 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
 
     public abstract Map<Long, SendTransactionBatch> sendTransaction(List<T> transactionInfoList) throws IOException;
 
-    public abstract void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException;
-
     public void setRemoteObject(EquipmentServerInterface remote) {
         this.remote = remote;
     }

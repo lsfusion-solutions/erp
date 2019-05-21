@@ -37,7 +37,6 @@ public class EquipmentServer {
     private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     private final static Logger processDeleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    private final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
     private final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
     private final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     private final static Logger processMonitorLogger = Logger.getLogger("ProcessMonitorLogger");
@@ -58,9 +57,6 @@ public class EquipmentServer {
 
     private Consumer sendSalesConsumer;
     private Thread sendSalesThread;
-
-    private Consumer sendSoftCheckConsumer;
-    private Thread sendSoftCheckThread;
 
     private Consumer sendTerminalDocumentConsumer;
     private Thread sendTerminalDocumentThread;
@@ -155,9 +151,6 @@ public class EquipmentServer {
                                 }
                             }
 
-                            if(remote.enabledSoftCheckInfo())
-                                sendSoftCheckConsumer.scheduleIfNotScheduledYet();
-
                             if(remote.enabledTerminalInfo())
                                 sendTerminalDocumentConsumer.scheduleIfNotScheduledYet();
 
@@ -180,8 +173,6 @@ public class EquipmentServer {
                         processDeleteBarcodeThread = null;
                         interruptThread(sendSalesThread);
                         sendSalesThread = null;
-                        interruptThread(sendSoftCheckThread);
-                        sendSoftCheckThread = null;
                         interruptThread(sendTerminalDocumentThread);
                         sendTerminalDocumentThread = null;
                         interruptThread(machineryExchangeThread);
@@ -314,26 +305,6 @@ public class EquipmentServer {
             sendSalesThread.setDaemon(true);
             sendSalesThread.start();
         }
-
-        sendSoftCheckConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        SoftCheckEquipmentServer.sendSoftCheckInfo(remote);
-                } catch (ConnectException e) {
-                    sendSoftCheckLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        sendSoftCheckLogger.error("API changed! InvalidClassException");
-                    throw e;
-                }
-            }
-        };
-        sendSoftCheckThread = new Thread(sendSoftCheckConsumer);
-        sendSoftCheckThread.setDaemon(true);
-        sendSoftCheckThread.start();
 
         sendTerminalDocumentConsumer = new Consumer() {
             @Override
@@ -490,7 +461,6 @@ public class EquipmentServer {
         interruptThread(processStopListThread);
         interruptThread(processDeleteBarcodeThread);
         interruptThread(sendSalesThread);
-        interruptThread(sendSoftCheckThread);
         interruptThread(sendTerminalDocumentThread);
         interruptThread(machineryExchangeThread);
         interruptThread(processMonitorThread);

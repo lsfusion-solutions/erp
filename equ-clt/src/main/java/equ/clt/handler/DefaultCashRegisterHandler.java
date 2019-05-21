@@ -70,11 +70,6 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-
-    }
-
-    @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
 
     }

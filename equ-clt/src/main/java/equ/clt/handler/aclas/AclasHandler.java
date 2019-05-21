@@ -1,11 +1,12 @@
 package equ.clt.handler.aclas;
 
-import equ.api.*;
-import equ.api.scales.ScalesHandler;
+import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -25,7 +26,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class AclasHandler extends ScalesHandler {
+public class AclasHandler extends DefaultScalesHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
@@ -109,10 +110,6 @@ public class AclasHandler extends ScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) {
     }
 
     protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
@@ -360,10 +357,6 @@ public class AclasHandler extends ScalesHandler {
         bytes.put(commandBytes256); //256 bytes
 
         udpPort.sendCommand(bytes.array());
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) {
     }
 
     class SendTransactionTask implements Callable<SendTransactionResult> {

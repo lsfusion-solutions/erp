@@ -6,6 +6,7 @@ import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 import equ.api.*;
 import equ.api.scales.*;
+import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
 import org.apache.log4j.Logger;
@@ -17,7 +18,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class ShtrihPrintHandler extends ScalesHandler {
+public class ShtrihPrintHandler extends DefaultScalesHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     private static String password = "0030";
@@ -685,11 +686,6 @@ public class ShtrihPrintHandler extends ScalesHandler {
         return !value.toString().equals("0");
     }
 
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-
-    }
-
     private int clearGoodsDB(List<String> errors, UDPPort port) throws IOException, CommunicationException, InterruptedException {
         ByteBuffer bytes = ByteBuffer.allocate(5);
         bytes.put((byte) 24); //18H
@@ -847,9 +843,5 @@ public class ShtrihPrintHandler extends ScalesHandler {
     private void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
         processTransactionLogger.error(errorText, t);
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
     }
 }
