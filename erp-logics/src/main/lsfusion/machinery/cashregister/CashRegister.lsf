@@ -44,15 +44,17 @@ showSection 'Показывать секции' = DATA BOOLEAN (CashRegisterMode
 
 useValueIdUOM 'Использовать внутренний id для единиц измерений' = DATA BOOLEAN (CashRegisterModel);
 
+notSkipCancel 'Проводить по регистру аннулированные продажи' = DATA BOOLEAN (CashRegisterModel);
+
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel PANEL
-    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM
+    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM, notSkipCancel
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM
+    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection, useValueIdUOM, notSkipCancel
     PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE 
     LIST CashRegisterModel OBJECT c
 ;
@@ -150,7 +152,9 @@ ignoreDisplayTextCurrentCashRegister 'Страна кассы' = ignoreDisplayTe
 
 ignoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = ignoreCashRegisterServer(cashRegisterModel(gcr));
 notIgnoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModel(gcr);
-showSection(GroupCashRegister gcr) = showSection(model(gcr));
+showSection(GroupCashRegister gcr) = showSection(cashRegisterModel(gcr));
+notSkipCancel 'Проводить по регистру аннулированные продажи'(CashRegister r) = notSkipCancel(cashRegisterModel(groupCashRegister(r))) MATERIALIZED;
+
 
 overChangeDirectory  ABSTRACT LIST ( GroupCashRegister);
 changeDirectory(GroupCashRegister group)  {     
@@ -342,7 +346,7 @@ EXTEND FORM stores
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 cashRegisterSID (model) = GROUP MAX CashRegisterModel cmodel BY sid (cmodel) IF cmodel IS CashRegisterModel;
 
-loadDefaultCashRegisterModel 'Добавить модель касс'(ISTRING[110] iname, STRING[20] isid, STRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer, BOOLEAN useValueIdUOM)  { 
+loadDefaultCashRegisterModel 'Добавить модель касс'(ISTRING[110] iname, STRING[20] isid, STRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer, BOOLEAN useValueIdUOM, BOOLEAN notSkipCancel)  { 
     IF NOT cashRegisterSID(isid) THEN {
         NEW crm = CashRegisterModel {
              name(crm) <- iname;
@@ -351,6 +355,7 @@ loadDefaultCashRegisterModel 'Добавить модель касс'(ISTRING[11
              showSection(crm) <- iShowSection;
              ignoreCashRegisterServer(crm) <- iIgnoreCashRegisterServer;
              useValueIdUOM(crm) <- useValueIdUOM;
+             notSkipCancel(crm) <- notSkipCancel;
         }
     }
 }

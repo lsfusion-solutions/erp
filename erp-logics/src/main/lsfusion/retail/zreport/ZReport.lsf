@@ -126,7 +126,8 @@ hour 'Час' (Receipt r) = extractHour(dateTime(r));
 idDepartmentStore 'Отдел магазина' (Receipt idetail) = id(departmentStore(idetail));    
     
 
-skip 'Не проводить по регистру' = DATA BOOLEAN (Receipt); 
+dataSkip 'Аннулирован' = DATA BOOLEAN (Receipt);
+skip 'Не проводить по регистру' (Receipt r) = dataSkip(r) AND NOT notSkipCancel(cashRegister(r));  
 
 @defineDocumentRelation(receipt, ReceiptSaleDetail);
 @defineDocumentRelation(receipt, ReceiptReturnDetail);
@@ -709,7 +710,7 @@ show 'Просмотреть' (ZReport z)  {
 copy 'Копировать'(Receipt receipt)  { 
     NEW r = Receipt {
         zReport(r) <- zReport(receipt);
-        skip(r) <- skip(receipt);
+        dataSkip(r) <- dataSkip(receipt);
         currency(r) <- currency(receipt);
         discountSumSale(r) <- discountSumSale(receipt);
         discountSumReturn(r) <- discountSumReturn(receipt);        
@@ -921,15 +922,11 @@ NAVIGATOR {
 }
 
 EXTEND FORM zReport
-    PROPERTIES(b) READONLY skip BEFORE number(b) 
-    FILTERGROUP skip
-        FILTER 'Активные' NOT skip(b) 'F10' DEFAULT         
+    PROPERTIES(b) READONLY dataSkip BEFORE number(b) 
 ;
 
 EXTEND FORM zReports
-    PROPERTIES(b) READONLY skip BEFORE number(b) 
-    FILTERGROUP skip
-        FILTER 'Активные' NOT skip(b) 'F10' DEFAULT     
+    PROPERTIES(b) READONLY dataSkip BEFORE number(b) 
 ;
 
 countZReports 'Кол-во Z-отчетов' (dep, date) = GROUP SUM 1 IF isPosted(ZReport r) BY departmentStore(r), date(r);

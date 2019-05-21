@@ -49,7 +49,7 @@ public class FiscalEpsonResetReceiptActionProperty extends InternalAction {
                 String result = (String) context.requestUserInteraction(new FiscalEpsonResetReceiptClientAction(comPort, baudRate, cashier, numberReceipt, totalSum, sumCash, sumCard, sumGiftCard, cardType, giftCardType));
                 if (result == null) {
                     findProperty("resetted[Receipt]").change(true, context, receiptObject);
-                    findProperty("skip[Receipt]").change(true, context, receiptObject);
+                    findProperty("dataSkip[Receipt]").change(true, context, receiptObject);
                     if (!context.apply())
                         context.requestUserInteraction(new MessageClientAction("Ошибка при аннулировании чека", "Ошибка"));
                 } else {

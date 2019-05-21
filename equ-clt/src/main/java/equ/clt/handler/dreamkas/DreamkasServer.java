@@ -260,7 +260,7 @@ public class DreamkasServer {
                 cSign = "-";
                 break;
             case "SALE_ANNUL":
-                cSign = "";
+                cSign = "-";
                 isCancel = true;
                 break;
             default:
@@ -298,10 +298,12 @@ public class DreamkasServer {
                 case "CASH":
                     oHeader.getPathValue("payments[" + i.toString() + "].amount");
                     sumCash = getBigDecimal(oHeader.cResult, 2);
+                    if (cSign.equals("-")) sumCash = sumCash.negate();
                     break;
                 case "CASHLESS":
                     oHeader.getPathValue("payments[" + i.toString() + "].amount");
                     sumCard = getBigDecimal(oHeader.cResult, 2);
+                    if (cSign.equals("-")) sumCard = sumCard.negate();
                     break;
             }
         }
@@ -322,7 +324,7 @@ public class DreamkasServer {
 //            discountPercentReceiptDetail = null;                             // % скидки - нет
 //            discountSumReceiptDetail = null;                                 // сумма скидки, массив discount - пока нет
             // Сумма товара - реквзит отсутствует, вычисляем самостоятельно
-            if (cSign.equals("-")) quantityReceiptDetail = quantityReceiptDetail.multiply(new BigDecimal(-1));
+            if (cSign.equals("-")) quantityReceiptDetail = quantityReceiptDetail.negate();
             sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport,
@@ -401,8 +403,8 @@ public class DreamkasServer {
         String cRet;
         long curSec = System.currentTimeMillis();
         SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date sDate = new Date(curSec);
-        Date eDate = new Date(curSec - salesDays * 1000);
+        Date sDate = new Date(curSec - salesDays * 1000);
+        Date eDate = new Date(curSec);
         cRet  = "from=" + mDate.format(sDate).replace(" ","T") + "&";
         cRet += "to="   + mDate.format(eDate).replace(" ","T");
         return cRet;

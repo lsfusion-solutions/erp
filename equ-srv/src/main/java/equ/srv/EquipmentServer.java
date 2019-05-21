@@ -1064,7 +1064,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
             ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
             ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
-            ImportField skipReceiptField = new ImportField(zReportLM.findProperty("skip[Receipt]"));
+            ImportField skipReceiptField = new ImportField(zReportLM.findProperty("dataSkip[Receipt]"));
 
             ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[STRING[100]]").getMapping(idReceiptField));
             saleKeys.add(receiptKey);
@@ -1240,7 +1240,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             commonReceiptProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
             commonReceiptProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
             commonReceiptProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
-            commonReceiptProperties.add(new ImportProperty(skipReceiptField, zReportLM.findProperty("skip[Receipt]").getMapping(receiptKey)));
+            commonReceiptProperties.add(new ImportProperty(skipReceiptField, zReportLM.findProperty("dataSkip[Receipt]").getMapping(receiptKey)));
 
             //sale 2
             saleProperties.addAll(commonZReportProperties);
@@ -1466,7 +1466,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
                 ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
                 ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
-                ImportField skipReceiptField = new ImportField(zReportLM.findProperty("skip[Receipt]"));
+                ImportField skipReceiptField = new ImportField(zReportLM.findProperty("dataSkip[Receipt]"));
 
                 List<ImportProperty<?>> commonReceiptProperties = new ArrayList<>();
                 List<ImportField> commonReceiptFields = Arrays.asList(idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField);
@@ -1554,7 +1554,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 commonReceiptProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
                 commonReceiptProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
                 commonReceiptProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
-                commonReceiptProperties.add(new ImportProperty(skipReceiptField, zReportLM.findProperty("skip[Receipt]").getMapping(receiptKey)));
+                commonReceiptProperties.add(new ImportProperty(skipReceiptField, zReportLM.findProperty("dataSkip[Receipt]").getMapping(receiptKey)));
 
                 //sale 2
                 saleProperties.addAll(commonZReportProperties);
