@@ -41,18 +41,22 @@ public class ShtrihBoardDaemon extends BoardDaemon {
     @Override
     protected void onInit(LifecycleEvent event) {
         LM = logicsInstance.getBusinessLogics().getModule("ShtrihBoard");
-        Assert.notNull(LM, "can't find ShtrihBoard module");
+//        Assert.notNull(LM, "can't find ShtrihBoard module");
     }
 
     @Override
     protected void onStarted(LifecycleEvent event) {
-        startLogger.info("Starting " + getEventName() + " Daemon");
-        try (DataSession session = createSession()) {
-            String host = (String) LM.findProperty("hostShtrihBoard[]").read(session);
-            Integer port = (Integer) LM.findProperty("portShtrihBoard[]").read(session);
-            setupDaemon(dbManager, host, port != null ? port : 2004);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-            throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+        if (LM == null) {
+            startLogger.info("Starting " + getEventName() + " Daemon : ShtrihBoard module not found");
+        } else {
+            startLogger.info("Starting " + getEventName() + " Daemon");
+            try (DataSession session = createSession()) {
+                String host = (String) LM.findProperty("hostShtrihBoard[]").read(session);
+                Integer port = (Integer) LM.findProperty("portShtrihBoard[]").read(session);
+                setupDaemon(dbManager, host, port != null ? port : 2004);
+            } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+            }
         }
     }
 
