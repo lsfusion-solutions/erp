@@ -1386,7 +1386,10 @@ DESIGN options {
     } 
 }
 
-documentId = DATA LONG (DocumentLog) INDEXED;
+documentId = DATA LONG (DocumentLog);
+INDEX documentId(DocumentLog l), l;
+
+documentLog (LONG id) = GROUP LAST DocumentLog l ORDER l BY documentId(l);
 
 numberDocument 'Номер документа' = DATA STRING[28] (DocumentLog) IN id CHARWIDTH 8;
 seriesDocument 'Серия документа' = DATA BPSTRING[2] (DocumentLog) IN id CHARWIDTH 3 NOFLEX;
@@ -1613,7 +1616,8 @@ CLASS DocumentDetailLog 'Запись лога строк документов';
 TABLE DocumentDetailLog(DocumentDetailLog);
 
 documentId = DATA LONG (DocumentDetailLog) INDEXED;
-documentLog = GROUP MAX DocumentLog log IF documentId(log) == documentId(DocumentDetailLog d) BY d;
+//documentLog = GROUP MAX DocumentLog log IF documentId(log) == documentId(DocumentDetailLog d) BY d;
+documentLog (DocumentDetailLog d) = documentLog(documentId(d));
 
 index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
 
