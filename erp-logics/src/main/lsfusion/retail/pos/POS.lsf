@@ -1547,6 +1547,8 @@ closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF departmentStor
 fiscalElectronicJournal 'Печать контрольной ленты'  ABSTRACT LIST ( ) CONFIRM;
 fiscalElectronicJournalToFile 'Печать контрольной ленты в файл'  ABSTRACT LIST ( ) CONFIRM;
 
+showifElectronicJournal = ABSTRACT BOOLEAN ();
+
 resetted 'Аннулирован' = DATA BOOLEAN (Receipt);
 
 EXTEND FORM searchSkuReturnReceipt
@@ -1584,13 +1586,15 @@ fiscalResetReceipt 'Аннулировать чек' ()  {
     }
 } CONFIRM;
 
+showifFiscalResetReceipt = ABSTRACT BOOLEAN ();
+
 EXTEND FORM operationCashRegister
     PROPERTIES READONLY curSumCurrentCashRegister() DRAW interval 
     PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
-    PROPERTIES() SHOWIF currentZReportDepartmentStore() fiscalElectronicJournal, fiscalElectronicJournalToFile
-    PROPERTIES() fiscalResetReceipt SHOWIF currentZReportDepartmentStore()
+    PROPERTIES() SHOWIF (currentZReportDepartmentStore() AND showifElectronicJournal()) fiscalElectronicJournal, fiscalElectronicJournalToFile
+    PROPERTIES() fiscalResetReceipt SHOWIF (currentZReportDepartmentStore() AND showifFiscalResetReceipt())
     
     PROPERTIES addIncomeCashOperationForm() DRAW c TOOLBAR  SHOWIF currentZReportDepartmentStore()
     PROPERTIES addOutcomeCashOperationForm() DRAW c TOOLBAR SHOWIF currentZReportDepartmentStore()
