@@ -120,9 +120,12 @@ inReceiptSale (ReceiptDetail receiptDetail, PromotionCondition promotionConditio
 
 //maxSalePriceReceiptSku (receipt, sku) = GROUP MAX priceReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), skuReceiptSaleDetail(detail);
 
+skipAllPromotion 'Запретить скидки' = ABSTRACT BOOLEAN (ReceiptSaleDetail);
+
 isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receiptSaleDetail, PromotionCondition promotionCondition) =
-    IF userSet(promotionCondition) THEN setUserPromotion(receiptSaleDetail, promotionCondition)
-      ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
+    CASE WHEN promotionCondition IS PromotionCondition AND skipAllPromotion(receiptSaleDetail) THEN NULL
+         WHEN userSet(promotionCondition) THEN setUserPromotion(receiptSaleDetail, promotionCondition)
+    ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, ReceiptSaleDetail detail) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
