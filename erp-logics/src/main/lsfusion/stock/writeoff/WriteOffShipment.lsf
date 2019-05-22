@@ -75,6 +75,9 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     nameWriteOffRate 'Норма отходов' (UserInvoiceDetail userInvoiceDetail) = name(writeOffRate(userInvoiceDetail));
     percentWriteOffRate 'Норма отходов,%' (invoiceDetail)= DATA NUMERIC[10,3] (UserInvoiceDetail);
     
+    CONSTRAINT DROPPED(WriteOffRate w IS WriteOffRate) AND [ GROUP SUM 1 IF NOT writeOffRate(UserInvoiceDetail d) BY PREV(writeOffRate(d))](w)
+        MESSAGE 'Запрещено удалять норму отходов, так как она используется в накладных'+##sign;
+    
     WHEN LOCAL (SETCHANGED(country###stockProp###stock(UserInvoiceDetail detail)) OR 
                   SETCHANGED(sku(detail)) OR
                   SET(createPurchaseWriteOff(detail))) AND createPurchaseWriteOff(detail) DO
