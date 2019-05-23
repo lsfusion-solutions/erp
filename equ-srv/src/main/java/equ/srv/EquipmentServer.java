@@ -43,6 +43,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
@@ -1023,6 +1024,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
             boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
+            Set<String> settingsSet = new HashSet<>();
+            KeyExpr settingExpr = new KeyExpr("setting");
+            QueryBuilder<Object, Object> settingQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "setting", settingExpr));
+            settingQuery.addProperty("name", equLM.findProperty("name[Setting]").getExpr(settingExpr));
+            settingQuery.addProperty("overValue", equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr));
+            settingQuery.and(equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = settingQuery.execute(session);
+            for (ImMap<Object, Object> entry : itemResult.values()) {
+                String settingName = (String) entry.get("name");
+                ThreadLocalContext.pushSettings(settingName, (String) entry.get("overValue"));
+                settingsSet.add(settingName);
+            }
+
             List<ImportProperty<?>> saleProperties = new ArrayList<>();
             List<ImportKey<?>> saleKeys = new ArrayList<>();
 
@@ -1402,10 +1416,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             session.setKeepLastAttemptCountMap(true);
             String result = session.applyMessage(getBusinessLogics(), stack);
+
+            for (String setting : settingsSet) {
+                ThreadLocalContext.popSettings(setting);
+            }
+
             if (result == null) {
                 logCompleteMessageMultiThread(stack, session, salesInfoList, start, finish, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
             } else
                 return result;
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
+            throw Throwables.propagate(e);
         }
         return null;
     }
