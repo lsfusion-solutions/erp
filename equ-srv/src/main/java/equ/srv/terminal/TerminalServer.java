@@ -136,7 +136,7 @@ public class TerminalServer extends MonitorServer {
     }
 
     public TerminalServer() {
-        super(HIGH_DAEMON_ORDER);
+        super(DAEMON_ORDER);
     }
 
     @Override

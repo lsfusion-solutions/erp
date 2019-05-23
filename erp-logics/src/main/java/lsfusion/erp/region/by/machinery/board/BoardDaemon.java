@@ -35,7 +35,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
     protected ExecutorService daemonTasksExecutor;
 
     public BoardDaemon(BusinessLogics businessLogics, DBManager dbManager, LogicsInstance logicsInstance) {
-        super(HIGH_DAEMON_ORDER);
+        super(DAEMON_ORDER);
         this.businessLogics = businessLogics;
         this.dbManager = dbManager;
         this.logicsInstance = logicsInstance;

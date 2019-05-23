@@ -47,7 +47,7 @@ public class ShuttleBoardDaemon extends MonitorServer implements InitializingBea
     private ScriptingLogicsModule LM;
 
     public ShuttleBoardDaemon(DBManager dbManager, LogicsInstance logicsInstance) {
-        super(HIGH_DAEMON_ORDER);
+        super(DAEMON_ORDER);
         this.dbManager = dbManager;
         this.logicsInstance = logicsInstance;
     }

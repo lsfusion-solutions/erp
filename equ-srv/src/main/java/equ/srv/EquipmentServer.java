@@ -201,7 +201,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     public EquipmentServer() {
-        super(HIGH_DAEMON_ORDER);
+        super(DAEMON_ORDER);
     }
 
     @Override
