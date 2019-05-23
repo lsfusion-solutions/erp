@@ -21,7 +21,38 @@ CLASS GiftCardPurchaseDetail 'Поступление подарочных сер
 
 @defineDocument(giftCardPurchase);
 @defineDocumentHeaderNumber(GiftCardPurchase);
-@defineDocumentDataStock(giftCardPurchase, departmentStore, 'Склад',);
+//@defineDocumentDataStock(giftCardPurchase, departmentStore, 'Склад',);
+departmentStore = DATA Stock(GiftCardPurchase);
+nameDepartmentStore 'Склад' (GiftCardPurchase giftCardPurchase) = name(departmentStore(giftCardPurchase)) IN documentHeader
+        CHARWIDTH 20;
+fullNameDepartmentStore 'Склад' (GiftCardPurchase giftCardPurchase) = fullName(departmentStore(giftCardPurchase)) IN documentHeader
+        CHARWIDTH 20;
+replace(DepartmentStore s, DepartmentStore o) + { departmentStore(GiftCardPurchase giftCardPurchase) <- o WHERE departmentStore(giftCardPurchase) == s;}             
+        
+legalEntityStock (GiftCardPurchase giftCardPurchase) = legalEntity(departmentStore(giftCardPurchase));
+nameLegalEntityStock 'Компания (Склад)' (GiftCardPurchase giftCardPurchase) = name(legalEntityStock (giftCardPurchase));
+fullNameLegalEntityStock 'Компания (Склад) полное наим-ие' (GiftCardPurchase giftCardPurchase) = fullName(legalEntityStock (giftCardPurchase));       
+addressLegalEntityStock 'Адрес компании (Склад)' (GiftCardPurchase giftCardPurchase) = address(legalEntityStock (giftCardPurchase));
+
+addressStock 'Адрес (Склад)' (GiftCardPurchase giftCardPurchase) = address(departmentStore(giftCardPurchase));
+
+country (GiftCardPurchase giftCardPurchase) = country(departmentStore(giftCardPurchase));
+
+//для CONSTRAINT 
+nameDepartmentStoreId 'Склад' (GiftCardPurchase giftCardPurchase) = name(departmentStore(giftCardPurchase)) IN id;
+
+departmentStore (GiftCardPurchaseDetail idetail) = departmentStore(giftCardPurchase(idetail)) MATERIALIZED;
+nameDepartmentStore 'Склад' (GiftCardPurchaseDetail idetail) = name(departmentStore(idetail)) CHARWIDTH 10;
+fullNameDepartmentStore 'Склад' (GiftCardPurchaseDetail idetail) = fullName(departmentStore(idetail)) CHARWIDTH 10;         
+countryDepartmentStore (GiftCardPurchaseDetail idetail) = country(departmentStore(idetail));
+legalEntityDepartmentStore (GiftCardPurchaseDetail idetail) = legalEntity(departmentStore(idetail));
+nameLegalEntityDepartmentStore 'Компания (Склад)' (GiftCardPurchaseDetail idetail) = name(legalEntityDepartmentStore (idetail));
+fullNameLegalEntityDepartmentStore 'Компания (Склад) полное наим-ие' (GiftCardPurchaseDetail idetail) = fullName(legalEntityDepartmentStore (idetail));
+
+CONSTRAINT departmentStore(GiftCardPurchase p) AND NOT isCompany(departmentStore(p))
+    CHECKED BY departmentStore[GiftCardPurchase]
+    MESSAGE 'Выбран склад, который не принадлежит компании';
+
 @deriveDocumentHeaderTimePrefix(GiftCardPurchase, );
 
 @defineDocumentDetailNumber(giftCardPurchase, GiftCardPurchaseDetail);
@@ -46,7 +77,7 @@ toGiftCard 'Номер по' = DATA INTEGER (GiftCardPurchaseDetail);
 giftCardPurchaseDetail = DATA GiftCardPurchaseDetail (GiftCard) NONULL DELETE INDEXED;
 giftCardPurchase(GiftCard g) = giftCardPurchase(giftCardPurchaseDetail(g));
 
-departmentStore (GiftCard g) = DATA DepartmentStore (GiftCard);
+departmentStore (GiftCard g) = DATA Stock (GiftCard);
 nameDepartmentStore 'Где выпущен' (GiftCard g) = name(departmentStore(g)) IN id;
 
 deleteGiftCard 'Очистить'(GiftCardPurchase o)  { 
@@ -56,6 +87,10 @@ deleteGiftCard 'Очистить'(GiftCardPurchase o)  {
 WHEN SET(departmentStore(giftCardPurchaseDetail(GiftCard g))) AND NOT departmentStore(g) DO {
     departmentStore(g) <- departmentStore(giftCardPurchaseDetail(g));
 }
+
+CONSTRAINT departmentStore(GiftCard g) AND NOT isCompany(departmentStore(g))
+    CHECKED BY departmentStore[GiftCard]
+    MESSAGE 'Выбран склад, который не принадлежит компании';
 
 generateGiftCards 'Сгенерировать подарочные сертификаты'(GiftCardPurchase p)  { 
     DELETE GiftCard d WHERE giftCardPurchase (d) == p;
