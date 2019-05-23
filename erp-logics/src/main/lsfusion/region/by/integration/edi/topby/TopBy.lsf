@@ -850,11 +850,15 @@ portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER (LegalEntity);
 overHostEDSServiceTopBy 'Хост EDSService' (LegalEntity l) = OVERRIDE hostEDSServiceTopBy(l), hostEDSServiceTopBy();
 overPortEDSServiceTopBy 'Порт EDSService' (LegalEntity l) = OVERRIDE portEDSServiceTopBy(l), portEDSServiceTopBy();
 
-EXTEND FORM legalEntity PROPERTIES(l) hostEDSServiceTopBy, portEDSServiceTopBy;
-DESIGN legalEntity {
-    EDI {
-        MOVE PROPERTY(hostEDSServiceTopBy(l)) AFTER PROPERTY(passwordEDSService(l));
-         MOVE PROPERTY(portEDSServiceTopBy(l)) AFTER PROPERTY(passwordEDSService(l));
+EXTEND FORM integrationData
+    OBJECTS le = LegalEntity
+    FILTERS isCompany(le)
+    PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, hostEDSServiceTopBy, portEDSServiceTopBy
+;
+DESIGN integrationData {
+    ivs {
+        fill = 1;
+        MOVE BOX(le);
     }
 }
 
