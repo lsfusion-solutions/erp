@@ -601,6 +601,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
         int priorityDirectoriesCount = artixSettings == null ? 0 : artixSettings.getPriorityDirectoriesCount();
+        boolean disableSoftCheck = artixSettings != null && artixSettings.isDisableSoftCheck();
 
         Map<String, Timestamp> result = new HashMap<>();
         softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
@@ -647,50 +648,53 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         readFiles = new HashSet<>(subFiles);
 
-        if (subFiles.isEmpty())
-            softCheckLogger.info(logPrefix + "No sale files found");
-        else {
-            softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, subFiles.size()));
+        if(!disableSoftCheck) {
 
-            for (File file : subFiles) {
-                if (!Thread.currentThread().isInterrupted()) {
-                    try {
+            if (subFiles.isEmpty()) softCheckLogger.info(logPrefix + "No sale files found");
+            else {
+                softCheckLogger.info(String.format(logPrefix + "found %s sale file(s), read %s sale file(s)", totalFilesCount, subFiles.size()));
 
-                        String fileName = file.getAbsolutePath();
-                        softCheckLogger.info(logPrefix + "reading " + fileName);
+                for (File file : subFiles) {
+                    if (!Thread.currentThread().isInterrupted()) {
+                        try {
 
-                        String fileContent = readFile(file.getAbsolutePath(), encoding);
+                            String fileName = file.getAbsolutePath();
+                            softCheckLogger.info(logPrefix + "reading " + fileName);
 
-                        Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
-                        Matcher m = p.matcher(fileContent);
-                        if (m.matches()) {
-                            //добавляем }, поскольку внутри элемента тоже может быть ---
-                            String[] documents = m.group(1).split("}---");
+                            String fileContent = readFile(file.getAbsolutePath(), encoding);
 
-                            for (String document : documents) {
-                                if (!document.isEmpty()) {
-                                    JSONObject documentObject = new JSONObject(document + "}");
-                                    if (documentObject.getInt("docType") == 16) {
-                                        Timestamp dateTimeReceipt = new Timestamp(parseDateTime(documentObject.getString("timeEnd")));
-                                        JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
-                                        for (int i = 0; i < inventPositionsArray.length(); i++) {
-                                            JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
-                                            String invoiceNumber = inventPosition.getString("additionalbarcode");
-                                            invoiceNumber = invoiceNumber.length() >= 7 ? invoiceNumber.substring(invoiceNumber.length() - 7) : invoiceNumber;
-                                            softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
-                                            result.put(invoiceNumber, dateTimeReceipt);
+                            Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
+                            Matcher m = p.matcher(fileContent);
+                            if (m.matches()) {
+                                //добавляем }, поскольку внутри элемента тоже может быть ---
+                                String[] documents = m.group(1).split("}---");
+
+                                for (String document : documents) {
+                                    if (!document.isEmpty()) {
+                                        JSONObject documentObject = new JSONObject(document + "}");
+                                        if (documentObject.getInt("docType") == 16) {
+                                            Timestamp dateTimeReceipt = new Timestamp(parseDateTime(documentObject.getString("timeEnd")));
+                                            JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
+                                            for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                                JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
+                                                String invoiceNumber = inventPosition.getString("additionalbarcode");
+                                                invoiceNumber = invoiceNumber.length() >= 7 ? invoiceNumber.substring(invoiceNumber.length() - 7) : invoiceNumber;
+                                                softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
+                                                result.put(invoiceNumber, dateTimeReceipt);
+                                            }
                                         }
                                     }
                                 }
                             }
+//                          copyToSuccess(file, disable);
+//                          safeFileDelete(file, false);
+                        } catch (Throwable e) {
+                            softCheckLogger.error("File: " + file.getAbsolutePath(), e);
                         }
-//                        copyToSuccess(file, disable);
-//                        safeFileDelete(file, false);
-                    } catch (Throwable e) {
-                        softCheckLogger.error("File: " + file.getAbsolutePath(), e);
                     }
                 }
             }
+
         }
         return result;
     }

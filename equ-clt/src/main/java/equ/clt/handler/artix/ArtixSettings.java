@@ -16,6 +16,7 @@ public class ArtixSettings implements Serializable{
     private boolean giftCardPriceInCertificatePositions; //берём цену сертификата из certificatePositions (введено для Ostrov)
     private boolean notDeleteEmptyFiles;
     private int priorityDirectoriesCount;
+    private boolean disableSoftCheck;
 
     public ArtixSettings() {
     }
@@ -114,5 +115,13 @@ public class ArtixSettings implements Serializable{
 
     public void setPriorityDirectoriesCount(int priorityDirectoriesCount) {
         this.priorityDirectoriesCount = priorityDirectoriesCount;
+    }
+
+    public boolean isDisableSoftCheck() {
+        return disableSoftCheck;
+    }
+
+    public void setDisableSoftCheck(boolean disableSoftCheck) {
+        this.disableSoftCheck = disableSoftCheck;
     }
 }
