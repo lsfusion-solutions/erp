@@ -1050,7 +1050,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                         Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                         String numberZReport = String.valueOf(documentObject.getInt("shift"));
-                                        Integer numberReceipt = Integer.parseInt(documentObject.getString("docNum"));
+                                        Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
 
                                         long dateTimeReceipt = parseDateTime(documentObject.getString("timeEnd"));
