@@ -769,12 +769,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         if (!document.isEmpty()) {
                                             JSONObject documentObject = new JSONObject(document + "}");
 
-                                            Integer docType = documentObject.getInt("docType");
+                                            int docType = documentObject.getInt("docType");
                                             boolean in = docType == 3;
                                             boolean out = docType == 4;
                                             if (in || out) {
 
-                                                String numberCashDocument = documentObject.getString("docNum");
+                                                int numberCashDocument = documentObject.getInt("docNum");
                                                 String idEmployee = documentObject.getString("userCode");
                                                 String dopData = documentObject.getString("dopdata");
 
@@ -790,7 +790,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 if (cashRegister.number.equals(numberCashRegister)) {
                                                     if (cashRegister.startDate == null || dateCashDocument.compareTo(cashRegister.startDate) >= 0) {
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + dopData;
-                                                        cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                        cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
                                                                 cashRegister.numberGroup, numberCashRegister, null, sumCashDocument, idEmployee));
                                                     }
                                                 }
@@ -1126,7 +1126,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                             String idItem = inventPosition.getString("inventCode");
                                             String barcodeString = inventPosition.getString("barCode");
-                                            String opCode = inventPosition.getString("opCode");
+                                            int opCode = inventPosition.getInt("opCode");
 
                                             // вот такой вот чит из-за того, что могут ввести код товара в кассе
                                             String barcode = idItem != null && idItem.equals(barcodeString) ? null :
@@ -1138,7 +1138,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 Pattern pattern = Pattern.compile(giftCardRegexp);
                                                 Matcher matcher = pattern.matcher(barcodeString);
                                                 isGiftCard = matcher.matches();
-                                            } else if (opCode != null && opCode.equals("63")) {
+                                            } else if (opCode == 63) {
                                                 barcode = inventPosition.getString("bcode_main");
                                                 isGiftCard = true;
                                             }
@@ -1261,7 +1261,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             for (String document : documents) {
                 if (!document.isEmpty()) {
                     JSONObject documentObject = new JSONObject(document);
-                    Integer opcode = documentObject.getInt("opcode");
+                    int opcode = documentObject.getInt("opcode");
                     switch (opcode) {
                         case 3:
                             logOnCashier = parseTimestamp(documentObject.getString("optime"));
