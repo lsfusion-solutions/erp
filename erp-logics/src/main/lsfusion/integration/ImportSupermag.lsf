@@ -169,8 +169,14 @@ importItem 'Импорт товаров' () {
         barcode(s) <- b;
         imported(b) <- TRUE;
     }
+    
+    // следующие 2 действия нужны, если штрих-код, который был упаковкой становится обычным штрих-кодом
     FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
         Purchase.packBarcode(s) <- NULL; 
+    }
+
+    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.barcodePack(Purchase.UserOrderDetail d) = b DO {
+        Purchase.barcodePack(d) <- NULL;
     }
     
     logToFile('importSupermag', 'importItem_6');
