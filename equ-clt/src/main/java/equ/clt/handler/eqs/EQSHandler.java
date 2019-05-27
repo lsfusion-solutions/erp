@@ -688,7 +688,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     conn.commit();
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    throw Throwables.propagate(e);
                 } finally {
                     try {
                         if (statement != null)
