@@ -1643,3 +1643,70 @@ DESIGN integrationData {
         } 
     } 
 }
+
+idStock = DATA LOCAL INTEGER (INTEGER);
+numeric = DATA LOCAL NUMERIC[14,3] (INTEGER);
+
+overImportShelfReserve ABSTRACT LIST();
+
+importShelfReserve 'Импорт полки' () {
+        
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ARTICLE, STORELOC, SHOWLEVEL FROM Supermag.smstocklevels' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
+    
+    overImportShelfReserve();
+    
+    APPLY;
+}
+
+overImportFillRateShelf ABSTRACT LIST();
+overImportFillRateAps ABSTRACT LIST();
+
+importFillRate 'Импорт заполненности' () {
+        
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showlevel\'' TO file;
+    
+    IMPORT TABLE FROM file() TO idStock, value;
+    
+    overImportFillRateShelf();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showrequest\'' TO file;
+    
+    IMPORT TABLE FROM file() TO idStock, value;
+    
+    overImportFillRateAps();
+    
+    APPLY;
+}
+
+overImportBufferAps ABSTRACT LIST();
+
+importBufferAps 'Импорт ДМП' () {
+        
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ARTICLE, STORELOC, SHOWREQUEST FROM Supermag.smstocklevels WHERE rownum < 10000' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
+    
+    overImportBufferAps();
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps;
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW bufferAps {
+            type = CONTAINERH;
+            MOVE PROPERTY (importShelfReserve());
+            MOVE PROPERTY (importFillRate());
+            MOVE PROPERTY (importBufferAps());
+        } 
+    } 
+}
