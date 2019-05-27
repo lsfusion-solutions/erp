@@ -1137,12 +1137,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                     + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
                                         }
                                         
-                                        String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;  
-                                        if (ids.contains(id)) {
-                                            sendSalesLogger.error("found duplicate key : " + id);
-                                        } else {
-                                            ids.add(id);
-                                        }
+//                                        String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;
+//                                        if (ids.contains(id)) {
+//                                            sendSalesLogger.error("found duplicate key : " + id);
+//                                        } else {
+//                                            ids.add(id);
+//                                        }
 
                                         if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
