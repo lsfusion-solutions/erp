@@ -147,7 +147,8 @@ END
 // ------------------------------------ Сертификаты для партий ----------------------------------- //
 
 META defineBatchCertificate(prop, propClass, caption)
-    prop = ABSTRACT propClass (Batch) MATERIALIZED INDEXED;
+    prop = ABSTRACT propClass (Batch) MATERIALIZED;
+    INDEX prop(Batch batch), sku(batch);
     prev###prop (Batch batch) = PREV(prop(batch));
     number###prop caption (Batch batch) = number(prop(batch));
     series###prop caption (Batch batch) = series(prop(batch));
@@ -164,15 +165,9 @@ END
 
 @defineDocumentTextBatchPrefix(certificate, 'Дополнительные сертификаты');
 
-// пока не добавляем, так как увеличивают размер поля
-//EXTEND FORM currentBalanceSkuStock PROPERTIES READONLY certificateTextBatch(bt);
-//EXTEND FORM balanceSkuStock PROPERTIES READONLY certificateTextBatch(bt);
-//EXTEND FORM currentBalanceBatchStock PROPERTIES READONLY certificateTextBatch(bt);
-//EXTEND FORM balanceBatchStock PROPERTIES READONLY certificateTextBatch(bt);
-
 // ------------------------------------ Ограничение на выбор объектов ----------------------------------- //
 
-banNotShippedCompliance 'Запретить выбирать сертификаты по партиям без прихода' = DATA BOOLEAN();
+banNotShippedCompliance 'Запретить выбирать сертификаты по партиям без прихода' = DATA BOOLEAN() COMPLEX;
 
 EXTEND FORM options
     PROPERTIES () banNotShippedCompliance
