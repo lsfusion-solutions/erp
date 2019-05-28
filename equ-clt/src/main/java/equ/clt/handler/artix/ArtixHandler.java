@@ -308,9 +308,22 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 inventObject.put("inventgroup", itemGroupList.get(0).extIdItemGroup); //код родительской группы товаров
             }
 
+            Integer requireSaleRestrict = null;
+            if(item.info != null) {
+                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("artix");
+                if (infoJSON != null) {
+                    BigDecimal alcoholPercent = infoJSON.getBigDecimal("alcoholpercent");
+                    requireSaleRestrict = infoJSON.getInt("requiresalerestrict");
+                    inventObject.put("alcoholpercent", alcoholPercent);
+                }
+            }
+
             JSONObject inventItemOptions = new JSONObject();
             inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
             inventItemOptions.put("ageverify", ageVerify ? 1 : 0);
+            if(requireSaleRestrict != null) {
+                inventItemOptions.put("requiresalerestrict", requireSaleRestrict);
+            }
             JSONObject itemOptions = new JSONObject();
             itemOptions.put("inventitemoptions", inventItemOptions);
 
