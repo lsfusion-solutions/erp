@@ -4,7 +4,7 @@ REQUIRE TaxReverse, Store;
 
 NAMESPACE Tax;
 
-addVATRange 'Добавить ставку'(TaxUnit taxUnit)  { 
+addVATRange 'Добавить ставку'(TaxUnit taxUnit) { 
     IF range(Tax.taxVAT, taxUnit) THEN {
         NEW rt = Rate {
             range (rt) <- range(Tax.taxVAT, taxUnit);
@@ -23,6 +23,84 @@ addVATRange 'Добавить ставку'(TaxUnit taxUnit)  {
     }
 } TOOLBAR IMAGE 'add.png';
 
+include 'Вкл.' = DATA LOCAL BOOLEAN (LegalEntity);
+dataInclude 'Вкл.' = DATA LOCAL BOOLEAN (TaxUnit);
+include 'Вкл.' (TaxUnit u) = OVERRIDE dataInclude(u), include(legalEntity[Store](u));
+
+backgroundInclude (LegalEntity l) =
+        RGB(203,203,206) IF NOT include(l) AND (GROUP SUM 1 IF dataInclude(TaxUnit u) AND legalEntity[Store](u) == l);
+
+addVATRange (NUMERIC[10,5] value, DATE date) {
+    IF (GROUP SUM 1 IF include(TaxUnit u)) THEN {
+        FOR include(TaxUnit u) DO {
+            IF range(Tax.taxVAT, u) THEN {
+                NEW rt = Rate {
+                    range (rt) <- range(Tax.taxVAT, u);
+                    value(rt) <- value;
+                    dateFrom(rt) <- date;
+                }    
+            } ELSE {    
+                NEW r = Range {
+                    tax(r) <- Tax.taxVAT;
+                    rangeType(r) <- RangeType.units;
+                    reverse(r) <- TRUE;
+                    in(r, u) <- TRUE;
+                    country(r) <- defaultCountry();
+                    NEW rt = Rate {
+                        range (rt) <- r;
+                        value(rt) <- value;
+                        dateFrom(rt) <- date;
+                    }
+                }    
+            }
+        }
+        APPLY;
+    } ELSE {
+        MESSAGE 'Не выбраны магазины';
+        applyCanceled() <- TRUE;
+    }
+};
+
+FORM storesTaxUnit 'Добавление ставки по предприятиям'
+    OBJECTS v = NUMERIC[10,5] PANEL
+    PROPERTIES value = VALUE(v)
+    OBJECTS d = DATE PANEL
+    PROPERTIES date = VALUE(d)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) include BACKGROUND backgroundInclude(l)
+    PROPERTIES(l) READONLY name
+    FILTERS isCompany(l)
+    
+    OBJECTS u = TaxUnit
+    PROPERTIES(u) include
+    PROPERTIES(u) READONLY description
+    FILTERS legalEntity[Store](u) == l
+    //FILTERGROUP store FILTER 'Магазины' u IS Store 'F9' DEFAULT
+    
+    EVENTS ON OK BEFORE addVATRange(v,d)
+;
+DESIGN storesTaxUnit {
+    size = (800, 600);
+    OBJECTS {
+        NEW top {
+            type = CONTAINERH;
+            MOVE PROPERTY(value){caption='Значение ставки';}
+            MOVE PROPERTY(date){caption='Действует с';}
+        }
+        NEW columns {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(l);
+            MOVE BOX(u);
+        }
+    }
+}
+
+addVATRange 'Добавить ставку по предприятию' () {
+    NEWSESSION SHOW storesTaxUnit;
+} TOOLBAR IMAGE 'add.png';
+
 FORM storeTaxUnit 'Налоговые субъекты'
     OBJECTS u = TaxUnit
     PROPERTIES (u) READONLY description
@@ -37,7 +115,7 @@ FORM VATUnitDashboard 'Ввод расчетной ставки'
         
     OBJECTS rt = Rate
     PROPERTIES (rt) value, dateFrom, DELETE 
-    PROPERTIES (u) addVATRange DRAW rt
+    PROPERTIES DRAW rt addVATRange(u), addVATRange()
     FILTERS in(rt, u)
     ORDER dateFrom(rt)
 ;
