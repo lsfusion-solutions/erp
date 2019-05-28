@@ -43,7 +43,7 @@ public class DiscountCardDaemonClientAction extends ExecuteClientAction {
         @Override
         public boolean dispatchKeyEvent(KeyEvent e) {
             if(e.getID() == KeyEvent.KEY_PRESSED) {
-                if(e.getKeyChar() == ';' || e.getKeyChar() == 'ж' || e.getKeyChar() == '%') {
+                if(e.getKeyChar() == ';' || e.getKeyChar() == 'ж' || e.getKeyChar() == 'Ж' || e.getKeyChar() == '%') {
                     if(!recording) {
                         recording = true;
                         isNew = e.getKeyChar() == '%';
