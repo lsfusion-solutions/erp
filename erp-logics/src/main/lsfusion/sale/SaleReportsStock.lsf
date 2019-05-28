@@ -48,9 +48,7 @@ fillFromToBalance 'Заполнить с остатками' (GroupType gt, DATE
     balanceADays(Sku sk) <- NUMERIC[13,2](balanceATotal(sk) / quantityStock(sk)) IF quantityStock(sk);           
     averageCost(Sku sk) <- NUMERIC[18,4](costSumStock(sk) / quantityStock(sk)) IF quantityStock(sk);   
     averagePriceStore(Sku sk) <- NUMERIC[18,4](sumStock(sk) / quantityStock(sk)) IF quantityStock(sk);  
-    averageMarkup(Sku sk) <- NUMERIC[18,2](((sumStock(sk) (-) sumVATStock(sk)) / quantityStock(sk) / averageCost(sk) - 1)*100) IF quantityStock(sk) AND averageCost(sk);   
-    
-    fillSaleReportFromTo(gt, df, dt);                 
+    averageMarkup(Sku sk) <- NUMERIC[18,2](((sumStock(sk) (-) sumVATStock(sk)) / quantityStock(sk) / averageCost(sk) - 1)*100) IF quantityStock(sk) AND averageCost(sk);               
 }
 
 fillFromToPrice 'Сформировать цену' (GroupType gt, DATE df, DATE dt)  { 
@@ -78,9 +76,10 @@ checkFromToPrice(GroupType gt, DATE df, DATE dt)  {
 }
 
 fillFromToBalanceAndPrice 'Пересчитать остатки и цену'(GroupType gt, DATE df, DATE dt)  { 
+    fillSaleReportFromTo(gt, df, dt);
+    
     IF showBalanceSku() THEN
         fillFromToBalance(gt, df, dt);
-    ELSE fillSaleReportFromTo(gt, df, dt);
     
     IF showMaxRetailPrice() THEN
         fillFromToPrice(gt, df, dt);
@@ -90,9 +89,7 @@ EXTEND FORM salesReport
     PROPERTIES() showBalanceSku ON CHANGE checkFromToBalance(gt, df, dt), 
                  showMaxRetailPrice ON CHANGE checkFromToPrice(gt, df, dt)
                  
-    PROPERTIES fillFromToBalanceAndPrice(gt, df, dt) SHOWIF (showBalanceSku() AND showMaxRetailPrice())
-    PROPERTIES fillFromToBalance (gt, df, dt) SHOWIF (showBalanceSku() AND NOT showMaxRetailPrice())
-    PROPERTIES fillFromToPrice (gt, df, dt) SHOWIF (NOT showBalanceSku() AND showMaxRetailPrice())
+    PROPERTIES fillFromToBalanceAndPrice(gt, df, dt)
 
     PROPERTIES inSaleReportWarehouses() ON CHANGE changeWarehousesSalesReport(gt, df, dt) SHOWIF showBalanceSku()
     
@@ -108,9 +105,7 @@ EXTEND FORM salesReport
 
 DESIGN salesReport { 
     stocks {
-         MOVE PROPERTY(fillFromToBalanceAndPrice(gt, df, dt)){caption = 'Пересчитать';}    
-         MOVE PROPERTY(fillFromToBalance(gt, df, dt)){caption = 'Пересчитать';}    
-         MOVE PROPERTY(fillFromToPrice(gt, df, dt)){caption = 'Пересчитать';}    
+         MOVE PROPERTY(fillFromToBalanceAndPrice(gt, df, dt)){caption = 'Пересчитать';} 
     }
     top {
         NEW optionsContainer{
