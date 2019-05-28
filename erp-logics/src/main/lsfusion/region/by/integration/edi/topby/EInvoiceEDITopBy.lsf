@@ -450,6 +450,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                         IMPORT getEDSResponse FROM sendRequestEDIResponse();
                         IF faultstring() THEN {
                             logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
+                            MESSAGE provider + ' Накладная не выгружена: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring() NOWAIT;
                         }
                         ELSE IF waybill() THEN {
                             encodeBase64(waybill());
@@ -467,6 +468,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRWBR ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
+                                MESSAGE provider + ' Накладная не выгружена: BLRWBR ' + number(ei) + ' не подписан. Ошибка: ' + faultstring() NOWAIT;
                             }
                             ELSE IF waybill() THEN {
                                 encodeBase64(waybill());
@@ -475,6 +477,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                         }
                     } ELSE {
                         logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: Alias or Password for EDSService not found');
+                        MESSAGE provider + ' Накладная ' + number(ei) + ' не выгружена: Alias или Пароль EDSService не задан' NOWAIT;
                     }
                     
                     IF blrapnEncoded() AND (blrwbrEncoded() OR isCancel(ei)) THEN {
@@ -687,6 +690,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: BLRWBL ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
+                                MESSAGE provider + ' Накладная не выгружена: BLRWBL ' + number(ei) + ' не подписан. Ошибка: ' + faultstring() NOWAIT;
                             }
                             ELSE IF waybill() THEN {
                                 encodeBase64(waybill());
@@ -722,6 +726,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             }
                         } ELSE {
                             logToFile('edi', provider + ' SendEInvoice ' + number(ei) + ' error: Alias or Password for EDSService not found');
+                            MESSAGE provider + ' Накладная ' + number(ei) + ' не выгружена: Alias или Пароль EDSService не задан' NOWAIT;
                         }
                     } ELSE {
                         logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
