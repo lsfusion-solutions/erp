@@ -66,13 +66,15 @@ addScheduleOrderDetail 'Сгенерировать заказы по графи�
 defaultGenType = DATA GenType ();
 nameDefaultGenType 'Тип генерации (по умолчанию)' ()= staticCaption(defaultGenType()) IN schedule;
 
+allowNotCustomer 'Разрешить графики без покупателя' = DATA BOOLEAN ();
 
-EXTEND FORM options PROPERTIES() countDaysPreOrders, nameDefaultGenType, addScheduleOrderDetail;
+EXTEND FORM options PROPERTIES() countDaysPreOrders, nameDefaultGenType, addScheduleOrderDetail, allowNotCustomer;
 DESIGN options {
     orders {
         MOVE PROPERTY(countDaysPreOrders());
         MOVE PROPERTY(nameDefaultGenType());
         MOVE PROPERTY(addScheduleOrderDetail());
+        MOVE PROPERTY(allowNotCustomer());
     }
 }
 
@@ -135,7 +137,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         (OVERRIDE dataIn(scheduleOrder, stock),                  
                   in(scheduleOrder, stockGroup(stock)))
         AND is###customerFilter(stock)
-        AND in(customer(scheduleOrder), stock) MATERIALIZED;
+        //AND in(customer(scheduleOrder), stock) 
+        MATERIALIZED;
          
          
     backgroundAllStocks 'Цвет' (ScheduleOrder scheduleOrder) = RGB(0,0,0) IF allStocks(scheduleOrder);      
@@ -237,8 +240,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     supplier(ScheduleOrderDetail scheduleOrderDetail) = supplier(scheduleOrder(scheduleOrderDetail)) MATERIALIZED;
     nameSupplier 'Поставщик' (ScheduleOrderDetail scheduleOrderDetail) = name(supplier(scheduleOrderDetail)) IN id;
 
-    customer(ScheduleOrderDetail scheduleOrderDetail) = customer(scheduleOrder(scheduleOrderDetail));
-    nameCustomer 'Покупатель' (ScheduleOrderDetail scheduleOrderDetail) = name(customer(scheduleOrderDetail));
+
 
     supplierStock(ScheduleOrderDetail scheduleOrderDetail) = supplierStock(scheduleOrder(scheduleOrderDetail));
     nameSupplierStock 'Склад поставщика' (ScheduleOrderDetail scheduleOrderDetail) = name(supplierStock(scheduleOrderDetail));
@@ -248,6 +250,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     customerStock(scheduleOrderDetail) = DATA Stock (ScheduleOrderDetail);
     nameCustomerStock 'Склад покупателя' (ScheduleOrderDetail scheduleOrderDetail) = name(customerStock(scheduleOrderDetail)) IN id;
+
+    customer(ScheduleOrderDetail scheduleOrderDetail) = OVERRIDE customer(scheduleOrder(scheduleOrderDetail)), legalEntity(customerStock(scheduleOrderDetail));
+    nameCustomer 'Покупатель' (ScheduleOrderDetail scheduleOrderDetail) = name(customer(scheduleOrderDetail));
 
     INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
     INDEX scheduleOrder(ScheduleOrderDetail d), customerStock(d), dateSupply(d);
@@ -542,7 +547,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES READONLY  name(ts)
         PROPERTIES(s, ts)    in BACKGROUND background(s, ts)
         FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
-                in(customer(s), ts),
+                (in(customer(s), ts) AND NOT allowNotCustomer()) OR (ts IS Stock AND allowNotCustomer()),
                 is###customerFilter(ts)
         FILTERGROUP filters2
                 FILTER 'Выбранные склады' in(s, ts) 'F11' 
