@@ -49,6 +49,8 @@ FORM blrwbl
                   blrwblLineItemAmountCharges EXTID 'LineItemAmountCharges'
 ;
 
+@openXML(EInvoice,e,eInvoices);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' AND invoices THEN {
         TRY {
@@ -69,7 +71,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     supplier(ei) <- legalEntityGLN(blrwblSupplierGLN());
                     customer(ei) <- legalEntityGLN(blrwblCustomerGLN());
                     customerStock(ei) <- companyStockGLN(blrwblCustomerStockGLN());
-                    
+                    XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) DO NEW ed = EInvoiceDetail {
                         eInvoice(ed) <- ei;
                         id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);

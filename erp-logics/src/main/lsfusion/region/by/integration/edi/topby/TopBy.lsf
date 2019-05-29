@@ -114,8 +114,8 @@ META receiveMessages (namespace)
                         FOR documentType(INTEGER i) ORDER id(i) DO {
                             overReceiveMessages(i, login, password, host, port, url, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices, provider);
                             IF archiveDir THEN {
-                                TRY{ mkdir(archiveDir + '/received'); }
-                                WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
                         }
                         
@@ -241,6 +241,25 @@ FORM envelope
 //    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 //;
 
+META openXML (class, object, table)
+    XMLPath = DATA STRING[200] (class);
+    openXML 'Открыть XML' (class object) {
+        IF XMLPath(object) THEN {
+            LOCAL file = FILE();
+            READ 'file://' + XMLPath(object) + '.xml' TO file;
+            open(file());
+        } ELSE {
+            MESSAGE 'Отсутствует ссылка на файл xml';
+        }
+    }
+    
+    EXTEND FORM table
+        PROPERTIES(object) openXML GRID
+    ;
+END
+
+@openXML(EOrderMessage,m,eOrders);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' AND NOT invoices THEN {
         TRY {
@@ -256,6 +275,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             code(m) <- code();
                             description(m) <- OVERRIDE description(), description(code());
                             eOrder(m) <- eOrder(documentNumber());
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
                                 IF NOT disableConfirmation AND sendReplies THEN {
@@ -422,6 +442,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
         }
     }
 }
+
+@openXML(EInvoiceMessage,m,eInvoices);
+
 //todo: вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
 //возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
@@ -440,6 +463,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         documentNumber() <- deliveryNoteNumberEInvoiceBlrwbl(documentNumber());
                         eInvoice(m) <- eInvoiceDeliveryNoteNumber(documentNumber());
                         type(m) <- EInvoiceMessageType.systemmessage_blrwbl;
+                        XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {
@@ -596,6 +620,8 @@ FORM exportBlrapn FORMEXTID 'BLRAPN'
         code = '2650' EXTID 'Code' IN blrapnErrorOrAcknowledgement
 ;
 
+@openXML(ECreditNoteMessage,m,eCreditNotes);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrapn' AND invoices THEN {
         TRY {
@@ -616,6 +642,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrapn' THEN EInvoiceMessageType.blrapn_blrapn
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrwbr' THEN EInvoiceMessageType.blrapn_blrwbr
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN EInvoiceMessageType.blrapn_blrwbl;
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
                                 IF NOT disableConfirmation AND sendReplies THEN {
@@ -679,6 +706,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             code(m) <- belrapnCode();
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
                             eCreditNote(m) <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
+                            XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
                                 IF NOT disableConfirmation AND sendReplies THEN {

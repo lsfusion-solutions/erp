@@ -54,6 +54,8 @@ quantityOrdered = DATA NUMERIC[16,5] (Sale.UserOrderDetail);
 
 CONSTRAINT SET(isPosted(Sale.UserOrder o)) AND isCancel(o) MESSAGE 'Нельзя проводить отмененный заказ';
 
+@openXML(Sale.UserOrder,o,Sale.orders);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'orders' AND receiveSupplierMessages AND NOT invoices THEN {
         TRY {
@@ -115,6 +117,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 valueVAT(d) <- ordersTax(l);
                             }
                         }
+                        XMLPath(o) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {

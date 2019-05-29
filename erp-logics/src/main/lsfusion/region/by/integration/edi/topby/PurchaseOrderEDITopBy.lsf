@@ -147,6 +147,8 @@ FORM ordrsp
 
 indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
 
+@openXML(EOrderResponse,o,eOrderResponses);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'ordrsp' AND NOT invoices THEN {
         TRY {
@@ -177,6 +179,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         eOrder(r) <- eOrder(ordrspOrderNumber());
                         deliveryDateTime(r) <- ordrspDeliveryDateTimeFirst();
                         deliveryDateTimeSecond(r) <- ordrspDeliveryDateTimeSecond();
+                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
                             orderResponse(d) <- r;
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
@@ -333,6 +336,8 @@ FORM desadv
                   desadvLineItemAmount EXTID 'lineItemAmount', desadvLineItemAmountCharges EXTID 'lineItemAmountCharges'
 ;
 
+@openXML(EOrderDespatchAdvice,o,eOrderDespatchAdvices);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'desadv' AND NOT invoices THEN {
         TRY {
@@ -358,7 +363,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         customerStock(a) <- companyStockGLN(desadvDestinationGLN());
                         eOrder(a) <- eOrder(desadvOrderNumber());
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
-                        
+                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                             dataGTIN(d) <- desadvGTIN(l);
