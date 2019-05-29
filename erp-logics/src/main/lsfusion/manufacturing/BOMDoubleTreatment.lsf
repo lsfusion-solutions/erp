@@ -136,7 +136,7 @@ DESIGN BOM {
 //netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)*actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)/quantityProduct(BOM(p))BY BOM(p);   
 
 actNettoNetWeightD 'Вес нетто изделия для акта г' (Product p) =  (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)*1000/actQuantity(BOM(p));
-nameSkusD 'Компоненты (все)' (BOM BOM) = GROUP CONCAT Stock.name(Sku sku) IF (GROUP SUM 1 IF sku(Component c) == sku AND BOM(c) == BOM AND NOT skipUse(c)), ', ' ORDER Stock.name(sku);
+nameSkusD 'Компоненты (все)' (BOM BOM) = GROUP CONCAT Stock.name(Sku sku) IF (GROUP SUM 1 IF sku(Component c) == sku AND BOM(c) == BOM), ', ' ORDER Stock.name(sku);
 netWeightProductD 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);   
 actBruttoNetWeightD 'Выход полуфабриката брутто, г' (Component c)= bruttoQuantity(c)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/actQuantity(BOM(c))*1000.0;
 actNettoNetWeightD 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)/actQuantity(BOM(c))*1000*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component);
@@ -144,9 +144,9 @@ actMiddleNetWeightD 'Выход полуфабриката нетто, г' (Comp
 
 netWeightProductDD 'Выход'  = GROUP SUM quantity(Product p)/actQuantity(BOM(p))*1000*(OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product) BY BOM(p);   
 
-overNettoNetWeightComponentExtra = ABSTRACT NUMERIC[18,5](BOM);
+
 overFullNameCompanyD (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntity(actStock(b));
-overNettoNetWeightComponentGr(BOM b) = NUMERIC[18,5]((OVERRIDE overNettoNetWeightComponentExtra(b), overNettoNetWeightComponent(b))*1000.0);
+overNettoNetWeightComponentGr(BOM b) = NUMERIC[18,5](overNettoNetWeightComponent(b)*1000.0);
 inPrintDT = DATA LOCAL BOOLEAN (BOM,DATE);
 
 FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки'
@@ -174,8 +174,7 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
     PROPERTIES    READONLY  wastageCold1(cc), wastageCold2(cc), wastageHeat1(cc), wastageHeat2(cc), actBruttoNetWeightD(cc), actNettoNetWeightD(cc),
                   actMiddleNetWeightD(cc), textDescription(cc), semifinishedWeight(cc), semifinishedWeightGr(cc)                                    
                   
-    FILTERS       BOM(cc) == b,
-                  NOT skipUse(cc)
+    FILTERS       BOM(cc) == b
                   
     OBJECTS e=Employee
     PROPERTIES(e) READONLY name[Contact], namePosition
