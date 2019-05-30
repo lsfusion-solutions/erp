@@ -235,7 +235,7 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
     IF isServer() THEN {
         TRY {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-                IF overHostEDSServiceTopBy(customer(c)) AND overPortEDSServiceTopBy(customer(c)) AND useEDSServiceForCustomerTopBy() THEN {
+                IF hostEDSServiceTopBy(customer(c)) AND portEDSServiceTopBy(customer(c)) AND useEDSServiceForCustomerTopBy() THEN {
                     LOCAL error = TEXT();
                     error() <- '';
                     IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
@@ -266,7 +266,7 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(overHostEDSServiceTopBy(customer(c)), overPortEDSServiceTopBy(customer(c)), 'eds', 'eds', ('http://' + overHostEDSServiceTopBy(customer(c)) + ':' + overPortEDSServiceTopBy(customer(c)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(hostEDSServiceTopBy(customer(c)), portEDSServiceTopBy(customer(c)), 'eds', 'eds', ('http://' + hostEDSServiceTopBy(customer(c)) + ':' + portEDSServiceTopBy(customer(c)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + faultstring());

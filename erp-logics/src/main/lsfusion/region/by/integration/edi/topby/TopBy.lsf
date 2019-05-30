@@ -822,8 +822,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     }
 }
 
-hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] ();
-portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER ();
 useEDSServiceForCustomerTopBy 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
 
 receiveInvoiceTopByAction 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByActionProperty' ();
@@ -834,9 +832,7 @@ receiveInvoiceTopBy 'Получить сообщения по электронн
 
 EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
-                 hostEDSServiceTopBy, portEDSServiceTopBy, useEDSServiceForCustomerTopBy,
-                 receiveInvoiceTopBy, useLSF, useLSFInvoice,
-                 confirmNotFoundOrders
+                 useEDSServiceForCustomerTopBy, receiveInvoiceTopBy, useLSF, useLSFInvoice, confirmNotFoundOrders
 ;
     
 DESIGN integrationData {
@@ -854,19 +850,21 @@ DESIGN integrationData {
                 MOVE PROPERTY(disableConfirmationTopBy());
                 MOVE PROPERTY(receiveSupplierMessagesTopBy());
             }
-            NEW ovs {
-                caption = 'Заказы';
-                MOVE PROPERTY (confirmNotFoundOrders());
-                MOVE PROPERTY(receiveTopBy());
-                MOVE PROPERTY(useLSF());
-            }
-            NEW ivs {
-                caption = 'Электронные накладные';
-                MOVE PROPERTY(hostEDSServiceTopBy());
-                MOVE PROPERTY(portEDSServiceTopBy());           
-                MOVE PROPERTY(useEDSServiceForCustomerTopBy());     
-                MOVE PROPERTY(receiveInvoiceTopBy());
-                MOVE PROPERTY(useLSFInvoice());
+            NEW col {
+                type = CONTAINERH;
+                fill = 1;
+                NEW ovs {
+                    caption = 'Заказы';
+                    MOVE PROPERTY (confirmNotFoundOrders());
+                    MOVE PROPERTY(receiveTopBy());
+                    MOVE PROPERTY(useLSF());
+                }
+                NEW ivs {
+                    caption = 'Электронные накладные';          
+                    MOVE PROPERTY(useEDSServiceForCustomerTopBy());     
+                    MOVE PROPERTY(receiveInvoiceTopBy());
+                    MOVE PROPERTY(useLSFInvoice());
+                }
             }
         }
     }
@@ -875,8 +873,6 @@ DESIGN integrationData {
 
 hostEDSServiceTopBy 'Хост EDSService' = DATA STRING[100] (LegalEntity);
 portEDSServiceTopBy 'Порт EDSService' = DATA INTEGER (LegalEntity);
-overHostEDSServiceTopBy 'Хост EDSService' (LegalEntity l) = OVERRIDE hostEDSServiceTopBy(l), hostEDSServiceTopBy();
-overPortEDSServiceTopBy 'Порт EDSService' (LegalEntity l) = OVERRIDE portEDSServiceTopBy(l), portEDSServiceTopBy();
 
 EXTEND FORM integrationData
     OBJECTS le = LegalEntity
