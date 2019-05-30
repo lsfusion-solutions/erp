@@ -129,8 +129,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                         } ELSE {
                             IF archiveDir THEN {
-                                TRY{ mkdir(archiveDir + '/received'); }
-                                WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
                             logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                         }
@@ -255,8 +255,8 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
                         toMilliseconds(blradfDateTime());
                         EXPORT exportBlradf OBJECTS ec = c XML TO contentSubXML;
                         IF outputDirTopBy() THEN {
-                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices'); }
-                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         IF aliasEDSServiceCustomer(c) AND passwordEDSServiceCustomer(c) THEN {
                             LOCAL xml = FILE();

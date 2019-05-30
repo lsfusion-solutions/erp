@@ -73,8 +73,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                     } ELSE {
                         IF archiveDir THEN {
-                            TRY{ mkdir(archiveDir + '/received'); }
-                            WRITE data(i) TO archiveDir + '/received/' + id(i);
+                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         }
                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                     }
@@ -159,8 +159,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                     MESSAGE provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                 } ELSE {
                                     IF archiveDir THEN {
-                                        TRY{ mkdir(archiveDir + '/received'); }
-                                        WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                     }
                                     logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                 }
@@ -269,8 +269,8 @@ sendSupplierSaleOrder 'Отправить (поставщик)' (Sale.UserOrder 
                 LOCAL contentSubXML = FILE();
                 EXPORT saleOrder OBJECTS o = o XML TO contentSubXML;
                 IF outputDir THEN {
-                    TRY{ mkdir(outputDir + '/sent/orders'); }
-                    WRITE contentSubXML() TO outputDir + '/sent/orders/' + number(o) + (IF isCancel(o) THEN 'c' ELSE '');
+                    TRY{ mkdir(outputDir + '/sent/orders/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO outputDir + '/sent/orders/' + toChar(currentDate(),'yyyyMMdd') + '/' + number(o) + (IF isCancel(o) THEN 'c' ELSE '');
                 }
                 fileToString(contentSubXML());
                 encodeBase64(resultString());

@@ -127,8 +127,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                         } ELSE {
                             IF archiveDir THEN {
-                                TRY{ mkdir(archiveDir + '/received'); }
-                                WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
                             logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                         }
@@ -267,8 +267,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 toMilliseconds(blrapnDateTime());
                 EXPORT exportBlrapn XML TO contentSubXML;
                 IF archiveDir THEN {
-                    TRY{ mkdir(archiveDir + '/sent/invoices'); }
-                    WRITE contentSubXML() TO archiveDir + '/sent/invoices/blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                    TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                 }
                 IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
                     IF hostEDSServiceTopBy(supplier(ei)) AND portEDSServiceTopBy(supplier(ei)) THEN {
@@ -318,8 +318,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                         MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
                                     } ELSE {
                                         IF archiveDir THEN {
-                                            TRY{ mkdir(archiveDir + '/received'); }
-                                            WRITE data(i) TO archiveDir + '/received/' + id(i);
+                                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                                         }
                                         logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                     }
@@ -416,8 +416,8 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                     toMilliseconds(blrapnDateTime());
                     EXPORT exportBlrapn XML TO blrapnSubXML;
                     IF outputDirTopBy() THEN {
-                        TRY{ mkdir(outputDirTopBy() + '/sent/invoices'); }
-                        WRITE blrapnSubXML() TO outputDirTopBy() + '/sent/invoices/blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                        WRITE blrapnSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                     }
                     LOCAL blrwbrSubXML = FILE();
                     IF NOT isCancel(ei) THEN {
@@ -430,8 +430,8 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                             toMilliseconds(blrwbrDateTime());
                             EXPORT exportBlrwbr OBJECTS ei = ei XML TO blrwbrSubXML;
                             IF outputDirTopBy() THEN {
-                                TRY{ mkdir(outputDirTopBy() + '/sent/invoices'); }
-                                WRITE blrwbrSubXML() TO outputDirTopBy() + '/sent/invoices/blrwbr-' + toChar(blrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE blrwbrSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr-' + toChar(blrwbrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                             }
                         } ELSE {
                             logToFile('edi', provider + ' SendEInvoice: Не все поля заполнены. ' + error());
@@ -678,8 +678,8 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                         toMilliseconds(blrwblDateTime());
                         EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
                         IF outputDirTopBy() THEN {
-                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices'); }
-                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/blrwbl-' + toChar(blrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + toChar(blrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
                         IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
                             LOCAL xml = FILE();
