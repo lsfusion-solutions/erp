@@ -64,9 +64,19 @@ indexSku(EOrderResponseDetail d) = PARTITION SUM 1 ORDER quantityOrdered(d), -qu
 dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
 indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
 
-responseDetail (Purchase.OrderDetail d) = GROUP 
-    MAX EOrderResponseDetail ed 
-    IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
+//responseDetail (Purchase.OrderDetail d) = GROUP 
+//    MAX EOrderResponseDetail ed 
+//    IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
+migratedResponseDetail = DATA BOOLEAN ();
+onStarted() + { 
+    IF NOT migratedResponseDetail() THEN {
+        NEWSESSION {
+            migratedResponseDetail() <- TRUE;
+            responseDetail(EOrderDetail d) <- GROUP MAX EOrderResponseDetail ed IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
+            APPLY;
+        }    
+    }
+}
 
 //тереоретически поставщик может поменять порядок строк, но пока для упрощения попробуем исходить из того что не поменяет
 //quantityAccepted = GROUP SUM quantityAccepted(EOrderResponseDetail d) BY sku(d), eOrder(orderResponse(d));

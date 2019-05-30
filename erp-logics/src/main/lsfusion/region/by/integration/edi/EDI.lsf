@@ -12,8 +12,7 @@ DESIGN options {
 
 @defineDoubleItemAttribute(GTIN, STRING[14], 'GTIN', itemBase);
 
-GTIN = ABSTRACT STRING[15](Sku);
-GTIN(Item s) += GTIN(s);
+INDEX GTIN(Item i);
 
 GTINBarcode 'GTIN' (Sku s) = OVERRIDE GTIN(s), idBarcode(s);
 skuGTINa = GROUP NAGGR Sku s BY GTINBarcode(s);
@@ -75,6 +74,8 @@ cancelQuantity 'Кол-во (отмена)' = ABSTRACT NUMERIC[16,5] (EOrderDeta
 overQuantity (EOrderDetail d) = IF isCancel(order(d)) THEN OVERRIDE cancelQuantity(d), quantity(d) ELSE quantity(d);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
 valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
+
+responseDetail = DATA EOrderResponseDetail(EOrderDetail) INDEXED;
 
 CLASS EDIProvider 'Провайдер EDI' : StaticObject;
 
@@ -197,7 +198,7 @@ DESIGN eOrders {
 CLASS EOrderMessage 'Сообщение по заказу EDI';
 TABLE eOrderMessage(EOrderMessage);
 
-number 'Номер' = DATA STRING[24] (EOrderMessage);
+number 'Номер' = DATA STRING[24] (EOrderMessage) INDEXED;
 eOrderMessage (number) = GROUP AGGR EOrderMessage e BY number(e);
 eOrder 'Заказ' = DATA EOrder (EOrderMessage) NONULL DELETE INDEXED;
 numberEOrder 'Заказ' (EOrderMessage m) = number(eOrder(m));

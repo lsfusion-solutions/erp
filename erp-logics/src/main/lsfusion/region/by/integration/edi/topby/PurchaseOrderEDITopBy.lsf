@@ -145,6 +145,10 @@ FORM ordrsp
                   ordrspPriceNoNDS EXTID 'priceNoNDS', ordrspPriceNDS EXTID 'priceNDS'
 ;
 
+localIndexSku = DATA LOCAL INTEGER (EOrderDetail);
+fillIndexSku ABSTRACT LIST (EOrder);
+fillIndexSku(EOrder o) + {localIndexSku(EOrderDetail  d) <- 1 WHERE order(d) == o;}
+
 indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
 
 @openXML(EOrderResponse,o,eOrderResponses);
@@ -180,9 +184,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         deliveryDateTime(r) <- ordrspDeliveryDateTimeFirst();
                         deliveryDateTimeSecond(r) <- ordrspDeliveryDateTimeSecond();
                         XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        
+                        LOCAL indexSku = INTEGER (INTEGER);
+                        LOCAL sku = Sku (INTEGER);
+                        
+                        sku(INTEGER l) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
+                        indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l), ordrspOrderNumber(); //сортировка по принятым откланенным, принятые первыми
+                        fillIndexSku(eOrder(r));
+                        
                         FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
                             orderResponse(d) <- r;
-                            sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
+                            sku(d) <- sku(l);
                             dataGTIN(d) <- ordrspGTIN(l);
                             action(d) <- CASE
                                             WHEN ordrspAction(l) == 1 THEN EOrderResponseDetailAction.added
@@ -194,6 +206,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             price(d) <- ordrspPriceElement(l);
                             sumNoNDS(d) <- ordrspPriceNoNDS(l);
                             sumNDS(d) <- ordrspPriceNDS(l);
+                            responseDetail(EOrderDetail od) <- d WHERE eOrder(d) == order(od) AND sku(d) == sku(od) AND indexSku(l) == localIndexSku(od);
                         }
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
