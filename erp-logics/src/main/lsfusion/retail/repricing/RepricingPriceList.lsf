@@ -106,8 +106,27 @@ createManagementRepricingAllStocksMultithread 'Создать автоматич
 	THREADS countTreadsRepricingAllStocks();
 }
 
+createAutoRepricingAll 'Создать автоматическую переоценку по надбавкам и прайсам'(DepartmentStore department)  { 
+    NEWSESSION {
+        calculateDashboardAutoRepricing(department, toManagementRepricingOperation(), currentDateTime());
+        createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
+        createOverManagementRepricing(department);
+        APPLY;
+    }
+}
+
+createAutoRepricingAllStocksMultithread 'Создать автоматическую переоценку по надбавкам и прайсам (Многопоточно)'()  { 
+    NEWEXECUTOR 
+        FOR active(DepartmentStore department) AND isCompany(department) AND NOT skipManagementRepricing(department)  DO 
+            NEWTHREAD NEWSESSION NEWSQL {
+                createAutoRepricingAll(department);
+            } 
+	THREADS countTreadsRepricingAllStocks();
+}
+
 EXTEND FORM options
-    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, countTreadsRepricingAllStocks, createManagementRepricingAllStocksMultithread
+    PROPERTIES() nameToManagementRepricingOperation, createManagementRepricingAllStocks, countTreadsRepricingAllStocks, 
+                 createManagementRepricingAllStocksMultithread, createAutoRepricingAllStocksMultithread
 ;
 DESIGN options {
     rPanel {
@@ -117,6 +136,7 @@ DESIGN options {
             MOVE PROPERTY(createManagementRepricingAllStocks());
             MOVE PROPERTY(countTreadsRepricingAllStocks());
             MOVE PROPERTY(createManagementRepricingAllStocksMultithread());
+            MOVE PROPERTY(createAutoRepricingAllStocksMultithread());
         }
     }
 }
