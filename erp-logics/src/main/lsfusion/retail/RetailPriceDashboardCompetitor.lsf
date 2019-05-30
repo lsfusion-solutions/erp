@@ -1,6 +1,6 @@
 MODULE RetailPriceDashboardCompetitor;
 
-REQUIRE Competitor, RetailPriceDashboard;
+REQUIRE Competitor, RetailPriceDashboard, Pricing;
 
 NAMESPACE Competitor;
 
@@ -24,7 +24,7 @@ price 'Цена конкурента' = DATA LOCAL NUMERIC[16,5](Sku, Competitor
 
 fillPrices 'Рассчитать' (DATE d, Stock st) {
     FOR Sku sk IS Sku AND (DATE (dateTimeLastMoved(sk, st)) <= dateLastMoved() OR NOT dateLastMoved()) AND step() DO {
-        price(sk) <- priceA(dataPriceListType('retail'), sk, st, DATETIME (d));
+        price(sk) <- retailPricingPriceA(sk, st, DATETIME (d));
         price(sk, Competitor c) <- price(c, sk, d);
     }
 }

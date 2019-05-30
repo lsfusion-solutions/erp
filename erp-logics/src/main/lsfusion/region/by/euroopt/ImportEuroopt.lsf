@@ -166,80 +166,95 @@ importImageAndPrice 'Импортировать изображения и цен
 
 importPricesJSON 'Импортировать цены товаров' () {
     
-    LOCAL idPriceList = ISTRING[255](INTEGER);
-    LOCAL idOperation = ISTRING[100](INTEGER);
-    LOCAL idUserPriceListDetail = ISTRING[100](INTEGER);
-    LOCAL idBarcodeSku = ISTRING[15](INTEGER);
-    LOCAL idDataPriceListType = ISTRING[100](INTEGER);
-    LOCAL namePriceListType = ISTRING[100](INTEGER);
-    LOCAL pricePriceListDetail = NUMERIC[16,5](INTEGER);
-    LOCAL action = BOOLEAN (INTEGER);
-    
-    importImageAndPrice();
-    
-    IMPORT JSON FROM importPriceFile() TO idPriceList = idPriceList, idOperation = idOperation, idUserPriceListDetail = idUserPriceListDetail, idBarcodeSku = idBarcodeSku, 
-        idDataPriceListType = idDataPriceListType, namePriceListType = namePriceListType, pricePriceListDetail = pricePriceListDetail, action = action;
-     
-    FOR [GROUP SUM 1 BY namePriceListType(INTEGER i)](STRING[100] name) AND NOT competitor(name) DO NEW c = Competitor {
-        name(c) <- name;
-    }
-       
-    FOR [GROUP SUM 1 BY idPriceList(INTEGER i)](STRING[15] id) AND NOT priceList(id) DO NEW p = PriceList {
-        id(p) <- id;
-    }
-    
-    FOR [GROUP SUM 1 BY idUserPriceListDetail(INTEGER i)](STRING[15] id) AND NOT priceListDetail(id) DO NEW d = PriceListDetail {
-        id(d) <- id;
-    }
-    
-    FOR INTEGER i = [GROUP MIN INTEGER ii BY priceListDetail(idUserPriceListDetail(ii))](PriceListDetail d) DO {
-        sku(d) <- skuBarcode(idBarcodeSku(i));
-        priceList(d) <- priceList(idPriceList(i));
-    }
-    
-    FOR [GROUP SUM 1 BY priceList(idPriceList(INTEGER i)), competitor(namePriceListType(i))](PriceList p, Competitor c) DO {
-        in(p, c) <- TRUE;
-    }
-    
-    FOR imported(INTEGER i) AND PriceListDetail d = priceListDetail(idUserPriceListDetail(i)) AND Competitor c = competitor(namePriceListType(i)) DO {
-        IF action(i) THEN {
-            promotionPrice(d, c) <- pricePriceListDetail(i);
+    NEWSESSION NESTED LOCAL {
+
+        LOCAL idPriceList = ISTRING[255](INTEGER);
+        LOCAL idOperation = ISTRING[100](INTEGER);
+        LOCAL idUserPriceListDetail = ISTRING[100](INTEGER);
+        LOCAL idBarcodeSku = ISTRING[15](INTEGER);
+        LOCAL idDataPriceListType = ISTRING[100](INTEGER);
+        LOCAL namePriceListType = ISTRING[100](INTEGER);
+        LOCAL pricePriceListDetail = NUMERIC[16,5](INTEGER);
+        LOCAL action = BOOLEAN (INTEGER);
+        
+        IMPORT JSON FROM importPriceFile() TO idPriceList = idPriceList, idOperation = idOperation, idUserPriceListDetail = idUserPriceListDetail, idBarcodeSku = idBarcodeSku, 
+            idDataPriceListType = idDataPriceListType, namePriceListType = namePriceListType, pricePriceListDetail = pricePriceListDetail, action = action;
+         
+        FOR [GROUP SUM 1 BY namePriceListType(INTEGER i)](STRING[100] name) AND NOT competitor(name) DO NEW c = Competitor {
+            name(c) <- name;
         }
-        ELSE {
-            price(d, c) <- pricePriceListDetail(i);
+           
+        FOR [GROUP SUM 1 BY idPriceList(INTEGER i)](STRING[15] id) AND NOT priceList(id) DO NEW p = PriceList {
+            id(p) <- id;
         }
+        
+        FOR [GROUP SUM 1 BY idUserPriceListDetail(INTEGER i)](STRING[15] id) AND NOT priceListDetail(id) DO NEW d = PriceListDetail {
+            id(d) <- id;
+        }
+        
+        FOR INTEGER i = [GROUP MIN INTEGER ii BY priceListDetail(idUserPriceListDetail(ii))](PriceListDetail d) DO {
+            sku(d) <- skuBarcode(idBarcodeSku(i));
+            priceList(d) <- priceList(idPriceList(i));
+        }
+        
+        FOR [GROUP SUM 1 BY priceList(idPriceList(INTEGER i)), competitor(namePriceListType(i))](PriceList p, Competitor c) DO {
+            in(p, c) <- TRUE;
+        }
+        
+        FOR imported(INTEGER i) AND PriceListDetail d = priceListDetail(idUserPriceListDetail(i)) AND Competitor c = competitor(namePriceListType(i)) DO {
+            IF action(i) THEN {
+                promotionPrice(d, c) <- pricePriceListDetail(i);
+            }
+            ELSE {
+                price(d, c) <- pricePriceListDetail(i);
+            }
+        }
+        
+        APPLY;
     }
-    
-    APPLY;
 }
 
 importImagesJSON 'Импортировать изображения товаров' () {
     
-    LOCAL image = TEXT (INTEGER);
-    LOCAL idBarcode = ISTRING[15](INTEGER);
-    
-    importImageAndPrice();
-    
-    IMPORT JSON FROM importImageFile() TO image = image, idBarcode = idBarcode;
+    NEWSESSION NESTED LOCAL {
+        LOCAL image = TEXT (INTEGER);
+        LOCAL idBarcode = ISTRING[15](INTEGER);
         
-    FOR INTEGER i == [GROUP MIN INTEGER ii BY idBarcode(ii)](STRING[15] id) AND Item s == skuBarcode(id) DO {
-        
-        image(s) <- decode(image(i),'base64') WHERE NOT image(s);
+        IMPORT JSON FROM importImageFile() TO image = image, idBarcode = idBarcode;
+            
+        FOR INTEGER i == [GROUP MIN INTEGER ii BY idBarcode(ii)](STRING[15] id) AND Item s == skuBarcode(id) DO {
+            
+            image(s) <- decode(image(i),'base64') WHERE NOT image(s);
+        }
+        APPLY;
     }
-    APPLY;
 }
 
 importImageAndPriceEdostavka 'Импортировать изображения и цены товаров E-dostavka' () {
     mainPage() <- MainPage.edostavka;
-    importImagesJSON();
-    mainPage() <- MainPage.edostavka;
-    importPricesJSON();
+
+    importImageAndPrice();
+
+    IF importImages() THEN {
+        importImagesJSON();
+    }
+    
+    IF importPrices() THEN {
+        importPricesJSON();
+    }
 }
 importImageAndPriceGipermall 'Импортировать изображения и цены товаров Gipermall' () {
     mainPage() <- MainPage.gipermall;
-    importImagesJSON();
-    mainPage() <- MainPage.gipermall;
-    importPricesJSON();
+
+    importImageAndPrice();
+
+    IF importImages() THEN {
+        importImagesJSON();
+    }
+    
+    IF importPrices() THEN {
+        importPricesJSON();
+    }
 }
 
 idItemGroup 'Код группы товаров' (Barcode barcode) = id(skuGroup(sku(barcode)));
