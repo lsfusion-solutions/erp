@@ -61,3 +61,86 @@ DESIGN options {
         MOVE PROPERTY(uniqueUNP());
     }
 }
+
+urlAPIGRP 'URL API (Получение сведений по юридическим лицам)' = DATA STRING[255]();
+dataCheckGRP 'Проверять по госреестру' = DATA BOOLEAN (LegalEntityGroup);
+levelParentCheckGRP(LegalEntityGroup child)  = GROUP MIN level(child, LegalEntityGroup parent) IF dataCheckGRP(parent) MATERIALIZED;
+nearestParentCheckGRP (LegalEntityGroup group) = legalEntityGroup(group, levelParentCheckGRP(group));
+nearestCheckGRP (LegalEntityGroup group) = dataCheckGRP(nearestParentCheckGRP(group));
+checkGRP 'Проверять по госреестру' (LegalEntityGroup group) = OVERRIDE dataCheckGRP(group), nearestCheckGRP(group) MATERIALIZED;
+
+checkGRP 'Проверять по госреестру' (LegalEntity l) = checkGRP(legalEntityGroup(l));
+
+EXTEND FORM options
+    PROPERTIES() urlAPIGRP
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY order(lg), lgTreeName = name(lg)
+    PROPERTIES checkGRP(lg)
+    ORDER order(lg)
+;
+DESIGN options {
+    legalEntity {
+        MOVE PROPERTY(urlAPIGRP());
+        MOVE BOX(TREE legalEntityGroupTree){
+            caption = 'Группы организаций';
+        }
+    }
+}
+
+GROUP ROW;
+VUNP = DATA LOCAL NESTED STRING[9]();
+VNAIMP = DATA LOCAL NESTED STRING[200]();
+VNAIMK = DATA LOCAL NESTED STRING[100]();
+VPADRES = DATA LOCAL NESTED STRING[150]();
+VKODS = DATA LOCAL NESTED STRING[50]();
+validLegalEntity = DATA LOCAL NESTED BOOLEAN();
+
+FORM importGRP
+    PROPERTIES() IN ROW VUNP, VNAIMP, VNAIMK, VPADRES, VKODS;
+;
+
+overImportGRP ABSTRACT LIST (LegalEntity);
+
+importGRP (LegalEntity l, BOOLEAN fill) {
+    validLegalEntity() <- NULL;
+    IF urlAPIGRP() AND UNP(l) THEN {
+        logToFile('grp','GET: ' + urlAPIGRP() + '?unp=' + UNP(l) + '&charset=UTF-8&type=json');
+        LOCAL result = FILE();
+        TRY {
+            EXTERNAL HTTP GET urlAPIGRP() + '?unp=' + UNP(l) + '&charset=UTF-8&type=json' TO result;
+            fileToString(result(), 'UTF-8');
+            logToFile('grp','Result: ' + resultString());
+            
+            IMPORT importGRP JSON FROM result();
+            
+            IF VUNP() == UNP(l) THEN {
+                IF fill THEN {
+                    fullName(l) <- VNAIMP() WHERE VNAIMP();
+                    name(l) <- VNAIMK() WHERE VNAIMK();
+                    dataAddress(l, DATE d) <- VPADRES() WHERE currentDate() == d AND VPADRES();
+                    overImportGRP(l);
+                }
+                IF NOT VKODS() == 'Действующий' THEN {
+                    MESSAGE 'Данная организаация не является действующей!' NOWAIT;
+                }
+                validLegalEntity() <- TRUE;
+            } ELSE {
+                MESSAGE 'Не найдена организация с УНП ' + UNP(l) NOWAIT;
+            }
+        } CATCH {
+            MESSAGE 'Ошибка получения сведений по УНП' NOWAIT;
+        }
+        
+    } ELSE {
+        MESSAGE 'Не задан URL API (Получение сведений по юридическим лицам)' NOWAIT;
+    }
+}
+
+WHEN LOCAL CHANGED(UNP(LegalEntity l)) AND UNP(l) AND checkGRP(l) DO {
+    importGRP(l, TRUE);
+}
+
+WHEN CHANGED(UNP(LegalEntity l)) AND UNP(l) AND checkGRP(l) DO {
+    importGRP(l, NULL);
+    IF NOT validLegalEntity() THEN CANCEL;
+}
