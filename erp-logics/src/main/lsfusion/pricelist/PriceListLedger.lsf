@@ -648,16 +648,19 @@ META deriveDocumentDetailPriceSystemLedgerPriceListType (concrete, priceListType
                                                          CHANGED(dateTime(detail));
 END
 
+skipUpdatePriceAccount = DATA LOCAL BOOLEAN ();
+replaceBefore(Sku i, Sku item) + {skipUpdatePriceAccount() <- i!=item;}
+
 META deriveDocumentDetailPriceAccountBatch (concrete, prefixP, skuProp, stockProp)
     WHEN LOCAL (CHANGED(stockProp(###concrete##Detail detail)) OR
                 (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) DO
+                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT skipUpdatePriceAccount() DO
         prefixP###price (detail) <- prevAccountPriceB(batch(detail), stockProp(detail), dateTime(detail));
 
     WHEN LOCAL (CHANGED(skuProp(###concrete##Detail detail)) OR
                 CHANGED(stockProp(detail)) OR
                 (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) DO
+                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT skipUpdatePriceAccount() DO
         prefixP###price (detail) <- prevAccountPriceB(sku(detail), stockProp(detail), dateTime(detail));
 END
 
@@ -669,13 +672,13 @@ META deriveDocumentDetailPriceAccountBatchDisable (concrete, prefixP, skuProp, s
 
     WHEN LOCAL (CHANGED(stockProp(###concrete##Detail detail)) OR
                 (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) DO
+                SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) AND NOT skipUpdatePriceAccount() DO
         prefixP###price (detail) <- prevAccountPriceB(batch(detail), stockProp(detail), dateTime(detail));
 
     WHEN LOCAL (CHANGED(skuProp(###concrete##Detail detail)) OR
                 CHANGED(stockProp(detail)) OR
                 (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) DO
+                DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(prefixP###price(detail)) AND NOT disableUpdate###prefixP###price(detail) AND NOT skipUpdatePriceAccount() DO
         prefixP###price (detail) <- prevAccountPriceB(sku(detail), stockProp(detail), dateTime(detail));
 END
 
