@@ -1710,3 +1710,46 @@ DESIGN integrationData {
         } 
     } 
 }
+
+userShipment (Stock st) = GROUP MAX UserShipment s IF id(s) == ('init_' + id(customerStock(s))) BY customerStock(s);
+userShipmentDetail (Stock st, Sku sk) = GROUP MAX UserShipmentDetail d IF userShipment(d) == userShipment(st) BY sku(d);
+
+importBalanceShipment 'Импорт остатков (поставки)' () {
+    
+    LOCAL balance = NUMERIC[16,4] (INTEGER);
+    
+    LOCAL file = FILE ();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
+        
+    IMPORT TABLE FROM file() TO idItem, idStock, balance;
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF NOT userShipment(stock(TEXT (idStock(ii)))) BY stock(TEXT (idStock(ii)))](Stock st) DO NEW s = UserShipment {
+        id(s) <- 'init_' + id(stock(TEXT (idStock(i))));
+        operation(s) <- Purchase.operation('initial');
+        customerStock(s) <- stock(TEXT (idStock(i)));
+        customer(s) <- legalEntity(stock(TEXT (idStock(i))));
+        isPosted(s) <- TRUE;
+        date(s) <- 2010_01_01;
+    }
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) AND NOT userShipmentDetail(stock(TEXT (idStock(i))), item(idItem(i))) AND NOT balance(i) == 0 
+        BY stock(TEXT (idStock(i))), item(idItem(i))](Stock st, Item sk) DO NEW d = UserShipmentDetail {
+        userShipment(d) <- userShipment(st);
+        sku(d) <- sk;
+    }
+    
+    FOR UserShipmentDetail d == userShipmentDetail(stock(TEXT (idStock(INTEGER i))), item(idItem(i))) DO {
+        quantity(d) <- balance(i);
+    }
+    
+    FOR UserShipmentDetail d  == userShipmentDetail(Stock st, Sku sk) AND (OVERRIDE quantity(d), 0) == 0 DO {
+        DELETE d;
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importBalanceShipment();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importBalanceShipment()); } }
