@@ -923,59 +923,55 @@ nameStatisticsLegalEntity  = name(statisticsLegalEntity());
 
 fillCalcData (DATE dFrom, DATE dTo) {
     
-    balanceSku(Sku s, Stock st) <- balanceA(s,st,dTo);
-    sumSku(Sku s, Stock st) <- sumA(s,st,dTo);
-    
-    LOCAL date = DATE ();
-    date() <- dTo;
-    
-    WHILE date() >= dFrom DO {        
-        FOR DATE date == date() DO {
+    FOR isCompany(Stock stock) NOINLINE DO {
+        balanceSku(Sku s, stock) <- balanceA(s,stock,dTo);
+        sumSku(Sku s, stock) <- sumA(s,stock,dTo);
+            
+        FOR iterate(DATE date, dFrom, dTo) ORDER DESC date NOINLINE DO {
             LOCAL localQuantitySoldBy = NUMERIC[30,14] (StatisticGroup, Sku);
             localQuantitySoldBy(StatisticGroup group, Sku sku) <- (GROUP SUM [GROUP SUM quantity(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
-                                                                            BY sku(ledger), stock(ledger), date(ledger)](sku, Stock stock,date) IF isParent(group,sku))/
+                                                                            BY sku(ledger), stock(ledger), date(ledger)](sku, stock,date) IF isParent(group,sku))/
                                                                             (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcQuantitySoldBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * factor(group, sku);
-            calcNetWeightSoldBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * netWeight(sku);
-            calcVolumeSoldBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * volume(sku);
-            calcRetailSumSoldBy(StatisticGroup group, Stock stock, date) <- (GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
+            calcQuantitySoldBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * factor(group, sku);
+            calcNetWeightSoldBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * netWeight(sku);
+            calcVolumeSoldBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * volume(sku);
+            calcRetailSumSoldBy(StatisticGroup group, stock, date) <- (GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
                                                                                 BY sku(ledger), stock(ledger), date(ledger)](Sku sku, stock, date) IF isParent(group,sku))/
                                                                                 (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcQuantitySoldResidentBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * factor(group, sku) IF resident(group,sku);
-            calcNetWeightSoldResidentBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * netWeight(sku) IF resident(group,sku);
-            calcVolumeSoldResidentBy(StatisticGroup group, Stock stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * volume(sku) IF resident(group,sku);
-            calcRetailSumSoldResidentBy(StatisticGroup group, Stock stock, date) <- (GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
+            calcQuantitySoldResidentBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * factor(group, sku) IF resident(group,sku);
+            calcNetWeightSoldResidentBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * netWeight(sku) IF resident(group,sku);
+            calcVolumeSoldResidentBy(StatisticGroup group, stock, date) <- GROUP SUM localQuantitySoldBy(group, Sku sku) * volume(sku) IF resident(group,sku);
+            calcRetailSumSoldResidentBy(StatisticGroup group, stock, date) <- (GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
                                                                                         BY sku(ledger), stock(ledger), date(ledger)](Sku sku, stock, date) IF resident(group,sku))/
                                                                                         (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcBalanceABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * factor(group, sku) IF isParent(group,sku))/
+            calcBalanceABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * factor(group, sku) IF isParent(group,sku))/
                                                                  (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcNetWeightABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * netWeight(sku) IF isParent(group,sku))/
+            calcNetWeightABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * netWeight(sku) IF isParent(group,sku))/
                                                                    (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcVolumeABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * volume(sku) IF isParent(group,sku))/
+            calcVolumeABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * volume(sku) IF isParent(group,sku))/
                                                                 (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcRetailSumABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM sumSku(Sku sku, stock) IF isParent(group, sku))/
+            calcRetailSumABy(StatisticGroup group, stock, date) <- (GROUP SUM sumSku(Sku sku, stock) IF isParent(group, sku))/
                                                                    (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcBalanceResidentABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * factor(group, sku) IF resident(group,sku))/
+            calcBalanceResidentABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * factor(group, sku) IF resident(group,sku))/
                                                                          (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcNetWeightResidentABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * netWeight(sku) IF resident(group,sku))/
+            calcNetWeightResidentABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * netWeight(sku) IF resident(group,sku))/
                                                                            (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcVolumeResidentABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * volume(sku) IF resident(group,sku))/
+            calcVolumeResidentABy(StatisticGroup group, stock, date) <- (GROUP SUM balanceSku(Sku sku, stock) * volume(sku) IF resident(group,sku))/
                                                                         (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcRetailSumResidentABy(StatisticGroup group, Stock stock, date) <- (GROUP SUM sumSku(Sku sku, stock) IF resident(group, sku))/
+            calcRetailSumResidentABy(StatisticGroup group, stock, date) <- (GROUP SUM sumSku(Sku sku, stock) IF resident(group, sku))/
                                                                            (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
-            calcTotalSumSoldBy(StatisticGroup group, Stock stock, date) <- GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
+            calcTotalSumSoldBy(StatisticGroup group, stock, date) <- GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
                                                                                 BY sku(ledger), stock(ledger), date(ledger)](Sku sku, stock, date) IF isParent(group, sku);
-            calcTotalSumResidentSoldBy(StatisticGroup group, Stock stock, date) <- GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
+            calcTotalSumResidentSoldBy(StatisticGroup group, stock, date) <- GROUP SUM [GROUP SUM sum(SaleLedger ledger) IF active(ledger) AND NOT skipStatistic(ledger)
                                                                                         BY sku(ledger), stock(ledger), date(ledger)](Sku sku, stock, date) IF resident(group, sku);
-            calcSumBalanceABy(StatisticGroup group, Stock stock, date) <- GROUP SUM  sumSku(Sku sku, stock) IF isParent(group, sku);
-            calcSumResidentBalanceABy(StatisticGroup group, Stock stock, date) <- GROUP SUM  sumSku(Sku sku, stock) IF resident(group, sku);
+            calcSumBalanceABy(StatisticGroup group, stock, date) <- GROUP SUM  sumSku(Sku sku, stock) IF isParent(group, sku);
+            calcSumResidentBalanceABy(StatisticGroup group, stock, date) <- GROUP SUM  sumSku(Sku sku, stock) IF resident(group, sku);
+            APPLY NESTED LOCAL;
+            
+            balanceSku(Sku s, stock) <- balanceSku(s,stock) (-) signedQuantity(s,stock,date) WHERE signedQuantity(s,stock,date); 
+            sumSku(Sku s, stock) <- sumSku(s,stock) (-) signedSum(s,stock,date) WHERE signedSum(s,stock,date); 
         }
-
-        balanceSku(Sku s, Stock st) <- balanceSku(s,st) (-) signedQuantity(s,st,date()) WHERE signedQuantity(s,st,date()); 
-        sumSku(Sku s, Stock st) <- sumSku(s,st) (-) signedSum(s,st,date()) WHERE signedSum(s,st,date()); 
-        date() <- subtract(date(),1);
     }
-    APPLY;
 }
 
 // Отметка для групп
