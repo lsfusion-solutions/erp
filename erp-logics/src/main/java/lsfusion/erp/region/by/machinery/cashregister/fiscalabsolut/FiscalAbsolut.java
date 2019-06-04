@@ -424,9 +424,10 @@ public class FiscalAbsolut {
     }
 
     public static int checkErrors(Boolean throwException) {
-        logAction("LastError");
+        logAction("LastError (checkErrors)");
         Integer lastError = absolutDLL.absolut.LastError();
         if (lastError != 0) {
+            logAction("LastError result: " + lastError);
             if (throwException)
                 throw new RuntimeException("Absolut Exception: " + lastError);
         }

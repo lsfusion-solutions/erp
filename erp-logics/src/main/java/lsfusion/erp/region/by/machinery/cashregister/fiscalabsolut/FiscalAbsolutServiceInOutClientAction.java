@@ -45,9 +45,12 @@ public class FiscalAbsolutServiceInOutClientAction implements ClientAction {
                     return FiscalAbsolut.getError(true);
             }
         } catch (RuntimeException e) {
-            if(opened)
+            if(opened) {
                 FiscalAbsolut.cancelReceipt();
-            return FiscalAbsolut.getError(true);
+                return FiscalAbsolut.getError(true);
+            } else {
+                return e.getMessage();
+            }
         }
         finally {
             FiscalAbsolut.closePort();
