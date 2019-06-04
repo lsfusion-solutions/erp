@@ -51,43 +51,44 @@ FORM blradf
                   blradfAmountReceived EXTID 'AmountReceived'
 ;
 
+@openXML(ECreditNote,c,eCreditNotes);
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blradf' AND invoices THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
             NEWSESSION NESTED LOCAL {
-                //LOCAL isCancel = BOOLEAN();
-                //isCancel() <- TRUE IF blradfFunctionCode() == '1';
+                LOCAL isCancel = BOOLEAN();
+                isCancel() <- TRUE IF blradfFunctionCode() == '1';
                 IF eCreditNoteActDifNumber(blradfActDifNumber()) THEN {
                     importedCustomer(ECreditNote ec) <- TRUE WHERE ec == eCreditNoteActDifNumber(blradfActDifNumber());
+                } ELSE NEW ec = ECreditNote {
+                    importedCustomer(ec) <- TRUE;
+                    id(ec) <- blradfSupplierGLN() + '/' + blradfActDifNumber() + (IF isCancel() THEN '_cancel' ELSE '');
+                    number(ec) <- blradfDocumentNumber();
+                    dateTime(ec) <- blradfDateTime();
+                    actDifDateTime(ec) <- blradfDateTime();
+                    actDifNumber(ec) <- blradfActDifNumber();
+                    deliveryNoteDateTime(ec) <- blradfDateTime();
+                    deliveryNoteNumber(ec) <- blradfDeliveryNoteNumber();
+                    isCancel(ec) <- isCancel();
+                    supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
+                    customer(ec) <- legalEntityGLN(blradfCustomerGLN());
+                    customerStock(ec) <- companyStockGLN(blradfCustomerStockGLN());
+                    XMLPath(ec) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                    FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) DO NEW ed = ECreditNoteDetail {
+                        id(ed) <- id(ec) + '/' + blradfLineItemNumber(l);
+                        lineItemID(ed) <- blradfLineItemID(l);
+                        lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
+                        lineItemName(ed) <- blradfLineItemName(l);
+                        quantityOrdered(ed) <- blradfQuantityOrdered(l);
+                        quantityReceived(ed) <- blradfQuantityReceived(l);
+                        valueVAT(ed) <- blradfValueVAT(l);
+                        lineItemPrice(ed) <- blradfLineItemPrice(l);
+                        amountOrdered(ed) <- blradfAmountOrdered(l);
+                        amountReceived(ed) <- blradfAmountReceived(l);
+                    }
                 }
-//                } ELSE NEW ec = ECreditNote {
-//                    importedCustomer(ec) <- TRUE;
-//                    id(ec) <- blradfSupplierGLN() + '/' + blradfActDifNumber() + (IF isCancel() THEN '_cancel' ELSE '');
-//                    number(ec) <- blradfDocumentNumber();
-//                    dateTime(ec) <- blradfDateTime();
-//                    actDifDateTime(ec) <- blradfDateTime();
-//                    actDifNumber(ec) <- blradfActDifNumber();
-//                    deliveryNoteDateTime(ec) <- blradfDateTime();
-//                    deliveryNoteNumber(ec) <- blradfDeliveryNoteNumber();
-//                    isCancel(ec) <- isCancel();
-//                    supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
-//                    customer(ec) <- legalEntityGLN(blradfCustomerGLN());
-//                    customerStock(ec) <- companyStockGLN(blradfCustomerStockGLN());
-//                    XMLPath(ec) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-//                    FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) DO NEW ed = ECreditNoteDetail {
-//                        id(ed) <- id(ec) + '/' + blradfLineItemNumber(l);
-//                        lineItemID(ed) <- blradfLineItemID(l);
-//                        lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
-//                        lineItemName(ed) <- blradfLineItemName(l);
-//                        quantityOrdered(ed) <- blradfQuantityOrdered(l);
-//                        quantityReceived(ed) <- blradfQuantityReceived(l);
-//                        valueVAT(ed) <- blradfValueVAT(l);
-//                        lineItemPrice(ed) <- blradfLineItemPrice(l);
-//                        amountOrdered(ed) <- blradfAmountOrdered(l);
-//                        amountReceived(ed) <- blradfAmountReceived(l);
-//                    }
-//                }
                 APPLY NESTED LOCAL;
                 IF canceled() THEN {
                     IF NOT disableConfirmation AND sendReplies THEN {
@@ -140,31 +141,31 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 }  
             }
         } CATCH {
-//            IF NOT disableConfirmation AND sendReplies THEN {
-//                LOCAL contentSubXML = FILE();
-//                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse CreditNote ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-//                fileToString(contentSubXML());
-//                encodeBase64(resultString());
-//                LOCAL xml = XMLFILE();
-//                envelopeLogin() <- login;
-//                envelopePassword() <- password;
-//                envelopeDocumentDate() <- currentDateTime();
-//                envelopeDocumentNumber() <- id(i);
-//                envelopeDocumentType() <- 'SYSTEMMESSAGE';
-//                envelopeContent() <- encodedBase64();
-//                EXPORT envelope XML TO xml;
-//                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-//                sendRequestEDI(host, port, login, password, url, xml());
-//                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-//                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-//                IF requestError() THEN {
-//                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-//                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-//                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-//                } ELSE {
-//                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-//                }
-//            }
+            IF NOT disableConfirmation AND sendReplies THEN {
+                LOCAL contentSubXML = FILE();
+                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse CreditNote ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
+                fileToString(contentSubXML());
+                encodeBase64(resultString());
+                LOCAL xml = XMLFILE();
+                envelopeLogin() <- login;
+                envelopePassword() <- password;
+                envelopeDocumentDate() <- currentDateTime();
+                envelopeDocumentNumber() <- id(i);
+                envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                envelopeContent() <- encodedBase64();
+                EXPORT envelope XML TO xml;
+                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                sendRequestEDI(host, port, login, password, url, xml());
+                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                IF requestError() THEN {
+                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                } ELSE {
+                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                }
+            }
             logToFile('edi', CONCAT '\n', provider + ' Parse CreditNote ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте акта приемки ' + id(i) +'. Обратитесь к администратору' NOWAIT;
         }
