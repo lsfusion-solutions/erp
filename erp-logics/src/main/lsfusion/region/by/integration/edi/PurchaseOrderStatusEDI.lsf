@@ -86,11 +86,7 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
 
 orderConfirmation(UserOrder o) += isEOrder(o);
 
-//WHEN SET(EOrderResponse r == orderResponse(EOrderResponseDetail d))  AND NOT [ GROUP SUM 1 BY sku(UserOrderDetail d), userOrder(d)](sku(d), eOrder(r)) AND eOrder(r) AND sku(d) DO 
-//    NEW od = UserOrderDetail {
-//        sku(od) <- sku(d);
-//        userOrder(od) <- eOrder(r);
-//    } 
+quantityResponseEDI = GROUP SUM quantityResponseEDI(Purchase.OrderDetail d) BY order(d) MATERIALIZED;
 
 notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
 notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;

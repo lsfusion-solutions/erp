@@ -58,32 +58,11 @@ isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 response = GROUP MAX EOrderResponse e BY eOrder(e);
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
-indexSku(EOrderResponseDetail d) = PARTITION SUM 1 ORDER quantityOrdered(d), -quantityAccepted(d), d BY sku(d), eOrder(orderResponse(d)) MATERIALIZED ;
-//сортировка по принятым откланенным, принятые первыми
-
 dataIndexSku = DATA INTEGER (Purchase.OrderDetail);
 indexSku(Purchase.OrderDetail d) = OVERRIDE dataIndexSku(d), 1;
 
-//responseDetail (Purchase.OrderDetail d) = GROUP 
-//    MAX EOrderResponseDetail ed 
-//    IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
-migratedResponseDetail = DATA BOOLEAN ();
-onStarted() + { 
-    IF NOT migratedResponseDetail() THEN {
-        NEWSESSION {
-            migratedResponseDetail() <- TRUE;
-            responseDetail(EOrderDetail d) <- GROUP MAX EOrderResponseDetail ed IF eOrder(ed) == order(d) AND sku(ed) == sku(d) AND indexSku(d) == indexSku(ed);
-            APPLY;
-        }    
-    }
-}
-
-//тереоретически поставщик может поменять порядок строк, но пока для упрощения попробуем исходить из того что не поменяет
-//quantityAccepted = GROUP SUM quantityAccepted(EOrderResponseDetail d) BY sku(d), eOrder(orderResponse(d));
-//quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = PARTITION UNGROUP quantityAccepted LIMIT STRICT PREV(quantity(d)) BY sku(d), order(d);
 quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
 backgroundQuantityResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
-quantityResponseEDI = GROUP SUM quantityResponseEDI(Purchase.OrderDetail d) BY order(d);
 
 priceResponseEDI 'Подтвержденная цена (EDI)'(Purchase.OrderDetail d) = price(responseDetail(d));
 backgroundPriceResponseEDI(Purchase.OrderDetail d) = RGB(255,0,0) IF priceResponseEDI(d) != price(d);
