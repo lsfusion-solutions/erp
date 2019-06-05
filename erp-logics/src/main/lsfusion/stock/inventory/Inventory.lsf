@@ -715,9 +715,10 @@ include(CollationSheet collationSheet, Sku sku) = MULTI
     (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, sku) != 0 OR sumBalance(collationSheet, sku) OR quantityPageInventoryDetail(collationSheet, sku)));
 overInclude = ABSTRACT BOOLEAN (CollationSheet, Sku);
 
-priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE prevAccountPriceB(
-                sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
-                WHEN SET(include(collationSheet, sku));
+WHEN LOCAL SET(include(CollationSheet collationSheet, Sku sku)) DO {
+    priceBalance(collationSheet, sku) <- OVERRIDE prevAccountPriceB(
+                sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
+}
 
 // ------------------------------ Определение состава сличительной ведомости (Batch) ------------------------------------ //
 
@@ -725,9 +726,10 @@ include(collationSheet, batch) = DATA BOOLEAN (CollationSheet, Batch);
 include(CollationSheet collationSheet, Batch batch) <- include(collationSheet, PREV(sku(batch))) AND isBatch(collationSheet)
                         WHEN [ CHANGED(include(collationSheet, Sku sku))](PREV(sku(batch)));
 
-priceBalance(CollationSheet collationSheet, Batch batch) <- prevAccountPriceB(
-                batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-                WHEN SET(include(collationSheet, batch));
+WHEN LOCAL SET(include(CollationSheet collationSheet, Batch batch)) DO { 
+    priceBalance(collationSheet, batch) <- prevAccountPriceB(
+                batch, stock(collationSheet), dateTime(inventory(collationSheet)));
+}
 
 // ------------------------------------ Итоги по сличительной ведомости (Sku) ------------------------------------ //
 
