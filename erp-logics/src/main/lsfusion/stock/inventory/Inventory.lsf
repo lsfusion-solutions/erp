@@ -632,8 +632,8 @@ calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet,
 
 calcPartitionQuantity (CollationSheet cs, Batch batch) = 
     PARTITION UNGROUP notBatchQuantityPageInventoryDetail
-           LIMIT STRICT OVERRIDE (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch)), 0.0 IF prevCountLedger(batch, stock(cs), dateTime(cs))
-           ORDER dateTime(batch), batch                            
+           LIMIT (balanceB(batch, stock(cs), dateTime(cs)) (-) calcQuantityPageInventoryDetail(cs,batch))
+           ORDER DESC dateTime(batch), batch                            
            BY cs, sku(batch);
                                                            
 partitionQuantity 'По FIFO' (CollationSheet cs, Batch batch) = DATA NUMERIC[16,5](CollationSheet, Batch);    
@@ -2161,16 +2161,27 @@ EXTEND FORM inventory
     PROPERTIES (cs,i) batchQuantity READONLY SHOWIF isSkuBatch(cs) 
 ;
 
+lastOrderNotExcludeBatchB(Inventory inventory, sku, Stock stock, DATETIME dateTimeIn)  =
+        GROUP LAST Batch batch
+              ORDER dateTime(batch, stock), batch
+              WHERE dateTime(batch, stock) < dateTimeIn AND prevCountLedger(batch, stock, dateTimeIn) AND NOT excludeBatch(inventory, batch)
+              BY skuLedger(batch, stock);                 
+
 overRecalculateBalance(Inventory inventory) + { 
     FOR inventory(CollationSheet cs) = inventory DO {
+        include(cs, Batch batch) <- include(cs, sku(batch)) AND isBatch(cs); //если появилась новая партия но товар уже был включен ранее
         IF isSkuBatch(cs) THEN {
             
             partitionQuantity(cs, Batch bt) <- NULL WHERE partitionQuantity(cs, bt) AND (NOT calcPartitionQuantity(cs, bt) OR excludeBatch(inventory,bt));
             
             IF isPartly(inventory) AND isRemains(inventory) THEN {
-                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory, sku(bt)) AND NOT excludeBatch(inventory,bt) AND calcPartitionQuantity(cs, bt); 
+                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory, sku(bt)) AND NOT excludeBatch(inventory,bt) AND calcPartitionQuantity(cs, bt);
+                partitionQuantity(cs, Batch bt) <- partitionQuantity(cs,bt) (+) notBatchQuantityPageInventoryDetail (cs, sku(bt)) (-) (GROUP SUM partitionQuantity(cs, Batch btt) IF sku(btt) == sku(bt))  
+                    WHERE (notBatchQuantityPageInventoryDetail (cs, sku(bt)) (-) (GROUP SUM partitionQuantity(cs, Batch btt) IF sku(btt) == sku(bt))) > 0.0  AND bt == lastOrderNotExcludeBatchB(inventory, sku(bt), stock(cs), dateTime(cs)) AND include(inventory, sku(bt)); 
             } ELSE {
                 partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE NOT excludeBatch(inventory,bt) AND calcPartitionQuantity(cs, bt); 
+                partitionQuantity(cs, Batch bt) <- partitionQuantity(cs,bt) (+) notBatchQuantityPageInventoryDetail (cs, sku(bt)) (-) (GROUP SUM partitionQuantity(cs, Batch btt) IF sku(btt) == sku(bt))  
+                    WHERE (notBatchQuantityPageInventoryDetail (cs, sku(bt)) (-) (GROUP SUM partitionQuantity(cs, Batch btt) IF sku(btt) == sku(bt))) > 0.0  AND bt == lastOrderNotExcludeBatchB(inventory, sku(bt), stock(cs), dateTime(cs));
             }
             FOR quantityPageInventoryDetail(cs,Sku sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) DO {
                 MESSAGE (CONCAT ' ', 'Для товара:', name(sk), '('+id(sk)+')', 'в количестве', quantityPageInventoryDetail(cs,sk)+' единиц', 'нет подходящих партий.') NOWAIT;
