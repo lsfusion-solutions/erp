@@ -14,7 +14,7 @@ digits = FORMULA STRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 indexSku(EOrderDespatchAdviceDetail d) = PARTITION SUM 1 ORDER quantityOrdered(d), d BY sku(d), eOrder(orderDespatchAdvice(d)) MATERIALIZED INDEXED;
 orderDetail (EOrderDespatchAdviceDetail ed) = GROUP 
     MAX Purchase.OrderDetail d
-    IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d) AND 1 == indexSku(ed);
+    IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d) AND localIndexSku(d) == indexSku(ed);
     
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND EOrderDespatchAdviceDetail(d)
     THEN MIN lineItemPrice(EOrderDespatchAdviceDetail(d)), priceOrder(d);
@@ -28,6 +28,8 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a)  
             fillHeader(i, eOrder(a));
             number(i) <- STRING[28](digits(deliveryNoteNumber(a)));
             series(i) <- STRING[2](left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2));
+            
+            fillIndexSku(eOrder(a));
             
             FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND quantityDespatch(ad) > 0.0 AND NOT skipCreateUserInvoice(orderDetail(ad))
                 ORDER ad 
