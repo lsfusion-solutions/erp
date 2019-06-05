@@ -1,0 +1,91 @@
+MODULE ImportSanta;
+
+REQUIRE Item;
+
+host 'Хост' = DATA ISTRING[30]();
+port 'Порт' = DATA ISTRING[10]();
+base 'База' = DATA ISTRING[100]();
+login 'Логин' = DATA ISTRING[100]();
+password 'Пароль' = DATA ISTRING[100]() ECHO;
+
+EXTEND FORM integrationData PROPERTIES () host, port, base, login, password;
+
+DESIGN integrationData {
+    pane {
+        NEW santa FIRST {
+            caption = 'Санта';
+            fill = 1;
+            NEW santaParams {
+                caption = 'Параметры';
+                MOVE PROPERTY (host());
+                MOVE PROPERTY (port());
+                MOVE PROPERTY (base());
+                MOVE PROPERTY (login());
+                MOVE PROPERTY (password());
+            }
+            NEW santaButtons { 
+                caption = 'Импорт';
+            }
+        }
+    }
+}
+
+idGroup = DATA LOCAL INTEGER (INTEGER);
+idParent = DATA LOCAL INTEGER (INTEGER);
+nameGroup = DATA LOCAL ISTRING[100](INTEGER);
+
+importItemGroup 'Импорт товарных групп' () {
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT cod_dep, name_dep FROM Pub.depart' TO file;
+    
+    IMPORT TABLE FROM file() TO idGroup, nameGroup;
+    
+    IF NOT itemGroup('all') THEN NEW g = ItemGroup {
+        id(g) <- 'all';
+        name(g) <- 'Все';
+    }
+    
+    FOR idGroup(INTEGER i) AND NOT itemGroup(TEXT (idGroup(i))) DO NEW g = ItemGroup {
+        id(g) <- ISTRING[100] (idGroup(i));
+    }
+    
+    FOR idGroup(INTEGER i) AND ItemGroup g == itemGroup(TEXT (idGroup(i))) DO {
+        name(g) <- ISTRING[100] (nameGroup(i));
+        parent(g) <- itemGroup('all');
+    }
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT cod_group, name_gr, cod_dep FROM Pub.ggroup' TO file;
+        
+    IMPORT TABLE FROM file() TO idGroup, nameGroup, idParent;
+    
+    FOR idGroup(INTEGER i) AND NOT itemGroup(TEXT (idGroup(i))) DO NEW g = ItemGroup {
+        id(g) <- ISTRING[100] (idGroup(i));
+    }
+    
+    FOR idGroup(INTEGER i) AND ItemGroup g == itemGroup(TEXT (idGroup(i))) DO {
+        name(g) <- ISTRING[100] (nameGroup(i));
+        parent(g) <- itemGroup(TEXT (idParent(i)));
+    }
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT cod_sgr, name_sgr, cod_group FROM Pub.sgroup' TO file;
+        
+    IMPORT TABLE FROM file() TO idGroup, nameGroup, idParent;
+    
+    FOR idGroup(INTEGER i) AND NOT itemGroup(TEXT (idGroup(i))) DO NEW g = ItemGroup {
+        id(g) <- ISTRING[100] (idGroup(i));
+    }
+    
+    FOR idGroup(INTEGER i) AND ItemGroup g == itemGroup(TEXT (idGroup(i))) DO {
+        name(g) <- ISTRING[100] (nameGroup(i));
+        parent(g) <- itemGroup(TEXT (idParent(i)));
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemGroup();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemGroup()); } }
