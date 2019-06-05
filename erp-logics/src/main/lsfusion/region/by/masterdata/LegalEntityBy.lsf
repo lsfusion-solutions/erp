@@ -103,6 +103,7 @@ overImportGRP ABSTRACT LIST (LegalEntity);
 
 importGRP (LegalEntity l, BOOLEAN fill) {
     validLegalEntity() <- NULL;
+    LOCAL name = STRING[100]();
     IF urlAPIGRP() AND UNP(l) THEN {
         logToFile('grp','GET: ' + urlAPIGRP() + '?unp=' + UNP(l) + '&charset=UTF-8&type=json');
         LOCAL result = FILE();
@@ -116,7 +117,11 @@ importGRP (LegalEntity l, BOOLEAN fill) {
             IF VUNP() == UNP(l) THEN {
                 IF fill THEN {
                     fullName(l) <- VNAIMP() WHERE VNAIMP();
-                    name(l) <- VNAIMK() WHERE VNAIMK();
+                    name() <- replace(VNAIMK(),'"','');
+                    FOR left(name(),length(shortName(Ownership o)) + 1) == (shortName(o) + ' ') DO {
+                        name() <- right(name(), length(name()) - length(shortName(o)) - 1);
+                    }
+                    name(l) <- name() WHERE name();
                     dataAddress(l, DATE d) <- VPADRES() WHERE currentDate() == d AND VPADRES();
                     overImportGRP(l);
                 }
