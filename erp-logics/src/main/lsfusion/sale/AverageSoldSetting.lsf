@@ -1,0 +1,131 @@
+MODULE AverageSoldSetting;
+
+REQUIRE SaleLedger;
+
+NAMESPACE SaleLedger;
+
+CLASS AverageSoldSetting 'Настройка расчета однодневных продаж';
+TABLE averageSoldSetting (AverageSoldSetting);
+
+@defineExternalizable(averageSoldSetting, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](AverageSoldSetting) CHARWIDTH 30;
+
+dataInclude 'Вкл.' = DATA BOOLEAN (AverageSoldSetting,ItemGroup);
+levelParentInclude(AverageSoldSetting setting, ItemGroup child)  = GROUP MIN level(child, ItemGroup parent) IF dataInclude(setting, parent) MATERIALIZED;    
+nearestParentInclude (AverageSoldSetting setting, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentInclude(setting, itemGroup));
+nearestInclude (AverageSoldSetting setting, ItemGroup itemGroup) = dataInclude(setting, nearestParentInclude(setting, itemGroup));
+include 'Вкл.' (AverageSoldSetting setting, ItemGroup itemGroup) = OVERRIDE dataInclude(setting, itemGroup), nearestInclude(setting, itemGroup) MATERIALIZED;        
+prevInclude 'Вкл.' (AverageSoldSetting setting, ItemGroup itemGroup) = OVERRIDE dataInclude(setting, itemGroup), PREV(nearestInclude(setting, itemGroup));
+quantityChildWithInclude (AverageSoldSetting setting, ItemGroup itemGroup) = GROUP SUM 1 IF dataInclude(setting, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParentWithInclude (AverageSoldSetting setting, ItemGroup itemGroup) = GROUP SUM 1 IF dataInclude(setting, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+
+backgroundShowInclude (AverageSoldSetting setting, ItemGroup itemGroup) =
+    IF dataInclude(setting, itemGroup) THEN RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE RGB(203,203,206) IF quantityChildWithInclude(setting, itemGroup) != descendantNumber(itemGroup) AND NOT quantityParentWithInclude(setting, itemGroup);
+
+dataExclude 'Искл.' = DATA BOOLEAN (AverageSoldSetting, ItemGroup);
+levelParentExclude(AverageSoldSetting setting, ItemGroup child)  = GROUP MIN level(child, ItemGroup parent) IF dataExclude(setting, parent) MATERIALIZED;    
+nearestParentExclude (AverageSoldSetting setting, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentExclude(setting, itemGroup));
+nearestExclude (AverageSoldSetting setting, ItemGroup itemGroup) = dataExclude(setting, nearestParentExclude(setting, itemGroup));
+exclude 'Искл.' (AverageSoldSetting setting, ItemGroup itemGroup) = OVERRIDE dataExclude(setting, itemGroup), nearestExclude(setting, itemGroup) MATERIALIZED;        
+prevExclude 'Искл.' (AverageSoldSetting setting, ItemGroup itemGroup) = OVERRIDE dataExclude(setting, itemGroup), PREV(nearestExclude(setting, itemGroup));
+quantityChildWithExclude (AverageSoldSetting setting, ItemGroup itemGroup) = GROUP SUM 1 IF dataExclude(setting, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParentWithExclude (AverageSoldSetting setting, ItemGroup itemGroup) = GROUP SUM 1 IF dataExclude(setting, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+
+backgroundShowExclude (AverageSoldSetting setting, ItemGroup itemGroup) =
+    IF dataExclude(setting, itemGroup) THEN RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE RGB(203,203,206) IF quantityChildWithExclude(setting, itemGroup) != descendantNumber(itemGroup) AND NOT quantityParentWithExclude(setting, itemGroup);
+
+nameIncludeItemGroups 'Включенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataInclude(setting, group), ';' CHARWIDTH 50 MATERIALIZED;
+nameExcludeItemGroups 'Исключенные товарные группы' (AverageSoldSetting setting) = GROUP CONCAT name(ItemGroup group) IF dataExclude(setting, group), ';' CHARWIDTH 50 MATERIALIZED;
+countIncludeItemGroups 'Включенные товарные группы' (AverageSoldSetting setting) = GROUP SUM 1 IF dataInclude(setting, ItemGroup group) MATERIALIZED;
+countExcludeItemGroups 'Исключенные товарные группы' (AverageSoldSetting setting) = GROUP SUM 1 IF dataExclude(setting, ItemGroup group) MATERIALIZED;
+
+include (AverageSoldSetting setting, Sku sku) = (OVERRIDE include(setting, itemGroup(sku)) IF countIncludeItemGroups(setting), NOT exclude(setting, itemGroup(sku)) IF countExcludeItemGroups(setting));
+
+include 'Вкл.' = DATA BOOLEAN (AverageSoldSetting, DOW);
+nameIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP CONCAT staticCaption(DOW dow) IF include(setting, dow), ';' CHARWIDTH 50 MATERIALIZED;
+countIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP SUM 1 IF include(setting, DOW dow) MATERIALIZED;
+
+countDays 'Кол-во дней для расчета' = DATA INTEGER (AverageSoldSetting);
+
+CONSTRAINT (SET(AverageSoldSetting s IS AverageSoldSetting) OR CHANGED(countIncludeItemGroups(s)) OR CHANGED(countExcludeItemGroups(s))) AND
+    countIncludeItemGroups(s) AND countExcludeItemGroups(s) AND s IS AverageSoldSetting MESSAGE 'Нельзя одновременно включать и исключать товарные группы';
+CONSTRAINT (SET(AverageSoldSetting s IS AverageSoldSetting) OR CHANGED(countIncludeItemGroups(s)) OR CHANGED(countExcludeItemGroups(s))) AND
+    NOT countIncludeItemGroups(s) AND NOT countExcludeItemGroups(s) AND s IS AverageSoldSetting MESSAGE 'Не заданы товарные группы';
+CONSTRAINT (SET(AverageSoldSetting s IS AverageSoldSetting) OR CHANGED(countIncludeDOW(s))) AND NOT countIncludeDOW(s) AND s IS AverageSoldSetting MESSAGE 'Не заданы дни недели';
+CONSTRAINT (SET(AverageSoldSetting s IS AverageSoldSetting) OR CHANGED(countDays(s))) AND NOT countDays(s) AND s IS AverageSoldSetting MESSAGE 'Не задано кол-во дней для расчета';
+
+FORM averageSoldSetting 'Настройка расчета однодневных продаж'
+    OBJECTS s = AverageSoldSetting PANEL
+    PROPERTIES(s) id, name, countDays
+    
+    TREE treeGroups g = ItemGroup PARENT parent
+    PROPERTIES(s,g) include BACKGROUND backgroundShowInclude(s,g), exclude BACKGROUND backgroundShowExclude(s,g)
+    PROPERTIES READONLY order(g), id(g) SHOWIF showIDs(), name(g), canonicalName(g)
+    ORDER order(g), canonicalName(g)
+    
+    OBJECTS d = DOW
+    PROPERTIES(s,d) include
+    PROPERTIES(d) READONLY staticCaption, numberM
+    ORDER numberM(d)
+    
+    EDIT AverageSoldSetting OBJECT s
+;
+DESIGN averageSoldSetting {
+    OBJECTS {
+        BOX(s) {
+            type = CONTAINERV;
+            MOVE PROPERTY(id(s));
+            MOVE PROPERTY(name(s));
+            MOVE PROPERTY(countDays(s));
+        }
+        NEW bottom {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE treeGroups) {fill = 2;}
+            MOVE BOX(d) {fill = 1;}
+        }
+    }
+}
+
+FORM averageSoldSettings 'Настройки расчета однодневных продаж'
+    OBJECTS s = AverageSoldSetting
+    PROPERTIES(s) READONLY id, name, countDays, nameIncludeItemGroups, nameExcludeItemGroups, nameIncludeDOW
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE GRID
+    LIST AverageSoldSetting OBJECT s
+;
+
+NAVIGATOR {
+    saleSaleNavigator {
+        NEW averageSoldSettings;
+    }
+}
+
+calcAverageSold 'Пересчитать однодневные продажи' (AverageSoldSetting s) {
+    LOCAL balance = NUMERIC[14,3] (Sku, Stock);
+    LOCAL days = INTEGER (Sku, Stock);
+    LOCAL dateCur = DATE();
+    LOCAL quantitySold = NUMERIC[16,5](Sku, Stock);
+    
+    dateCur() <- subtract(currentDate(), countDays(s));
+    balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateCur()) WHERE include(s,sku);
+    
+    WHILE dateCur() <= subtract(currentDate(), 1) AND include(s, extractDOW(dateCur())) DO {
+        days(Sku sku, Stock stock) <- (days(sku, stock) (+)
+                   (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0) OR (quantitySold(sku, stock, dateCur()) > 0)))) WHERE include(s,sku);
+        balance(Sku sku, Stock stock) <- (balance(sku, stock) (+) signedQuantity(sku, stock, dateCur())) WHERE include(s,sku);
+        dateCur() <- sum(dateCur(), 1);
+    }
+    
+    quantitySold(Sku sku, Stock stock) <- GROUP SUM quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku,stock,date)
+        IF date >= subtract(currentDate(), countDays(s)) AND date <= subtract(currentDate(), 1) AND include(s, extractDOW(date)) AND include(s,sku);
+    
+    averageSold(Sku sku, Stock stock) <- quantitySold(sku,stock) / days(sku,stock) WHERE include(s,sku);
+    APPLY;
+}
+
+EXTEND FORM averageSoldSettings
+    PROPERTIES(s) NEWSESSION calcAverageSold TOOLBAR
+;
