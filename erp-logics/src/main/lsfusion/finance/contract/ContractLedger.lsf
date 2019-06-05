@@ -263,24 +263,27 @@ writeLIFOApply 'Расписать по LIFO'(OutContractLedger outContractLedge
     writeLIFO(outContractLedger);
     apply();
 }
-
-META implementInOutContractLedgerPrefix(prefix, objectClass, contractProp)
-
+META implementInOutContractLedgerPrefix(prefix, objectClass, contractProp, dateTimeProp)
     isPosted[###prefix##ContractLedger](objectClass prefix##ContractLedger) += isPosted(prefix##ContractLedger);
-    dateTime[###prefix##ContractLedger](objectClass prefix##ContractLedger) += dateTime(prefix##ContractLedger);
+    dateTime[###prefix##ContractLedger](objectClass prefix##ContractLedger) += dateTimeProp(prefix##ContractLedger);
     contract[###prefix##ContractLedger](objectClass prefix##ContractLedger) += contractProp(prefix##ContractLedger);
     description[###prefix##ContractLedger](objectClass prefix##ContractLedger) += description(prefix##ContractLedger);
-
 END
-
-META implementInContractLedger(objectClass, contractProp)
+META implementInOutContractLedgerPrefix(prefix, objectClass, contractProp)
+    @implementInOutContractLedgerPrefix(prefix, objectClass, contractProp, dateTime);
+END
+META implementInContractLedger(objectClass, contractProp, dateTimeProp)
     EXTEND CLASS objectClass : InContractLedger;
-    @implementInOutContractLedgerPrefix(in, objectClass, contractProp);
+    @implementInOutContractLedgerPrefix(in, objectClass, contractProp, dateTimeProp);
     number[InContractLedger](objectClass inContractLedger) += number(inContractLedger);
     series[InContractLedger](objectClass inContractLedger) += series(inContractLedger);    
     customerStock[InContractLedger](objectClass inContractLedger) += customerStock(inContractLedger);
     supplierStock[InContractLedger](objectClass inContractLedger) += supplierStock(inContractLedger);
     paymentCondition[InContractLedger](objectClass inContractLedger) += paymentCondition(inContractLedger);
+END
+
+META implementInContractLedger(objectClass, contractProp)    
+    @implementInContractLedger(objectClass, contractProp, dateTime);
 END
 
 META implementOutContractLedger(objectClass, contractProp)
