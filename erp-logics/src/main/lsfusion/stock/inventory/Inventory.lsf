@@ -330,7 +330,7 @@ isClosed 'Закрыт' (CollationSheet d) = isClosed(inventory(d)) MATERIALIZED
 
 @defineDocumentDetailIndex(inventory, CollationSheet);
 
-isBatch (CollationSheet collationSheet) = isBatch(inventory(collationSheet)) COMPLEX;
+isBatch (CollationSheet collationSheet) = isBatch(inventory(collationSheet)) PREREAD;
 isSku (CollationSheet collationSheet) = isSku(inventory(collationSheet));
 
 nameInventory 'Название инвентаризации' (CollationSheet collationSheet) = name(inventory(collationSheet));
@@ -625,7 +625,7 @@ CONSTRAINT pricePageInventoryDetail(CollationSheet collationSheet, Sku sku) != p
 //---------------------------- Итоги по описям (Batch) ----------------------------//
 notBatchQuantityPageInventoryDetail (CollationSheet cs, Sku sku) = GROUP SUM quantity(PageInventoryDetail d) IF NOT batch(d) BY collationSheet(d), sku(d);
 countNotBatchPageInventoryDetail = GROUP SUM 1 IF sku(PageInventoryDetail d)  AND NOT batch(d) BY collationSheet(d);
-isSkuBatch(CollationSheet cs) = isBatch(cs) AND countNotBatchPageInventoryDetail(cs) MATERIALIZED COMPLEX; 
+isSkuBatch(CollationSheet cs) = isBatch(cs) AND countNotBatchPageInventoryDetail(cs) MATERIALIZED PREREAD; 
 
 calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
