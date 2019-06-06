@@ -22,8 +22,6 @@ CLASS SaleReportDetail 'Строка акта реализации' : DocumentDe
 
 @defineDocumentDetailSkuCustomPrefix(saleReportDetail, sku, , );
 @defineDocumentDetailBatchCustomPrefix(saleReportDetail, batch, );
-idBatch 'Код партии' (SaleReportDetail d) = id(batch(d)) CHARWIDTH 10;
-
 replace(Sku s, Batch b) + {  sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
 
 @defineDocumentPosted(saleReport);
@@ -52,6 +50,8 @@ contractSku = DATA ContractSku (SaleReport);
 numberContractSku 'Договор (номер)' (SaleReport o) = number[Contract](contractSku(o)) IN documentPrm;
 descriptionContractSku 'Договор' (SaleReport o) = description(contractSku(o)) IN documentPrm;
 
+INDEX contractSku(SaleReport s), companyStock(s), s;
+
 replace(ContractSku c, ContractSku o) + { contractSku(SaleReport object) <- o WHERE contractSku(object) == c;}
 
 CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o))
@@ -61,9 +61,7 @@ CONSTRAINT contractSku(SaleReport o) AND NOT supplier(o) == partyA(contractSku(o
     CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (поставщик) договора не соответствует поставщику в акте реализации'; 
 
 fromDate 'Дата с' = DATA DATE (SaleReport) IN documentHeader;
-fromDate 'Дата с' (SaleReportDetail d)= fromDate(saleReport(d));
 toDate 'Дата по' = DATA DATE (SaleReport) IN documentHeader;
-toDate 'Дата по' (SaleReportDetail d)= toDate(saleReport(d));
 
 quantity 'Кол-во' = DATA NUMERIC[14,3] (SaleReportDetail);
 price 'Цена' = DATA NUMERIC[16,4] (SaleReportDetail);
@@ -121,13 +119,6 @@ quantityReturnFromTo 'Возвращено' = GROUP SUM (-cost(PurchaseLedger le
 quantityReturnCompanyFromTo 'Возвращено' = GROUP SUM (-cost(PurchaseLedger ledger, Batch batch)) IF cost(ledger, batch) <0 
     AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo AND inSalereport(stock(ledger))
     BY batch, legalEntity(stock(ledger)), dateFrom, dateTo;
-
-prevStocksReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF companyStock(saleReport) ORDER toDate(saleReport)
-    BY companyStock(saleReport), supplier(saleReport), contractSku(saleReport);
-prevCompaniesReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF NOT companyStock(saleReport) ORDER toDate(saleReport)
-    BY company(saleReport), supplier(saleReport), contractSku(saleReport);
-
-detail (b,r)= GROUP MAX SaleReportDetail d BY batch(d), saleReport(d);             
 
 skipSaleReport = ABSTRACT BOOLEAN (Batch);     
        
@@ -363,14 +354,6 @@ DESIGN reportsSales {
 @defineFilterIsOpened(saleReport, reportsSales, r);
 @defineDocumentLogForm(reportsSales, r);
 
-
-//aa 'склад' = seriesNumberSaleReport (prevStocksReportSaleReport(r));
-//bb 'орг-ия' = seriesNumberSaleReport (prevCompaniesReportSaleReport(r));
-//
-//EXTEND FORM reportsSales
-//    PROPERTIES (r) aa, bb
-//;
-
 // История по правой кнопке
 @defineBalancesBatch(saleReportDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineMovementBatch(saleReportDetail, companyStock); //-- показываем по нажатию правой клавиши движение по партии
@@ -500,9 +483,6 @@ EXTEND FORM reportsSales
     PROPERTIES (r) emailSupplier
 ;
 
-//filterSoldSupplierCompanyContractSkuDateFromTo = GROUP SUM quantitySoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo) IF inSalereportStock(stock)
-//    BY supplierBatch(batch), legalEntityStock(stock), contractSkuInvoice(invoiceInvoiceDetail(invoiceDetailBatch(batch))), dateFrom, dateTo;   
-
 partSale 'Формировать два акта реализации за месяц' = ABSTRACT BOOLEAN (ContractSku);
 partSale 'Формировать два акта реализации за месяц' = DATA BOOLEAN (UserContractSku);
 partSale(UserContractSku c) += partSale(c);
@@ -532,10 +512,8 @@ overCopyUser(UserContractSku from, UserContractSku to) +{
     skipSaleLedger(to) <- skipSaleLedger(from);
 }
 overCreateSaleReport = ABSTRACT BOOLEAN (ContractSku);
-
-filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
-    BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
 overFillData  ABSTRACT (SaleReport);
+
 createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo)  { 
     FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
         AND inSalereport(Stock stock) AND partyB(c) == company AND in(partyB(c),stock) AND NOT skipSaleLedger(c) DO {
@@ -667,14 +645,14 @@ DESIGN options {
     }
 }
 
-maxToDatePostedSaleSupplier(SaleReport report, s,l,c) = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == report BY companyStock(r), supplier(r), contractSku(r);
+maxToDatePostedSaleSupplier = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == SaleReport report BY report, companyStock(r), contractSku(r);
 
-CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r))) 
-    AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)) 
+CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r)))) 
+    AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), contractSku(r)) 
     MESSAGE 'Есть акты реализации с периодом позже данного. Необходимо распровести более поздние акты';
     
-WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (supplier(r)) OR SETCHANGED (contractSku(r)) DO {
-    fromDate(r) <- OVERRIDE sum(maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)), 1), firstDayOfMonth(currentDate());
+WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (contractSku(r)) DO {
+    fromDate(r) <- OVERRIDE sum(maxToDatePostedSaleSupplier(r, companyStock(r), contractSku(r)), 1), firstDayOfMonth(currentDate());
 }
 WHEN LOCAL FORMS saleReport SET (SaleReport r IS SaleReport) DO {
     toDate(r) <- lastDayOfMonth(currentDate());
