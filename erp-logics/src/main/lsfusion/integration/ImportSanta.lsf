@@ -1,6 +1,6 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription;
 
 host 'Хост' = DATA ISTRING[30]();
 port 'Порт' = DATA ISTRING[10]();
@@ -255,3 +255,100 @@ importStores 'Импорт магазинов' () {
 
 EXTEND FORM integrationData PROPERTIES importStores();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importStores()); } }
+
+importUOMs 'Импорт ед. измерений' () {
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT cod_meas, name_meas FROM Pub.meas' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT UOM(TEXT (id(i))) DO NEW u = UOM {
+        id(u) <- STRING[100](id(i));
+        name(u) <- STRING[50](name(i));
+        shortName(u) <- name(i);
+        base(u) <- u;
+        factor(u) <- 1;
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importUOMs();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importUOMs()); } }
+
+supplier = DATA LegalEntity(Item);
+nameSupplier 'Поставщик' (Item i) = name(supplier(i)) IN itemBase;
+
+EXTEND FORM item PROPERTIES nameSupplier(i);
+EXTEND FORM items PROPERTIES READONLYIF isReadonly() nameSupplier(i);
+
+importItems 'Импорт товаров' () {
+    
+    LOCAL nameSupplier = TEXT (INTEGER);
+    LOCAL nameLabel = TEXT (INTEGER);
+    LOCAL nameCashbox = TEXT (INTEGER);
+    LOCAL idUOM = INTEGER (INTEGER);
+    LOCAL idGroup1 = INTEGER (INTEGER);
+    LOCAL idGroup2 = INTEGER (INTEGER);
+    LOCAL idGroup3 = INTEGER (INTEGER);
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL passScales = BOOLEAN (INTEGER);
+    LOCAL netWeight = NUMERIC[11,3](INTEGER);
+    LOCAL volume = NUMERIC[11,3](INTEGER);
+    LOCAL article = TEXT(INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT cod_good, name, SUBSTR(name_e, 1, 60), price_name, name_cur, cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, parent_good FROM Pub.katalog' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article;
+    
+    FOR id(INTEGER i) AND NOT item(TEXT (id(i))) DO NEW s = Item {
+        id(s) <- STRING[100](id(i));
+    }
+    
+    FOR Item s = item(TEXT (id(INTEGER i))) DO {
+        caption(s) <- name(i);
+        UOM(s) <- UOM(TEXT (idUOM(i)));
+        itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
+        supplier(s) <- legalEntity(TEXT (idLegalEntity(i)));
+        passScales(s) <- passScales(i);
+        netWeight(s) <- OVERRIDE netWeight(i) IF netWeight(i) > 0, volume(i);
+        description(s) <- article(i);
+    }
+    
+    LOCAL vat = INTEGER (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, nds FROM Pub."arh-nds"' TO file;
+    
+    IMPORT TABLE FROM file() TO id, vat;
+    
+    FOR Item s = item(TEXT (id(INTEGER i))) DO {
+        VAT(s, Country c) <- (GROUP MAX Range r IF valueCurrentRate(r) == vat(i)*10) WHERE c == defaultCountry();
+    }
+    
+    LOCAL idBarcode = STRING[15](INTEGER);
+    LOCAL idItem = INTEGER (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, bar_cod, dt FROM Pub.barcod WHERE NOT cod_good = bar_cod' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, idBarcode, date;
+    
+    FOR id(INTEGER i) AND NOT barcode(idBarcode(i)) DO NEW b = Barcode {
+        id(b) <- idBarcode(i);
+    }
+    FOR Barcode b = barcode(idBarcode(INTEGER i)) AND Item s = item(TEXT (idItem(i))) DO {
+        sku(b) <- s;
+        barcode(s) <- b;
+        dataDate(b) <- date(i);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItems();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importItems()); } }
