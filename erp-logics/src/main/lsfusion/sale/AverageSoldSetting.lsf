@@ -11,6 +11,8 @@ TABLE averageSoldSetting (AverageSoldSetting);
 
 name 'Наименование' = DATA ISTRING[100](AverageSoldSetting) CHARWIDTH 30;
 
+
+TABLE averageSoldSettingItemGroup (AverageSoldSetting,ItemGroup);
 dataInclude 'Вкл.' = DATA BOOLEAN (AverageSoldSetting,ItemGroup);
 levelParentInclude(AverageSoldSetting setting, ItemGroup child)  = GROUP MIN level(child, ItemGroup parent) IF dataInclude(setting, parent) MATERIALIZED;    
 nearestParentInclude (AverageSoldSetting setting, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentInclude(setting, itemGroup));
@@ -44,6 +46,7 @@ countExcludeItemGroups 'Исключенные товарные группы' (A
 
 include (AverageSoldSetting setting, Sku sku) = (OVERRIDE include(setting, itemGroup(sku)) IF countIncludeItemGroups(setting), NOT exclude(setting, itemGroup(sku)) IF countExcludeItemGroups(setting));
 
+TABLE averageSoldSettingDOW (AverageSoldSetting,DOW);
 include 'Вкл.' = DATA BOOLEAN (AverageSoldSetting, DOW);
 nameIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP CONCAT staticCaption(DOW dow) IF include(setting, dow), ';' CHARWIDTH 50 MATERIALIZED;
 countIncludeDOW 'Включенные дни' (AverageSoldSetting setting) = GROUP SUM 1 IF include(setting, DOW dow) MATERIALIZED;
