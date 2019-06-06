@@ -13,9 +13,9 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
-public class FiscalVMKUpdateDataActionProperty extends InternalAction {
+public class FiscalVMKUpdateDataAction extends InternalAction {
 
-    public FiscalVMKUpdateDataActionProperty(ScriptingLogicsModule LM) {
+    public FiscalVMKUpdateDataAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -24,13 +24,14 @@ public class FiscalVMKUpdateDataActionProperty extends InternalAction {
         DataSession session = context.getSession();
 
         try {
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
 
             if (context.checkApply()) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(logPath, ip, comPort, baudRate));
+                String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(isUnix, logPath, ip, comPort, baudRate));
                 if (result == null)
                     context.apply();
                 else {

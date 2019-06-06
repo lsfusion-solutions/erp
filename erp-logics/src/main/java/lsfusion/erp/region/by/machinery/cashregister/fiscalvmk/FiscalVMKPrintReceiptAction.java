@@ -25,10 +25,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.*;
 
-public class FiscalVMKPrintReceiptActionProperty extends InternalAction {
+public class FiscalVMKPrintReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalVMKPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -54,6 +54,7 @@ public class FiscalVMKPrintReceiptActionProperty extends InternalAction {
                 else
                     ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error (Not Fiscal)");
             } else {
+                boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
@@ -164,7 +165,7 @@ public class FiscalVMKPrintReceiptActionProperty extends InternalAction {
                 }
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(logPath, ip, comPort, baudRate,
+                    Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(isUnix, logPath, ip, comPort, baudRate,
                             new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));

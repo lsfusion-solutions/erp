@@ -12,9 +12,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalVMKPrintCopyReceiptActionProperty extends InternalAction {
+public class FiscalVMKPrintCopyReceiptAction extends InternalAction {
 
-    public FiscalVMKPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) {
+    public FiscalVMKPrintCopyReceiptAction(ScriptingLogicsModule LM) {
         super(LM);
 
     }
@@ -23,12 +23,13 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends InternalAction {
 
         try {
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(logPath, ip, comPort, baudRate));
+            String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(isUnix, logPath, ip, comPort, baudRate));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalVMKPrintCopyReceipt Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

@@ -1,6 +1,5 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
-import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.MessageClientAction;
 
@@ -12,12 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class FiscalVMKPrintReceiptClientAction implements ClientAction {
-
-    String logPath;
-    String ip;
-    int comPort;
-    int baudRate;
+public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBottom;
@@ -27,13 +21,10 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String regNumber;
     String machineryNumber;
 
-    public FiscalVMKPrintReceiptClientAction(String logPath, String ip, Integer comPort, Integer baudRate,
+    public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
-        this.logPath = logPath;
-        this.ip = ip;
-        this.comPort = comPort == null ? 0 : comPort;
-        this.baudRate = baudRate == null ? 0 : baudRate;
+        super(isUnix, logPath, ip, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
@@ -58,8 +49,6 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
             try {
-                FiscalVMK.init();
-
                 FiscalVMK.openPort(logPath, ip, comPort, baudRate);
                 FiscalVMK.opensmIfClose();
                 

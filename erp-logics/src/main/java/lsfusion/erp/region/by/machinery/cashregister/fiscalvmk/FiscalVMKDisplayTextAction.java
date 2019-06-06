@@ -20,10 +20,10 @@ import java.util.Iterator;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
-public class FiscalVMKDisplayTextActionProperty extends InternalAction {
+public class FiscalVMKDisplayTextAction extends InternalAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalVMKDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -41,6 +41,7 @@ public class FiscalVMKDisplayTextActionProperty extends InternalAction {
             boolean ignoreDisplayText = findProperty("ignoreDisplayTextCurrentCashRegister[]").read(context) != null;
             if (!skipReceipt && !ignoreDisplayText) {
 
+                boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
@@ -61,7 +62,7 @@ public class FiscalVMKDisplayTextActionProperty extends InternalAction {
                 double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(logPath, ip, comPort, baudRate,
+                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(isUnix, logPath, ip, comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalVMKDisplayText Error: " + result);

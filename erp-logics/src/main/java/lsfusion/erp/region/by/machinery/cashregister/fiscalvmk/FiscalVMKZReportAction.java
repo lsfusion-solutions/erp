@@ -13,9 +13,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalVMKZReportActionProperty extends InternalAction {
+public class FiscalVMKZReportAction extends InternalAction {
 
-    public FiscalVMKZReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalVMKZReportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -24,6 +24,7 @@ public class FiscalVMKZReportActionProperty extends InternalAction {
 
             DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
@@ -32,7 +33,7 @@ public class FiscalVMKZReportActionProperty extends InternalAction {
 
             if (context.checkApply()) {
                 if(ip == null) { //rs-232
-                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 2, fiscalVMKReportTop));
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 2, fiscalVMKReportTop));
                     if (result instanceof Integer) {
                         if ((Integer) result != 0)
                             findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
@@ -40,10 +41,10 @@ public class FiscalVMKZReportActionProperty extends InternalAction {
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                     }
                 } else { //ethernet
-                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 6, fiscalVMKReportTop));
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 6, fiscalVMKReportTop));
                     if(result == null) {
                         context.requestUserInteraction(new MessageClientAction("Дождитесь окончания печати z-отчета и нажмите ОК", "Подождите..."));
-                        result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 7, fiscalVMKReportTop));
+                        result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 7, fiscalVMKReportTop));
                         if (result instanceof Integer) {
                             if ((Integer) result != 0)
                                 findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
@@ -53,7 +54,7 @@ public class FiscalVMKZReportActionProperty extends InternalAction {
                     } else if (result instanceof String) {
                         ServerLoggers.systemLogger.error("FiscalVMKZReport Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
-                        context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 8, fiscalVMKReportTop));
+                        context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 8, fiscalVMKReportTop));
                     }
 
                 }

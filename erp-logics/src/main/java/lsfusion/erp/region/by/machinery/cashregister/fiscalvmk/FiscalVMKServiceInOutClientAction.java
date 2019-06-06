@@ -1,25 +1,16 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
-import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 
 
-public class FiscalVMKServiceInOutClientAction implements ClientAction {
-
-    String logPath;
-    String ip;
-    int comPort;
-    int baudRate;
+public class FiscalVMKServiceInOutClientAction extends FiscalVMKClientAction {
     BigDecimal sum;
 
-    public FiscalVMKServiceInOutClientAction(String logPath, String ip, Integer comPort, Integer baudRate, BigDecimal sum) {
-        this.logPath = logPath;
-        this.ip = ip;
-        this.comPort = comPort == null ? 0 : comPort;
-        this.baudRate = baudRate == null ? 0 : baudRate;
+    public FiscalVMKServiceInOutClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, BigDecimal sum) {
+        super(isUnix, logPath, ip, comPort, baudRate);
         this.sum = sum;
     }
 
@@ -27,7 +18,6 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
-            FiscalVMK.init();
 
             FiscalVMK.openPort(logPath, ip, comPort, baudRate);
 

@@ -15,10 +15,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKCancelReceiptActionProperty extends InternalAction {
+public class FiscalVMKCancelReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalVMKCancelReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKCancelReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -31,12 +31,13 @@ public class FiscalVMKCancelReceiptActionProperty extends InternalAction {
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
+                boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 4));
+                String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 4));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalVMKCancelReceipt Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

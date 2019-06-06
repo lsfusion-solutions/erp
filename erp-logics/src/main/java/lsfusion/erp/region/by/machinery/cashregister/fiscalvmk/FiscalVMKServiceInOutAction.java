@@ -16,10 +16,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKServiceInOutActionProperty extends InternalAction {
+public class FiscalVMKServiceInOutAction extends InternalAction {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalVMKServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -30,6 +30,7 @@ public class FiscalVMKServiceInOutActionProperty extends InternalAction {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
@@ -38,7 +39,7 @@ public class FiscalVMKServiceInOutActionProperty extends InternalAction {
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(logPath, ip, comPort, baudRate, sum));
+                String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(isUnix, logPath, ip, comPort, baudRate, sum));
                 if (result == null){
                     findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 }

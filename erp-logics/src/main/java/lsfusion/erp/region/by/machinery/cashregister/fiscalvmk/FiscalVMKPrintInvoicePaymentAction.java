@@ -17,11 +17,11 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKPrintInvoicePaymentActionProperty extends InternalAction {
+public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalVMKPrintInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKPrintInvoicePaymentAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -35,6 +35,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends InternalAction {
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
@@ -51,7 +52,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends InternalAction {
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(logPath, ip, comPort, baudRate, sumPayment, typePayment, true));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort, baudRate, sumPayment, typePayment, true));
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);

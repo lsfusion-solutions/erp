@@ -1,31 +1,21 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
-import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
 import java.io.IOException;
 
 
-public class FiscalVMKDisplayTextClientAction implements ClientAction {
-
-    String logPath;
-    String ip;
-    int comPort;
-    int baudRate;
+public class FiscalVMKDisplayTextClientAction extends FiscalVMKClientAction {
     ReceiptItem receiptItem;
 
-    public FiscalVMKDisplayTextClientAction(String logPath, String ip, Integer comPort, Integer baudRate, ReceiptItem receiptItem) {
-        this.ip = ip;
-        this.comPort = comPort == null ? 0 : comPort;
-        this.baudRate = baudRate == null ? 0 : baudRate;
-        this.logPath = logPath;
+    public FiscalVMKDisplayTextClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, ReceiptItem receiptItem) {
+        super(isUnix, logPath, ip, comPort, baudRate);
         this.receiptItem = receiptItem;
     }
 
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        FiscalVMK.init();
         try {
 
             if(FiscalVMK.safeOpenPort(logPath, ip, comPort, baudRate, 5000)) {

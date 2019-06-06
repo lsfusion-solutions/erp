@@ -1,37 +1,28 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
-import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
 import java.io.IOException;
 
 
-public class FiscalVMKCustomOperationClientAction implements ClientAction {
+public class FiscalVMKCustomOperationClientAction extends FiscalVMKClientAction {
 
-    String logPath;
-    String ip;
-    int comPort;
-    int baudRate;
     int type;
     String textTop;
 
-    public FiscalVMKCustomOperationClientAction(String logPath, String ip, Integer comPort, Integer baudRate, int type) {
-        this(logPath, ip, comPort, baudRate, type, null);
+    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, int type) {
+        this(isUnix, logPath, ip, comPort, baudRate, type, null);
     }
 
-    public FiscalVMKCustomOperationClientAction(String logPath, String ip, Integer comPort, Integer baudRate, int type, String textTop) {
-        this.logPath = logPath;
+    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, int type, String textTop) {
+        super(isUnix, logPath, ip, comPort, baudRate);
         this.type = type;
-        this.baudRate = baudRate == null ? 0 : baudRate;
-        this.comPort = comPort == null ? 0 : comPort;
-        this.ip = ip;
         this.textTop = textTop;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
-            FiscalVMK.init();
             FiscalVMK.openPort(logPath, ip, comPort, baudRate);
             switch (type) {
                 case 1:

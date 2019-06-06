@@ -16,11 +16,11 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends InternalAction {
+public class FiscalVMKPrintReturnInvoicePaymentAction extends InternalAction {
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
 
-    public FiscalVMKPrintReturnInvoicePaymentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalVMKPrintReturnInvoicePaymentAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -42,6 +42,7 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends InternalAc
 
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
             Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
@@ -50,7 +51,7 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends InternalAc
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(logPath, ip, comPort, baudRate, sumPayment, typePayment, false));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort, baudRate, sumPayment, typePayment, false));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {

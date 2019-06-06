@@ -12,21 +12,22 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalVMKAdvancePaperActionProperty extends InternalAction {
+public class FiscalVMKAdvancePaperAction extends InternalAction {
 
-    public FiscalVMKAdvancePaperActionProperty(ScriptingLogicsModule LM) {
+    public FiscalVMKAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
-            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 3));
+            String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 3));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalVMKAdvancePaper Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

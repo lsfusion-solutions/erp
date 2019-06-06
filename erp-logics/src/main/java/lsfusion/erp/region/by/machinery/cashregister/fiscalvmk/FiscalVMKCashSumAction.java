@@ -13,23 +13,22 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 
-public class FiscalVMKCashSumActionProperty extends InternalAction {
+public class FiscalVMKCashSumAction extends InternalAction {
 
-    public FiscalVMKCashSumActionProperty(ScriptingLogicsModule LM) {
+    public FiscalVMKCashSumAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            //DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
-
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(logPath, ip, comPort, baudRate, 5));
+            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 5));
             if (result instanceof BigDecimal) {
                 context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
