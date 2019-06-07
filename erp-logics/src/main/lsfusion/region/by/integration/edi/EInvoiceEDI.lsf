@@ -110,17 +110,17 @@ lineItemQuantityUOM 'Международный 3-х буквенный код �
 
 quantityOrdered 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
 quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
-valueVAT 'НДС, %' = DATA NUMERIC[10,5] (ECreditNoteDetail);
+valueVAT 'НДС, %' = DATA NUMERIC[10,4] (ECreditNoteDetail);
 
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (ECreditNoteDetail);
 amountOrdered 'Стоимость с учетом НДС товара по документам' = DATA NUMERIC[18,4] (ECreditNoteDetail);
 amountReceived 'Стоимость с учетом НДС фактически поставленного товара' = DATA NUMERIC[18,4] (ECreditNoteDetail);
 
-totalLineItem 'Общее кол-во товарных позиций' (eCreditNote) = GROUP SUM 1 BY eCreditNote(ECreditNoteDetail d);
-totalQuantityOrdered 'Всего кол-во товара по документам' (eCreditNote) = GROUP SUM quantityOrdered(ECreditNoteDetail d) BY eCreditNote(d);
-totalAmountOrdered 'Общая стоимость с учетом НДС товара по документам' (eCreditNote) = GROUP SUM amountOrdered(ECreditNoteDetail d) BY eCreditNote(d);
-totalQuantityReceived 'Всего кол-во поставленного товара' (eCreditNote) = GROUP SUM quantityReceived(ECreditNoteDetail d) BY eCreditNote(d);
-totalAmountReceived 'Общая стоимость с учетом НДС посталенного товара' (eCreditNote) = GROUP SUM amountReceived(ECreditNoteDetail d) BY eCreditNote(d);
+totalLineItem 'Общее кол-во товарных позиций' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM 1 BY eCreditNote(ECreditNoteDetail d)](eCreditNote), 0;
+totalQuantityOrdered 'Всего кол-во товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM quantityOrdered(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalAmountOrdered 'Общая стоимость с учетом НДС товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM amountOrdered(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalQuantityReceived 'Всего кол-во поставленного товара' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM quantityReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalAmountReceived 'Общая стоимость с учетом НДС посталенного товара' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM amountReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
 
 FORM dialogECreditNote 'Выбор электронного акта приемки'
     OBJECTS c = ECreditNote
@@ -243,7 +243,7 @@ loadDefaultNumerators() + {
 }
 
 generateSeriesNumber 'Сгенерировать номер' (ECreditNote o)  { 
-    actDifNumber(o) <- '001-' + GLN(supplier(o)) + '-' + curStringValue(defaultNumeratorActDifNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
+    actDifNumber(o) <- '001-' + GLN(customer(o)) + '-' + curStringValue(defaultNumeratorActDifNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
     incrementValueSession(defaultNumeratorActDifNumber());
 }
 

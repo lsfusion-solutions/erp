@@ -196,20 +196,53 @@ DESIGN creditNotes {
             MOVE printTab {caption = 'Акт расхождений';};
             NEW eCreditNote {
                 caption = 'Электронный акт приемки';
-                NEW createEI {
+                NEW createCN {
                     type = CONTAINERH;
                     MOVE PROPERTY(numberECreditNote(c));
                     MOVE PROPERTY(createECreditNote(c));
                     MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(c));
                     MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(c));
                 }
-                NEW printEI {
-                    type = CONTAINERH;
-                }
-                NEW exportEI {
-                    type = CONTAINERH;
-                }
             }
         }
     }
+}
+
+numberECreditNote 'Номер электронного акта приемки'(Invoice i) = actDifNumber(eCreditNote(invoiceCreditNote(i)));
+
+signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'(Invoice i)  { 
+    signAndSendCustomerCreditNoteEDI(invoiceCreditNote(i));
+}
+
+cancelSignAndSendCustomerCreditNoteEDII 'Отменить (покупатель)'(Invoice i)  { 
+    cancelSignAndSendCustomerCreditNoteEDII(invoiceCreditNote(i));
+}
+createECreditNote 'Создать электронный акт приемки' (Invoice i)  {
+    createECreditNote(invoiceCreditNote(i));
+}
+
+EXTEND FORM invoices
+        PROPERTIES READONLY PANEL numberECreditNote(i) SHOWIF invoiceCreditNote(i)
+        PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND NOT eCreditNote(invoiceCreditNote(i))),// statusDescription SHOWIF eInvoice(i) PANEL, 
+                      signAndSendCustomerCreditNoteEDI SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND NOT exportedCustomer(eCreditNote(invoiceCreditNote(i)))), 
+                      cancelSignAndSendCustomerCreditNoteEDII SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND exportedCustomer(eCreditNote(invoiceCreditNote(i))))
+;
+
+DESIGN invoices {
+    printTabScroll {
+        NEW tabConsignment{
+            type = TABBED;
+            MOVE printTab {caption = 'Накладная';};
+            NEW eCreditNote {
+                caption = 'Электронный акт приемки';
+                NEW createCN {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberECreditNote(i));
+                    MOVE PROPERTY(createECreditNote(i));
+                    MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(i));
+                    MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(i));
+                }
+            }
+        }
+    }    
 }
