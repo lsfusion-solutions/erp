@@ -4,8 +4,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -42,7 +42,7 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
 
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
         } catch (Exception e) {
-            ServerLoggers.importLogger.error(failCaption, e);
+            ERPLoggers.importLogger.error(failCaption, e);
             context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
         }
     }
@@ -67,7 +67,7 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
 
     protected boolean deleteUnexistingCategories(ExecutionContext context, Set<Long> existingCategories) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
 
-        ServerLoggers.importLogger.info("Loya: deleting unexisting categories started");
+        ERPLoggers.importLogger.info("Loya: deleting unexisting categories started");
         List<Long> categories = getLoyaCategories(context);
         boolean succeeded = true;
         for (Long category : categories) {
@@ -81,14 +81,14 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
     private List<Long> getLoyaCategories(ExecutionContext context) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         String requestURL = settings.url + "category";
         if (settings.logRequests) {
-            ServerLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
+            ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
         }
         HttpGet getRequest = new HttpGet(requestURL);
         LoyaResponse response = executeRequestWithRelogin(context, getRequest);
         List<Long> categories = new ArrayList<>();
         if (response.succeeded) {
             JSONArray categoriesArray = new JSONArray(response.message);
-            ServerLoggers.importLogger.info(String.format("Loya: found %s categories", categoriesArray.length()));
+            ERPLoggers.importLogger.info(String.format("Loya: found %s categories", categoriesArray.length()));
             for (int i = 0; i < categoriesArray.length(); i++) {
                 JSONObject category = categoriesArray.getJSONObject(i);
                 if(category.getString("state").equals("active")) {
@@ -102,11 +102,11 @@ public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProp
     }
 
     private boolean deleteCategory(ExecutionContext context, Long categoryId) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
-        ServerLoggers.importLogger.info(String.format("Loya: deleting category %s", categoryId));
+        ERPLoggers.importLogger.info(String.format("Loya: deleting category %s", categoryId));
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
         String requestBody = "[" + categoryId + "]";
         if (settings.logRequests) {
-            ServerLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
+            ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
         HttpDeleteWithBody request = new HttpDeleteWithBody(requestURL);
         request.setEntity(new StringEntity(requestBody));

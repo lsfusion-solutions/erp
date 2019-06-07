@@ -6,6 +6,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
@@ -68,7 +69,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String xml = getReceiveMessagesRequest(login, password);
 
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
-            ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
+            ERPLoggers.importLogger.info(provider + " ReceiveMessages request sent");
             String responseMessage = getResponseMessage(httpResponse);
             try {
 
@@ -80,11 +81,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     importMessages(context, url, login, password, host, port, hostEDSService, portEDSService,
                             provider, responseMessage, archiveDir, disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
                 } else {
-                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: " + error);
+                    ERPLoggers.importLogger.error(provider + " ReceiveMessages: " + error);
                     context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: " + error, "Импорт"));
                 }
             } catch (JDOMException e) {
-                ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
+                ERPLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
                 context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: некорректный ответ сервера", "Импорт"));
             }
     }
@@ -223,7 +224,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     }
                 }
             } catch (JDOMException e) {
-                ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
             }
         }
 
@@ -239,12 +240,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 String error = importOrderMessages(context, data);
                 if (error == null) {
                     confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                    ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
+                    ERPLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
                     orderMessagesSucceeded++;
                 } else {
                     if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
                         sendRecipientErrorFailed++;
-                    ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
+                    ERPLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
                     orderMessagesFailed++;
                 }
             } else {
@@ -269,17 +270,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     String error = importOrderResponses(context, data);
                     if (error == null) {
                         confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                        ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
+                        ERPLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
                         responsesSucceeded++;
                     } else {
                         if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
                             sendRecipientErrorFailed++;
-                        ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
+                        ERPLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
                         responsesFailed++;
                     }
 
                 } catch (JDOMException e) {
-                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                    ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
@@ -298,17 +299,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     String error = importDespatchAdvices(context, data);
                     if (error == null) {
                         confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                        ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
+                        ERPLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
                         despatchAdvicesSucceeded++;
                     } else {
                         if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
                             sendRecipientErrorFailed++;
-                        ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
+                        ERPLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
                         despatchAdvicesFailed++;
                     }
 
                 } catch (JDOMException e) {
-                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                    ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
@@ -325,18 +326,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                     String error = importBLRWBL(context, blrwbl);
                     if (error == null) {
-                        ServerLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, blrwbl.documentId));
+                        ERPLoggers.importLogger.info(String.format("%s Import EInvoice %s succeeded", provider, blrwbl.documentId));
                         confirmDocumentReceived(context, blrwbl.documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
                         eInvoicesSucceeded++;
                     } else {
-                        ServerLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, blrwbl.documentId, error));
+                        ERPLoggers.importLogger.error(String.format("%s Import EInvoice %s failed: %s", provider, blrwbl.documentId, error));
                         if(!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, blrwbl.documentId, blrwbl.documentNumber, error, disableConfirmation, sendReplies))
                             sendRecipientErrorFailed++;
                         eInvoicesFailed++;
                     }
 
                 } catch (JDOMException e) {
-                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                    ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
@@ -355,12 +356,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                         String error = importInvoiceMessages(context, data.firstData);
                         if (error == null) {
                             confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
-                            ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
+                            ERPLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, documentId));
                             invoiceMessagesSucceeded++;
                         } else {
                             if (!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, data.documentNumber, error, disableConfirmation, sendReplies))
                                 sendRecipientErrorFailed++;
-                            ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
+                            ERPLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, documentId, error));
                             invoiceMessagesFailed++;
                         }
                     } else {
@@ -371,7 +372,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     }
 
                 } catch (JDOMException e) {
-                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                    ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
@@ -379,11 +380,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         for (InvoiceMessage message : invoiceSystemMessageList) {
             String error = importInvoiceSystemMessage(context, message);
             if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, message.documentId));
+                ERPLoggers.importLogger.info(String.format("%s Import EInvoiceMessage %s succeeded", provider, message.documentId));
                 confirmDocumentReceived(context, message.documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
                 invoiceMessagesSucceeded++;
             } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, message.documentId, error));
+                ERPLoggers.importLogger.error(String.format("%s Import EInvoiceMessage %s failed: %s", provider, message.documentId, error));
                 if(!sendRecipientError(context, url, login, password, host, port, provider, archiveDir, message.documentId, message.documentNumber, error, disableConfirmation, sendReplies))
                     sendRecipientErrorFailed++;
                 invoiceMessagesFailed++;
@@ -425,7 +426,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     }
 
                 } catch (JDOMException e) {
-                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
+                    ERPLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                 }
             }
         }
@@ -450,14 +451,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 //                    if(error == null) {
 //                        confirmDocumentReceived(context, documentId, url, login, password, host, port, provider, archiveDir, disableConfirmation);
 //                        supplierOrdersSucceeded++;
-//                        ServerLoggers.importLogger.info(String.format("%s Import Order %s succeeded", provider, documentId));
+//                        ERPLoggers.importLogger.info(String.format("%s Import Order %s succeeded", provider, documentId));
 //                    } else {
 //                        documentNumber = (String) findProperty("documentNumber[]").read(context);
-//                        ServerLoggers.importLogger.error(String.format("%s Import Order %s failed: %s", provider, documentId, error));
+//                        ERPLoggers.importLogger.error(String.format("%s Import Order %s failed: %s", provider, documentId, error));
 //                    }
 //                } catch (Exception e) {
 //                    error = e.getMessage();
-//                    ServerLoggers.importLogger.error(String.format("%s Parse Order %s error: ", provider, documentId), e);
+//                    ERPLoggers.importLogger.error(String.format("%s Parse Order %s error: ", provider, documentId), e);
 //                }
 //                if(error != null) {
 //                    if (documentNumber != null && !sendRecipientError(context, url, login, password, host, port, provider, archiveDir, documentId, documentNumber, error, disableConfirmation, sendReplies))
@@ -522,24 +523,24 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                         return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
                     case "BLRWBR":
                     case "BLRAPN":
-                        ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s skipped for documentType %s", provider, documentId, documentType));
+                        ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s skipped for documentType %s", provider, documentId, documentType));
                         return new DocumentData(documentNumber, null, null, true);
                     case "BLRWBL":
                     case "SYSTEMMESSAGE":
                         if(receiveSupplierMessages)
                             return null;
                         else {
-                            ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+                            ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
                             break;
                         }
                     default:
-                        ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+                        ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
                         break;
                 }
             } else
-                ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no documentType tag", provider, documentId));
+                ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no documentType tag", provider, documentId));
         } else
-            ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
+            ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
         return new DocumentData(documentNumber, null, null);
     }
 
@@ -586,7 +587,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = newContext.applyMessage();
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("ImportOrderMessages Error: ", e);
+                ERPLoggers.importLogger.error("ImportOrderMessages Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -811,7 +812,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = newContext.applyMessage();
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("ImportOrderResponses Error: ", e);
+                ERPLoggers.importLogger.error("ImportOrderResponses Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -1022,7 +1023,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = newContext.applyMessage();
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("ImportDespatchAdvice Error: ", e);
+                ERPLoggers.importLogger.error("ImportDespatchAdvice Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -1162,7 +1163,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     message = newContext.applyMessage();
                 }
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("ImportEInvoice Error: ", e);
+                ERPLoggers.importLogger.error("ImportEInvoice Error: ", e);
                 message = "ImportEInvoice Error: " + e.getMessage();
             }
         }
@@ -1234,7 +1235,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 }
             }
         } else
-            ServerLoggers.importLogger.error(String.format("%s Parse Invoice Message %s error: no reference tag", provider, documentId));
+            ERPLoggers.importLogger.error(String.format("%s Parse Invoice Message %s error: no reference tag", provider, documentId));
         return new DocumentData(documentNumber, null, null);
     }
 
@@ -1280,7 +1281,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = newContext.applyMessage();
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("ImportInvoiceMessages Error: ", e);
+                ERPLoggers.importLogger.error("ImportInvoiceMessages Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -1309,7 +1310,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     message = newContext.applyMessage();
                 }
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("importInvoiceSystemMessage Error: ", e);
+                ERPLoggers.importLogger.error("importInvoiceSystemMessage Error: ", e);
                 message = e.getMessage();
             }
         }
@@ -1323,18 +1324,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String xml = generateConfirmDocumentXML(documentId, login, password);
 
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
-            ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
+            ERPLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "ConfirmDocumentReceived");
             switch (requestResult) {
                 case OK:
-                    ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
+                    ERPLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
                     break;
                 case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
+                    ERPLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Импорт"));
                     break;
                 case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
+                    ERPLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Импорт"));
             }
         }
@@ -1376,18 +1377,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String xml = generateRecipientErrorXML(login, password, documentId, documentNumber, error);
 
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
-            ServerLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
+            ERPLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), archiveDir, "SendDocument");
             switch (requestResult) {
                 case OK:
                     succeeded = true;
                     break;
                 case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s RecipientError %s: invalid login-password", provider, documentId));
+                    ERPLoggers.importLogger.error(String.format("%s RecipientError %s: invalid login-password", provider, documentId));
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: ошибка авторизации", provider, documentId), "Импорт"));
                     break;
                 case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(String.format("%s RecipientError %s: unknown error", provider, documentId));
+                    ERPLoggers.importLogger.error(String.format("%s RecipientError %s: unknown error", provider, documentId));
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: неизвестная ошибка", provider, documentId), "Импорт"));
             }
             return succeeded;
@@ -1571,7 +1572,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             try {
                 FileUtils.writeStringToFile(new File(archiveDir + "/received/" + documentId), subXML);
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("Archive file error: ", e);
+                ERPLoggers.importLogger.error("Archive file error: ", e);
             }
         }
     }

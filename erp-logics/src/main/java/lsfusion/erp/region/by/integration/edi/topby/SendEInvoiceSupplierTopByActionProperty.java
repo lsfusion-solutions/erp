@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.integration.edi.topby;
 
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.region.by.integration.edi.SendEInvoiceSupplierActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -35,12 +35,12 @@ public class SendEInvoiceSupplierTopByActionProperty extends SendEInvoiceSupplie
                 String url = String.format("http://%s:%s/DmcService", host, port);
                 sendEInvoice(context, url, login, password, host, port, provider, outputDir, hostEDSService, portEDSService);
             } else {
-                ServerLoggers.importLogger.info(provider + " SendEInvoice: не заданы имя пользователя / пароль / хост / порт");
+                ERPLoggers.importLogger.info(provider + " SendEInvoice: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException e) {
-            ServerLoggers.importLogger.error(provider + " error: ", e);
+            ERPLoggers.importLogger.error(provider + " error: ", e);
             context.delayUserInteraction(new MessageClientAction(provider + " error: " + e.getMessage(), "Ошибка"));
         }
     }

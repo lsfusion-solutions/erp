@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.ukm;
 
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -42,7 +42,7 @@ public class SynchronizeBrandLoyaActionProperty extends SynchronizeLoyaActionPro
                 }
             } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
         } catch (Exception e) {
-            ServerLoggers.importLogger.error(failCaption, e);
+            ERPLoggers.importLogger.error(failCaption, e);
             context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
         }
     }

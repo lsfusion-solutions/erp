@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.finance.evat;
 
 import lsfusion.base.ExceptionUtils;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -32,7 +32,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            ServerLoggers.importLogger.info("EVAT: action started");
+            ERPLoggers.importLogger.info("EVAT: action started");
             Integer type = (Integer) context.getDataKeyValue(typeInterface).getValue();
             if (type != null) {
                 String serviceUrl = (String) findProperty("serviceUrlEVAT[]").read(context);
@@ -49,11 +49,11 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                     if (passwordEVAT != null || useActiveX) {
                         switch (type) {
                             case 0:
-                                ServerLoggers.importLogger.info("EVAT: sendAndSign called");
+                                ERPLoggers.importLogger.info("EVAT: sendAndSign called");
                                 sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
                                 break;
                             case 1:
-                                ServerLoggers.importLogger.info("EVAT: getStatus called");
+                                ERPLoggers.importLogger.info("EVAT: getStatus called");
                                 getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
                                 break;
                         }
@@ -70,7 +70,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     }
 
     private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        ServerLoggers.importLogger.info("EVAT: generateXMLs started");
+        ERPLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Long, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
             Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
@@ -79,7 +79,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
                 if (!result.isEmpty()) {
                     for (List<Object> entry : result) {
-                        ServerLoggers.importLogger.info("EVAT: reading result started");
+                        ERPLoggers.importLogger.info("EVAT: reading result started");
                         Long evat = (Long) entry.get(0);
                         String message = (String) entry.get(1);
                         Boolean isError = (Boolean) entry.get(2);
@@ -91,9 +91,9 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                             findProperty("exported[EVAT]").change(isError ? null : true, newContext, evatObject);
                             String applyResult = newContext.applyMessage();
                             if (applyResult != null)
-                                ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
+                                ERPLoggers.importLogger.info("EVAT: apply result: " + applyResult);
                         }
-                        ServerLoggers.importLogger.info("EVAT: reading result finished");
+                        ERPLoggers.importLogger.info("EVAT: reading result finished");
                     }
                 }
             } else {
@@ -109,7 +109,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Long, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
-            ServerLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());
+            ERPLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());
             Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
@@ -120,7 +120,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         String message = (String) entry.get(1);
                         String status = (String) entry.get(2);
                         String number = (String) entry.get(3);
-                        ServerLoggers.importLogger.info(String.format("EVAT %s: settings status started", number));
+                        ERPLoggers.importLogger.info(String.format("EVAT %s: settings status started", number));
                         resultMessage += String.format("EVAT %s: %s\n", number, message);
                         try (ExecutionContext.NewSession newContext = context.newSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteCustomClass) findClass("EVAT"));
@@ -130,7 +130,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                             if (applyResult != null)
                                 resultMessage += String.format("EVAT %s: %s\n", number, applyResult);
                         }
-                        ServerLoggers.importLogger.info(String.format("EVAT %s: settings status finished", number));
+                        ERPLoggers.importLogger.info(String.format("EVAT %s: settings status finished", number));
                     }
                 }
                 context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
@@ -178,7 +178,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                     id = "error";
                     break;
                 default:
-                    ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", number, value));
+                    ERPLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", number, value));
             }
             serverStatusObject = id == null ? NullValue.instance : ((ConcreteCustomClass) findClass("EVAT.EVATServerStatus")).getDataObject(id);
         }

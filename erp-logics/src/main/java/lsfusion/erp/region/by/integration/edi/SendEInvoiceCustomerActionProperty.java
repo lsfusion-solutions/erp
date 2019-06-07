@@ -2,8 +2,8 @@ package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -162,20 +162,20 @@ public class SendEInvoiceCustomerActionProperty extends EDIActionProperty {
         switch (requestResult) {
             case OK:
                 if (showMessages) {
-                    ServerLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, invoiceNumber));
+                    ERPLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, invoiceNumber));
                     findProperty("exportedCustomer[EInvoice]").change(true, context, eInvoiceObject);
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s выгружена", provider, invoiceNumber), "Экспорт"));
                     context.apply();
                 }
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
+                ERPLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
                 if(showMessages) {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: ошибка авторизации", provider, invoiceNumber), "Экспорт"));
                 }
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: unknown error", provider, invoiceNumber));
+                ERPLoggers.importLogger.error(String.format("%s SendEInvoice %s: unknown error", provider, invoiceNumber));
                 if(showMessages) {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: неизвестная ошибка", provider, invoiceNumber), "Экспорт"));
                 }

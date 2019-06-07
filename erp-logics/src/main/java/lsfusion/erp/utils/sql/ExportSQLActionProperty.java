@@ -2,7 +2,7 @@ package lsfusion.erp.utils.sql;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
-import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.form.struct.FormEntity;
 import lsfusion.server.logics.form.struct.property.PropertyDrawEntity;
@@ -101,7 +101,7 @@ abstract class ExportSQLActionProperty extends InternalAction {
                     conn = DriverManager.getConnection(url);
                     conn.setAutoCommit(false);
 
-                    ServerLoggers.importLogger.info("ExportSQL: started");
+                    ERPLoggers.importLogger.info("ExportSQL: started");
 
                     int paramLength = columnNames.size();
                     String set = "";
@@ -121,7 +121,7 @@ abstract class ExportSQLActionProperty extends InternalAction {
                         try {
                             statement = conn.createStatement();
                             String truncateStatement = getTruncateStatement();
-                            ServerLoggers.importLogger.info("ExportSQL: " + truncateStatement);
+                            ERPLoggers.importLogger.info("ExportSQL: " + truncateStatement);
                             statement.execute(truncateStatement);
                             conn.commit();
                         } finally {
@@ -129,7 +129,7 @@ abstract class ExportSQLActionProperty extends InternalAction {
                                 statement.close();
                         }
                     }
-                    ServerLoggers.importLogger.info(String.format("ExportSQL: prepare statement (%s rows, %s columns, %s keys)", rows.size(), columnNames.size(), keyColumns.size()));
+                    ERPLoggers.importLogger.info(String.format("ExportSQL: prepare statement (%s rows, %s columns, %s keys)", rows.size(), columnNames.size(), keyColumns.size()));
                     if (wheres.isEmpty() || truncate) {
                         ps = conn.prepareStatement(getInsertStatement(columns, params));
                         for (List<Object> row : rows) {
@@ -157,11 +157,11 @@ abstract class ExportSQLActionProperty extends InternalAction {
                             ps.addBatch();
                         }
                     }
-                    ServerLoggers.importLogger.info("ExportSQL: execute batch");
+                    ERPLoggers.importLogger.info("ExportSQL: execute batch");
                     ps.executeBatch();
-                    ServerLoggers.importLogger.info("ExportSQL: commit");
+                    ERPLoggers.importLogger.info("ExportSQL: commit");
                     conn.commit();
-                    ServerLoggers.importLogger.info("ExportSQL: finished");
+                    ERPLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
         } catch (ClassNotFoundException | ScriptingErrorLog.SemanticErrorException e) {

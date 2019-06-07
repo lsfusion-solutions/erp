@@ -7,9 +7,9 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportXLSXActionProperty;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -50,7 +50,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 importOrder(context, file);
                 finishImportOrder(context, attachment.getKey());
             } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
-                ServerLoggers.importLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
+                ERPLoggers.importLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
             }
 
         }
@@ -65,7 +65,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
             ObjectValue accountObject = findProperty("importEmailOrderAccount[]").readClasses(context);
             if (accountObject instanceof NullValue) {
-                ServerLoggers.importLogger.error("Импорт из почты: не задан почтовый аккаунт");
+                ERPLoggers.importLogger.error("Импорт из почты: не задан почтовый аккаунт");
             } else {
                 KeyExpr emailExpr = new KeyExpr("email");
                 KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
@@ -107,7 +107,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         String quantityColumn = (String) findProperty("importEmailOrderQuantityColumn[]").read(context);
 
         if (firstRow == null || !notNullNorEmpty(numberCell) || !notNullNorEmpty(quantityColumn)) {
-            ServerLoggers.importLogger.error("Импорт из почты: не все параметры заданы (начинать со строки, ячейка номера заказа или колонка количества)");
+            ERPLoggers.importLogger.error("Импорт из почты: не все параметры заданы (начинать со строки, ячейка номера заказа или колонка количества)");
         } else {
 
             List<List<Object>> data = importOrderFromXLSX(file, firstRow, numberCell, quantityColumn);
@@ -167,7 +167,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         Pattern p = Pattern.compile("(\\w+)(\\d+)");
         Matcher m = p.matcher(numberCell);
         if (!m.matches()) {
-            ServerLoggers.importLogger.error("Импорт из почты: некорректно задана ячейка номера заказа");
+            ERPLoggers.importLogger.error("Импорт из почты: некорректно задана ячейка номера заказа");
         } else {
             Integer numberColumn = getCellIndex(m.group(1));
             Integer numberRow = Integer.parseInt(m.group(2)) - 1;

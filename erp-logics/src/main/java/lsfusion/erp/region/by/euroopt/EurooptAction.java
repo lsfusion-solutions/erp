@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.euroopt;
 
 import com.google.common.base.Throwables;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportActionProperty;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -61,7 +61,7 @@ public class EurooptAction extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if (count <= 0)
-                    ServerLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
+                    ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }

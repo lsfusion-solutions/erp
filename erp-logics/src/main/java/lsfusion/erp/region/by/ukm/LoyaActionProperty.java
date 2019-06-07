@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.ukm;
 
-import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -157,7 +157,7 @@ public class LoyaActionProperty extends InternalAction {
                 } else {
                     try (ExecutionContext.NewSession newContext = context.newSession()) {
                         findProperty("sessionKey[]").change(sessionKey, newContext);
-                        ServerLoggers.importLogger.info("Loya: new SessionKey = " + sessionKey);
+                        ERPLoggers.importLogger.info("Loya: new SessionKey = " + sessionKey);
                         newContext.apply();
                     }
                 }

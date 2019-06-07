@@ -4,10 +4,10 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -83,7 +83,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                     } catch (Exception e) {
-                                        ServerLoggers.importLogger.error("ImportProductionOrders Error: ", e);
+                                        ERPLoggers.importLogger.error("ImportProductionOrders Error: ", e);
                                     }
                                 }
                             }

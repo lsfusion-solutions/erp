@@ -1,9 +1,9 @@
 package lsfusion.erp.region.by.integration.edi.edn;
 
 import com.google.common.base.Throwables;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.region.by.integration.edi.ReceiveMessagesActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -35,7 +35,7 @@ public class ReceiveMessagesEDNActionProperty extends ReceiveMessagesActionPrope
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
                 receiveMessages(context, url, login, password, host, port, provider, archiveDir, disableConfirmation, receiveSupplierMessages, true, false);
             } else {
-                ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
+                ERPLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " сообщения не получены: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 

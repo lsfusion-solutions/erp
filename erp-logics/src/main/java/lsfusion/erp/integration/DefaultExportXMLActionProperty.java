@@ -1,6 +1,6 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.language.ScriptingLogicsModule;
 import okhttp3.FormBody;
@@ -97,7 +97,7 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
             try {
                 FileUtils.writeStringToFile(new File(outputDir + "/" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("Export Error: ", e);
+                ERPLoggers.importLogger.error("Export Error: ", e);
             }
         }
         return xml;
@@ -117,7 +117,7 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
                 FileUtils.writeStringToFile(new File(outputDir + "/" + (prefix != null ? prefix : "") +
                         new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("Export Error: ", e);
+                ERPLoggers.importLogger.error("Export Error: ", e);
             }
         }
         return xml;

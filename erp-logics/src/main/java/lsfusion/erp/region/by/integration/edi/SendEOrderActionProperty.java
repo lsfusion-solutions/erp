@@ -4,9 +4,9 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -114,7 +114,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
                 String xml = new XMLOutputter().outputString(doc);
                 HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml);
-                ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
+                ERPLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
                 RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
                 switch (requestResult) {
                     case OK:
@@ -124,19 +124,19 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                             findProperty("exported[EOrder]").change(true, context, eOrderObject);
                         }
 
-                        ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
+                        ERPLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
                         context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s выгружен", provider, documentNumber), "Экспорт"));
                         break;
                     case AUTHORISATION_ERROR:
-                        ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: invalid login-password", provider, documentNumber));
+                        ERPLoggers.importLogger.error(String.format("%s SendEOrder %s: invalid login-password", provider, documentNumber));
                         context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: ошибка авторизации", provider, documentNumber), "Экспорт"));
                         break;
                     case UNKNOWN_ERROR:
-                        ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: unknown error", provider, documentNumber));
+                        ERPLoggers.importLogger.error(String.format("%s SendEOrder %s: unknown error", provider, documentNumber));
                         context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: неизвестная ошибка", provider, documentNumber), "Экспорт"));
                 }
             } else {
-                ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены. " + error);
+                ERPLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены. " + error);
                 context.delayUserInterfaction(new MessageClientAction(error, provider + " Заказ не выгружен: Не все поля заполнены"));
             }
         } else {
@@ -215,7 +215,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
             try {
                 FileUtils.writeStringToFile(new File(outputDir + "/" + documentNumber + (isCancel ? "c" : "")), xml);
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("Archive file error: ", e);
+                ERPLoggers.importLogger.error("Archive file error: ", e);
             }
         }
         return new String(Base64.encodeBase64(xml.getBytes()));

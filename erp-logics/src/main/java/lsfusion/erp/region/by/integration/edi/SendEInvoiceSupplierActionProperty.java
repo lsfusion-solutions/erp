@@ -6,9 +6,9 @@ import lsfusion.base.col.interfaces.immutable.ImCol;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -86,12 +86,12 @@ public class SendEInvoiceSupplierActionProperty extends EDIActionProperty {
                         }
                     }
                 } catch (Exception e) {
-                    ServerLoggers.importLogger.error(String.format("%s SendEInvoice error", provider), e);
+                    ERPLoggers.importLogger.error(String.format("%s SendEInvoice error", provider), e);
                     throw Throwables.propagate(e);
                 }
 
             } else {
-                ServerLoggers.importLogger.info(provider + " SendEInvoice: не заданы параметры EDSService");
+                ERPLoggers.importLogger.info(provider + " SendEInvoice: не заданы параметры EDSService");
                 context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы параметры EDSService", "Экспорт"));
             }
 

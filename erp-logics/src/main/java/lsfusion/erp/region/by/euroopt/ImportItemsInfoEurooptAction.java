@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -14,7 +15,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
@@ -62,14 +62,14 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
         JSONArray itemsJSON = new JSONArray();
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
-            ServerLoggers.importLogger.info(String.format(logPrefix + "import %s item(s)", itemURLs.size()));
+            ERPLoggers.importLogger.info(String.format(logPrefix + "import %s item(s)", itemURLs.size()));
             int noBarcodeCount = 0;
             NetLayer lowerNetLayer = useTor ? getNetLayer() : null;
 
             int i = 1;
             for (String itemURL : itemURLs) {
                 JSONObject itemJSON = new JSONObject();
-                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing item page #%s of %s: %s", i, itemURLs.size(), (useTor ? mainPage : "") + itemURL));
+                ERPLoggers.importLogger.info(String.format(logPrefix + "parsing item page #%s of %s: %s", i, itemURLs.size(), (useTor ? mainPage : "") + itemURL));
                 Document doc = getDocument(lowerNetLayer, mainPage, itemURL);
                 if (doc != null) {
                     String title = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
@@ -164,12 +164,12 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
 
                     }
                     itemsJSON.put(itemJSON);
-                    ServerLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));
+                    ERPLoggers.importLogger.info(String.format(logPrefix + "parsed item page #%s of %s: %s", i, itemURLs.size(), title));
 
                 }
                 i++;
             }
-            ServerLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items, %s items without barcode skipped", itemsJSON.length(), noBarcodeCount));
+            ERPLoggers.importLogger.info(String.format(logPrefix + "read finished. %s items, %s items without barcode skipped", itemsJSON.length(), noBarcodeCount));
             if (itemsJSON.isEmpty())
                 context.delayUserInteraction(new MessageClientAction("Не найдёно ни одного существующего в базе товара!", "Ошибка"));
         } else {

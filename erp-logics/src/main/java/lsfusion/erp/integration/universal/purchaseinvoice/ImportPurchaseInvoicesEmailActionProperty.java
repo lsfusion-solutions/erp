@@ -13,10 +13,10 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
@@ -136,7 +136,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                             } catch (Exception e) {
                                 errors.add(e.getLocalizedMessage());
                                 logImportError(context, attachmentEmailObject, e.getLocalizedMessage(), isOld);
-                                ServerLoggers.importLogger.error("ImportPurchaseInvoices Error for attachment: " + nameAttachmentEmail, e);
+                                ERPLoggers.importLogger.error("ImportPurchaseInvoices Error for attachment: " + nameAttachmentEmail, e);
                             }
                             if(fileAttachment != null) {
 
@@ -212,7 +212,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                             String error = file.first + ": " + e.toString() + "\n" + ExceptionUtils.getStackTrace(e);
                                             errors.add(error);
                                             logImportError(context, attachmentEmailObject, error, isOld);
-                                            ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
+                                            ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                         }
                                     }
                                 }

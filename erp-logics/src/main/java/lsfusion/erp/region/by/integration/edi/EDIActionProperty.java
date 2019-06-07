@@ -2,9 +2,9 @@ package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -174,7 +174,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         switch (requestResult) {
             case OK:
                 if (showMessages) {
-                    ServerLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, invoiceNumber));
+                    ERPLoggers.importLogger.info(String.format("%s SendEInvoice %s request succeeded", provider, invoiceNumber));
                     switch (step) {
                         case 1:
                             findProperty("exportedSupplier[EInvoice]").change(true, context, eInvoiceObject);
@@ -192,13 +192,13 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                 result = true;
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
+                ERPLoggers.importLogger.error(String.format("%s SendEInvoice %s: invalid login-password", provider, invoiceNumber));
                 if (showMessages) {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: ошибка авторизации", provider, invoiceNumber), "Экспорт"));
                 }
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error(String.format("%s SendEInvoice %s: unknown error", provider, invoiceNumber));
+                ERPLoggers.importLogger.error(String.format("%s SendEInvoice %s: unknown error", provider, invoiceNumber));
                 if (showMessages) {
                     context.delayUserInteraction(new MessageClientAction(String.format("%s Накладная %s не выгружена: неизвестная ошибка", provider, invoiceNumber), "Экспорт"));
                 }
@@ -294,7 +294,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
                                     }
                                 } else
                                     requestResult = RequestResult.UNKNOWN_ERROR;
-                                ServerLoggers.importLogger.error("RequestResult: " + message);
+                                ERPLoggers.importLogger.error("RequestResult: " + message);
                             }
                         }
                     }
@@ -302,13 +302,13 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
             }
         } else {
             requestResult = RequestResult.UNKNOWN_ERROR;
-            ServerLoggers.importLogger.error("RequestResult: " + httpResponse.getStatusLine());
+            ERPLoggers.importLogger.error("RequestResult: " + httpResponse.getStatusLine());
         }
         if(requestResult != RequestResult.OK && archiveDir != null) {
             try {
                 FileUtils.writeStringToFile(new File(archiveDir + "/response" + System.currentTimeMillis() + ".xml"), responseMessage);
             } catch (Exception e) {
-                ServerLoggers.importLogger.error("Archive file error: ", e);
+                ERPLoggers.importLogger.error("Archive file error: ", e);
             }
         }
         return requestResult;

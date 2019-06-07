@@ -4,10 +4,10 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportActionProperty;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -82,7 +82,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                                             renameImportedFile(context, f.getAbsolutePath(), "." + settings.getFileExtension());
 
                                     } catch (Exception e) {
-                                        ServerLoggers.importLogger.error("ImportUserPriceLists Error: ", e);
+                                        ERPLoggers.importLogger.error("ImportUserPriceLists Error: ", e);
                                     }
                                 }
                             }

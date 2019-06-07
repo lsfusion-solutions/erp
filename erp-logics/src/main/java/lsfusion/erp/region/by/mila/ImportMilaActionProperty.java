@@ -3,7 +3,7 @@ package lsfusion.erp.region.by.mila;
 import com.google.common.base.Throwables;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -56,7 +56,7 @@ public class ImportMilaActionProperty extends InternalAction {
                 saveResult(tmpFile);
                 ioFile.lAdd = true;
                 if (!getGroups(baseUrl, tmpFile)) {
-                    ServerLoggers.importLogger.error(errMsg);
+                    ERPLoggers.importLogger.error(errMsg);
                 }
                 saveResult(tmpFile);
                 findProperty("importMilaFile[]").change(new FileData(new RawFileData(tmpFile), "json"), context);
@@ -134,7 +134,7 @@ public class ImportMilaActionProperty extends InternalAction {
             do {
                 attempt++;
                 if (attempt > 10) break;
-                ServerLoggers.importLogger.info(c_url);
+                ERPLoggers.importLogger.info(c_url);
                 lRet = getGoods(c_url, i, tmpFile);
             } while (!lRet);
         }
@@ -239,7 +239,7 @@ public class ImportMilaActionProperty extends InternalAction {
     }
 
     private void print(String cMsg) {
-        ServerLoggers.importLogger.info(cMsg);
+        ERPLoggers.importLogger.info(cMsg);
     }
 
     //  Возвращает выражение цены

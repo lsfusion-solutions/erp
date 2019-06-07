@@ -1,12 +1,12 @@
 package lsfusion.erp.integration;
 
 import lsfusion.base.ExceptionUtils;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.logics.classes.data.time.TimeClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
@@ -122,7 +122,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     private void importParentGroups(List<ItemGroup> parentGroupsList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (notNullNorEmpty(parentGroupsList)) {
 
-            ServerLoggers.importLogger.info("importParentGroups");
+            ERPLoggers.importLogger.info("importParentGroups");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -162,7 +162,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(itemGroupsList)) {
 
-            ServerLoggers.importLogger.info("importItemGroups");
+            ERPLoggers.importLogger.info("importItemGroups");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -199,7 +199,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (warePurchaseInvoiceLM != null && notNullNorEmpty(waresList)) {
 
-            ServerLoggers.importLogger.info("importWares");
+            ERPLoggers.importLogger.info("importWares");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -259,7 +259,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         if (uomsList == null)
             return;
 
-        ServerLoggers.importLogger.info("importUOMs");
+        ERPLoggers.importLogger.info("importUOMs");
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -301,7 +301,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
     private void importPackOfItems(List<Item> itemsList) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (!notNullNorEmpty(itemsList)) return;
 
-        ServerLoggers.importLogger.info("importItems " + itemsList.size());
+        ERPLoggers.importLogger.info("importItems " + itemsList.size());
 
         List<ImportProperty<?>> props = new ArrayList<>();
         List<ImportField> fields = new ArrayList<>();
@@ -653,7 +653,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (dataUserInvoiceDetail.isEmpty())
                     return;
 
-                ServerLoggers.importLogger.info("importUserInvoices " + dataUserInvoiceDetail.size());
+                ERPLoggers.importLogger.info("importUserInvoices " + dataUserInvoiceDetail.size());
                 
                 List<ImportProperty<?>> props = new ArrayList<>();
                 List<ImportField> fields = new ArrayList<>();
@@ -1142,7 +1142,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (dataPriceListStores.isEmpty())
                     return;
 
-                ServerLoggers.importLogger.info("importPriceListStores " + dataPriceListStores.size());
+                ERPLoggers.importLogger.info("importPriceListStores " + dataPriceListStores.size());
 
                 try(ExecutionContext.NewSession newContext = context.newSession()) {
 
@@ -1257,7 +1257,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (dataPriceListSuppliers.isEmpty())
                     return;
 
-                ServerLoggers.importLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
+                ERPLoggers.importLogger.info("importPriceListSuppliers " + dataPriceListSuppliers.size());
 
                 try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                     ObjectValue dataPriceListTypeObject = findProperty("dataPriceListType[STRING[100]]").readClasses(newContext, new DataObject("Offered", StringClass.get(100)));
@@ -1352,7 +1352,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(legalEntitiesList)) {
 
-            ServerLoggers.importLogger.info("importLegalEntities");
+            ERPLoggers.importLogger.info("importLegalEntities");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1534,7 +1534,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(employeesList)) {
 
-            ServerLoggers.importLogger.info("importEmployees");
+            ERPLoggers.importLogger.info("importEmployees");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1594,7 +1594,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(warehouseGroupsList)) {
 
-            ServerLoggers.importLogger.info("importWarehouseGroups");
+            ERPLoggers.importLogger.info("importWarehouseGroups");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1631,7 +1631,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(warehousesList)) {
 
-            ServerLoggers.importLogger.info("importWarehouses");
+            ERPLoggers.importLogger.info("importWarehouses");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1695,7 +1695,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (storeLM != null && notNullNorEmpty(storesList)) {
 
-            ServerLoggers.importLogger.info("importStores");
+            ERPLoggers.importLogger.info("importStores");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1770,7 +1770,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (storeLM != null && notNullNorEmpty(departmentStoresList)) {
 
-            ServerLoggers.importLogger.info("importDepartmentStores");
+            ERPLoggers.importLogger.info("importDepartmentStores");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1817,7 +1817,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(banksList)) {
 
-            ServerLoggers.importLogger.info("importBanks");
+            ERPLoggers.importLogger.info("importBanks");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1878,7 +1878,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (writeOffItemLM != null && notNullNorEmpty(rateWastesList)) {
 
-            ServerLoggers.importLogger.info("importRateWastes");
+            ERPLoggers.importLogger.info("importRateWastes");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
@@ -1931,7 +1931,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
 
         if (notNullNorEmpty(contractsList)) {
 
-            ServerLoggers.importLogger.info("importContacts");
+            ERPLoggers.importLogger.info("importContacts");
 
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();

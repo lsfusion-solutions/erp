@@ -1,8 +1,8 @@
 package lsfusion.erp.region.by.ukm;
 
 import com.google.common.base.Throwables;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -59,7 +59,7 @@ public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActio
                 context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
             }
         } catch (Exception e) {
-            ServerLoggers.importLogger.error(failCaption, e);
+            ERPLoggers.importLogger.error(failCaption, e);
             try {
                 findProperty("synchronizeItemResult[]").change(String.valueOf(e), context);
             } catch (ScriptingErrorLog.SemanticErrorException e1) {

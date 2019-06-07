@@ -6,13 +6,13 @@ import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
@@ -97,7 +97,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                                 findAction("formRefresh[]").execute(context);
                             } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
-                                ServerLoggers.importLogger.error("ImportSaleOrder failed, file " + file.getKey(), e);
+                                ERPLoggers.importLogger.error("ImportSaleOrder failed, file " + file.getKey(), e);
                                 throw Throwables.propagate(e);
                             }
                         }

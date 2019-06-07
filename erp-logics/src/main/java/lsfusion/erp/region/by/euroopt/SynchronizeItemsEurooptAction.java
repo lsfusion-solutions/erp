@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.euroopt;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -10,7 +11,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.nodes.Document;
@@ -72,7 +72,7 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
                     Set<String> stepItemsSet = new LinkedHashSet<>();
                     String stepHash = "";
                     String stepUrl = itemGroupURL + "?page=" + page + "&lazy_steep=" + step;
-                    ServerLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, count, itemGroups.size()));
+                    ERPLoggers.importLogger.info(String.format(logPrefix + "reading itemGroup url %s (%s of %s)", stepUrl, count, itemGroups.size()));
                     Document doc = getDocument(lowerNetLayer, mainPage, stepUrl);
                     if (doc != null) {
                         String itemGroupTitle = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
@@ -115,7 +115,7 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
     private Set<String> getItemGroupURLSet(NetLayer lowerNetLayer, String mainPage, String itemGroupPattern) throws IOException {
         Set<String> itemGroupsSet = new HashSet<>();
         String mainUrl = lowerNetLayer == null ? mainPage + "/" : "/catalog/";
-        ServerLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
+        ERPLoggers.importLogger.info(String.format(logPrefix + "reading url %s", mainUrl));
         Document doc = getDocument(lowerNetLayer, mainPage, mainUrl);
         if (doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
@@ -124,7 +124,7 @@ public class SynchronizeItemsEurooptAction extends EurooptAction {
                     if (lowerNetLayer != null)
                         href = href.replace(mainPage, "");
                     if (!itemGroupsSet.contains(href)) {
-                        ServerLoggers.importLogger.info(String.format(logPrefix + "preparing itemGroup url #%s: %s", itemGroupsSet.size() + 1, href));
+                        ERPLoggers.importLogger.info(String.format(logPrefix + "preparing itemGroup url #%s: %s", itemGroupsSet.size() + 1, href));
                         itemGroupsSet.add(href);
                     }
                 }

@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.RawFileData;
+import lsfusion.erp.ERPLoggers;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -16,7 +17,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 import org.castor.core.util.Base64Encoder;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -92,7 +92,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
             int idPriceListDetail = 1;
             int i = 1;
             for (String itemListURL : itemListURLList) {
-                ServerLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s of %s: %s", i, itemListURLList.size(), (useTor ? mainPage : "") + itemListURL));
+                ERPLoggers.importLogger.info(String.format(logPrefix + "parsing itemGroup page #%s of %s: %s", i, itemListURLList.size(), (useTor ? mainPage : "") + itemListURL));
                 Document doc = getDocument(lowerNetLayer, mainPage, itemListURL);
                 if (doc != null) {
 
@@ -142,9 +142,9 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
                 i++;
             }
             if (importImages)
-                ServerLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesJSON.length()));
+                ERPLoggers.importLogger.info(String.format(logPrefix + "reading images finished. %s items with images found", imagesJSON.length()));
             if (importPrices)
-                ServerLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices for %s items found", pricesJSON.length(), idPriceListDetail - 1));
+                ERPLoggers.importLogger.info(String.format(logPrefix + "reading prices finished. %s prices for %s items found", pricesJSON.length(), idPriceListDetail - 1));
         } else {
             context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного импортированного товара", "Ошибка"));
         }
@@ -169,10 +169,10 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
         try {
             imageItem = readImage(lowerNetLayer, mainPage, smallImage);
             RawFileData imageBytes = imageItem == null ? null : new RawFileData(imageItem);
-            ServerLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : smallImage == null ? "no image found" : "image read failed") + " for barcode " + barcode);
+            ERPLoggers.importLogger.info(logPrefix + (imageBytes != null ? "image read successful" : smallImage == null ? "no image found" : "image read failed") + " for barcode " + barcode);
             return imageBytes;
         } catch (IOException e) {
-            ServerLoggers.importLogger.info(logPrefix + "image read failed for barcode " + barcode);
+            ERPLoggers.importLogger.info(logPrefix + "image read failed for barcode " + barcode);
             return null;
         } finally {
             if (imageItem != null && !imageItem.delete())
@@ -240,7 +240,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
                 } catch (HttpStatusException e) {
                     count--;
                     if (count <= 0)
-                        ServerLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
+                        ERPLoggers.importLogger.error(logPrefix + "error for url " + url + ": ", e);
                 } catch (InterruptedException e) {
                     throw Throwables.propagate(e);
                 }
