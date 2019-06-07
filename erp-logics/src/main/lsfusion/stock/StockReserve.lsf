@@ -13,7 +13,40 @@ REQUIRE System,
 
 TABLE StockSkuDate(Stock, Sku, DATE);
 
-@defineHistorizable(stockReserve, 'Страховой запас (кол-во)', NUMERIC[14,3], stock, nameStock, sku, nameSku, base);
+dataStockReserve 'Страховой запас (кол-во)' = DATA NUMERIC[14,3] (Stock, Sku, DATE) TABLE StockSkuDate IN base;
+
+stockReserve 'Страховой запас (кол-во)' (Stock stock, Sku sku, DATE date) = 
+    GROUP LAST  dataStockReserve(stock, sku, DATE dateIn)
+          ORDER dateIn
+          WHERE dataStockReserve(stock, sku, dateIn) AND dateIn <= (date AS DATE) IN base;
+
+overStockReserve 'Страховой запас (кол-во)' = OVERRIDE dataStockReserve(Stock stock, Sku sku, DATE date), stockReserve(stock, sku, date);
+
+stockReserve 'Страховой запас (кол-во)' (Stock stock, Sku sku) = stockReserve(stock, sku, currentDate()) IN base;
+
+FORM addStockReserveStockSku 'Страховой запас (кол-во)'
+    OBJECTS a=Stock PANEL, b=Sku PANEL, d=DATE PANEL
+    PROPERTIES name(a) READONLY, name(b) READONLY, VALUE(d), dataStockReserve(a, b, d)
+;
+DESIGN addStockReserveStockSku {
+    PROPERTY(name(a)) { focusable = FALSE; }
+    PROPERTY(name(b)) { focusable = FALSE; }
+}
+
+addStockReserve '{historizable.add}' (Stock stock, Sku sku)  { SHOW addStockReserveStockSku OBJECTS a = stock, b = sku; }  TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+FORM dialogStockReserveStockSku 'Страховой запас (кол-во)'
+    OBJECTS a=Stock PANEL, b=Sku PANEL, d=DATE
+    PROPERTIES name(a) READONLY, name(b) READONLY, addStockReserve(a, b) DRAW d , VALUE(d) READONLY, dataStockReserve(a, b, d)
+    FILTERS dataStockReserve(a, b, d)
+;
+DESIGN dialogStockReserveStockSku {
+    PROPERTY(name(a)) { focusable = FALSE; }
+    PROPERTY(name(b)) { focusable = FALSE; }
+}
+
+dialogStockReserve 'Страховой запас (кол-во)' (Stock stock, Sku sku)  { SHOW dialogStockReserveStockSku OBJECTS a = stock, b = sku; }  ASON CONTEXTMENU stockReserve[Stock,Sku] ASON CHANGE stockReserve[Stock,Sku];
+overDialogStockReserveDate 'Страховой запас (кол-во)' (Stock stock, Sku sku)  { SHOW dialogStockReserveStockSku OBJECTS a = stock, b = sku; }  ASON CONTEXTMENU overStockReserve[Stock,Sku,DATE];
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, SkuGroup);
 dataStockReserveDays 'Страховой запас (дн.)' = DATA NUMERIC[14,3] (Stock, Sku) TABLE extraSkuStock;
 
