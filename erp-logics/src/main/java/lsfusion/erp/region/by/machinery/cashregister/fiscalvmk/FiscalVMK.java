@@ -104,32 +104,30 @@ public class FiscalVMK {
         return error;
     }
 
-    public static void openPort(String logPath, String ip, int comPort, int baudRate) {
+    public static void openPort(boolean isUnix, String logPath, String ip, String comPort, int baudRate) {
         try {
-            if (logPath != null) {
-                logAction("vmk_setlogpath", logPath);
-                vmkDLL.vmk.vmk_setlogpath((getBytes(logPath)));
+            setLogPath(logPath);
+            if(ip != null) {
+                openPort(ip, Integer.parseInt(comPort));
+            } else {
+                openPort(getPort(comPort, isUnix), baudRate);
             }
-            logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
-            if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
-                checkErrors();
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
     }
 
-    public static boolean safeOpenPort(final String logPath, final String ip, final int comPort, final int baudRate, final int timeout) {
+    public static boolean safeOpenPort(final boolean isUnix, final String logPath, final String ip, final String comPort, final int baudRate, final int timeout) {
         try {
             final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
                 @Override
                 public Boolean call() throws Exception {
-                    if (logPath != null) {
-                        logAction("vmk_setlogpath", logPath);
-                        vmkDLL.vmk.vmk_setlogpath((getBytes(logPath)));
+                    setLogPath(logPath);
+                    if(ip != null) {
+                        openPort(ip, Integer.parseInt(comPort));
+                    } else {
+                        openPort(getPort(comPort, isUnix), baudRate);
                     }
-                    logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
-                    if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
-                        checkErrors();
                     return true;
                 }
             });
@@ -144,6 +142,23 @@ public class FiscalVMK {
         } catch (InterruptedException | ExecutionException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private static void setLogPath(String logPath) throws UnsupportedEncodingException {
+        if (logPath != null) {
+            logAction("vmk_setlogpath", logPath);
+            vmkDLL.vmk.vmk_setlogpath((getBytes(logPath)));
+        }
+    }
+
+    private static void openPort(String comPort, Integer baudRate) {
+        logAction("vmk_open", comPort, baudRate);
+        if (!vmkDLL.vmk.vmk_open(comPort, baudRate))
+            checkErrors();
+    }
+
+    private static String getPort(String port, boolean isUnix) {
+        return (isUnix ? "tty" : "COM") + port;
     }
 
     public static void closePort() {

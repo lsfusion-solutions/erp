@@ -34,7 +34,7 @@ public class FiscalVMKCancelReceiptAction extends InternalAction {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+                String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 4));

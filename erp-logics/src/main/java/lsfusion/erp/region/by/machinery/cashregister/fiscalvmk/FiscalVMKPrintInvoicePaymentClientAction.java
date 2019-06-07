@@ -11,7 +11,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
     Integer typePayment;
     boolean sale;
 
-    public FiscalVMKPrintInvoicePaymentClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, BigDecimal sumPayment, Integer typePayment, boolean sale) {
+    public FiscalVMKPrintInvoicePaymentClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, BigDecimal sumPayment, Integer typePayment, boolean sale) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
@@ -22,7 +22,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
 
         try {
 
-            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
+            FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
             FiscalVMK.opensmIfClose();
 
             Integer numberReceipt = printPayment(sumPayment, typePayment);
@@ -32,7 +32,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
                 FiscalVMK.cancelReceipt();
                 return error;
             }
-            
+
             FiscalVMK.closePort();
 
             return null;

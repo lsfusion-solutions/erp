@@ -21,7 +21,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     String regNumber;
     String machineryNumber;
 
-    public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate,
+    public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
         super(isUnix, logPath, ip, comPort, baudRate);
@@ -49,7 +49,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
             try {
-                FiscalVMK.openPort(logPath, ip, comPort, baudRate);
+                FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
                 FiscalVMK.opensmIfClose();
                 
                 Integer numberReceipt = null;
@@ -71,7 +71,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
                         return error;
                     }
                 }
-                    
+
 
                 FiscalVMK.closePort();
                 FiscalVMK.logReceipt(receipt, numberReceipt);

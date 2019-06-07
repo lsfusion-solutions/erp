@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 public class FiscalVMKServiceInOutClientAction extends FiscalVMKClientAction {
     BigDecimal sum;
 
-    public FiscalVMKServiceInOutClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, BigDecimal sum) {
+    public FiscalVMKServiceInOutClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, BigDecimal sum) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.sum = sum;
     }
@@ -19,7 +19,7 @@ public class FiscalVMKServiceInOutClientAction extends FiscalVMKClientAction {
 
         try {
 
-            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
+            FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
 
             FiscalVMK.opensmIfClose();
 

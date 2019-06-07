@@ -44,7 +44,7 @@ public class FiscalVMKDisplayTextAction extends InternalAction {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
+                String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(session);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
 
                 String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(session, receiptDetailObject);

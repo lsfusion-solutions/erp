@@ -8,7 +8,7 @@ import java.io.IOException;
 public class FiscalVMKDisplayTextClientAction extends FiscalVMKClientAction {
     ReceiptItem receiptItem;
 
-    public FiscalVMKDisplayTextClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, ReceiptItem receiptItem) {
+    public FiscalVMKDisplayTextClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, ReceiptItem receiptItem) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.receiptItem = receiptItem;
     }
@@ -18,7 +18,7 @@ public class FiscalVMKDisplayTextClientAction extends FiscalVMKClientAction {
 
         try {
 
-            if(FiscalVMK.safeOpenPort(logPath, ip, comPort, baudRate, 5000)) {
+            if(FiscalVMK.safeOpenPort(isUnix, logPath, ip, comPort, baudRate, 5000)) {
 
                 FiscalVMK.displayText(receiptItem);
 

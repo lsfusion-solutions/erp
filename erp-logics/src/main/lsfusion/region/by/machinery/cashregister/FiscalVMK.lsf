@@ -10,10 +10,15 @@ isUnix = osVersion(currentComputer()) == 'Linux';
 needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'VMK';
 onDesktopClientStarted() + { 
 	IF needDLL() THEN {
-	    IF is64Java(currentComputer()) THEN
-	        loadLibrary('lib/win64/vmkd.dll');
-	    ELSE
-	        loadLibrary('lib/win32/vmkd.dll');
+	    IF isUnix() THEN {
+            loadLibrary('lib/ux64/libvmkd.so');
+            //TODO: ux32 library
+	    } ELSE {
+            IF is64Java(currentComputer()) THEN
+                loadLibrary('lib/win64/vmkd.dll');
+            ELSE
+                loadLibrary('lib/win32/vmkd.dll');
+	    }
 	}
 };
 

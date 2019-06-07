@@ -26,7 +26,7 @@ public class FiscalVMKPrintCopyReceiptAction extends InternalAction {
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(isUnix, logPath, ip, comPort, baudRate));

@@ -10,11 +10,11 @@ public class FiscalVMKCustomOperationClientAction extends FiscalVMKClientAction 
     int type;
     String textTop;
 
-    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, int type) {
+    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, int type) {
         this(isUnix, logPath, ip, comPort, baudRate, type, null);
     }
 
-    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, Integer comPort, Integer baudRate, int type, String textTop) {
+    public FiscalVMKCustomOperationClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, int type, String textTop) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.type = type;
         this.textTop = textTop;
@@ -23,7 +23,7 @@ public class FiscalVMKCustomOperationClientAction extends FiscalVMKClientAction 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
         try {
-            FiscalVMK.openPort(logPath, ip, comPort, baudRate);
+            FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
             switch (type) {
                 case 1:
                     FiscalVMK.printFiscalText(textTop);
