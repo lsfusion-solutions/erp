@@ -2,6 +2,7 @@ package equ.srv.terminal;
 
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
+import equ.srv.EquipmentLoggers;
 import equ.srv.TerminalEquipmentServer;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.file.RawFileData;
@@ -740,7 +741,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
 
-                ServerLoggers.importLogger.info("start importing terminal document " + idTerminalDocument);                
+                EquipmentLoggers.terminalLogger.info("start importing terminal document " + idTerminalDocument);
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
 
@@ -752,10 +753,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
                 }
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
-                ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
+                EquipmentLoggers.terminalLogger.info("start applying terminal document " + idTerminalDocument);
                 String result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                 if(result != null) {
-                    ServerLoggers.importLogger.error(String.format("Apply terminal document %s error: %s", idTerminalDocument, result));
+                    EquipmentLoggers.terminalLogger.error(String.format("Apply terminal document %s error: %s", idTerminalDocument, result));
                 }
                 return result;
 
