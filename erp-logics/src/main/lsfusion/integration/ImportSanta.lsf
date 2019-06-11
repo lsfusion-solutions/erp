@@ -1,6 +1,6 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement;
 
 host 'Хост' = DATA ISTRING[30]();
 port 'Порт' = DATA ISTRING[10]();
@@ -352,3 +352,99 @@ importItems 'Импорт товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importItems();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importItems()); } }
+
+userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
+
+EXTEND CLASS AgreementPaymentType {
+    paymentOrder 'Платежное поручение'
+}  
+showPaymentPeriod (PaymentCondition pc) += type(pc) == AgreementPaymentType.paymentOrder;
+ 
+paymentPeriod (INTEGER days, INTEGER bank, AgreementPaymentType t) = GROUP MAX PaymentPeriod p IF percent(p) == 0 
+    AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p), type(paymentCondition(p));
+
+importContract 'Импорт договоров' () {
+    
+    LOCAL number = STRING[15] (INTEGER);
+    LOCAL dateFrom = DATE (INTEGER);
+    LOCAL dateTo = DATE (INTEGER);
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL idCompany = INTEGER (INTEGER);
+    LOCAL comment = TEXT (INTEGER);
+    LOCAL condition = TEXT (INTEGER);
+    LOCAL idType = INTEGER (INTEGER);
+    LOCAL idDeliv = INTEGER (INTEGER);
+    LOCAL idPayVid = INTEGER (INTEGER);
+    LOCAL delay = INTEGER (INTEGER);
+    LOCAL idPayment = INTEGER (INTEGER);
+    LOCAL idContract = INTEGER (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT ct_num, NumCt, DateCt, DateAct, cod_firm, cod_ob, comment, SUBSTR(SpecCond,1,100), TypeCt, cod_deliv, CodePayVid, termpay, CodeTypeOpl, main_ct_num FROM Pub.Contract' TO file;
+    
+    IMPORT TABLE FROM file() TO id, number, dateFrom, dateTo, idLegalEntity, idCompany, comment, condition, idType, idDeliv, idPayVid, delay, idPayment, idContract;
+    
+    FOR legalEntity(TEXT (idLegalEntity(INTEGER i))) AND NOT userContractSku(TEXT (id(i))) AND idContract(i) == 0 DO NEW c = UserContractSku {
+        id(c) <- ISTRING[100](id(i));
+    }
+    
+    FOR UserContractSku c == userContractSku(TEXT (id(INTEGER i))) AND idContract(i) == 0 DO {
+        supplier(c) <- legalEntity(TEXT (idLegalEntity(i)));
+        customer(c) <- legalEntity(TEXT (idCompany(i)));
+        note(c) <- STRING[100](CONCAT '\n', comment(i), condition(i));
+        currency(c) <- defaultCurrency();
+        type(c) <- ContractSkuType.sale;
+        dateFrom(c) <- OVERRIDE dateFrom(i), 2001_01_01;
+        dateTo(c) <- dateTo(i);
+        number(c) <- number(i);
+    }
+    
+//    FOR legalEntity(TEXT (idLegalEntity(INTEGER i))) AND NOT agreement(TEXT (id(i))) AND NOT idContract(i) == 0 DO NEW c = Agreement {
+//        id(c) <- ISTRING[100](id(i));
+//    }
+//    
+//    FOR Agreement c == agreement(TEXT (id(INTEGER i))) AND NOT idContract(i) == 0 DO {
+//        inSupplier(c, LegalEntity l) <- l == legalEntity(TEXT (idLegalEntity(i)));
+//        inCustomer(c, LegalEntity l) <- l == legalEntity(TEXT (idCompany(i)));
+//        name(c) <- ISTRING[100](comment(i));
+//        note(c) <- ISTRING[500](condition(i));
+//        currency(c) <- defaultCurrency();
+//        fromDate(c) <- OVERRIDE dateFrom(i), 2001_01_01;
+//        toDate(c) <- dateTo(i);
+//        number(c) <- number(i);
+//        fromTime(c) <- 00:00;
+//        toTime(c) <- 23:59;
+//    }
+
+
+    LOCAL bank = INTEGER (INTEGER);
+    LOCAL type = AgreementPaymentType(INTEGER);
+    
+    bank(INTEGER i) <- CASE WHEN idPayment(i) == 3 THEN 1 ELSE 0 WHERE imported(i);
+    type(INTEGER i) <- CASE WHEN idPayVid(i) == 1 THEN AgreementPaymentType.advancePayment
+                            WHEN idPayVid(i) == 3 THEN AgreementPaymentType.prepayment
+                            WHEN idPayVid(i) == 5 THEN AgreementPaymentType.requirement
+                            WHEN idPayVid(i) == 6 THEN AgreementPaymentType.paymentOrder
+                            ELSE AgreementPaymentType.implement WHERE imported(i);
+
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY delay(i), bank(i), type(i)](INTEGER d, INTEGER b, AgreementPaymentType t)  AND NOT paymentPeriod(d, b, t)  DO NEW p = PaymentCondition {
+        type(p) <- t;
+        bankingDays(p) <- b == 1;
+
+        NEW pp = PaymentPeriod {
+            paymentCondition(pp) <- p;
+            percent(pp) <- 0;
+            countDays(pp) <- d;
+        }
+    }
+
+    FOR legalEntity(TEXT (idLegalEntity(INTEGER i))) AND UserContractSku c = userContractSku(TEXT (id(i))) DO {
+        paymentCondition(c) <- paymentCondition(paymentPeriod(delay(i), bank(i), type(i)));
+    }
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importContract();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importContract()); } }
