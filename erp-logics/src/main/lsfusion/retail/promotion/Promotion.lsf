@@ -360,6 +360,9 @@ CONSTRAINT (CHANGED(price(PromotionDetail detail)) OR CHANGED(retailPrice(detail
     currentDate() >= approveDate(PREV(promotion(detail))) AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))
         MESSAGE 'Запрещено изменять в строке акции Стандартную цену без НДС, Розничную цену и Утверждение';
 
+CONSTRAINT CHANGED (approveDate(Promotion p)) AND (PREV (approveDate(p)) <= currentDate() OR approveDate(p) <= currentDate())
+    AND NOT allowEditApprovedPromotionDetail(mainRole(currentUser()))
+    MESSAGE 'Запрещено изменять дату утверждения после ее наступления';
 
 //расчетные данные
 backgroundCur 'Цвет' (PromotionDetail detail) = RGB(218,255,196) IF detail IS PromotionDetail;
