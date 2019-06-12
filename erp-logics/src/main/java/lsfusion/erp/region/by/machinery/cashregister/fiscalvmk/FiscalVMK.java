@@ -244,12 +244,13 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(1, sumValue, 0/*"00000000"*/);
     }
 
-    public static boolean totalGiftCard(BigDecimal sum) {
+    public static boolean totalGiftCard(BigDecimal sum, Integer giftCardPaymentType) {
         if (sum == null)
             return true;
+        int type = giftCardPaymentType != null ? giftCardPaymentType : 2;
         double sumValue = sum.doubleValue();
-        logAction("vmk_oplat", 2, Math.abs(sumValue), 0);
-        return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
+        logAction("vmk_oplat", type, Math.abs(sumValue), 0);
+        return vmkDLL.vmk.vmk_oplat(type, Math.abs(sumValue), 0/*"00000000"*/);
     }
 
     public static boolean total(Integer type, BigDecimal sum) {
@@ -340,13 +341,14 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItem(ReceiptItem item) {
+    public static boolean registerItem(ReceiptItem item, Integer giftCardDepartment) {
         try {
             double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
             double sum = item.sumPos - item.articleDiscSum + item.bonusPaid;
-            logAction("vmk_sale", item.barcode, item.name, price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
+            Integer department = item.isGiftCard ? (giftCardDepartment != null ? giftCardDepartment : 2) : 1 /*отдел*/;
+            logAction("vmk_sale", item.barcode, item.name, price, department, item.quantity, sum);
             return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
-                    price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
+                    price, department, item.quantity, sum);
         } catch (UnsupportedEncodingException e) {
             return false;
         }

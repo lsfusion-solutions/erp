@@ -9,6 +9,11 @@ giftCardAsNotPaymentCurrentCashRegister 'Не пробивать сертифи�
 giftCardAsNotPaymentText 'Текст между товарным чеком и кассовым чеком (VMK)' = ABSTRACT TEXT (Receipt);
 giftCardAsNotPaymentTextAbsolut 'Текст между товарным чеком и кассовым чеком (Absolut)' = ABSTRACT TEXT (Receipt);
 
+giftCardDepartment 'Отдел продажи сертификата' = DATA INTEGER (GroupCashRegister) IN base;
+giftCardDepartmentCurrentCashRegister 'Отдел продажи сертификата' = giftCardDepartment(groupCashRegister(currentCashRegister()));
+giftCardPaymentType 'Тип оплаты сертификатом' = DATA INTEGER (GroupCashRegister) IN base;
+giftCardPaymentTypeCurrentCashRegister 'Отдел продажи сертификата' = giftCardPaymentType(groupCashRegister(currentCashRegister()));
+
 //продажа подарочных сертификатов
 overChangeBarcodeGiftCard(STRING[30] string, Receipt receipt)  { 
     IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[30] THEN {
@@ -58,17 +63,23 @@ addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) 
             MESSAGE 'Сертификат не найден, истек или использован';
 }
 
-EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsNotPayment;
+EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsNotPayment, giftCardDepartment, giftCardPaymentType;
 
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY(giftCardAsNotPayment(grc));
+        MOVE PROPERTY(giftCardDepartment(grc));
+        MOVE PROPERTY(giftCardPaymentType(grc));
     }
 }
 
-EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsNotPayment;
+EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsNotPayment, giftCardDepartment, giftCardPaymentType;
 
-overCopy(GroupCashRegister old, GroupCashRegister new ) + {  giftCardAsNotPayment(new) <- giftCardAsNotPayment(old); } 
+overCopy(GroupCashRegister old, GroupCashRegister new ) + {
+    giftCardAsNotPayment(new) <- giftCardAsNotPayment(old);
+    giftCardDepartment(new) <- giftCardDepartment(old);
+    giftCardPaymentType(new) <- giftCardPaymentType(old);
+} 
 
 EXTEND FORM postReceiptPayment
     PROPERTIES addPaymentGiftCard(r) DRAW p SHOWIF allowPaymentGiftCard()

@@ -73,7 +73,10 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
                 }
-                
+
+                Integer giftCardDepartment = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardDepartmentCurrentCashRegister[]").read(context): null;
+                Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
+
                 BigDecimal sumDisc = null;
 
                 TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
@@ -168,7 +171,8 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(isUnix, logPath, ip, comPort, baudRate,
                             new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText,
+                            giftCardDepartment, giftCardPaymentType, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

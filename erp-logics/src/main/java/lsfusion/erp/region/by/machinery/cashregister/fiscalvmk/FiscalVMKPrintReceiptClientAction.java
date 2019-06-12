@@ -17,19 +17,24 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     String receiptBottom;
     boolean giftCardAsNotPayment;
     String giftCardAsNotPaymentText;
+    Integer giftCardDepartment;
+    Integer giftCardPaymentType;
     String UNP;
     String regNumber;
     String machineryNumber;
 
     public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
-                                             String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
+                                             String giftCardAsNotPaymentText, Integer giftCardDepartment, Integer giftCardPaymentType,
+                                             String UNP, String regNumber, String machineryNumber) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
         this.giftCardAsNotPaymentText = giftCardAsNotPaymentText;
+        this.giftCardDepartment = giftCardDepartment;
+        this.giftCardPaymentType = giftCardPaymentType;
         this.UNP = UNP;
         this.regNumber = regNumber;
         this.machineryNumber = machineryNumber;
@@ -159,7 +164,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         } else {
 
             for (ReceiptItem item : receiptList) {
-                if (!FiscalVMK.registerItem(item))
+                if (!FiscalVMK.registerItem(item, giftCardDepartment))
                     return null;
                 if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard))
                     return null;
@@ -186,7 +191,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
                     return null;
                 }
             }
-            if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
+            if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, giftCardPaymentType))
                 return null;
             if (!FiscalVMK.totalCard(receipt.sumCard))
                 return null;
