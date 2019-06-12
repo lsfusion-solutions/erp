@@ -1,6 +1,6 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition;
 
 host 'Хост' = DATA ISTRING[30]();
 port 'Порт' = DATA ISTRING[10]();
@@ -448,3 +448,54 @@ importContract 'Импорт договоров' () {
 
 EXTEND FORM integrationData PROPERTIES importContract();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importContract()); } }
+
+idItem = DATA LOCAL INTEGER (INTEGER);
+property = DATA LOCAL INTEGER (INTEGER);
+value = DATA LOCAL TEXT (INTEGER);
+
+overImportItemAttribute ABSTRACT LIST ();
+
+importItemAttribute 'Импорт доп. свойств товаров' () {
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT TOP 1000 cod_good, npar, SUBSTR(pvalue, 1, 1000) FROM Pub.subcard WHERE npar = 60' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, property, value;
+
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 71 BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
+        name(b) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 71 DO {
+        brand(Item s) <- brandName(value(i)) WHERE s == item(TEXT (idItem(i)));
+    }
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 4 BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
+        name(m) <- ISTRING[200] (name);
+    }
+    FOR property(INTEGER i) == 4 DO {
+        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(TEXT (idItem(i)));
+    }
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 5 BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
+        name(c) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 5 DO {
+        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(TEXT (idItem(i)));
+    }
+    
+    FOR property(INTEGER i) == 7 DO {
+        conditionsText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(TEXT (idItem(i)));
+    }
+    
+    FOR property(INTEGER i) == 41 AND (value(i) == 'yes' OR value(i) == '1') DO {
+        banPurchase(Item s) <- TRUE;
+    }
+    
+    overImportItemAttribute();
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemAttribute();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemAttribute()); } }
