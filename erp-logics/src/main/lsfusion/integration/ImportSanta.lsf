@@ -1,6 +1,6 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeCheck;
 
 host 'Хост' = DATA ISTRING[30]();
 port 'Порт' = DATA ISTRING[10]();
@@ -327,7 +327,7 @@ importItems 'Импорт товаров' () {
     IMPORT TABLE FROM file() TO id, vat;
     
     FOR Item s = item(TEXT (id(INTEGER i))) DO {
-        VAT(s, Country c) <- (GROUP MAX Range r IF valueCurrentRate(r) == vat(i)*10) WHERE c == defaultCountry();
+        VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(i)*10) WHERE c == defaultCountry();
     }
     
     LOCAL idBarcode = STRING[15](INTEGER);
@@ -499,3 +499,49 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemAttribute()); } }
+
+id 'Номер' = DATA ISTRING[100](Range.Range);
+range = GROUP MAX Range.Range r BY id(r);
+
+importRange 'Импорт ассортиментных матриц' () {
+    
+    LOCAL stores = TEXT (INTEGER);
+    LOCAL in = BOOLEAN (Range.Range, Store);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT num_as, name, SUBSTR(seq_shop,1,1000) FROM Pub.as1' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, stores;
+    
+    FOR id(INTEGER i) AND NOT range(TEXT (id(i))) DO NEW r = Range.Range {
+        id(r) <- ISTRING[100](id(i));
+    }
+    
+    FOR Range.Range r = range(TEXT (id(INTEGER i))) DO {
+        name(r) <- name(i);
+        in(r, Store s) <- TRUE WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, 50) BY getWord(stores(i), ',', j)](id(s));
+        
+        IF NOT [GROUP SUM 1 BY range(RangeRev rr)](r) THEN NEW rr = RangeRev {
+            range(rr) <- r;
+            dateTime(rr) <- 2019_01_01_00:00;
+        }
+    }
+    
+    LOCAL idRange = INTEGER (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT num_as, cod_good FROM Pub.asskat' TO file;
+    
+    IMPORT TABLE FROM file() TO idRange, idItem;
+    
+    FOR Item sk = sku(TEXT (idItem(INTEGER i))) AND RangeRev r = [GROUP LAST RangeRev rr BY range(rr)](range(TEXT (idRange(i)))) DO {
+    
+        include(r, Store st, sk) <- in(range(r), st);
+        inData(Range.Range rr, ItemGroup g) <- TRUE WHERE rr = range(r) AND g == itemGroup(sk);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importRange();
+DESIGN integrationData { santaButtons { MOVE PROPERTY (importRange()); } }
