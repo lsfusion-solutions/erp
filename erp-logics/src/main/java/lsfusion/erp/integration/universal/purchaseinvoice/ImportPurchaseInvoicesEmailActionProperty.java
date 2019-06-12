@@ -101,7 +101,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                     emailQuery.addProperty("fromAddressEmail", findProperty("fromAddress[Email]").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceived[Email]").getExpr(session.getModifier(), emailExpr));
                     emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr));
-                    emailQuery.addProperty("nameAttachmentEmail", findProperty("name[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr));
+                    emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr));
 
                     emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
                     emailQuery.and(findProperty("account[Email]").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));

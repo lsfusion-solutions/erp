@@ -73,7 +73,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
                 QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
                 emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(attachmentEmailExpr));
-                emailQuery.addProperty("nameAttachmentEmail", findProperty("name[AttachmentEmail]").getExpr(attachmentEmailExpr));
+                emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(attachmentEmailExpr));
 
                 emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
                 emailQuery.and(findProperty("account[Email]").getExpr(emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
