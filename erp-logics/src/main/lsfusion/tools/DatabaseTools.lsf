@@ -35,7 +35,7 @@ loadCurSize 'Заполнить размеры таблиц'(){
              'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
         TO file;
     
-    IMPORT FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
+    IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
         curDataSize(Table t) <- t_size WHERE lower(sid(t)) == table;
         curIndexSize(Table t) <- i_size WHERE lower(sid(t)) == table;
     }
@@ -142,7 +142,7 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
                      'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
                 TO file;
             
-            IMPORT FROM file() FIELDS STRING[100] attname, NUMERIC[11,10] noNull, NUMERIC[21,10] n_distinct, TEXT most_common_freqs, INTEGER unique DO {
+            IMPORT TABLE FROM file() FIELDS STRING[100] attname, NUMERIC[11,10] noNull, NUMERIC[21,10] n_distinct, TEXT most_common_freqs, INTEGER unique DO {
                 
                 LOCAL freq = NUMERIC[11,10](INTEGER );
                 freq(INTEGER i) <- NUMERIC[11,10](getWord(most_common_freqs, '|', i)) IF count(i, wordCount(most_common_freqs, '|'));
@@ -199,7 +199,7 @@ loadCurRows 'Заполнить количество записей'(){
         EXEC 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
         TO file;
     
-    IMPORT FROM file() FIELDS STRING[100] table, LONG size DO {
+    IMPORT TABLE FROM file() FIELDS STRING[100] table, LONG size DO {
         curRows(Table t) <- size WHERE lower(sid(t)) == table;
     }
 }
