@@ -1028,7 +1028,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                     String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                     BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
-                                    String timeBeg = documentObject.getString("timeBeg");
+                                    Object timeBeg = documentObject.get("timeBeg");
 
                                     JSONArray kkms = documentObject.getJSONArray("kkms");
                                     BigDecimal sumProtectedEnd = null;
@@ -1039,8 +1039,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         sumBack = getBigDecimal(kkmsObject, "sumBack");
                                     }
                                     
-                                    if (!timeBeg.equals("null")) {
-                                        long timestamp = parseDateTime(timeBeg);
+                                    if (timeBeg instanceof String && !timeBeg.equals("null")) {
+                                        long timestamp = parseDateTime((String) timeBeg);
 
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, new ZReportInfo(sumGain, sumProtectedEnd, sumBack));
                                         dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timestamp);
