@@ -17,10 +17,10 @@ import java.util.Iterator;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
-public class FiscalBoardDisplayTextActionProperty extends FiscalBoardActionProperty {
+public class FiscalBoardDisplayTextAction extends FiscalBoardActionProperty {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalBoardDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalBoardDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -53,6 +53,9 @@ public class FiscalBoardDisplayTextActionProperty extends FiscalBoardActionPrope
 
     private String[] generateText(BigDecimal price, BigDecimal quantity, BigDecimal sum, String nameItem) {
         String firstLine = " " + toStr(quantity) + "x" + toStr(price);
+        if(firstLine.length() > lineLength) {
+            throw new RuntimeException("Проверьте цену и количество: " + firstLine);
+        }
         firstLine = fillSpaces(nameItem, lineLength - firstLine.length(), true) + firstLine;
         String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
         return new String[]{firstLine, secondLine};
