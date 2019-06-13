@@ -793,7 +793,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 int numberCashDocument = documentObject.getInt("docNum");
                                                 String idEmployee = documentObject.getString("userCode");
-                                                String dopData = documentObject.getString("dopdata");
+                                                int dopData = documentObject.getInt("dopdata");
 
                                                 BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
                                                 sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
