@@ -1,0 +1,15 @@
+MODULE PriceListPromotionSaleLedger;
+REQUIRE PriceListPromotion, SaleLedger;
+NAMESPACE SaleLedger;
+
+isPromotion 'На акции' = DATA BOOLEAN (Sku,Stock,DATE) TABLE soldSkuStockDate;
+
+//-- в планировщик
+
+fillPromotion(DATE df, DATE dt){
+    FOR iterate(DATE date,df,dt) DO NEWSESSION {
+        isPromotion(Sku s,Stock st, date) <- NULL;
+        isPromotion(Sku s,Stock st,date) <-  TRUE WHERE quantitySold(s,st,date) AND promotionPriceListDetailA(s,st,date);
+        APPLY;    
+    }
+}
