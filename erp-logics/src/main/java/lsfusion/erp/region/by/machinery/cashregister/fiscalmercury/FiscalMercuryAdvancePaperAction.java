@@ -9,9 +9,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalMercuryAdvancePaperActionProperty extends InternalAction {
+public class FiscalMercuryAdvancePaperAction extends InternalAction {
 
-    public FiscalMercuryAdvancePaperActionProperty(ScriptingLogicsModule LM) {
+    public FiscalMercuryAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

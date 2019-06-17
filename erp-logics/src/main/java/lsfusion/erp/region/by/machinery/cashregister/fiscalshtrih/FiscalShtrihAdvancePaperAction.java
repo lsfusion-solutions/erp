@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
+package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -10,23 +10,24 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalCasbiXReportActionProperty extends InternalAction {
+public class FiscalShtrihAdvancePaperAction extends InternalAction {
 
-    public FiscalCasbiXReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalShtrihAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
+
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+            int password = pass == null ? 30000 : pass * 1000;
 
-            String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(1, comPort, baudRate));
-            if (result == null) {
-                context.apply();
-            }
-            else
+            String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(3, password, comPort, baudRate));
+            if (result != null)
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }

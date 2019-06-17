@@ -9,9 +9,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalMercuryCutReceiptActionProperty extends InternalAction {
+public class FiscalMercuryCutReceiptAction extends InternalAction {
 
-    public FiscalMercuryCutReceiptActionProperty(ScriptingLogicsModule LM) {
+    public FiscalMercuryCutReceiptAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

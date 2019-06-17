@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.machinery.cashregister.fiscalmercury;
+package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -16,6 +15,7 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -25,10 +25,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalMercuryPrintReceiptActionProperty extends InternalAction {
+public class FiscalShtrihPrintReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalMercuryPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalShtrihPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -47,6 +47,11 @@ public class FiscalMercuryPrintReceiptActionProperty extends InternalAction {
                 context.apply();
                 findAction("createCurrentReceipt[]").execute(context);
             } else {
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+                int password = pass == null ? 30000 : pass * 1000;
+
                 String cashierName = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);
                 cashierName = cashierName == null ? "" : cashierName.trim();
                 String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCard[Receipt]").read(context, receiptObject);
@@ -93,10 +98,10 @@ public class FiscalMercuryPrintReceiptActionProperty extends InternalAction {
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
-                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
+                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail"};
                 LP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
                         "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
-                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]");
+                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -117,21 +122,22 @@ public class FiscalMercuryPrintReceiptActionProperty extends InternalAction {
                     BigDecimal sumReceiptDetail = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
                     BigDecimal discountSumReceiptDetail = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     discountSumReceiptDetail = discountSumReceiptDetail == null ? null : discountSumReceiptDetail.negate();
+                    BigDecimal valueVATReceiptDetail = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name,
-                                sumReceiptDetail, discountSumReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, valueVATReceiptDetail));
                     if (quantity != null && isGiftCard) {
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, valueVATReceiptDetail));
                     }
                     if (quantityReturn != null) {
                         BigDecimal discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn);
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard,
-                                price.add(discount), quantityReturn, barcode,
-                                name, sumReceiptDetail, null));
+                                price, quantityReturn, barcode,
+                                name, sumReceiptDetail, discount, valueVATReceiptDetail));
                     }
                 }
 
@@ -141,9 +147,12 @@ public class FiscalMercuryPrintReceiptActionProperty extends InternalAction {
                     if (context.checkApply()) {
                         Boolean isReturn = receiptReturnItemList.size() > 0;
                         String result = (String) context.requestUserInteraction(
-                                new FiscalMercuryPrintReceiptClientAction(new ReceiptInstance(sumCash, sumCard, sumGiftCard,
-                                        giftCardNumbers, cashierName, holderDiscountCard, numberDiscountCard,
-                                        isReturn ? receiptReturnItemList : receiptSaleItemList), isReturn));
+                                new FiscalShtrihPrintReceiptClientAction(password, comPort, baudRate, isReturn,
+                                        new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
+                                                sumCard == null ? null : sumCard.abs(),
+                                                sumGiftCard == null ? null : sumGiftCard.abs(),
+                                                giftCardNumbers, cashierName, holderDiscountCard, numberDiscountCard,
+                                                isReturn ? receiptReturnItemList : receiptSaleItemList)));
                         if (result == null) {
                             context.apply();
                             findAction("createCurrentReceipt[]").execute(context);

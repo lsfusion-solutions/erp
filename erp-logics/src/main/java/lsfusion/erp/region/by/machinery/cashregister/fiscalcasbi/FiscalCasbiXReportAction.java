@@ -1,18 +1,18 @@
-package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
+package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalShtrihXReportActionProperty extends InternalAction {
+public class FiscalCasbiXReportAction extends InternalAction {
 
-    public FiscalShtrihXReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalCasbiXReportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -20,10 +20,8 @@ public class FiscalShtrihXReportActionProperty extends InternalAction {
         try {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
-            int password = pass==null ? 30000 : pass * 1000;
-            
-            String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(1, password, comPort, baudRate));
+
+            String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(1, comPort, baudRate));
             if (result == null) {
                 context.apply();
             }

@@ -24,10 +24,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalCasbiPrintReceiptActionProperty extends InternalAction {
+public class FiscalCasbiPrintReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalCasbiPrintReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalCasbiPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

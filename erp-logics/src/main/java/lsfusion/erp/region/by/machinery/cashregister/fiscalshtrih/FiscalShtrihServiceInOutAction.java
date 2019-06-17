@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
+package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.ValueClass;
@@ -14,10 +14,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalCasbiServiceInOutActionProperty extends InternalAction {
+public class FiscalShtrihServiceInOutAction extends InternalAction {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalCasbiServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalShtrihServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -30,15 +30,17 @@ public class FiscalCasbiServiceInOutActionProperty extends InternalAction {
 
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+            int password = pass==null ? 30000 : pass * 1000;
+            
             Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalCasbiServiceInOutClientAction(comPort, baudRate, sum));
-                if (result == null){
+                String result = (String) context.requestUserInteraction(new FiscalShtrihServiceInOutClientAction(password, comPort, baudRate, sum));
+                if (result == null) {
                     findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
-                }
-                else
+                } else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 

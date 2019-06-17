@@ -11,9 +11,9 @@ import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 
-public class FiscalDatecsZReportActionProperty extends InternalAction {
+public class FiscalDatecsZReportAction extends InternalAction {
 
-    public FiscalDatecsZReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalDatecsZReportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

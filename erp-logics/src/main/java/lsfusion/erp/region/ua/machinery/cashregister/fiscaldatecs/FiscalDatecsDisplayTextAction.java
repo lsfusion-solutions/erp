@@ -15,10 +15,10 @@ import lsfusion.server.logics.action.session.DataSession;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalDatecsDisplayTextActionProperty extends InternalAction {
+public class FiscalDatecsDisplayTextAction extends InternalAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalDatecsDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalDatecsDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

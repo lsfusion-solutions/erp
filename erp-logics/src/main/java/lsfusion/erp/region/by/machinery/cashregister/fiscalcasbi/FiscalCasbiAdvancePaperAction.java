@@ -10,9 +10,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalCasbiAdvancePaperActionProperty extends InternalAction {
+public class FiscalCasbiAdvancePaperAction extends InternalAction {
 
-    public FiscalCasbiAdvancePaperActionProperty(ScriptingLogicsModule LM) {
+    public FiscalCasbiAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
