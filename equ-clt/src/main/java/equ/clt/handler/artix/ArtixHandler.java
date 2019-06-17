@@ -1142,7 +1142,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
 
                                             String idItem = inventPosition.getString("inventCode");
-                                            String barcodeString = inventPosition.getString("barCode");
+                                            String barcodeString = BaseUtils.trimToNull(inventPosition.getString("barCode"));
                                             int opCode = inventPosition.getInt("opCode");
 
                                             // вот такой вот чит из-за того, что могут ввести код товара в кассе
