@@ -336,7 +336,7 @@ importItems 'Импорт товаров' () {
     LOCAL date = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, bar_cod, dt FROM Pub.barcod WITH (NOLOCK) WHERE NOT cod_good = bar_cod' TO file;
+            EXEC 'SELECT cod_good, bar_cod, dt FROM Pub.barcod WHERE NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, idBarcode, date;
     
@@ -567,7 +567,7 @@ importInit 'Импорт остатков' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT TOP 1000 cod_good, quantityF FROM Pub.art WITH (NOLOCK) WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0)' TO file;
+        EXEC 'SELECT TOP 1000 cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, quantity;
     
@@ -579,7 +579,7 @@ importInit 'Импорт остатков' () {
     LOCAL price = NUMERIC[16,3](Item);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT TOP 1000 cod_good, retail_price FROM Pub.artprice WITH (NOLOCK) WHERE cod_shop = \''+ id(customerStock()) +'\'' TO file;
+        EXEC 'SELECT TOP 1000 cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ id(customerStock()) +'\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, price;
     
@@ -597,8 +597,8 @@ importInit 'Импорт остатков' () {
     FOR quantity(Item s) DO {
     
         EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT TOP 1 pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 WITH (NOLOCK) LEFT JOIN Pub.pr1 WITH (NOLOCK) ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
-            + id(customerStock()) +'\'AND pr2.cod_good = \'' + id(s) + '\' ORDER BY pr2.dt_nakl DESC' TO file;
+            EXEC 'SELECT TOP 1 pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
+            + id(customerStock()) +'\'AND pr2.cod_good = \'' + id(s) + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
             
         IMPORT TABLE FROM file() TO idItem, date, number, cost, idSupplier, time;
         
