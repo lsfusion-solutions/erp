@@ -1,6 +1,6 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeCheck, 
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
         PurchaseInvoice, PurchaseShipment, PricingPurchase;
 
 host 'Хост' = DATA ISTRING[30]();
@@ -536,10 +536,18 @@ importRange 'Импорт ассортиментных матриц' () {
     
     IMPORT TABLE FROM file() TO idRange, idItem;
     
+    IF NOT rangeLevel('1') THEN NEW l = RangeLevel {
+        name(l) <- '1';
+    }
+    
+    FOR [GROUP SUM 1 BY range(TEXT (idRange(INTEGER i)))](Range.Range r) DO {
+        in(r, RangeLevel l) <- l == rangeLevel('1');
+        inData(r, ItemGroup g) <- g == itemGroup('all');
+    }
+    
     FOR Item sk = sku(TEXT (idItem(INTEGER i))) AND RangeRev r = [GROUP LAST RangeRev rr BY range(rr)](range(TEXT (idRange(i)))) DO {
     
-        include(r, Store st, sk) <- in(range(r), st);
-        inData(Range.Range rr, ItemGroup g) <- TRUE WHERE rr = range(r) AND g == itemGroup(sk);
+        level(r, sk) <- rangeLevel('1');
     }
     APPLY;
 }
@@ -552,7 +560,7 @@ nameCustomerStock 'Склад' () = name(customerStock());
 
 CONSTRAINT customerStock() AND NOT isCompany(legalEntity(customerStock())) CHECKED BY customerStock[] MESSAGE 'Склад не компании';
 
-importInit 'Импорт статков' () {
+importInit 'Импорт остатков' () {
     
     LOCAL quantity = NUMERIC[16,3](INTEGER);
     LOCAL quantity = NUMERIC[16,3](Item);
