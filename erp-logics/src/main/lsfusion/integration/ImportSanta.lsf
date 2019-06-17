@@ -521,7 +521,7 @@ importRange 'Импорт ассортиментных матриц' () {
     
     FOR Range.Range r = range(TEXT (id(INTEGER i))) DO {
         name(r) <- name(i);
-        in(r, Store s) <- TRUE WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, 50) BY getWord(stores(i), ',', j)](id(s));
+        in(r, Store s) <- TRUE WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](id(s));
         
         IF NOT [GROUP SUM 1 BY range(RangeRev rr)](r) THEN NEW rr = RangeRev {
             range(rr) <- r;
@@ -545,10 +545,16 @@ importRange 'Импорт ассортиментных матриц' () {
         inData(r, ItemGroup g) <- g == itemGroup('all');
     }
     
+    LOCAL in = BOOLEAN (RangeRev, Item);
+    
     FOR Item sk = sku(TEXT (idItem(INTEGER i))) AND RangeRev r = [GROUP LAST RangeRev rr BY range(rr)](range(TEXT (idRange(i)))) DO {
     
         level(r, sk) <- rangeLevel('1');
+        in(r, sk) <- TRUE;
     }
+    
+    level(RangeRev r, Item s) <- NULL WHERE r IS RangeRev AND s IS Item AND NOT in(r, s);
+    
     APPLY;
 }
 
@@ -567,7 +573,7 @@ importInit 'Импорт остатков' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT TOP 1000 cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, quantity;
     
@@ -650,5 +656,101 @@ DESIGN integrationData {
             MOVE PROPERTY (nameCustomerStock()) { alignment = CENTER; }
         } 
         
+    } 
+}
+
+daysSupplier 'Кол-во дней для импорта прайсов поставщика' = DATA INTEGER ();
+dateFromS () = sum(currentDate(), -daysSupplier());
+dateFromST () = toDateDDMMYY(dateFromS());
+
+EXTEND FORM integrationData PROPERTIES () daysSupplier;
+
+importPriceListSupplier 'Импорт прайсов поставщика' () {
+    
+    LOCAL number = ISTRING[50] (INTEGER);
+    LOCAL begin = DATE (INTEGER);
+    LOCAL end = DATE (INTEGER);
+    LOCAL idContract = INTEGER (INTEGER);
+    LOCAL idMainContract = INTEGER (INTEGER);
+    LOCAL idCompany = INTEGER (INTEGER);
+    LOCAL idStockGroup = INTEGER (INTEGER);
+    LOCAL idStocks = ISTRING[1000] (INTEGER);
+    LOCAL note = ISTRING[255] (INTEGER);
+    LOCAL closed = ISTRING[1] (INTEGER);
+    LOCAL paymentDelay = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND spec1.DateSpec >= TO_DATE(\''
+            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO id, number, begin, end, idContract, idMainContract, idCompany, idStockGroup, idStocks, note, closed;
+    
+    FOR id(INTEGER i) AND NOT userPriceList(TEXT (id(i))) DO NEW p = UserPriceList {
+        id(p) <- ISTRING[100](id(i));
+    }
+    
+    FOR UserPriceList p == userPriceList(TEXT (id(INTEGER i))) DO {
+        
+        operation(p) <- PriceList.operation('supplier');
+        number(p) <- ISTRING[28] (number(i));
+        date(p) <- begin(i);
+        time(p) <- 00:00;
+        isPosted(p) <- TRUE;
+        isClosed(p) <- closed(i) == '$';
+        fromDate(p) <- begin(i);
+        fromTime(p) <- 00:00;
+        toDate(p) <- end(i);
+        company(p) <- legalEntity(TEXT (idCompany(i)));
+        note(p) <- note(i);
+        allStocks(p) <- NULL;
+        imported(p) <- TRUE;
+        dataIn(p, StoreType g) <- TRUE IF g == stockGroup(TEXT (idStockGroup(i))) AND NOT idStocks(i) != '';
+        
+        FOR Stock st = stock(getWord(idStocks(i), ',', INTEGER j)) AND iterate(j, 1, wordCount(idStocks(i), ',')) DO {
+            dataIn(p, st) <- TRUE;
+        }
+    }
+    
+    LOCAL index = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[16,3](INTEGER);
+    LOCAL idPriceList = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, NumPos, PriceDoc, ct_spec FROM Pub.spec2 WHERE spec2.DateSpec >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, index, price, idPriceList;
+    
+    LOCAL idDetail = ISTRING[100](INTEGER);
+    idDetail(INTEGER i) <- CONCAT '-', idItem(i), index(i) WHERE imported(i); 
+    
+    FOR userPriceList(TEXT (idPriceList(INTEGER i))) AND NOT userPriceListDetail(idDetail(i), userPriceList(TEXT (idPriceList(i)))) DO NEW d = UserPriceListDetail {
+        id(d) <- idDetail(i);
+        userPriceList(d) <- userPriceList(TEXT (idPriceList(i)));
+    }
+    
+    FOR UserPriceListDetail d = userPriceListDetail(idDetail(INTEGER i), userPriceList(TEXT (idPriceList(i)))) DO {
+        sku(d) <- item(TEXT (idItem(i)));
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
+        dataIndex(d) <- index(i);
+        imported(d) <- TRUE;
+    }
+    
+    DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
+    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromS() AND id(operation(d)) == 'supplier' AND NOT imported(d);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
+DESIGN integrationData { 
+    santaButtons { 
+        NEW supermagSup {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPriceListSupplier());
+            MOVE PROPERTY (daysSupplier()) { caption = 'Кол-во дней'; alignment = CENTER; }
+        } 
     } 
 }
