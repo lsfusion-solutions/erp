@@ -37,7 +37,8 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
             File file = readImage((String) urlObject.object);
             if (file != null) {
                 findProperty("image[Article]").change(new RawFileData(file), context, articleObject);
-                file.delete();
+                if(!file.delete())
+                    file.deleteOnExit();
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             e.printStackTrace();

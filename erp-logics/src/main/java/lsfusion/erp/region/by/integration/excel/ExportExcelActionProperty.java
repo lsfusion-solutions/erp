@@ -48,7 +48,8 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         workbook.close();
 
         RawFileData result = new RawFileData(file);
-        file.delete();
+        if(!file.delete())
+            file.deleteOnExit();
         return result;
     }
 
