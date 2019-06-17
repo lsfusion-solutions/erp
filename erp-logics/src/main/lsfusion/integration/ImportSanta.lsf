@@ -1,6 +1,7 @@
 MODULE ImportSanta;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeCheck;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeCheck, 
+        PurchaseInvoice, PurchaseShipment, PricingPurchase;
 
 host 'Хост' = DATA ISTRING[30]();
 port 'Порт' = DATA ISTRING[10]();
@@ -545,3 +546,101 @@ importRange 'Импорт ассортиментных матриц' () {
 
 EXTEND FORM integrationData PROPERTIES importRange();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importRange()); } }
+
+customerStock = DATA Stock();
+nameCustomerStock 'Склад' () = name(customerStock());
+
+CONSTRAINT customerStock() AND NOT isCompany(legalEntity(customerStock())) CHECKED BY customerStock[] MESSAGE 'Склад не компании';
+
+importInit 'Импорт статков' () {
+    
+    LOCAL quantity = NUMERIC[16,3](INTEGER);
+    LOCAL quantity = NUMERIC[16,3](Item);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT TOP 1000 cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0)' TO file;
+    
+    IMPORT TABLE FROM file() TO id, quantity;
+    
+    FOR Item s = sku(TEXT (id(INTEGER i))) DO {
+        quantity(s) <- quantity(i);
+    }
+    
+    LOCAL price = NUMERIC[16,3](INTEGER);
+    LOCAL price = NUMERIC[16,3](Item);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT TOP 1000 cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ id(customerStock()) +'\'' TO file;
+    
+    IMPORT TABLE FROM file() TO id, price;
+    
+    FOR Item s = sku(TEXT (id(INTEGER i))) AND price(i) > 0 DO {
+        price(s) <- price(i);
+    }
+    
+    LOCAL date = DATE (INTEGER);
+    LOCAL number = INTEGER (INTEGER);
+    LOCAL cost = NUMERIC[16,3](INTEGER);
+    LOCAL idSupplier = INTEGER (INTEGER);
+    LOCAL time = INTEGER (INTEGER);
+    LOCAL idDetail = ISTRING[100](INTEGER);
+    
+    FOR quantity(Item s) DO {
+    
+        EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT TOP 1 pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
+            + id(customerStock()) +'\'AND pr2.cod_good = \'' + id(s) + '\' ORDER BY pr2.dt_nakl DESC' TO file;
+            
+        IMPORT TABLE FROM file() TO idItem, date, number, cost, idSupplier, time;
+        
+        IF NOT Purchase.userInvoice(TEXT (number(0))) THEN NEW i = Purchase.UserInvoice {
+            id(i) <- ISTRING[100](number(0));
+        }
+        FOR Purchase.UserInvoice i == Purchase.userInvoice(TEXT (number(0))) DO {       
+            supplier(i) <- OVERRIDE legalEntity(TEXT (idSupplier(0))), legalEntity(customerStock());
+            supplierStock(i) <- IF legalEntity(TEXT (idSupplier(0))) THEN minStock(legalEntity(TEXT (idSupplier(0)))) ELSE stock(TEXT (idSupplier(0)));
+            customer(i) <- legalEntity(customerStock());
+            customerStock(i) <- customerStock();
+            number(i) <- ISTRING[28](number(0));
+            date(i) <- date(0);
+            time(i) <- sumSeconds(00:00, time(0));
+            isPosted(i) <- TRUE;
+            operation(i) <- Purchase.operation('initial');
+            createShipment(i) <- createShipment(Purchase.operation('initial')); 
+            createPricing(i) <- createPricing(Purchase.operation('initial')); 
+            isClosed(i) <- TRUE;
+        }
+        
+        idDetail(INTEGER i) <- CONCAT '-', idItem(i), number(i) WHERE imported(i);
+        
+        IF NOT Purchase.userInvoiceDetail(idDetail(0)) THEN NEW d = Purchase.UserInvoiceDetail {
+            id(d) <- idDetail(0);
+        } 
+        
+        FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) INLINE DO {
+            userInvoice(d) <- Purchase.userInvoice(TEXT (number(0)));
+            sku(d) <- s;
+            quantity(d) <- quantity(0);
+            shipmentQuantity(d) <- quantity(0);
+            VAT(d) <- VAT(s); 
+            retailVAT(d) <- VAT(s);
+            price(d) <- NUMERIC[16,4](cost(0));
+            retailPrice(d) <- NUMERIC[16,4](price(s));
+            shipmentPrice(d) <- NUMERIC[16,4](OVERRIDE cost(0), price(s));
+        }
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () nameCustomerStock, importInit;
+DESIGN integrationData { 
+    santaButtons { 
+        NEW importInit {
+            type = CONTAINERH;
+            MOVE PROPERTY (nameCustomerStock());
+            MOVE PROPERTY (importInit());
+        } 
+        
+    } 
+}
