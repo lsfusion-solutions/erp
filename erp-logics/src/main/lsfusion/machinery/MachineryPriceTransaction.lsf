@@ -976,10 +976,11 @@ DESIGN options {
 
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
+    conditionBanTransaction = ABSTRACT BOOLEAN (###document);
     createMachineryPriceTransaction 'Загрузить в оборудование'(###document document)  { 
 	NEWSESSION {
 	        IF is(document) THEN
-	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
+	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF (isDraft(document) OR NOT (dateTime(document) <= currentDateTime())) AND NOT conditionBanTransaction(document) DO { 
 	                IF snapshotDocumentMachineryPriceTransaction() THEN
 	                    createMachineryPriceTransactionSnapshot() <- TRUE;
 	                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
@@ -998,7 +999,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
     createSnapshotMachineryPriceTransaction 'Перегрузить все позиции'(###document document)  { 
 	NEWSESSION {
 	        IF is(document) THEN
-	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
+	            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF (isDraft(document) OR NOT (dateTime(document) <= currentDateTime())) AND NOT conditionBanTransaction(document) DO { 
 	                createMachineryPriceTransactionSnapshot() <- TRUE;
 	                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
 	                createMachineryPriceTransactionDocument() <- document;
