@@ -507,7 +507,6 @@ range = GROUP MAX Range.Range r BY id(r);
 importRange 'Импорт ассортиментных матриц' () {
     
     LOCAL stores = TEXT (INTEGER);
-    LOCAL in = BOOLEAN (Range.Range, Store);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
@@ -515,13 +514,19 @@ importRange 'Импорт ассортиментных матриц' () {
     
     IMPORT TABLE FROM file() TO id, name, stores;
     
+    IF NOT rangeLevel('1') THEN NEW l = RangeLevel {
+        name(l) <- '1';
+    }
+    
     FOR id(INTEGER i) AND NOT range(TEXT (id(i))) DO NEW r = Range.Range {
         id(r) <- ISTRING[100](id(i));
     }
     
     FOR Range.Range r = range(TEXT (id(INTEGER i))) DO {
         name(r) <- name(i);
-        in(r, Store s) <- TRUE WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](id(s));
+        in(r, RangeLevel l) <- l == rangeLevel('1');
+        inData(r, ItemGroup g) <- g == itemGroup('all');
+        dataLevel(r, Store s, DATE d) <- rangeLevel('1') WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](id(s)) AND d = 2019_01_01;
         
         IF NOT [GROUP SUM 1 BY range(RangeRev rr)](r) THEN NEW rr = RangeRev {
             range(rr) <- r;
@@ -536,24 +541,15 @@ importRange 'Импорт ассортиментных матриц' () {
     
     IMPORT TABLE FROM file() TO idRange, idItem;
     
-    IF NOT rangeLevel('1') THEN NEW l = RangeLevel {
-        name(l) <- '1';
-    }
-    
-    FOR [GROUP SUM 1 BY range(TEXT (idRange(INTEGER i)))](Range.Range r) DO {
-        in(r, RangeLevel l) <- l == rangeLevel('1');
-        inData(r, ItemGroup g) <- g == itemGroup('all');
-    }
-    
-    LOCAL in = BOOLEAN (RangeRev, Item);
+    LOCAL imported = BOOLEAN (RangeRev, Item);
     
     FOR Item sk = sku(TEXT (idItem(INTEGER i))) AND RangeRev r = [GROUP LAST RangeRev rr BY range(rr)](range(TEXT (idRange(i)))) DO {
     
         level(r, sk) <- rangeLevel('1');
-        in(r, sk) <- TRUE;
+        imported(r, sk) <- TRUE;
     }
     
-    level(RangeRev r, Item s) <- NULL WHERE r IS RangeRev AND s IS Item AND NOT in(r, s);
+    level(RangeRev r, Item s) <- NULL WHERE r IS RangeRev AND s IS Item AND NOT imported(r, s);
     
     APPLY;
 }
