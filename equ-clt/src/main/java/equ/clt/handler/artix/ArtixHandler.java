@@ -686,7 +686,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     if (!document.isEmpty()) {
                                         JSONObject documentObject = new JSONObject(document + "}");
                                         if (documentObject.getInt("docType") == 16) {
-                                            Timestamp dateTimeReceipt = new Timestamp(parseDateTime(documentObject.getString("timeEnd")));
+                                            Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
+                                            Timestamp dateTimeReceipt = timeEnd != null ? new Timestamp(timeEnd) : null;
                                             JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
                                             for (int i = 0; i < inventPositionsArray.length(); i++) {
                                                 JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
@@ -800,12 +801,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
 
-                                                long dateTimeCashDocument = parseDateTime(documentObject.getString("timeEnd"));
-                                                Date dateCashDocument = new Date(dateTimeCashDocument);
-                                                Time timeCashDocument = new Time(dateTimeCashDocument);
+                                                Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
+                                                Date dateCashDocument = timeEnd != null ? new Date(timeEnd) : null;
+                                                Time timeCashDocument = timeEnd != null ? new Time(timeEnd) : null;
 
                                                 if (cashRegister.number.equals(numberCashRegister)) {
-                                                    if (cashRegister.startDate == null || dateCashDocument.compareTo(cashRegister.startDate) >= 0) {
+                                                    if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + dopData;
                                                         cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
                                                                 cashRegister.numberGroup, numberCashRegister, null, sumCashDocument, idEmployee));
@@ -1028,7 +1029,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                     String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                     BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
-                                    Object timeBeg = documentObject.get("timeBeg");
 
                                     JSONArray kkms = documentObject.getJSONArray("kkms");
                                     BigDecimal sumProtectedEnd = null;
@@ -1038,12 +1038,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         sumProtectedEnd = getBigDecimal(kkmsObject, "sumProtectedEnd");
                                         sumBack = getBigDecimal(kkmsObject, "sumBack");
                                     }
-                                    
-                                    if (timeBeg instanceof String && !timeBeg.equals("null")) {
-                                        long timestamp = parseDateTime((String) timeBeg);
 
+                                    Long timeBeg = parseDateTime(documentObject.get("timeBeg"));
+                                    if (timeBeg != null) {
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, new ZReportInfo(sumGain, sumProtectedEnd, sumBack));
-                                        dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timestamp);
+                                        dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timeBeg);
                                     }
                                 }
                             }
@@ -1070,9 +1069,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
 
-                                        long dateTimeReceipt = parseDateTime(documentObject.getString("timeEnd"));
-                                        Date dateReceipt = new Date(dateTimeReceipt);
-                                        Time timeReceipt = new Time(dateTimeReceipt);
+                                        Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
+                                        Date dateReceipt = timeEnd != null ? new Date(timeEnd) : null;
+                                        Time timeReceipt = timeEnd != null ? new Time(timeEnd) : null;
 
                                         Long dateTimeShift = dateTimeShiftMap.get(numberCashRegister + "/" + numberZReport);
                                         Date dateZReport = dateTimeShift == null ? dateReceipt : new Date(dateTimeShift);
@@ -1325,8 +1324,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         }
     }
 
-    private long parseDateTime(String value) throws ParseException {
-        return new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime();
+    private Long parseDateTime(Object value) throws ParseException {
+        return value instanceof String && !value.equals("null") ? new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse((String) value).getTime() : null;
     }
 
     private String formatTimestamp(Timestamp date) {
