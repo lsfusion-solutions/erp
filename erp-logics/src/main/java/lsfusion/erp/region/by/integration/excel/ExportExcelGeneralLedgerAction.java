@@ -25,11 +25,11 @@ import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionProperty {
+public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
-    public ExportExcelGeneralLedgerActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ExportExcelGeneralLedgerAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -37,7 +37,7 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
         dateToInterface = i.next();
     }
 
-    public ExportExcelGeneralLedgerActionProperty(ScriptingLogicsModule LM, ClassPropertyInterface dateFrom, ClassPropertyInterface dateTo) {
+    public ExportExcelGeneralLedgerAction(ScriptingLogicsModule LM, ClassPropertyInterface dateFrom, ClassPropertyInterface dateTo) {
         super(LM, DateClass.instance, DateClass.instance);
 
         dateFromInterface = dateFrom;

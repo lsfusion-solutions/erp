@@ -26,11 +26,11 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProperty {
+public class ExportExcelUserInvoicesAction extends ExportExcelAction {
     private final ClassPropertyInterface dateFromInterface;
     private final ClassPropertyInterface dateToInterface;
 
-    public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ExportExcelUserInvoicesAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -38,7 +38,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
         dateToInterface = i.next();
     }
 
-    public ExportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM, ClassPropertyInterface dateFrom, ClassPropertyInterface dateTo) {
+    public ExportExcelUserInvoicesAction(ScriptingLogicsModule LM, ClassPropertyInterface dateFrom, ClassPropertyInterface dateTo) {
         super(LM, DateClass.instance, DateClass.instance);
 
         dateFromInterface = dateFrom;

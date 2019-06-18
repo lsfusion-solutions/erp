@@ -19,9 +19,9 @@ import lsfusion.server.logics.action.session.DataSession;
 import java.io.IOException;
 import java.util.*;
 
-public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionProperty {
+public class ExportExcelLegalEntitiesAction extends ExportExcelAction {
 
-    public ExportExcelLegalEntitiesActionProperty(ScriptingLogicsModule LM) {
+    public ExportExcelLegalEntitiesAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

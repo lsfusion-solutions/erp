@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public abstract class ExportExcelActionProperty extends DefaultIntegrationActionProperty {
+public abstract class ExportExcelAction extends DefaultIntegrationActionProperty {
     
     public abstract Pair<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 
@@ -53,7 +53,7 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
         return result;
     }
 
-    public ExportExcelActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ExportExcelAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

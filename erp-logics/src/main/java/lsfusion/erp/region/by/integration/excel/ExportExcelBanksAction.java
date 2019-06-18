@@ -21,9 +21,9 @@ import lsfusion.server.logics.action.session.DataSession;
 import java.io.IOException;
 import java.util.*;
 
-public class ExportExcelBanksActionProperty extends ExportExcelActionProperty {
+public class ExportExcelBanksAction extends ExportExcelAction {
 
-    public ExportExcelBanksActionProperty(ScriptingLogicsModule LM) {
+    public ExportExcelBanksAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

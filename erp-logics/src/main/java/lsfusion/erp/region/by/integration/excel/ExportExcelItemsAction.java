@@ -25,9 +25,9 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.util.*;
 
-public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
+public class ExportExcelItemsAction extends ExportExcelAction {
 
-    public ExportExcelItemsActionProperty(ScriptingLogicsModule LM) {
+    public ExportExcelItemsAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

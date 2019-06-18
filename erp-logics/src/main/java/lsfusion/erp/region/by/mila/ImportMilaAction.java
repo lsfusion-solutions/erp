@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class ImportMilaActionProperty extends InternalAction {
+public class ImportMilaAction extends InternalAction {
 
     protected final ClassPropertyInterface fullInfoInterface;
 
@@ -38,7 +38,7 @@ public class ImportMilaActionProperty extends InternalAction {
     int maxGoods = 0;                       // Ограничение на количество товаров на странице, 0 - все
     ioFile ioFile = new ioFile();           // Для записи результатов
 
-    public ImportMilaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportMilaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

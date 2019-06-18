@@ -31,16 +31,16 @@ public class ExportExcelAllActionProperty extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Pair<String, RawFileData> generalLedgerEntry = new ExportExcelGeneralLedgerActionProperty(LM, dateFromInterface, dateToInterface).createFile(context);
+            Pair<String, RawFileData> generalLedgerEntry = new ExportExcelGeneralLedgerAction(LM, dateFromInterface, dateToInterface).createFile(context);
             context.delayUserInteraction(new WriteClientAction(generalLedgerEntry.second, generalLedgerEntry.first, "xls", false, true));
 
-            Pair<String, RawFileData> legalEntityEntry = new ExportExcelLegalEntitiesActionProperty(LM).createFile(context);
+            Pair<String, RawFileData> legalEntityEntry = new ExportExcelLegalEntitiesAction(LM).createFile(context);
             context.delayUserInteraction(new WriteClientAction(legalEntityEntry.second, legalEntityEntry.first, "xls", false, true));
 
-            Pair<String, RawFileData> itemEntry = new ExportExcelItemsActionProperty(LM).createFile(context);
+            Pair<String, RawFileData> itemEntry = new ExportExcelItemsAction(LM).createFile(context);
             context.delayUserInteraction(new WriteClientAction(itemEntry.second, itemEntry.first, "xls", false, true));
 
-            Pair<String, RawFileData> userInvoiceEntry = new ExportExcelUserInvoicesActionProperty(LM, dateFromInterface, dateToInterface).createFile(context);
+            Pair<String, RawFileData> userInvoiceEntry = new ExportExcelUserInvoicesAction(LM, dateFromInterface, dateToInterface).createFile(context);
             context.delayUserInteraction(new WriteClientAction(userInvoiceEntry.second, userInvoiceEntry.first, "xls", false, true));
 
         } catch (IOException | WriteException e) {
