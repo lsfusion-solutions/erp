@@ -427,6 +427,7 @@ importLegalEntity 'Импорт организаций' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL juname = ISTRING[255] (INTEGER);
     LOCAL shortName = ISTRING[255] (INTEGER);
     LOCAL inn = ISTRING[20] (INTEGER);
     LOCAL address = ISTRING[255] (INTEGER);
@@ -462,8 +463,8 @@ importLegalEntity 'Импорт организаций' () {
     }
     
     FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
-        fullName(s) <- ISTRING[200] (name(i));
-        name(s) <- ISTRING[150] (OVERRIDE shortName(i), name(i));
+        fullName(s) <- ISTRING[200] (OVERRIDE shortName(i), name(i));
+        name(s) <- ISTRING[150] (name(i));
         UNP(s) <- left(inn(i), 9);
         
         IF NOT address(s, currentDate()) == address(i) THEN {
@@ -1512,7 +1513,7 @@ DESIGN userContractSku {
 
 userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
 
-paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 0 
+paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
     AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
 
 importContract 'Импорт договоров' () {
@@ -1531,7 +1532,7 @@ importContract 'Импорт договоров' () {
     
     FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == '3' DO {
         note(c) <- STRING[100](value(i));
-        currency(c) <- defaultCurrency();
+        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();
         type(c) <- ContractSkuType.sale;
         TRY { dateFrom(c) <- OVERRIDE toDateFormat((left(trim(getWord(value(i), 'от', 2)), 10)), 'DD.MM.YYYY'), 2001_01_01; }
         CATCH { dateFrom(c) <- 2001_01_01; }
@@ -1560,7 +1561,7 @@ importContract 'Импорт договоров' () {
         
         NEW pp = PaymentPeriod {
             paymentCondition(pp) <- p;
-            percent(pp) <- 0;
+            percent(pp) <- 100;
             countDays(pp) <- d;
         }
     }
