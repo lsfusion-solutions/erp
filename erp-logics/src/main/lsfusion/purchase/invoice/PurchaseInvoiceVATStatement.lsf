@@ -127,12 +127,12 @@ tax_department(Invoice i) = tax() IF i IS Invoice;
 
 order(InvoiceDetail id)=index(id); 
 comm_name(InvoiceDetail id)=nameSku(id);
-tnved(InvoiceDetail id) = codeCustomsGroup(id); 
+tnved(InvoiceDetail id) = IF valueVATStatement(id) = 20 THEN '' ELSE codeCustomsGroup(id); 
 unit_meas_id(InvoiceDetail id)=  CASE WHEN shortNameUOMSku(id) = 'ШТ' THEN '796'
                                                       WHEN shortNameUOMSku(id) = 'КГ' THEN '166'
                                                       ELSE '796'; 
-comm_count(InvoiceDetail id) = quantity(id); 
-comm_price(InvoiceDetail id)=NUMERIC[18,2](round2(sum(id)));
+comm_count(InvoiceDetail id) = shipmentQuantity(id); 
+comm_price(InvoiceDetail id)=NUMERIC[18,2](round2(sum(id)*shipmentQuantity(id)/quantity(id)));
 sidCurrency(InvoiceDetail id) =sid(currency(invoice(id)));
 //rate(InvoiceDetail id)=rateExchange(id); 
 rate(InvoiceDetail id)=rateOn(typeExchange(invoice(id)), currency(invoice(id)), shipmentDate(id))*(IF shortName(currency(invoice(id))) = 'RUB' THEN 100 ELSE 1);
