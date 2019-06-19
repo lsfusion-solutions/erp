@@ -678,8 +678,8 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND spec1.DateEnd >= TO_DATE(\''
-            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') WITH (NOLOCK)' TO file;
+        EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
+            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, number, begin, end, idContract, idMainContract, idCompany, idStockGroup, idStocks, note, closed;
     
@@ -715,7 +715,8 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, NumPos, PriceDoc, ct_spec FROM Pub.spec2 WHERE spec2.DateEnd >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') WITH (NOLOCK)' TO file;
+            EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec FROM Pub.spec2, Pub.spec1 WHERE spec1.ct_spec = spec2.ct_spec AND (spec1.DateEnd >= TO_DATE(\'' 
+            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, index, price, idPriceList;
     
@@ -735,7 +736,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     }
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
-    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromS() AND id(operation(d)) == 'supplier' AND NOT imported(d);
+    DELETE UserPriceListDetail d WHERE toDate(d) >= dateFromS() AND id(operation(d)) == 'supplier' AND NOT imported(d);
     
     APPLY;
 }
