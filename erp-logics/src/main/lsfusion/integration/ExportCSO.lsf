@@ -28,6 +28,9 @@ GROUP items:Put;
 GROUP Message EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' :items;
 GROUP itemO EXTID 'Item';
 
+skipCSO = ABSTRACT BOOLEAN (Item);
+activeCSO (Item i) = active(i) AND NOT skipCSO(i);
+
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
      
     PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -48,7 +51,7 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  =id(customGroup(type, i)) EXTID 'NodeId' IN itemO
                     
     FILTERS customGroup(type, i), 
-            active(i),
+            activeCSO(i),
             isCSO(type) 
 ;
 httpHeadersAHO(TEXT name) = CASE
@@ -106,7 +109,7 @@ FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envel
     PROPERTIES (ii,int) Description, LanguageId
     FILTERS iterate(int,1,countDescription(ii)), ii==i                    
     FILTERS customGroup(type, i), 
-            active(i),
+            activeCSO(i),
             isCSO(type)
 ; 
 httpHeadersAM(TEXT name) = CASE
@@ -158,7 +161,7 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
     PROPERTIES  IN ArticleDocumentData    =image(i) EXTID 'Object'    
     FILTERS customGroup(type, i), 
-            active(i),
+            activeCSO(i),
             isCSO(type)       
 ; 
 
