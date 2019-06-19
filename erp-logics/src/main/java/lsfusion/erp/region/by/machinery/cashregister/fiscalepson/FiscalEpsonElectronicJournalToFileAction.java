@@ -11,9 +11,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonElectronicJournalToFileActionProperty extends InternalAction {
+public class FiscalEpsonElectronicJournalToFileAction extends InternalAction {
 
-    public FiscalEpsonElectronicJournalToFileActionProperty(ScriptingLogicsModule LM) {
+    public FiscalEpsonElectronicJournalToFileAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -16,10 +16,10 @@ import java.util.Iterator;
 
 import static lsfusion.base.BaseUtils.trim;
 
-public class FiscalEpsonResetReceiptActionProperty extends InternalAction {
+public class FiscalEpsonResetReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalEpsonResetReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalEpsonResetReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

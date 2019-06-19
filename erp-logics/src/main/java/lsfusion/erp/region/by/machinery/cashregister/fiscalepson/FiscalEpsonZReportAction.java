@@ -7,26 +7,29 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonXReportActionProperty extends InternalAction {
+public class FiscalEpsonZReportAction extends InternalAction {
 
-    public FiscalEpsonXReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalEpsonZReportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
+            DataSession session = context.getSession();
+
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-
-            String result = (String) context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(1, comPort, baudRate));
-            if (result == null) {
-                context.apply();
+            
+            if (context.checkApply()) {
+               String result = (String)context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(2, comPort, baudRate));
+                if (result != null)
+                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            else
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            findAction("closeCurrentZReport[]").execute(session, context.stack);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }

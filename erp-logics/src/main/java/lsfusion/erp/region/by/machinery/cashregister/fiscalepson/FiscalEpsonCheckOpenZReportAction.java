@@ -15,10 +15,10 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.Iterator;
 
-public class FiscalEpsonCheckOpenZReportActionProperty extends InternalAction {
+public class FiscalEpsonCheckOpenZReportAction extends InternalAction {
     private final ClassPropertyInterface zReportInterface;
 
-    public FiscalEpsonCheckOpenZReportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalEpsonCheckOpenZReportAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -8,9 +8,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class CreateExcelTemplateDepartmentStoresActionProperty extends CreateExcelTemplateActionProperty {
+public class CreateExcelTemplateDepartmentStoresAction extends CreateExcelTemplateAction {
 
-    public CreateExcelTemplateDepartmentStoresActionProperty(ScriptingLogicsModule LM) {
+    public CreateExcelTemplateDepartmentStoresAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

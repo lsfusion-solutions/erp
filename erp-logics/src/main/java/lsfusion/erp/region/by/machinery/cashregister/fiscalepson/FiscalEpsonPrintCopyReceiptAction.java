@@ -12,9 +12,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonPrintCopyReceiptActionProperty extends InternalAction {
+public class FiscalEpsonPrintCopyReceiptAction extends InternalAction {
 
-    public FiscalEpsonPrintCopyReceiptActionProperty(ScriptingLogicsModule LM) {
+    public FiscalEpsonPrintCopyReceiptAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

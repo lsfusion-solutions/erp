@@ -13,10 +13,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalEpsonCancelReceiptActionProperty extends InternalAction {
+public class FiscalEpsonCancelReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalEpsonCancelReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalEpsonCancelReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

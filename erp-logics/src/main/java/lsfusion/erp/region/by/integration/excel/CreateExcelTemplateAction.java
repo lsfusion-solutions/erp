@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public abstract class CreateExcelTemplateActionProperty extends InternalAction {
+public abstract class CreateExcelTemplateAction extends InternalAction {
 
     public abstract Pair<String, RawFileData> createFile() throws IOException, WriteException;
 
@@ -56,7 +56,7 @@ public abstract class CreateExcelTemplateActionProperty extends InternalAction {
         return Pair.create(fileName, new RawFileData(file));
     }
 
-    public CreateExcelTemplateActionProperty(ScriptingLogicsModule LM) {
+    public CreateExcelTemplateAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
