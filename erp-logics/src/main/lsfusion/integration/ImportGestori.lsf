@@ -772,3 +772,82 @@ DESIGN integrationData {
         } 
     } 
 }
+
+dateFromOrder 'Дата с' = DATA DATE ();
+
+importOrder 'Импорт заказов' () {
+    
+    LOCAL date = DATE (INTEGER);
+    LOCAL date2 = DATE (INTEGER);
+    LOCAL closed = BOOLEAN (INTEGER);
+    LOCAL idSupplier = INTEGER (INTEGER);
+    LOCAL idStock = INTEGER (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT num_nakl, dt_doc, dt_nakl, fflag, cod_firm, cod_shop, primech FROM Pub.zakp1 WHERE zakp1.dt_doc >= TO_DATE(\'' 
+            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
+            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\')) WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO id, date, date2, closed, idSupplier, idStock, comment;
+    
+    FOR id(INTEGER i) AND NOT userOrder(TEXT (id(i))) DO NEW o = UserOrder {
+        id(o) <- ISTRING[100](id(i));
+    }
+    
+    FOR UserOrder o == userOrder(TEXT (id(INTEGER i))) DO {
+        
+        number(o) <- ISTRING[28](id(i));
+        operation(o) <- Purchase.operation('purchaseStoreSupplier');
+        isPosted(o) <- closed(i);
+        supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
+        supplierStock(o) <- minStock(legalEntity(ISTRING[100] (idSupplier(i))));
+        customerStock(o) <- stock(ISTRING[100] (idStock(i)));
+        customer(o) <- legalEntity(stock(ISTRING[100] (idStock(i))));
+        date(o) <- OVERRIDE date(i), date2(i);
+        time(o) <- 00:00;
+        shipmentDate(o) <- date2(i);
+    }
+    
+    LOCAL idItem = INTEGER (INTEGER);
+    LOCAL quantity = NUMERIC[16,3] (INTEGER);
+    LOCAL price = NUMERIC[16,3] (INTEGER);
+    LOCAL index = INTEGER (INTEGER);
+    LOCAL idOrder = INTEGER (INTEGER);
+    LOCAL idDetail = ISTRING[100](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, quantity_f, retail_price, nn, zakp2.num_nakl FROM Pub.zakp2, Pub.zakp1 WHERE zakp1.num_nakl = zakp2.num_nakl AND quantity > 0 AND (zakp1.dt_doc >= TO_DATE(\'' 
+            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
+            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\'))) WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO idItem, quantity, price, index, idOrder;
+
+    idDetail(INTEGER i) <- CONCAT '-', index(i), idItem(i), idOrder(i) WHERE imported(i); 
+
+    FOR userOrder(TEXT (idOrder(INTEGER i))) AND NOT userOrderDetail(idDetail(i)) DO NEW d = UserOrderDetail {
+        id(d) <- idDetail(i);
+    }
+    
+    FOR UserOrderDetail d = userOrderDetail(idDetail(INTEGER i)) DO {
+        userOrder(d) <- userOrder(TEXT (idOrder(i)));
+        sku(d) <- item(TEXT (idItem(i)));
+        quantity(d) <- quantity(i);
+        price(d) <- NUMERIC[16,4](price(i));
+        dataIndex(d) <- index(i);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder();
+DESIGN integrationData { 
+    santaButtons { 
+        NEW orders {
+            type = CONTAINERH;
+            MOVE PROPERTY (importOrder());
+            MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
+        } 
+    } 
+}
