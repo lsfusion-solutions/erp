@@ -10,9 +10,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class SearchMoreImageArticleActionProperty extends DefaultImageArticleActionProperty {
+public class SearchMoreImageArticleAction extends DefaultImageArticleAction {
 
-    public SearchMoreImageArticleActionProperty(ScriptingLogicsModule LM) {
+    public SearchMoreImageArticleAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

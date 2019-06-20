@@ -13,10 +13,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class SearchImageArticleActionProperty extends DefaultImageArticleActionProperty {
+public class SearchImageArticleAction extends DefaultImageArticleAction {
     private final ClassPropertyInterface articleInterface;
 
-    public SearchImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SearchImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -16,10 +16,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalAbsolutServiceInOutActionProperty extends InternalAction {
+public class FiscalAbsolutServiceInOutAction extends InternalAction {
     private final ClassPropertyInterface cashOperationInterface;
 
-    public FiscalAbsolutServiceInOutActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalAbsolutServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

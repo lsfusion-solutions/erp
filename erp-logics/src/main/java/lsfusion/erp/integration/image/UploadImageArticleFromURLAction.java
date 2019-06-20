@@ -20,10 +20,10 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Iterator;
 
-public class UploadImageArticleFromURLActionProperty extends DefaultImageArticleActionProperty {
+public class UploadImageArticleFromURLAction extends DefaultImageArticleAction {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleFromURLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public UploadImageArticleFromURLAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

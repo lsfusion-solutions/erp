@@ -12,9 +12,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalAbsolutXReportActionProperty extends InternalAction {
+public class FiscalAbsolutXReportAction extends InternalAction {
 
-    public FiscalAbsolutXReportActionProperty(ScriptingLogicsModule LM) {
+    public FiscalAbsolutXReportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

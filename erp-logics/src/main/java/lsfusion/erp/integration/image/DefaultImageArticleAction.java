@@ -21,17 +21,17 @@ import java.sql.SQLException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class DefaultImageArticleActionProperty extends DefaultIntegrationActionProperty {
+public class DefaultImageArticleAction extends DefaultIntegrationActionProperty {
 
-    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM) {
+    public DefaultImageArticleAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public DefaultImageArticleAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public DefaultImageArticleActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public DefaultImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

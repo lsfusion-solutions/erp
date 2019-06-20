@@ -20,10 +20,10 @@ import java.util.Iterator;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
-public class FiscalAbsolutDisplayTextActionProperty extends InternalAction {
+public class FiscalAbsolutDisplayTextAction extends InternalAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalAbsolutDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalAbsolutDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
