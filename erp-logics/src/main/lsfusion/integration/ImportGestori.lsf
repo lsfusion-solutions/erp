@@ -1,4 +1,4 @@
-MODULE ImportSanta;
+MODULE ImportGestori;
 
 REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
         PurchaseInvoice, PurchaseShipment, PricingPurchase;
@@ -679,12 +679,18 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL paymentDelay = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
     
+    logToFile('importGestori', 'importPriceList_Docs_Select_started');
+    
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
+
+    logToFile('importGestori', 'importPriceList_Docs_Select_complete');
     
     IMPORT TABLE FROM file() TO id, number, begin, end, idContract, idMainContract, idCompany, idStockGroup, idStocks, note, closed;
+
+    logToFile('importGestori', 'importPriceList_Docs_Import_complete:' + GROUP SUM 1 IF imported(INTEGER i));
     
     FOR id(INTEGER i) AND NOT userPriceList(TEXT (id(i))) DO NEW p = UserPriceList {
         id(p) <- ISTRING[100](id(i));
@@ -717,11 +723,17 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL idPriceList = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     
+    logToFile('importGestori', 'importPriceList_Spec_Select_started');
+
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec FROM Pub.spec2, Pub.spec1 WHERE spec1.ct_spec = spec2.ct_spec AND (spec1.DateEnd >= TO_DATE(\'' 
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
+
+    logToFile('importGestori', 'importPriceList_Spec_Select_complete');
     
     IMPORT TABLE FROM file() TO idItem, index, price, idPriceList;
+
+    logToFile('importGestori', 'importPriceList_Spec_Import_complete:' + GROUP SUM 1 IF imported(INTEGER i));
     
     LOCAL idDetail = ISTRING[100](INTEGER);
     idDetail(INTEGER i) <- CONCAT '-', idItem(i), index(i) WHERE imported(i); 
@@ -737,11 +749,17 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         dataIndex(d) <- index(i);
         imported(d) <- TRUE;
     }
+
+    logToFile('importGestori', 'importPriceList_Delete_started');
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
     DELETE UserPriceListDetail d WHERE toDate(d) >= dateFromS() AND id(operation(d)) == 'supplier' AND NOT imported(d);
     
+    logToFile('importGestori', 'importPriceList_Apply_started');
+    
     APPLY;
+
+    logToFile('importGestori', 'importPriceList_Apply_complete');
 }
 
 EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
