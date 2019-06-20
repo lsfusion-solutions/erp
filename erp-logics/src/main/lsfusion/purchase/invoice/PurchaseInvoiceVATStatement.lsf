@@ -26,13 +26,15 @@ DESIGN integrationData {
 }
 
 inVATStatement 'Создавать заявление НДС' = DATA BOOLEAN (Operation);
+inShipmentVATStatement 'Заявление НДС считать по поставке ' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) inVATStatement
+    PROPERTIES(o) inVATStatement, inShipmentVATStatement
 ;
 DESIGN operation{
     paramsContainer{
         MOVE PROPERTY(inVATStatement(o));
+        MOVE PROPERTY(inShipmentVATStatement(o));
     }
 }
 
@@ -60,7 +62,7 @@ exciseSum(UserInvoiceDetail d) <- round2(exciseBase(d) * excisePerc(d) / 100.0)
     WHEN CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d)) AND isVatStatement(d); 
     
 vatBase 'База для НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
-vatBase(UserInvoiceDetail d) <- round2(sum(d) * rateExchange(d)*shipmentQuantity(d)/quantity(d)) 
+vatBase(UserInvoiceDetail d) <- IF inShipmentVATStatement(operation(d)) THEN round2(sum(d) * rateExchange(d)*shipmentQuantity(d)/quantity(d)) ELSE round2(sum(d) * rateExchange(d)) 
     WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d);
     
 valueVATStatement 'Ставка НДС' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
@@ -131,8 +133,8 @@ tnved(InvoiceDetail id) = IF valueVATStatement(id) = 20 THEN '' ELSE codeCustoms
 unit_meas_id(InvoiceDetail id)=  CASE WHEN shortNameUOMSku(id) = 'ШТ' THEN '796'
                                                       WHEN shortNameUOMSku(id) = 'КГ' THEN '166'
                                                       ELSE '796'; 
-comm_count(InvoiceDetail id) = shipmentQuantity(id); 
-comm_price(InvoiceDetail id)=NUMERIC[18,2](round2(sum(id)*shipmentQuantity(id)/quantity(id)));
+comm_count(InvoiceDetail id) = IF inShipmentVATStatement(operation(id)) THEN shipmentQuantity(id) ELSE quantity(id); 
+comm_price(InvoiceDetail id)=NUMERIC[18,2](IF inShipmentVATStatement(operation(id)) THEN round2(sum(id)*shipmentQuantity(id)/quantity(id)) ELSE round2(sum(id)));
 sidCurrency(InvoiceDetail id) =sid(currency(invoice(id)));
 //rate(InvoiceDetail id)=rateExchange(id); 
 rate(InvoiceDetail id)=rateOn(typeExchange(invoice(id)), currency(invoice(id)), shipmentDate(id))*(IF shortName(currency(invoice(id))) = 'RUB' THEN 100 ELSE 1);
