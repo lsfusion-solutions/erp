@@ -7,11 +7,11 @@ NAMESPACE Range;
 CLASS RangeLevelLog 'Запись лога версии матрицы';
 TABLE rangeLevelLog(RangeLevelLog);
 
-dateTime 'Дата/время' = DATA DATETIME (RangeLevelLog);
+dateTime 'Дата/время изменения' = DATA DATETIME (RangeLevelLog);
 date 'Дата' (RangeLevelLog l) = DATE(dateTime(l));
 time 'Время' (RangeLevelLog l) = TIME(dateTime(l));
 
-rangeRev = DATA RangeRev (RangeLevelLog);
+rangeRev = DATA RangeRev (RangeLevelLog) INDEXED ;
 range (RangeLevelLog l) = range(rangeRev(l));
 nameRange 'Ассортиментная матрица' (RangeLevelLog l) = name(range(l));
 dateTimeRangeRev 'Действует (с)' (RangeLevelLog l) = dateTime(rangeRev(l));
@@ -47,8 +47,10 @@ WHEN (SETCHANGED (level(RangeRev r, Sku s))) DO {
 
 EXTEND FORM rangeRev
     OBJECTS rll = RangeLevelLog
-    PROPERTIES (rll) READONLY dateTime, nameSku, idBarcodeSku, namePrevLevel, nameLevel, hostnameComputer, nameUser, nameContact
-    FILTERS rangeRev(rll) = v
+    PROPERTIES (rll) READONLY dateTimeRangeRev, dateTime, nameSku, idBarcodeSku, namePrevLevel, nameLevel, hostnameComputer, nameUser, nameContact
+    FILTERGROUP rev 
+        FILTER 'По версии' rangeRev(rll) = v DEFAULT
+    FILTERS range(rangeRev(rll)) = range(v)
 ;
 DESIGN rangeRev {
     header {
