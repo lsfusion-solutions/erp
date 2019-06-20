@@ -684,7 +684,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
-            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
+            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
     logToFile('importGestori', 'importPriceList_Docs_Select_complete');
     
@@ -703,7 +703,6 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         date(p) <- begin(i);
         time(p) <- 00:00;
         isPosted(p) <- TRUE;
-        isClosed(p) <- closed(i) == '$';
         fromDate(p) <- begin(i);
         fromTime(p) <- 00:00;
         toDate(p) <- end(i);
@@ -726,8 +725,8 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     logToFile('importGestori', 'importPriceList_Spec_Select_started');
 
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec FROM Pub.spec2, Pub.spec1 WHERE spec1.ct_spec = spec2.ct_spec AND (spec1.DateEnd >= TO_DATE(\'' 
-            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) WITH (NOLOCK)' TO file;
+            EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec FROM Pub.spec2, Pub.spec1, Pub.Contract WHERE spec1.ct_spec = spec2.ct_spec AND spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\'' 
+            + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
     logToFile('importGestori', 'importPriceList_Spec_Select_complete');
     
