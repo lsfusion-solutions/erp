@@ -501,7 +501,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 ScriptingLogicsModule skuImportCodeLM = context.getBL().getModule("SkuImportCode");
-                ScriptingLogicsModule purchaseInvoicePharmacyLM = context.getBL().getModule("PurchaseInvoicePharmacy");
+                ScriptingLogicsModule purchaseInvoicePharmacyLM = context.getBL().getModule("PurchaseInvoicePharm");
 
                 ImportField sidOrigin2CountryField = new ImportField(LM.findProperty("sidOrigin2[Country]"));
                 ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));

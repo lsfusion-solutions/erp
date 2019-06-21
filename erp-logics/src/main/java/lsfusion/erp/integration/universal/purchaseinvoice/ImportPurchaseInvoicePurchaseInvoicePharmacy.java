@@ -21,7 +21,7 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
 
     public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
                            List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> userInvoiceDetailKey, String countryKeyType, boolean preImportCountries) throws ScriptingErrorLog.SemanticErrorException {
-        ScriptingLogicsModule LM = context.getBL().getModule("PurchaseInvoicePharmacy");
+        ScriptingLogicsModule LM = context.getBL().getModule("PurchaseInvoicePharm");
 
         if (LM != null && userInvoiceDetailKey != null) {
 
