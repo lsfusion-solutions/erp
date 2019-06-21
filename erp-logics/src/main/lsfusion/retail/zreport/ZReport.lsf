@@ -272,8 +272,8 @@ idBarcode 'Штрихкод' (receiptDetail) = DATA STRING[15] (ReceiptDetail) C
 // Возвраты
 
 saleReceipt = DATA Receipt (ReceiptReturnDetail);
-receiptDetail(sku, receipt) = GROUP MAX ReceiptDetail receiptDetail BY sku(receiptDetail), receipt(receiptDetail);
-saleReceiptDetail(ReceiptReturnDetail returnReceiptDetail) = receiptDetail(sku[ReceiptDetail](returnReceiptDetail), saleReceipt(returnReceiptDetail));                                                                                                                                                             
+receiptDetail(receipt, sku) = GROUP LAST ReceiptDetail receiptDetail ORDER receiptDetail BY receipt(receiptDetail), sku(receiptDetail) COMPLEX;
+saleReceiptDetail(ReceiptReturnDetail returnReceiptDetail) = receiptDetail(saleReceipt(returnReceiptDetail), sku[ReceiptDetail](returnReceiptDetail));                                                                                                                                                             
 receiptSaleDetail = DATA ReceiptSaleDetail (ReceiptReturnDetail);
 overReceiptSaleDetail(ReceiptReturnDetail detail) = OVERRIDE saleReceiptDetail(detail), receiptSaleDetail(detail);
 receiptSale (ReceiptReturnDetail returnDetail) = receipt[ReceiptSaleDetail](overReceiptSaleDetail(returnDetail));
