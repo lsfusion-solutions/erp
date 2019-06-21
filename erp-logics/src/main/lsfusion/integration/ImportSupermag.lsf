@@ -1,7 +1,7 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[100]();
@@ -202,7 +202,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\', \'brutto\', \'packbarcode\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\')' TO file;
+        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\', \'brutto\', \'packbarcode\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\')' TO file;
     
     logToFile('importSupermag', 'importItemAttribute_1');
     
@@ -306,6 +306,12 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     
     FOR property(INTEGER i) == 'Sys.Composition' DO {
         description(Item s) <- value(i) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_20');
+    
+    FOR property(INTEGER i) == 'packsize' DO {
+        MOQ(Item s) <- NUMERIC[15,4](value(i)) WHERE s = item(idItem(i));
     }
     
     logToFile('importSupermag', 'importItemAttribute_14');
