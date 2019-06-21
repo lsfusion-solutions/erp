@@ -31,10 +31,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-public class ImportCBRFExchangeRateActionProperty extends InternalAction {
+public class ImportCBRFExchangeRateAction extends InternalAction {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportCBRFExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportCBRFExchangeRateAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

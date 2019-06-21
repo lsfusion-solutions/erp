@@ -28,13 +28,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActionProperty {
+public class ImportNBRBExchangeRateAction extends DefaultIntegrationActionProperty {
 
-    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public ImportNBRBExchangeRateAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportNBRBExchangeRateAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

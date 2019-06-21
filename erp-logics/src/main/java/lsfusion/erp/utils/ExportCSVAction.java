@@ -26,11 +26,11 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class ExportCSVActionProperty extends DefaultExportActionProperty {
+public abstract class ExportCSVAction extends DefaultExportActionProperty {
     String idForm;
     String idGroupObject;
 
-    public ExportCSVActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject, ValueClass... classes) {
+    public ExportCSVAction(ScriptingLogicsModule LM, String idForm, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;

@@ -30,9 +30,9 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportTNVEDCustomsRatesActionProperty extends InternalAction {
+public class ImportTNVEDCustomsRatesAction extends InternalAction {
 
-    public ImportTNVEDCustomsRatesActionProperty(ScriptingLogicsModule LM) {
+    public ImportTNVEDCustomsRatesAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -31,10 +31,10 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportTNVEDCustomsExceptionsActionProperty extends InternalAction {
+public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
     private static final String charset = "Cp866";
 
-    public ImportTNVEDCustomsExceptionsActionProperty(ScriptingLogicsModule LM) {
+    public ImportTNVEDCustomsExceptionsAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

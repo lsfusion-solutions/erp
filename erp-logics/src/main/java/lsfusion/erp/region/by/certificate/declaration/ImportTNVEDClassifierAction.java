@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportTNVEDClassifierActionProperty extends InternalAction {
+public class ImportTNVEDClassifierAction extends InternalAction {
 
-    public ImportTNVEDClassifierActionProperty(ScriptingLogicsModule LM) {
+    public ImportTNVEDClassifierAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

@@ -14,12 +14,13 @@ import java.io.IOException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.util.Calendar;
 import java.util.Iterator;
 
-public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNBRBExchangeRateActionProperty {
+public class ImportNBRBExchangeRateLastDaysAction extends ImportNBRBExchangeRateAction {
     private final ClassPropertyInterface currencyInterface;
 
-    public ImportNBRBExchangeRateDateFromDateToActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportNBRBExchangeRateLastDaysAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -34,19 +35,20 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
             String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, currencyObject);
-            Date nbrbDateFrom = (Date) findProperty("importNBRBExchangeRateDateFrom[]").read(context);
-            Date nbrbDateTo = (Date) findProperty("importNBRBExchangeRateDateTo[]").read(context);
-
-
-            if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null) {
+            long currentTime = Calendar.getInstance().getTimeInMillis();
+            Integer days = (Integer) findProperty("importNBRBExchangeRateDaysCount[]").read(context);
+            if (shortNameCurrency != null && days != null && days > 0) {
                 Date separationDate = new Date(2016 - 1900, 5, 30); //30.06.2016
                 Date denominationDate = new Date(2016 - 1900, 6, 1); //01.07.2016
-                if(nbrbDateFrom.getTime() <= separationDate.getTime() && nbrbDateTo.getTime() > separationDate.getTime()) {
-                    importExchanges(nbrbDateFrom, separationDate, shortNameCurrency, context, true);
-                    importExchanges(denominationDate, nbrbDateTo, shortNameCurrency, context, false);
+                Date dateFrom = new Date(currentTime - (long) days * 24 * 3600 * 1000);
+                Date dateTo = new Date(currentTime + (long) 24 * 3600 * 1000);
+                if(dateFrom.getTime() <= separationDate.getTime() && dateTo.getTime() > separationDate.getTime()) {
+                    importExchanges(dateFrom, separationDate, shortNameCurrency, context, true);
+                    importExchanges(denominationDate, dateTo, shortNameCurrency, context, false);
                 } else {
-                    importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context,  nbrbDateFrom.getTime() < separationDate.getTime());
+                    importExchanges(dateFrom, dateTo, shortNameCurrency, context, dateFrom.getTime() < separationDate.getTime());
                 }
+
             }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
