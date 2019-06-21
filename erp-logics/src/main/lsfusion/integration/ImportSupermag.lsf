@@ -1,7 +1,7 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[100]();
@@ -1760,3 +1760,21 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
 
 EXTEND FORM integrationData PROPERTIES importBalanceShipment();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importBalanceShipment()); } }
+
+importReserveDays 'Импорт страхового запаса в днях' () {
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT ARTICLE, STORELOC, MINDAYS FROM Supermag.SMStockLevels WHERE STORELOC IN(' + stocks() + ') AND rownum < 1000' TO file;
+        
+    IMPORT TABLE FROM file() TO idItem, idStock, quantity;
+    
+    FOR Item sk = sku(idItem(INTEGER i)) AND Stock st = stock(TEXT (idStock(i))) DO {
+        dataStockReserveDays(st, sk) <- quantity(i);
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importReserveDays();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importReserveDays()); } }
+
