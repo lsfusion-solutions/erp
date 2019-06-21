@@ -1,0 +1,19 @@
+MODULE SalePurchaseShipmentBatch;
+
+REQUIRE SalePurchaseInvoice, PurchaseShipmentBatch;
+
+PRIORITY Sale;
+
+originalSupplier = DATA LegalEntity (InvoiceDetail);
+nameOriginalSupplier 'Поставщик (внешний)' = name(originalSupplier(InvoiceDetail d));
+originalSupplier(PurchaseInvoiceDetail d) += originalSupplier(invoiceDetail(d));
+
+showOriginalSupplier (Invoice i) = showOriginalSupplier(purchaseOperation(i));
+
+EXTEND FORM userInvoice
+   PROPERTIES (d) nameOriginalSupplier SHOWIF showOriginalSupplier(i)
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY nameOriginalSupplier SHOWIF showOriginalSupplier(i)
+;
+
