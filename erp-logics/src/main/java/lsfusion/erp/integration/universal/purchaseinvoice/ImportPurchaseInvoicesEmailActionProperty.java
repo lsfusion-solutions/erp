@@ -166,7 +166,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                         try {
 
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(session) != null;
-                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(
+                                            int importResult = new ImportPurchaseInvoiceAction(LM).makeImport(
                                                     newContext, invoiceObject, importTypeObject, file.second, fileExtension,
                                                     settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
                                                     checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);

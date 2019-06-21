@@ -51,18 +51,27 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseInvoiceActionProperty {
+public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceActionProperty {
     private final ClassPropertyInterface userInvoiceInterface;
 
-    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportPurchaseInvoiceAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         this(LM, LM.findClass("Purchase.UserInvoice"));
     }
     
-    public ImportPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportPurchaseInvoiceAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         userInvoiceInterface = i.next();
+    }
+
+    protected void makeCustomImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props,
+                                    LinkedHashMap<String, ImportColumnDetail> defaultColumns, List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data,
+                                    ImportKey<?> itemKey, ImportKey<?> userInvoiceDetailKey, String countryKeyType, boolean preImportCountries) throws ScriptingErrorLog.SemanticErrorException {
+    }
+
+    protected boolean showImportCountryBatch(List<PurchaseInvoiceDetail> userInvoiceDetailsList) {
+        return false;
     }
 
     @Override
@@ -501,7 +510,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 }
 
                 ScriptingLogicsModule skuImportCodeLM = context.getBL().getModule("SkuImportCode");
-                ScriptingLogicsModule purchaseInvoicePharmacyLM = context.getBL().getModule("PurchaseInvoicePharm");
 
                 ImportField sidOrigin2CountryField = new ImportField(LM.findProperty("sidOrigin2[Country]"));
                 ImportField nameCountryField = new ImportField(LM.findProperty("name[Country]"));
@@ -512,7 +520,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 boolean showNameCountry = showField(userInvoiceDetailsList, "nameCountry");
                 boolean showNameOriginCountry = showField(userInvoiceDetailsList, "nameOriginCountry");
                 boolean showImportCodeCountry = skuImportCodeLM != null && showField(userInvoiceDetailsList, "importCodeCountry");
-                boolean showImportCountryBatch = purchaseInvoicePharmacyLM != null && showField(userInvoiceDetailsList, "importCountryBatch");
+                boolean showImportCountryBatch = showImportCountryBatch(userInvoiceDetailsList);
 
                 //хак. Из-за проблемы одновременного создания страны по importCode (страна и страна ввоза) создаём страну предварительно
                 boolean preImportCountries = countryKeyType != null && countryKeyType.equals("importCodeCountry") && showImportCodeCountry && showImportCountryBatch;
@@ -732,9 +740,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
                 new ImportPurchaseInvoicePurchaseManufacturingPrice(LM).makeImport(context, fields, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 
-                new ImportPurchaseInvoiceItemPharmacyBy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey);
-
-                new ImportPurchaseInvoicePurchaseInvoicePharmacy(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey, countryKeyType, preImportCountries);
+                makeCustomImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, itemKey, userInvoiceDetailKey, countryKeyType, preImportCountries);
 
                 new ImportPurchaseInvoicePurchaseCompliance(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, userInvoiceDetailKey);
 

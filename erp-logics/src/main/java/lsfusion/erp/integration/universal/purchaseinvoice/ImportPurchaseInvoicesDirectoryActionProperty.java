@@ -76,7 +76,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
 
                                             findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                            int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(newContext, invoiceObject,
+                                            int importResult = new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject,
                                                     importTypeObject, new RawFileData(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
                                                     completeIdItemAsEAN, false, false);
 

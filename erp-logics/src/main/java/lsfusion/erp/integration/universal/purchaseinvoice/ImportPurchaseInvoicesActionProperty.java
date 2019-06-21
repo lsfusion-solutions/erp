@@ -53,7 +53,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                         try(ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                             DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                             
-                            new ImportPurchaseInvoiceActionProperty(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
+                            new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
 
                             if (invoiceObject != null) {
                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);

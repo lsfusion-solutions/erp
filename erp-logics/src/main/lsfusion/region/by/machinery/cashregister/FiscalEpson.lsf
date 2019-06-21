@@ -2,6 +2,8 @@ MODULE FiscalEpson;
 
 REQUIRE POS, POSSection;
 
+customImplementation = ABSTRACT BOOLEAN();
+
 fiscalEpsonComment 'Дополнительный текст для чека Epson' = ABSTRACT TEXT (Receipt);
 fiscalEpsonComment 'Дополнительный текст для строки чека Epson' = ABSTRACT TEXT (ReceiptDetail);
 
@@ -10,7 +12,7 @@ loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фиск
 documentNumber 'Сквозной номер чека' (receipt) = DATA INTEGER (Receipt);
 
 fiscalEpsonPrint 'Напечатать фискальный чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonPrintReceiptAction' (Receipt);
-postPrint(Receipt receipt) + {  IF sidCashRegisterModel(receipt) == 'Epson' THEN fiscalEpsonPrint(receipt); }
+postPrint(Receipt receipt) + {  IF sidCashRegisterModel(receipt) == 'Epson' AND NOT customImplementation() THEN fiscalEpsonPrint(receipt); }
 
 fiscalEpsonElectronicJournalReadOffset = DATA LOCAL NESTED INTEGER ();
 fiscalEpsonElectronicJournalReadSize = DATA LOCAL NESTED INTEGER ();

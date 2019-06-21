@@ -5,7 +5,11 @@ REQUIRE System,
         Item,
         PurchaseInvoice;
 
-importPurchaseDataAction 'Импортировать накладную'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceActionProperty' (Purchase.UserInvoice);
+importPurchaseAction 'Импортировать накладную'  ABSTRACT (Purchase.UserInvoice);
+
+importPurchaseDataAction 'Импортировать накладную'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceAction' (Purchase.UserInvoice);
+importPurchaseAction(Purchase.UserInvoice invoice) + { importPurchaseDataAction(invoice); }
+
 importType = DATA ImportType(UserInvoice);
 nameImportType 'Тип импорта' (UserInvoice userInvoice) = name(importType(userInvoice));
 
@@ -90,7 +94,7 @@ DESIGN importType {
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) importPurchaseDataAction DRAW d TOOLBAR
+    PROPERTIES(i) importPurchaseAction DRAW d TOOLBAR
     PROPERTIES(i) nameImportType
     PROPERTIES(i) saveOriginal, openOriginal 
 ;
@@ -100,7 +104,7 @@ DESIGN userInvoice{
         NEW universalImport {
             caption = 'Универсальный импорт';
             MOVE PROPERTY(nameImportType(i));
-            MOVE PROPERTY(importPurchaseDataAction(i));
+            MOVE PROPERTY(importPurchaseAction(i));
         }
         NEW origin {
             caption = 'Оригинал накладной';

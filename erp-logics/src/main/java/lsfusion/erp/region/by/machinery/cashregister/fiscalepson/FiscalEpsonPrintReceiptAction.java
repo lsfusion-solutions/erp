@@ -44,7 +44,6 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
-        ScriptingLogicsModule posPharmacyLM = context.getBL().getModule("POSPharmacy");
 
         try {
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
@@ -105,11 +104,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                 }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-                if(posPharmacyLM != null) {
-                    receiptDetailQuery.addProperty("useBlisterInFiscalPrint", posPharmacyLM.findProperty("useBlisterInFiscalPrint[]").getExpr(context.getModifier()));
-                    receiptDetailQuery.addProperty("blisterQuantityReceiptDetail", posPharmacyLM.findProperty("blisterQuantity[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                    receiptDetailQuery.addProperty("blisterPriceReceiptDetail", posPharmacyLM.findProperty("blisterPrice[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                }
+                addCustomProperties(context, receiptDetailQuery, receiptDetailExpr);
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
@@ -120,6 +115,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                     BigDecimal quantityReturn = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
                     BigDecimal quantity = (BigDecimal) receiptDetailValues.get("quantityReceiptDetail");
 
+                    //properties from POSPharm.lsf
                     boolean useBlisters = receiptDetailValues.get("useBlisterInFiscalPrint") != null;
                     BigDecimal blisterPrice = (BigDecimal) receiptDetailValues.get("blisterPriceReceiptDetail");
                     BigDecimal blisterQuantity = (BigDecimal) receiptDetailValues.get("blisterQuantityReceiptDetail");
@@ -184,6 +180,9 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    protected void addCustomProperties(ExecutionContext context, QueryBuilder<Object, Object> receiptDetailQuery, KeyExpr receiptDetailExpr) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
     }
 
     private String formatSumVAT(BigDecimal value) {
