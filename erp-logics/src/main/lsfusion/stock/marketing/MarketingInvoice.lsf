@@ -124,7 +124,13 @@ numberCT (STRING[100] c) = CASE
                                     WHEN isSubstring(upper(c), upper('Рекламные услуги')) THEN 'Р'
                                     WHEN isSubstring(upper(c), upper('Аудио-реклама')) THEN 'А';
 
-marketingCondition (LegalEntity sp, ConditionType t, Stock st, Sku sk, DATE d) = 
+price 'Цена' = DATA NUMERIC[16,5](MarketingCondition);
+
+EXTEND FORM conditionList PROPERTIES price(retail), price(logistic), price(merch), price(defects);
+EXTEND FORM contractMarketing PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
+EXTEND FORM contractMarketings PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
+
+marketingCondition (LegalEntity sp, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
     GROUP LAST MarketingCondition c ORDER isException(c), c
     WHERE inConditionStock(c, st)
     AND d >= dateFrom(c) AND NOT d > dateTo(c)
@@ -133,9 +139,10 @@ marketingCondition (LegalEntity sp, ConditionType t, Stock st, Sku sk, DATE d) =
     AND (isParent(itemGroup(sk), itemGroup(c)) OR NOT itemGroup(c)) 
     AND (sk == item(c) OR NOT item(c))
     AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
+    AND (price(c) == p OR NOT price(c))
     BY supplier(c), conditionType(c);
 
-marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d) = 
+marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
     GROUP LAST MarketingCondition c ORDER isException(c), c
     WHERE inConditionStock(c, st)
     AND d >= dateFrom(c) AND NOT d > dateTo(c)
@@ -144,6 +151,7 @@ marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DAT
     AND (isParent(itemGroup(sk), itemGroup(c)) OR NOT itemGroup(c)) 
     AND (in(sk, c) OR NOT countItems(c))
     AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
+    AND (price(c) == p OR NOT price(c))
     BY contractMarketing(c), conditionType(c);
 
 WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) AND NOT CHANGED (sumMarketing(d)) DO {
@@ -188,13 +196,13 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
 
         LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
-        marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d)) WHERE in(d);
+        marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
 
         LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
         in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
         
         LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
-        marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d)) WHERE in(d);
+        marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
         
         LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
         quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
@@ -237,8 +245,11 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             LOCAL quantity = NUMERIC[16,5] (Sku, Stock);
             quantity(Sku sk, Stock st) <- GROUP SUM quantitySold(Batch b, st, DATE d) IF d >= df AND d <= dt AND supplier(b) == supplier(c) AND sku(b) == sk;
             
+            LOCAL sum = NUMERIC[16,5] (Sku, Stock);
+            sum(Sku sk, Stock st) <- GROUP SUM sumSold(Batch b, st, DATE d) IF d >= df AND d <= dt AND supplier(b) == supplier(c) AND sku(b) == sk;
+            
             LOCAL marketingCondition = MarketingCondition (Sku, Stock, ConditionType);
-            marketingCondition (Sku sk, Stock st, ConditionType t) <- marketingCondition(c, t, st, sk, df) WHERE quantity(sk, st);
+            marketingCondition (Sku sk, Stock st, ConditionType t) <- marketingCondition(c, t, st, sk, df, round2(sum(sk, st) / quantity(sk, st))) WHERE quantity(sk, st);
             
             FOR NUMERIC[16,5] q == [ GROUP SUM quantity(Sku sk, Stock st) BY marketingCondition(sk, st, ConditionType t), sk, st](MarketingCondition mc, Sku sk, Stock st)
                 AND CalcBase cb = calcBase(mc) AND  
