@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
+import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -7,6 +8,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
+import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -20,14 +22,24 @@ import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
+import org.xBaseJ.xBaseJException;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
+import java.text.ParseException;
 
-public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesDirectoryActionProperty(ScriptingLogicsModule LM) {
+    public ImportPurchaseInvoicesDirectoryAction(ScriptingLogicsModule LM) {
         super(LM);
+    }
+
+    public int makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, DataObject importTypeObject, File f, String fileExtension,
+                          ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN) throws ScriptingErrorLog.SemanticErrorException, IOException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException {
+        return new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject,
+                importTypeObject, new RawFileData(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
+                completeIdItemAsEAN, false, false);
     }
 
     @Override
@@ -76,9 +88,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
 
                                             findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                            int importResult = new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject,
-                                                    importTypeObject, new RawFileData(f), fileExtension, settings, staticNameImportType, staticCaptionImportType,
-                                                    completeIdItemAsEAN, false, false);
+                                            int importResult = makeImport(newContext, invoiceObject, importTypeObject, f, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
 
                                             if (importResult != IMPORT_RESULT_ERROR)
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

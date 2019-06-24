@@ -5,6 +5,7 @@ import com.github.junrar.exception.RarException;
 import com.github.junrar.impl.FileVolumeManager;
 import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
+import jxl.read.biff.BiffException;
 import lsfusion.base.*;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
@@ -16,6 +17,7 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
+import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -32,6 +34,7 @@ import lsfusion.server.logics.property.data.SessionDataProperty;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
+import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,14 +43,24 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.ParseException;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesEmailAction extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesEmailActionProperty(ScriptingLogicsModule LM) {
+    public ImportPurchaseInvoicesEmailAction(ScriptingLogicsModule LM) {
         super(LM);
+    }
+
+    public int makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, DataObject importTypeObject, Pair<String, RawFileData> file,
+                          String fileExtension, ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
+                          boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate) throws ScriptingErrorLog.SemanticErrorException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException, IOException {
+        return new ImportPurchaseInvoiceAction(LM).makeImport(
+                newContext, invoiceObject, importTypeObject, file.second, fileExtension,
+                settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
+                checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
     }
 
     @Override
@@ -166,10 +179,8 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                         try {
 
                                             boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(session) != null;
-                                            int importResult = new ImportPurchaseInvoiceAction(LM).makeImport(
-                                                    newContext, invoiceObject, importTypeObject, file.second, fileExtension,
-                                                    settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN,
-                                                    checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
+                                            int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
+                                                    completeIdItemAsEAN, checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 
                                             if(invoiceObject != null) {
                                                 findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file.second, fileExtension), DynamicFormatFileClass.get()), newContext, invoiceObject);

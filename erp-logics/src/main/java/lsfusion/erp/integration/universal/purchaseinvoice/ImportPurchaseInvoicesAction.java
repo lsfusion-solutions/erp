@@ -23,10 +23,15 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
 
-public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesAction extends ImportDocumentActionProperty {
 
-    public ImportPurchaseInvoicesActionProperty(ScriptingLogicsModule LM) {
+    public ImportPurchaseInvoicesAction(ScriptingLogicsModule LM) {
         super(LM);
+    }
+
+    public void makeImport(ExecutionContext.NewSession<ClassPropertyInterface> newContext, DataObject invoiceObject, ObjectValue importTypeObject, RawFileData file, String fileExtension,
+                           ImportDocumentSettings settings, String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN) throws ScriptingErrorLog.SemanticErrorException, ParseException, UniversalImportException, SQLHandledException, SQLException, BiffException, xBaseJException, IOException {
+        new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
     }
 
     @Override
@@ -52,8 +57,8 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
                     if(file != null) {
                         try(ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                             DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
-                            
-                            new ImportPurchaseInvoiceAction(LM).makeImport(newContext, invoiceObject, (DataObject) importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false, false);
+
+                            makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
 
                             if (invoiceObject != null) {
                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);

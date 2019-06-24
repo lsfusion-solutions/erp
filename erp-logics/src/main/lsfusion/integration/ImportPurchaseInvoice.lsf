@@ -5,20 +5,29 @@ REQUIRE System,
         Item,
         PurchaseInvoice;
 
-importPurchaseAction 'Импортировать накладную'  ABSTRACT (Purchase.UserInvoice);
+customImport = ABSTRACT BOOLEAN ();
+importPurchaseAction 'Импортировать накладную' ABSTRACT LIST (Purchase.UserInvoice);
+importPurchaseInvoicesAction 'Импортировать накладные' ABSTRACT LIST ();
+importPurchaseInvoicesDirectoryAction 'Импортировать накладные из папки' ABSTRACT LIST ();
+importPurchaseInvoicesEmailAction  'Импортировать накладные из почты' ABSTRACT LIST ();
 
 importPurchaseDataAction 'Импортировать накладную'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceAction' (Purchase.UserInvoice);
-importPurchaseAction(Purchase.UserInvoice invoice) + { importPurchaseDataAction(invoice); }
+importPurchaseAction(Purchase.UserInvoice invoice) + { IF NOT customImport() THEN importPurchaseDataAction(invoice); }
 
 importType = DATA ImportType(UserInvoice);
 nameImportType 'Тип импорта' (UserInvoice userInvoice) = name(importType(userInvoice));
 
-importPurchaseInvoicesDataAction 'Импортировать накладные'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesActionProperty' ();
+importPurchaseInvoicesDataAction 'Импортировать накладные'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesAction' ();
+importPurchaseInvoicesAction() + { IF NOT customImport() THEN importPurchaseInvoicesDataAction(); }
+
 importTypeUserInvoices = DATA ImportType();
 nameImportTypeUserInvoices 'Тип импорта' () = name(importTypeUserInvoices());
 
-importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
-importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
+importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryAction' ();
+importPurchaseInvoicesDirectoryAction() + { IF NOT customImport() THEN importPurchaseInvoicesDirectoryDataAction(); }
+
+importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты'  INTERNAL  'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailAction' ();
+importPurchaseInvoicesEmailAction() + { IF NOT customImport() THEN importPurchaseInvoicesEmailDataAction(); }
 
 importPurchaseInvoicesEmailLastDays 'За сколько дней импортировать накладные из почты' = DATA INTEGER();
 skip(AttachmentEmail ae) = importPurchaseInvoicesEmailLastDays() AND (daysBetweenDates(currentDate(), DATE (dateTimeSent(email(ae)))) > importPurchaseInvoicesEmailLastDays());
@@ -115,8 +124,8 @@ DESIGN userInvoice{
 }
 
 EXTEND FORM invoices
-    PROPERTIES() DRAW d TOOLBAR importPurchaseInvoicesDataAction, nameImportTypeUserInvoices, 
-                 importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
+    PROPERTIES() DRAW d TOOLBAR importPurchaseInvoicesAction, nameImportTypeUserInvoices, 
+                 importPurchaseInvoicesDirectoryAction, importPurchaseInvoicesEmailAction,
                  ignoreInvoicesAfterDocumentsClosedDate, importPurchaseInvoicesEmailLastDays
 ;
 
@@ -125,12 +134,12 @@ DESIGN invoices{
         NEW importUniversal {
             caption = 'Импорт';
             MOVE PROPERTY(nameImportTypeUserInvoices());
-            MOVE PROPERTY(importPurchaseInvoicesDataAction());            
-            MOVE PROPERTY(importPurchaseInvoicesDirectoryDataAction());
+            MOVE PROPERTY(importPurchaseInvoicesAction());            
+            MOVE PROPERTY(importPurchaseInvoicesDirectoryAction());
             NEW importEmail {
                 caption = 'Из почты';
                 alignment = CENTER;
-                MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+                MOVE PROPERTY(importPurchaseInvoicesEmailAction());
                 MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
                 MOVE PROPERTY(importPurchaseInvoicesEmailLastDays());
             }
@@ -139,18 +148,18 @@ DESIGN invoices{
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryDataAction, importPurchaseInvoicesEmailDataAction,
+    PROPERTIES() TOOLBAR importPurchaseInvoicesDirectoryAction, importPurchaseInvoicesEmailAction,
                  ignoreInvoicesAfterDocumentsClosedDate, importPurchaseInvoicesEmailLastDays
 ;
 
 DESIGN integrationData {
     pane { 
         actionsContainer {
-            MOVE PROPERTY(importPurchaseInvoicesDirectoryDataAction());
+            MOVE PROPERTY(importPurchaseInvoicesDirectoryAction());
             NEW importEmail {
                 caption = 'Из почты';
                 alignment = CENTER;
-                MOVE PROPERTY(importPurchaseInvoicesEmailDataAction());
+                MOVE PROPERTY(importPurchaseInvoicesEmailAction());
                 MOVE PROPERTY(ignoreInvoicesAfterDocumentsClosedDate());
                 MOVE PROPERTY(importPurchaseInvoicesEmailLastDays());
             }
