@@ -16,11 +16,11 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 
-public class FillDaysOffActionProperty extends InternalAction {
+public class FillDaysOffAction extends InternalAction {
 
     private final ClassPropertyInterface countryInterface;
 
-    public FillDaysOffActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FillDaysOffAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

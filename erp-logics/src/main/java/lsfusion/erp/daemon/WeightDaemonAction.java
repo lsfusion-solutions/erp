@@ -10,10 +10,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class WeightDaemonActionProperty extends InternalAction {
+public class WeightDaemonAction extends InternalAction {
     private final ClassPropertyInterface comPortInterface;
 
-    public WeightDaemonActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public WeightDaemonAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();

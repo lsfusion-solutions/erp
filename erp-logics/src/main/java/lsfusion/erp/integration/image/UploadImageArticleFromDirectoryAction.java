@@ -19,10 +19,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Iterator;
 
-public class UploadImageArticleFromDirectoryActionProperty extends InternalAction {
+public class UploadImageArticleFromDirectoryAction extends InternalAction {
     private final ClassPropertyInterface articleInterface;
 
-    public UploadImageArticleFromDirectoryActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public UploadImageArticleFromDirectoryAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
