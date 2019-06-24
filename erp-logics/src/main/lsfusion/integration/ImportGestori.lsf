@@ -596,8 +596,13 @@ importInit 'Импорт остатков' () {
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL time = INTEGER (INTEGER);
     LOCAL idDetail = ISTRING[100](INTEGER);
+    LOCAL imported = BOOLEAN (Purchase.UserInvoiceDetail);
     
-    FOR quantityID(INTEGER s) != 0.0 DO {
+    FOR quantityID(INTEGER s) != 0.0 AND NOT sku(TEXT (s)) DO {
+        logToFile('importGestori_init', 'Не найден товар! ' + CONCAT ', ', 'Код: ' + s, 'Кол-во: ' + quantityID(s), 'Цена: ' + priceID(s) + '\r\n');
+    }
+    
+    FOR quantityID(INTEGER s) != 0.0 AND sku(TEXT (s)) DO {
     
         EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT TOP 1 pr2.dt_nakl, pr2.num_nakl, pr1.num_doc, pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
@@ -624,14 +629,24 @@ importInit 'Импорт остатков' () {
             isClosed(i) <- TRUE;
         }
         
-        idDetail(INTEGER i) <- CONCAT '-', s, number(i) WHERE imported(i);
+        IF NOT userInvoice('NN' + id(customerStock())) THEN NEW i = UserInvoice {
+            id(i) <- 'NN' + id(customerStock());
+            number(i) <- id(customerStock());
+            series(i) <- 'NN';
+            customer(i) <- legalEntity(customerStock());
+            customerStock(i) <- customerStock();
+            date(i) <- 2019_01_01;
+            operation(i) <- Purchase.operation('initial');
+        }
+        
+        idDetail(INTEGER i) <- CONCAT '-', s, (OVERRIDE number(0), ('NN' + id(customerStock()))) WHERE i == 0;
         
         IF NOT Purchase.userInvoiceDetail(idDetail(0)) THEN NEW d = Purchase.UserInvoiceDetail {
             id(d) <- idDetail(0);
         } 
         
         FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) INLINE DO {
-            userInvoice(d) <- Purchase.userInvoice(TEXT (id(0)));
+            userInvoice(d) <- Purchase.userInvoice(OVERRIDE TEXT (id(0)), ('NN' + id(customerStock())));
             sku(d) <- sku(TEXT (INTEGER (s)));
             quantity(d) <- quantityID(s);
             shipmentQuantity(d) <- quantityID(s);
@@ -640,8 +655,15 @@ importInit 'Импорт остатков' () {
             price(d) <- NUMERIC[16,4](cost(0));
             retailPrice(d) <- NUMERIC[16,4](price(s));
             shipmentPrice(d) <- NUMERIC[16,4](price(s));
+            imported(d) <- TRUE;
         }
     }
+    
+    FOR customerStock(Purchase.UserInvoiceDetail d) == customerStock() AND operation(d) == Purchase.operation('initial') AND NOT imported(d) DO {
+        quantity(d) <- 0.0;
+        shipmentQuantity(d) <- 0.0;
+    }
+    
     APPLY;
 }
 
