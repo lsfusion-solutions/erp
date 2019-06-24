@@ -949,13 +949,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, Integer maxThreads) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException, InterruptedException {
+    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, final Integer maxThreads) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException, InterruptedException {
         String result = null;
 
         try (DataSession session = createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
             if (numberAtATime == null) numberAtATime = salesInfoList.size();
+            final Integer finalNumberAtATime = numberAtATime;
 
             final boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
             final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
@@ -963,44 +964,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ExecutorService executor = ExecutorFactory.createRMIThreadService(maxThreads, EquipmentServer.this);
             List<Future<String>> futures = new ArrayList<>();
 
-            int start = 0;
-            while (start < salesInfoList.size()) {
-                int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+            Map<Integer, List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
 
-                if(finish < salesInfoList.size() - 1) {
-                    Integer firstNppGroupMachinery;
-                    Integer lastNppGroupMachinery;
-                    Integer nextNppGroupMachinery;
-                    while (start < finish
-                            && (firstNppGroupMachinery = salesInfoList.get(start).nppGroupMachinery) != null
-                            && (lastNppGroupMachinery = salesInfoList.get(finish - 1).nppGroupMachinery) != null
-                            && (nextNppGroupMachinery = salesInfoList.get(finish).nppGroupMachinery) != null
-                            && !firstNppGroupMachinery.equals(lastNppGroupMachinery) && lastNppGroupMachinery.equals(nextNppGroupMachinery))
-                        finish--;
-                }
-
-                Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
-                if (lastNumberReceipt != null) {
-                    while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
-                        finish++;
-                }
-
-                final int finalStart = start;
-                final int finalFinish = finish;
-                final int left = salesInfoList.size() - finish;
-
-                if(start < finish) {
-                    Future<String> importResult = executor.submit(new Callable() {
-                        @Override
-                        public Object call() throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-                            return importSalesInfo(stack, sidEquipmentServer, salesInfoList, finalStart, finalFinish, left, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
-                        }
-                    });
-                    futures.add(importResult);
-                }
-                start = finish;
-
+            for(final List<SalesInfo> groupSalesInfo : groupedSalesInfo.values()) {
+                Future<String> importResult = executor.submit(new Callable() {
+                    @Override
+                    public Object call() throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+                        return runMultithreadTask(stack, groupSalesInfo, finalNumberAtATime, sidEquipmentServer, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                    }
+                });
+                futures.add(importResult);
             }
+
             executor.shutdown();
 
             for (Future<String> future : futures) {
@@ -1010,6 +985,37 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
             return result;
         }
+    }
+
+    private String runMultithreadTask(ExecutionStack stack, List<SalesInfo> salesInfoList, Integer numberAtATime, String sidEquipmentServer, final String directory,
+                                      boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        int start = 0;
+        while (start < salesInfoList.size()) {
+            int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+
+            if (finish < salesInfoList.size() - 1) {
+                Integer firstNppGroupMachinery;
+                Integer lastNppGroupMachinery;
+                Integer nextNppGroupMachinery;
+                while (start < finish && (firstNppGroupMachinery = salesInfoList.get(start).nppGroupMachinery) != null && (lastNppGroupMachinery = salesInfoList.get(finish - 1).nppGroupMachinery) != null && (nextNppGroupMachinery = salesInfoList.get(finish).nppGroupMachinery) != null && !firstNppGroupMachinery.equals(lastNppGroupMachinery) && lastNppGroupMachinery.equals(nextNppGroupMachinery))
+                    finish--;
+            }
+
+            Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
+            if (lastNumberReceipt != null) {
+                while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
+                    finish++;
+            }
+
+            if (start < finish) {
+                String result = importSalesInfo(stack, sidEquipmentServer, salesInfoList, start, finish, salesInfoList.size() - finish, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                if(result != null) {
+                    return result;
+                }
+            }
+            start = finish;
+        }
+        return null;
     }
 
     private String importSalesInfo(ExecutionStack stack, String sidEquipmentServer, List<SalesInfo> salesInfoList, int start, int finish, int left, String directory,
@@ -2345,5 +2351,22 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
+    private Map<Integer, List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
+        //todo: one-line in java8: https://stackoverflow.com/questions/30755949/java-8-lambdas-group-list-into-map
+        int start = 0;
+        Map<Integer, List<SalesInfo>> groupedSalesInfo = new HashMap<>();
+        while (start < salesInfoList.size()) {
+            SalesInfo salesInfo = salesInfoList.get(start);
+            Integer nppGroupMachinery = salesInfo.nppGroupMachinery;
+            List<SalesInfo> currentList = groupedSalesInfo.get(nppGroupMachinery);
+            if (currentList == null) {
+                currentList = new ArrayList<>();
+                groupedSalesInfo.put(nppGroupMachinery, currentList);
+            }
+            currentList.add(salesInfo);
+            start++;
+        }
+        return groupedSalesInfo;
+    }
 
 }
