@@ -185,7 +185,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         LOCAL sku = Sku (INTEGER);
                         
                         sku(INTEGER l) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
-                        indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l), ordrspOrderNumber(); //сортировка по принятым откланенным, принятые первыми
+                        indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l); //сортировка по принятым откланенным, принятые первыми
                         fillIndexSku(eOrder(r));
                         
                         FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
@@ -202,8 +202,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             price(d) <- ordrspPriceElement(l);
                             sumNoNDS(d) <- ordrspPriceNoNDS(l);
                             sumNDS(d) <- ordrspPriceNDS(l);
-                            responseDetail(EOrderDetail od) <- d WHERE eOrder(d) == order(od) AND sku(d) == sku(od) AND indexSku(l) == localIndexSku(od);
                         }
+                        FOR ordrspGTIN(INTEGER l) INLINE DO {
+                            responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
+                        }
+                        
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
                             IF NOT disableConfirmation AND sendReplies THEN {
