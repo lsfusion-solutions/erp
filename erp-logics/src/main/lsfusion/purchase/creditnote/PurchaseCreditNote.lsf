@@ -98,3 +98,21 @@ printCreditNote 'Акт расхождения' (Invoice invoice)  { print(invoi
 EXTEND FORM invoices
     PROPERTIES(i)  printCreditNote SHOWIF invoiceCreditNote(i)
 ;
+
+quantityCreditNoteDetail 'Кол-во' (UserInvoice i) = quantityCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
+sumCreditNoteDetail 'Сумма без НДС' (UserInvoice i) = sumCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
+VATSumCreditNoteDetail 'Сумма НДС' (UserInvoice i) = VATSumCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
+invoiceSumCreditNoteDetail 'Сумма с НДС' (UserInvoice i) = invoiceSumCreditNoteDetail(invoiceCreditNote(i)) IN creditNote;
+
+EXTEND FORM userInvoice PROPERTIES (i) READONLY quantityCreditNoteDetail, sumCreditNoteDetail, VATSumCreditNoteDetail, invoiceSumCreditNoteDetail;
+
+DESIGN userInvoice {
+    headerCreateDocuments {
+        MOVE GROUP (creditNote,i) BEFORE headerCreateCreditNote {
+            caption = 'Акт расхождений';
+            MOVE PROPERTY (createCreditNote(i)) FIRST;
+            type = CONTAINERV;
+        }
+        REMOVE headerCreateCreditNote;
+    }
+}
