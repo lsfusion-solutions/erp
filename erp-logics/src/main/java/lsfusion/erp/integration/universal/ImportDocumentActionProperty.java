@@ -64,7 +64,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
-        LP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
+        LP[] properties = findProperties("staticName[ImportTypeDetail]", "staticCaption[ImportTypeDetail]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importTypeDetailExpr));
         }
