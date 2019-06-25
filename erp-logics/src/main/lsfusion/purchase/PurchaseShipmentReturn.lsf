@@ -1,0 +1,65 @@
+MODULE PurchaseShipmentReturn;
+
+REQUIRE PurchaseReturnInvoice;
+
+shipmentReturn 'Накладная (возврат)' = DATA PurchaseReturn.UserInvoice(Purchase.UserInvoice);
+
+createShipmentReturn 'Создать накладную (возврат)' (Purchase.UserInvoice i) {
+    NEWSESSION NEW r = PurchaseReturn.UserInvoice {
+        
+        shipmentReturn(i) <- r;
+        supplier(r) <- supplier(i);
+        supplierStock(r) <- supplierStock(i);
+        customer(r) <- customer(i);
+        customerStock(r) <- customerStock(i);
+        contractSku(r) <- contractSku(i);
+        isCommission(r) <- isCommission(i);
+        currency(r) <- currency(i);
+        agreement(r) <- agreement(i);
+        note(r) <- note(i);
+        priceListType(r) <- NULL;
+        operation(r) <- operation(i);
+	    showPack(r) <- showPack(i);
+	
+        FOR Purchase.invoice(Purchase.InvoiceDetail invoiceDetail) == i AND NOT quantity(invoiceDetail) == shipmentQuantity(invoiceDetail) DO {
+            NEW d = PurchaseReturn.UserInvoiceDetail {
+                userInvoice(d) <- r;
+                sku(d) <- sku(invoiceDetail);
+                quantity(d) <- quantity(invoiceDetail) (-) shipmentQuantity(invoiceDetail);
+                price(d) <- price(invoiceDetail);
+                batch(d) <- batch(invoiceDetail);
+                VAT(d) <- VAT(invoiceDetail);
+            }
+            shipmentQuantity(invoiceDetail) <- quantity(invoiceDetail);
+        }
+        SHOW PurchaseReturn.userInvoice OBJECTS i = r DOCKED;
+    }
+}
+
+showShipmentReturn 'Просмотреть накладную (возврат)' (Purchase.UserInvoice i) {
+    NEWSESSION SHOW PurchaseReturn.userInvoice OBJECTS i = shipmentReturn(i) DOCKED;
+}
+
+deleteShipmentReturn 'Удалить накладную (возврат)' (Purchase.UserInvoice i) {
+    NEWSESSION {
+        DELETE PurchaseReturn.UserInvoice ui WHERE ui == shipmentReturn(i);
+        APPLY;
+    }
+} CONFIRM;
+
+diffQuantity (Purchase.UserInvoice i) = GROUP SUM 1 IF Purchase.UserInvoiceDetail d IS Purchase.UserInvoiceDetail AND NOT quantity(d) == shipmentQuantity(d) BY userInvoice(d);
+
+EXTEND FORM Purchase.invoices 
+    PROPERTIES (i) createShipmentReturn SHOWIF NOT shipmentReturn(i) AND diffQuantity(i), showShipmentReturn SHOWIF shipmentReturn(i), deleteShipmentReturn SHOWIF shipmentReturn(i);
+
+DESIGN Purchase.invoices {
+    actionContainer {
+        NEW shipmentReturn {
+            caption = 'Накладная (возврат)';
+            width = 150;
+            MOVE PROPERTY (createShipmentReturn(i)) { caption = 'Создать'; alignment = CENTER; }
+            MOVE PROPERTY (showShipmentReturn(i)) { caption = 'Просмотреть'; alignment = CENTER; }
+            MOVE PROPERTY (deleteShipmentReturn(i)) { caption = 'Удалить'; alignment = CENTER; }
+        }
+    }
+}
