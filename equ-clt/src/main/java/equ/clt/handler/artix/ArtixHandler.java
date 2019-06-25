@@ -1303,7 +1303,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
         if(!result.isEmpty())
-            sendSalesLogger.info(logPrefix + "found " + result.size() + "CashierTime(s) in " + file.getName());
+            sendSalesLogger.info(logPrefix + "found " + result.size() + " CashierTime(s) in " + file.getName());
         return result;
     }
 
