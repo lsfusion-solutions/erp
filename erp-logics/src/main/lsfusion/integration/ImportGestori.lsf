@@ -307,11 +307,11 @@ importItems 'Импорт товаров' () {
     
     IMPORT TABLE FROM file() TO idItem, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article;
     
-    FOR id(INTEGER i) AND NOT item(TEXT (id(i))) DO NEW s = Item {
-        id(s) <- STRING[100](id(i));
+    FOR idItem(INTEGER i) AND NOT item(TEXT (idItem(i))) DO NEW s = Item {
+        id(s) <- STRING[100](idItem(i));
     }
     
-    FOR Item s = item(TEXT (id(INTEGER i))) DO {
+    FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
         caption(s) <- name(i);
         UOM(s) <- UOM(TEXT (idUOM(i)));
         itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
@@ -328,7 +328,7 @@ importItems 'Импорт товаров' () {
     
     IMPORT TABLE FROM file() TO idItem, vat;
     
-    FOR Item s = item(TEXT (id(INTEGER i))) DO {
+    FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
         VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(i)*10) WHERE c == defaultCountry();
     }
     
@@ -340,7 +340,7 @@ importItems 'Импорт товаров' () {
     
     IMPORT TABLE FROM file() TO idItem, idBarcode, date;
     
-    FOR id(INTEGER i) AND NOT barcode(idBarcode(i)) DO NEW b = Barcode {
+    FOR idBarcode(INTEGER i) AND NOT barcode(idBarcode(i)) DO NEW b = Barcode {
         id(b) <- idBarcode(i);
     }
     FOR Barcode b = barcode(idBarcode(INTEGER i)) AND Item s = item(TEXT (idItem(i))) DO {
