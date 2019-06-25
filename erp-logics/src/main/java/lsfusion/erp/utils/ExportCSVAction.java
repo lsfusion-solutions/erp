@@ -2,7 +2,7 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
-import lsfusion.erp.integration.DefaultExportActionProperty;
+import lsfusion.erp.integration.DefaultExportAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class ExportCSVAction extends DefaultExportActionProperty {
+public abstract class ExportCSVAction extends DefaultExportAction {
     String idForm;
     String idGroupObject;
 
