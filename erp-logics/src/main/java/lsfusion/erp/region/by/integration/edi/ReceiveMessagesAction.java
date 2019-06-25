@@ -685,7 +685,7 @@ public class ReceiveMessagesAction extends EDIAction {
             props.add(new ImportProperty(dateTimeEOrderResponseField, findProperty("dateTime[EOrderResponse]").getMapping(eOrderResponseKey)));
             fields.add(dateTimeEOrderResponseField);
 
-            ImportField responseTypeField = new ImportField(findProperty("staticName[Object]"));
+            ImportField responseTypeField = new ImportField(findProperty("staticName[StaticObject]"));
             ImportKey<?> responseTypeKey = new ImportKey((CustomClass) findClass("EOrderResponseType"),
                     findProperty("nameStatic[BPSTRING[250]]").getMapping(responseTypeField));
             keys.add(responseTypeKey);
@@ -774,7 +774,7 @@ public class ReceiveMessagesAction extends EDIAction {
             props.add(new ImportProperty(dataGTINEOrderResponseDetailField, findProperty("dataGTIN[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(dataGTINEOrderResponseDetailField);
 
-            ImportField actionField = new ImportField(findProperty("staticName[Object]"));
+            ImportField actionField = new ImportField(findProperty("staticName[StaticObject]"));
             ImportKey<?> actionKey = new ImportKey((CustomClass) findClass("EOrderResponseDetailAction"),
                     findProperty("nameStatic[BPSTRING[250]]").getMapping(actionField));
             keys.add(actionKey);
