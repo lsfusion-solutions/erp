@@ -33,6 +33,7 @@ DESIGN integrationData {
 
 
 id = DATA LOCAL INTEGER (INTEGER);
+idItem = DATA LOCAL NUMERIC[13,0](INTEGER);
 name = DATA LOCAL STRING[100](INTEGER);
 idParent = DATA LOCAL INTEGER (INTEGER);
 
@@ -332,7 +333,6 @@ importItems 'Импорт товаров' () {
     }
     
     LOCAL idBarcode = STRING[15](INTEGER);
-    LOCAL idItem = INTEGER (INTEGER);
     LOCAL date = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
@@ -450,7 +450,6 @@ importContract 'Импорт договоров' () {
 EXTEND FORM integrationData PROPERTIES importContract();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importContract()); } }
 
-idItem = DATA LOCAL INTEGER (INTEGER);
 property = DATA LOCAL INTEGER (INTEGER);
 value = DATA LOCAL TEXT (INTEGER);
 
@@ -574,19 +573,19 @@ importInit 'Импорт остатков' () {
     
     IMPORT TABLE FROM file() TO idSku, quantity;
     
-    FOR NUMERIC[16,3] q = [GROUP MAX quantity(INTEGER i) BY idSku(i)](INTEGER s) AND q > 0 DO {
+    FOR NUMERIC[16,3] q = [GROUP MAX quantity(INTEGER i) BY idSku(i)](NUMERIC[13,0] s) DO {
         quantityID(s) <- q;
     }
     
     LOCAL price = NUMERIC[16,3](INTEGER);
-    LOCAL priceID = NUMERIC[16,3](INTEGER);
+    LOCAL priceID = NUMERIC[16,3](NUMERIC[13,0]);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ id(customerStock()) +'\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idSku, price;
     
-    FOR NUMERIC[16,3] p = [GROUP MAX price(INTEGER i) BY idSku(i)](INTEGER s) AND p > 0 DO {
+    FOR NUMERIC[16,3] p = [GROUP MAX price(INTEGER i) BY idSku(i)](NUMERIC[13,0] s) AND p > 0 DO {
         priceID(s) <- p;
     }
     
@@ -598,15 +597,15 @@ importInit 'Импорт остатков' () {
     LOCAL idDetail = ISTRING[100](INTEGER);
     LOCAL imported = BOOLEAN (Purchase.UserInvoiceDetail);
     
-    FOR quantityID(INTEGER s) != 0.0 AND NOT sku(TEXT (s)) DO {
+    FOR quantityID(NUMERIC[13,0] s) AND NOT sku(TEXT (s)) DO {
         logToFile('importGestori_init', 'Не найден товар! ' + CONCAT ', ', 'Код: ' + s, 'Кол-во: ' + quantityID(s), 'Цена: ' + priceID(s) + '\r\n');
     }
     
-    FOR quantityID(INTEGER s) != 0.0 AND sku(TEXT (s)) DO {
+    FOR quantityID(NUMERIC[13,0] s) AND sku(TEXT (s)) DO {
     
         EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT TOP 1 pr2.dt_nakl, pr2.num_nakl, pr1.num_doc, pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
-            + id(customerStock()) +'\'AND pr2.cod_good = \'' + s + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
+            + id(customerStock()) +'\' AND pr2.cod_good = \'' + s + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
             
         IMPORT TABLE FROM file() TO date, id, number, cost, idSupplier, time;
         
@@ -796,21 +795,24 @@ DESIGN integrationData {
 
 dateFromOrder 'Дата с' = DATA DATE ();
 
+customerStockOrder = DATA Stock();
+nameCustomerStockOrder 'Склад' () = name(customerStockOrder());
+idCustomerStockOrder 'Склад' () = id(customerStockOrder());
+
 importOrder 'Импорт заказов' () {
     
     LOCAL date = DATE (INTEGER);
     LOCAL date2 = DATE (INTEGER);
     LOCAL closed = BOOLEAN (INTEGER);
     LOCAL idSupplier = INTEGER (INTEGER);
-    LOCAL idStock = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT num_nakl, dt_doc, dt_nakl, fflag, cod_firm, cod_shop, primech FROM Pub.zakp1 WHERE zakp1.dt_doc >= TO_DATE(\'' 
+            EXEC 'SELECT num_nakl, dt_doc, dt_nakl, fflag, cod_firm, primech FROM Pub.zakp1 WHERE cod_shop = \'' + idCustomerStockOrder() + '\' AND zakp1.dt_doc >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\')) WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO id, date, date2, closed, idSupplier, idStock, comment;
+    IMPORT TABLE FROM file() TO id, date, date2, closed, idSupplier, comment;
     
     FOR id(INTEGER i) AND NOT userOrder(TEXT (id(i))) DO NEW o = UserOrder {
         id(o) <- ISTRING[100](id(i));
@@ -823,14 +825,13 @@ importOrder 'Импорт заказов' () {
         isPosted(o) <- closed(i);
         supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
         supplierStock(o) <- minStock(legalEntity(ISTRING[100] (idSupplier(i))));
-        customerStock(o) <- stock(ISTRING[100] (idStock(i)));
-        customer(o) <- legalEntity(stock(ISTRING[100] (idStock(i))));
+        customerStock(o) <- stock(ISTRING[100] (idCustomerStockOrder()));
+        customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStockOrder())));
         date(o) <- OVERRIDE date(i), date2(i);
         time(o) <- 00:00;
         shipmentDate(o) <- date2(i);
     }
     
-    LOCAL idItem = INTEGER (INTEGER);
     LOCAL quantity = NUMERIC[16,3] (INTEGER);
     LOCAL price = NUMERIC[16,3] (INTEGER);
     LOCAL index = INTEGER (INTEGER);
@@ -841,7 +842,7 @@ importOrder 'Импорт заказов' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT cod_good, quantity_f, retail_price, nn, zakp2.num_nakl FROM Pub.zakp2, Pub.zakp1 WHERE zakp1.num_nakl = zakp2.num_nakl AND quantity > 0 AND (zakp1.dt_doc >= TO_DATE(\'' 
             + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\') OR (zakp1.dt_doc IS NULL AND zakp1.dt_nakl >= TO_DATE(\'' 
-            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\'))) WITH (NOLOCK)' TO file;
+            + toDateISO(dateFromOrder())  + '\',\'YYYY-MM-DD\'))) AND zakp1.cod_shop = \'' + idCustomerStockOrder() + '\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, quantity, price, index, idOrder;
 
@@ -862,13 +863,14 @@ importOrder 'Импорт заказов' () {
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder();
+EXTEND FORM integrationData PROPERTIES () importOrder, dateFromOrder, nameCustomerStockOrder;
 DESIGN integrationData { 
     santaButtons { 
         NEW orders {
             type = CONTAINERH;
             MOVE PROPERTY (importOrder());
             MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
+            MOVE PROPERTY (nameCustomerStockOrder()) { alignment = CENTER; }
         } 
     } 
 }
