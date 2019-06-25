@@ -305,7 +305,7 @@ importItems 'Импорт товаров' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_good, name, SUBSTR(name_e, 1, 60), price_name, name_cur, cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, parent_good FROM Pub.katalog WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO id, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article;
+    IMPORT TABLE FROM file() TO idItem, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article;
     
     FOR id(INTEGER i) AND NOT item(TEXT (id(i))) DO NEW s = Item {
         id(s) <- STRING[100](id(i));
@@ -326,7 +326,7 @@ importItems 'Импорт товаров' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT cod_good, nds FROM Pub."arh-nds" WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO id, vat;
+    IMPORT TABLE FROM file() TO idItem, vat;
     
     FOR Item s = item(TEXT (id(INTEGER i))) DO {
         VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(i)*10) WHERE c == defaultCountry();
@@ -563,7 +563,6 @@ CONSTRAINT customerStock() AND NOT isCompany(legalEntity(customerStock())) CHECK
 
 importInit 'Импорт остатков' () {
     
-    LOCAL idSku = NUMERIC[13,0](INTEGER);
     LOCAL quantity = NUMERIC[16,3](INTEGER);
     LOCAL quantityID = NUMERIC[16,3](NUMERIC[13,0]);
     
@@ -571,9 +570,9 @@ importInit 'Импорт остатков' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idSku, quantity;
+    IMPORT TABLE FROM file() TO idItem, quantity;
     
-    FOR NUMERIC[16,3] q = [GROUP MAX quantity(INTEGER i) BY idSku(i)](NUMERIC[13,0] s) DO {
+    FOR NUMERIC[16,3] q = [GROUP MAX quantity(INTEGER i) BY idItem(i)](NUMERIC[13,0] s) DO {
         quantityID(s) <- q;
     }
     
@@ -583,9 +582,9 @@ importInit 'Импорт остатков' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ id(customerStock()) +'\' WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idSku, price;
+    IMPORT TABLE FROM file() TO idItem, price;
     
-    FOR NUMERIC[16,3] p = [GROUP MAX price(INTEGER i) BY idSku(i)](NUMERIC[13,0] s) AND p > 0 DO {
+    FOR NUMERIC[16,3] p = [GROUP MAX price(INTEGER i) BY idItem(i)](NUMERIC[13,0] s) AND p > 0 DO {
         priceID(s) <- p;
     }
     
@@ -646,11 +645,11 @@ importInit 'Импорт остатков' () {
         
         FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) INLINE DO {
             userInvoice(d) <- Purchase.userInvoice(OVERRIDE TEXT (id(0)), ('NN' + id(customerStock())));
-            sku(d) <- sku(TEXT (INTEGER (s)));
+            sku(d) <- sku(TEXT (s));
             quantity(d) <- quantityID(s);
             shipmentQuantity(d) <- quantityID(s);
-            VAT(d) <- VAT(sku(TEXT (INTEGER (s)))); 
-            retailVAT(d) <- VAT(sku(TEXT (INTEGER (s))));
+            VAT(d) <- VAT(sku(TEXT (s))); 
+            retailVAT(d) <- VAT(sku(TEXT (s)));
             price(d) <- NUMERIC[16,4](cost(0));
             retailPrice(d) <- NUMERIC[16,4](price(s));
             shipmentPrice(d) <- NUMERIC[16,4](price(s));
