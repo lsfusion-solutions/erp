@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Item;
 import lsfusion.erp.stock.BarcodeUtils;
@@ -25,9 +25,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
+public class ImportExcelItemsAction extends ImportExcelAction {
 
-    public ImportExcelItemsActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelItemsAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -44,7 +44,7 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
 
                 importData.setItemsList(importItems((RawFileData) objectValue.getValue(), onlyEAN));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException| ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

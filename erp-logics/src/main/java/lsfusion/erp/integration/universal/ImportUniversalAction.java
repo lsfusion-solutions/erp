@@ -6,7 +6,7 @@ import jxl.NumberFormulaCell;
 import jxl.Sheet;
 import lsfusion.base.file.IOUtils;
 import lsfusion.base.Pair;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public abstract class ImportUniversalActionProperty extends DefaultImportActionProperty {
+public abstract class ImportUniversalAction extends DefaultImportAction {
 
     // syntax : 
     // ":xxx_yyy" - value from cell (xxx - column, yyy - row) (for xls, xlsx, csv)
@@ -57,15 +57,15 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
     // "xxx~d=1~M=12~y=2006~h=12~m=30~s=15" - value ~ d= default value for day ~ M= for month ~ y= for year, h= for hour, m= for minute, s= for second 
     // "xxx[-2]" - round up xxx with scale = -2 . [scale] is always at the end of numeric expression, it rounds the result of the whole expression
 
-    public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public ImportUniversalAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportUniversalActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportUniversalAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public ImportUniversalActionProperty(ScriptingLogicsModule LM) {
+    public ImportUniversalAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

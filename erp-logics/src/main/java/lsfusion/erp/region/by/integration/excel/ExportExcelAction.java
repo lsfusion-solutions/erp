@@ -9,7 +9,7 @@ import jxl.write.WriteException;
 import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
-import lsfusion.erp.integration.DefaultIntegrationActionProperty;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public abstract class ExportExcelAction extends DefaultIntegrationActionProperty {
+public abstract class ExportExcelAction extends DefaultIntegrationAction {
     
     public abstract Pair<String, RawFileData> createFile(ExecutionContext<ClassPropertyInterface> context) throws IOException, WriteException;
 

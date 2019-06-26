@@ -11,7 +11,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class ImportPurchaseInvoiceCustomsGroupArticle extends ImportDefaultPurchaseInvoiceActionProperty {
+public class ImportPurchaseInvoiceCustomsGroupArticle extends ImportDefaultPurchaseInvoiceAction {
 
     public ImportPurchaseInvoiceCustomsGroupArticle(ScriptingLogicsModule LM) {
         super(LM);

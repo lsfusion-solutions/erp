@@ -29,7 +29,7 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.*;
 
-public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
+public abstract class ImportDocumentAction extends ImportUniversalAction {
 
     protected ScriptingLogicsModule skuImportCodeLM = null;
 
@@ -38,15 +38,15 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     public static int IMPORT_RESULT_ERROR = -1;
     public static int IMPORT_RESULT_DOCUMENTS_CLOSED_DATE = -2;
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public ImportDocumentAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportDocumentAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public ImportDocumentActionProperty(ScriptingLogicsModule LM) {
+    public ImportDocumentAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

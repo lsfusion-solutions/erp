@@ -2,7 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
@@ -27,10 +27,10 @@ import java.util.Iterator;
 import java.util.List;
 
 
-public class ImportDeclarationAdjustmentXMLActionProperty extends DefaultImportActionProperty {
+public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
     private final ClassPropertyInterface declarationInterface;
 
-    public ImportDeclarationAdjustmentXMLActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportDeclarationAdjustmentXMLAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

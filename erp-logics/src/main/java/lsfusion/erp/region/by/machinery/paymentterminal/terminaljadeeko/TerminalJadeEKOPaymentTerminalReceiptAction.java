@@ -21,10 +21,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class TerminalJadeEKOPaymentTerminalReceiptActionProperty extends InternalAction {
+public class TerminalJadeEKOPaymentTerminalReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public TerminalJadeEKOPaymentTerminalReceiptActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public TerminalJadeEKOPaymentTerminalReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -8,7 +8,7 @@ import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
@@ -40,17 +40,17 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty {
+public class ImportSaleOrderAction extends ImportDocumentAction {
     private final ClassPropertyInterface orderInterface;
 
     // Опциональные модули
     ScriptingLogicsModule saleManufacturingPriceLM;
 
-    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportSaleOrderAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         this(LM, LM.findClass("Sale.UserOrder"));
     }
 
-    public ImportSaleOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportSaleOrderAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -2,7 +2,7 @@ package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.DefaultIntegrationActionProperty;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.data.utils.geo.JsonReader;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -21,7 +21,7 @@ import java.sql.SQLException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class DefaultImageArticleAction extends DefaultIntegrationActionProperty {
+public class DefaultImageArticleAction extends DefaultIntegrationAction {
 
     public DefaultImageArticleAction(ScriptingLogicsModule LM) {
         super(LM);

@@ -3,7 +3,7 @@ package lsfusion.erp.region.by.integration.excel;
 import jxl.*;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -13,12 +13,12 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
 
-public class ImportExcelActionProperty extends DefaultImportActionProperty {
+public class ImportExcelAction extends DefaultImportAction {
 
     static long minDate = new Date(2001 - 1900, 0, 1).getTime();
     static long maxDate = new Date(2030 - 1900, 0, 1).getTime();
 
-    public ImportExcelActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

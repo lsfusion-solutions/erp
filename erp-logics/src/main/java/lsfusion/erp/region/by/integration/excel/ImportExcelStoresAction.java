@@ -18,9 +18,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelStoresActionProperty extends ImportExcelActionProperty {
+public class ImportExcelStoresAction extends ImportExcelAction {
 
-    public ImportExcelStoresActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelStoresAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -35,7 +35,7 @@ public class ImportExcelStoresActionProperty extends ImportExcelActionProperty {
 
                 importData.setStoresList(importStores((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);

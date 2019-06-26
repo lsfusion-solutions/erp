@@ -17,7 +17,7 @@ import java.util.Iterator;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
-public class FiscalBoardDisplayTextAction extends FiscalBoardActionProperty {
+public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalBoardDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {

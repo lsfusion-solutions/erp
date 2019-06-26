@@ -10,10 +10,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalBoardResetTextActionProperty extends FiscalBoardActionProperty {
+public class FiscalBoardResetTextAction extends FiscalBoardAction {
     private final ClassPropertyInterface timeoutInterface;
 
-    public FiscalBoardResetTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalBoardResetTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

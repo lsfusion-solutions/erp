@@ -6,7 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.language.property.LP;
@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
 
-public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction {
 
     public ImportPurchaseInvoicesDirectoryAction(ScriptingLogicsModule LM) {
         super(LM);

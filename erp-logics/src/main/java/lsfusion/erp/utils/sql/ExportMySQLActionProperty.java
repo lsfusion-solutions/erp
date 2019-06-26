@@ -59,9 +59,9 @@ public abstract class ExportMySQLActionProperty extends ExportSQLActionProperty 
 //import lsfusion.server.language.ScriptingErrorLog;
 //import lsfusion.server.language.ScriptingLogicsModule;
 //import java.util.Arrays;
-//public class TestExportSQLActionProperty extends ExportMSSQLActionProperty {
+//public class TestExportSQLAction extends ExportMSSQLAction {
 //
-//    public TestExportSQLActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+//    public TestExportSQLAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
 //        super(LM, "testtable4", "i", Arrays.asList("dt"), "connectionString", true);
 //    }
 //}

@@ -2,7 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.LegalEntity;
 import jxl.Sheet;
@@ -20,9 +20,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionProperty {
+public class ImportExcelLegalEntitiesAction extends ImportExcelAction {
 
-    public ImportExcelLegalEntitiesActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelLegalEntitiesAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -37,7 +37,7 @@ public class ImportExcelLegalEntitiesActionProperty extends ImportExcelActionPro
 
                 importData.setLegalEntitiesList(importLegalEntities((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);

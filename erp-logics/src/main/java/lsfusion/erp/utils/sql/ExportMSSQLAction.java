@@ -8,15 +8,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 
-public abstract class ExportMSSQLActionProperty extends ExportSQLActionProperty {
+public abstract class ExportMSSQLAction extends ExportSQLActionProperty {
 
-    public ExportMSSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                     List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
+    public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
         super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, truncate, noInsert);
     }
 
-    public ExportMSSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                     List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
+    public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
         super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert);
     }
 
@@ -62,9 +62,9 @@ public abstract class ExportMSSQLActionProperty extends ExportSQLActionProperty 
 //import lsfusion.server.language.ScriptingErrorLog;
 //import lsfusion.server.language.ScriptingLogicsModule;
 //import java.util.Arrays;
-//public class TestExportSQLActionProperty extends ExportMSSQLActionProperty {
+//public class TestExportSQLAction extends ExportMSSQLAction {
 //
-//    public TestExportSQLActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+//    public TestExportSQLAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
 //        super(LM, "testtable4", "i", Arrays.asList("dt"), "connectionString", true);
 //    }
 //}

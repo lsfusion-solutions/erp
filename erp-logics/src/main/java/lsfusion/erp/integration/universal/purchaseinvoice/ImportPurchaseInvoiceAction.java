@@ -51,7 +51,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceActionProperty {
+public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAction {
     private final ClassPropertyInterface userInvoiceInterface;
 
     public ImportPurchaseInvoiceAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {

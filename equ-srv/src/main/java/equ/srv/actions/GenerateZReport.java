@@ -6,7 +6,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.erp.integration.DefaultIntegrationActionProperty;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -28,7 +28,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.*;
 
-public class GenerateZReport extends DefaultIntegrationActionProperty {
+public class GenerateZReport extends DefaultIntegrationAction {
     private static final double deviationPercent = 0.25;
 
     public GenerateZReport(ScriptingLogicsModule LM) {

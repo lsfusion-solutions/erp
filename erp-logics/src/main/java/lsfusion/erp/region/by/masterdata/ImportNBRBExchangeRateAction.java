@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.masterdata;
 
-import lsfusion.erp.integration.DefaultIntegrationActionProperty;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.ValueClass;
@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportNBRBExchangeRateAction extends DefaultIntegrationActionProperty {
+public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
     public ImportNBRBExchangeRateAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);

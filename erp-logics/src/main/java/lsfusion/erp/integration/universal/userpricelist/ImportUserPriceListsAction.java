@@ -5,7 +5,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -27,9 +27,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ImportUserPriceListsActionProperty extends DefaultImportActionProperty {
+public class ImportUserPriceListsAction extends DefaultImportAction {
 
-    public ImportUserPriceListsActionProperty(ScriptingLogicsModule LM) {
+    public ImportUserPriceListsAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -56,7 +56,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
                 String directory = (String) entryValue.get("autoImportDirectoryImportUserPriceListType").getValue();
 
-                ImportUserPriceListActionProperty imp = new ImportUserPriceListActionProperty(LM);
+                ImportUserPriceListAction imp = new ImportUserPriceListAction(LM);
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = imp.readImportColumns(context, importUserPriceListTypeObject);
                 ImportPriceListSettings settings = imp.readImportPriceListSettings(context, importUserPriceListTypeObject);
                 Map<DataObject, String[]> priceColumns = imp.readPriceImportColumns(context, importUserPriceListTypeObject);
@@ -74,7 +74,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
 
                                     try {
 
-                                        boolean importResult = new ImportUserPriceListActionProperty(LM).importData(context,
+                                        boolean importResult = new ImportUserPriceListAction(LM).importData(context,
                                                 userPriceListObject, settings, priceColumns, importColumns.get(0), importColumns.get(1), new RawFileData(f),
                                                 true);
 

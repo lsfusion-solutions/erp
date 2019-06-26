@@ -11,10 +11,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 
-public abstract class FiscalBoardActionProperty extends InternalAction {
+public abstract class FiscalBoardAction extends InternalAction {
     protected int lineLength = 20;
 
-    public FiscalBoardActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalBoardAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

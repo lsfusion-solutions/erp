@@ -24,7 +24,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportActionProperty extends DefaultImportActionProperty {
+public class ImportAction extends DefaultImportAction {
     private ExecutionContext<ClassPropertyInterface> context;
 
     // Опциональные модули
@@ -53,7 +53,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
         makeImport(new ImportData(), context);
     }
 
-    public ImportActionProperty(ScriptingLogicsModule LM) {
+    public ImportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

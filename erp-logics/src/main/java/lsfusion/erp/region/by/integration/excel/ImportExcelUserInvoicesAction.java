@@ -2,7 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UserInvoiceDetail;
 import jxl.Sheet;
@@ -22,9 +22,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProperty {
+public class ImportExcelUserInvoicesAction extends ImportExcelAction {
 
-    public ImportExcelUserInvoicesActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelUserInvoicesAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -39,7 +39,7 @@ public class ImportExcelUserInvoicesActionProperty extends ImportExcelActionProp
 
                 importData.setUserInvoicesList(importUserInvoices((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);

@@ -15,7 +15,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.form.property.Compare;
@@ -48,7 +48,7 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-public class ImportPurchaseInvoicesEmailAction extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
     public ImportPurchaseInvoicesEmailAction(ScriptingLogicsModule LM) {
         super(LM);

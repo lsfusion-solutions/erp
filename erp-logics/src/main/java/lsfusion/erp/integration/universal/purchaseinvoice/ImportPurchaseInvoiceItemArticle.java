@@ -13,7 +13,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoiceActionProperty {
+public class ImportPurchaseInvoiceItemArticle extends ImportDefaultPurchaseInvoiceAction {
 
     public ImportPurchaseInvoiceItemArticle(ScriptingLogicsModule LM) {
         super(LM);

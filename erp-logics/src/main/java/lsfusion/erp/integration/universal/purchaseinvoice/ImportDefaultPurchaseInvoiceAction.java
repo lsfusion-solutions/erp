@@ -1,6 +1,6 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -8,17 +8,17 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
-public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentActionProperty {
+public class ImportDefaultPurchaseInvoiceAction extends ImportDocumentAction {
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public ImportDefaultPurchaseInvoiceAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportDefaultPurchaseInvoiceAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
-    public ImportDefaultPurchaseInvoiceActionProperty(ScriptingLogicsModule LM) {
+    public ImportDefaultPurchaseInvoiceAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

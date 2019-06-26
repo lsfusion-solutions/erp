@@ -13,10 +13,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalBoardPostPrintActionProperty extends FiscalBoardActionProperty {
+public class FiscalBoardPostPrintAction extends FiscalBoardAction {
     private final ClassPropertyInterface receiptInterface;
 
-    public FiscalBoardPostPrintActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalBoardPostPrintAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -2,7 +2,7 @@ package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.action.MessageClientAction;
@@ -23,9 +23,9 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.Map;
 
-public class ImportProductionOrdersFileActionProperty extends ImportDocumentActionProperty {
+public class ImportProductionOrdersFileAction extends ImportDocumentAction {
     
-    public ImportProductionOrdersFileActionProperty(ScriptingLogicsModule LM) {
+    public ImportProductionOrdersFileAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -51,7 +51,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        new ImportProductionOrderActionProperty(LM).makeImport(context, null, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension, operationObject);
+                        new ImportProductionOrderAction(LM).makeImport(context, null, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension, operationObject);
 
                         context.apply();
                         

@@ -14,17 +14,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class DefaultImportActionProperty extends DefaultIntegrationActionProperty {
+public class DefaultImportAction extends DefaultIntegrationAction {
 
-    public DefaultImportActionProperty(ScriptingLogicsModule LM) {
+    public DefaultImportAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public DefaultImportActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public DefaultImportAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public DefaultImportActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public DefaultImportAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

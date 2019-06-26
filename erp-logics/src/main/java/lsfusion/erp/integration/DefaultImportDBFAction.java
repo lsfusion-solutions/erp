@@ -18,7 +18,7 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 
-public class DefaultImportDBFAction extends DefaultImportActionProperty {
+public class DefaultImportDBFAction extends DefaultImportAction {
 
     public DefaultImportDBFAction(ScriptingLogicsModule LM) {
         super(LM);

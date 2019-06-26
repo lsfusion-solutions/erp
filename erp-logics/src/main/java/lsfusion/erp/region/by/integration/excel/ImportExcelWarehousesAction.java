@@ -2,7 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import jxl.WorkbookSettings;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Warehouse;
 import lsfusion.erp.integration.WarehouseGroup;
@@ -22,9 +22,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelWarehousesActionProperty extends ImportExcelActionProperty {
+public class ImportExcelWarehousesAction extends ImportExcelAction {
 
-    public ImportExcelWarehousesActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelWarehousesAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -40,7 +40,7 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
                 importData.setWarehouseGroupsList(importWarehouseGroups((RawFileData) objectValue.getValue()));
                 importData.setWarehousesList(importWarehouses((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw new RuntimeException(e);

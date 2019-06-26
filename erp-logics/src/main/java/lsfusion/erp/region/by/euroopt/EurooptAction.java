@@ -2,7 +2,7 @@ package lsfusion.erp.region.by.euroopt;
 
 import com.google.common.base.Throwables;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.erp.integration.DefaultImportActionProperty;
+import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -22,7 +22,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.sql.SQLException;
 
-public class EurooptAction extends DefaultImportActionProperty {
+public class EurooptAction extends DefaultImportAction {
 
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 

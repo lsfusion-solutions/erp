@@ -2,9 +2,9 @@ package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.Bank;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
-import lsfusion.erp.integration.ItemGroup;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
@@ -20,46 +20,46 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelGroupItemsActionProperty extends ImportExcelActionProperty {
+public class ImportExcelBanksAction extends ImportExcelAction {
 
-    public ImportExcelGroupItemsActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelBanksAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            
+
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( "Файлы таблиц", "xls");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
                 ImportData importData = new ImportData();
 
-                importData.setParentGroupsList(importGroupItems((RawFileData) objectValue.getValue(), true));
-                importData.setItemGroupsList(importGroupItems((RawFileData) objectValue.getValue(), false));
+                importData.setBanksList(importBanks((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
-        } catch (IOException | BiffException | ParseException e) {
+        } catch (IOException | ParseException | BiffException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static List<ItemGroup> importGroupItems(RawFileData file, Boolean parents) throws IOException, BiffException, ParseException {
+    protected static List<Bank> importBanks(RawFileData file) throws IOException, BiffException, ParseException {
 
-        Sheet sheet = getSheet(file, 3);
+        Sheet sheet = getSheet(file, 6);
 
-        List<ItemGroup> data = new ArrayList<>();
+        List<Bank> data = new ArrayList<>();
 
         for (int i = 1; i < sheet.getRows(); i++) {
 
-            String idGroup = parseString(sheet.getCell(0, i));
-            String nameGroup = parseString(sheet.getCell(1, i));
-            String idParentGroup = parseString(sheet.getCell(2, i));
-            if (parents)
-                data.add(new ItemGroup(idGroup, null, idParentGroup));
-            else
-                data.add(new ItemGroup(idGroup, nameGroup, null));
+            String idBank = parseString(sheet.getCell(0, i));
+            String nameBank = parseString(sheet.getCell(1, i));
+            String addressBank = parseString(sheet.getCell(2, i));
+            String departmentBank = parseString(sheet.getCell(3, i));
+            String mfoBank = parseString(sheet.getCell(4, i));
+            String cbuBank = parseString(sheet.getCell(5, i));
+
+            data.add(new Bank(idBank, nameBank, addressBank, departmentBank, mfoBank, cbuBank));
         }
 
         return data;

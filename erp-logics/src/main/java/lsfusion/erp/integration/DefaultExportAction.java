@@ -8,7 +8,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class DefaultExportAction extends DefaultIntegrationActionProperty {
+public class DefaultExportAction extends DefaultIntegrationAction {
 
     public DefaultExportAction(ScriptingLogicsModule LM) {
         super(LM);

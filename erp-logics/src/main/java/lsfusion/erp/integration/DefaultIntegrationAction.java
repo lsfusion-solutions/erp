@@ -22,17 +22,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.*;
 
-public class DefaultIntegrationActionProperty extends InternalAction {
+public class DefaultIntegrationAction extends InternalAction {
 
-    public DefaultIntegrationActionProperty(ScriptingLogicsModule LM) {
+    public DefaultIntegrationAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public DefaultIntegrationActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) {
+    public DefaultIntegrationAction(ScriptingLogicsModule LM, ValueClass valueClass) {
         super(LM, valueClass);
     }
 
-    public DefaultIntegrationActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public DefaultIntegrationAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

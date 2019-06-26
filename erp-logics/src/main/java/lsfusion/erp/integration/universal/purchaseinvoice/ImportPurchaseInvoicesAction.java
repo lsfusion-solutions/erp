@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.SetFact;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
 
-public class ImportPurchaseInvoicesAction extends ImportDocumentActionProperty {
+public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
 
     public ImportPurchaseInvoicesAction(ScriptingLogicsModule LM) {
         super(LM);

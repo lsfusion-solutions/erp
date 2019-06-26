@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
-import lsfusion.erp.integration.ImportActionProperty;
+import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UOM;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
@@ -20,9 +20,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImportExcelUOMsActionProperty extends ImportExcelActionProperty {
+public class ImportExcelUOMsAction extends ImportExcelAction {
 
-    public ImportExcelUOMsActionProperty(ScriptingLogicsModule LM) {
+    public ImportExcelUOMsAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -37,7 +37,7 @@ public class ImportExcelUOMsActionProperty extends ImportExcelActionProperty {
 
                 importData.setUOMsList(importUOMs((RawFileData) objectValue.getValue()));
 
-                new ImportActionProperty(LM).makeImport(importData, context);
+                new ImportAction(LM).makeImport(importData, context);
             }
         } catch (IOException | BiffException | ParseException e) {
             throw Throwables.propagate(e);

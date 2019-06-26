@@ -6,7 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -26,9 +26,9 @@ import java.io.File;
 import java.sql.SQLException;
 import java.util.Map;
 
-public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty {
+public class ImportSaleOrdersAction extends ImportDocumentAction {
 
-    public ImportSaleOrdersActionProperty(ScriptingLogicsModule LM) {
+    public ImportSaleOrdersAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
@@ -84,7 +84,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                         DataObject orderObject = newContext.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
                                         try {
 
-                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(
+                                            boolean importResult = new ImportSaleOrderAction(LM).makeImport(
                                                     newContext, orderObject, importColumns, new RawFileData(f), settings,
                                                     fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
                                                     customerStockObject);

@@ -9,7 +9,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.ImportUniversalActionProperty;
+import lsfusion.erp.integration.universal.ImportUniversalAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
@@ -51,7 +51,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.util.*;
 
-public class ImportUserPriceListActionProperty extends ImportUniversalActionProperty {
+public class ImportUserPriceListAction extends ImportUniversalAction {
     private final ClassPropertyInterface userPriceListInterface;
 
     // Опциональные модули
@@ -62,11 +62,11 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     private ScriptingLogicsModule salePackLM;
     private ScriptingLogicsModule stockAdjustmentLM;
 
-    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportUserPriceListAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         this(LM, LM.findClass("UserPriceList"));
     }
     
-    public ImportUserPriceListActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportUserPriceListAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

@@ -14,7 +14,7 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceActionProperty {
+public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceAction {
 
     public ImportPurchaseInvoiceTaxItem(ScriptingLogicsModule LM) {
         super(LM);

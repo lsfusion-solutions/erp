@@ -2,7 +2,7 @@ package lsfusion.erp.integration.universal.productionorder;
 
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.erp.integration.universal.ImportDocumentActionProperty;
+import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.action.MessageClientAction;
@@ -36,14 +36,14 @@ import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
 
-public class ImportProductionOrderActionProperty extends ImportDocumentActionProperty {
+public class ImportProductionOrderAction extends ImportDocumentAction {
     private final ClassPropertyInterface orderInterface;
 
-    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
+    public ImportProductionOrderAction(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
         this(LM, LM.findClass("Production.Order"));
     }
     
-    public ImportProductionOrderActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public ImportProductionOrderAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
