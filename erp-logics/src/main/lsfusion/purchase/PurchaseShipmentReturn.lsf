@@ -17,21 +17,27 @@ createShipmentReturn 'Создать накладную (возврат)' (Purch
         currency(r) <- currency(i);
         agreement(r) <- agreement(i);
         note(r) <- note(i);
-        priceListType(r) <- NULL;
         operation(r) <- operation(i);
 	    showPack(r) <- showPack(i);
-	
+	    
+	    LOCAL priceNew = NUMERIC[16,4](PurchaseReturn.UserInvoiceDetail);
+	    
         FOR Purchase.invoice(Purchase.InvoiceDetail invoiceDetail) == i AND NOT quantity(invoiceDetail) == shipmentQuantity(invoiceDetail) DO {
             NEW d = PurchaseReturn.UserInvoiceDetail {
                 userInvoice(d) <- r;
                 sku(d) <- sku(invoiceDetail);
                 quantity(d) <- quantity(invoiceDetail) (-) shipmentQuantity(invoiceDetail);
                 price(d) <- price(invoiceDetail);
+                priceNew(d) <- price(invoiceDetail);
                 batch(d) <- batch(invoiceDetail);
                 VAT(d) <- VAT(invoiceDetail);
             }
             shipmentQuantity(invoiceDetail) <- quantity(invoiceDetail);
         }
+        
+        executeLocalEvents('PurchaseReturn.userInvoice');
+        price(PurchaseReturn.UserInvoiceDetail d) <- priceNew(d) WHERE userInvoice(d) == r;
+        
         SHOW PurchaseReturn.userInvoice OBJECTS i = r DOCKED;
     }
 }
