@@ -322,14 +322,15 @@ importItems 'Импорт товаров' () {
     }
     
     LOCAL vat = INTEGER (INTEGER);
+    LOCAL dt = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, nds FROM Pub."arh-nds" WITH (NOLOCK)' TO file;
+            EXEC 'SELECT cod_good, dt, nds FROM Pub."arh-nds" WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idItem, vat;
+    IMPORT TABLE FROM file() TO idItem, dt, vat;
     
-    FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
-        VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(i)*10 AND c == defaultCountry());
+    FOR INTEGER ii = [GROUP LAST INTEGER i IF imported(i) ORDER dt(i), i BY item(TEXT (idItem(i)))](Item s) DO {
+        VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(ii)*10 AND c == defaultCountry());
     }
     
     LOCAL idBarcode = STRING[15](INTEGER);
@@ -489,7 +490,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     }
     
     FOR property(INTEGER i) == 41 AND (value(i) == 'yes' OR value(i) == '1') DO {
-        banPurchase(Item s) <- TRUE;
+        banPurchase(Item s) <- TRUE WHERE s = item(TEXT (idItem(i)));
     }
     
     overImportItemAttribute();
