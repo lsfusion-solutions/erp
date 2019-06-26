@@ -1,0 +1,135 @@
+MODULE ExportWriteOffSupermag;
+REQUIRE PricingWriteOff, ExportSupermag;
+
+NAMESPACE WriteOff;
+
+EXTEND FORM operation
+    PROPERTIES (o) idSupermag
+;
+DESIGN operation{
+    propertyContainer {
+        MOVE PROPERTY(idSupermag(o));
+    }
+}
+
+EXTEND FORM operations
+    PROPERTIES (o) READONLY idSupermag
+;
+//---------------------- Оптовая торговля (Код операции 1)
+GROUP WO;
+GROUP SMDOCUMENTS : WO;
+GROUP SMWAYBILLSOUT : WO;
+GROUP SMDOCPROPS : WO;
+
+inc = DATA LOCAL BOOLEAN (WriteOff);
+
+FORM exportWriteOffMag FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = WriteOff EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Расходная накладная' IF i IS WriteOff.WriteOff EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF i IS WriteOff.WriteOff EXTID 'action'      
+    
+    PROPERTIES = STRING[100]('WOLSF'+LONG(i)) EXTID 'Id'
+    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = 'WO' IF i IS WriteOff.WriteOff EXTID 'DOCTYPE' IN SMDOCUMENTS    
+    PROPERTIES = idSupermag(stock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
+    PROPERTIES = id(legalEntity(stock(i))) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
+    PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS  
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS
+    PROPERTIES = 0 IF i IS WriteOff.WriteOff EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
+    PROPERTIES = 1 IF i IS WriteOff.WriteOff EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
+    PROPERTIES = 1 IF i IS WriteOff.WriteOff EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
+    PROPERTIES = 3 IF i IS WriteOff.WriteOff EXTID 'DOCSTATE' IN SMDOCUMENTS       
+    PROPERTIES = 1 IF i IS WriteOff.WriteOff  EXTID 'ISROUBLES' IN SMDOCUMENTS  
+    PROPERTIES = id(stock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
+    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = 4 IF i IS WriteOff.WriteOff  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
+    PROPERTIES = sumWriteOffDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
+    PROPERTIES i1 = sumWriteOffDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                
+       
+                           
+    OBJECTS d = WriteOff.WriteOffDetail   EXTID 'SMSPEC' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(d))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF d IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(d) EXTID 'SPECITEM'        
+    PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = price (d) EXTID 'ITEMPRICE'     
+    PROPERTIES d2 = price (d) EXTID 'ITEMPRICECUR'                
+    PROPERTIES d4 = price (d) EXTID 'ITEMPRICENOTAX'   
+    PROPERTIES = quantity (d) EXTID 'QUANTITY'  
+    PROPERTIES = sum (d) EXTID 'TOTALPRICE'   
+    PROPERTIES d3= sum (d) EXTID 'TOTALPRICECUR'                
+    PROPERTIES d5= sum (d) EXTID 'TOTALPRICENOTAX'         
+    FILTERS writeOff(d)==i,
+            inc(i)                                         
+                                                                          
+    //-- сама накладная
+    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMWAYBILLSOUT      
+    PROPERTIES = 'WO' IF i IS WriteOff.WriteOff EXTID 'DOCTYPE' IN SMWAYBILLSOUT 
+    PROPERTIES = (CONCAT ' ',number(i),series(i)) EXTID 'INVOICE' IN SMWAYBILLSOUT                               
+    PROPERTIES = id(legalEntity(stock(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT        
+    PROPERTIES = 0 IF i IS WriteOff.WriteOff EXTID 'PAYCASH' IN SMWAYBILLSOUT     
+ 
+    OBJECTS dd = WriteOff.WriteOffDetail   EXTID 'SMSPECTAX' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(dd))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF dd IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(dd) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF dd IS WriteOff.WriteOffDetail  EXTID 'TAXID'        
+    PROPERTIES = 0 IF dd IS WriteOff.WriteOffDetail EXTID 'TAXRATE'
+    PROPERTIES = 0 IF dd IS WriteOff.WriteOffDetail EXTID 'TAXSUM'            
+    FILTERS writeOff(dd)==i   
+     
+    OBJECTS a = WriteOff.WriteOffDetail   EXTID 'SMSPECBY' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(a))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF a IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(a) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF a IS WriteOff.WriteOffDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = supplierPrice(a) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = 0 IF a IS WriteOff.WriteOffDetail EXTID 'STATEREGULATION'                           
+    FILTERS writeOff(a)==i    
+; 
+
+exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
+    inc(WriteOff ii) <- NULL;
+    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND isPosted(i) AND idSupermag(stock(i));    
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    IF (GROUP SUM 1 IF inc(WriteOff ii)) THEN{    
+        TRY{
+            EXPORT exportWriteOffMag XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+            IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                FOR inc(WriteOff ii)  DO NEW log = SupermagLog {
+                    dateTime(log) <- currentDateTime();
+                    userLogin(log) <- login(currentUser()); 
+                    nameContact(log) <- STRING[100](name(currentUser()));
+                    stockDocumentLedger(log)<- ii;
+                }     
+                APPLY NESTED LOCAL;
+            }             
+                 
+        } CATCH {
+            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
+        } 
+    }   
+    inc(WriteOff ii) <- NULL;
+}
+exportSupermag(WriteOff s) +{
+    exportWriteOffMag(s);
+}
+
+EXTEND FORM writeOffs
+    PROPERTIES (w) exportWriteOffMag TOOLBAR 
+;
+DESIGN writeOffs {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportWriteOffMag(w));
+        }        
+    }
+}

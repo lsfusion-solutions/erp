@@ -1,0 +1,111 @@
+MODULE ExportSupermag;
+REQUIRE StockDocument;
+
+exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
+exportTime (DATETIME dt)=  [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
+formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
+
+idSupermag 'Код в супермаг' = DATA STRING[100] (Operation.Operation); 
+idSupermagReturn 'Код в супермаг (возврат)' = DATA STRING[100] (Operation.Operation); 
+idSupermag 'Код в супермаг (BORNIN)' = DATA STRING[100] (Stock); // base64
+
+
+CLASS SupermagLog 'История' ;
+TABLE supermagLog (SupermagLog);
+
+dateTime 'Дата/время' = DATA DATETIME (SupermagLog);
+userLogin 'Логин пользователя' = DATA STRING[100] (SupermagLog) CHARWIDTH 15; 
+nameContact 'Имя пользователя' =  DATA STRING[100] (SupermagLog) IN id CHARWIDTH 15;
+stockDocumentLedger 'Дата/время' = DATA StockDocumentLedger (SupermagLog);
+
+lastSupermagLog (StockDocumentLedger l) = GROUP LAST SupermagLog d
+          ORDER dateTime(d), d 
+          BY stockDocumentLedger(d);
+lastDateTimeSupermagLog 'Последняя выгрузка' = dateTime(lastSupermagLog (StockDocumentLedger l));         
+exportDirectorySupermag 'Путь для экспорта файлов в супермаг' = DATA STRING[500] ();
+
+EXTEND FORM integrationData 
+    PROPERTIES() exportDirectorySupermag
+;
+
+DESIGN integrationData {
+    pane {
+        NEW supermag {
+            caption = 'Супермаг документы';
+            MOVE PROPERTY (exportDirectorySupermag());        
+        }
+    }
+}
+
+//select 'Отм.' = DATA LOCAL BOOLEAN (StockDocumentLedger);
+//exportSupermagSelect 'Экспорт в супермаг (отм.)'() {
+//    FOR select(StockDocumentLedger l) DO {
+//        exportSupermag(l);
+//    }
+//    select(StockDocumentLedger l) <- NULL;
+//} 
+//
+//EXTEND FORM sumStockDocumentLedger
+//    PROPERTIES (il) exportSupermag TOOLBAR, select 
+//    PROPERTIES (ol) exportSupermag TOOLBAR, select
+//    PROPERTIES exportSupermagSelect() TOOLBAR DRAW ol SHOWIF (GROUP SUM 1 IF select(StockDocumentLedger hhh))
+//;
+//exportSupermagInterval 'Экспорт в супермаг'(DATE df, DATE dt) {
+//    FOR active(StockDocumentLedger l) AND date(l)>= df AND date(l) <= dt DO {
+//        exportSupermag(l);
+//    }
+//} 
+FORM exportSupermag 'Экспорт в супермаг' 
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+    
+    OBJECTS ol = StockDocumentLedger
+    PROPERTIES(ol) READONLY isClosed, isPosted, date, nameStock,
+                   oObjName = objectClassName, description,
+                   nameOperation, nameLegalEntity, nameLegalEntityStock, 
+                   sumItem, sumContainer, sum, lastDateTimeSupermagLog           
+    FILTERS active(ol),            
+            date(ol) >= dFrom,
+            date(ol) <= dTo
+    ORDER date(ol), nameStock(ol)    
+    FILTERGROUP open FILTER 'Открыт' isOpened(ol) 'F6'   
+    
+    OBJECTS l = SupermagLog
+    PROPERTIES (l) READONLY dateTime, userLogin, nameContact   
+    FILTERS stockDocumentLedger(l)==ol
+;
+DESIGN exportSupermag {
+    BOX {        
+        OBJECTS {
+            MOVE BOX (dates);
+            NEW body {
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(ol){
+                    fill = 3;
+                }
+                MOVE BOX(l);
+            }
+        }
+    }
+
+}
+exportSupermagFilter 'Экспорт в супермаг (фильтр)'() {
+    IF exportDirectorySupermag() THEN {
+        FOR [ FILTER exportSupermag.ol](StockDocumentLedger l) DO {
+            exportSupermag(l);
+        }
+    } ELSE {
+        MESSAGE 'Не задан путь для экспорта файлов в супермаг';
+    }
+}
+EXTEND FORM exportSupermag
+    PROPERTIES (ol) exportSupermag TOOLBAR 
+    PROPERTIES () exportSupermagFilter TOOLBAR DRAW ol
+;
+
+NAVIGATOR {
+    stockReports {
+        NEW exportSupermag;
+    }
+}

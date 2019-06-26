@@ -1,0 +1,194 @@
+MODULE ExportPurchaseReturnInvoiceSupermag;
+
+REQUIRE ExportPurchaseInvoiceSupermag, PurchaseReturnCreditNote, PurchaseReturnManufacturingPrice, PricingPurchaseReturn;
+NAMESPACE PurchaseReturn;
+
+EXTEND FORM Purchase.operation
+    PROPERTIES (o) idSupermagReturn
+;
+DESIGN Purchase.operation{
+    propertyContainer {
+        MOVE PROPERTY(idSupermagReturn(o));
+        type = COLUMNS;
+        columns = 4;
+    }
+}
+
+EXTEND FORM Purchase.operations
+    PROPERTIES (o) READONLY idSupermagReturn
+;
+
+
+GROUP WO;
+GROUP SMDOCUMENTS : WO;
+GROUP SMWAYBILLSOUT : WO;
+GROUP SMDOCPROPS : WO;
+GROUP SMCOMMONBASES : WO;
+
+GROUP FO;
+GROUP SMFINOBLIGATION :FO;
+
+inc = DATA LOCAL BOOLEAN (PurchaseReturn.Invoice);
+maxOrder (PurchaseReturn.Invoice i) = GROUP MAX Order o IF include(o, i);
+
+FORM exportInvoiceMag FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = PurchaseReturn.Invoice EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Расходная накладная' IF i IS PurchaseReturn.Invoice EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF i IS PurchaseReturn.Invoice EXTID 'action'      
+    
+    PROPERTIES = STRING[100]('WOLSF'+LONG(i)) EXTID 'Id'
+    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = 'WO' IF i IS PurchaseReturn.Invoice EXTID 'DOCTYPE' IN SMDOCUMENTS    
+    PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
+    PROPERTIES = id(supplier(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
+    PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS  
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS
+    PROPERTIES = 0 IF i IS PurchaseReturn.Invoice EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
+    PROPERTIES = 1 IF i IS PurchaseReturn.Invoice EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
+    PROPERTIES = 1 IF i IS PurchaseReturn.Invoice EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
+    PROPERTIES = 3 IF i IS PurchaseReturn.Invoice EXTID 'DOCSTATE' IN SMDOCUMENTS       
+    PROPERTIES = 1 IF i IS PurchaseReturn.Invoice  EXTID 'ISROUBLES' IN SMDOCUMENTS  
+    PROPERTIES = id(customerStock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
+    PROPERTIES = idSupermagReturn(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = 2 IF i IS PurchaseReturn.Invoice  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
+    PROPERTIES = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
+    PROPERTIES i1 = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS            
+                           
+    OBJECTS d = PurchaseReturn.InvoiceDetail   EXTID 'SMSPEC' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(invoice(d))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF d IS PurchaseReturn.InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(d) EXTID 'SPECITEM'        
+    PROPERTIES = idSku(d) EXTID 'ARTICLE'  
+    PROPERTIES = STRING[100]('LSF'+LONG(invoice(invoiceDetail(d)))) IF invoiceDetail(d) EXTID 'CAUSEID'           
+    PROPERTIES = (index(invoiceDetail(d))) IF invoiceDetail(d) EXTID 'CAUSESPECITEM'           
+    PROPERTIES = 'WI' IF invoiceDetail(d) EXTID 'CAUSETYPE'                            
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = invoicePrice (d) EXTID 'ITEMPRICE'     
+    PROPERTIES d2 = invoicePrice (d) EXTID 'ITEMPRICECUR'                
+    PROPERTIES = price (d) EXTID 'ITEMPRICENOTAX'   
+    PROPERTIES = creditQuantity (d) EXTID 'QUANTITY'  
+    PROPERTIES = creditInvoiceSum (d) EXTID 'TOTALPRICE'   
+    PROPERTIES d3= creditInvoiceSum (d) EXTID 'TOTALPRICECUR'                
+    PROPERTIES = creditSum (d) EXTID 'TOTALPRICENOTAX'         
+    FILTERS invoice(d)==i,
+            inc(i)                             
+                                                         
+    //-- основание  
+    //-- основание
+    OBJECTS o = Order EXTID 'SMCOMMONBASES' IN WO 
+    PROPERTIES = STRING[100]('LSF'+LONG(i)) IF o IS Order EXTID 'ID'    
+    PROPERTIES = 'WO' IF o IS Order EXTID 'DOCTYPE' 
+    PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = STRING[100]('LSF'+LONG(o)) EXTID 'BASEID' 
+    FILTERS include(o,i)           
+            
+    //-- сама накладная
+    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMWAYBILLSOUT      
+    PROPERTIES = 'WO' IF i IS PurchaseReturn.Invoice EXTID 'DOCTYPE' IN SMWAYBILLSOUT 
+    PROPERTIES = 0 IF i IS PurchaseReturn.Invoice EXTID 'GOODSOWNER' IN SMWAYBILLSOUT                        
+    PROPERTIES = id(customer(i)) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT    
+    PROPERTIES = 0 IF i IS PurchaseReturn.Invoice EXTID 'PAYCASH' IN SMWAYBILLSOUT   
+    PROPERTIES i2 = creditInvoiceSumInvoiceDetail(i) EXTID 'SUPPLDOCSUM' IN SMWAYBILLSOUT 
+    PROPERTIES = (CONCAT ' ',number(i),series(i)) EXTID 'SUPPLIERDOC' IN SMWAYBILLSOUT        
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'SUPPLIERDOCCREATE' IN SMWAYBILLSOUT
+    
+//    //-- акт расхождения
+//    PROPERTIES = STRING[100]('LSF'+LONG(i)) IF invoiceCreditNote(i) EXTID 'DOCID' IN SMDOCPROPS      
+//    PROPERTIES = 'WO' IF invoiceCreditNote(i) EXTID 'DOCTYPE' IN SMDOCPROPS 
+//    PROPERTIES = 'CustomLabels.акт' IF invoiceCreditNote(i) EXTID 'PARAMNAME' IN SMDOCPROPS   
+//    PROPERTIES = seriesNumber(i) IF  invoiceCreditNote(i) EXTID 'PARAMVALUE' IN SMDOCPROPS              
+ 
+    OBJECTS dd = PurchaseReturn.InvoiceDetail   EXTID 'SMSPECTAX' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(invoice(dd))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF dd IS PurchaseReturn.InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(dd) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF dd IS PurchaseReturn.InvoiceDetail  EXTID 'TAXID'        
+    PROPERTIES = valueVAT(dd) EXTID 'TAXRATE'
+    PROPERTIES = creditVATSum(dd) EXTID 'TAXSUM'            
+    FILTERS invoice(dd)==i
+    
+    OBJECTS ddd = PurchaseReturn.InvoiceDetail   EXTID 'SLSPECQMISMATCH' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(invoice(ddd))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF ddd IS PurchaseReturn.InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(ddd) EXTID 'SPECITEM'        
+    PROPERTIES = quantity(ddd) EXTID 'QUANTBYDOC'                  
+    FILTERS invoice(ddd)==i  
+    
+    OBJECTS a = PurchaseReturn.InvoiceDetail   EXTID 'SMSPECBY' IN WO
+    PROPERTIES = STRING[100]('LSF'+LONG(invoice(a))) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF a IS PurchaseReturn.InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(a) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF a IS PurchaseReturn.InvoiceDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = manufacturingPrice(a) EXTID 'MANUFACTURERSPRICE' 
+    PROPERTIES = retailPrice(a) EXTID 'RETAILPRICE'       
+    PROPERTIES = 0 IF a IS PurchaseReturn.InvoiceDetail EXTID 'STATEREGULATION'                           
+    FILTERS invoice(a)==i   
+    
+    OBJECTS ii = PurchaseReturn.Invoice EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Финансовое обязательство по отгрузке' IF ii IS PurchaseReturn.Invoice EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF ii IS PurchaseReturn.Invoice EXTID 'action'  
+        
+    PROPERTIES = STRING[100]('FOLSF'+LONG(ii)+'\tWO') EXTID 'Id'
+    PROPERTIES = STRING[100]('LSF'+LONG(ii)) EXTID 'DOCID' IN SMFINOBLIGATION   
+    PROPERTIES = 'WO' IF ii IS PurchaseReturn.Invoice  EXTID 'DOCTYPE' IN SMFINOBLIGATION    
+    PROPERTIES = creditInvoiceSumInvoiceDetail(ii) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
+    PROPERTIES = invoiceSumInvoiceDetail(ii)  EXTID 'BASESUM' IN SMFINOBLIGATION   
+    PROPERTIES = exportTime(dateTime(ii))  EXTID 'BEGINDATE' IN SMFINOBLIGATION   
+    PROPERTIES = idSupermag(customerStock(ii)) EXTID 'BORNIN' IN SMFINOBLIGATION       
+    PROPERTIES = exportTime(dateTime(ii))  EXTID 'CALCENDDATE' IN SMFINOBLIGATION   
+    PROPERTIES = id(supplier(ii))  EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
+    PROPERTIES = id(supplier(ii))  EXTID 'FINAGENT' IN SMFINOBLIGATION      
+    PROPERTIES = 0 IF ii IS PurchaseReturn.Invoice  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
+    PROPERTIES = IF isPosted(ii) THEN 1 ELSE 0  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
+    PROPERTIES = IF bankingDays(paymentCondition(ii)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
+    PROPERTIES = id(customer(ii))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
+    PROPERTIES = 0 IF ii IS PurchaseReturn.Invoice  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              
+    PROPERTIES = 1 IF ii IS PurchaseReturn.Invoice  EXTID 'PAYMENTPRTY' IN SMFINOBLIGATION          
+    FILTERS inc(ii)
+; 
+
+exportInvoiceMag 'Экспорт в супермаг' (PurchaseReturn.Invoice i) {
+    inc(PurchaseReturn.Invoice ii) <- NULL;
+    inc(i) <- TRUE WHERE idSupermagReturn(operation(i)) AND isPosted(i) AND idSupermag(customerStock(i));    
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+
+    IF (GROUP SUM 1 IF inc(PurchaseReturn.Invoice ii)) THEN{
+        TRY{
+        EXPORT exportInvoiceMag XML TO System.exportFile;
+        WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+        fileExists( 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+        IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+            FOR inc(PurchaseReturn.Invoice ii)  DO NEW log = SupermagLog {
+                dateTime(log) <- currentDateTime();
+                userLogin(log) <- login(currentUser()); 
+                nameContact(log) <- STRING[100](name(currentUser()));
+                stockDocumentLedger(log)<- invoiceShipment(ii);
+            }     
+            APPLY NESTED LOCAL;
+        }        
+                 
+        } CATCH {
+            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;  
+        }
+    } 
+    inc(PurchaseReturn.Invoice ii) <- NULL;       
+}
+exportSupermag(InvoiceShipment s) +{
+    exportInvoiceMag(invoice(s));
+}
+
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES (i) exportInvoiceMag TOOLBAR 
+;
+DESIGN PurchaseReturn.invoices {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportInvoiceMag(i));
+        }        
+    }
+}
