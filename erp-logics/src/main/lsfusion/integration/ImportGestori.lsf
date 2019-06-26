@@ -502,6 +502,14 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         amount(b) <- NUMERIC[14,3](value(i));
     }
     
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 503 BY value(i)](TEXT name) AND name != '' AND NOT packTypeName(name) DO NEW p = PackType {
+        name(p) <- ISTRING[200] (name);
+    }
+    
+    FOR property(INTEGER i) == 503 AND PackType p = packTypeName(value(i)) DO {
+        packType(Item s) <- packTypeName(value(i)) WHERE s = item(TEXT (idItem(i)));
+    }
+    
     overImportItemAttribute();
     
     APPLY;
