@@ -493,6 +493,15 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         banPurchase(Item s) <- TRUE WHERE s = item(TEXT (idItem(i)));
     }
     
+    FOR property(INTEGER i) == 16 AND NOT packBarcode(item(TEXT (idItem(i)))) DO NEW b = Barcode {
+        sku(b) <- item(TEXT (idItem(i)));
+        packBarcode(Item s) <- b WHERE s = item(TEXT (idItem(i)));
+    }
+    
+    FOR property(INTEGER i) == 16 AND Barcode b = packBarcode(item(TEXT (idItem(i)))) DO {
+        amount(b) <- NUMERIC[14,3](value(i));
+    }
+    
     overImportItemAttribute();
     
     APPLY;
