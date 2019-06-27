@@ -216,7 +216,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     }
 
     FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) AND Item s = item(idItem(i)) DO {
-        packBarcode(s) <- b;
+        Purchase.packBarcode(s) <- b;
         amount(b) <- NUMERIC[14,3](trim(value(i)));
    }
     
@@ -1778,3 +1778,101 @@ importReserveDays 'Импорт страхового запаса в днях' (
 EXTEND FORM integrationData PROPERTIES importReserveDays();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importReserveDays()); } }
 
+dateFromPurchase 'Дата перемещения' = DATA DATE (Store);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() dateFromPurchase(s);
+EXTEND FORM store PROPERTIES dateFromPurchase(s);
+
+DESIGN store {
+    headerExtraParams {
+        MOVE PROPERTY (dateFromPurchase(s));
+    }
+}
+
+importPurchaseStore 'Импорт документов перемещения' ()  {
+    
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL idSupplierStockInt = INTEGER (INTEGER);
+    LOCAL docstate = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserInvoice);
+    LOCAL stocks = TEXT ();
+    
+    FOR dateFromPurchase(Store s) DO {
+        
+        stocks() <- NULL;
+        stocks() <- GROUP CONCAT id(DepartmentStore st) IF store(st) == s, ',' ORDER st;
+        
+        EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT DOCTYPE, ID, CREATEDAT, LOCATIONFROM, LOCATIONTO, DOCSTATE FROM SuperMag.SVDocumentsIW WHERE CREATEDAT >= TO_DATE(\''
+            + toDateISO(dateFromPurchase(s)) + '\',\'YYYY-MM-DD\') AND LOCATIONTO IN(' + stocks() + ')' TO file;
+        
+        IMPORT TABLE FROM file() TO type, id, date, idSupplierStockInt, idCustomerStockInt, docstate;
+        
+        FOR id(INTEGER i) AND NOT userInvoice(id(i)) DO NEW ui = UserInvoice {
+            id(ui) <- id(i);
+        }
+        
+        FOR UserInvoice ui = userInvoice(id(INTEGER i)) DO {
+            number(ui) <- STRING[28](id(i));
+            supplierStock(ui) <- stock(TEXT (idSupplierStockInt(i)));
+            supplier(ui) <- legalEntity(stock(TEXT (idSupplierStockInt(i))));
+            customerStock(ui) <- stock(TEXT (idCustomerStockInt(i)));
+            customer(ui) <- legalEntity(stock(TEXT (idCustomerStockInt(i))));
+            operation(ui) <- CASE WHEN stock(TEXT (idSupplierStockInt(i))) IS DepartmentStore THEN Purchase.operation('purchaseStoreStore')
+                                  ELSE Purchase.operation('purchaseStoreWarehouse');
+            date(ui) <- date(i);
+            time(ui) <- 00:00;
+            isPosted(ui) <- TRUE;
+            createShipment(ui) <- NULL;
+            imported(ui) <- TRUE;
+        }
+        
+        LOCAL sum = NUMERIC[16,4](INTEGER);
+        LOCAL idDetail = ISTRING[100](INTEGER);
+        LOCAL imported = BOOLEAN (UserInvoiceDetail);
+    
+        EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT s.DOCTYPE, s.DOCID, s.SPECITEM, s.ARTICLE, s.QUANTITY, s.ITEMPRICE, s.TOTALPRICE FROM SuperMag.SVSpecIW s, SuperMag.SVDocumentsIW d WHERE s.docid = d.id AND d.CREATEDAT >= TO_DATE(\''
+            + toDateISO(dateFromPurchase(s)) + '\',\'YYYY-MM-DD\') AND LOCATIONTO IN(' + stocks() + ')' TO file;
+        
+        IMPORT TABLE FROM file() TO type, id, spec, idItem, quantity, price, sum;
+        
+        idDetail(INTEGER i) <- CONCAT '-', type(i), id(i), spec(i) WHERE imported(i);
+        
+        //строки
+        FOR imported(INTEGER r) AND NOT userInvoiceDetail(idDetail(r)) DO 
+            NEW d = UserInvoiceDetail {
+            id(d) <- idDetail(r);
+        }
+            
+        FOR UserInvoiceDetail d == userInvoiceDetail(idDetail(INTEGER r)) INLINE DO {
+            userInvoice(d) <- userInvoice(id(r));
+            sku(d) <- sku(idItem(r));
+            quantity(d) <- quantity(r);
+            shipmentQuantity(d) <- quantity(r);
+            VAT(d) <- VAT(sku(idItem(r))); 
+            valueVAT(d) <- valueVAT(sku(idItem(r)));
+            price(d) <- NUMERIC[16,4](price(r));
+            retailPrice(d) <- NUMERIC[16,4](price(r));
+            sum(d) <- sum(r);
+            retailVAT(d) <- VAT(sku(idItem(r)));
+            valueRetailVAT(d) <- valueVAT(sku(idItem(r)));
+            dataIndex(d) <- spec(r);
+            imported(d) <- TRUE;
+        }
+        
+        DELETE UserInvoice i WHERE (operation(i) == Purchase.operation('purchaseStoreStore') OR operation(i) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(i) < dateFromPurchase(s) AND NOT imported(i);
+        DELETE UserInvoiceDetail d WHERE(operation(d) == Purchase.operation('purchaseStoreStore') OR operation(d) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(d) < dateFromPurchase(s) AND NOT imported(d);
+    }
+    APPLY;
+} 
+
+EXTEND FORM integrationData PROPERTIES () importPurchaseStore;
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW saleWarehouse {
+            MOVE PROPERTY (importPurchaseStore());
+        } 
+    } 
+}
