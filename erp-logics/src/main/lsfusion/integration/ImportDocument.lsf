@@ -309,3 +309,42 @@ DESIGN integrationData {
     }
 }
 
+overCopy ABSTRACT LIST (ImportType, ImportType);
+
+copy 'Копировать' (ImportType t) {
+    NEWSESSION NEW i = ImportType {
+        
+        fileExtension(i) <- fileExtension(t);
+        startRow(i) <- startRow(t);
+        isPosted(i) <- isPosted(t);
+        separator(i) <- separator(t);
+        primaryKeyType(i) <- primaryKeyType(t);
+        checkExistencePrimaryKey(i) <- checkExistencePrimaryKey(t);
+        secondaryKeyType(i) <- secondaryKeyType(t);
+        countryKeyType(i) <- countryKeyType(t);
+        keyIsDigit(i) <- keyIsDigit(t);
+        checkArticles(i) <- checkArticles(t);
+        multipleDocuments(i) <- multipleDocuments(t);
+        importTypeDetail(i) <- importTypeDetail(t);
+        autoImport(i) <- autoImport(t);
+        autoImportDirectory(i) <- autoImportDirectory(t);
+        autoImportOperation(i) <- autoImportOperation(t);
+        autoImportCustomer(i) <- autoImportCustomer(t);
+        autoImportCustomerStock(i) <- autoImportCustomerStock(t);
+        useStockMapping(i) <- useStockMapping(t);
+        index(i, ImportTypeDetail d) <- index(t, d);
+        replaceOnlyNull(i, ImportTypeDetail d) <- replaceOnlyNull(t, d);
+        
+        FOR importType(StockMappingEntry s) == t DO NEW m = StockMappingEntry {
+            importType(m) <- i;
+            id(m) <- id(s);
+            stock(m) <- stock(s);
+        }
+        
+        overCopy(i, t);
+        
+        SHOW importType OBJECTS i = i DOCKED;
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES copy(i) DRAW i TOOLBAR;
