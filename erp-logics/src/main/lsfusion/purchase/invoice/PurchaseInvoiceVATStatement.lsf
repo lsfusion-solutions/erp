@@ -63,7 +63,7 @@ exciseSum(UserInvoiceDetail d) <- round2(exciseBase(d) * excisePerc(d) / 100.0)
     
 vatBase 'База для НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 vatBase(UserInvoiceDetail d) <- IF inShipmentVATStatement(operation(d)) THEN round2(sum(d) * rateExchange(d)*shipmentQuantity(d)/quantity(d)) ELSE round2(sum(d) * rateExchange(d)) 
-    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d);
+    WHEN ( CHANGED (sum(d)) OR CHANGED (rateExchange(d)) OR SETCHANGED (shipmentQuantity(d))) AND isVatStatement(d);
     
 valueVATStatement 'Ставка НДС' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
 valueVATStatement(UserInvoiceDetail d) <- valueVAT[Item](sku(d))
