@@ -6,10 +6,23 @@ isPromotion 'На акции' = DATA BOOLEAN (Sku,Stock,DATE) TABLE soldSkuStock
 
 //-- в планировщик
 
-fillPromotion(DATE df, DATE dt){
+fillPromotionNew(DATE df, DATE dt){
     FOR iterate(DATE date,df,dt) DO NEWSESSION {
         isPromotion(Sku s,Stock st, date) <- NULL;
         isPromotion(Sku s,Stock st,date) <-  TRUE WHERE quantitySold(s,st,date) AND promotionPriceListDetailA(s,st,date);
         APPLY;    
+    }
+}
+//-- чтобы текущую дату учесть
+fillPromotion(DATE df, DATE dt){
+    FOR iterate(DATE date,df,sum(dt,-1)) DO NEWSESSION {
+        isPromotion(Sku s,Stock st, date) <- NULL;
+        isPromotion(Sku s,Stock st,date) <-  TRUE WHERE quantitySold(s,st,date) AND promotionPriceListDetailA(s,st,date);
+        APPLY;    
+    }
+    NEWSESSION {
+        isPromotion(Sku s,Stock st, dt) <- NULL;
+        isPromotion(Sku s,Stock st,dt) <-  TRUE WHERE promotionPriceListDetailA(s,st,dt);
+        APPLY;
     }
 }
