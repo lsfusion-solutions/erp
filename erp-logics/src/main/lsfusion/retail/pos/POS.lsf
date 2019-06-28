@@ -106,7 +106,7 @@ skip (Promotion promotion) = DATA LOCAL BOOLEAN (Promotion);
 inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
                                           overDate(receipt) >= dateFrom(promotion) AND overDate(receipt) <= dateTo(promotion) AND
                                           NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
-                                          NOT (sumReceiptDetail(receipt) (-) promotionSumReceipt() + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) + OVERRIDE bonusPaidReceiptDetail(receipt), 0.0) > maxSumBill(promotion)
+                                          NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0))  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)) > maxSumBill(promotion)
                                           AND NOT skip(promotion, extractDOW(overDate(receipt)))
                                           AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
                                           AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
@@ -1281,7 +1281,7 @@ FORM POS
     PROPERTIES(pcu) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
     PROPERTIES(d, pcu) SHOWIF currentZReport() quantity, promotionSum, setUserPromotion ON CONTEXTMENU setUserPromotionReceipt(r, pcu) ON CONTEXTMENU dropUserPromotionReceipt(r, pcu)
     PROPERTIES(r, pcu) PANEL setUserPromotionReceipt, dropUserPromotionReceipt
-    FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
+    FILTERS userSet(pcu) AND (inReceiptSale(d, pcu) OR setUserPromotion(d,pcu))
 
     PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r), 
     fiscalCutReceipt READONLYIF fiscalSkip(r), fiscalCashSum READONLYIF fiscalSkip(r)
