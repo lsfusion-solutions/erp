@@ -8,28 +8,40 @@ loadLookups () + {
     loadLookup('cashregister_npp', [ GROUP CONCAT TEXT('"' + TEXT(CashRegister r) + '":"' + escapeJSONValue(overNpp(r)) + '"'), ',']());
 }
 
+overExportReceipt  ABSTRACT (DATE);
+overExportReceipt = DATA LOCAL BOOLEAN ();
+overExportReceiptDetail  ABSTRACT (DATE);
+overExportReceiptDetail = DATA LOCAL BOOLEAN ();
+
 exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo)  { 
     FOR iterate(DATE date, dFrom, dTo) DO {
-        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
-                            departmentStore = departmentStore(r),
-                            number = number(r), cashRegister = cashRegister(r), employee = employee(r),
-                            sumReceiptDetail = sumReceiptDetail(r), discountSumReceiptDetail = discountSumReceiptDetail(r),
-                            sumVATReceiptDetail = sumVATReceiptDetail(r), countReceiptDetail = countReceiptDetail(r),
-                            quantityReceiptDetail = quantityReceiptDetail(r), sumCashPayment = sumCashPayment(r),
-                            sumCardPayment = sumCardPayment(r), sumGiftCardPayment = sumGiftCardPayment(r),
-                            sumReceiptDetailGiftCard = sumReceiptDetailGiftCard(r)
-            WHERE date(r) == date AND isPosted(r);
+        overExportReceipt(date);
+        IF NOT overExportReceipt() THEN {
+            EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(Receipt r)),
+                                departmentStore = departmentStore(r),
+                                number = number(r), cashRegister = cashRegister(r), employee = employee(r),
+                                sumReceiptDetail = sumReceiptDetail(r), discountSumReceiptDetail = discountSumReceiptDetail(r),
+                                sumVATReceiptDetail = sumVATReceiptDetail(r), countReceiptDetail = countReceiptDetail(r),
+                                quantityReceiptDetail = quantityReceiptDetail(r), sumCashPayment = sumCashPayment(r),
+                                sumCardPayment = sumCardPayment(r), sumGiftCardPayment = sumGiftCardPayment(r),
+                                sumReceiptDetailGiftCard = sumReceiptDetailGiftCard(r)
+                WHERE date(r) == date AND isPosted(r);
+        }        
         ingestBatch('receipt', date);
     }
     runKillTask('receipt', dFrom, dTo);
     FOR iterate(DATE date, dFrom, dTo) DO {
-        EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
-                            departmentStore = departmentStore(d),
-                            cashRegister = cashRegister(receipt(d)), employee = employee(receipt(d)),
-                            sku = sku(d), group1 = skuGroup2(sku(d)), group2 = skuGroup3(sku(d)), group3 = skuGroup4(sku(d)), group4 = skuGroup5(sku(d)), 
-                            receipt = receipt(d), quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
-                            sumVAT = signedSumVAT(d)
-            WHERE date(d) == date AND isPosted(d);
+        overExportReceiptDetail(date);
+        IF NOT overExportReceiptDetail() THEN {
+            EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
+                                departmentStore = departmentStore(d),
+                                cashRegister = cashRegister(receipt(d)), employee = employee(receipt(d)),
+                                sku = sku(d), group1 = skuGroup2(sku(d)), group2 = skuGroup3(sku(d)), group3 = skuGroup4(sku(d)), group4 = skuGroup5(sku(d)), 
+                                brand = brand(sku(d)), supplier = supplier(lastOrderBatch(sku(d))),
+                                receipt = receipt(d), quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
+                                sumVAT = signedSumVAT(d)
+                WHERE date(d) == date AND isPosted(d);
+        }
         ingestBatch('receiptdetail', date);
     }
     runKillTask('receiptdetail', dFrom, dTo);
@@ -223,6 +235,8 @@ DESIGN receiptReport {
 @createGroup(receiptDetail, group2, 'По группе', 9, 'group2', 'LOOKUP(group2,\'group_name\')', 'Группа', checkBoxContainer);
 @createGroup(receiptDetail, group3, 'По подгруппе', 10, 'group3', 'LOOKUP(group3,\'group_name\')', 'Подгруппа', checkBoxContainer);
 @createGroup(receiptDetail, group4, 'По субгруппе', 11, 'group4', 'LOOKUP(group4,\'group_name\')', 'Субгруппа', checkBoxContainer);
+@createGroup(receiptDetail, brand, 'По бренду', 12, 'brand', 'LOOKUP(brand,\'brand_name\')', 'Бренд', checkBoxContainer);
+@createGroup(receiptDetail, supplier, 'По поставщику', 13, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', checkBoxContainer);
 
 nameGroupsReceiptDetail = CONCAT ', ', (OVERRIDE exprGroup1ReceiptDetail(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2ReceiptDetail(), '\'\'') + ' AS nameGroup2',
