@@ -1,7 +1,7 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, PurchaseScheduleOrder;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, PurchaseScheduleOrder, PurchaseSeparation;
 
 PRIORITY Purchase;
 
@@ -360,7 +360,15 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 EXTEND FORM items PROPERTIES (i) READONLY expiryText, conditionsText;
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemAttribute()); } }
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW items {
+            type = CONTAINERH;
+            MOVE PROPERTY (importItem());
+            MOVE PROPERTY (importItemAttribute());
+        } 
+    } 
+}
 
 idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
 
@@ -1945,3 +1953,52 @@ importScheduleOrder 'Импорт графика заказов' () {
 
 EXTEND FORM integrationData PROPERTIES importScheduleOrder();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importScheduleOrder()); } }
+
+dateFromSeparation 'Дата с' = DATA DATE ();
+
+importSeparation 'Импорт признаков распределения' () {
+    
+    LOCAL id = STRING[50] (INTEGER);
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL name = STRING[50] (INTEGER);
+    
+    LOCAL file = FILE ();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT ID, CLIENTINDEX, TITLE FROM Supermag.SVDocumentsCO WHERE CONTRACTTYPE = 0 AND DOCSTATE > 0 AND ENDSAT >= TO_DATE(\'' 
+        + toDateISO(dateFromSeparation()) + '\',\'YYYY-MM-DD\')' TO file;
+        
+    IMPORT TABLE FROM file() TO id, idLegalEntity, name;
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY id(i)](STRING[100] id) AND NOT separation(id) DO NEW s = Separation {
+        id(s) <- id;
+    }
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY id(ii)](STRING[100] id) AND Separation s = separation(id) DO {
+        name(s) <- name(i);
+        legalEntity(s) <- legalEntity(TEXT (idLegalEntity(i)));
+    }
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT s.DOCID, s.ARTICLE FROM Supermag.SVSpecCO s, SVDocumentsCO d WHERE s.docid = d.id AND d.CONTRACTTYPE = 0 AND d.DOCSTATE > 0 AND ENDSAT >= TO_DATE(\'' 
+        + toDateISO(dateFromSeparation()) + '\',\'YYYY-MM-DD\')' TO file;
+    
+    IMPORT TABLE FROM file() TO id, idItem;
+    
+    FOR INTEGER i = [GROUP LAST INTEGER ii IF imported(ii) ORDER DESC id(ii), ii BY idItem(ii)](STRING[100] id) DO {
+        dataSeparation(LegalEntity l, Item sk) <- separation(id(i)) WHERE sk == sku(id) AND l == legalEntity(separation(id(i)));
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importSeparation, dateFromSeparation;
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW separation {
+            type = CONTAINERH;
+            MOVE PROPERTY (importSeparation());
+            MOVE PROPERTY (dateFromSeparation()) { alignment = CENTER; }
+        } 
+    } 
+}
