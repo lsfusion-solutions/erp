@@ -28,6 +28,7 @@ giftCardSeriesNumber (string) =
 
 date 'Дата' = DATA DATE(GiftCard);
 expiryDays 'Срок действия (дней)' = DATA INTEGER(GiftCard);
+extraExpiryDays = ABSTRACT INTEGER ();
 
 price 'Цена' = DATA NUMERIC[16,4] (GiftCard) IN id;
 
@@ -382,7 +383,7 @@ DESIGN options {
 CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) AND NOT allowPartiallyPayGiftCard() 
     MESSAGE 'Сумма оплаты сертификатом должна быть равна цене сертификата';
 
-expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard));
+expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard) (+) extraExpiryDays());
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
 EXTEND FORM giftCards
