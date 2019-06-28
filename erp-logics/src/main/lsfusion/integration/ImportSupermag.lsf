@@ -1,7 +1,9 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, PurchaseScheduleOrder;
+
+PRIORITY Purchase;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[100]();
@@ -1876,3 +1878,70 @@ DESIGN integrationData {
         } 
     } 
 }
+
+DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
+
+importScheduleOrder 'Импорт графика заказов' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL docId = STRING[50] (INTEGER);
+    LOCAL idSupplier = INTEGER (INTEGER);
+    LOCAL idCustomer = INTEGER (INTEGER);
+    LOCAL orderDOW = STRING[1] (INTEGER);
+    LOCAL shipmentDOW = STRING[7] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL days = INTEGER (INTEGER);
+    LOCAL note = STRING[100] (INTEGER);
+    LOCAL idDoc = STRING[100](INTEGER);
+    LOCAL imported = BOOLEAN (ScheduleOrder);
+    
+    LOCAL file = FILE ();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT d.ID, d.DOCTID, ao.supplier, ao.client, ao.weekday, q.deliverydays, ao.lastorder, ao.dayinterval, dl.valstr FROM Supermag.scautoorderdoc d, Supermag.SvDocNoPriceCQ q, Supermag.scautoorder ao, Supermag.SVDocLabels dl WHERE d.DOCTID = q.ID AND ao.id = d.id AND dl.docid(+) = q.docco AND dl.name(+) = \'товар\'' TO file;
+        
+    IMPORT TABLE FROM file() TO id, docId, idSupplier, idCustomer, orderDOW, shipmentDOW, date, days, note;
+    
+    idDoc(INTEGER i) <- CONCAT '-', id(i), docId(i) WHERE imported(i);
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY idDoc(i)](STRING[100] id) AND NOT scheduleOrder(id) DO NEW s = ScheduleOrder {
+        id(s) <- id;
+    }
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY idDoc(ii)](STRING[100] id) AND ScheduleOrder s = scheduleOrder(id) DO {
+        supplier(s) <- legalEntity(TEXT (idSupplier(i)));
+        supplierStock(s) <- minStock(legalEntity(TEXT (idSupplier(i))));
+        customer(s) <- legalEntity(TEXT (idCustomer(i)));
+        startDate(s) <- date(i);
+        period(s) <- days(i) / 7;
+        note(s) <- note(i);
+        imported(s) <- TRUE;
+        type(s) <- GenType.genDayMonth;
+        
+        DELETE ScheduleOrderTime t WHERE scheduleOrder(t) == s;
+        
+        NEW d = ScheduleOrderTime {
+            scheduleOrder(d) <- s;
+            orderDOW(d) <- DOWM(INTEGER (orderDOW(i)));
+            shipmentDOW(d) <- DOWM(GROUP MIN INTEGER j IF right(left(shipmentDOW(i), j), 1) == '1' AND iterate(j, 1, 7));
+        }
+    }
+    
+    DELETE ScheduleOrder s WHERE s IS ScheduleOrder AND NOT imported(s);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'SELECT qd.id, q.ID AS DOCID, cl.locationid FROM Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl, Supermag.scautoorderdoc qd WHERE q.id = cl.id AND qd.DOCTID = q.ID' TO file;
+
+    IMPORT TABLE FROM file() TO id, docId, idStock;
+
+    idDoc(INTEGER i) <- CONCAT '-', id(i), docId(i) WHERE imported(i);
+
+    FOR ScheduleOrder s = scheduleOrder(idDoc(INTEGER i)) AND Stock st = stock(TEXT (idStock(i))) DO {
+        dataIn(s, st) <- TRUE;
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importScheduleOrder();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importScheduleOrder()); } }
