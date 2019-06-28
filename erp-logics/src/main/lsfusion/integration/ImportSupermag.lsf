@@ -1,7 +1,8 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, PurchaseScheduleOrder, PurchaseSeparation;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, 
+        PurchaseScheduleOrder, PurchaseScheduleOrderSeparation;
 
 PRIORITY Purchase;
 
@@ -1893,6 +1894,7 @@ importScheduleOrder 'Импорт графика заказов' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL docId = STRING[50] (INTEGER);
+    LOCAL idSep = STRING[50] (INTEGER);
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL idCustomer = INTEGER (INTEGER);
     LOCAL orderDOW = STRING[1] (INTEGER);
@@ -1906,9 +1908,9 @@ importScheduleOrder 'Импорт графика заказов' () {
     LOCAL file = FILE ();
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT d.ID, d.DOCTID, ao.supplier, ao.client, ao.weekday, q.deliverydays, ao.lastorder, ao.dayinterval, dl.valstr FROM Supermag.scautoorderdoc d, Supermag.SvDocNoPriceCQ q, Supermag.scautoorder ao, Supermag.SVDocLabels dl WHERE d.DOCTID = q.ID AND ao.id = d.id AND dl.docid(+) = q.docco AND dl.name(+) = \'товар\'' TO file;
+        EXEC 'SELECT d.ID, d.DOCTID, q.docco, ao.supplier, ao.client, ao.weekday, q.deliverydays, ao.lastorder, ao.dayinterval, dl.valstr FROM Supermag.scautoorderdoc d, Supermag.SvDocNoPriceCQ q, Supermag.scautoorder ao, Supermag.SVDocLabels dl WHERE d.DOCTID = q.ID AND ao.id = d.id AND dl.docid(+) = q.docco AND dl.name(+) = \'товар\'' TO file;
         
-    IMPORT TABLE FROM file() TO id, docId, idSupplier, idCustomer, orderDOW, shipmentDOW, date, days, note;
+    IMPORT TABLE FROM file() TO id, docId, idSep, idSupplier, idCustomer, orderDOW, shipmentDOW, date, days, note;
     
     idDoc(INTEGER i) <- CONCAT '-', id(i), docId(i) WHERE imported(i);
     
@@ -1925,6 +1927,8 @@ importScheduleOrder 'Импорт графика заказов' () {
         note(s) <- note(i);
         imported(s) <- TRUE;
         type(s) <- GenType.genDayMonth;
+        operation(s) <- Purchase.operation('purchaseStoreSupplier');
+        separation(s) <- separation(idSep(i));
         
         DELETE ScheduleOrderTime t WHERE scheduleOrder(t) == s;
         
