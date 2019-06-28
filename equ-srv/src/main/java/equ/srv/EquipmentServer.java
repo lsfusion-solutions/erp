@@ -215,7 +215,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws SQLException {
         try (DataSession session = createSession()) {
             List<TransactionInfo> transactionList = new ArrayList<>();
 
@@ -964,13 +964,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ExecutorService executor = ExecutorFactory.createRMIThreadService(maxThreads, EquipmentServer.this);
             List<Future<String>> futures = new ArrayList<>();
 
-            Map<Integer, List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
+            final List<List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
 
-            for(final List<SalesInfo> groupSalesInfo : groupedSalesInfo.values()) {
+            final int taskSize = groupedSalesInfo.size();
+            for(int i = 0; i < taskSize; i++) {
+                final int taskIndex = i;
                 Future<String> importResult = executor.submit(new Callable() {
                     @Override
                     public Object call() throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-                        return runMultithreadTask(stack, groupSalesInfo, finalNumberAtATime, sidEquipmentServer, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                        return runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), finalNumberAtATime, sidEquipmentServer, taskIndex, taskSize,
+                                directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
                     }
                 });
                 futures.add(importResult);
@@ -987,7 +990,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private String runMultithreadTask(ExecutionStack stack, List<SalesInfo> salesInfoList, Integer numberAtATime, String sidEquipmentServer, final String directory,
+    private String runMultithreadTask(ExecutionStack stack, List<SalesInfo> salesInfoList, Integer numberAtATime, String sidEquipmentServer,
+                                      int taskIndex, int taskSize, final String directory,
                                       boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         int start = 0;
         while (start < salesInfoList.size()) {
@@ -1000,7 +1004,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             if (start < finish) {
-                String result = importSalesInfo(stack, sidEquipmentServer, salesInfoList, start, finish, salesInfoList.size() - finish, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                String result = importSalesInfo(stack, sidEquipmentServer, salesInfoList, start, finish, salesInfoList.size() - finish, taskIndex, taskSize, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
                 if(result != null) {
                     return result;
                 }
@@ -1010,8 +1014,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfo(ExecutionStack stack, String sidEquipmentServer, List<SalesInfo> salesInfoList, int start, int finish, int left, String directory,
-                                   boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
+    private String importSalesInfo(ExecutionStack stack, String sidEquipmentServer, List<SalesInfo> salesInfoList, int start, int finish, int left,
+                                   int taskIndex, int taskSize, String directory, boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         try (DataSession session = createSession()) {
             logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
@@ -1420,7 +1424,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             if (result == null) {
-                logCompleteMessageMultiThread(stack, session, salesInfoList, start, finish, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
+                logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageMultiThread(session, salesInfoList, start, finish, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, taskIndex, taskSize, timeStart, directory));
             } else
                 return result;
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
@@ -1819,7 +1823,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
 
                 if (result == null) {
-                    logCompleteMessage(stack, session, data, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, sidEquipmentServer, directory);
+                    logCompleteMessage(stack, sidEquipmentServer, formatCompleteMessageSingleThread(session, data, rowsData.dataSale.size() + rowsData.dataReturn.size() + rowsData.dataGiftCard.size(), left, timeStart, directory));
                 } else
                     return result;
             } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException | CloneNotSupportedException e) {
@@ -1877,10 +1881,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 salesInfo.dateZReport.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0));
     }
 
-    private String logCompleteMessageMultiThread(ExecutionStack stack, DataSession mainSession, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-
-        String message = formatCompleteMessageMultiThread(mainSession, salesInfoList, start, finish, dataSize, left, timeStart, directory);
-
+    private String logCompleteMessage(ExecutionStack stack, String sidEquipmentServer, String message) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
@@ -1891,29 +1892,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer, String directory) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        
-        String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart, directory);
-        
-        try (DataSession session = createSession()) {
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-            DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-            equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
-            equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
-            equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
-            return session.applyMessage(getBusinessLogics(), stack);
-        }
-    }
-
-    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, Timestamp timeStart, String directory) {
-
-        String conflicts = session.getLastAttemptCountMap();
-        Timestamp timeFinish = getCurrentTimestamp();
-        String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
-                (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
-        if(conflicts != null)
-            message += "\nКонфликты: " + conflicts;
-
+    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, int taskIndex, int taskSize, Timestamp timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1929,41 +1908,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 dates.add(formatDate(salesInfo.dateZReport));
         }
 
-        message += "\nИз касс: ";
-        for (Map.Entry<Integer, Set<Integer>> cashRegisterEntry : nppCashRegisterMap.entrySet()) {
-            for(Integer cashRegister : cashRegisterEntry.getValue())
-                message += String.format("%s(%s), ", cashRegister, cashRegisterEntry.getKey());
-        }
-        message = message.substring(0, message.length() - 2);
-
-        if(directory != null) {
-            message+= "\nДиректория: " + directory;
-        }
-        if(!fileNames.isEmpty()) {
-            message += "\nИз файлов: ";
-            for (String filename : fileNames)
-                message += filename + ", ";
-            message = message.substring(0, message.length() - 2);
-        }
-
-        if(notNullNorEmpty(dates)) {
-            message += "\nЗа даты: ";
-            for (String date : dates)
-                message += date + ", ";
-            message = message.substring(0, message.length() - 2);
-        }
-        return message;
+        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, timeStart, directory, String.format("Задание %s из %s. ", taskIndex + 1, taskSize));
     }
 
-    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String directory) {
-
-        String conflicts = session.getLastAttemptCountMap();
-        Timestamp timeFinish = getCurrentTimestamp();
-        String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
-                (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
-        if(conflicts != null)
-            message += "\nКонфликты: " + conflicts;
-
+    private String formatCompleteMessageSingleThread(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1977,7 +1925,21 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if(salesInfo.dateZReport != null)
                 dates.add(formatDate(salesInfo.dateZReport));
         }
-        
+
+        return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, timeStart, directory, "");
+    }
+
+    private String formatCompleteMessage(DataSession session, Map<Integer, Set<Integer>> nppCashRegisterMap, Set<String> dates, List<String> fileNames,
+                                         int dataSize, int left, Timestamp timeStart, String directory, String prefix) {
+        Timestamp timeFinish = getCurrentTimestamp();
+        String message = String.format("%sЗатрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
+                prefix, (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
+
+        String conflicts = session.getLastAttemptCountMap();
+        if(conflicts != null)
+            message += "\nКонфликты: " + conflicts;
+
+
         message += "\nИз касс: ";
         for (Map.Entry<Integer, Set<Integer>> cashRegisterEntry : nppCashRegisterMap.entrySet()) {
             for(Integer cashRegister : cashRegisterEntry.getValue())
@@ -2343,7 +2305,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private Map<Integer, List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
+    private List<List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
         //todo: one-line in java8: https://stackoverflow.com/questions/30755949/java-8-lambdas-group-list-into-map
         int start = 0;
         Map<Integer, List<SalesInfo>> groupedSalesInfo = new HashMap<>();
@@ -2358,7 +2320,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             currentList.add(salesInfo);
             start++;
         }
-        return groupedSalesInfo;
+        return new ArrayList<>(groupedSalesInfo.values());
     }
 
 }
