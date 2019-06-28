@@ -438,7 +438,15 @@ importCustomerGroup 'Импорт групп покупателей' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importCustomerGroup();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCustomerGroup()); } }
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW groups {
+            type = CONTAINERH;
+            MOVE PROPERTY (importSupplierGroup());
+            MOVE PROPERTY (importCustomerGroup()); 
+        }
+    } 
+}
 
 importLegalEntity 'Импорт организаций' () {
     
@@ -1781,7 +1789,7 @@ importReserveDays 'Импорт страхового запаса в днях' (
     IMPORT TABLE FROM file() TO idItem, idStock, quantity;
     
     FOR Item sk = sku(idItem(INTEGER i)) AND Stock st = stock(TEXT (idStock(i))) DO {
-        dataStockReserveDays(st, sk) <- quantity(i);
+        dataStockReserveDays(st, sk) <- NUMERIC[14,3](quantity(i));
     }
     APPLY;
 }
