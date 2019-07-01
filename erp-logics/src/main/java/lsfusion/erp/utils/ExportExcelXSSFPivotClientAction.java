@@ -22,7 +22,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 //Ждём новых версий apache.poi. В актуальной на данный момент 3.14 для сводных таблиц нет возможности задания формата ячеек, ширины колонок, имён колонок и столбцов.
-public class ExportExcelXSSFPivotAction implements ClientAction {
+public class ExportExcelXSSFPivotClientAction implements ClientAction {
 
     Integer firstRow = 1; //null based
 
@@ -34,8 +34,8 @@ public class ExportExcelXSSFPivotAction implements ClientAction {
     List<List<List<Object>>> filterFields;
     List<List<List<Object>>> cellFields;
 
-    public ExportExcelXSSFPivotAction(ReportGenerationData reportData, String title, Integer titleRowHeight, List<List<List<Object>>> rowFields, List<List<List<Object>>> columnFields,
-                                      List<List<List<Object>>> filterFields, List<List<List<Object>>> cellFields) {
+    public ExportExcelXSSFPivotClientAction(ReportGenerationData reportData, String title, Integer titleRowHeight, List<List<List<Object>>> rowFields, List<List<List<Object>>> columnFields,
+                                            List<List<List<Object>>> filterFields, List<List<List<Object>>> cellFields) {
         this.reportData = reportData;
         this.title = title;
         this.titleRowHeight = titleRowHeight;

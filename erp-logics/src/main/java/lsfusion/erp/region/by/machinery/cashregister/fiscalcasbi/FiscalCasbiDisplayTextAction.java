@@ -16,10 +16,10 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalCasbiDisplayTextActionProperty extends InternalAction {
+public class FiscalCasbiDisplayTextAction extends InternalAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
-    public FiscalCasbiDisplayTextActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public FiscalCasbiDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

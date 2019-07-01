@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
-public class ExportExcelPivotAction implements ClientAction {
+public class ExportExcelPivotClientAction implements ClientAction {
 
     Integer xlRowField = 1;
     Integer xlColumnField = 2;
@@ -43,8 +43,8 @@ public class ExportExcelPivotAction implements ClientAction {
     List<List<List<Object>>> filterFields;
     List<List<List<Object>>> cellFields;
 
-    public ExportExcelPivotAction(ReportGenerationData reportData, String title, Integer titleRowHeight, List<List<List<Object>>> rowFields, List<List<List<Object>>> columnFields,
-                                  List<List<List<Object>>> filterFields, List<List<List<Object>>> cellFields) {
+    public ExportExcelPivotClientAction(ReportGenerationData reportData, String title, Integer titleRowHeight, List<List<List<Object>>> rowFields, List<List<List<Object>>> columnFields,
+                                        List<List<List<Object>>> filterFields, List<List<List<Object>>> cellFields) {
         this.reportData = reportData;
         this.title = title;
         this.titleRowHeight = titleRowHeight;

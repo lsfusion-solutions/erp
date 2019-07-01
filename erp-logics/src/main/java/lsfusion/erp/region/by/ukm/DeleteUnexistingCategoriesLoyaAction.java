@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 
-public class DeleteUnexistingCategoriesLoyaActionProperty extends LoyaActionProperty {
+public class DeleteUnexistingCategoriesLoyaAction extends LoyaActionProperty {
     String failCaption = "Loya: Ошибка при удалении несуществующих категорий";
 
-    public DeleteUnexistingCategoriesLoyaActionProperty(ScriptingLogicsModule LM) {
+    public DeleteUnexistingCategoriesLoyaAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 

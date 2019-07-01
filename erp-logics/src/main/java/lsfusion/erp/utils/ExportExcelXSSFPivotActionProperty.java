@@ -101,7 +101,7 @@ public abstract class ExportExcelXSSFPivotActionProperty extends InternalAction 
                 ReportGenerationData reportData = new InteractiveFormReportManager(formInstance).getReportData(
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
-                context.requestUserInteraction(new ExportExcelXSSFPivotAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
+                context.requestUserInteraction(new ExportExcelXSSFPivotClientAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
             }
 
