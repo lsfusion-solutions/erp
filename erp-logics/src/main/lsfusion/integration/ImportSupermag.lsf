@@ -1977,7 +1977,7 @@ importSeparation 'Импорт признаков распределения' ()
     LOCAL file = FILE ();
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT ID, CLIENTINDEX, TITLE FROM Supermag.SVDocumentsCO WHERE CONTRACTTYPE = 0 AND DOCSTATE > 0 AND ENDSAT >= TO_DATE(\'' 
+        EXEC 'SELECT co.ID, co.CLIENTINDEX, COALESCE(dl.valstr, co.title) FROM Supermag.SVDocumentsCO co, Supermag.SVDocLabels dl WHERE co.CONTRACTTYPE = 0 AND co.DOCSTATE > 0 AND dl.docid(+) = co.id AND dl.name(+) = \'товар\' AND co.ENDSAT >= TO_DATE(\'' 
         + toDateISO(dateFromSeparation()) + '\',\'YYYY-MM-DD\')' TO file;
         
     IMPORT TABLE FROM file() TO id, idLegalEntity, name;
