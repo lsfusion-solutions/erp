@@ -556,14 +556,6 @@ sumNegativeCashPayment 'Сумма возврата (наличные)' (Receipt
 sumPositiveCardPayment 'Сумма продажа (карточка)' (Receipt receipt) =  sumCardPayment (receipt) IF sumCardPayment (receipt) >= 0.0 IN documentSum;
 sumNegativeCardPayment 'Сумма возврата (карточка)' (Receipt receipt) =  sumCardPayment (receipt) IF sumCardPayment (receipt) < 0.0 IN documentSum;
 
-sumCashPayment 'Сумма (наличные)' (zReport) = GROUP SUM sumCashPayment(Receipt r) BY zReport(r) IN documentSum MATERIALIZED;
-
-sumPositiveCashPayment 'Сумма продажа (наличные)' (zReport) = GROUP SUM sumPositiveCashPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
-sumNegativeCashPayment 'Сумма возврата (наличные)' (zReport) = GROUP SUM sumNegativeCashPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
-
-sumPositiveCardPayment 'Сумма продажа (карточка)' (zReport) = GROUP SUM sumPositiveCardPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
-sumNegativeCardPayment 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPayment(Receipt r) IF NOT skip(r)  BY zReport(r) MATERIALIZED IN documentSum;
-
 isSumPaymentReceipt 'Выключать ограничения по суммам платежей в чеке' = DATA BOOLEAN ();
 
 EXTEND FORM options
@@ -594,6 +586,12 @@ sumReceiptDetail 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDet
 
 sumCash 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 sumCard 'Сумма по карточкам Z-отчета' (zReport) = GROUP SUM sumCardPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
+
+sumPositiveCashPayment 'Сумма продажа (наличные)' (zReport) = GROUP SUM sumPositiveCashPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
+sumNegativeCashPayment 'Сумма возврата (наличные)' (zReport) = GROUP SUM sumNegativeCashPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
+
+sumPositiveCardPayment 'Сумма продажа (карточка)' (zReport) = GROUP SUM sumPositiveCardPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
+sumNegativeCardPayment 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPayment(Receipt r) IF NOT skip(r)  BY zReport(r) MATERIALIZED IN documentSum;
 
 sumSkuReceiptDetail 'Сумма Z-отчета по sku' (zReport) = GROUP SUM sumSkuReceiptDetail(Receipt receipt) BY zReport(receipt) MATERIALIZED;
 
@@ -1081,6 +1079,6 @@ EXTEND FORM zReports
 ;
 
 //----------------------------- Накопительные суммы ------------------------------
-sumCashB 'Сумма наличных на начало дня' = DATA NUMERIC[18,4] (ZReport);
+sumCashEnd 'Сумма наличных на конец' = DATA NUMERIC[18,4] (ZReport);
 sumProtectedEnd 'Накопительная выручка' = DATA NUMERIC[18,4] (ZReport);
 sumBack 'Накопительный возврат' = DATA NUMERIC[18,4] (ZReport);
