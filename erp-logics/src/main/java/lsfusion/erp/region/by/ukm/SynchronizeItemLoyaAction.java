@@ -28,10 +28,10 @@ import java.util.Map;
 
 import static org.apache.commons.lang.StringUtils.trim;
 
-public class SynchronizeItemLoyaActionProperty extends SynchronizeLoyaActionProperty {
+public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
     private final ClassPropertyInterface itemInterface;
 
-    public SynchronizeItemLoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SynchronizeItemLoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

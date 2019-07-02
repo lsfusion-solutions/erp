@@ -28,15 +28,15 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 
-public class LoyaActionProperty extends InternalAction {
+public class LoyaAction extends InternalAction {
 
     protected SettingsLoya settings = null;
 
-    public LoyaActionProperty(ScriptingLogicsModule LM) {
+    public LoyaAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public LoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public LoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 

@@ -12,10 +12,10 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class SynchronizeBrandLoyaActionProperty extends SynchronizeLoyaActionProperty {
+public class SynchronizeBrandLoyaAction extends SynchronizeLoyaAction {
     private final ClassPropertyInterface brandInterface;
 
-    public SynchronizeBrandLoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SynchronizeBrandLoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

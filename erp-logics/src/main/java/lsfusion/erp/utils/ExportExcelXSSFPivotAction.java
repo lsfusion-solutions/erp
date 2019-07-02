@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+//Ждём новых версий apache.poi, так как в 3.17 для сводных таблиц нет возможности задания формата ячеек, ширины колонок, имён колонок и столбцов.
+
 // Syntax:
 // xxx=yyy[zzz]~n/m-
 // xxx is formula 
@@ -33,7 +35,7 @@ import java.util.Map;
 //IFERROR(xxx, a)
 // xxx is formula
 // a is default value
-public abstract class ExportExcelPivotActionProperty extends InternalAction {
+public abstract class ExportExcelXSSFPivotAction extends InternalAction {
     String idForm;
     String titleProperty;
     Integer titleRowHeight;
@@ -43,33 +45,33 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
     List<List<String>> filters;
     List<List<String>> cells;
 
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                          ValueClass... classes) {
+    public ExportExcelXSSFPivotAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                                      List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                      ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, null, idGroupObject, classes);
     }
 
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, Integer titleRowHeight, String idGroupObject,
-                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                          ValueClass... classes) {
+    public ExportExcelXSSFPivotAction(ScriptingLogicsModule LM, String idForm, Integer titleRowHeight, String idGroupObject,
+                                      List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                      ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, null, titleRowHeight, idGroupObject, classes);
     }
-    
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject,
-                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                          ValueClass... classes) {
+
+    public ExportExcelXSSFPivotAction(ScriptingLogicsModule LM, String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject,
+                                      List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                      ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, titleRowHeight, idGroupObject, classes);
     }
 
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, String idForm, String titleProperty, String idGroupObject,
-                                          List<String> rows, List<String> columns, List<String> filters, List<String> cells,
-                                          ValueClass... classes) {
+    public ExportExcelXSSFPivotAction(ScriptingLogicsModule LM, String idForm, String titleProperty, String idGroupObject,
+                                      List<String> rows, List<String> columns, List<String> filters, List<String> cells,
+                                      ValueClass... classes) {
         this(LM, Arrays.asList(rows), Arrays.asList(columns), Arrays.asList(filters), Arrays.asList(cells), idForm, titleProperty, null, idGroupObject, classes);
     }
-    
-    public ExportExcelPivotActionProperty(ScriptingLogicsModule LM, 
-                                          List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
-                                          String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject, ValueClass... classes) {
+
+    public ExportExcelXSSFPivotAction(ScriptingLogicsModule LM,
+                                      List<List<String>> rows, List<List<String>> columns, List<List<String>> filters, List<List<String>> cells,
+                                      String idForm, String titleProperty, Integer titleRowHeight, String idGroupObject, ValueClass... classes) {
         super(LM, classes);
         this.idForm = idForm;
         this.titleProperty = titleProperty;
@@ -99,7 +101,7 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
                 ReportGenerationData reportData = new InteractiveFormReportManager(formInstance).getReportData(
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
-                context.requestUserInteraction(new ExportExcelPivotClientAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
+                context.requestUserInteraction(new ExportExcelXSSFPivotClientAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
             }
 
@@ -108,19 +110,13 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
         }
     }
 
-    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) {
+    //по id свойств получаем заголовки колонок
+    public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
         List<List<List<Object>>> result = new ArrayList<>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {
                 List<List<Object>> resultEntry = new ArrayList<>();
                 for (String field : fieldsEntry) {
-
-                    //noSubTotals
-                    boolean noSubTotals = false;
-                    if(field.endsWith("-")) {
-                        field = field.substring(0, field.length() - 1);
-                        noSubTotals = true;
-                    }
 
                     //column width
                     Integer columnWidth = null;
@@ -164,7 +160,7 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
                         }
                     }                    
                     String formula = fieldValue == null ? field : null;
-                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth, noSubTotals));
+                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth));
                 }
                 result.add(resultEntry);
             }
@@ -196,7 +192,7 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
     }
 }
 
-//Example of implementation ExportExcelPivotActionProperty
+//Example of implementation ExportExcelPivotAction
 
 //package lsfusion.erp.utils;
 //
@@ -214,7 +210,7 @@ public abstract class ExportExcelPivotActionProperty extends InternalAction {
 //import java.util.Iterator;
 //import java.util.Map;
 //
-//public class TestFormExportExcelPivotActionProperty extends ExportExcelPivotActionProperty {
+//public class TestFormExportExcelPivotActionProperty extends ExportExcelPivotAction {
 //    private final ClassPropertyInterface dateFromInterface;
 //    private final ClassPropertyInterface dateToInterface;
 //

@@ -31,7 +31,7 @@ import java.util.*;
 
 import static org.apache.commons.lang.StringUtils.trim;
 
-public class SynchronizeLoyaItemGroupLoyaAction extends LoyaActionProperty {
+public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
     private final ClassPropertyInterface itemGroupLoyaInterface;
     String failCaption = "Loya: Ошибка при синхронизации";
 

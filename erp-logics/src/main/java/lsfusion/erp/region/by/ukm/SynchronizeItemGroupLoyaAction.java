@@ -17,10 +17,10 @@ import java.util.Map;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
-public class SynchronizeItemGroupLoyaActionProperty extends SynchronizeLoyaActionProperty {
+public class SynchronizeItemGroupLoyaAction extends SynchronizeLoyaAction {
     private final ClassPropertyInterface itemGroupInterface;
 
-    public SynchronizeItemGroupLoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SynchronizeItemGroupLoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();

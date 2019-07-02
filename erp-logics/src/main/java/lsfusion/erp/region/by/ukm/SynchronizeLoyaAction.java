@@ -33,14 +33,14 @@ import java.util.*;
 import static org.apache.commons.lang.StringUtils.trim;
 import static org.apache.commons.lang.StringUtils.trimToEmpty;
 
-public class SynchronizeLoyaActionProperty extends LoyaActionProperty {
+public class SynchronizeLoyaAction extends LoyaAction {
     String failCaption = "Loya: Ошибка при синхронизации";
 
-    public SynchronizeLoyaActionProperty(ScriptingLogicsModule LM) {
+    public SynchronizeLoyaAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
-    public SynchronizeLoyaActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
+    public SynchronizeLoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }
 
