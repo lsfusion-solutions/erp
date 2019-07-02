@@ -2,7 +2,6 @@ package equ.clt.handler.dreamkas;
 
 import equ.api.GiftCard;
 import equ.api.SalesInfo;
-import equ.api.ZReportInfo;
 import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
@@ -332,10 +331,6 @@ public class DreamkasServer {
                     (Map<String, GiftCard>) null, barcodeItem, null, null, null, quantityReceiptDetail,
                     priceReceiptDetail, sumReceiptDetail, null, null, null,
                     null, numberReceiptDetail, "", null, isCancel, null));
-        }
-
-        for(SalesInfo salesInfo : salesInfoList) {
-            salesInfo.zReportInfo = new ZReportInfo(null, null, null);
         }
     }
 

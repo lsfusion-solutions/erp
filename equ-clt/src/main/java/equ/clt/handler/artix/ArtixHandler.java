@@ -1016,7 +1016,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                         List<SalesInfo> currentSalesInfoList = new ArrayList<>();
 
-                        Map<String, ZReportInfo> externalSumMap = new HashMap<>();
+                        Map<String, Map<String, Object>> externalSumMap = new HashMap<>();
                         Map<String, Long> dateTimeShiftMap = new HashMap<>();
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
@@ -1031,17 +1031,24 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     BigDecimal sumGain = BigDecimal.valueOf(documentObject.getDouble("sumGain"));
 
                                     JSONArray kkms = documentObject.getJSONArray("kkms");
+                                    BigDecimal sumCashEnd = null;
                                     BigDecimal sumProtectedEnd = null;
                                     BigDecimal sumBack = null;
                                     for (int i = 0; i < kkms.length(); i++) {
                                         JSONObject kkmsObject = kkms.getJSONObject(i);
+                                        sumCashEnd = getBigDecimal(kkmsObject, "sumCashEnd");
                                         sumProtectedEnd = getBigDecimal(kkmsObject, "sumProtectedEnd");
                                         sumBack = getBigDecimal(kkmsObject, "sumBack");
                                     }
 
                                     Long timeBeg = parseDateTime(documentObject.get("timeBeg"));
                                     if (timeBeg != null) {
-                                        externalSumMap.put(numberCashRegister + "/" + numberZReport, new ZReportInfo(sumGain, sumProtectedEnd, sumBack));
+                                        Map<String, Object> zReportExtraFields = new HashMap<>();
+                                        zReportExtraFields.put("sumCashEnd", sumCashEnd);
+                                        zReportExtraFields.put("sumProtectedEnd", sumProtectedEnd);
+                                        zReportExtraFields.put("sumBack", sumBack);
+                                        zReportExtraFields.put("externalSum", sumGain);
+                                        externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
                                         dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timeBeg);
                                     }
                                 }
@@ -1228,7 +1235,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                             if(!externalSumMap.isEmpty()) {
                                 for(SalesInfo salesInfo : currentSalesInfoList) {
-                                    salesInfo.zReportInfo = externalSumMap.get(salesInfo.nppMachinery + "/" + salesInfo.numberZReport);
+                                    salesInfo.zReportExtraFields = externalSumMap.get(salesInfo.nppMachinery + "/" + salesInfo.numberZReport);
                                 }
                             }
                             salesInfoList.addAll(currentSalesInfoList);

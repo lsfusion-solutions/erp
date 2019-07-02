@@ -11,7 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SalesInfo implements Serializable {
-    public ZReportInfo zReportInfo;
+    //sumCashEnd, sumProtectedEnd, sumBack, externalSum
+    public Map<String, Object> zReportExtraFields;
     public boolean isGiftCard;
     public boolean isReturnGiftCard;
     public Integer nppGroupMachinery;
