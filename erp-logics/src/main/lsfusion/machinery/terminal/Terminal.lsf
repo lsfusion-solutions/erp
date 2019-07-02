@@ -243,7 +243,7 @@ quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
 idTerminalHandbookType1 'Код в справочнике 1' = DATA STRING[100] (TerminalDocument) IN base;
 idTerminalHandbookType2 'Код в справочнике 2' = DATA STRING[100] (TerminalDocument) IN base;
 
-terminalDocumentType = DATA TerminalDocumentType (TerminalDocument);
+terminalDocumentType = DATA TerminalDocumentType (TerminalDocument) INDEXED;
 nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) CHARWIDTH 20;
 
 groupTerminal = DATA GroupTerminal (TerminalDocument);
@@ -252,7 +252,7 @@ nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = na
 idTerminalDocumentType (TerminalDocument terminalDocument) = id (terminalDocumentType (terminalDocument));
 
 used 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
-notUsed 'Неиспользован' (TerminalDocument terminalDocument) = terminalDocument IS TerminalDocument AND NOT used(terminalDocument);
+notUsed 'Неиспользован' (TerminalDocument terminalDocument) = terminalDocument IS TerminalDocument AND NOT used(terminalDocument) MATERIALIZED INDEXED;
 
 createdUser = DATA CustomUser (TerminalDocument);
 createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) CHARWIDTH 10 IN created;
@@ -261,7 +261,9 @@ createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument
 createdTerminal = DATA Terminal (TerminalDocument);
 
 dataStock = DATA Stock (TerminalDocument);
-stock (TerminalDocument document) = OVERRIDE dataStock(document), stock(groupTerminal(document));
+stock (TerminalDocument document) = OVERRIDE dataStock(document), stock(groupTerminal(document)) MATERIALIZED;
+INDEX stock(TerminalDocument d), d;
+
 nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
 dataStock(TerminalDocument d) <- stock(createdUser(d)) WHEN SET (createdUser(d));
 
