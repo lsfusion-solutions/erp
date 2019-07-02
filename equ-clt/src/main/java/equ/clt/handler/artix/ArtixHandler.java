@@ -794,7 +794,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 int numberCashDocument = documentObject.getInt("docNum");
                                                 String idEmployee = documentObject.getString("userCode");
-                                                int dopData = documentObject.getInt("dopdata");
+                                                int shift = documentObject.getInt("shift");
 
                                                 BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
                                                 sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
@@ -807,9 +807,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                                 if (cashRegister.number.equals(numberCashRegister)) {
                                                     if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
-                                                        String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + dopData;
+                                                        String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
                                                         cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
-                                                                cashRegister.numberGroup, numberCashRegister, null, sumCashDocument, idEmployee));
+                                                                cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee));
                                                     }
                                                 }
                                                 count++;
