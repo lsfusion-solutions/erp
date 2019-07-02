@@ -408,13 +408,15 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     dateSupplyNext(ScheduleOrderDetail scheduleOrderDetail) = dateSupply(next(scheduleOrderDetail));
 
     scheduleOrderDetail = DATA ScheduleOrderDetail(UserOrder) INDEXED;
+    skip = ABSTRACT BOOLEAN (ScheduleOrderDetail,Order);
     quantityOrders 'Кол-во заказов'(ScheduleOrderDetail scheduleOrderDetail)  =
         GROUP
                SUM 1 IF supplierStock(Order order) = supplierStock(scheduleOrderDetail) AND
                        customerStock(order) = customerStock(scheduleOrderDetail) AND
                        shipmentDate(order) = dateSupply(scheduleOrderDetail) AND
                        date(order) = dateOrder(scheduleOrderDetail) AND
-                       isOpened(scheduleOrderDetail) MATERIALIZED;
+                       isOpened(scheduleOrderDetail) AND NOT 
+                       skip(scheduleOrderDetail, order) MATERIALIZED;
                
     lastScheduleOrderDetailSupplierCustomer (DATE d,s,ss,c,cs) = 
         GROUP LAST ScheduleOrderDetail sd

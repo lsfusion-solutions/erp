@@ -26,8 +26,23 @@ EXTEND FORM scheduleOrderDashboard
 
 EXTEND FORM scheduleOrderDetails
     PROPERTIES(sd) READONLY nameSeparation
+    PROPERTIES(o) READONLY nameSeparation
 ;
 
 overCreate(UserOrder o) + { 
     separation(o) <- separation(scheduleOrderDetail(o)); 
 }
+
+skip(ScheduleOrderDetail d,Order o)+= ((separation(o) OR separation(d)) AND NOT (separation(o) == separation(d)));
+
+lastScheduleOrderDetailSupplierCustomerSeparation (DATE d,s,ss,c,cs, Separation sep) = 
+    GROUP LAST ScheduleOrderDetail sd
+           ORDER dateOrder(sd), sd 
+           WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd)
+           BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd), separation(sd);             
+isLastSeparation (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetailSupplierCustomerSeparation(d,supplier(sd), supplierStock(sd), customer(sd), customerStock(sd), separation(sd)) == sd; 
+
+EXTEND FORM scheduleOrderDetails
+    EXTEND FILTERGROUP countFilter  
+            FILTER 'Последний на дату (по признаку)' isLastSeparation(sd,d) 'F10' DEFAULT      
+;    
