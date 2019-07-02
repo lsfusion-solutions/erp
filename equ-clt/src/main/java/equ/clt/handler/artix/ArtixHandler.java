@@ -1252,6 +1252,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         }
                     } catch (Throwable e) {
                         sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                        break;
                     }
                 }
             }
