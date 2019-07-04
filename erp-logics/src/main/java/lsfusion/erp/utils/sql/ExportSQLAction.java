@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-abstract class ExportSQLActionProperty extends InternalAction {
+abstract class ExportSQLAction extends InternalAction {
     String idForm; //idForm = table
     String table;
     String idGroupObject;
@@ -30,13 +30,13 @@ abstract class ExportSQLActionProperty extends InternalAction {
     boolean truncate;
     boolean noInsert;
 
-    public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                   List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
+    public ExportSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                           List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
         this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert);
     }
 
-    public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                   List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
+    public ExportSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                           List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
         super(LM);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;

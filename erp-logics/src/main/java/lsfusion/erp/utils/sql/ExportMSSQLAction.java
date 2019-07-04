@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 
-public abstract class ExportMSSQLAction extends ExportSQLActionProperty {
+public abstract class ExportMSSQLAction extends ExportSQLAction {
 
     public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                              List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {

@@ -8,15 +8,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 
-public abstract class ExportMySQLActionProperty extends ExportSQLActionProperty {
+public abstract class ExportMySQLAction extends ExportSQLAction {
 
-    public ExportMySQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                     List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
+    public ExportMySQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
         super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert);
     }
 
-    public ExportMySQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                     List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
+    public ExportMySQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
         super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert);
     }
 

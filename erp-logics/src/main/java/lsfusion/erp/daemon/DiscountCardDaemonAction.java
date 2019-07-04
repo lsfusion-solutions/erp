@@ -8,9 +8,9 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class DiscountCardDaemonActionProperty extends InternalAction {
+public class DiscountCardDaemonAction extends InternalAction {
 
-    public DiscountCardDaemonActionProperty(ScriptingLogicsModule LM) {
+    public DiscountCardDaemonAction(ScriptingLogicsModule LM) {
         super(LM);
     }
 
