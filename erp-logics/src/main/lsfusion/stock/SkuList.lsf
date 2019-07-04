@@ -118,10 +118,16 @@ FORM list 'Список SKU'
     PROPERTIES access(l, r), name(r) READONLY
     ORDER name(r)
     
+    TREE skuTree skg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(skg), skuTreeName = name(skg)
+    ORDER order(skg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(skg) 'F5' DEFAULT
+
     OBJECTS sk = Sku
     PROPERTIES in(l, sk) ON CHANGE changeIn(l, sk)
     PROPERTIES (sk) READONLY id, idBarcode, name, shortNameUOM, canonicalNameSkuGroup, nameBrand, nameCountry, nameManufacturer
     FILTERGROUP in FILTER 'Отмеченные' in(l, sk)
+    FILTERS isParent(skg, sk)
     ORDER name(sk)
     
     EDIT List OBJECT l
@@ -151,7 +157,13 @@ DESIGN list {
                 }
                 MOVE BOX (r) { caption = 'Роли'; }
             }
-            MOVE BOX (sk) { caption = 'Подбор'; }
+            NEW select {
+                caption = 'Подбор';
+                type = SPLITH;
+                fill = 1;
+                MOVE BOX (TREE skuTree) { fill = 1; }
+                MOVE BOX (sk) { fill = 3; }
+            }
         }
     }
 }
