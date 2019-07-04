@@ -7,10 +7,9 @@ NAMESPACE Sku;
 CLASS List 'Список SKU';
 TABLE list (List);
 
-id 'Код' = DATA STRING[100](List);
-list = GROUP AGGR List l BY id(l);
-order 'Порядок' = DATA INTEGER (List) CHARWIDTH 2;
+@defineExternalizable(list, STRING[100]);
 
+order 'Порядок' = DATA INTEGER (List) CHARWIDTH 2;
 name 'Наименование' = DATA ISTRING[250](List) IN base;
 
 @defineHierarchy(list);
@@ -207,8 +206,7 @@ FORM dialogLists 'Списки SKU'
     ORDER order(tg), name(tg)
 
     OBJECTS g=List
-    PROPERTIES(g) NEWSESSION order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE 
-    PROPERTIES(g) NEWSESSION NEW, EDIT
+    PROPERTIES(g) READONLY order, id SHOWIF showIDs(), name, canonicalName 
     ORDER order(g), canonicalName(g)
 
     FILTERS isParent(g, tg)
@@ -267,6 +265,78 @@ EXTEND FORM currentBalanceSkuStock PROPERTIES addSkuLists();
 DESIGN currentBalanceSkuStock {
     filter {
         MOVE PROPERTY (addSkuLists());
+    }
+}
+
+createSkuListIn 'Создать список SKU' () {
+    NEWSESSION NESTED (in[Item]) NEW l = List {
+        FOR in(Item i) DO NEW d = ListDetail {
+            sku(d) <- i;
+            list(d) <- l;
+        }
+        SHOW list OBJECTS l = l DOCKED;
+    }
+}
+
+addToSkuListIn 'Добавить в список SKU' () {
+    NEWSESSION NESTED (in[Item]) DIALOG dialogLists OBJECTS tg INPUT DO {
+        FOR in(Item i) AND NOT [GROUP SUM 1 BY sku(ListDetail d), list(d)](i, tg) DO NEW d = ListDetail {
+            sku(d) <- i;
+            list(d) <- tg;
+        }
+        SHOW list OBJECTS l = tg DOCKED;
+    }
+}
+
+EXTEND FORM items PROPERTIES () createSkuListIn, addToSkuListIn;
+
+DESIGN items {
+    actions {
+        NEW selected {
+            caption = 'Отмеченные';
+            MOVE PROPERTY (createSkuListIn());
+            MOVE PROPERTY (addToSkuListIn());
+        }
+    }
+}
+
+inCurrentBalance = DATA LOCAL BOOLEAN (Sku);
+
+createSkuListSelect 'Создать список SKU' () {   
+
+    inCurrentBalance(Sku s) <- TRUE IF GROUP SUM 1 IF select(s, Stock st);
+    
+    NEWSESSION NESTED (inCurrentBalance[Sku]) NEW l = List {
+        FOR inCurrentBalance(Sku i) DO NEW d = ListDetail {
+            sku(d) <- i;
+            list(d) <- l;
+        }
+        SHOW list OBJECTS l = l DOCKED;
+    }
+}
+
+addToSkuListSelect 'Добавить в список SKU' () {
+    
+    inCurrentBalance(Sku s) <- TRUE IF GROUP SUM 1 IF select(s, Stock st);
+    
+    NEWSESSION NESTED (inCurrentBalance[Sku]) DIALOG dialogLists OBJECTS tg INPUT DO {
+        FOR inCurrentBalance(Sku i) AND NOT [GROUP SUM 1 BY sku(ListDetail d), list(d)](i, tg) DO NEW d = ListDetail {
+            sku(d) <- i;
+            list(d) <- tg;
+        }
+        SHOW list OBJECTS l = tg DOCKED;
+    }
+}
+
+EXTEND FORM currentBalanceSkuStock PROPERTIES () addToSkuListSelect, createSkuListSelect;
+
+DESIGN currentBalanceSkuStock {
+    actionContainer {
+        NEW selected {
+            caption = 'Отмеченные';
+            MOVE PROPERTY (createSkuListSelect());
+            MOVE PROPERTY (addToSkuListSelect());
+        }
     }
 }
 
