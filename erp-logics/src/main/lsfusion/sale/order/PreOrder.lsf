@@ -325,23 +325,21 @@ EXTEND FORM preOrders
 
 batchReserve 'Резерв по партиям' = DATA BOOLEAN ();
 
-prevCalcQuantity 'Доступное' (Sale.OrderDetail d, PreOrderDetail pd) =   PREV(calcQuantity(pd)) (+) PREV(quantity(d) IF isPosted(d) AND preOrderDetail(d)==pd); 
-    
-WHEN FORMS userOrder (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT batchReserve() DO {
-    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF  calcQuantity(pd) >= quantity(d) //prevCalcQuantity(d,pd) >= quantity(d) 
+WHEN (SETCHANGED(sku(Sale.OrderDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(quantity(d))) AND NOT batchReserve() DO {
+    preOrderDetail(d) <- NULL;
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) 
                                AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                AND supplierStock(d) == supplierStock(pd) AND (operation(pd) == operation(d) OR in(pd,operation(d)))
                                ORDER DESC fromDate(pd), pd;
 }
 
-prevCalcQuantity(WriteOffDetail d, PreOrderDetail pd) = PREV(calcQuantity(pd)) (+) PREV(quantity(d) IF isPosted(d) AND preOrderDetail(d)==pd); 
-
 WHEN FORMS userWriteOff (SETCHANGED(sku(WriteOffDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(quantity(d))) DO {
-    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d)//prevCalcQuantity(d,pd) >= quantity(d) 
+    preOrderDetail(d) <- NULL;
+    preOrderDetail(d) <- GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) 
                                    AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                    AND stock(d) == supplierStock(pd) AND NOT operation(pd) ==  Sale.operation('saleWarehouseStore')
                                    ORDER DESC fromDate(pd), pd;
-    preOrderDetail(d) <- [ GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d)//prevCalcQuantity(d,pd) >= quantity(d) 
+    preOrderDetail(d) <- [ GROUP LAST PreOrderDetail pd IF calcQuantity(pd) >= quantity(d) 
                                    AND sku(d) == sku(pd) AND dateTime(d) >= fromDateTime(pd)
                                    AND stock(d) == supplierStock(pd) AND operation(pd) ==  Sale.operation('saleWarehouseStore')
                                    ORDER DESC fromDate(pd), pd]() WHERE NOT preOrderDetail(d);
