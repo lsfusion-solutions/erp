@@ -67,6 +67,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
+                boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings != null && ukm4MySQLSettings.isSendZeroQuantityForWeightItems();
 
                 Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -165,7 +166,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
-                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
+                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, sendZeroQuantityForWeightItems, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table properties", transaction.id));
                                         exportProperties(conn, transaction, version);
@@ -567,7 +568,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, boolean appendBarcode, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, boolean appendBarcode, boolean sendZeroQuantityForWeightItems, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -583,7 +584,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                        ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1); //quantity
+                        int defaultQuantity = sendZeroQuantityForWeightItems && item.passScalesItem ? 0 : 1;
+                        ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : defaultQuantity); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
