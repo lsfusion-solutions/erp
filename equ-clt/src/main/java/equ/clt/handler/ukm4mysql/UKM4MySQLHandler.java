@@ -67,7 +67,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
-                boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings != null && ukm4MySQLSettings.isSendZeroQuantityForWeightItems();
+                boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSendZeroQuantityForWeightItems() != null && ukm4MySQLSettings.getSendZeroQuantityForWeightItems();
 
                 Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {

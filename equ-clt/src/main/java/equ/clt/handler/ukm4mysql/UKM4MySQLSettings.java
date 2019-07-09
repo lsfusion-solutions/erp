@@ -21,7 +21,7 @@ public class UKM4MySQLSettings implements Serializable{
     private boolean useShiftNumberAsNumberZReport;
     private boolean exportTaxes;
     private boolean zeroPaymentForZeroSumReceipt; //при 100% скидке создаём платёж с нулевой суммой (для hoddabi)
-    private boolean sendZeroQuantityForWeightItems;
+    private Boolean sendZeroQuantityForWeightItems;
 
     public UKM4MySQLSettings() {
     }
@@ -140,11 +140,11 @@ public class UKM4MySQLSettings implements Serializable{
         this.zeroPaymentForZeroSumReceipt = zeroPaymentForZeroSumReceipt;
     }
 
-    public boolean isSendZeroQuantityForWeightItems() {
+    public Boolean getSendZeroQuantityForWeightItems() {
         return sendZeroQuantityForWeightItems;
     }
 
-    public void setSendZeroQuantityForWeightItems(boolean sendZeroQuantityForWeightItems) {
+    public void setSendZeroQuantityForWeightItems(Boolean sendZeroQuantityForWeightItems) {
         this.sendZeroQuantityForWeightItems = sendZeroQuantityForWeightItems;
     }
 }
