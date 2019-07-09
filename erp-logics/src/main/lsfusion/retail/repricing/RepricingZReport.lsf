@@ -13,8 +13,10 @@ userRepricingDetail = DATA  UserRepricingDetail(ReceiptReturnDetail);
 
 soldPrice (ReceiptReturnDetail d) = (sum(d) (+) discountSum(d)) / quantity(d); // priceReceiptReturnDetail(d) просто цену брать не можем, так как при внешнем POS'е в этой цене неправильно 
 
+skipRepricing = ABSTRACT BOOLEAN (ReceiptReturnDetail);
+
 toRepricing (ReceiptReturnDetail d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceB(d) == soldPrice(d)) AND
-            NOT userRepricingDetail(d);
+            NOT userRepricingDetail(d) AND NOT skipRepricing(d);
 toRepricingReceiptReturnDetail (stock) =  GROUP SUM 1 IF toRepricing(ReceiptReturnDetail d) BY departmentStore(d);
 
 setReceiptReturnDetailUserRepricingStock 'Создать акт переоценки'(DepartmentStore stock, Operation operation)   { 
