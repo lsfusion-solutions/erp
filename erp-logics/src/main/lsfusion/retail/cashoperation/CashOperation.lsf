@@ -100,6 +100,10 @@ number 'Номер' (cashOperation) = ABSTRACT STRING[30] (CashOperation) IN doc
 
 basis 'Основание' = ABSTRACT STRING[100] (CashOperation) IN documentPrm;
 
+sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
+
+isComplete 'Фискализировано' = DATA BOOLEAN (CashOperation);
+
 cashRegister = ABSTRACT CashRegister(CashOperation);
 cashRegisterModel (CashOperation cashOperation) = cashRegisterModel(groupCashRegister(cashRegister(cashOperation)));
 sidCashRegisterModel 'Код модели' (CashOperation cashOperation) = sid(cashRegisterModel (cashOperation));
@@ -110,10 +114,6 @@ fiscalServiceCashRegister 'Движение денег в фискальном �
 
 zReport = ABSTRACT ZReport(CashOperation);
 numberZReport 'Z-отчёт' (CashOperation cashOperation) = number(zReport(cashOperation)) IN documentPrm;
-
-sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
-
-isComplete 'Фискализировано' = DATA BOOLEAN (CashOperation);
 
 //---------------------------- Внесение денег ----------------------------------------------------------------//
 
@@ -153,7 +153,7 @@ country (IncomeCashOperation incomeCashOperation) = country(departmentStore(inco
 
 sumCash 'Сумма внесения' = DATA NUMERIC[18,4] (IncomeCashOperation) IN documentSum;
 basis 'Основание' (IncomeCashOperation incomeCashOperation) =
-    'Внесение денег №' + seriesNumber(incomeCashOperation) + ' с кассы ' + numberCashRegister(incomeCashOperation) + ' от ' + date(incomeCashOperation) IN documentPrm;
+     CONCAT '','Внесение денег',' №' + seriesNumber(incomeCashOperation),' с кассы ' + numberCashRegister(incomeCashOperation),' от ' + date(incomeCashOperation) IN documentPrm;
 
 curSumIncomeOperation 'Текущая сумма внесенных денег' (cashRegister) =
     GROUP SUM sumCash(IncomeCashOperation incomeCashOperation)
@@ -310,9 +310,7 @@ DESIGN addIncomeCashOperation {
 FORM incomeCashOperation 'Внесение денег'
 
     OBJECTS i = IncomeCashOperation PANEL
-    PROPERTIES(i) number, series, date, time, 
-                  nameDepartmentStore ,
-                  numberCashRegister, numberZReport, sumCash, basis
+    PROPERTIES(i) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
 
     EDIT IncomeCashOperation OBJECT i
 ;
@@ -333,6 +331,7 @@ DESIGN incomeCashOperation {
         NEW secondCase{
             caption = 'Параметры документа';
             MOVE PROPERTY(nameDepartmentStore(i));
+            MOVE PROPERTY(nameEmployee(i));
             MOVE PROPERTY(basis(i));
         }
         NEW thirdCase{
@@ -343,15 +342,18 @@ DESIGN incomeCashOperation {
     MOVE TOOLBARBOX;
 }
 
+overAddIncomeCashOperation ABSTRACT LIST (CashRegister,IncomeCashOperation);
+
 addIncomeCashOperationForm 'Внесение денег' ()  { 
 	NEWSESSION {
 	
-	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
+	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) NULL DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
 	            NEW c = IncomeCashOperation {
 	                cashRegister(c) <- cashRegister;
 	                sumCash(c) <- sumCashForIncomeOperation(cashRegister);
+	                overAddIncomeCashOperation(cashRegister,c);
 	                generateSeriesNumber(c);
 	                IF NOT doNotFiscalisation(cashRegister) THEN {
 	                    fiscalServiceCashRegister(c);                                    
@@ -409,8 +411,7 @@ DESIGN addOutcomeCashOperation {
 FORM outcomeCashOperation 'Изъятие денег'
 
     OBJECTS o = OutcomeCashOperation PANEL
-    PROPERTIES(o) number, series, date, time, nameDepartmentStore,
-                  numberCashRegister, numberZReport, sumCash, basis
+    PROPERTIES(o) number, series, date, time, nameDepartmentStore, numberCashRegister, numberZReport, sumCash, basis, nameEmployee
 
     EDIT OutcomeCashOperation OBJECT o;
 ;
@@ -431,6 +432,7 @@ DESIGN outcomeCashOperation {
         NEW secondCase{
             caption = 'Параметры документа';
             MOVE PROPERTY(nameDepartmentStore(o));
+            MOVE PROPERTY(nameEmployee(o));
             MOVE PROPERTY(basis(o));
         }
         NEW thirdCase{
@@ -445,7 +447,7 @@ overAddOutcomeCashOperation ABSTRACT LIST (CashRegister,OutcomeCashOperation);
 
 addOutcomeCashOperationForm 'Изъятие денег' ()  { 
 	NEWSESSION {
-	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) DO {
+	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) NULL DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
 	            cashRegister(c) <- cashRegister;
