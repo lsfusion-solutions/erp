@@ -1,0 +1,12 @@
+MODULE PurchaseOrderPriceListGroup;
+REQUIRE PurchaseOrder, PriceList;
+
+NAMESPACE Purchase;
+
+countPriceListDetail = GROUP SUM countPriceListDetail(DataPriceListType t, LegalEntity l, Sku s) BY t, l, skuGroup(s) MATERIALIZED; 
+countPriceListDetailRec (DataPriceListType t, LegalEntity l, SkuGroup parent)= GROUP SUM countPriceListDetail(t, l, SkuGroup child) IF isParent(child,parent);
+
+EXTEND FORM userOrder
+    FILTERGROUP filterGroup
+        FILTER 'В Ассортименте' countPriceListDetailRec(priceListType(o),supplier(o),sk) DEFAULT                                                                                    
+;
