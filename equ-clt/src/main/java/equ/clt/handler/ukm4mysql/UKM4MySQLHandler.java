@@ -340,8 +340,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.setString(2, trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, trim(item.shortNameUOM, "", 40)); //measure
-                    boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
-                    ps.setInt(5, item.passScalesItem ? (nonWeight ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
+                    ps.setInt(5, item.passScalesItem ? (isNonWeight(item) ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
                     ps.setString(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
                     ps.setString(8, trim(item.description, "", 100)); //summary
@@ -584,7 +583,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                        ps.setDouble(3, sendZeroQuantityForWeightItems && item.passScalesItem ? 0 :
+                        ps.setDouble(3, sendZeroQuantityForWeightItems && item.passScalesItem && !isNonWeight(item) ? 0 :
                                 (item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1)); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
@@ -812,6 +811,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 /*    private String getDepartmentNumber(TransactionCashRegisterInfo transaction, String section) {
        return section != null ? section : String.valueOf(transaction.departmentNumberGroupCashRegister);
     }*/
+
+    private boolean isNonWeight(CashRegisterItemInfo item) {
+        return item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
+    }
 
     private String makeBarcode(String idBarcode, boolean passScalesItem, String weightCode) {
         return idBarcode != null && idBarcode.length() == 5 && passScalesItem && weightCode != null ? (weightCode + idBarcode) : idBarcode;
