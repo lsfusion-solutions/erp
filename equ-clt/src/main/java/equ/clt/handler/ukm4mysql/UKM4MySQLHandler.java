@@ -584,8 +584,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, trim(barcode, 40)); //id
                         ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                        int defaultQuantity = sendZeroQuantityForWeightItems && item.passScalesItem ? 0 : 1;
-                        ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : defaultQuantity); //quantity
+                        ps.setDouble(3, sendZeroQuantityForWeightItems && item.passScalesItem ? 0 :
+                                (item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1)); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
