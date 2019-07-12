@@ -368,6 +368,63 @@ addIncomeCashOperationForm 'Внесение денег' ()  {
 	}
 } TOOLBAR;
 
+dontUseCurrentCashRegister 'Не использовать текущую кассу на форме центральная касса' = DATA BOOLEAN ();
+setDateTimeCashDocument 'Задавать дату и время документов изъятий и внесений на форме центральная касса' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES dontUseCurrentCashRegister(), setDateTimeCashDocument()
+;
+
+DESIGN options{
+    zReport{
+        NEW cashDocuments {
+            caption = 'Внесения/изъятия';
+            MOVE PROPERTY(dontUseCurrentCashRegister());        
+            MOVE PROPERTY(setDateTimeCashDocument());        
+        }
+    }
+}
+
+migratedCashDocumentCentralCashRegister = DATA BOOLEAN (); 
+
+onStarted() + { 
+    IF NOT migratedCashDocumentCentralCashRegister() THEN{
+        dontUseCurrentCashRegister() <- TRUE;       
+        setDateTimeCashDocument() <- TRUE;       
+        migratedCashDocumentCentralCashRegister() <- TRUE;       
+    }
+}
+addIncomeCashOperationForm 'Внесение денег' (DepartmentStore dep)  { 
+	NEWSESSION {
+	    LOCAL departmentStore = DepartmentStore();
+	    IF dontUseCurrentCashRegister() THEN 
+	        departmentStore() <- dep;
+	    ELSE departmentStore() <- departmentStore(currentCashRegister());        
+	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT DO {
+	        LOCAL fail = BOOLEAN();
+	        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
+	            NEW c = IncomeCashOperation {
+	                cashRegister(c) <- cashRegister;
+	                sumCash(c) <- sumCashForIncomeOperation(cashRegister);
+	                IF setDateTimeCashDocument() THEN {
+	                    date(c) <- dt;
+	                    time(c) <- t;
+	                }
+	                overAddIncomeCashOperation(cashRegister,c);
+	                generateSeriesNumber(c);
+	                IF NOT doNotFiscalisation(cashRegister) THEN {
+	                    fiscalServiceCashRegister(c);                                    
+	                }
+	                IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+	                    fail() <- TRUE;
+	            }
+	        }
+	        IF NOT fail() THEN
+	            apply();
+	    }
+	}
+} TOOLBAR;
+
 sumCashForOutcomeOperation 'Сумма изъятия денег' = DATA LOCAL NUMERIC[18,4] (CashRegister);
 
 FORM addOutcomeCashOperation 'Изъятие денег'
@@ -451,7 +508,36 @@ addOutcomeCashOperationForm 'Изъятие денег' ()  {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
 	            cashRegister(c) <- cashRegister;
+	            sumCash(c) <- sumCashForOutcomeOperation(cashRegister);	            
+	            overAddOutcomeCashOperation(cashRegister,c);
+	            generateSeriesNumber(c);
+	            IF NOT doNotFiscalisation(cashRegister) THEN {            
+	                fiscalServiceCashRegister(c);
+	            }    
+	            IF cashRegisterModel(groupCashRegister(cashRegister)) AND NOT isComplete(c) THEN
+	                fail() <- TRUE;
+	        }
+	         IF NOT fail() THEN
+	            apply();
+	    }
+	}
+} TOOLBAR;
+
+addOutcomeCashOperationForm 'Изъятие денег' (DepartmentStore dep)  { 
+	NEWSESSION {
+	    LOCAL departmentStore = DepartmentStore();
+	    IF dontUseCurrentCashRegister() THEN 
+	        departmentStore() <- dep;
+	    ELSE departmentStore() <- departmentStore(currentCashRegister());    	
+	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT DO {
+	        LOCAL fail = BOOLEAN();
+	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
+	            cashRegister(c) <- cashRegister;
 	            sumCash(c) <- sumCashForOutcomeOperation(cashRegister);
+                IF setDateTimeCashDocument() THEN {
+                    date(c) <- dt;
+                    time(c) <- t;
+                }	            
 	            overAddOutcomeCashOperation(cashRegister,c);
 	            generateSeriesNumber(c);
 	            IF NOT doNotFiscalisation(cashRegister) THEN {            
