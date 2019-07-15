@@ -1125,6 +1125,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(key);
                                         nppGroupMachinery = (nppGroupMachinery != null || useShopIndices) ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
+                                        if (nppGroupMachinery == null) {
+                                            sendSalesLogger.error("not found nppGroupMachinery : " + key + " { " + directoryDepartNumberGroupCashRegisterMap.toString() + " } : " + directory + "_" + numberCashRegister);
+                                        }
 
                                         String idSaleReceiptReceiptReturnDetail = null;
                                         Element originalPurchase = purchaseNode.getChild("original-purchase");
