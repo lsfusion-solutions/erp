@@ -81,6 +81,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
                 List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
+                boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -118,7 +119,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
-                            String shopIndices = transaction.idDepartmentStoreGroupCashRegister;
+                            String shopIndices = useNumberGroupInShopIndices ? String.valueOf(transaction.nppGroupMachinery) : transaction.idDepartmentStoreGroupCashRegister;
                             if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
                                 shopIndices += " " + weightShopIndices;
                             }
@@ -862,6 +863,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
         String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
@@ -871,7 +873,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
-                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
+                String idDepartmentStore = useNumberGroupInShopIndices ? String.valueOf(c.numberGroup) : c.idDepartmentStore;
+                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
                 if (c.number != null)
                     directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
