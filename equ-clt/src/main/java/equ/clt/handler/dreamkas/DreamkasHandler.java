@@ -44,7 +44,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
             server.token = dreamkasSettings.getToken();
             server.salesDays = dreamkasSettings.getSalesDays();
             server.salesLimitReceipt = dreamkasSettings.getSalesLimitReceipt();
-            server.stepSend = 1000;//dreamkasSettings.getStepSend();
+            server.stepSend = dreamkasSettings.getStepSend();
             if (server.baseURL.isEmpty()) eMsg = "В настройках не определен BaseURL";
             if (server.token.isEmpty()) eMsg = "В настройках не определен token";
             if (server.salesLimitReceipt < 200) server.salesLimitReceipt = 200;
