@@ -106,7 +106,9 @@ public class EquipmentServer {
                         if (remote == null) {
                             try {
                                 remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
-                            } catch (NotBoundException | MalformedURLException | RemoteException e) {
+                            } catch (NotBoundException e) {
+                                equipmentLogger.error("Naming lookup error, possible Equipment Server is disabled, check serverComputer()", e);
+                            } catch (MalformedURLException | RemoteException e) {
                                 equipmentLogger.error("Naming lookup error : ", e);
                             }
 
