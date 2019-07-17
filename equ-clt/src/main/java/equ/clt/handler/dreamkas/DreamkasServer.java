@@ -401,12 +401,18 @@ public class DreamkasServer {
     //  Возвращает диапазон дат принимаемой реализации, salesDays
     private String getRangeDate() {
         String cRet;
-        long curSec = System.currentTimeMillis();
         SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Date sDate = new Date(curSec - salesDays * 1000);
-        Date eDate = new Date(curSec);
-        cRet  = "from=" + mDate.format(sDate).replace(" ","T") + "&";
-        cRet += "to="   + mDate.format(eDate).replace(" ","T");
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.add(Calendar.DATE, -salesDays);
+        Date startDate = cal.getTime();
+
+        Date endDate = Calendar.getInstance().getTime();
+
+        cRet  = "from=" + mDate.format(startDate).replace(" ","T") + "&";
+        cRet += "to="   + mDate.format(endDate).replace(" ","T");
         return cRet;
     }
 
