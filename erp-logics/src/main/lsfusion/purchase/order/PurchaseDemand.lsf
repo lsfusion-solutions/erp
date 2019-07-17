@@ -25,7 +25,8 @@ WHEN LOCAL CHANGED (date(UserOrder o)) AND NOT CHANGED(dateToSoldPeriod(o)) AND 
 
 quantitySold 'Продано' (Sku sku, UserOrder userOrder) = quantitySold(sku, customerStock(userOrder), dateFromSoldPeriod(userOrder), dateToSoldPeriod(userOrder));
 
-purchaseReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE) CHARWIDTH 7;
+insuranceReserve 'Страховой запас (авто)' = ABSTRACT NUMERIC[16,5](Sku, UserOrder);
+purchaseReserve 'Страховой запас (ручн)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE) CHARWIDTH 7;
 
 recommendedQuantity 'Рекомендуемое к закупке кол-во' = ABSTRACT NUMERIC[16,5] (Sku, UserOrder) CHARWIDTH 7;    
 
@@ -54,10 +55,12 @@ skipCeil = ABSTRACT BOOLEAN (Sku,UserOrder);
 ceilRecommendedQuantity(Sku sku, NUMERIC[16,5] r) = IF (MIN MOQ(sku), amountPack(sku)) > 0 THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) ELSE (IF split(sku) THEN r ELSE ceil(r));
 useCustomRecommended = ABSTRACT BOOLEAN (UserOrder);
 fillRecommendedQuantityStockCustom  ABSTRACT (UserOrder);
+in = DATA LOCAL BOOLEAN (Sku);
+overFillRecommended ABSTRACT LIST (UserOrder);
 
 fillRecommendedQuantityStock 'Заполнить рекомендуемым'(UserOrder userOrder)  { 
     IF NOT useCustomRecommended(userOrder) THEN {
-        LOCAL in = BOOLEAN (Sku);
+        //LOCAL in = BOOLEAN (Sku);
         in(Sku sku) <- prevPriceA(
                                   ledgerPriceListType(priceListType(userOrder, sku)),
                                   sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
@@ -67,7 +70,8 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
                 sku(d) <- sku;
                 quantity (d) <- IF skipCeil(sku,userOrder) THEN r ELSE ceilRecommendedQuantity(sku, r);                
                 overRecommendedQuantity(d,sku);
-        }  
+        }
+        overFillRecommended(userOrder);
     } ELSE {
         fillRecommendedQuantityStockCustom(userOrder);
     }

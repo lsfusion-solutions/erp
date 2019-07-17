@@ -1,0 +1,88 @@
+MODULE PurchaseDemandLog;
+
+REQUIRE PurchaseDemand;
+
+NAMESPACE Purchase;
+
+CLASS PurchaseDemandLog 'Лог автозаказа';
+TABLE purchaseDemandLog(PurchaseDemandLog);
+
+dateTime 'Дата' = DATA DATETIME (PurchaseDemandLog);
+userOrder 'Заказ' = DATA UserOrder (PurchaseDemandLog);
+descriptionUserOrder 'Заказ' (PurchaseDemandLog l) = description(userOrder(l));
+supplier 'Поставщик' = DATA LegalEntity (PurchaseDemandLog);
+nameSupplier 'Поставщик' (PurchaseDemandLog l) = name(supplier(l));
+customerStock 'Склад покупателя' = DATA Stock (PurchaseDemandLog);
+nameCustomerStock 'Склад покупателя' (PurchaseDemandLog l) = name(customerStock(l));
+sku 'Товар' = DATA Sku (PurchaseDemandLog);
+idBarcodeSku 'Штрихкод' (PurchaseDemandLog l) = idBarcode(sku(l));
+nameSku 'Товар' (PurchaseDemandLog l) = name(sku(l));
+quantitySold 'Продано' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+purchaseReserve 'Страховой запас (ручн)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+insuranceReserve 'Страховой запас (авто)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+recommendedQuantity 'Рекомендуемое к закупке кол-во' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+currentBalance 'Текущий остаток' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+currentReservePurchase 'Резерв закупка (всего)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+currentReserveSale 'Резерв продажа (всего)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+
+FORM purchaseDemandLog 'Лог автозаказа'
+    OBJECTS l = PurchaseDemandLog
+    PROPERTIES(l) READONLY dateTime, descriptionUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
+                           quantitySold, purchaseReserve, insuranceReserve, recommendedQuantity, currentBalance,
+                           currentReservePurchase, currentReserveSale
+;
+
+NAVIGATOR {
+    purchasePurchaseNavigator {
+        NEW purchaseDemandLog;
+    }
+}
+
+EXTEND FORM orders
+    OBJECTS l = PurchaseDemandLog
+    PROPERTIES(l) READONLY dateTime, descriptionUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
+                           quantitySold, purchaseReserve, insuranceReserve, recommendedQuantity, currentBalance,
+                           currentReservePurchase, currentReserveSale
+    FILTERS userOrder(l) == o
+;
+DESIGN orders {
+    documentDetail {
+        MOVE BOX(l);
+    }
+}
+
+enablePurchaseDemandLog 'Включить логирование строк автозаказа' = DATA BOOLEAN ();
+limitPurchaseDemandLog 'Максимальное кол-во логируемых строк в автозаказе' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES() enablePurchaseDemandLog, limitPurchaseDemandLog
+;
+DESIGN options {
+    purchase {
+        MOVE PROPERTY(enablePurchaseDemandLog());
+        MOVE PROPERTY(limitPurchaseDemandLog());
+    }
+}
+
+overFill ABSTRACT LIST (PurchaseDemandLog);
+
+overFillRecommended (UserOrder userOrder) + {
+    IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) < limitPurchaseDemandLog() THEN {
+        FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW l = PurchaseDemandLog DO {
+            dateTime(l) <- currentDateTime();
+            userOrder(l) <- userOrder;
+            supplier(l) <- supplier(userOrder);
+            customerStock(l) <- customerStock(userOrder);
+            sku(l) <- sku;
+            quantitySold(l) <- quantitySold(sku,userOrder);
+            purchaseReserve(l) <- purchaseReserve(sku,customerStock(userOrder),userOrder);
+            insuranceReserve(l) <- insuranceReserve(sku,userOrder);
+            recommendedQuantity(l) <- recommendedQuantity(sku,userOrder);
+            currentBalance(l) <- prevCurrentBalance(sku,customerStock(userOrder));
+            currentReservePurchase(l) <- prevCurrentReservePurchase(sku,customerStock(userOrder));
+            currentReserveSale(l) <- prevCurrentReserveSale(sku,customerStock(userOrder));
+            
+            overFill(l);
+        }
+    }
+}
