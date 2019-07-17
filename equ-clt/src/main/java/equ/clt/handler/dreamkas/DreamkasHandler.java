@@ -79,6 +79,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     // Вызывается при чтении реализации
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
+        sendSalesLogger.info(logPrefix + "readSalesInfo started");
         DreamkasSalesBatch salesBatch;
         DreamkasServer server = new DreamkasServer();
         setProp(server);
@@ -91,6 +92,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
                 throw Throwables.propagate(e);
             }
         } else {
+            sendSalesLogger.info(logPrefix + "found " + server.salesInfoList.size() + " sale records");
             salesBatch = new DreamkasSalesBatch(server.salesInfoList, null, "");
         }
         return salesBatch;
