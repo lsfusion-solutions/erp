@@ -843,7 +843,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 END
 
 META deriveShipmentDate(dumb) 
-    shipmentDate(UserOrder order) <- sum(date(order), (OVERRIDE daysBeforeShipmentDate(operation(order)), 0)) WHEN CHANGED(date(order));
+    skipShipmentDateDerive = ABSTRACT BOOLEAN(UserOrder);
+    shipmentDate(UserOrder order) <- sum(date(order), (OVERRIDE daysBeforeShipmentDate(operation(order)), 0)) WHEN CHANGED(date(order)) AND NOT skipShipmentDateDerive(order);
     shipmentTime(UserOrder order) <- time(order) WHEN CHANGED(time(order));
 END
 
