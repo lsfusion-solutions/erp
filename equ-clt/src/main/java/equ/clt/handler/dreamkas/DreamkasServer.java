@@ -6,6 +6,7 @@ import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -17,6 +18,9 @@ import java.util.*;
 import static java.math.BigDecimal.ROUND_DOWN;
 
 public class DreamkasServer {
+
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
     public String token = "";                                                   // Токен доступа
     public String baseURL = "";                                                 // Базовый URL
     public String cResult = "";                                                 // Результат запроса
@@ -114,6 +118,7 @@ public class DreamkasServer {
         Integer offset = 0;
         Boolean lRet = true;
         url = "receipts?" + getRangeDate() + "&limit=" + salesLimitReceipt.toString();
+        sendSalesLogger.info("Dreamkas: request url " + url);
         salesInfoList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
