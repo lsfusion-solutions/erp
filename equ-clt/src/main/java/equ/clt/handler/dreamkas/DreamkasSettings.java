@@ -9,6 +9,7 @@ public class DreamkasSettings implements Serializable {
     private Integer salesDays = 0;
     private Integer salesLimitReceipt = 100;
     private Integer stepSend = 100;
+    private Integer runReadSalesInterval;
 
     public DreamkasSettings () {
 
@@ -52,5 +53,13 @@ public class DreamkasSettings implements Serializable {
 
     public void setStepSend(Integer stepSend) {
         this.stepSend = stepSend;
+    }
+
+    public Integer getRunReadSalesInterval() {
+        return runReadSalesInterval;
+    }
+
+    public void setRunReadSalesInterval(Integer runReadSalesInterval) {
+        this.runReadSalesInterval = runReadSalesInterval;
     }
 }

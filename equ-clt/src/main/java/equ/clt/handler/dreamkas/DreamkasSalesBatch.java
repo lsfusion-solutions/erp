@@ -11,7 +11,7 @@ import java.util.Set;
 public class DreamkasSalesBatch extends SalesBatch<DreamkasSalesBatch> {
     Map<String, Set<Integer>> readRecordsMap = new HashMap<>();
 
-    public DreamkasSalesBatch(List<SalesInfo> salesInfoList, Set<Integer> readRecordSet, String directory) {
+    public DreamkasSalesBatch(List<SalesInfo> salesInfoList) {
         this.salesInfoList = salesInfoList;
     }
 

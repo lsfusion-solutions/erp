@@ -76,26 +76,32 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
         return sendTransactionBatchMap;
     }
 
+    int readSalesInfoCount = 0;
     // Вызывается при чтении реализации
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
-        sendSalesLogger.info(logPrefix + "readSalesInfo started");
-        DreamkasSalesBatch salesBatch;
-        DreamkasServer server = new DreamkasServer();
-        setProp(server);
-        server.cashRegisterInfoList = cashRegisterInfoList;
-        if (!server.getSales()) {
-            if (server.logMessage.length() > 0) sendSalesLogger.error(logPrefix + server.logMessage);
-            try {
-                throw new RuntimeException(server.eMessage);
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+
+        DreamkasSettings dreamkasSettings = springContext.containsBean("dreamkasSettings") ? (DreamkasSettings) springContext.getBean("dreamkasSettings") : null;
+        Integer runReadSalesInterval = dreamkasSettings != null ? dreamkasSettings.getRunReadSalesInterval() : null;
+        if(runReadSalesInterval == null || readSalesInfoCount >= runReadSalesInterval) {
+            readSalesInfoCount = 0;
+            DreamkasServer server = new DreamkasServer();
+            setProp(server);
+            server.cashRegisterInfoList = cashRegisterInfoList;
+            if (!server.getSales()) {
+                if (server.logMessage.length() > 0) {
+                    sendSalesLogger.error(logPrefix + server.logMessage);
+                }
+                throw Throwables.propagate(new RuntimeException(server.eMessage));
+            } else {
+                sendSalesLogger.info(logPrefix + "found " + server.salesInfoList.size() + " sale records");
+                salesInfoList = server.salesInfoList;
             }
         } else {
-            sendSalesLogger.info(logPrefix + "found " + server.salesInfoList.size() + " sale records");
-            salesBatch = new DreamkasSalesBatch(server.salesInfoList, null, "");
+            readSalesInfoCount++;
         }
-        return salesBatch;
+        return new DreamkasSalesBatch(salesInfoList);
     }
 
     // Обратная связь: после записи реализации, отправка на сервер, что данные были приняты
