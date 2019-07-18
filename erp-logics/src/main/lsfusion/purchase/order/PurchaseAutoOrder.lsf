@@ -275,3 +275,67 @@ CONSTRAINT DROPPED (UserOrderDetail d IS UserOrderDetail) AND banDroppedAutoDeta
 CONSTRAINT autoQuantity(UserOrderDetail d) AND banQuantityAutoDetail() AND isAuto(userOrder(d)) AND NOT (quantity(d) >= autoQuantity(d))
     MESSAGE 'Запрещено заказывать меньше чем "Кол-во (автозаказ)"';
 
+overCreateAuto ABSTRACT LIST (UserOrder);
+
+createAutoOrders 'Создание автозаказов' () {    
+    LOCAL NESTED toCreate = BOOLEAN (ScheduleOrderDetail);
+    toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
+            AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o));    
+ 
+    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {                 
+        NEWSESSION {
+            printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail));
+            isClosed(UserOrder o) <- TRUE WHERE supplierStock(o) == supplierStock(scheduleOrderDetail) AND customerStock(o) == customerStock(scheduleOrderDetail) AND shipmentDate(o) < currentDate();
+            APPLY;
+
+            NEW o = UserOrder {
+                scheduleOrderDetail(o) <- scheduleOrderDetail;
+                numerator(o) <- autoOrderNumerator();
+                date(o) <- currentDate();
+                time(o) <- currentTime();
+                shipmentDate(o) <- dateSupply(scheduleOrderDetail);
+                shipmentTime(o) <- currentTime();
+                nextShipmentDate(o) <- dateSupplyNext(scheduleOrderDetail);
+                supplier(o) <- supplier(scheduleOrderDetail);
+                customer(o) <- customer(scheduleOrderDetail);
+                supplierStock(o) <- supplierStock(scheduleOrderDetail);
+                customerStock(o) <- customerStock(scheduleOrderDetail);
+                isAuto(o) <- TRUE;
+    
+                IF operation(scheduleOrderDetail) THEN {
+                    operation(o) <- operation(scheduleOrderDetail);
+                }                        
+                IF defaultPriceListType(operation(o)) THEN
+                    priceListType(o) <- defaultPriceListType(operation(o)); 
+    
+                isRecommended(o) <- TRUE;
+                overCreate(o);
+                overCreateDetail(o);
+                
+                printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](o)));
+                
+                priceListType(UserOrderDetail d) <-  OVERRIDE priceListType(agreement(userOrder(d)), sku(d)), priceListType(userOrder(d)) WHERE userOrder(d) == o;             
+                FOR PriceListType pt == priceListType(UserOrderDetail d) AND sku(d) AND userOrder(d) == o NOINLINE (pt) DO {
+                    price(d) <- NUMERIC[16,4](prevListMVAT (pt, d));
+                    invoicePrice(d) <- NUMERIC[16,4](prevListPVAT (pt, d));
+                }
+                
+                overCreateAuto(o);
+                
+                DELETE o WHERE NOT countUserOrderDetail(o);                     
+                IF countUserOrderDetail(o) THEN 
+                    APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM options
+    PROPERTIES () createAutoOrders
+;
+
+DESIGN options {
+    purchase{
+        MOVE PROPERTY (createAutoOrders());
+    }
+}
