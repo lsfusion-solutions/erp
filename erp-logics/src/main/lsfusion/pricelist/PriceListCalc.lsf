@@ -225,3 +225,33 @@ DESIGN priceListTypes {
         caption = 'Добавить расчетную цену';
     }
 }
+
+importMarkupCSV 'Имопрт из CSV' (CalcPriceListType t) {
+    LOCAL id = ISTRING[100](INTEGER);
+    LOCAL idBarcode = ISTRING[15](INTEGER);
+    LOCAL markup = NUMERIC[8,2](INTEGER);
+    
+    INPUT f = CSVFILE DO {
+        IMPORT CSV ',' NOHEADER CHARSET 'cp1251' FROM f TO id, idBarcode, markup;
+        
+        FOR Sku sk = OVERRIDE sku(id(INTEGER i)), skuBarcode(idBarcode(i)) DO {
+            dataMarkup(t, sk) <- markup(i);
+        }
+    }
+}
+
+importMarkupXLS 'Имопрт из XLS' (CalcPriceListType t) {
+    LOCAL id = ISTRING[100](INTEGER);
+    LOCAL idBarcode = ISTRING[15](INTEGER);
+    LOCAL markup = NUMERIC[8,2](INTEGER);
+    
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS FROM f TO id, idBarcode, markup;
+        
+        FOR Sku sk = OVERRIDE sku(id(INTEGER i)), skuBarcode(idBarcode(i)) DO {
+            dataMarkup(t, sk) <- markup(i);
+        }
+    }
+}
+
+EXTEND FORM calcPriceListType PROPERTIES (c) DRAW s TOOLBAR importMarkupCSV, importMarkupXLS;
