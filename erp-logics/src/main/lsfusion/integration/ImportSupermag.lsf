@@ -565,7 +565,15 @@ importStoreType 'Импорт форматов магазинов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importStoreType();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStoreType()); } }
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW stores {
+            type = CONTAINERH;
+            MOVE PROPERTY (importStore());
+            MOVE PROPERTY (importStoreType());
+        } 
+    } 
+}
 
 importDepartmentStore 'Импорт отделов магазинов' () {
     
@@ -1727,7 +1735,23 @@ importBufferAps 'Импорт ДМП' () {
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps;
+overImportPlanTurnover ABSTRACT LIST();
+
+idItemGroup = DATA LOCAL INTEGER (INTEGER);
+    
+importPlanTurnover 'Импорт плановой оборачиваемости' () {
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT CLASSID, TURNOVER FROM Supermag.AMCLASSTURNOVER' TO file;
+    
+    IMPORT TABLE FROM file() TO idItemGroup, numeric;
+    
+    overImportPlanTurnover();
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover;
 DESIGN integrationData { 
     supermagButtons { 
         NEW bufferAps {
@@ -1736,6 +1760,7 @@ DESIGN integrationData {
             MOVE PROPERTY (importFillRate());
             MOVE PROPERTY (importBufferAps());
         } 
+        MOVE PROPERTY (importPlanTurnover());
     } 
 }
 
