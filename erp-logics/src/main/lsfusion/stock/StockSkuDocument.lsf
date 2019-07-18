@@ -1368,6 +1368,23 @@ META implementDocumentBatchForm(char)
     ;
 END
 
+//----------------- Объединение строк документов с одинаковыми товарами и ценами ------------------- //
+
+META defineMergeDocumentDetails(object, form, concrete)
+    indexDocumentDetail(###object##Detail d) = PARTITION SUM 1 IF NOT batch(d) ORDER d BY object(d), sku(d), price(d);
+    
+    mergeDocumentDetails 'Объединенить строки' (###object o) {
+        FOR object(###object##Detail d) == o AND indexDocumentDetail(d) > 1 DO {
+            quantity(###object##Detail dd) <- quantity(dd) (+) quantity(d) WHERE object(dd) == o AND sku(dd) == sku(d) AND price(dd) == price(d) AND indexDocumentDetail(dd) == 1;
+        }
+        DELETE ###object##Detail d WHERE object(d) == o AND indexDocumentDetail(d) > 1;
+    }
+    
+    EXTEND FORM form
+        PROPERTIES(concrete) DRAW d mergeDocumentDetails TOOLBAR
+    ;
+END
+
 //----------------- Логирование изменений в документах ------------------- //
 
 CLASS DocumentLog 'Запись лога документов';
