@@ -67,10 +67,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
                 boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
                 boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
+                List<String> forceIdDepartmentStoresList = eqsSettings != null ? eqsSettings.getForceIdDepartmentStoresList() : null;
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
                     try {
+
+                        skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister));
 
                         String directory = null;
                         for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
@@ -235,6 +238,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         int discountCardThreadCount = eqsSettings != null ? eqsSettings.getDiscountCardThreadCount() : 0;
         boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
+        List<String> forceIdDepartmentStoresList = eqsSettings != null ? eqsSettings.getForceIdDepartmentStoresList() : null;
+        skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(requestExchange.idStock));
 
         Collection<Callable<Exception>> taskList = new ArrayList<>();
         for (String directory : getDirectorySet(requestExchange)) {
