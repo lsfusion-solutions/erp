@@ -1751,7 +1751,43 @@ importPlanTurnover 'Импорт плановой оборачиваемости
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover;
+//docType = DATA LOCAL ISTRING[10](INTEGER);
+idDoc = DATA LOCAL ISTRING[50](INTEGER);
+dateFrom = DATA DATE (INTEGER);
+dateTo = DATA DATE (INTEGER);
+
+overImportBufferApsAdDocs ABSTRACT LIST();
+overImportBufferApsAdStocks ABSTRACT LIST();
+overImportBufferApsAdQuantity ABSTRACT LIST();
+
+importBufferApsAd 'Импорт рекламных кампаний' () {
+        
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, STARTDATE, ENDDATE FROM SuperMag.SVDocNoPricePA' TO file;
+    
+    IMPORT TABLE FROM file() TO idDoc, dateFrom, dateTo;
+    
+    overImportBufferApsAdDocs();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, LOCATIONID FROM Supermag.SMPromoLocations' TO file;
+    
+    IMPORT TABLE FROM file() TO idDoc, idStock;
+    
+    overImportBufferApsAdStocks();
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'select DOCID, ARTICLE, QUANTITY from Supermag.SVItemsPA' TO file;
+    
+    IMPORT TABLE FROM file() TO idDoc, idItem, numeric;
+    
+    overImportBufferApsAdQuantity();
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover, importBufferApsAd;
 DESIGN integrationData { 
     supermagButtons { 
         NEW bufferAps {
@@ -1761,6 +1797,7 @@ DESIGN integrationData {
             MOVE PROPERTY (importBufferAps());
         } 
         MOVE PROPERTY (importPlanTurnover());
+        MOVE PROPERTY (importBufferApsAd());
     } 
 }
 
