@@ -678,22 +678,23 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
         price(d) <- currentPOSPrice(sku, receipt);
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
         focusQuantity(d);
-        IF explicitBatchLedger(receipt(d)) AND
-            countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
+        IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d))== SkuType.skuTypeCharge THEN{
+            IF countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
                 batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
                 price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
-            } ELSE IF explicitBatchLedger(receipt(d)) THEN {
-                LOCAL created = BOOLEAN();
-                created() <- NULL;
-                DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
-                    batch(d) <- bt;
-                    price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
-                    calculatePromotions(receipt);
-                    created() <- TRUE;
+                } ELSE {
+                    LOCAL created = BOOLEAN();
+                    created() <- NULL;
+                    DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
+                        batch(d) <- bt;
+                        price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
+                        calculatePromotions(receipt);
+                        created() <- TRUE;
+                    }
+                    IF NOT created() THEN
+                        DELETE d;
                 }
-                IF NOT created() THEN
-                    DELETE d;
-            }
+        }
         overChangeBatch(d);    
     }
 }
