@@ -7,7 +7,8 @@ NAMESPACE Purchase;
 CLASS PurchaseDemandLog 'Лог автозаказа';
 TABLE purchaseDemandLog(PurchaseDemandLog);
 
-dateTime 'Дата' = DATA DATETIME (PurchaseDemandLog);
+dateTime 'Дата/время' = DATA DATETIME (PurchaseDemandLog);
+date 'Дата' (PurchaseDemandLog l) = toDate(dateTime(l));
 userOrder 'Заказ' = DATA UserOrder (PurchaseDemandLog);
 descriptionUserOrder 'Заказ' (PurchaseDemandLog l) = description(userOrder(l));
 supplier 'Поставщик' = DATA LegalEntity (PurchaseDemandLog);
@@ -24,6 +25,8 @@ recommendedQuantity 'Рекомендуемое к закупке кол-во' =
 currentBalance 'Текущий остаток' = DATA NUMERIC[16,5] (PurchaseDemandLog);
 currentReservePurchase 'Резерв закупка (всего)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
 currentReserveSale 'Резерв продажа (всего)' = DATA NUMERIC[16,5] (PurchaseDemandLog);
+
+@defineLog (PurchaseDemandLog, 'автозаказа', log, date);
 
 FORM purchaseDemandLog 'Лог автозаказа'
     OBJECTS l = PurchaseDemandLog
@@ -67,7 +70,7 @@ DESIGN options {
 overFill ABSTRACT LIST (PurchaseDemandLog);
 
 overFillRecommended (UserOrder userOrder) + {
-    IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) < limitPurchaseDemandLog() THEN {
+    IF enablePurchaseDemandLog() AND NOT (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) > limitPurchaseDemandLog() THEN {
         FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW l = PurchaseDemandLog DO {
             dateTime(l) <- currentDateTime();
             userOrder(l) <- userOrder;
