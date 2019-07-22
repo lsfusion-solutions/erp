@@ -667,11 +667,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
-                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, " +
-                    "sales.SALESREFUND, COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
+                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales." + getSalesNumField() + ", sales.SAREAID, " +
+                    "sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
-                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, SALESNUM";
+                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, " + getSalesNumField();
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -689,7 +689,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                Integer salesNum = rs.getInt("SALESNUM");
+                Integer salesNum = rs.getInt(getSalesNumField());
 
                 Integer sessionId = rs.getInt("SESSID");
                 String numberZReport = String.valueOf(sessionId);
@@ -709,7 +709,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 boolean isWeight = type == 0 || type == 2;
 
                 Integer recordType = rs.getInt("SALESTAG");
-                boolean isReturn = rs.getInt("SALESREFUND") != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
+                boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
 
                 switch (recordType) {
                     case 0: {//товарная позиция
@@ -860,7 +860,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString != null && salesBatch.recordList != null) {
 
-                try (Connection conn = getConnection(params.connectionString, params.user, params.password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE SALESNUM = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
+                try (Connection conn = getConnection(params.connectionString, params.user, params.password); PreparedStatement ps = conn.prepareStatement("UPDATE [SALES] SET FUSION_PROCESSED = 1 WHERE " + getSalesNumField() + " = ? AND SESSID = ? AND SYSTEMID = ? AND SAREAID = ?")) {
                     int count = 0;
                     for (AstronRecord record : salesBatch.recordList) {
                         ps.setInt(1, record.salesNum);
@@ -908,7 +908,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void createSalesIndex(Connection conn) {
         try (Statement statement = conn.createStatement()) {
-            String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (SALESNUM, SESSID, SYSTEMID, SAREAID) END";
+            String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (" + getSalesNumField() + ", SESSID, SYSTEMID, SAREAID) END";
             statement.execute(query);
             conn.commit();
         } catch (SQLException e) {
@@ -952,5 +952,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private String getDeleteBarcodeKey(String connectionString, Integer nppGroupMachinery) {
         return  connectionString + "/" + nppGroupMachinery;
+    }
+
+    protected String getSalesNumField() {
+        return "SALESNUM";
+    }
+
+    protected String getSalesRefundField() {
+        return "SALESREFUND";
     }
 }
