@@ -27,7 +27,7 @@ public class DreamkasServer {
     public String eMessage = "";                                                // Текст ошибки
     public Integer webStatus = 0;                                               // Статус выполнения команды
     public String logMessage = "";                                              // Текст для лог файла
-    public Integer salesDays = 10;                                              // Кол-во дней принимаемой реализации
+    public Integer salesHours;
     public Integer salesLimitReceipt = 500;                                     // Кол-во чеков за 1 запрос (200..1000)
     public Integer stepSend = 100;                                              // Шаг передачи - количество товаров для передачи за 1 раз
     public List<CashRegisterInfo> cashRegisterInfoList;                         // Список обрабатываемых устройств
@@ -403,10 +403,13 @@ public class DreamkasServer {
         String cRet;
         SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR, 0);
+        if(salesHours != null && salesHours != 0) {
+            cal.add(Calendar.HOUR, -salesHours);
+        } else {
+            cal.set(Calendar.HOUR, 0);
+        }
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
-        cal.add(Calendar.DATE, -salesDays);
         Date startDate = cal.getTime();
 
         Date endDate = Calendar.getInstance().getTime();

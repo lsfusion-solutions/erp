@@ -6,7 +6,8 @@ public class DreamkasSettings implements Serializable {
 
     private String baseURL = "";
     private String token = "";
-    private Integer salesDays = 0;
+    private Integer salesDays = 0; //todo: удалить после того, как Табак обновится
+    private Integer salesHours = 0;
     private Integer salesLimitReceipt = 100;
     private Integer stepSend = 100;
     private Integer runReadSalesInterval;
@@ -37,6 +38,14 @@ public class DreamkasSettings implements Serializable {
 
     public void setSalesDays(Integer salesDays) {
         this.salesDays = salesDays;
+    }
+
+    public Integer getSalesHours() {
+        return salesHours;
+    }
+
+    public void setSalesHours(Integer salesHours) {
+        this.salesHours = salesHours;
     }
 
     public Integer getSalesLimitReceipt() {

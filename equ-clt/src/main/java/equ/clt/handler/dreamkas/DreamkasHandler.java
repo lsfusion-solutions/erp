@@ -42,7 +42,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
         } else {
             server.baseURL = dreamkasSettings.getBaseURL();
             server.token = dreamkasSettings.getToken();
-            server.salesDays = dreamkasSettings.getSalesDays();
+            server.salesHours = dreamkasSettings.getSalesHours();
             server.salesLimitReceipt = dreamkasSettings.getSalesLimitReceipt();
             server.stepSend = dreamkasSettings.getStepSend();
             if (server.baseURL.isEmpty()) eMsg = "В настройках не определен BaseURL";
