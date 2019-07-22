@@ -55,7 +55,7 @@ DESIGN orders {
 }
 
 enablePurchaseDemandLog 'Включить логирование строк автозаказа' = DATA BOOLEAN ();
-limitPurchaseDemandLog 'Максимальное кол-во логируемых строк в автозаказе' = DATA INTEGER ();
+limitPurchaseDemandLog 'Максимальное кол-во строк, при котором автозаказ логируется' = DATA INTEGER ();
 
 EXTEND FORM options
     PROPERTIES() enablePurchaseDemandLog, limitPurchaseDemandLog
@@ -70,7 +70,7 @@ DESIGN options {
 overFill ABSTRACT LIST (PurchaseDemandLog);
 
 overFillRecommended (UserOrder userOrder) + {
-    IF enablePurchaseDemandLog() AND NOT (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) > limitPurchaseDemandLog() THEN {
+    IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) <= limitPurchaseDemandLog() THEN {
         FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW l = PurchaseDemandLog DO {
             dateTime(l) <- currentDateTime();
             userOrder(l) <- userOrder;
