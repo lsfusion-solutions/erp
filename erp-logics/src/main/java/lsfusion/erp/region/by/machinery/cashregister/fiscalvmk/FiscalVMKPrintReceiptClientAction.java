@@ -19,6 +19,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     String giftCardAsNotPaymentText;
     Integer giftCardDepartment;
     Integer giftCardPaymentType;
+    Integer chargeDepartment;
     String UNP;
     String regNumber;
     String machineryNumber;
@@ -26,7 +27,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String giftCardAsNotPaymentText, Integer giftCardDepartment, Integer giftCardPaymentType,
-                                             String UNP, String regNumber, String machineryNumber) {
+                                             Integer chargeDepartment, String UNP, String regNumber, String machineryNumber) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
@@ -35,6 +36,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         this.giftCardAsNotPaymentText = giftCardAsNotPaymentText;
         this.giftCardDepartment = giftCardDepartment;
         this.giftCardPaymentType = giftCardPaymentType;
+        this.chargeDepartment = chargeDepartment;
         this.UNP = UNP;
         this.regNumber = regNumber;
         this.machineryNumber = machineryNumber;
@@ -164,7 +166,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         } else {
 
             for (ReceiptItem item : receiptList) {
-                if (!FiscalVMK.registerItem(item, giftCardDepartment))
+                if (!FiscalVMK.registerItem(item, giftCardDepartment, chargeDepartment))
                     return null;
                 if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard))
                     return null;

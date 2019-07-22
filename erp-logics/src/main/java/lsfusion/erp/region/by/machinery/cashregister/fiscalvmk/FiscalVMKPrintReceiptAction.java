@@ -77,6 +77,9 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 Integer giftCardDepartment = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardDepartmentCurrentCashRegister[]").read(context): null;
                 Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
 
+                ScriptingLogicsModule posChargeLM = context.getBL().getModule("POSCharge");
+                Integer chargeDepartment = posChargeLM != null ? (Integer) posChargeLM.findProperty("chargeDepartmentCurrentCashRegister[]").read(context): null;
+
                 BigDecimal sumDisc = null;
 
                 TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
@@ -131,12 +134,17 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
+                if(posChargeLM != null) {
+                    receiptDetailQuery.addProperty("isCharge", posChargeLM.findProperty("isCharge[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                }
+
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
                 List<ReceiptItem> receiptReturnItemList = new ArrayList<>();
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
+                    Boolean isCharge = receiptDetailValues.get("isCharge") != null;
                     BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
                     BigDecimal quantitySaleValue = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
                     double quantitySale = quantitySaleValue == null ? 0.0 : quantitySaleValue.doubleValue();
@@ -157,13 +165,13 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
                     if (quantitySale > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail,
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantitySale, barcode, name, sumReceiptDetail,
                                 discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                     if (quantity > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantity, barcode, "Подарочный сертификат",
                                 sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                     if (quantityReturn > 0)
-                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail,
+                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantityReturn, barcode, name, sumReceiptDetail,
                                 discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail));
                 }
 
@@ -172,7 +180,7 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                             new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText,
-                            giftCardDepartment, giftCardPaymentType, UNP, regNumber, machineryNumber));
+                            giftCardDepartment, giftCardPaymentType, chargeDepartment, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

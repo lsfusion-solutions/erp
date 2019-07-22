@@ -1,0 +1,24 @@
+MODULE POSCharge;
+
+REQUIRE POS;
+
+NAMESPACE POS;
+
+chargeDepartment 'Отдел продажи услуги' = DATA INTEGER (GroupCashRegister) IN base;
+chargeDepartmentCurrentCashRegister 'Отдел продажи услуги' = chargeDepartment(groupCashRegister(currentCashRegister()));
+
+isCharge (ReceiptDetail d) = isCharge(sku(d));
+
+EXTEND FORM groupCashRegister PROPERTIES(grc) chargeDepartment;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY(chargeDepartment(grc));
+    }
+}
+
+EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY chargeDepartment;
+
+overCopy(GroupCashRegister old, GroupCashRegister new ) + {
+    chargeDepartment(new) <- chargeDepartment(old);
+}
