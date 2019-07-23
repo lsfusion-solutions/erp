@@ -456,16 +456,18 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                 stockGroup(ts) == sg
         FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
         
+        PROPERTIES filterNameSkuGroup() 
         TREE skuTree sk = SkuGroup PARENT parent
         PROPERTIES READONLY order(sk), skuTreeName = name(sk)
         ORDER order(sk), skuTreeName
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+        FILTERS inIFilterName(sk) OR NOT filterNameSkuGroup() 
 
         OBJECTS gt = GroupType PANEL
         PROPERTIES(gt) SELECTOR name
 
         TREE skuTreeX sx = Group PARENT parent
-        PROPERTIES order(sx) READONLY, name(sx)
+        PROPERTIES READONLY order(sx), name(sx)
         ORDER order(sx), name(sx)
         FILTERS groupType(sx) == gt
         FILTERGROUP inactiveX FILTER 'Активные' active(sx) 'F5' DEFAULT
@@ -508,7 +510,13 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                 NEW skuFilters {
                     fill = 1;
                     type = TABBED;
-                    MOVE BOX(TREE skuTree) { caption = 'Группы SKU'; }
+                    MOVE BOX(TREE skuTree) { 
+                        caption = 'Группы SKU'; 
+                        NEW filters1Sku BEFORE GRIDBOX(TREE skuTree){
+                            caption = 'Фильтр';
+                            MOVE PROPERTY(filterNameSkuGroup());
+                        }
+                    }
                     MOVE BOX(TREE stockTree) { caption = 'Группы складов'; }
                 }
                 NEW skuMainPane {
