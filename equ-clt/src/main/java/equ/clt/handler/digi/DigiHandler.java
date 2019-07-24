@@ -327,18 +327,6 @@ public class DigiHandler extends DefaultScalesHandler {
 //        return (byte) (byteValue & ~(1 << pos));
 //    }
 
-    protected String fillLeadingZeroes(Object input, int length) {
-        if (input == null)
-            return null;
-        if(!(input instanceof String))
-            input = String.valueOf(input);
-        if (((String) input).length() > length)
-            input = ((String) input).substring(0, length);
-        while (((String) input).length() < length)
-            input = "0" + input;
-        return (String) input;
-    }
-
     private String fillTrailingZeroes(String input, int length) {
         if (input == null)
             return null;

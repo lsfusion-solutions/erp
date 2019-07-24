@@ -11,6 +11,7 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.ScalesSettings;
+import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.col.heavy.OrderedMap;
 import org.apache.log4j.Logger;

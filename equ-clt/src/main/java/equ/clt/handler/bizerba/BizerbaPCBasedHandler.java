@@ -7,11 +7,11 @@ import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.clt.handler.TCPPort;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

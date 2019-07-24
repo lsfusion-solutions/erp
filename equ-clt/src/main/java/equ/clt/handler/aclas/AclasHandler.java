@@ -167,18 +167,6 @@ public class AclasHandler extends DefaultScalesHandler {
         return data;
     }
 
-    protected String fillLeadingZeroes(Object input, int length) {
-        if (input == null)
-            return null;
-        if(!(input instanceof String))
-            input = String.valueOf(input);
-        if (((String) input).length() > length)
-            input = ((String) input).substring(0, length);
-        while (((String) input).length() < length)
-            input = "0" + input;
-        return (String) input;
-    }
-
     private boolean connect(UDPPort udpPort) throws CommunicationException, IOException {
         sendCommand(udpPort, (byte) 0x0e, new byte[]{0x01, 0x00}, getConnectBytes256());
         return receiveReply(udpPort);
@@ -335,17 +323,6 @@ public class AclasHandler extends DefaultScalesHandler {
     protected void logError(List<String> errors, String errorText, Throwable t) {
         errors.add(errorText.replace("\u001b", "").replace("\u0000", "") + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
         processTransactionLogger.error(errorText, t);
-    }
-
-    private String fillTrailingSpaces(String input, int length) {
-        if (input != null) {
-            if (input.length() > length) {
-                input = input.substring(0, length);
-            } else while (input.length() < length) {
-                input = input + " ";
-            }
-        }
-        return input;
     }
 
     private void sendCommand(UDPPort udpPort, byte command, byte[] address, byte[] commandBytes256) throws CommunicationException {

@@ -11,6 +11,7 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;

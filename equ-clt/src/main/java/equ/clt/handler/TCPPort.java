@@ -1,4 +1,4 @@
-package equ.clt.handler.massak;
+package equ.clt.handler;
 
 import javax.naming.CommunicationException;
 import java.io.BufferedInputStream;
