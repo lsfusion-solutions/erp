@@ -130,18 +130,6 @@ EXTEND FORM conditionList PROPERTIES price(retail), price(logistic), price(merch
 EXTEND FORM contractMarketing PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
 EXTEND FORM contractMarketings PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
 
-marketingCondition (LegalEntity sp, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
-    GROUP LAST MarketingCondition c ORDER isException(c), c
-    WHERE inConditionStock(c, st)
-    AND d >= dateFrom(c) AND NOT d > dateTo(c)
-    AND (brand(sk) == brand(c) OR NOT brand(c)) 
-    AND (country(sk) == country(c) OR NOT country(c))
-    AND (isParent(itemGroup(sk), itemGroup(c)) OR NOT itemGroup(c)) 
-    AND (sk == item(c) OR NOT item(c))
-    AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
-    AND (price(c) == p OR NOT price(c))
-    BY supplier(c), conditionType(c);
-
 marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
     GROUP LAST MarketingCondition c ORDER isException(c), c
     WHERE inConditionStock(c, st)
@@ -267,7 +255,7 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
                 marketingPercent(md) <- marketingPercent(mc);
                 sum (md) <- CASE
                                 WHEN cb == CalcBase.turnoverVAT THEN
-                                    [ GROUP SUM sumSold(Batch b, Stock s, DATE d) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
+                                    [ GROUP SUM sum(sk, st) BY marketingCondition(sk, st, ConditionType t), sk, st](mc, sk, st) 
                                 WHEN cb == CalcBase.turnover THEN 
                                     [ GROUP SUM (sumSold(Batch b, Stock s, DATE d) (-) sumVATSold(b, s, d)) IF supplier(b) == supplier(c) AND d >= df AND d <= dt BY marketingCondition(sku(b), s, ConditionType t), sku(b), s](mc, sk, st) 
                                 WHEN cb == CalcBase.turnoverCost THEN
