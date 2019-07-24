@@ -143,7 +143,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             statement = connection.prepareStatement(sql);
             for (GiftCard giftCard : giftCards) {
                 BigDecimal amount = giftCard.price;
-                if(giftCard.active && amount != null) {
+                if(giftCard.active && !giftCard.defect && amount != null) {
                     statement.setObject(1, giftCard.number); //number
                     statement.setObject(2, amount); //amount
                     statement.setObject(3, version); //version
@@ -237,7 +237,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             Integer id = getId(idBarcode);
             if (id != null) {
                 giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
-                        expiryDays, active, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
+                        expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
                 return null;
@@ -317,6 +317,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         Date dateTo;
         Integer expiryDays;
         boolean active;
+        boolean defect;
         String nameSku;
         String shortNameUOM;
         String overIdSkuGroup;
@@ -324,7 +325,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         boolean allowReturnPayment;
 
         public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, Date dateFrom, Date dateTo,
-                        Integer expiryDays, boolean active, String nameSku, String shortNameUOM, String overIdSkuGroup,
+                        Integer expiryDays, boolean active, boolean defect, String nameSku, String shortNameUOM, String overIdSkuGroup,
                         boolean allowReturn, boolean allowReturnPayment) {
             this.id = id;
             this.number = number;
@@ -335,6 +336,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             this.dateTo = dateTo;
             this.expiryDays = expiryDays;
             this.active = active;
+            this.defect = defect;
             this.nameSku = nameSku;
             this.shortNameUOM = shortNameUOM;
             this.overIdSkuGroup = overIdSkuGroup;
