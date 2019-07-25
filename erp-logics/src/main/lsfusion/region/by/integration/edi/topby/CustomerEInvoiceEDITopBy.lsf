@@ -232,12 +232,17 @@ FORM exportBlradf FORMEXTID 'BLRADF'
                         totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
 ;
 
+hostEDSServiceSupplierTopBy (ECreditNote c) = hostEDSServiceTopBy(supplier(c));
+hostEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE hostEDSServiceTopBy(customerStock(c)), hostEDSServiceTopBy(customer(c));
+portEDSServiceSupplierTopBy (ECreditNote c) = portEDSServiceTopBy(supplier(c));
+portEDSServiceCustomerTopBy (ECreditNote c) = OVERRIDE portEDSServiceTopBy(customerStock(c)), portEDSServiceTopBy(customer(c));
+
 signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-                IF hostEDSServiceTopBy(customer(c)) AND portEDSServiceTopBy(customer(c)) AND useEDSServiceForCustomerTopBy() THEN {
+                IF hostEDSServiceCustomerTopBy(c) AND portEDSServiceCustomerTopBy(c) AND useEDSServiceForCustomerTopBy() THEN {
                     LOCAL error = TEXT();
                     error() <- '';
                     IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
@@ -268,7 +273,7 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
                             innerXML() <- resultString();
                             fileToString(xml());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                            sendRequestEDI(hostEDSServiceTopBy(customer(c)), portEDSServiceTopBy(customer(c)), 'eds', 'eds', ('http://' + hostEDSServiceTopBy(customer(c)) + ':' + portEDSServiceTopBy(customer(c)) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                            sendRequestEDI(hostEDSServiceCustomerTopBy(c), portEDSServiceCustomerTopBy(c), 'eds', 'eds', ('http://' + hostEDSServiceCustomerTopBy(c) + ':' + portEDSServiceCustomerTopBy(c) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
                             IMPORT getEDSResponse FROM sendRequestEDIResponse();
                             IF faultstring() THEN {
                                 logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + faultstring());
