@@ -979,6 +979,8 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     
     createLabelTransaction(cls document) + {  createLabelTransaction(document); }
 
+    overIndex = ABSTRACT INTEGER (###detailProp##Detail);
+
     createSnapshotLabelTransactionParam (cls document)  { 
 	                
         DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT NOMANAGESESSION DO {
@@ -992,7 +994,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     
                 FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
                     FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
-                        AND NOT exclude(type, skuProp(dd)) ORDER index(dd), dd INLINE
+                        AND NOT exclude(type, skuProp(dd)) ORDER overIndex(dd), index(dd), dd INLINE
                         NEW d = LabelTransactionDetail DO {
                             labelTransaction(d) <- t;
                             skuProp(d) <- skuProp(dd);
@@ -1184,7 +1186,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         labelType(t) <- labelType;
         addedTransaction() <- t;
         
-        FOR select(Sku sku) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
+        FOR select(Sku sku) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) ORDER nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
             labelTransaction(d) <- t;
             sku(d) <- sku;
 
