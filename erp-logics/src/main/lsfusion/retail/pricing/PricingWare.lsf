@@ -43,7 +43,8 @@ nameOperationInvoice (Pricing p) = name(operation(defaultInvoiceDetail(p)));
 sumCNote (PricingDetail d) = sum(invoiceDetail(d)) (-) sum(invoiceCreditNoteDetail(invoiceDetail(d)));     
 invoiceSum (PricingDetail d) = invoiceSum(invoiceDetail(d)) (-) invoiceSum(invoiceCreditNoteDetail(invoiceDetail(d))) (+) extraRetailSum(d);//invoiceSum(invoiceDetail(d)) (+) extraRetailSum(d);
 
-valueVAT (PricingDetail d) = IF (invoice(invoiceDetail(d)) IS Sale.Invoice) THEN valueVAT(lastOrderBatchA(sku(d),stock(d),dateTime(d))) ELSE valueVAT(invoiceDetail(d));
+overValueVAT = ABSTRACT VALUE NUMERIC[10,5] (PricingDetail);
+valueVAT (PricingDetail d) = OVERRIDE overValueVAT(d), (IF (invoice(invoiceDetail(d)) IS Sale.Invoice) THEN valueVAT(lastOrderBatchA(sku(d),stock(d),dateTime(d))) ELSE valueVAT(invoiceDetail(d)));
 sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumCNote(d);
 VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN round2(sumSupplier(d)*valueVAT(d)/100) 
                                                         ELSE VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNoteDetail(invoiceDetail(d)));
