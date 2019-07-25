@@ -149,6 +149,10 @@ overFullNameCompanyD (BOM b) = OVERRIDE fullName(company(b)), fullNameLegalEntit
 overNettoNetWeightComponentGr(BOM b) = NUMERIC[18,5](overNettoNetWeightComponent(b)*1000.0);
 inPrintDT = DATA LOCAL BOOLEAN (BOM,DATE);
 
+overNameMaterial 'Наимнование изделия' (Component c) = OVERRIDE nameBOMMaterial(c), nameMaterial(c);
+actBruttoNetWeightD(BOM b) = GROUP SUM actBruttoNetWeightD(Component c) BY BOM(c);
+actMiddleNetWeightD(BOM b) = GROUP SUM actMiddleNetWeightD(Component c) BY BOM(c);
+
 FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной проработки'
     OBJECTS dt=DATE SUBREPORT
     PROPERTIES (dt) date = VALUE , extractYearBOMs 
@@ -156,7 +160,7 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
     
     OBJECTS b=BOM 
     PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
-    PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompanyD, shortNameOwnershipCompany, recipes, extractYearFromDate,
+    PROPERTIES(b) nameOwnershipCompany, nameCompany, overFullNameCompanyD, shortNameOwnershipCompany, recipes, extractYearFromDate, actBruttoNetWeightD, actMiddleNetWeightD,
                   actQuantity, nameActStock, addressActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProductD, date, netWeightProductDD, overNettoNetWeightComponentGr   
    
     PROPERTIES(b,dt) firstShortNameChief, namePositionChief
@@ -169,12 +173,22 @@ FORM actStudyOfCulinaryDoubleTreatment 'Акт контрольной прора
                   
     FILTERS       BOM(p) == b
     
+    OBJECTS cp = Component
+    PROPERTIES(cp) READONLY index, overNameMaterial, overBruttoNetWeight, wastageCold1, overNettoNetWeight, wastageHeat1, wastageHeat2, semifinishedWeight, quantity,
+                            wastageCold2, actBruttoNetWeightD, actNettoNetWeightD, actMiddleNetWeightD, textDescription, semifinishedWeightGr 
+    FILTERS BOM(cp) == b, material(cp) IS Product
+    ORDER index(cp)
+    
+    OBJECTS cpp = Sku
+    PROPERTIES name(cpp), quantity(cp, cpp, dt)
+    FILTERS quantity(cp, cpp, dt)
+    ORDER name(cpp)
+    
     OBJECTS cc = Component
-    PROPERTIES(cc) READONLY nameMaterial, shortNameUOM, overNettoNetWeight
-    PROPERTIES    READONLY  wastageCold1(cc), wastageCold2(cc), wastageHeat1(cc), wastageHeat2(cc), actBruttoNetWeightD(cc), actNettoNetWeightD(cc),
-                  actMiddleNetWeightD(cc), textDescription(cc), semifinishedWeight(cc), semifinishedWeightGr(cc)                                    
-                  
-    FILTERS       BOM(cc) == b
+    PROPERTIES(cc) READONLY index, nameMaterial, overBruttoNetWeight, wastageCold1, overNettoNetWeight, semifinishedWeight, quantity,
+                            wastageCold2, wastageHeat1, wastageHeat2, actBruttoNetWeightD, actNettoNetWeightD, actMiddleNetWeightD, textDescription, semifinishedWeightGr  
+    FILTERS BOM(cc) == b, material(cc) IS Sku
+    ORDER index(cc)
                   
     OBJECTS e=Employee
     PROPERTIES(e) READONLY name[Contact], namePosition
