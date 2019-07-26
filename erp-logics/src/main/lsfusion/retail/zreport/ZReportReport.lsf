@@ -64,10 +64,14 @@ countReceiptDetail 'Кол-во позиций чеков в магазине з
     GROUP SUM countReceiptDetail(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);
 averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине за париод' (DepartmentStore departmentStore, DATE date) = 
     NUMERIC[16,4](countReceiptDetail(departmentStore, date)) / NUMERIC[16,4](countReceipt(departmentStore, date));
-    
+  
+quantityReceiptDetail 'Кол-во (всего)' (departmentStore, date) =
+    GROUP SUM quantityReceiptDetail(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);
+ 
 countReceipt (Stock stock)= name(stock) + ' (кол-во чеков)';        
 averageSumReceipt (Stock stock)= name(stock) + ' (cредняя сумма чека)';        
 countReceiptDetail (Stock stock)= name(stock) + ' (кол-во позиций чеков)';
+quantityReceiptDetail (Stock stock)= name(stock) + ' (кол-во всего)';
 averageCountReceiptDetail (Stock stock)= name(stock) + ' (среднее кол-во позиций в чеке)'; 
 countFiscalReceipt (Stock stock)= name(stock) + ' (фискальных чеков)';      
   
@@ -127,6 +131,9 @@ sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport));
 countReceiptDetail 'Кол-во позиций чеков в магазине за период' (departmentStore, number, year, DATE dateFrom, DATE dateTo) = GROUP SUM countReceiptDetail(ZReport zReport) IF 
+    date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
+        BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport));
+quantityReceiptDetail 'Кол-во (всего)' (departmentStore, number, year, DATE dateFrom, DATE dateTo) = GROUP SUM quantityReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport), extractWeekZeroBased(date(zReport)), extractYear(date(zReport));
 averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине за париод' (DepartmentStore departmentStore, INTEGER number, INTEGER year, DATE dateFrom, DATE dateTo) = 
@@ -202,6 +209,9 @@ sumNegativeCardPaymentZReport 'Сумма возврата (карточка)' (
 countReceiptDetail 'Кол-во позиций чеков в магазине' (departmentStore, DATE dateFrom, DATE dateTo) = GROUP SUM countReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport);
+quantityReceiptDetail 'Кол-во (всего)' (departmentStore, DATE dateFrom, DATE dateTo) = GROUP SUM quantityReceiptDetail(ZReport zReport) IF 
+    date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
+        BY departmentStore(zReport);
 averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине' (DepartmentStore departmentStore, DATE dateFrom, DATE dateTo) = 
     NUMERIC[16,4](countReceiptDetail(departmentStore, dateFrom, dateTo)) / NUMERIC[16,4](countReceipt(departmentStore, dateFrom, dateTo));
         
@@ -211,7 +221,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo), allStocks()        
      
     OBJECTS ts = DepartmentStore GRID
-    PROPERTIES READONLY name(ts), nameLegalEntity(ts), tradingSquare(ts) 
+    PROPERTIES READONLY id(ts), name(ts), nameLegalEntity(ts), tradingSquare(ts) 
     PROPERTIES inReport(ts)
     ORDER name(ts)
     FILTERS isCompany(ts)     
@@ -281,6 +291,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     PROPERTIES READONLY SHOWIF showProperty(st) averageSumReceipt(st,dt) COLUMNS (st) HEADER averageSumReceipt(st)                                 
     PROPERTIES READONLY SHOWIF showProperty(st) countReceiptDetail(st,dt) COLUMNS (st) HEADER countReceiptDetail(st)                                 
     PROPERTIES READONLY SHOWIF showProperty(st) averageCountReceiptDetail(st,dt) COLUMNS (st) HEADER averageCountReceiptDetail(st)   
+    PROPERTIES READONLY SHOWIF showProperty(st) quantityReceiptDetail(st,dt) COLUMNS (st) HEADER quantityReceiptDetail(st)
 
 //-- Итоги
     PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(dt) 
@@ -342,6 +353,7 @@ FORM saleZreportStock 'Отчет по магазинам'
     PROPERTIES READONLY SHOWIF showProperty(stsw) averageSumReceipt(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageSumReceipt(stsw)                                 
     PROPERTIES READONLY SHOWIF showProperty(stsw) countReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER countReceiptDetail(stsw)                                 
     PROPERTIES READONLY SHOWIF showProperty(stsw) averageCountReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER averageCountReceiptDetail(stsw)
+    PROPERTIES READONLY SHOWIF showProperty(stsw) quantityReceiptDetail(stsw,nw,yw,dFrom,dTo) COLUMNS (stsw) HEADER quantityReceiptDetail(stsw)
 //--
     PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailZReportStocks(nw,yw,dFrom,dTo)
     PROPERTIES READONLY SHOWIF allStocks() sumPositiveCashPaymentZReportStocks(nw,yw,dFrom,dTo)
@@ -367,7 +379,7 @@ FORM saleZreportStock 'Отчет по магазинам'
                         sumPositiveCardPaymentZReport(stsst,dFrom,dTo), discountSumZReport(stsst,dFrom,dTo), VATSumSaleZReport(stsst,dFrom,dTo),
                         sumNegativeCashPaymentZReport(stsst,dFrom,dTo), sumNegativeCardPaymentZReport(stsst,dFrom,dTo),
                         countReceipt(stsst,dFrom,dTo), countFiscalReceipt(stsst,dFrom,dTo), averageSumReceipt(stsst,dFrom,dTo),
-                        countReceiptDetail(stsst,dFrom,dTo), averageCountReceiptDetail(stsst,dFrom,dTo)
+                        countReceiptDetail(stsst,dFrom,dTo), averageCountReceiptDetail(stsst,dFrom,dTo), quantityReceiptDetail(stsst,dFrom,dTo)
                                        
     FILTERS //(ts IS DepartmentStore AND NOT limitAccess(currentUser())) OR 
             accessCompany(currentUser(),ts);
@@ -385,9 +397,9 @@ DESIGN saleZreportStock {
     NEW detail {
         type = SPLITH;
         fill = 1;
-        MOVE BOX(ts);
+        MOVE BOX(ts) { fill = 2; }
         NEW tab {
-            fill = 3;
+            fill = 5;
             type = TABBED;
             NEW s {
                 fill = 1;
