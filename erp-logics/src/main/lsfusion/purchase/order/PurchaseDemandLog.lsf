@@ -28,30 +28,30 @@ currentReserveSale 'Резерв продажа (всего)' = DATA NUMERIC[16,
 
 @defineLog (PurchaseDemandLog, 'автозаказа', log, date);
 
-filterDateFrom 'Дата с' = DATA LOCAL DATE ();
-filterDateFrom(PurchaseDemandLog i) = date(i) >= filterDateFrom() OR (i IS PurchaseDemandLog AND NOT filterDateFrom());      
+filterDemandLogDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom(PurchaseDemandLog i) = date(i) >= filterDemandLogDateFrom() OR (i IS PurchaseDemandLog AND NOT filterDemandLogDateFrom());      
 
-filterDateTo 'Дата по' = DATA LOCAL DATE ();
-filterDateTo(PurchaseDemandLog i) = date(i) <= filterDateTo() OR (i IS PurchaseDemandLog AND NOT filterDateTo());      
+filterDemandLogDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo(PurchaseDemandLog i) = date(i) <= filterDemandLogDateTo() OR (i IS PurchaseDemandLog AND NOT filterDemandLogDateTo());      
 
-filterSupplier = DATA LOCAL LegalEntity ();
-nameFilterSupplier 'Поставщик' = name(filterSupplier()) CHARWIDTH 30;
-filterSupplier(PurchaseDemandLog d) = supplier(d) == filterSupplier() OR (d IS PurchaseDemandLog AND NOT filterSupplier());
+filterDemandLogSupplier = DATA LOCAL LegalEntity ();
+nameFilterDemandLogSupplier 'Поставщик' = name(filterDemandLogSupplier()) CHARWIDTH 30;
+filterSupplier(PurchaseDemandLog d) = supplier(d) == filterDemandLogSupplier() OR (d IS PurchaseDemandLog AND NOT filterDemandLogSupplier());
 
 changeFilterSupplier()  { 
-    DIALOG supplierLegalEntities OBJECTS l = filterSupplier() CHANGE;
+    DIALOG supplierLegalEntities OBJECTS l = filterDemandLogSupplier() CHANGE;
 } 
 
-filterCustomerStock = DATA LOCAL Stock();
-nameFilterCustomerStock 'Склад покупателя' = name(filterCustomerStock()) CHARWIDTH 30;
-filterCustomerStock(PurchaseDemandLog d) = customerStock(d) == filterCustomerStock() OR (d IS PurchaseDemandLog AND NOT filterCustomerStock());
+filterDemandLogCustomerStock = DATA LOCAL Stock();
+nameFilterDemandLogCustomerStock 'Склад покупателя' = name(filterDemandLogCustomerStock()) CHARWIDTH 30;
+filterCustomerStock(PurchaseDemandLog d) = customerStock(d) == filterDemandLogCustomerStock() OR (d IS PurchaseDemandLog AND NOT filterDemandLogCustomerStock());
 
 changeFilterCustomerStock()  { 
-    DIALOG companysStock OBJECTS s = filterCustomerStock() CHANGE;
+    DIALOG companysStock OBJECTS s = filterDemandLogCustomerStock() CHANGE;
 } 
 
 FORM purchaseDemandLog 'Лог автозаказа'
-    PROPERTIES() filterDateFrom, filterDateTo, nameFilterSupplier ON CHANGE changeFilterSupplier(), nameFilterCustomerStock ON CHANGE changeFilterCustomerStock()
+    PROPERTIES() filterDemandLogDateFrom, filterDemandLogDateTo, nameFilterDemandLogSupplier ON CHANGE changeFilterSupplier(), nameFilterDemandLogCustomerStock ON CHANGE changeFilterCustomerStock()
 
     OBJECTS l = PurchaseDemandLog
     PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
@@ -68,10 +68,10 @@ DESIGN purchaseDemandLog {
         NEW filters {
             caption = 'Фильтры';
             type = CONTAINERH; 
-            MOVE PROPERTY (filterDateFrom());
-            MOVE PROPERTY (filterDateTo());
-            MOVE PROPERTY (nameFilterSupplier());
-            MOVE PROPERTY (nameFilterCustomerStock());
+            MOVE PROPERTY (filterDemandLogDateFrom());
+            MOVE PROPERTY (filterDemandLogDateTo());
+            MOVE PROPERTY (nameFilterDemandLogSupplier());
+            MOVE PROPERTY (nameFilterDemandLogCustomerStock());
         } 
         MOVE BOX(l);
         MOVE TOOLBARBOX; 
