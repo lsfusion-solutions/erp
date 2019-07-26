@@ -909,7 +909,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
 
-    private void createSalesIndex(Connection conn) {
+    protected void createSalesIndex(Connection conn) {
         try (Statement statement = conn.createStatement()) {
             String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'sale', 'IndexId') > 0) BEGIN CREATE INDEX sale ON SALES (" + getSalesNumField() + ", SESSID, SYSTEMID, SAREAID) END";
             statement.execute(query);
