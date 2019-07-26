@@ -10,7 +10,7 @@ TABLE purchaseDemandLog(PurchaseDemandLog);
 dateTime 'Дата/время' = DATA DATETIME (PurchaseDemandLog);
 date 'Дата' (PurchaseDemandLog l) = toDate(dateTime(l));
 userOrder 'Заказ' = DATA UserOrder (PurchaseDemandLog);
-descriptionUserOrder 'Заказ' (PurchaseDemandLog l) = description(userOrder(l));
+seriesNumberUserOrder 'Номер заказа' (PurchaseDemandLog l) = seriesNumber(userOrder(l));
 supplier 'Поставщик' = DATA LegalEntity (PurchaseDemandLog);
 nameSupplier 'Поставщик' (PurchaseDemandLog l) = name(supplier(l));
 customerStock 'Склад покупателя' = DATA Stock (PurchaseDemandLog);
@@ -28,12 +28,55 @@ currentReserveSale 'Резерв продажа (всего)' = DATA NUMERIC[16,
 
 @defineLog (PurchaseDemandLog, 'автозаказа', log, date);
 
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom(PurchaseDemandLog i) = date(i) >= filterDateFrom() OR (i IS PurchaseDemandLog AND NOT filterDateFrom());      
+
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo(PurchaseDemandLog i) = date(i) <= filterDateTo() OR (i IS PurchaseDemandLog AND NOT filterDateTo());      
+
+filterSupplier = DATA LOCAL LegalEntity ();
+nameFilterSupplier 'Поставщик' = name(filterSupplier()) CHARWIDTH 30;
+filterSupplier(PurchaseDemandLog d) = supplier(d) == filterSupplier() OR (d IS PurchaseDemandLog AND NOT filterSupplier());
+
+changeFilterSupplier()  { 
+    DIALOG supplierLegalEntities OBJECTS l = filterSupplier() CHANGE;
+} 
+
+filterCustomerStock = DATA LOCAL Stock();
+nameFilterCustomerStock 'Склад покупателя' = name(filterCustomerStock()) CHARWIDTH 30;
+filterCustomerStock(PurchaseDemandLog d) = customerStock(d) == filterCustomerStock() OR (d IS PurchaseDemandLog AND NOT filterCustomerStock());
+
+changeFilterCustomerStock()  { 
+    DIALOG companysStock OBJECTS s = filterCustomerStock() CHANGE;
+} 
+
 FORM purchaseDemandLog 'Лог автозаказа'
+    PROPERTIES() filterDateFrom, filterDateTo, nameFilterSupplier ON CHANGE changeFilterSupplier(), nameFilterCustomerStock ON CHANGE changeFilterCustomerStock()
+
     OBJECTS l = PurchaseDemandLog
-    PROPERTIES(l) READONLY dateTime, descriptionUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
-                           quantitySold, purchaseReserve, insuranceReserve, recommendedQuantity, currentBalance,
-                           currentReservePurchase, currentReserveSale
+    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
+                           quantitySold, purchaseReserve, insuranceReserve, currentBalance,
+                           currentReservePurchase, currentReserveSale, recommendedQuantity
+    FILTERS filterDateFrom(l), 
+            filterDateTo(l),
+            filterSupplier(l),
+            filterCustomerStock(l)    
 ;
+
+DESIGN purchaseDemandLog {
+    BOX {    
+        NEW filters {
+            caption = 'Фильтры';
+            type = CONTAINERH; 
+            MOVE PROPERTY (filterDateFrom());
+            MOVE PROPERTY (filterDateTo());
+            MOVE PROPERTY (nameFilterSupplier());
+            MOVE PROPERTY (nameFilterCustomerStock());
+        } 
+        MOVE BOX(l);
+        MOVE TOOLBARBOX; 
+    }
+}
 
 NAVIGATOR {
     purchasePurchaseNavigator {
@@ -43,9 +86,9 @@ NAVIGATOR {
 
 EXTEND FORM orders
     OBJECTS l = PurchaseDemandLog
-    PROPERTIES(l) READONLY dateTime, descriptionUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
-                           quantitySold, purchaseReserve, insuranceReserve, recommendedQuantity, currentBalance,
-                           currentReservePurchase, currentReserveSale
+    PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
+                           quantitySold, purchaseReserve, insuranceReserve, currentBalance,
+                           currentReservePurchase, currentReserveSale, recommendedQuantity
     FILTERS userOrder(l) == o
 ;
 DESIGN orders {
