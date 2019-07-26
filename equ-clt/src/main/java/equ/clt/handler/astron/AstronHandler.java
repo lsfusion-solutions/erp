@@ -661,7 +661,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
 
-        createExtraColumns(conn);
+        checkExtraColumns(conn);
         createFusionProcessedIndex(conn);
         createSalesIndex(conn);
 
@@ -815,7 +815,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (params.connectionString != null) {
                     try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
 
-                        createExtraColumns(conn);
+                        checkExtraColumns(conn);
                         createFusionProcessedIndex(conn);
 
                         Statement statement = null;
@@ -885,11 +885,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void createExtraColumns(Connection conn) {
+    private void checkExtraColumns(Connection conn) {
         try (Statement statement = conn.createStatement()) {
-            String query = "IF COL_LENGTH('SALES', 'FUSION_PROCESSED') IS NULL BEGIN ALTER TABLE SALES ADD FUSION_PROCESSED INT NULL; END";
-            statement.execute(query);
-            conn.commit();
+            String query = "SELECT COL_LENGTH('SALES', 'FUSION_PROCESSED')";
+            ResultSet result = statement.executeQuery(query);
+            int exists = result.next() ? result.getInt(0) : 0;
+            if(exists == 0) {
+                throw new RuntimeException("Column 'FUSION_PROCESSED' doesn't exists");
+            }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
