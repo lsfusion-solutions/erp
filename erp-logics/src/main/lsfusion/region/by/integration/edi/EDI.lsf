@@ -99,19 +99,23 @@ legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegal
 GLNSupplier(EOrder e) = GLN(supplier(e));
 GLNCustomer(EOrder e) = GLN(customer(e));
 
+banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
+hourToSend 'Возможна повторная отправка до' = DATA TIME(LegalEntity);
 EDIProvider 'Провайдер EDI' = DATA EDIProvider(LegalEntity);
 nameEDIProvider 'Провайдер EDI'(LegalEntity l) = staticCaption(EDIProvider(l));
 aliasEDSService 'Alias EDSService' = DATA STRING[100] (LegalEntity);
 passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
 aliasEDSService 'Alias EDSService' = DATA STRING[100] (DepartmentStore);
 passwordEDSService 'Пароль EDSService' = DATA STRING[100] (DepartmentStore) ECHO;
-EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider;
+EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider, banCancel, hourToSend;
 DESIGN legalEntity {
     column2{
         NEW EDI {
             caption = 'EDI';
             MOVE PROPERTY (GLN(l));
             MOVE PROPERTY (nameEDIProvider(l));
+            MOVE PROPERTY (banCancel(l));
+            MOVE PROPERTY (hourToSend(l));
         }
     }
 }
@@ -169,6 +173,9 @@ sendApply 'Отправить' (EOrder o)  {
 }
 
 cancel 'Отменить'  ABSTRACT LIST ( EOrder);
+
+toSend (EOrder o) = IF NOT exported(o) THEN TRUE ELSE IF banCancel(supplier(o)) AND currentDateTime() < dateTimeToDateTime(DATE(dateTime(o)),hourToSend(supplier(o))) THEN TRUE;
+showCancel (EOrder o) = IF NOT banCancel(supplier(o)) THEN TRUE ELSE IF currentDateTime() > dateTimeToDateTime(DATE(dateTime(o)),hourToSend(supplier(o))) THEN TRUE;
 
 FORM eOrders 'Заказы EDI'
     OBJECTS o = EOrder
