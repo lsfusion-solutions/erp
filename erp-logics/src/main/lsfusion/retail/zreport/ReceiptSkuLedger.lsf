@@ -26,8 +26,6 @@ sku = DATA Sku (ReceiptSaleSkuLedger);
 date = DATA DATE (ReceiptSaleSkuLedger);
 price = DATA NUMERIC[16,4] (ReceiptSaleSkuLedger);
 
-replace(Sku s, Sku d) + { sku(ReceiptSaleSkuLedger receiptSaleSkuLedger) <- d WHERE sku(receiptSaleSkuLedger) == s;}
-
 receiptSaleSkuLedger (departmentStore, sku, date, price) =
     GROUP NAGGR ReceiptSaleSkuLedger receiptSaleSkuLedger 
     WHERE receiptSaleSkuLedger IS ReceiptSaleSkuLedger BY departmentStore(receiptSaleSkuLedger), sku(receiptSaleSkuLedger), date(receiptSaleSkuLedger), price(receiptSaleSkuLedger);// MATERIALIZED INDEXED;
@@ -99,8 +97,6 @@ receiptReturnSkuLedger = AGGR ReceiptReturnSkuLedger WHERE countReceiptReturnDet
 INDEX sku(ReceiptReturnSkuLedger o), departmentStore(o);
 INDEX price(ReceiptReturnSkuLedger o), departmentStore(o), date(o);
 INDEX date(ReceiptReturnSkuLedger o), departmentStore(o), sku(o), price(o);
-
-replace(Sku s, Sku d) + { sku(ReceiptReturnSkuLedger receiptReturnSkuLedger) <- d WHERE sku(receiptReturnSkuLedger) == s;}
 
 dateTime[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
 isPosted[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += ledger IS ReceiptReturnSkuLedger;
