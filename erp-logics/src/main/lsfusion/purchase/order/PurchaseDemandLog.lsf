@@ -8,8 +8,8 @@ CLASS PurchaseDemandLog 'Лог автозаказа';
 TABLE purchaseDemandLog(PurchaseDemandLog);
 
 dateTime 'Дата/время' = DATA DATETIME (PurchaseDemandLog);
-date 'Дата' (PurchaseDemandLog l) = toDate(dateTime(l));
-userOrder 'Заказ' = DATA UserOrder (PurchaseDemandLog);
+date 'Дата' (PurchaseDemandLog l) = toDate(dateTime(l)) MATERIALIZED INDEXED;
+userOrder 'Заказ' = DATA UserOrder (PurchaseDemandLog) INDEXED;
 seriesNumberUserOrder 'Номер заказа' (PurchaseDemandLog l) = seriesNumber(userOrder(l));
 supplier 'Поставщик' = DATA LegalEntity (PurchaseDemandLog);
 nameSupplier 'Поставщик' (PurchaseDemandLog l) = name(supplier(l));
@@ -89,7 +89,9 @@ EXTEND FORM orders
     PROPERTIES(l) READONLY dateTime, seriesNumberUserOrder, nameSupplier, nameCustomerStock, idBarcodeSku, nameSku,
                            quantitySold, purchaseReserve, insuranceReserve, currentBalance,
                            currentReservePurchase, currentReserveSale, recommendedQuantity
-    FILTERS userOrder(l) == o
+    FILTERGROUP demandLog
+        FILTER 'По заказу' userOrder(l) == o DEFAULT
+        FILTER 'По поставщику и складу' supplier(l) == supplier(o) AND customerStock(l) == customerStock(o) AND date(l) == date(o) 
 ;
 DESIGN orders {
     documentDetail {
@@ -113,8 +115,8 @@ DESIGN options {
 overFill ABSTRACT LIST (PurchaseDemandLog);
 
 overFillRecommended (UserOrder userOrder) + {
-    IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder)) <= limitPurchaseDemandLog() THEN {
-        FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW l = PurchaseDemandLog DO {
+    IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku)) <= limitPurchaseDemandLog() THEN {
+        FOR in(Sku sku) NEW l = PurchaseDemandLog DO {
             dateTime(l) <- currentDateTime();
             userOrder(l) <- userOrder;
             supplier(l) <- supplier(userOrder);
