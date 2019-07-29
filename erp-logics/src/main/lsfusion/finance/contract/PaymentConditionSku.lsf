@@ -1,0 +1,43 @@
+MODULE PaymentConditionSku;
+
+REQUIRE PaymentCondition, StockContract, Barcode, PurchaseInvoiceContract;
+
+NAMESPACE Contract;
+
+dataPaymentCondition = DATA PaymentCondition (ContractSku, SkuGroup);
+dataPaymentCondition = DATA PaymentCondition (ContractSku, Sku);
+nearestPaymentCondition (ContractSku c, SkuGroup sg) = 
+    GROUP LAST dataPaymentCondition(c, SkuGroup g) IF dataPaymentCondition(c, g) AND level(sg, g) ORDER DESC level(sg, g), g MATERIALIZED;
+paymentCondition (ContractSku c, SkuGroup sg) = OVERRIDE dataPaymentCondition(c, sg), nearestPaymentCondition(c, sg);
+paymentCondition (ContractSku c, Sku sk) = OVERRIDE dataPaymentCondition(c, sk), paymentCondition(c, skuGroup(sk));
+
+descriptionPaymentCondition 'Условия оплаты' (ContractSku c, Sku sk) = description(paymentCondition(c, sk));
+descriptionDataPaymentCondition 'Условия оплаты' (ContractSku c, Sku sk) = description(dataPaymentCondition(c, sk));
+descriptionPaymentCondition 'Условия оплаты' (ContractSku c, SkuGroup g) = description(paymentCondition(c, g));
+descriptionDataPaymentCondition 'Условия оплаты' (ContractSku c, SkuGroup g) = description(dataPaymentCondition(c, g));
+
+EXTEND FORM userContractSku
+    TREE skuTree gg = SkuGroup PARENT parent
+    PROPERTIES name(gg) READONLY, descriptionPaymentCondition(c, gg) BACKGROUND RGB (255, 255, 200) IF dataPaymentCondition(c, gg)
+    
+    OBJECTS sk = Sku
+    PROPERTIES (sk) READONLY id SHOWIF showIDs(), idBarcode, name
+    PROPERTIES (c, sk) descriptionPaymentCondition BACKGROUND RGB (255, 255, 200) IF dataPaymentCondition(c, sk)
+    FILTERS isParent(gg, sk)
+;
+
+DESIGN userContractSku {
+    tabContainer {
+        NEW paymentCondition {
+            caption = 'Условия оплаты';
+            fill = 1;
+            type = SPLITH;
+            MOVE BOX (TREE skuTree);
+            MOVE BOX (sk);
+        }
+    }
+}
+
+WHEN LOCAL CHANGED (sku(UserInvoiceDetail d)) OR CHANGED(contractSku(d)) OR CHANGED(paymentCondition(userInvoice(d))) AND paymentCondition(userInvoice(d)) DO {
+    paymentCondition(UserInvoice i) <- [GROUP MAX paymentCondition(contractSku(UserInvoiceDetail dd), sku(dd)) BY userInvoice(dd)](i);
+}
