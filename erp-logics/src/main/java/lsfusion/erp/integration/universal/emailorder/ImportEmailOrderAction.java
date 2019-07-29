@@ -183,11 +183,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
             if (numberOrder != null) {
                 for (int i = firstRow - 1; i <= recordCount; i++) {
                     BigDecimal index;
-                    try {
-                        index = getXLSXBigDecimalFieldValue(sheet, i, B);
-                    } catch (ParseException e) {
-                        index = null;
-                    }
+                    index = getXLSXBigDecimalFieldValue(sheet, i, B);
                     if (index != null) {
                         BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, quantityColumn);
                         if (quantity != null)
