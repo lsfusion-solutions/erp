@@ -8,7 +8,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.ss.usermodel.CellType;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -40,7 +39,7 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected String getXLSFieldValue(HSSFSheet sheet, int row, int cell) {
+    protected String getXLSFieldValue(HSSFSheet sheet, int row, int cell) throws ParseException {
         return getXLSFieldValue(sheet, row, cell, null);
     }
 
@@ -50,8 +49,8 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
         HSSFCell hssfCell = hssfRow.getCell(cell);
         if (hssfCell == null) return defaultValue;
         switch (hssfCell.getCellType()) {
-            case NUMERIC:
-            case FORMULA:
+            case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC:
+            case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_FORMULA:
                 String result;
                 try {
                     result = new DecimalFormat("#.#####").format(hssfCell.getNumericCellValue());
@@ -59,31 +58,31 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
                     result = hssfCell.getStringCellValue().isEmpty() ? defaultValue : trim(hssfCell.getStringCellValue());
                 }
                 return result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
-            case ERROR:
+            case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_ERROR:
                 return defaultValue;
-            case STRING:
+            case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
             default:
                 return (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
         }
     }
 
-    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, int row, int cell) {
+    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, int row, int cell) throws ParseException {
         return getXLSBigDecimalFieldValue(sheet, row, cell, null);
     }
     
-    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, int row, int cell, BigDecimal defaultValue) {
+    protected BigDecimal getXLSBigDecimalFieldValue(HSSFSheet sheet, int row, int cell, BigDecimal defaultValue) throws ParseException {
         HSSFRow hssfRow = sheet.getRow(row);
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
-        return (hssfCell == null || hssfCell.getCellType() != CellType.NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
+        return (hssfCell == null || hssfCell.getCellType() != org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
     }
 
-    protected Integer getXLSIntegerFieldValue(HSSFSheet sheet, Integer row, Integer column) {
+    protected Integer getXLSIntegerFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
         BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
         return value == null ? null : value.setScale(0, RoundingMode.HALF_UP).intValue();
     }
 
-    protected BigDecimal getXLSStrictBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer column) {
+    protected BigDecimal getXLSStrictBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
         Integer value = getXLSIntegerFieldValue(sheet, row, column);
         return value == null ? null : new BigDecimal(value);
     }
@@ -99,7 +98,7 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
             if (hssfRow == null) return defaultValue;
             HSSFCell hssfCell = hssfRow.getCell(column);
             if (hssfCell == null) return defaultValue;
-            if (hssfCell.getCellType() == CellType.NUMERIC)
+            if (hssfCell.getCellType() == org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC)
                 return new Date(hssfCell.getDateCellValue().getTime());
             return parseDate(getXLSFieldValue(sheet, row, column));
         } catch (Exception e) {

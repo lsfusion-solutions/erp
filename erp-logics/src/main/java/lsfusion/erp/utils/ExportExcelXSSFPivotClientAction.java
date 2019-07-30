@@ -1,10 +1,10 @@
 package lsfusion.erp.utils;
 
+import lsfusion.interop.form.print.ReportGenerator;
 import lsfusion.base.file.IOUtils;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.form.print.ReportGenerationData;
-import lsfusion.interop.form.print.ReportGenerator;
 import net.sf.jasperreports.engine.JRException;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.DataConsolidateFunction;
@@ -251,27 +251,27 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
                             if (cell != null) {
                                 myCell.setCellType(cell.getCellType());
                                 switch (cell.getCellType()) {
-                                    case BLANK:
+                                    case XSSFCell.CELL_TYPE_BLANK:
                                         myCell.setCellValue("");
                                         break;
 
-                                    case BOOLEAN:
+                                    case XSSFCell.CELL_TYPE_BOOLEAN:
                                         myCell.setCellValue(cell.getBooleanCellValue());
                                         break;
 
-                                    case ERROR:
+                                    case XSSFCell.CELL_TYPE_ERROR:
                                         myCell.setCellErrorValue(cell.getErrorCellValue());
                                         break;
 
-                                    case FORMULA:
+                                    case XSSFCell.CELL_TYPE_FORMULA:
                                         myCell.setCellFormula(cell.getCellFormula());
                                         break;
 
-                                    case NUMERIC:
+                                    case XSSFCell.CELL_TYPE_NUMERIC:
                                         myCell.setCellValue(cell.getNumericCellValue());
                                         break;
 
-                                    case STRING:
+                                    case XSSFCell.CELL_TYPE_STRING:
                                         myCell.setCellValue(cell.getStringCellValue());
                                         break;
                                     default:
@@ -307,8 +307,8 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
             XSSFCell cell = getCellVariant(sheet, i, firstRow);
             String result;
             switch (cell.getCellType()) {
-                case NUMERIC:
-                case FORMULA:
+                case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_NUMERIC:
+                case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_FORMULA:
                     try {
                         result = new DecimalFormat("#.#####").format(cell.getNumericCellValue());
                     } catch (Exception e) {
@@ -316,7 +316,7 @@ public class ExportExcelXSSFPivotClientAction implements ClientAction {
                     }
                     result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     break;
-                case STRING:
+                case org.apache.poi.ss.usermodel.Cell.CELL_TYPE_STRING:
                 default:
                     result = cell.getStringCellValue();
             }

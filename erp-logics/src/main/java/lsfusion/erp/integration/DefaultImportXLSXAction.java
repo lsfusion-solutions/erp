@@ -1,10 +1,11 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.language.ScriptingLogicsModule;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -38,11 +39,11 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell) {
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
         return getXLSXFieldValue(sheet, row, cell, null);
     }
 
-    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell, String defaultValue) {
+    protected String getXLSXFieldValue(XSSFSheet sheet, Integer row, Integer cell, String defaultValue) throws ParseException {
         if (cell == null) return defaultValue;
         XSSFRow xssfRow = sheet.getRow(row);
         if (xssfRow == null) return defaultValue;
@@ -50,17 +51,17 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         if (xssfCell == null) return defaultValue;
         String result;
         switch (xssfCell.getCellType()) {
-            case ERROR:
+            case Cell.CELL_TYPE_ERROR:
                 result = null;
                 break;
-            case NUMERIC:
+            case Cell.CELL_TYPE_NUMERIC:
                 result = new DecimalFormat("#.#####").format(xssfCell.getNumericCellValue());
                 result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                 break;
-            case FORMULA:
+            case Cell.CELL_TYPE_FORMULA:
                 result = xssfCell.getCellFormula();
                 break;
-            case STRING:
+            case Cell.CELL_TYPE_STRING:
             default:
                 result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : xssfCell.getStringCellValue().trim();
                 break;
@@ -68,23 +69,23 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         return result;
     }
 
-    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell) {
+    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
         return getXLSXBigDecimalFieldValue(sheet, row, cell, null);
     }
 
-    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) {
+    protected BigDecimal getXLSXBigDecimalFieldValue(XSSFSheet sheet, Integer row, Integer cell, BigDecimal defaultValue) throws ParseException {
         if (cell == null) return defaultValue;
         XSSFRow xssfRow = sheet.getRow(row);
         if (xssfRow == null) return defaultValue;
         XSSFCell xssfCell = xssfRow.getCell(cell);
         if (xssfCell == null) return defaultValue;
         switch (xssfCell.getCellType()) {
-            case ERROR:
+            case Cell.CELL_TYPE_ERROR:
                 return null;
-            case NUMERIC:
-            case FORMULA:
+            case Cell.CELL_TYPE_NUMERIC:
+            case Cell.CELL_TYPE_FORMULA:
                 return BigDecimal.valueOf(xssfCell.getNumericCellValue());
-            case STRING:
+            case Cell.CELL_TYPE_STRING:
             default:
                 String result = xssfCell.getStringCellValue().trim();
                 try {
@@ -106,9 +107,9 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         XSSFCell xssfCell = xssfRow.getCell(cell);
         if (xssfCell == null) return defaultValue;
         switch (xssfCell.getCellType()) {
-            case ERROR:
+            case Cell.CELL_TYPE_ERROR:
                 return null;
-            case NUMERIC:
+            case Cell.CELL_TYPE_NUMERIC:
                 return new Date(xssfCell.getDateCellValue().getTime());
             default:
                 return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
