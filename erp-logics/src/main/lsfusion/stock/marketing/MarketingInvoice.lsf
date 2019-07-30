@@ -130,6 +130,8 @@ EXTEND FORM conditionList PROPERTIES price(retail), price(logistic), price(merch
 EXTEND FORM contractMarketing PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
 EXTEND FORM contractMarketings PROPERTIES READONLY price(retail), price(logistic), price(merch), price(defects);
 
+skipMarketingCondition = ABSTRACT BOOLEAN (MarketingCondition, Stock, Sku, NUMERIC[16,5]);
+
 marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DATE d, NUMERIC[16,5] p) = 
     GROUP LAST MarketingCondition c ORDER isException(c), c
     WHERE inConditionStock(c, st)
@@ -140,6 +142,7 @@ marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DAT
     AND (in(sk, c) OR NOT countItems(c))
     AND ((passScales(sk) AND weighted(c) == Weighted.yes) OR (NOT passScales(sk) AND weighted(c) == Weighted.no) OR NOT weighted(c))
     AND (price(c) == p OR NOT price(c))
+    AND NOT skipMarketingCondition(c, st, sk, p)
     BY contractMarketing(c), conditionType(c);
 
 WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) AND NOT CHANGED (sumMarketing(d)) DO {
