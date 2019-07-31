@@ -15,7 +15,7 @@ public class AclasOldHandler extends AclasHandler {
     }
 
     @Override
-    public String getLogPrefix() {
+    protected String getLogPrefix() {
         return "Aclas old: ";
     }
 

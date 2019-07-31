@@ -38,6 +38,11 @@ public class CL5000JHandler extends DefaultScalesHandler {
     }
 
     @Override
+    protected String getLogPrefix() {
+        return "CL5000: ";
+    }
+
+    @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();

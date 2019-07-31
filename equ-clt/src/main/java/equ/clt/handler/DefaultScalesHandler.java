@@ -22,6 +22,8 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
         return null;
     }
 
+    protected abstract String getLogPrefix();
+
     protected String fillLeadingZeroes(Object input, int length) {
         if (input == null)
             return null;

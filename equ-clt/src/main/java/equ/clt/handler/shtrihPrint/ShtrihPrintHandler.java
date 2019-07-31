@@ -29,6 +29,11 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         this.springContext = springContext;
     }
 
+    @Override
+    protected String getLogPrefix() {
+        return "Shtrih: ";
+    }
+
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         
         ScalesSettings shtrihSettings = springContext.containsBean("shtrihSettings") ? (ScalesSettings) springContext.getBean("shtrihSettings") : null;

@@ -38,8 +38,6 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
-    private static String logPrefix = "MassaKRL10: ";
-
     byte notSnapshotItemByte = (byte) 101;
     byte snapshotItemByte = (byte) 1;
     byte notSnapshotPluByte = (byte) 105;
@@ -52,6 +50,11 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
 
     public MassaKRL10Handler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
+    }
+
+    @Override
+    protected String getLogPrefix() {
+        return "MassaKRL10: ";
     }
 
     @Override
@@ -68,10 +71,10 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
 
         Map<String, String> brokenPortsMap = new HashMap<>();
         if (transactionInfoList.isEmpty()) {
-            processTransactionLogger.error(logPrefix + "Empty transaction list!");
+            processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
         }
         for (TransactionScalesInfo transaction : transactionInfoList) {
-            processTransactionLogger.info(logPrefix + "Send Transaction # " + transaction.id);
+            processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             List<MachineryInfo> clearedScalesList = new ArrayList<>();
@@ -84,7 +87,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                     Map<String, List<String>> errors = new HashMap<>();
                     Set<String> ips = new HashSet<>();
 
-                    processTransactionLogger.info(logPrefix + "Starting sending to " + enabledScalesList.size() + " scales...");
+                    processTransactionLogger.info(getLogPrefix() + "Starting sending to " + enabledScalesList.size() + " scales...");
                     Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
                     for (ScalesInfo scales : enabledScalesList) {
                         TCPPort port = new TCPPort(scales.port, 5001);
@@ -128,7 +131,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
 
     private String openPort(List<String> errors, TCPPort port, String ip, boolean transaction) {
         try {
-            (transaction ? processTransactionLogger : processStopListLogger).info(logPrefix + "Connecting..." + ip);
+            (transaction ? processTransactionLogger : processStopListLogger).info(getLogPrefix() + "Connecting..." + ip);
             port.open();
 
             sendSetWorkMode(port);
@@ -222,7 +225,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
             }
             throw new RuntimeException(message.toString());
         } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(logPrefix + "No IP-addresses defined");
+            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
 
     private byte[] receiveReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
@@ -239,7 +242,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                 time = (new Date()).getTime();
             } while (time - startTime <= 10000L); //10 seconds
         } catch (Exception e) {
-            logError(errors, String.format(logPrefix + "IP %s receive Reply Error", ip), e);
+            logError(errors, String.format(getLogPrefix() + "IP %s receive Reply Error", ip), e);
         }
 
         return reply;
@@ -328,7 +331,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
 
             port.getOutputStream().write(bytes.array());
         } catch (IOException e) {
-            logError(errors, String.format(logPrefix + "%s Send command exception: ", port.getAddress()), e);
+            logError(errors, String.format(getLogPrefix() + "%s Send command exception: ", port.getAddress()), e);
         } finally {
             port.getOutputStream().flush();
         }
@@ -360,7 +363,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
             port.getOutputStream().write(bytes.array());
             port.getOutputStream().flush();
         } catch (IOException e) {
-            logError(errors, String.format(logPrefix + "%s Send command exception: ", port.getAddress()), e);
+            logError(errors, String.format(getLogPrefix() + "%s Send command exception: ", port.getAddress()), e);
         }
     }
 
@@ -383,11 +386,11 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
 
 
     protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws InterruptedException, IOException, CommunicationException {
-        processTransactionLogger.info(String.format(logPrefix + "IP %s Clear Files", scales.port));
+        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s Clear Files", scales.port));
         resetFiles(errors, port);
         boolean cleared = getResetFilesReply(errors, port, scales.port);
         if (!cleared)
-            logError(errors, String.format(logPrefix + "IP %s Clear Files failed", scales.port));
+            logError(errors, String.format(getLogPrefix() + "IP %s Clear Files failed", scales.port));
         return cleared;
     }
 
@@ -627,14 +630,14 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                     }
 
                     if (cleared || !needToClear) {
-                        processTransactionLogger.info(logPrefix + "Sending items..." + scales.port);
+                        processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
                         if (localErrors.isEmpty()) {
                             int count = 0;
                             for (ScalesItemInfo item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;
                                         boolean result = false;
                                         while (!result && attempts < 3) {
@@ -647,24 +650,24 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                                             attempts++;
                                         }
                                         if (!result) {
-                                            logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                             globalError++;
                                         }
                                     } else {
-                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
                                     }
                                 } else break;
                             }
                         }
 
-                        processTransactionLogger.info(logPrefix + "Sending plu..." + scales.port);
+                        processTransactionLogger.info(getLogPrefix() + "Sending plu..." + scales.port);
                         if (localErrors.isEmpty()) {
                             int count = 0;
                             for (ScalesItemInfo item : transaction.itemsList) {
                                 count++;
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, sending plu #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending plu #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                         int attempts = 0;
                                         boolean result = false;
                                         while (!result && attempts < 3) {
@@ -677,11 +680,11 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                                             attempts++;
                                         }
                                         if (!result) {
-                                            logError(localErrors, String.format(logPrefix + "IP %s, Result %s, plu %s", scales.port, result, item.idItem));
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, plu %s", scales.port, result, item.idItem));
                                             globalError++;
                                         }
                                     } else {
-                                        processTransactionLogger.info(String.format(logPrefix + "IP %s, Transaction #%s, plu #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, plu #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
                                     }
                                 } else break;
                             }
@@ -691,17 +694,17 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                     }
 
                 } catch (Exception e) {
-                    logError(localErrors, String.format(logPrefix + "IP %s error, transaction %s;", scales.port, transaction.id), e);
+                    logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
                 } finally {
-                    processTransactionLogger.info(logPrefix + "Finally disconnecting..." + scales.port);
+                    processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                     try {
                         port.close();
                     } catch (CommunicationException e) {
-                        logError(localErrors, String.format(logPrefix + "IP %s close port error ", scales.port), e);
+                        logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
                     }
                 }
             }
-            processTransactionLogger.info(logPrefix + "Completed ip: " + scales.port);
+            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 

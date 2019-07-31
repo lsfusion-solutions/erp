@@ -123,6 +123,11 @@ public class EasyCSVHandler {
         public EasyScalesCSVHandler() {
         }
 
+        @Override
+        protected String getLogPrefix() {
+            return "Easysc: ";
+        }
+
         public String getGroupId(TransactionScalesInfo transactionInfo) {
             return "easysc";
         }

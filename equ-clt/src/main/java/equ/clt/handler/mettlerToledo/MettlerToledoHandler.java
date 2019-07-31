@@ -49,7 +49,8 @@ public class MettlerToledoHandler extends DefaultScalesHandler {
         return getLogPrefix() + groupId;
     }
 
-    private String getLogPrefix() {
+    @Override
+    protected String getLogPrefix() {
         return "MettlerToledo: ";
     }
 

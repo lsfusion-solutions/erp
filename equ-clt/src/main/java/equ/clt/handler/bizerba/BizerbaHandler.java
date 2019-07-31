@@ -49,7 +49,10 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
     protected static char separator = '\u001b';
     protected static String endCommand = separator + "BLK " + separator;
 
-    private static String logPrefix = "Bizerba: ";
+    @Override
+    protected String getLogPrefix() {
+        return "Bizerba: ";
+    }
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -601,9 +604,9 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
     private String getError(String result, String ip, String idItem, Integer messageNumber) {
         String error = null;
         if (result.equals("1615")) {
-            error = logPrefix + String.format("IP %s, item %s [msgNo=%s]. Кончилась память под состав. Очистить и записать заново [%s]", ip, idItem, messageNumber, result);
+            error = getLogPrefix() + String.format("IP %s, item %s [msgNo=%s]. Кончилась память под состав. Очистить и записать заново [%s]", ip, idItem, messageNumber, result);
         } else if (!result.equals("0")) {
-            error = logPrefix + String.format("IP %s, item %s [msgNo=%s]. Result is %s", ip, idItem, messageNumber, result);
+            error = getLogPrefix() + String.format("IP %s, item %s [msgNo=%s]. Result is %s", ip, idItem, messageNumber, result);
         }
         return error;
     }
