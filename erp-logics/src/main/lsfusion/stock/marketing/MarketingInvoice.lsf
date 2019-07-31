@@ -152,6 +152,72 @@ WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d))) A
 condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
 fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
 
+CLASS ConditionRange 'Диапазон условий';
+TABLE conditionRange(ConditionRange);
+
+conditionList = DATA ConditionList (ConditionRange) NONULL DELETE INDEXED;
+contractMarketing (ConditionRange r) = contractMarketing(conditionList(r));
+
+weightFrom 'Вес от' = DATA NUMERIC[18,4](ConditionRange);
+weightTo 'Вес до' = DATA NUMERIC[18,4](ConditionRange);
+
+sumFrom 'Сумма от' = DATA NUMERIC[18,4](ConditionRange);
+sumTo 'Сумма до' = DATA NUMERIC[18,4](ConditionRange);
+
+quantityFrom 'Кол-во от' = DATA NUMERIC[18,4](ConditionRange);
+quantityTo 'Колво до' = DATA NUMERIC[18,4](ConditionRange);
+
+marketingPercent '% маркетинга' = DATA NUMERIC[5,2](ConditionRange);
+
+EXTEND FORM conditionList 
+    OBJECTS r = ConditionRange
+    PROPERTIES (r) weightFrom, weightTo, sumFrom, sumTo, quantityFrom, quantityTo, marketingPercent, NEW, DELETE 
+    FILTERS conditionList(r) == l
+;
+
+DESIGN conditionList {
+    conditions {
+        MOVE BOX (r) { caption = 'Диапазон'; }
+    }
+}
+
+EXTEND FORM contractMarketing
+    OBJECTS r = ConditionRange
+    PROPERTIES (r) READONLY weightFrom, weightTo, sumFrom, sumTo, quantityFrom, quantityTo, marketingPercent
+    FILTERS conditionList(r) == l
+;
+
+DESIGN contractMarketing {
+    conditions {
+        MOVE BOX (r) { caption = 'Диапазон'; }
+    }
+}
+
+EXTEND FORM contractMarketings
+    OBJECTS r = ConditionRange
+    PROPERTIES (r) READONLY weightFrom, weightTo, sumFrom, sumTo, quantityFrom, quantityTo, marketingPercent
+    FILTERS conditionList(r) == l
+;
+
+DESIGN contractMarketings {
+    conditions {
+        MOVE BOX (r) { caption = 'Диапазон'; }
+    }
+}
+quantitySku 'Кол-во поступившего/проданного товара' (MarketingInvoiceDetail d) = 
+    GROUP SUM quantity(MarketingInvoiceDetail dd) IF sku(dd) == sku(d) AND marketingInvoice(dd) == marketingInvoice(d) AND condition(dd) == condition(d);
+sumSku 'Сумма поступившего/проданного товара' (MarketingInvoiceDetail d) = 
+    GROUP SUM (sum(MarketingInvoiceDetail dd) (-) returnSum(dd)) IF sku(dd) == sku(d) AND marketingInvoice(dd) == marketingInvoice(d) AND condition(dd) == condition(d);
+weightSku 'Вес поступившего/проданного товара' (MarketingInvoiceDetail d) = quantitySku(d) * netWeight(sku(d));
+
+in (MarketingInvoiceDetail d, ConditionRange r) = conditionList(condition(d)) == conditionList(r) AND 
+    NOT quantitySku(d) < quantityFrom(r) AND NOT quantitySku(d) > quantityTo(r) AND 
+    NOT sumSku(d) < sumFrom(r) AND NOT sumSku(d) > sumTo(r) AND 
+    NOT weightSku(d) < weightFrom(r) AND NOT weightSku(d) > weightTo(r) AND NOT marketingPercent(d);
+
+lastConditionRange (MarketingInvoiceDetail d) = GROUP LAST ConditionRange r ORDER r IF in(d, r);
+conditionRange = DATA ConditionRange(MarketingInvoiceDetail);
+
 in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
 
 overCreateMarketingInvoice ABSTRACT LIST (ContractMarketing, MarketingInvoice, DATE, DATE);
@@ -274,6 +340,10 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             sumMarketing(md) <- CASE 
                                     WHEN daysInclBetweenDates(df, dt) <= 31 THEN monthSum(mc) * (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i)), 1)
                                     WHEN daysInclBetweenDates(df, dt) >= 90 THEN monthSum(mc) * 3 * (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'), currency(mc), date(i)), 1);
+        }
+        FOR lastConditionRange(MarketingInvoiceDetail d) AND marketingInvoice(d) == i DO {
+            marketingPercent(d) <- marketingPercent(lastConditionRange(d));
+            conditionRange(d) <- lastConditionRange(d);
         }
         overCreateMarketingInvoice(c, i, df, dt);
         APPLY;
