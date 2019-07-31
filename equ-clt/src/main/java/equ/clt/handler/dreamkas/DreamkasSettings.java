@@ -6,6 +6,7 @@ public class DreamkasSettings implements Serializable {
 
     private String baseURL = "";
     private String token = "";
+    private String uuidSuffix = "";
     private Integer salesDays = 0; //todo: удалить после того, как Табак обновится
     private Integer salesHours = 0;
     private Integer salesLimitReceipt = 100;
@@ -30,6 +31,14 @@ public class DreamkasSettings implements Serializable {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public String getUuidSuffix() {
+        return uuidSuffix;
+    }
+
+    public void setUuidSuffix(String uuidSuffix) {
+        this.uuidSuffix = uuidSuffix;
     }
 
     public Integer getSalesDays() {

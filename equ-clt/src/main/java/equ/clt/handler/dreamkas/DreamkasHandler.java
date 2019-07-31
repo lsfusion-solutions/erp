@@ -42,11 +42,13 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
         } else {
             server.baseURL = dreamkasSettings.getBaseURL();
             server.token = dreamkasSettings.getToken();
+            server.uuidSuffix = dreamkasSettings.getUuidSuffix();
             server.salesHours = dreamkasSettings.getSalesHours();
             server.salesLimitReceipt = dreamkasSettings.getSalesLimitReceipt();
             server.stepSend = dreamkasSettings.getStepSend();
             if (server.baseURL.isEmpty()) eMsg = "В настройках не определен BaseURL";
             if (server.token.isEmpty()) eMsg = "В настройках не определен token";
+            if (server.uuidSuffix.isEmpty()) eMsg = "В настройках не определен uuidSuffix";
             if (server.salesLimitReceipt < 200) server.salesLimitReceipt = 200;
 //            if ((server.stepSend < 1) || (server.stepSend > 100)) server.stepSend = 100;
         }

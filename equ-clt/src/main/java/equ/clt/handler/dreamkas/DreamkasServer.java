@@ -23,6 +23,7 @@ public class DreamkasServer {
 
     public String token = "";                                                   // Токен доступа
     public String baseURL = "";                                                 // Базовый URL
+    public String uuidSuffix = "";                                              // Суфикс для кода товара
     public String cResult = "";                                                 // Результат запроса
     public String eMessage = "";                                                // Текст ошибки
     public Integer webStatus = 0;                                               // Статус выполнения команды
@@ -505,7 +506,7 @@ public class DreamkasServer {
 
     //  Возвращает UUID индификатор товара, входной параметр код товара
     private String getUUID(CashRegisterItemInfo item) throws IOException {
-        String cData = item.idBarcode.trim();
+        String cData = item.idBarcode.trim() + uuidSuffix;
         byte[] bytes = cData.getBytes("UTF-8");
         UUID uuid = UUID.nameUUIDFromBytes(bytes);
         return uuid.toString();
