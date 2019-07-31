@@ -846,6 +846,7 @@ EXTEND FORM customLabelTransaction
 
 // ------------------------- Подключение печати ценников в документ --------------------- //
 notChangePrintPrice 'Не печатать ценники, если цена не изменилась' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
+skipNotChangePrintPrice = ABSTRACT VALUE BOOLEAN (LabelTransactionDetail);
 printExistingPrice 'Печатать готовые ценники' = ABSTRACT VALUE BOOLEAN (LabelTransaction);
 
 inLabel 'Отм.' = DATA LOCAL BOOLEAN (Sku);
@@ -902,7 +903,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
         
                         price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
                         IF notChangePrintPrice(t) THEN {
-                            DELETE d WHERE price(d) == lastPriceLabel(d);
+                            DELETE d WHERE price(d) == lastPriceLabel(d) AND NOT skipNotChangePrintPrice(d);
                         }
                         retailPrice(d) <- overRetailPrice(d);
                         createAttribute(dd, d);
