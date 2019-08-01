@@ -91,8 +91,6 @@ purchasePricingPrice (InvoiceDetail detail) = OVERRIDE overPurchasePricingPrice(
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseRetail, ' (закупка)');
 
 @defineDocumentInterfaceDetailVAT(invoice, countryCustomerStock, purchaseRetail, ' розничный (закупка)');
-@deriveDocumentDetailVAT(userInvoice, purchaseRetail, date, sku, customerStock);
-@deriveDocumentDetailValueVAT(userInvoice, purchaseRetail);
 
 @defineDocumentInterfaceDetailPricePrefix(invoice, purchaseRetail, ' розничная (закупка)');
 
@@ -125,11 +123,6 @@ purchaseRoundCondition(UserInvoiceDetail d) =  IF overPurchaseRoundCondition(d)
 @defineDocumentInterfaceDetailVATDataSumPrefix (invoice, purchaseRetail, ' розничная (закупка)');
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, purchaseRetail, ' розничная (закупка)');
 
-// Расчет сумм обратным счетом
-@deriveDocumentDetailSumPrefix(userInvoice, purchaseRetail, currency, purchasePricingQuantity);
-@deriveDocumentDetailReverseVATSumPrefix(userInvoice, purchaseRetail, purchaseRetail);
-@deriveDocumentDetailMarkupSumPrefix(userInvoice, purchaseRetail, purchaseRetail, );
-
 // -- Суммы по документу
 @defineDocumentInterfaceHeaderSumPrefix (invoice, purchaseRetail, ' розничная (закупка)');
 
@@ -137,11 +130,44 @@ purchaseRoundCondition(UserInvoiceDetail d) =  IF overPurchaseRoundCondition(d)
 @defineDocumentInterfaceHeaderSumPrefix (invoice, purchaseRetailMarkup, ' надбавки (закупка)');
 
 // Галочка по созданию акта расценки на закупке
-@defineDocumentInterfaceProperty (invoice, createPurchasePricing, 'Создать акт расценки (закупка)');
+createPurchasePricing 'Создать акт расценки (закупка)' (invoice) = ABSTRACT BOOLEAN(Invoice) MATERIALIZED IN documentPrm;
+createPurchasePricing 'Создать акт расценки (закупка)' (userInvoice) = DATA BOOLEAN(UserInvoice) PREREAD IN documentPrm;
+createPurchasePricing (UserInvoice invoice) += createPurchasePricing(invoice);
+@defineDocumentInterfaceDetailProperty (invoice, createPurchasePricing, 'Создать акт расценки (закупка)');
 
 // -- Операции
 @defineOperationProperty(createPurchasePricing, 'Акт расценки (закупка)', purchaseContainer);
 @deriveDocumentOperationProperty(UserInvoice, createPurchasePricing);
+
+WHEN LOCAL (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED (customerStock(d)) OR CHANGED(createPurchasePricing(d))) 
+            AND createPurchasePricing(d) DO
+    purchaseRetailVAT(d) <- VAT (sku(d), country(customerStock(d)));
+    
+overSetValuePurchaseRetailVAT (userInvoiceDetail) = ABSTRACT VALUE NUMERIC[10,5] (UserInvoiceDetail);     
+calcSetValuePurchaseRetailVAT (UserInvoiceDetail userInvoiceDetail) = 
+    OVERRIDE overSetValuePurchaseRetailVAT(userInvoiceDetail), (valueRate(purchaseRetailVAT(userInvoiceDetail), date(userInvoiceDetail)) IF purchaseRetailVAT(userInvoiceDetail)); 
+
+WHEN LOCAL GOAFTER purchaseRetailVAT[UserInvoiceDetail]
+    (CHANGED(purchaseRetailVAT(UserInvoiceDetail d)) OR (CHANGED (dateTime(d)) AND NOT isPosted(d)) OR CHANGED(createPurchasePricing(d))) AND 
+     v == calcSetValuePurchaseRetailVAT (d) AND NOT CHANGED(valuePurchaseRetailVAT (d)) AND createPurchasePricing(d) DO {
+        valuePurchaseRetailVAT (d) <- v;
+    }
+
+// Расчет сумм обратным счетом
+WHEN LOCAL (CHANGED(purchasePricingQuantity(UserInvoiceDetail d)) OR CHANGED (purchaseRetailPrice(d)) OR CHANGED(currency(d)) OR SET(createPurchasePricing(d))) 
+            AND createPurchasePricing(d) DO {
+    purchaseRetailSum(d) <- NUMERIC[18,4](round(purchasePricingQuantity(d) * purchaseRetailPrice(d), currency(d)));
+} 
+
+WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (calcValuePurchaseRetailVAT(d)) OR CHANGED (currency(d)) OR SET(createPurchasePricing(d)))
+            AND createPurchasePricing(d) DO {
+    purchaseRetailVATSum(d) <- round([ X*Y/(100+Y)](purchaseRetailSum(d), calcValuePurchaseRetailVAT(d)), currency(d));
+}
+
+WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (purchaseRetailVATSum(d)) OR CHANGED (sum(d)) OR SET(createPurchasePricing(d))) 
+            AND createPurchasePricing(d) DO {
+    purchaseRetailMarkupSum(d) <- purchaseRetailSum(d) (-) purchaseRetailVATSum (d) (-) sum(d);
+}
 
 //// Вид цены для акта расценки (закупка)
 //purchaseRetailPriceListTypeOperation = DATA PriceListType (Operation);
