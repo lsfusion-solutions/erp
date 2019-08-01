@@ -448,9 +448,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         EDIT UserOrder OBJECT o
     ;
     
-    @defineAddSkuLists(userOrder, userOrder, o);
-    @defineNewSkuList(userOrder, userOrder, o);
-    
     DESIGN userOrder {
 
         BOX {
@@ -564,8 +561,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                                     alignment = START;
                                     MOVE PROPERTY(fillDocument(o));
                                     MOVE PROPERTY(addDetailDialogSkuStockUserOrderDetail(o));
-                                    MOVE PROPERTY(addSkuLists(o));
-                                    MOVE PROPERTY(newSkuList(o));
                                 }
                             }
                         }
@@ -839,7 +834,25 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     EXTEND FORM orders 
         PROPERTIES show(o) SHOWIF showToShow(o) BEFORE editO
     
-    ;  
+    ;
+    
+    @defineAddSkuLists(userOrder, userOrder, o);
+    @defineNewSkuList(userOrder, userOrder, orders, o);
+    
+    DESIGN userOrder {
+        add {
+            MOVE PROPERTY(addSkuLists(o));
+            MOVE PROPERTY(newSkuList(o));
+        }
+    }  
+    DESIGN orders {
+        actionContainer {
+            NEW listSku {
+                caption = 'Списки SKU';
+                MOVE PROPERTY (newSkuList(o));
+            }
+        }
+    } 
 END
 
 META deriveShipmentDate(dumb) 

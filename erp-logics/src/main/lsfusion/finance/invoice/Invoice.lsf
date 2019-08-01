@@ -522,9 +522,6 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         EDIT UserInvoice OBJECT i
     ;
     
-    @defineAddSkuLists(userInvoice, userInvoice, i);
-    @defineNewSkuList(userInvoice, userInvoice, i);
-    
     DESIGN userInvoice {
         BOX {
             size = (1024, 768);
@@ -629,8 +626,6 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                     alignment = START;
                                     MOVE PROPERTY(fillDocument(i));
                                     MOVE PROPERTY(addDetailDialogSkuStockUserInvoiceDetail(i));
-                                    MOVE PROPERTY(addSkuLists(i));
-                                    MOVE PROPERTY(newSkuList(i));
                                 }
                             }
                         }
@@ -955,7 +950,25 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     ;
     EXTEND FORM userInvoice
         PROPERTIES(ks) READONLY AFTER shortNameUOM(ks) nameManufacturer[Item], nameCountry[Item]
-    ;              
+    ;
+    
+    @defineAddSkuLists(userInvoice, userInvoice, i);
+    @defineNewSkuList(userInvoice, userInvoice, invoices, i);
+    
+    DESIGN userInvoice {
+        add {
+            MOVE PROPERTY(addSkuLists(i));
+            MOVE PROPERTY(newSkuList(i));
+        }
+    }  
+    DESIGN invoices {
+        actionContainer {
+            NEW listSku {
+                caption = 'Списки SKU';
+                MOVE PROPERTY (newSkuList(i));
+            }
+        }
+    }           
 END
 
 // -------------------------- Метакод по добавлению партий ------------------------- //

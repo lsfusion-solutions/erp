@@ -1415,11 +1415,20 @@ TABLE dataPriceListTypeLegalEntitySku (DataPriceListType, LegalEntity, Sku);
 countPriceListDetail = GROUP SUM 1 IF in(PriceListDetail d, DataPriceListType t) BY t, company(d), sku(d) MATERIALIZED; 
 
 @defineAddSkuLists(userPriceList, userPriceList, p);
-@defineNewSkuList(userPriceList, userPriceList, p);
+@defineNewSkuList(userPriceList, userPriceList, priceLists, p);
 
 DESIGN userPriceList {
     addRowContainer {
         MOVE PROPERTY (addSkuLists(p));
         MOVE PROPERTY (newSkuList(p));
+    }
+}
+
+DESIGN priceLists {
+    actionContainer {
+        NEW listSku {
+            caption = 'Списки SKU';
+            MOVE PROPERTY (newSkuList(p));
+        }
     }
 }
