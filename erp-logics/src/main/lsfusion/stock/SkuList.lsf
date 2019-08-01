@@ -383,6 +383,21 @@ META defineNewSkuList (object, form, forms, concrete)
     EXTEND FORM forms PROPERTIES newSkuList(concrete) DRAW concrete TOOLBAR;
 END
 
+META defineNewSkuListSelect (object, form, select)
+    newSkuList###object##Select 'Создать список SKU на основе отмеченных' () {
+        NEWSESSION NESTED (select[###object]) NEW l = List {
+            FOR [GROUP SUM 1 IF select(object(###object##Detail detail)) BY sku(detail)](Sku sku) DO NEW detail = ListDetail {
+                list(detail) <- l;
+                sku(detail) <- sku;
+            }
+            SHOW list OBJECTS l = l DOCKED;
+        }
+    } CONFIRM;
+    
+    EXTEND FORM form PROPERTIES newSkuList###object##Select();
+    DESIGN form { listSku { MOVE PROPERTY (newSkuList###object##Select()); } } 
+END
+
 overCopy ABSTRACT LIST (List, List);
 
 copy 'Копировать' (List l) {
