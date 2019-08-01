@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -23,7 +24,7 @@ public class DreamkasServer {
 
     public String token = "";                                                   // Токен доступа
     public String baseURL = "";                                                 // Базовый URL
-    public String uuidSuffix = "";                                              // Суфикс для кода товара
+    public String uuidSuffix = null;                                              // Суфикс для кода товара
     public String cResult = "";                                                 // Результат запроса
     public String eMessage = "";                                                // Текст ошибки
     public Integer webStatus = 0;                                               // Статус выполнения команды
@@ -399,7 +400,7 @@ public class DreamkasServer {
         return iRet;
     }
 
-    //  Возвращает диапазон дат принимаемой реализации, salesDays
+    //  Возвращает диапазон дат принимаемой реализации, salesHours
     private String getRangeDate() {
         String cRet;
         SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -507,7 +508,7 @@ public class DreamkasServer {
     //  Возвращает UUID индификатор товара, входной параметр код товара
     private String getUUID(CashRegisterItemInfo item) throws IOException {
         String cData = item.idBarcode.trim() + uuidSuffix;
-        byte[] bytes = cData.getBytes("UTF-8");
+        byte[] bytes = cData.getBytes(StandardCharsets.UTF_8);
         UUID uuid = UUID.nameUUIDFromBytes(bytes);
         return uuid.toString();
     }
