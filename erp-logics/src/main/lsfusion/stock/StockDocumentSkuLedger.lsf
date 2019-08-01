@@ -80,3 +80,13 @@ EXTEND FORM sumStockDocumentLedger
     PROPERTIES(ol) sumSkuLedger SHOWIF showSkuLedgerStockDocument()
     FILTERGROUP incorrectOutSum FILTER 'Неправильная сумма по регистру' NOT sum(ol) == -sumSkuLedger(ol) 'F7'
 ;
+
+accountDelta 'Отклонение от фактического'  = ABSTRACT NUMERIC[16,5](Sku, Stock);    
+accountDelta 'Отклонение от фактического' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATE, DATE);
+accountDeltaB 'Отклонение от фактического (до)' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATETIME);
+
+accountBalance 'Бухгалтерский остаток' (Sku s,Stock st) =  currentBalance(s,st) (+) accountDelta(s,st);
+prevAccountBalance 'Бухгалтерский остаток' (Sku s,Stock st) = PREV(accountBalance(s,st));
+
+accountBalanceB 'Бухгалтерский остаток (до)' (Sku s,Stock st, DATETIME  dt) =  balanceB(s,st,dt) (+) accountDeltaB(s,st,dt);
+prevAccountBalanceB 'Бухгалтерский остаток (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(accountBalanceB(sku, stock, dateTime) IF dateTime IS DATETIME);

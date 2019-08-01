@@ -1,0 +1,38 @@
+MODULE InventoryDelta;
+
+REQUIRE Inventory, StockDocumentSkuLedgerDelta;
+NAMESPACE Inventory;
+
+
+lastCollationSheet (Stock st)= GROUP LAST CollationSheet cs
+        ORDER date(cs), cs
+        WHERE isPosted(cs) AND NOT isPartly(inventory(cs))
+        BY stock(cs);
+dateAccountDelta(Stock st) += sum(date(lastCollationSheet(st)),1);
+
+showAccountDelta 'Показывать "Отклонение от фактического"' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) showAccountDelta
+ ;
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(showAccountDelta(o));
+    }
+}
+
+
+accountDelta 'Отклонение от фактического' = DATA NUMERIC[16,5](Sku,CollationSheet);
+
+EXTEND FORM inventory
+    PROPERTIES (i,cs) READONLY accountDelta SHOWIF showAccountDelta(operation(in))
+;
+
+overRecalculateBalance(Inventory in) + {    
+    FOR inventory(CollationSheet cs) == in  DO { 
+        accountDelta(Sku s,cs) <- NULL;       
+        IF showAccountDelta(operation(in)) AND NOT isBatch(cs) AND NOT isPartly(in) THEN {
+            accountDelta(Sku s,cs) <- accountDelta(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDelta(s,stock(cs),prevDate(cs),date(in));          
+        }                                 
+    }    
+}
