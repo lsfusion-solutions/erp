@@ -10,7 +10,7 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 

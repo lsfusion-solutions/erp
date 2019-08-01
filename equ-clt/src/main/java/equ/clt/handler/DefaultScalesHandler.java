@@ -7,7 +7,7 @@ import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
