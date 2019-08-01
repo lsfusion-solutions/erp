@@ -4,9 +4,13 @@ import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.StopListInfo;
 import equ.api.scales.ScalesHandler;
+import equ.api.scales.ScalesInfo;
+import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import org.apache.commons.lang.StringUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +27,37 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
     }
 
     protected abstract String getLogPrefix();
+
+    protected boolean isWeight(ScalesItemInfo item) {
+        return item.passScalesItem && item.splitItem;
+    }
+
+    protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
+        List<ScalesInfo> enabledScalesList = new ArrayList<>();
+        for (ScalesInfo scales : transaction.machineryInfoList) {
+            if(scales.succeeded)
+                succeededScalesList.add(scales);
+            else if (scales.enabled)
+                enabledScalesList.add(scales);
+        }
+        if (enabledScalesList.isEmpty())
+            for (ScalesInfo scales : transaction.machineryInfoList) {
+                if (!scales.succeeded)
+                    enabledScalesList.add(scales);
+            }
+        return enabledScalesList;
+    }
+
+    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
+        if (!errors.isEmpty()) {
+            String message = "";
+            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
+                message += entry.getKey() + ": \n" + StringUtils.join(entry.getValue().iterator(), "\n");
+            }
+            throw new RuntimeException(message);
+        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
+            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
+    }
 
     protected String fillLeadingZeroes(Object input, int length) {
         if (input == null)

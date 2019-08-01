@@ -137,20 +137,6 @@ public class DigiHandler extends DefaultScalesHandler {
         return reply == 0;
     }
 
-    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
-        if (!errors.isEmpty()) {
-            StringBuilder message = new StringBuilder();
-            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                message.append(entry.getKey()).append(": \n");
-                for (String error : entry.getValue()) {
-                    message.append(error).append("\n");
-                }
-            }
-            throw new RuntimeException(getLogPrefix() + message.toString());
-        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
-    }
-
     private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength, Integer maxNameLength) throws UnsupportedEncodingException {
         boolean hasDescription = item.description != null && !item.description.isEmpty();
         String[] splittedDescription = hasDescription ? item.description.split("@@") : null;

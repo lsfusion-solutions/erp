@@ -214,20 +214,6 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return enabledScalesList;
     }
 
-    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
-        if (!errors.isEmpty()) {
-            StringBuilder message = new StringBuilder();
-            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                message.append(entry.getKey()).append(": \n");
-                for (String error : entry.getValue()) {
-                    message.append(error).append("\n");
-                }
-            }
-            throw new RuntimeException(message.toString());
-        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
-    }
-
     private byte[] receiveReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
         byte[] reply = new byte[500];
         try {
@@ -773,7 +759,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                     try {
                         port.close();
                     } catch (CommunicationException e) {
-                        logError(localErrors, String.format(logPrefix + "IP %s close port error ", scales.port), e);
+                        logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
                     }
                 }
             }

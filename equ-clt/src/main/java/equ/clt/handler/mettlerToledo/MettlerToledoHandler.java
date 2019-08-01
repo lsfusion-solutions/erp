@@ -34,12 +34,6 @@ public class MettlerToledoHandler extends DefaultScalesHandler {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
-    private FileSystemXmlApplicationContext springContext;
-
-    public MettlerToledoHandler(FileSystemXmlApplicationContext springContext) {
-        this.springContext = springContext;
-    }
-
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {
         StringBuilder groupId = new StringBuilder();
@@ -115,36 +109,6 @@ public class MettlerToledoHandler extends DefaultScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    private List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
-        List<ScalesInfo> enabledScalesList = new ArrayList<>();
-        for (ScalesInfo scales : transaction.machineryInfoList) {
-            if(scales.succeeded)
-                succeededScalesList.add(scales);
-            else if (scales.enabled)
-                enabledScalesList.add(scales);
-        }
-        if (enabledScalesList.isEmpty())
-            for (ScalesInfo scales : transaction.machineryInfoList) {
-                if (!scales.succeeded)
-                    enabledScalesList.add(scales);
-            }
-        return enabledScalesList;
-    }
-
-    private void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
-        if (!errors.isEmpty()) {
-            String message = "";
-            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                message += entry.getKey() + ": \n";
-                for (String error : entry.getValue()) {
-                    message += error + "\n";
-                }
-            }
-            throw new RuntimeException(message);
-        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
     }
 
     private boolean receiveReply(TCPPort port) throws IOException {
@@ -240,7 +204,7 @@ public class MettlerToledoHandler extends DefaultScalesHandler {
         bytes.putShort((short) 0);
 
         //Флаг артикула, 2 bytes
-        bytes.putShort((short) (item.passScalesItem && item.splitItem ? 0 : 1));
+        bytes.putShort((short) (isWeight(item) ? 0 : 1));
 
         //Срок годности(дни), 2 bytes
         bytes.putShort(item.daysExpiry != null ? item.daysExpiry.shortValue() : 0);

@@ -112,36 +112,6 @@ public class AclasHandler extends DefaultScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
-        List<ScalesInfo> enabledScalesList = new ArrayList<>();
-        for (ScalesInfo scales : transaction.machineryInfoList) {
-            if(scales.succeeded)
-                succeededScalesList.add(scales);
-            else if (scales.enabled)
-                enabledScalesList.add(scales);
-        }
-        if (enabledScalesList.isEmpty())
-            for (ScalesInfo scales : transaction.machineryInfoList) {
-                if (!scales.succeeded)
-                    enabledScalesList.add(scales);
-            }
-        return enabledScalesList;
-    }
-
-    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
-        if (!errors.isEmpty()) {
-            String message = "";
-            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
-                message += entry.getKey() + ": \n";
-                for (String error : entry.getValue()) {
-                    message += error + "\n";
-                }
-            }
-            throw new RuntimeException(message);
-        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
-            throw new RuntimeException(getLogPrefix() + "No IP-addresses defined");
-    }
-
     public static boolean receiveReply(UDPPort port) throws IOException {
         try {
             byte[] response = port.receiveCommand(200);
@@ -262,7 +232,7 @@ public class AclasHandler extends DefaultScalesHandler {
         //rebate, 1 byte
         bytes.put((byte) 0);
 
-        boolean weightItem = item.passScalesItem && item.splitItem;
+        boolean weightItem = isWeight(item);
 
         // Department, 1 byte
         bytes.put(parseDepartmentNumber(weightItem ? scales.weightCodeGroupScales : scales.pieceCodeGroupScales));
