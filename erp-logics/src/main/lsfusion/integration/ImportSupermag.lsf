@@ -108,10 +108,16 @@ importUOM 'Импорт единиц измерений' () {
 EXTEND FORM integrationData PROPERTIES importUOM();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importUOM()); } }
 
+shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
+
+EXTEND FORM item PROPERTIES (i) shortName;
+EXTEND FORM items PROPERTIES (i) READONLY shortName;
+
 importItem 'Импорт товаров' () {
     
     LOCAL id = TEXT (INTEGER);
-    LOCAL name = TEXT (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL shortName = ISTRING[250] (INTEGER);
     LOCAL idMeasurement = INTEGER (INTEGER);
     LOCAL idClass = INTEGER (INTEGER);
     LOCAL country = TEXT (INTEGER);
@@ -127,11 +133,11 @@ importItem 'Импорт товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT card.ARTICLE, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3' TO file;
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3' TO file;
     
     logToFile('importSupermag', 'importItem_1');
     
-    IMPORT TABLE FROM file() TO id, name, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
+    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
     
     logToFile('importSupermag', 'importItem_2');
     
@@ -141,6 +147,7 @@ importItem 'Импорт товаров' () {
     
     FOR Item s = item(id(INTEGER i)) DO {
         caption(s) <- name(i);
+        shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
         itemGroup(s) <- itemGroup(TEXT (idClass(i)));
         country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
