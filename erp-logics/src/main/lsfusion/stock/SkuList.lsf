@@ -380,3 +380,36 @@ META defineNewSkuList (object, form, concrete)
     EXTEND FORM form PROPERTIES newSkuList(concrete) DRAW d TOOLBAR;
     DESIGN form { TOOLBAR(d) { MOVE PROPERTY (addSkuLists(concrete)) FIRST; } }
 END
+
+overCopy ABSTRACT LIST (List, List);
+
+copy 'Копировать' (List l) {
+    NEWSESSION NEW n = List {
+        name(n) <- name(l);
+        order(n) <- order(l);
+        parent(n) <- parent(l);
+        dataAccess(Stock st, n) <- dataAccess(st, l);
+        dataAccess(StockGroup st, n) <- dataAccess(st, l);
+        dataAccess(UserRole r, n) <- dataAccess(r, l);
+        
+        FOR list(ListDetail d) == l DO NEW nd = ListDetail {
+            list(nd) <- n;
+            sku(nd) <- sku(d);
+        }
+        overCopy(l, n);
+        SHOW list OBJECTS l = n DOCKED;
+    }
+}
+
+EXTEND FORM lists PROPERTIES copy(o) DRAW o TOOLBAR;
+
+selectFromList 'Добавить из списка' (List l) {
+    DIALOG dialogLists OBJECTS g INPUT DO {
+        FOR list(ListDetail d) == g AND NOT listDetail(sku(d), l) DO NEW dd = ListDetail {
+            list(dd) <- l;
+            sku(dd) <- sku(d);
+        }
+    }
+}
+
+EXTEND FORM list PROPERTIES selectFromList(l) DRAW d TOOLBAR;
