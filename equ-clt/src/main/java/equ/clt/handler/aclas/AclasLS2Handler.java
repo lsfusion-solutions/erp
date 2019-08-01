@@ -150,6 +150,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             if(result == 0) {
                 result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), noteFile);
             }
+            //пока не работает, возвращает ошибку 1
             //if(result == 0) {
             //    result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), hotKeyFile);
             //}
