@@ -1,6 +1,5 @@
 package equ.clt.handler.dreamkas;
 
-import equ.api.GiftCard;
 import equ.api.SalesInfo;
 import equ.api.cashregister.CashDocument;
 import equ.api.cashregister.CashRegisterInfo;
@@ -8,7 +7,6 @@ import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import org.apache.log4j.Logger;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +37,7 @@ public class DreamkasServer {
 //    private Map<String, DtShift> hmShift = new HashMap<String, DtShift>();    // Map deviceId_shift:объект даты и времени
 
     //  --- Основной метод загрузки кассового сервера новыми товарами (POST) или обновление товаров (PATCH)
-    public boolean sendPriceList(TransactionCashRegisterInfo transaction) throws IOException {
+    public boolean sendPriceList(TransactionCashRegisterInfo transaction) {
         Boolean lRet = true;
         if (transaction.itemsList == null) return true;
         // Очистка БД товаров, если snapshot
@@ -119,12 +117,12 @@ public class DreamkasServer {
         String url;
         Integer offset = 0;
         Boolean lRet = true;
-        url = "receipts?" + getRangeDate() + "&limit=" + salesLimitReceipt.toString();
+        url = "receipts?" + getRangeDate() + "&limit=" + salesLimitReceipt;
         sendSalesLogger.info("Dreamkas: request url " + url);
         salesInfoList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
-            if (!webExec("GET", url + "&offset=" + offset.toString(), "")) {
+            if (!webExec("GET", url + "&offset=" + offset, "")) {
                 lRet = false;
                 break;
             }
@@ -146,7 +144,7 @@ public class DreamkasServer {
             oJs.getArraySize("data");
             if (oJs.nCount == 0) break;
             for (int i = 0; i < oJs.nCount; ++i) {
-                oJs.getPathJson("data[" + Integer.toString(i) + "]");
+                oJs.getPathJson("data[" + i + "]");
                 parseReceipt(oJs.cResult);
             }
         }
@@ -163,11 +161,11 @@ public class DreamkasServer {
         String url;
         Integer offset = 0;
         Boolean lRet = true;
-        url = "encashments?" + getRangeDate() + "&limit=" + salesLimitReceipt.toString();
+        url = "encashments?" + getRangeDate() + "&limit=" + salesLimitReceipt;
         cashDocList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
-            if (!webExec("GET", url + "&offset=" + offset.toString(), "")) {
+            if (!webExec("GET", url + "&offset=" + offset, "")) {
                 lRet = false;
                 break;
             }
@@ -189,7 +187,7 @@ public class DreamkasServer {
             oJs.getArraySize("data");
             if (oJs.nCount == 0) break;
             for (int i = 0; i < oJs.nCount; ++i) {
-                oJs.getPathJson("data[" + Integer.toString(i) + "]");
+                oJs.getPathJson("data[" + i + "]");
                 parseDocInfo(oJs.cResult);
             }
         }
@@ -202,10 +200,10 @@ public class DreamkasServer {
         Integer offset = 0;
         Integer limit = 500;
         Boolean lRet = true;
-        url = "shifts?" + getRangeDate() + "&limit=" + limit.toString();
+        url = "shifts?" + getRangeDate() + "&limit=" + limit;
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
-            if (!webExec("GET", url + "&offset=" + offset.toString(), "")) {
+            if (!webExec("GET", url + "&offset=" + offset, "")) {
                 lRet = false;
                 break;
             }
@@ -231,7 +229,7 @@ public class DreamkasServer {
             oJs.getArraySize("data");
             if (oJs.nCount == 0) break;
             for (int i = 0; i < oJs.nCount; ++i) {
-                oJs.getPathJson("data[" + Integer.toString(i) + "]");
+                oJs.getPathJson("data[" + i + "]");
                 parseReceipt(oJs.cResult);
             }
         }
@@ -241,7 +239,7 @@ public class DreamkasServer {
     //  Чтение чека
     private void parseReceipt(String cJson) {
         int iPos;
-        Integer i, iMax;
+        Integer iMax;
         JsonReadProcess oHeader = new JsonReadProcess(); // Парсировщик шапки чека
         JsonReadProcess oLines = new JsonReadProcess();   // Парсировщик строк чека
         oHeader.load(cJson);
@@ -298,16 +296,16 @@ public class DreamkasServer {
         iMax = oHeader.nCount;
         sumCard = new BigDecimal("0.00");
         sumCash = new BigDecimal("0.00");
-        for (i = 0; i < iMax; ++i) {
-            oHeader.getPathValue("payments[" + i.toString() + "].type");   // Виды оплат CASH-нал, CASHLESS - карта
+        for (int i = 0; i < iMax; ++i) {
+            oHeader.getPathValue("payments[" + i + "].type");   // Виды оплат CASH-нал, CASHLESS - карта
             switch (oHeader.cResult) {
                 case "CASH":
-                    oHeader.getPathValue("payments[" + i.toString() + "].amount");
+                    oHeader.getPathValue("payments[" + i + "].amount");
                     sumCash = getBigDecimal(oHeader.cResult, 2);
                     if (cSign.equals("-")) sumCash = sumCash.negate();
                     break;
                 case "CASHLESS":
-                    oHeader.getPathValue("payments[" + i.toString() + "].amount");
+                    oHeader.getPathValue("payments[" + i + "].amount");
                     sumCard = getBigDecimal(oHeader.cResult, 2);
                     if (cSign.equals("-")) sumCard = sumCard.negate();
                     break;
@@ -317,8 +315,8 @@ public class DreamkasServer {
 //         discountSumReceipt = getBigDecimal(oHeader.cResult, 2);
         // ----- строки чека -----
         oHeader.getArraySize("positions");
-        for (i = 0; i < oHeader.nCount; ++i) {
-            oHeader.getPathJson("positions[" + Integer.toString(i) + "]");
+        for (int i = 0; i < oHeader.nCount; ++i) {
+            oHeader.getPathJson("positions[" + i + "]");
             oLines.load(oHeader.cResult);
             numberReceiptDetail = i + 1;                                        // Номер строки чека
             oLines.getPathValue("barcode");                              // Штрих код
@@ -335,9 +333,8 @@ public class DreamkasServer {
 
             salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport,
                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash,
-                    (Map<String, GiftCard>) null, barcodeItem, null, null, null, quantityReceiptDetail,
-                    priceReceiptDetail, sumReceiptDetail, null, null, null,
-                    null, numberReceiptDetail, "", null, isCancel, null));
+                    null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
+                    null, null, null, numberReceiptDetail, "", null, isCancel, null));
         }
     }
 
@@ -367,7 +364,7 @@ public class DreamkasServer {
         oLines.getPathValue("type");
         if (oLines.cResult.equals("MONEY_OUT"))
             sumCashDocument = sumCashDocument.multiply(new BigDecimal(-1));
-        idCashDocument += "/" + nppMachinery.toString() + "/" + numberZReport;
+        idCashDocument += "/" + nppMachinery + "/" + numberZReport;
         // idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum
         cashDocList.add(new CashDocument(idCashDocument, null, dateCashDocument, timeCashDocument,
                 nppGroupMachinery, nppMachinery, numberZReport, sumCashDocument));
@@ -422,7 +419,7 @@ public class DreamkasServer {
     }
 
     //  Создает текст JSON для отправки цен (POST) и заполняет массив для выполнения PATCH
-    private void prepPriceList(TransactionCashRegisterInfo transaction) throws IOException {
+    private void prepPriceList(TransactionCashRegisterInfo transaction) {
         int nPos;
         for (CashRegisterItemInfo item : transaction.itemsList) {
             cResult = "";
@@ -501,12 +498,12 @@ public class DreamkasServer {
     private String getVat(BigDecimal vat) {
         String cRet;
         if (vat == null) return "NDS_0";
-        cRet = "NDS_" + vat.setScale(2, ROUND_DOWN).toString();
+        cRet = "NDS_" + vat.setScale(2, ROUND_DOWN);
         return cRet.replace(".", "_");
     }
 
     //  Возвращает UUID индификатор товара, входной параметр код товара
-    private String getUUID(CashRegisterItemInfo item) throws IOException {
+    private String getUUID(CashRegisterItemInfo item) {
         String cData = item.idBarcode.trim() + uuidSuffix;
         byte[] bytes = cData.getBytes(StandardCharsets.UTF_8);
         UUID uuid = UUID.nameUUIDFromBytes(bytes);
@@ -530,19 +527,19 @@ public class DreamkasServer {
     //  Общая обработка статуса WEB запроса
     private String getErrorWeb(Integer nCode) {
         if (nCode == 400) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Ошибка валидации";
+            return "Ошибка WEB, код: " + nCode + ", Ошибка валидации";
         } else if (nCode == 401) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Ошибка авторизации";
+            return "Ошибка WEB, код: " + nCode + ", Ошибка авторизации";
         } else if (nCode == 403) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Доступ запрещен";
+            return "Ошибка WEB, код: " + nCode + ", Доступ запрещен";
         } else if (nCode == 404) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Ресурс не найден";
+            return "Ошибка WEB, код: " + nCode + ", Ресурс не найден";
         } else if (nCode == 410) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Ресурс удален";
+            return "Ошибка WEB, код: " + nCode + ", Ресурс удален";
         } else if (nCode == 429) {
-            return "Ошибка WEB, код: " + nCode.toString() + ", Достигнут лимит запросов";
+            return "Ошибка WEB, код: " + nCode + ", Достигнут лимит запросов";
         }
-        return "Ошибка WEB, код: " + nCode.toString();
+        return "Ошибка WEB, код: " + nCode;
     }
 
     //  Обработка ошибки
