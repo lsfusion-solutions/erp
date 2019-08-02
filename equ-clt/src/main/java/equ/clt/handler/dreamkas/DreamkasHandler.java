@@ -1,13 +1,22 @@
 package equ.clt.handler.dreamkas;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.RequestExchange;
+import equ.api.SalesBatch;
+import equ.api.SendTransactionBatch;
+import equ.api.cashregister.CashDocumentBatch;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
+import lsfusion.base.Pair;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBatch> {
@@ -16,6 +25,8 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
 
     private static String logPrefix = "Dreamkas: ";
+
+    private static List<String> pendingQueryList = new ArrayList<>();
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -43,7 +54,6 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
             server.baseURL = dreamkasSettings.getBaseURL();
             server.token = dreamkasSettings.getToken();
             server.uuidSuffix = dreamkasSettings.getUuidSuffix();
-            server.salesHours = dreamkasSettings.getSalesHours();
             server.salesLimitReceipt = dreamkasSettings.getSalesLimitReceipt();
             server.stepSend = dreamkasSettings.getStepSend();
             if (server.baseURL.isEmpty()) eMsg = "В настройках не определен BaseURL";
@@ -78,32 +88,44 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
         return sendTransactionBatchMap;
     }
 
-    int readSalesInfoCount = 0;
+    int readSalesInfoCount = -1;
     // Вызывается при чтении реализации
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
-        List<SalesInfo> salesInfoList = new ArrayList<>();
-
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws UnsupportedEncodingException {
         DreamkasSettings dreamkasSettings = springContext.containsBean("dreamkasSettings") ? (DreamkasSettings) springContext.getBean("dreamkasSettings") : null;
         Integer runReadSalesInterval = dreamkasSettings != null ? dreamkasSettings.getRunReadSalesInterval() : null;
-        if(runReadSalesInterval == null || readSalesInfoCount >= runReadSalesInterval) {
+        Integer salesHours = dreamkasSettings != null ? dreamkasSettings.getSalesHours() : null;
+
+        DreamkasServer server = new DreamkasServer(cashRegisterInfoList);
+        setProp(server);
+
+        if((runReadSalesInterval == null || readSalesInfoCount >= runReadSalesInterval || readSalesInfoCount == -1)) {
             readSalesInfoCount = 0;
-            DreamkasServer server = new DreamkasServer();
-            setProp(server);
-            server.cashRegisterInfoList = cashRegisterInfoList;
-            if (!server.getSales()) {
+            Pair<Date, Date> rangeDates = getRangeDates(salesHours);
+            if (!server.getSales(getReceiptsQuery(rangeDates.first, rangeDates.second, null))) {
                 if (server.logMessage.length() > 0) {
                     sendSalesLogger.error(logPrefix + server.logMessage);
                 }
                 throw Throwables.propagate(new RuntimeException(server.eMessage));
-            } else {
-                sendSalesLogger.info(logPrefix + "found " + server.salesInfoList.size() + " sale records");
-                salesInfoList = server.salesInfoList;
             }
         } else {
             readSalesInfoCount++;
+
+            if (!pendingQueryList.isEmpty()) {
+                String pendingQuery = pendingQueryList.remove(0);
+                if (!server.getSales(pendingQuery)) {
+                    if (server.logMessage.length() > 0) {
+                        sendSalesLogger.error(logPrefix + server.logMessage);
+                    }
+                    throw Throwables.propagate(new RuntimeException(server.eMessage));
+                }
+            }
         }
-        return new DreamkasSalesBatch(salesInfoList);
+
+        if(!server.salesInfoList.isEmpty()) {
+            sendSalesLogger.info(logPrefix + "found " + server.salesInfoList.size() + " sale records");
+        }
+        return new DreamkasSalesBatch(server.salesInfoList);
     }
 
     // Обратная связь: после записи реализации, отправка на сервер, что данные были приняты
@@ -114,11 +136,14 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     // Чтение кассовых документов (внесения/изъятия) throws ClassNotFoundException - убрал
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
+        DreamkasSettings dreamkasSettings = springContext.containsBean("dreamkasSettings") ? (DreamkasSettings) springContext.getBean("dreamkasSettings") : null;
+        Integer salesHours = dreamkasSettings != null ? dreamkasSettings.getSalesHours() : null;
+
         DreamkasServer server = new DreamkasServer();
         setProp(server);
 
         server.cashRegisterInfoList = cashRegisterInfoList;
-        if (!server.getDocInfo()) {
+        if (!server.getDocInfo(salesHours)) {
             if (server.logMessage.length() > 0) sendSalesLogger.error(logPrefix + server.logMessage);
             try {
                 throw new RuntimeException(server.eMessage);
@@ -133,6 +158,50 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
 
+    }
+
+    @Override
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws UnsupportedEncodingException {
+        for (RequestExchange entry : requestExchangeList) {
+            sendSalesLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, entry.dateTo));
+            pendingQueryList.add(getReceiptsQuery(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, true)));
+            succeededRequests.add(entry.requestExchange);
+        }
+    }
+
+    public String getReceiptsQuery(Date dateFrom, Date dateTo, Set<CashRegisterInfo> cashRegisterSet) throws UnsupportedEncodingException {
+        Set<String> deviceSet = new HashSet<>();
+        if(cashRegisterSet != null) {
+            for (CashRegisterInfo cashRegister : cashRegisterSet) {
+                deviceSet.add("\"" + cashRegister.number + "\"");
+            }
+        }
+        String devicesSubQuery = deviceSet.isEmpty() ? "" : ("&" + URLEncoder.encode("devices=[" + StringUtils.join(deviceSet, ",") + "]", "UTF-8"));
+        return "receipts?" + getRangeDatesSubQuery(dateFrom, dateTo) + devicesSubQuery;
+    }
+
+    public static String getRangeDatesSubQuery(Integer salesHours) {
+        Pair<Date, Date> rangeDates = getRangeDates(salesHours);
+        return getRangeDatesSubQuery(rangeDates.first, rangeDates.second);
+    }
+
+    public static String getRangeDatesSubQuery(Date dateFrom, Date dateTo) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        return "from=" + dateFormat.format(dateFrom) + "&to=" + dateFormat.format(dateTo);
+    }
+
+    public static Pair<Date, Date> getRangeDates(Integer salesHours) {
+        Calendar cal = Calendar.getInstance();
+        if (salesHours != null && salesHours != 0) {
+            cal.add(Calendar.HOUR, -salesHours);
+        } else {
+            cal.set(Calendar.HOUR, 0);
+        }
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        Date dateFrom = cal.getTime();
+        Date dateTo = Calendar.getInstance().getTime();
+        return Pair.create(dateFrom, dateTo);
     }
 }
 

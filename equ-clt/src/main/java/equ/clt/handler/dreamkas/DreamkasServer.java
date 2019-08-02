@@ -11,8 +11,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.sql.Time;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 import static java.math.BigDecimal.ROUND_DOWN;
 
@@ -27,14 +28,21 @@ public class DreamkasServer {
     public String eMessage = "";                                                // Текст ошибки
     public Integer webStatus = 0;                                               // Статус выполнения команды
     public String logMessage = "";                                              // Текст для лог файла
-    public Integer salesHours;
     public Integer salesLimitReceipt = 500;                                     // Кол-во чеков за 1 запрос (200..1000)
     public Integer stepSend = 100;                                              // Шаг передачи - количество товаров для передачи за 1 раз
     public List<CashRegisterInfo> cashRegisterInfoList;                         // Список обрабатываемых устройств
-    public List<SalesInfo> salesInfoList = null;                                // Строки принятой реализацииж
+    public List<SalesInfo> salesInfoList = new ArrayList<>();                                // Строки принятой реализацииж
     public List<CashDocument> cashDocList = null;                               // Кассовые документы (внесения, изъятия)
     private ArrayList<String> aPriceList = new ArrayList<>();                   // Массив частей JSON для выполнения PATCH
 //    private Map<String, DtShift> hmShift = new HashMap<String, DtShift>();    // Map deviceId_shift:объект даты и времени
+
+
+    public DreamkasServer() {
+    }
+
+    public DreamkasServer(List<CashRegisterInfo> cashRegisterInfoList) {
+        this.cashRegisterInfoList = cashRegisterInfoList;
+    }
 
     //  --- Основной метод загрузки кассового сервера новыми товарами (POST) или обновление товаров (PATCH)
     public boolean sendPriceList(TransactionCashRegisterInfo transaction) {
@@ -112,15 +120,13 @@ public class DreamkasServer {
     }
 
     //  --- Основной метод чтения реализации
-    public boolean getSales() {
-//        if (!getShifts()) return false;
-        String url;
-        Integer offset = 0;
-        Boolean lRet = true;
-        url = "receipts?" + getRangeDate() + "&limit=" + salesLimitReceipt;
-        sendSalesLogger.info("Dreamkas: request url " + url);
+    public boolean getSales(String receiptsQuery) {
         salesInfoList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
+        Integer offset = 0;
+        Boolean lRet = true;
+        String url = receiptsQuery + "&limit=" + salesLimitReceipt;
+        sendSalesLogger.info("Dreamkas: request url " + url);
         while (true) {
             if (!webExec("GET", url + "&offset=" + offset, "")) {
                 lRet = false;
@@ -152,16 +158,16 @@ public class DreamkasServer {
     }
 
     // ----- Основной метод чтения документов кассы
-    public boolean getDocInfo() {
-        return readDocInfo();
+    public boolean getDocInfo(Integer salesHours) {
+        return readDocInfo(salesHours);
     }
 
     // чтение кассовых документов
-    private boolean readDocInfo() {
+    private boolean readDocInfo(Integer salesHours) {
         String url;
         Integer offset = 0;
         Boolean lRet = true;
-        url = "encashments?" + getRangeDate() + "&limit=" + salesLimitReceipt;
+        url = "encashments?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + salesLimitReceipt;
         cashDocList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
@@ -195,12 +201,13 @@ public class DreamkasServer {
     }
 
     //  Метод опроса номеров смен - метод пока не используется
-    private boolean getShifts() {
+    private boolean getShifts(Integer salesHours) {
         String url;
         Integer offset = 0;
         Integer limit = 500;
         Boolean lRet = true;
-        url = "shifts?" + getRangeDate() + "&limit=" + limit;
+
+        url = "shifts?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + limit;
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
             if (!webExec("GET", url + "&offset=" + offset, "")) {
@@ -395,27 +402,6 @@ public class DreamkasServer {
             }
         }
         return iRet;
-    }
-
-    //  Возвращает диапазон дат принимаемой реализации, salesHours
-    private String getRangeDate() {
-        String cRet;
-        SimpleDateFormat mDate = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        Calendar cal = Calendar.getInstance();
-        if(salesHours != null && salesHours != 0) {
-            cal.add(Calendar.HOUR, -salesHours);
-        } else {
-            cal.set(Calendar.HOUR, 0);
-        }
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        Date startDate = cal.getTime();
-
-        Date endDate = Calendar.getInstance().getTime();
-
-        cRet  = "from=" + mDate.format(startDate).replace(" ","T") + "&";
-        cRet += "to="   + mDate.format(endDate).replace(" ","T");
-        return cRet;
     }
 
     //  Создает текст JSON для отправки цен (POST) и заполняет массив для выполнения PATCH
