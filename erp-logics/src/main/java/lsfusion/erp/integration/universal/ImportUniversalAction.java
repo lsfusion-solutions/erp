@@ -4,20 +4,19 @@ import jxl.CellType;
 import jxl.NumberCell;
 import jxl.NumberFormulaCell;
 import jxl.Sheet;
-import lsfusion.base.file.IOUtils;
 import lsfusion.base.Pair;
+import lsfusion.base.file.IOUtils;
 import lsfusion.erp.integration.DefaultImportAction;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.apache.poi.xssf.usermodel.XSSFCell;
@@ -510,8 +509,8 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
             if (hssfCell == null) return defaultValue;
 
             String result;
-            switch (hssfCell.getCellType()) {
-                case Cell.CELL_TYPE_NUMERIC:
+            switch (hssfCell.getCellTypeEnum()) {
+                case NUMERIC:
                     if(importColumnDetail.isBoolean) {
                         result = parseBoolean(hssfCell.getNumericCellValue());
                     } else {
@@ -519,10 +518,10 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                         result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     }
                     break;
-                case Cell.CELL_TYPE_FORMULA:
+                case FORMULA:
                     formulaEvaluator.evaluate(hssfCell);
-                    switch (hssfCell.getCachedFormulaResultType()) {
-                        case Cell.CELL_TYPE_NUMERIC:
+                    switch (hssfCell.getCachedFormulaResultTypeEnum()) {
+                        case NUMERIC:
                             result = dataFormatter.getDefaultFormat(hssfCell).format(hssfCell.getNumericCellValue());
                             break;
                         default:
@@ -531,10 +530,10 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                     }
                     result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     break;
-                case Cell.CELL_TYPE_BOOLEAN:
+                case BOOLEAN:
                     result = hssfCell.getBooleanCellValue() ? "true" : null;
                     break;
-                case Cell.CELL_TYPE_STRING:
+                case STRING:
                 default:
                     result = (hssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(hssfCell.getStringCellValue());
                     if(importColumnDetail.isBoolean) {
@@ -732,9 +731,9 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
             XSSFCell xssfCell = xssfRow.getCell(cell);
             if (xssfCell == null) return defaultValue;
             String result;
-            switch (xssfCell.getCellType()) {
-                case Cell.CELL_TYPE_NUMERIC:
-                case Cell.CELL_TYPE_FORMULA:
+            switch (xssfCell.getCellTypeEnum()) {
+                case NUMERIC:
+                case FORMULA:
                     if (isDate)
                         result = formatValue(xssfCell.getDateCellValue());
                     else if(importColumnDetail.isBoolean) {
@@ -744,13 +743,13 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
                         result = result.endsWith(".0") ? result.substring(0, result.length() - 2) : result;
                     }
                     break;
-                case Cell.CELL_TYPE_BOOLEAN:
+                case BOOLEAN:
                     result = xssfCell.getBooleanCellValue() ? "true" : null;
                     break;
-                case Cell.CELL_TYPE_ERROR:
+                case ERROR:
                     result = defaultValue;
                     break;
-                case Cell.CELL_TYPE_STRING:
+                case STRING:
                 default:
                     result = (xssfCell.getStringCellValue().isEmpty()) ? defaultValue : trim(xssfCell.getStringCellValue());
                     if(importColumnDetail.isBoolean) {
