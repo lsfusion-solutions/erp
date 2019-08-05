@@ -26,7 +26,7 @@ public class DreamkasServer {
     public String uuidSuffix = null;                                              // Суфикс для кода товара
     public String cResult = "";                                                 // Результат запроса
     public String eMessage = "";                                                // Текст ошибки
-    public Integer webStatus = 0;                                               // Статус выполнения команды
+    public int webStatus = 0;                                               // Статус выполнения команды
     public String logMessage = "";                                              // Текст для лог файла
     public Integer salesLimitReceipt = 500;                                     // Кол-во чеков за 1 запрос (200..1000)
     public Integer stepSend = 100;                                              // Шаг передачи - количество товаров для передачи за 1 раз
@@ -46,7 +46,7 @@ public class DreamkasServer {
 
     //  --- Основной метод загрузки кассового сервера новыми товарами (POST) или обновление товаров (PATCH)
     public boolean sendPriceList(TransactionCashRegisterInfo transaction) {
-        Boolean lRet = true;
+        boolean lRet = true;
         if (transaction.itemsList == null) return true;
         // Очистка БД товаров, если snapshot
         if (transaction.snapshot) {
@@ -123,8 +123,8 @@ public class DreamkasServer {
     public boolean getSales(String receiptsQuery) {
         salesInfoList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
-        Integer offset = 0;
-        Boolean lRet = true;
+        int offset = 0;
+        boolean lRet = true;
         String url = receiptsQuery + "&limit=" + salesLimitReceipt;
         sendSalesLogger.info("Dreamkas: request url " + url);
         while (true) {
@@ -164,10 +164,9 @@ public class DreamkasServer {
 
     // чтение кассовых документов
     private boolean readDocInfo(Integer salesHours) {
-        String url;
-        Integer offset = 0;
-        Boolean lRet = true;
-        url = "encashments?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + salesLimitReceipt;
+        int offset = 0;
+        boolean lRet = true;
+        String url = "encashments?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + salesLimitReceipt;
         cashDocList = new ArrayList<>();
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
@@ -202,12 +201,11 @@ public class DreamkasServer {
 
     //  Метод опроса номеров смен - метод пока не используется
     private boolean getShifts(Integer salesHours) {
-        String url;
-        Integer offset = 0;
-        Integer limit = 500;
-        Boolean lRet = true;
+        int offset = 0;
+        int limit = 500;
+        boolean lRet = true;
 
-        url = "shifts?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + limit;
+        String url = "shifts?" + DreamkasHandler.getRangeDatesSubQuery(salesHours) + "&limit=" + limit;
         JsonReadProcess oJs = new JsonReadProcess();
         while (true) {
             if (!webExec("GET", url + "&offset=" + offset, "")) {
@@ -245,136 +243,116 @@ public class DreamkasServer {
 
     //  Чтение чека
     private void parseReceipt(String cJson) {
-        int iPos;
-        Integer iMax;
         JsonReadProcess oHeader = new JsonReadProcess(); // Парсировщик шапки чека
         JsonReadProcess oLines = new JsonReadProcess();   // Парсировщик строк чека
         oHeader.load(cJson);
         oHeader.getPathValue("deviceId");
-        iPos = chkDeviceId(oHeader.cResult);
-        if (iPos == -1) return;                         // ID устройства не прописан в настройках
-        Integer nppGroupMachinery, nppMachinery, numberReceipt, numberReceiptDetail;
-        java.sql.Date dateZReport, dateReceipt;
-        Time timeZReport, timeReceipt;
-        String numberZReport, idEmployee, firstNameContact, lastNameContact, barcodeItem, cSign;
-        boolean isCancel = false;
-//        String seriesNumberDiscountCard; // пока не используется
-        BigDecimal sumCard, sumCash, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail;
-//        BigDecimal discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt; // пока не используется
-        // ----- шапка чека -----
-        oHeader.getPathValue("type");          // Тип продажи: Продажа (SALE), Возврат (REFUND), Аннулирование продажи (SALE_ANNUL)
-        switch (oHeader.cResult) {
-            case "SALE":
-                cSign = "";
-                break;
-            case "REFUND":
-                cSign = "-";
-                break;
-            case "SALE_ANNUL":
-                cSign = "-";
-                isCancel = true;
-                break;
-            default:
-                return;
-        }
-        nppGroupMachinery = cashRegisterInfoList.get(iPos).numberGroup;
-        nppMachinery = cashRegisterInfoList.get(iPos).number;
-        oHeader.getPathValue("shiftId");                                    // Номер смены
-        numberZReport = oHeader.cResult;
-        oHeader.getPathValue("number");                                     // Номер Чека
-        numberReceipt = Integer.parseInt(oHeader.cResult);
-        oHeader.getPathValue("localDate");                                  // Дата чека
-        dateZReport = java.sql.Date.valueOf(oHeader.cResult.substring(0, 10));    // Дата Z отчета
-        dateReceipt = java.sql.Date.valueOf(oHeader.cResult.substring(0, 10));    // Дата чека
-        timeReceipt = Time.valueOf(oHeader.cResult.substring(11));                // Время чека
-        timeZReport = Time.valueOf("00:00:00");                                   // Время Z отчета
-        oHeader.getPathValue("cashier.id");                                 // ID кассира
-        idEmployee = oHeader.cResult;
-        oHeader.getPathValue("cashier.name");                               // Имя кассира
-        firstNameContact = "";
-        lastNameContact = "";
-        if (oHeader.cResult.length() > 0) {
-            String[] cCashier = oHeader.cResult.split(" ");
-            firstNameContact = cCashier[0];
-            if (cCashier.length > 1) lastNameContact = cCashier[1];
-        }
-//        seriesNumberDiscountCard = null;                                        // Номер карты дисконтного клиента
-        oHeader.getArraySize("payments");
-        iMax = oHeader.nCount;
-        sumCard = new BigDecimal("0.00");
-        sumCash = new BigDecimal("0.00");
-        for (int i = 0; i < iMax; ++i) {
-            oHeader.getPathValue("payments[" + i + "].type");   // Виды оплат CASH-нал, CASHLESS - карта
+        CashRegisterInfo cashRegister = getCashRegister(oHeader.cResult);
+        if (cashRegister != null) {                // ID устройства прописан в настройках
+            boolean isCancel = false;
+            // ----- шапка чека -----
+            oHeader.getPathValue("type");          // Тип продажи: Продажа (SALE), Возврат (REFUND), Аннулирование продажи (SALE_ANNUL)
+            boolean isReturn;
             switch (oHeader.cResult) {
-                case "CASH":
-                    oHeader.getPathValue("payments[" + i + "].amount");
-                    sumCash = getBigDecimal(oHeader.cResult, 2);
-                    if (cSign.equals("-")) sumCash = sumCash.negate();
+                case "SALE":
+                    isReturn = false;
                     break;
-                case "CASHLESS":
-                    oHeader.getPathValue("payments[" + i + "].amount");
-                    sumCard = getBigDecimal(oHeader.cResult, 2);
-                    if (cSign.equals("-")) sumCard = sumCard.negate();
+                case "REFUND":
+                    isReturn = true;
                     break;
+                case "SALE_ANNUL":
+                    isReturn = true;
+                    isCancel = true;
+                    break;
+                default:
+                    return;
             }
-        }
-        oHeader.getPathValue("discount");                                // Сумма скидки на чек
-//         discountSumReceipt = getBigDecimal(oHeader.cResult, 2);
-        // ----- строки чека -----
-        oHeader.getArraySize("positions");
-        for (int i = 0; i < oHeader.nCount; ++i) {
-            oHeader.getPathJson("positions[" + i + "]");
-            oLines.load(oHeader.cResult);
-            numberReceiptDetail = i + 1;                                        // Номер строки чека
-            oLines.getPathValue("barcode");                              // Штрих код
-            barcodeItem = oLines.cResult;
-            oLines.getPathValue("quantity");                             // Кол-во товаров
-            quantityReceiptDetail = getBigDecimal(oLines.cResult, 3);
-            oLines.getPathValue("price");                                // Цена товара
-            priceReceiptDetail = getBigDecimal(oLines.cResult, 2);
-//            discountPercentReceiptDetail = null;                             // % скидки - нет
-//            discountSumReceiptDetail = null;                                 // сумма скидки, массив discount - пока нет
-            // Сумма товара - реквзит отсутствует, вычисляем самостоятельно
-            if (cSign.equals("-")) quantityReceiptDetail = quantityReceiptDetail.negate();
-            sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
+            oHeader.getPathValue("shiftId");                                    // Номер смены
+            String numberZReport = oHeader.cResult;
+            oHeader.getPathValue("number");                                     // Номер Чека
+            Integer numberReceipt = Integer.parseInt(oHeader.cResult);
+            oHeader.getPathValue("localDate");                                  // Дата чека
+            java.sql.Date dateZReport = java.sql.Date.valueOf(oHeader.cResult.substring(0, 10));    // Дата Z отчета
+            java.sql.Date dateReceipt = java.sql.Date.valueOf(oHeader.cResult.substring(0, 10));    // Дата чека
+            Time timeReceipt = Time.valueOf(oHeader.cResult.substring(11));                // Время чека
+            Time timeZReport = Time.valueOf("00:00:00");                                   // Время Z отчета
+            oHeader.getPathValue("cashier.id");                                 // ID кассира
+            String idEmployee = oHeader.cResult;
+            oHeader.getPathValue("cashier.name");                               // Имя кассира
+            String firstNameContact = "";
+            String lastNameContact = "";
+            if (oHeader.cResult.length() > 0) {
+                String[] cCashier = oHeader.cResult.split(" ");
+                firstNameContact = cCashier[0];
+                if (cCashier.length > 1) lastNameContact = cCashier[1];
+            }
+            oHeader.getArraySize("payments");
+            int iMax = oHeader.nCount;
+            BigDecimal sumCard = new BigDecimal("0.00");
+            BigDecimal sumCash = new BigDecimal("0.00");
+            for (int i = 0; i < iMax; ++i) {
+                oHeader.getPathValue("payments[" + i + "].type");   // Виды оплат CASH-нал, CASHLESS - карта
+                switch (oHeader.cResult) {
+                    case "CASH":
+                        oHeader.getPathValue("payments[" + i + "].amount");
+                        sumCash = getBigDecimal(oHeader.cResult, 2);
+                        if (isReturn) sumCash = sumCash.negate();
+                        break;
+                    case "CASHLESS":
+                        oHeader.getPathValue("payments[" + i + "].amount");
+                        sumCard = getBigDecimal(oHeader.cResult, 2);
+                        if (isReturn) sumCard = sumCard.negate();
+                        break;
+                }
+            }
+            oHeader.getPathValue("discount");                                // Сумма скидки на чек
+        //         discountSumReceipt = getBigDecimal(oHeader.cResult, 2);
+            // ----- строки чека -----
+            oHeader.getArraySize("positions");
+            for (int i = 0; i < oHeader.nCount; ++i) {
+                oHeader.getPathJson("positions[" + i + "]");
+                oLines.load(oHeader.cResult);
+                Integer numberReceiptDetail = i + 1;                                        // Номер строки чека
+                oLines.getPathValue("barcode");                              // Штрих код
+                String barcodeItem = oLines.cResult;
+                oLines.getPathValue("quantity");                             // Кол-во товаров
+                BigDecimal quantityReceiptDetail = getBigDecimal(oLines.cResult, 3);
+                oLines.getPathValue("price");                                // Цена товара
+                BigDecimal priceReceiptDetail = getBigDecimal(oLines.cResult, 2);
+                // Сумма товара - реквзит отсутствует, вычисляем самостоятельно
+                if (isReturn) quantityReceiptDetail = quantityReceiptDetail.negate();
+                BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
-            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport,
-                    numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash,
-                    null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
-                    null, null, null, numberReceiptDetail, "", null, isCancel, null));
+                salesInfoList.add(new SalesInfo(false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
+                        numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash,
+                        null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
+                        null, null, null, numberReceiptDetail, "", null, isCancel, null));
+            }
         }
     }
 
     // Парсировка кассовых документов
     private void parseDocInfo(String cJson) {
-        int iPos;
         JsonReadProcess oLines = new JsonReadProcess();   // Парсировщик строки документа
         oLines.load(cJson);
-        String idCashDocument, numberZReport;
-        java.sql.Date dateCashDocument;
-        Time timeCashDocument;
-        Integer nppGroupMachinery, nppMachinery;
-        BigDecimal sumCashDocument;
         oLines.getPathValue("localDate");
-        dateCashDocument = java.sql.Date.valueOf(oLines.cResult.substring(0, 10));
-        timeCashDocument = Time.valueOf(oLines.cResult.substring(11));
-        idCashDocument = oLines.cResult.replace("-", "").replace(":", "").replace(" ", "");
+        java.sql.Date dateCashDocument = java.sql.Date.valueOf(oLines.cResult.substring(0, 10));
+        Time timeCashDocument = Time.valueOf(oLines.cResult.substring(11));
+        String idCashDocument = oLines.cResult.replace("-", "").replace(":", "").replace(" ", "");
         oLines.getPathValue("deviceId");
-        iPos = chkDeviceId(oLines.cResult);
-        if (iPos == -1) return;                         // ID устройства не прописан в настройках
-        nppGroupMachinery = cashRegisterInfoList.get(iPos).numberGroup;
-        nppMachinery = cashRegisterInfoList.get(iPos).number;
-        oLines.getPathValue("shiftId");
-        numberZReport = oLines.cResult;
-        oLines.getPathValue("sum");
-        sumCashDocument = getBigDecimal(oLines.cResult, 2);
-        oLines.getPathValue("type");
-        if (oLines.cResult.equals("MONEY_OUT"))
-            sumCashDocument = sumCashDocument.multiply(new BigDecimal(-1));
-        idCashDocument += "/" + nppMachinery + "/" + numberZReport;
-        // idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum
-        cashDocList.add(new CashDocument(idCashDocument, null, dateCashDocument, timeCashDocument,
-                nppGroupMachinery, nppMachinery, numberZReport, sumCashDocument));
+        CashRegisterInfo cashRegister = getCashRegister(oLines.cResult);
+        if (cashRegister != null) {                       // ID устройства не прописан в настройках
+            oLines.getPathValue("shiftId");
+            String numberZReport = oLines.cResult;
+            oLines.getPathValue("sum");
+            BigDecimal sumCashDocument = getBigDecimal(oLines.cResult, 2);
+            oLines.getPathValue("type");
+            if (oLines.cResult.equals("MONEY_OUT"))
+                sumCashDocument = sumCashDocument.multiply(new BigDecimal(-1));
+            idCashDocument += "/" + cashRegister.number + "/" + numberZReport;
+            cashDocList.add(new CashDocument(idCashDocument, null, dateCashDocument, timeCashDocument,
+                    cashRegister.numberGroup, cashRegister.number, numberZReport, sumCashDocument));
+        }
     }
 
     // Возвращает переобразование в тип BigDecimals
@@ -391,17 +369,14 @@ public class DreamkasServer {
 
     //  Проверяет устройство (deviceId) из чека имеет отношение к cashRegisterInfoList
     //  это проще по времени выполнения, чем организовывать цикл чтения реализации по конкретному устройству
-    private Integer chkDeviceId(String deviceId) {
-        Integer iRet = -1;
-        int iMax = cashRegisterInfoList.size();
+    private CashRegisterInfo getCashRegister(String deviceId) {
         int nId = Integer.parseInt(deviceId);
-        for (int i = 0; i < iMax; ++i) {
-            if (cashRegisterInfoList.get(i).number == nId) {
-                iRet = i;
-                break;
+        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
+            if (cashRegister.number == nId) {
+                return cashRegister;
             }
         }
-        return iRet;
+        return null;
     }
 
     //  Создает текст JSON для отправки цен (POST) и заполняет массив для выполнения PATCH
@@ -482,10 +457,11 @@ public class DreamkasServer {
 
     //  Возвращает ставку НДС
     private String getVat(BigDecimal vat) {
-        String cRet;
-        if (vat == null) return "NDS_0";
-        cRet = "NDS_" + vat.setScale(2, ROUND_DOWN);
-        return cRet.replace(".", "_");
+        if (vat == null) {
+            return "NDS_0";
+        } else {
+            return ("NDS_" + vat.setScale(2, ROUND_DOWN)).replace(".", "_");
+        }
     }
 
     //  Возвращает UUID индификатор товара, входной параметр код товара
@@ -511,21 +487,23 @@ public class DreamkasServer {
 
 
     //  Общая обработка статуса WEB запроса
-    private String getErrorWeb(Integer nCode) {
-        if (nCode == 400) {
-            return "Ошибка WEB, код: " + nCode + ", Ошибка валидации";
-        } else if (nCode == 401) {
-            return "Ошибка WEB, код: " + nCode + ", Ошибка авторизации";
-        } else if (nCode == 403) {
-            return "Ошибка WEB, код: " + nCode + ", Доступ запрещен";
-        } else if (nCode == 404) {
-            return "Ошибка WEB, код: " + nCode + ", Ресурс не найден";
-        } else if (nCode == 410) {
-            return "Ошибка WEB, код: " + nCode + ", Ресурс удален";
-        } else if (nCode == 429) {
-            return "Ошибка WEB, код: " + nCode + ", Достигнут лимит запросов";
+    private String getErrorWeb(int nCode) {
+        switch (nCode) {
+            case 400:
+                return "Ошибка WEB, код: " + nCode + ", Ошибка валидации";
+            case 401:
+                return "Ошибка WEB, код: " + nCode + ", Ошибка авторизации";
+            case 403:
+                return "Ошибка WEB, код: " + nCode + ", Доступ запрещен";
+            case 404:
+                return "Ошибка WEB, код: " + nCode + ", Ресурс не найден";
+            case 410:
+                return "Ошибка WEB, код: " + nCode + ", Ресурс удален";
+            case 429:
+                return "Ошибка WEB, код: " + nCode + ", Достигнут лимит запросов";
+            default:
+                return "Ошибка WEB, код: " + nCode;
         }
-        return "Ошибка WEB, код: " + nCode;
     }
 
     //  Обработка ошибки
