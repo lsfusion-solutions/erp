@@ -87,6 +87,9 @@ createInvoice 'Создать на основе накладных EDI' (DATE d)
     FOR DATE(dateTime(EInvoice ei)) == d AND NOT invoice(ei) DO {
         NEWSESSION NEW i = UserInvoice {
             copyData(ei, i);
+            IF [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i]() == [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i AND prevPriceB(priceListType('own'), sku(id), customerStock(id), dateTime(id))]() THEN {
+                operation(i) <- operation('own');
+            }
             executeLocalEvents('Purchase.userInvoice');
             APPLY;
         }
