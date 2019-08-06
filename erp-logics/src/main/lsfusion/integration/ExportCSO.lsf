@@ -1,5 +1,6 @@
 MODULE ExportCSO;
-REQUIRE Item, Store, LegalEntityBy;
+
+REQUIRE Item, Store, LegalEntityBy, Image;
 
 
 //----------------------------- Экспорт в КСО -----------------------//
@@ -142,6 +143,8 @@ GROUP itemI EXTID 'Item';
 GROUP DocumentData : itemI;
 GROUP ArticleDocumentData : DocumentData;
 
+localImage = DATA LOCAL IMAGEFILE (Item);
+
 FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
           
     PROPERTIES IN headI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -159,7 +162,7 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemI
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
-    PROPERTIES  IN ArticleDocumentData    =image(i) EXTID 'Object'    
+    PROPERTIES  IN ArticleDocumentData    =localImage(i) EXTID 'Object'    
     FILTERS customGroup(type, i), 
             activeCSO(i),
             isCSO(type)       
@@ -169,6 +172,18 @@ httpHeadersADM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage';
 
 articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
+    FOR customGroup(CustomGroupType type, Item i) AND activeCSO(i) AND isCSO(type) DO {
+        localImage(i) <- image(i);
+        getFileSize(FILE(localImage(i)));
+        IF fileSize() > 150000 THEN {
+            resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/100000));
+            localImage(i) <- resizedImage();
+        }   
+        convertImage(localImage(i), 'png');
+        localImage(i) <- convertedImage();
+        
+    } 
+    
     EXPORT ArticleDocumentMessage XML TO System.exportFile;    
     LOCAL result = FILE();
     LOCAL message = TEXT();    
