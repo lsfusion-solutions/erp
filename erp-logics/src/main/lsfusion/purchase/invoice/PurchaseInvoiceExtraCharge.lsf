@@ -116,6 +116,7 @@ selectExtraCharge 'Выбрать накладные'(UserInvoice i)  {
 @defineDocumentInterfaceProperty (invoice, toWeightExtraCharge, 'Доп. услуги расписывать пропорционально весу');
 @deriveDocumentOperationProperty(UserInvoice, toWeightExtraCharge);
 backgroundExtraChargeInvoice 'Цвет' = RGB(224, 255, 128);
+extraOrder'Сортировка'(UserInvoice i, UserInvoiceDetail d) = PARTITION SUM 1 IF inExtraCharge(i, d) ORDER userInvoice(d), index(d)  BY i CHARWIDTH 1;
 EXTEND FORM userInvoice
     PROPERTIES(i) showExtraCharge          
     OBJECTS uid = UserInvoiceDetail GRID
@@ -126,9 +127,9 @@ EXTEND FORM userInvoice
                    VATSum, invoiceSum, sumNetWeight, 
                    sumGrossWeight
     PROPERTIES(i,uid) SHOWIF showExtraCharge(i) extraChargePrice BACKGROUND backgroundExtraChargeInvoice(), 
-                    extraChargeSum BACKGROUND backgroundExtraChargeInvoice() ON CHANGE changeExtraChargeSum(i,uid)                             
+                    extraChargeSum BACKGROUND backgroundExtraChargeInvoice() ON CHANGE changeExtraChargeSum(i,uid), extraOrder                           
     FILTERS inExtraCharge(i,uid)   
-    ORDER seriesNumber(uid), index(uid)
+    ORDER extraOrder(i,uid)
                                         
     PROPERTIES SHOWIF showExtraCharge(i) toWeightExtraCharge(i), extraChargeSumUserInvoiceDetail(i) BACKGROUND backgroundExtraChargeInvoice(),
                nameSuppliers(i) READONLY BACKGROUND backgroundExtraChargeInvoice(), seriesNumberSuppliers(i) READONLY BACKGROUND backgroundExtraChargeInvoice()
