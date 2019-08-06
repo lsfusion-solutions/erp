@@ -72,3 +72,19 @@ followToZreport 'Перейти в Z-отчет' (ReceiptDetail d) {
 }
 
 EXTEND FORM ZReportProcessing PROPERTIES followToZreport(d) DRAW d TOOLBAR;
+
+countDaysToFillSkuReceiptDetails 'Кол-во дней для привязки штрихкодов' = DATA INTEGER ();
+
+EXTEND FORM options PROPERTIES countDaysToFillSkuReceiptDetails();
+DESIGN options {
+    zReport {
+        MOVE PROPERTY (countDaysToFillSkuReceiptDetails());
+    }
+}
+
+fillSkuReceiptDetailsAuto 'Привязать штрихкоды' ()  { 
+    FOR idBarcode(ReceiptDetail d) AND NOT (sku(barcode(idBarcode(d), date(d))) == sku(d)) AND date(d) >= subtract(currentDate(), OVERRIDE countDaysToFillSkuReceiptDetails(), 7) DO {
+        sku(d) <- sku(barcode(idBarcode(d), date(d)));               
+    }
+    APPLY;
+}
