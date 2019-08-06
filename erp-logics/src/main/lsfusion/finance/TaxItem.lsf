@@ -69,3 +69,47 @@ migrateVATItem 'Перенести НДС'()  {
 EXTEND FORM migrationData
     PROPERTIES() migrateVATItem
 ;
+
+//--
+dataVAT 'НДС (по умолчанию)' = DATA Range (Country, ItemGroup);
+numberDataVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(dataVAT(country,itemGroup)) IN defaultItemGroup;
+
+levelParentVAT (Country country, ItemGroup itemGroup) = GROUP MIN level(itemGroup, ItemGroup parent) IF dataVAT(country,parent) MATERIALIZED;    
+nearestParentVAT (Country country, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentVAT(country,itemGroup));
+nearestVAT (Country country, ItemGroup itemGroup) = dataVAT(country, nearestParentVAT(country,itemGroup));
+
+VAT (Country country, ItemGroup itemGroup) =
+    OVERRIDE dataVAT(country,itemGroup), 
+             nearestVAT (country,itemGroup) MATERIALIZED;    
+
+prevVAT (Country country, ItemGroup itemGroup) =
+    OVERRIDE dataVAT(country,itemGroup), 
+             PREV(nearestVAT (country,itemGroup));    
+
+numberVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(VAT(country,itemGroup)) IN defaultItemGroup;
+prevNumberVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(prevVAT(country,itemGroup)) IN defaultItemGroup;
+
+assignVATItems 'Назначить всем товарам группы' (Country c, ItemGroup group)  { 
+	NEWSESSION {
+	    VAT(Item i, c) <- prevVAT(c,group) WHERE isParent(group,i);
+	    APPLY;
+	}
+} TOOLBAR CONFIRM;
+
+EXTEND FORM itemGroup
+    OBJECTS vc=Country 
+    PROPERTIES(vc)   READONLY name
+    PROPERTIES(vc,g) prevNumberVAT
+    PROPERTIES(vc,g) assignVATItems DRAW vc
+    FILTERGROUP isResidentVAT
+        FILTER 'Отечественный производитель' resident(vc) OR defaultCountry() == vc DEFAULT 
+;
+
+DESIGN itemGroup {
+    defaultPane {
+        MOVE BOX(vc) { caption = 'НДС';}
+    }         
+}
+
+WHEN LOCAL CHANGED(itemGroup(Item item)) AND Country country = defaultCountry() AND NOT VAT(item,country) DO
+    VAT(item,country) <- VAT(country, itemGroup(item));
