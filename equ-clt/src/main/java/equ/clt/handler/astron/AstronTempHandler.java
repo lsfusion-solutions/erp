@@ -17,6 +17,11 @@ public class AstronTempHandler extends AstronHandler {
     }
 
     @Override
+    protected String getFusionProcessedIndexName() {
+        return "Sales_FUSION_PROCESSED";
+    }
+
+    @Override
     protected String getSalesNumField() {
         return "SRecNum";
     }

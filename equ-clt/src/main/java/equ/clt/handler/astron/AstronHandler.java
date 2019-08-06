@@ -900,12 +900,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void createFusionProcessedIndex(Connection conn) {
         try (Statement statement = conn.createStatement()) {
-            String query = "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'fusion', 'IndexId') > 0) BEGIN CREATE INDEX fusion ON SALES (FUSION_PROCESSED) END";
+            String query = String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (FUSION_PROCESSED) END",
+                    getFusionProcessedIndexName(), getFusionProcessedIndexName());
             statement.execute(query);
             conn.commit();
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    protected String getFusionProcessedIndexName() {
+        return "fusion";
     }
 
 
