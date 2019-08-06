@@ -177,7 +177,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
             bw.write('\ufeff'); //bom
             bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price",
-                    "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2").iterator(), "\t"));
+                    "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
             String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
             for (ScalesItemInfo item : transaction.itemsList) {
@@ -188,9 +188,10 @@ public class AclasLS2Handler extends DefaultScalesHandler {
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
                 String packageType = isWeight ? "0" : "2";
+                String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
 
                 bw.write(StringUtils.join(Arrays.asList(item.idBarcode, item.idBarcode, barcodePrefix, name1, price,
-                        unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240").iterator(), "\t"));
+                        unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
             }
 
             bw.close();
