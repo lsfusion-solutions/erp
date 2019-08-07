@@ -1,14 +1,25 @@
 package equ.clt.handler.astron;
 
+import equ.api.SendTransactionBatch;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
+import java.io.IOException;
 import java.sql.Connection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 //TODO: удалить, когда закончится переход
 public class AstronTempHandler extends AstronHandler {
 
     public AstronTempHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext);
+    }
+
+    @Override
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+        return new HashMap<>();
     }
 
     @Override
