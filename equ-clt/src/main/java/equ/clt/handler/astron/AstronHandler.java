@@ -889,7 +889,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT COL_LENGTH('SALES', 'FUSION_PROCESSED')";
             ResultSet result = statement.executeQuery(query);
-            int exists = result.next() ? result.getInt(0) : 0;
+            int exists = result.next() ? result.getInt(1) : 0;
             if(exists == 0) {
                 throw new RuntimeException("Column 'FUSION_PROCESSED' doesn't exists");
             }
