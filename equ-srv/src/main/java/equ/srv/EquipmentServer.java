@@ -136,7 +136,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
     }
 
     @Override
@@ -227,7 +227,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 selectTop = 0;
 
             KeyExpr machineryPriceTransactionExpr = new KeyExpr("machineryPriceTransaction");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "machineryPriceTransaction", machineryPriceTransactionExpr);
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("machineryPriceTransaction", machineryPriceTransactionExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
@@ -302,7 +302,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
-                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
+                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev("barcode", barcodeExpr);
 
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<>(skuKeys);
 
@@ -412,7 +412,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
                     KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                    ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                    ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
                     QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
                     
                     for (int i = 0; i < machineryProperties.length; i++) {
@@ -503,7 +503,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
 
                     KeyExpr scalesExpr = new KeyExpr("scales");
-                    ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev((Object) "scales", scalesExpr);
+                    ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev("scales", scalesExpr);
                     QueryBuilder<Object, Object> scalesQuery = new QueryBuilder<>(scalesKeys);
                     
                     for (int i = 0; i < machineryProperties.length; i++) {
@@ -585,7 +585,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 } else if (isPriceCheckerPriceTransaction) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
                     KeyExpr priceCheckerExpr = new KeyExpr("priceChecker");
-                    ImRevMap<Object, KeyExpr> priceCheckerKeys = MapFact.singletonRev((Object) "priceChecker", priceCheckerExpr);
+                    ImRevMap<Object, KeyExpr> priceCheckerKeys = MapFact.singletonRev("priceChecker", priceCheckerExpr);
                     QueryBuilder<Object, Object> priceCheckerQuery = new QueryBuilder<>(priceCheckerKeys);
                     
                     for (int i = 0; i < machineryProperties.length; i++) {
@@ -643,7 +643,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);
 
                     KeyExpr terminalExpr = new KeyExpr("terminal");
-                    ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev((Object) "terminal", terminalExpr);
+                    ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev("terminal", terminalExpr);
                     QueryBuilder<Object, Object> terminalQuery = new QueryBuilder<>(terminalKeys);
                     
                     for (int i = 0; i < machineryProperties.length; i++) {
@@ -706,10 +706,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        List<Integer> result = new ArrayList();
+        List<Integer> result = new ArrayList<>();
         if(minutes != null) {
             KeyExpr groupMachineryExpr = new KeyExpr("GroupMachinery");
-            ImRevMap<Object, KeyExpr> groupMachineryKeys = MapFact.singletonRev((Object) "groupMachinery", groupMachineryExpr);
+            ImRevMap<Object, KeyExpr> groupMachineryKeys = MapFact.singletonRev("groupMachinery", groupMachineryExpr);
             QueryBuilder<Object, Object> groupMachineryQuery = new QueryBuilder<>(groupMachineryKeys);
 
             String[] groupMachineryNames = new String[]{"npp", "lastErrorTime"};
@@ -739,7 +739,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         Map<String, ItemGroup> itemGroupMap = new HashMap<>();
         
         KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");        
-        ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev((Object) "itemGroup", itemGroupExpr);
+        ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev("itemGroup", itemGroupExpr);
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[] {"idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
@@ -779,7 +779,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException {
+    public List<CashierInfo> readCashierInfoList() throws SQLException {
         return MachineryExchangeEquipmentServer.readCashierInfoList(getDbManager(), this);
     }
 
@@ -794,27 +794,27 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException {
+    public boolean enabledDeleteBarcodeInfo() {
         return DeleteBarcodeEquipmentServer.enabledDeleteBarcodeInfo();
     }
 
     @Override
-    public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException {
+    public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws SQLException {
         return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(getDbManager(), this);
     }
 
     @Override
-    public void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException, SQLException {
+    public void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) {
         DeleteBarcodeEquipmentServer.errorDeleteBarcodeReport(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, exception);
     }
 
     @Override
-    public void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) throws RemoteException, SQLException {
+    public void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) {
         DeleteBarcodeEquipmentServer.finishDeleteBarcode(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, markSucceeded);
     }
 
     @Override
-    public void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) throws RemoteException, SQLException {
+    public void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
         DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, deleteBarcodeSet);
     }
 
@@ -834,7 +834,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<RequestExchange> readRequestExchange() throws RemoteException, SQLException {
+    public List<RequestExchange> readRequestExchange() throws SQLException {
         return MachineryExchangeEquipmentServer.readRequestExchange(getDbManager(), this, getBusinessLogics(), getStack());
     }
 
@@ -869,7 +869,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean enabledTerminalInfo() throws RemoteException, SQLException {
+    public boolean enabledTerminalInfo() {
         return terminalLM != null;
     }
 
@@ -909,7 +909,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException {
+    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) {
         return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer, directory);
     }
 
@@ -919,19 +919,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
 
-                Collections.sort(salesInfoList, COMPARATOR);
+                salesInfoList.sort(COMPARATOR);
 
                 try (DataSession outerSession = createSession()) {
 
                     //временная опция для Табака
                     if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
                         Set<String> closedZReportSet = readClosedZReportSet(outerSession);
-                        ListIterator<SalesInfo> iter = salesInfoList.listIterator();
-                        while (iter.hasNext()) {
-                            if (closedZReportSet.contains(iter.next().getIdZReport())){
-                                iter.remove();
-                            }
-                        }
+                        salesInfoList.removeIf(salesInfo -> closedZReportSet.contains(salesInfo.getIdZReport()));
                     }
 
                     ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
@@ -949,7 +944,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, final Integer maxThreads) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException, InterruptedException {
+    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, final Integer maxThreads) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException {
         String result = null;
 
         try (DataSession session = createSession()) {
@@ -969,24 +964,30 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             final int taskSize = groupedSalesInfo.size();
             for(int i = 0; i < taskSize; i++) {
                 final int taskIndex = i;
-                Future<String> importResult = executor.submit(new Callable() {
-                    @Override
-                    public Object call() throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-                        return runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), finalNumberAtATime, sidEquipmentServer, taskIndex, taskSize,
-                                directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
-                    }
-                });
+                Future<String> importResult = executor.submit((Callable) () ->
+                        runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), finalNumberAtATime, sidEquipmentServer, taskIndex, taskSize,
+                        directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
                 futures.add(importResult);
             }
 
             executor.shutdown();
 
+            InterruptedException exception = null;
             for (Future<String> future : futures) {
-                String futureResult = future.get();
-                if (result == null && futureResult != null)
-                    result = futureResult;
+                try {
+                    String futureResult = future.get();
+                    if (result == null && futureResult != null)
+                        result = futureResult;
+                } catch (InterruptedException e) {
+                    exception = e;
+                    future.cancel(true);
+                }
             }
-            return result;
+            if(exception != null) {
+                throw Throwables.propagate(exception);
+            } else {
+                return result;
+            }
         }
     }
 
@@ -1028,7 +1029,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             Set<String> settingsSet = new HashSet<>();
             KeyExpr settingExpr = new KeyExpr("setting");
-            QueryBuilder<Object, Object> settingQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "setting", settingExpr));
+            QueryBuilder<Object, Object> settingQuery = new QueryBuilder<>(MapFact.singletonRev("setting", settingExpr));
             settingQuery.addProperty("name", equLM.findProperty("name[Setting]").getExpr(settingExpr));
             settingQuery.addProperty("overValue", equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr));
             settingQuery.and(equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr).getWhere());
@@ -1437,7 +1438,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         finish++;
                 }
 
-                List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
+                List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<>();
                 start = finish;
                 int left = salesInfoList.size() - finish;
                 if (!notNullNorEmpty(data))
@@ -1450,7 +1451,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 Set<String> settingsSet = new HashSet<>();
                 KeyExpr settingExpr = new KeyExpr("setting");
-                QueryBuilder<Object, Object> settingQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "setting", settingExpr));
+                QueryBuilder<Object, Object> settingQuery = new QueryBuilder<>(MapFact.singletonRev("setting", settingExpr));
                 settingQuery.addProperty("name", equLM.findProperty("name[Setting]").getExpr(settingExpr));
                 settingQuery.addProperty("overValue", equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr));
                 settingQuery.and(equLM.findProperty("overValue[EquipmentServer, Setting]").getExpr(equipmentServerObject.getExpr(), settingExpr).getWhere());
@@ -1975,7 +1976,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedTransaction(Long transactionId, Timestamp dateTime) {
         synchronized (this) {
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
@@ -1989,7 +1990,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException {
+    public void processingTransaction(Long transactionId, Timestamp dateTime) {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
@@ -2002,7 +2003,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException {
+    public void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) {
         if(machineryPriceTransactionLM != null) {
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
@@ -2023,7 +2024,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
+    public void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) {
         synchronized (this) {
             if (machineryPriceTransactionLM != null) {
                 try (DataSession session = createSession()) {
@@ -2053,7 +2054,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorTransactionReport(Long transactionID, Throwable e) throws RemoteException, SQLException {
+    public void errorTransactionReport(Long transactionID, Throwable e) {
         try (DataSession session = createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
             equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
@@ -2074,8 +2075,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws
-            RemoteException, SQLException {
+    public void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) {
         try (DataSession session = createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerError"));
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer, StringClass.get(20)));
@@ -2096,7 +2096,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException {
+    public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) {
         try {
             ThreadLocalContext.assureRmi(this);
             try (DataSession session = createSession()) {
@@ -2153,18 +2153,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
-    private static Comparator<SalesInfo> COMPARATOR = new Comparator<SalesInfo>() {
-        public int compare(SalesInfo o1, SalesInfo o2) {
-            int compareGroupCashRegister = BaseUtils.nullCompareTo(o1.nppGroupMachinery, o2.nppGroupMachinery);
-            if (compareGroupCashRegister == 0) {
-                int compareCashRegister = BaseUtils.nullCompareTo(o1.nppMachinery, o2.nppMachinery);
-                if (compareCashRegister == 0)
-                    return BaseUtils.nullCompareTo(o1.numberZReport, o2.numberZReport);
-                else
-                    return compareCashRegister;
-            } else
-                return compareGroupCashRegister;
-        }
+    private static Comparator<SalesInfo> COMPARATOR = (o1, o2) -> {
+        int compareGroupCashRegister = BaseUtils.nullCompareTo(o1.nppGroupMachinery, o2.nppGroupMachinery);
+        if (compareGroupCashRegister == 0) {
+            int compareCashRegister = BaseUtils.nullCompareTo(o1.nppMachinery, o2.nppMachinery);
+            if (compareCashRegister == 0)
+                return BaseUtils.nullCompareTo(o1.numberZReport, o2.numberZReport);
+            else
+                return compareCashRegister;
+        } else
+            return compareGroupCashRegister;
     };
 
     @Override
@@ -2183,9 +2181,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private Set<String> readClosedZReportSet(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Set<String> result = new HashSet();
+        Set<String> result = new HashSet<>();
         KeyExpr zReportExpr = new KeyExpr("ZReport");
-        ImRevMap<Object, KeyExpr> zReportKeys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
+        ImRevMap<Object, KeyExpr> zReportKeys = MapFact.singletonRev("ZReport", zReportExpr);
         QueryBuilder<Object, Object> zReportQuery = new QueryBuilder<>(zReportKeys);
 
         zReportQuery.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
@@ -2230,7 +2228,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
                 if (sale.isGiftCard) {
                     //giftCard 3
-                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
@@ -2247,7 +2245,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     dataGiftCard.add(row);
                 } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                     //return 3
-                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
@@ -2268,7 +2266,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     dataReturn.add(row);
                 } else {
                     //sale 3
-                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
