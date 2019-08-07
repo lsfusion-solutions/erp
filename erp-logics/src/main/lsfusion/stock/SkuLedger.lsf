@@ -386,7 +386,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     prevCountLedger 'Кол-во движений'###caption (Batch b, Stock s, DATETIME dt) = PREV(countLedger(b, s, dt));
             
     skuLedger (Batch batch, Stock stock) = sku(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
-    dateTime (Batch batch, Stock stock) = dateTime(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
+    dateTime 'Дата/время' (Batch batch, Stock stock) = dateTime(batch) IF countLedger(batch, stock) MATERIALIZED TABLE extraBatchStock;
     INDEX skuLedger (Batch batch, Stock stock), stock, dateTime(batch, stock), batch;
 
     countLedger 'Кол-во движений за период'###caption (Batch batch, stock, DATE dateFrom, DATE dateTo) =
@@ -760,11 +760,13 @@ FORM dialogBatchStockIn 'Партии (приход)'
     OBJECTS sk = Sku PANEL
 
     OBJECTS bt = Batch
-    PROPERTIES (bt) READONLY number, series, dateTime, nameSupplier, nameSku, id SHOWIF showIDs(), name, shippedQuantity, cost, expiryDate
+    PROPERTIES (bt) READONLY number, series
+    PROPERTIES      READONLY dateTime(bt, st) 
+    PROPERTIES (bt) READONLY nameSupplier, nameSku, id SHOWIF showIDs(), name, shippedQuantity, cost, expiryDate
     PROPERTIES  READONLY balanceB(bt, st, t)
     PROPERTIES  READONLY currentBalance(bt, st)
     FILTERS sku(bt) == sk
-    ORDER dateTime(bt)
+    ORDER dateTime(bt, st)
     
     FILTERGROUP ledger
         FILTER 'С движением по складу' skuLedger(bt, st) == sk 'F6' 
