@@ -386,12 +386,8 @@ public class DreamkasServer {
             cResult = "";
             addKeyValue("{", "id", getUUID(item), "", "");                // UUID товара
             addKeyValue(",", "name", item.name.trim(), "", "");           // Название товара
-            if ((item.passScalesItem) && (item.splitItem)) {                               // Тип весовой или штучный товар
-                addKeyValue(",", "type", "SCALABLE", "", "");
-            } else {
-                addKeyValue(",", "type", "COUNTABLE", "", "");
-            }
-            addKeyValue(",", "quantity", "1000", "", "*");         // Единица товара
+            addKeyValue(",", "type", (item.passScalesItem || item.splitItem) ? "SCALABLE" : "COUNTABLE", "", ""); // Тип весовой или штучный товар
+            addKeyValue(",", "quantity", (item.passScalesItem || item.splitItem) ? "1" : "1000", "", "*");         // Единица товара
             // Блок цен на отд. кассы
             addKeyValue(",", "prices", "", "[", "");
             nPos = 0;
