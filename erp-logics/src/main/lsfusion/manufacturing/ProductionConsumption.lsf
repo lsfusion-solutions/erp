@@ -903,16 +903,16 @@ CONSTRAINT (SET(isPosted(Order order)) OR CHANGED(consumedQuantityComponentDetai
     AND consumedQuantityComponentDetail(order) AND NOT outputQuantityProductDetail(order)
         MESSAGE 'Для заказа не задан список произведенных изделий';         
         
-fromOutputQuantity(Order o) = consumedQuantityComponentDetail(o)*(100.0 - percQuantity(operation(o)))/100.0;
-toOutputQuantity(Order o) = consumedQuantityComponentDetail(o)*(100.0 + percQuantity(operation(o)))/100.0;      
+fromOutputQuantity(Order o) = consumedQuantityComponentDetail(o)*(100.0 - orderPercQuantity(operation(o)))/100.0;
+toOutputQuantity(Order o) = consumedQuantityComponentDetail(o)*(100.0 + orderPercQuantity(operation(o)))/100.0;      
   
 CONSTRAINT (SET(isPosted(Order o)) OR CHANGED(outputQuantityProductDetail(o)) OR CHANGED(consumedQuantityComponentDetail(o)) OR CHANGED(operation(o)))
     AND orderPercQuantity(operation(o)) AND isPosted(o)
     AND NOT ((OVERRIDE outputQuantityProductDetail(o), 0.0) >= (OVERRIDE fromOutputQuantity(o), 0.0) AND (OVERRIDE outputQuantityProductDetail(o), 0.0) <= (OVERRIDE toOutputQuantity(o), 0.0))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству. Весь заказ.';
 
-fromOutputProductsSum(Order o) = consumedSumComponentDetail(o)*( 100.0 - percSum(operation(o)))/100.0;
-toOutputProductsSum(Order o) = consumedSumComponentDetail(o)*( 100.0 + percSum(operation(o)))/100.0;    
+fromOutputProductsSum(Order o) = consumedSumComponentDetail(o)*( 100.0 - orderPercSum(operation(o)))/100.0;
+toOutputProductsSum(Order o) = consumedSumComponentDetail(o)*( 100.0 + orderPercSum(operation(o)))/100.0;    
                    
 CONSTRAINT (SET(isPosted(Order o)) OR CHANGED(consumedSumComponentDetail(o)) OR CHANGED(outputProductsSumProductDetail(o)) OR CHANGED(operation(o))) 
     AND orderPercSum(operation(o)) AND isPosted(o)
