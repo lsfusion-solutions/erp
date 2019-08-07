@@ -107,7 +107,7 @@ public class DreamkasServer {
                 lastMsg = oJs.cResult;
                 if (oJs.cResult.equals("id must be unique")) {
                     if (cResult.length() > 0) cResult += ",";
-                    cResult += aPriceList.get(Integer.parseInt(rPart));
+                    cResult += aPriceList.get(n1 + Integer.parseInt(rPart));
                 }
             }
         }
