@@ -24,7 +24,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class MettlerToledoHandler extends DefaultScalesHandler {
+public class MettlerToledoTigerHandler extends DefaultScalesHandler {
 
     private static byte stx = 0x02;
     private static byte ack = 0x06;
@@ -45,7 +45,7 @@ public class MettlerToledoHandler extends DefaultScalesHandler {
 
     @Override
     protected String getLogPrefix() {
-        return "MettlerToledo: ";
+        return "MettlerToledo Tiger: ";
     }
 
     @Override
