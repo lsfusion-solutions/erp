@@ -34,7 +34,7 @@ public class AstronTempHandler extends AstronHandler {
 
     @Override
     protected String getSalesNumField() {
-        return "SRecNum";
+        return "SalesId";
     }
 
     @Override

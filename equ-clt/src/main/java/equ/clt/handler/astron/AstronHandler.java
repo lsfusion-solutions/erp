@@ -670,8 +670,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales." + getSalesNumField() + ", sales.SAREAID, " +
                     "sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
-                    "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID AND NOT (sales.SYSTEMID = 301 AND sales.SESSID < 3) " + // временная доп проверка
-                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, " + getSalesNumField();
+                    "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
+                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, " + getSalesNumField() + ", SALESTAG DESC";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -714,8 +714,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 switch (recordType) {
                     case 0: {//товарная позиция
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
-                        sendSalesLogger.info(String.format("sale: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
-                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+//                        sendSalesLogger.info(String.format("sale: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+//                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         String idBarcode = rs.getString("SALESBARC");
                         String idItem = String.valueOf(rs.getInt("SALESCODE"));
                         BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
@@ -734,8 +734,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
                     case 1: {//оплата
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
-                        sendSalesLogger.info(String.format("payment: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
-                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+//                        sendSalesLogger.info(String.format("payment: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+//                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                         if(isReturn)
                             sum = safeNegate(sum);
@@ -756,8 +756,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
                     case 2: {//пролог чека
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
-                        sendSalesLogger.info(String.format("prolog: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
-                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+//                        sendSalesLogger.info(String.format("prolog: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+//                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                         sumCash = null;
                         sumCard = null;
                         sumGiftCard = null;
