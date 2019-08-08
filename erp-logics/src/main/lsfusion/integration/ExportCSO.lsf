@@ -172,11 +172,12 @@ httpHeadersADM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage';
 
 articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
-    FOR customGroup(CustomGroupType type, Item i) AND activeCSO(i) AND isCSO(type) DO {
+    localImage(Item i) <- NULL;
+    FOR customGroup(CustomGroupType type, Item i) AND activeCSO(i) AND isCSO(type) AND image(i) DO {
         localImage(i) <- image(i);
         getFileSize(FILE(localImage(i)));
-        IF fileSize() > 150000 THEN {
-            resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/100000));
+        IF fileSize() > 15000 THEN {
+            resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/10000));
             localImage(i) <- resizedImage();
         }   
         convertImage(localImage(i), 'png');
