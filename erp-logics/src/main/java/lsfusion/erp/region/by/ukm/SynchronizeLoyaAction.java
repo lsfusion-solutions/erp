@@ -30,8 +30,8 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.*;
 
+import static lsfusion.base.BaseUtils.trimToEmpty;
 import static org.apache.commons.lang.StringUtils.trim;
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
 
 public class SynchronizeLoyaAction extends LoyaAction {
     String failCaption = "Loya: Ошибка при синхронизации";
