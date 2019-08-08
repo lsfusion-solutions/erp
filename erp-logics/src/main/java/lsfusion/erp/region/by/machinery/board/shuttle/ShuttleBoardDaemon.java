@@ -15,7 +15,7 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.apache.mina.core.buffer.AbstractIoBuffer;
 import org.apache.mina.core.buffer.IoBuffer;
