@@ -846,7 +846,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-        processTransactionLogger.error(errorText, t);
+        errors.add(getLogPrefix() + errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
+        processTransactionLogger.error(getLogPrefix() + errorText, t);
     }
 }
