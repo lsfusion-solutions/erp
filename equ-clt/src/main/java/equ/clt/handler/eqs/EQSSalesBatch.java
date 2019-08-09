@@ -1,6 +1,5 @@
 package equ.clt.handler.eqs;
 
-import com.google.common.collect.Sets;
 import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 

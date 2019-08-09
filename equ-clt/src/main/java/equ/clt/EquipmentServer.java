@@ -587,7 +587,7 @@ public class EquipmentServer {
             //находим все transactionInfo с таким же groupId
             if(minGroupId != null) {
                 currentlyProceededGroups.add(minGroupId);
-                resultTask = new SingleTransactionTask(remote, minGroupId, minClsHandler, new ArrayList<TransactionInfo>(), sidEquipmentServer);
+                resultTask = new SingleTransactionTask(remote, minGroupId, minClsHandler, new ArrayList<>(), sidEquipmentServer);
                 Set<Long> removingTaskSet = new HashSet<>();
                 for (Map.Entry<Long, TransactionInfo> transactionInfo : waitingTaskQueueMap.entrySet()) {
                     if(resultTask.groupId.equals(getTransactionInfoGroupId(transactionInfo.getValue()))) {

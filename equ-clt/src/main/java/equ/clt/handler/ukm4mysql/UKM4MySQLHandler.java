@@ -1045,10 +1045,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
 
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
-        Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
-        Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
-        List<String> giftCardList = ukm4MySQLSettings == null ? new ArrayList<String>() : ukm4MySQLSettings.getGiftCardList();
+        Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCashPayments());
+        Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCardPayments());
+        Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
+        List<String> giftCardList = ukm4MySQLSettings == null ? new ArrayList<>() : ukm4MySQLSettings.getGiftCardList();
         boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
         boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
         boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();

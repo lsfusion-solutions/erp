@@ -26,7 +26,7 @@ public class MachineryExchangeEquipmentServer {
             Map<String, Set<MachineryInfo>> handlerModelMachineryMap = new HashMap<>();
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
-                    handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<MachineryInfo>());
+                    handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<>());
                 handlerModelMachineryMap.get(machinery.handlerModel).add(machinery);
             }
 

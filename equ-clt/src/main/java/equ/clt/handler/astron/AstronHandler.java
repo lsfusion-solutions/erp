@@ -54,7 +54,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                 AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
                 Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
-                Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<Integer, Integer>() : astronSettings.getGroupMachineryMap();
+                Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<>() : astronSettings.getGroupMachineryMap();
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 

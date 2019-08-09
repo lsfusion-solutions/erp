@@ -118,8 +118,8 @@ public class MachineryExchangeEquipmentServer {
                                 idStock = trim((String) result.getValue(j).get("idStockTerminal").getValue());
                             }
 
-                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<CashRegisterInfo>(),
-                                    new HashSet<CashRegisterInfo>(), idStock, dateFromRequestExchange,
+                            requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<>(),
+                                    new HashSet<>(), idStock, dateFromRequestExchange,
                                     dateToRequestExchange, startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                         }
 

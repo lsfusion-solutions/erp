@@ -13,7 +13,6 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.*;
 
 public class SendSalesEquipmentServer {
@@ -29,7 +28,7 @@ public class SendSalesEquipmentServer {
         Map<String, List<String>> handlerModelDirectoryMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if(!cashRegister.disableSales) {
-                List<String> directoryList = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new ArrayList<String>();
+                List<String> directoryList = handlerModelDirectoryMap.containsKey(cashRegister.handlerModel) ? handlerModelDirectoryMap.get(cashRegister.handlerModel) : new ArrayList<>();
                 if(!directoryList.contains(cashRegister.directory)) {
                     directoryList.add(cashRegister.directory);
                 }

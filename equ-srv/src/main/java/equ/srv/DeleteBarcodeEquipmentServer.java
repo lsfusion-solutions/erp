@@ -84,7 +84,7 @@ class DeleteBarcodeEquipmentServer {
                     String directory = trim((String) value.get("directoryGroupMachinery"));
                     DeleteBarcodeInfo deleteBarcodeInfo = barcodeMap.get(key);
                     if(deleteBarcodeInfo == null)
-                        deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<CashRegisterItemInfo>(), nppGroupMachinery,
+                        deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<>(), nppGroupMachinery,
                                 null, handlerModelGroupMachinery, directory);
                     deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
                             false, valueVAT, null, null, idItemGroup, nameItemGroup, idUOM, shortNameUOM, null, null, null, null, null, null, null,

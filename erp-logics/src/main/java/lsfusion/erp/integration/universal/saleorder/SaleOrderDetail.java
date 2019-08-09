@@ -1,6 +1,5 @@
 package lsfusion.erp.integration.universal.saleorder;
 
-import java.sql.Date;
 import java.util.Map;
 
 public class SaleOrderDetail {

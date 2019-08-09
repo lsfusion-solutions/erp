@@ -767,7 +767,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<Double, String>();
+        Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<>();
         String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
 
         if (!discountCardList.isEmpty()) {

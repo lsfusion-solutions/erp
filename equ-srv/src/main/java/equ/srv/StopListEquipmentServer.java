@@ -133,7 +133,7 @@ public class StopListEquipmentServer {
                     if(!handlerMachineryMap.isEmpty()) {
                         Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
-                        Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<Integer, Set<String>>() : stopList.inGroupMachineryItemMap;
+                        Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
                                 idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
@@ -189,9 +189,9 @@ public class StopListEquipmentServer {
             String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
             Integer overDepartNumber = (Integer) values.get("overDepartmentNumber").getValue();
 
-            Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<MachineryInfo>>();
+            Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<>();
             if(!handlerMap.containsKey(handlerModel))
-                handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
+                handlerMap.put(handlerModel, new HashSet<>());
             if(isCashRegister) {
                 handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery, overDepartNumber));
             } else if(isScales){

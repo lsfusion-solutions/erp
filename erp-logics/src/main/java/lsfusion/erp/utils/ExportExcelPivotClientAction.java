@@ -347,7 +347,7 @@ public class ExportExcelPivotClientAction implements ClientAction {
             Variant cell = getCellVariant(sheet, i + 1, firstRow);
             if (!cell.isNull()) {
                 String field = cell.getString();
-                List<Integer> entry = captionFieldsMap.containsKey(field) ? captionFieldsMap.get(field) : new ArrayList<Integer>();
+                List<Integer> entry = captionFieldsMap.containsKey(field) ? captionFieldsMap.get(field) : new ArrayList<>();
                 entry.add(i);
                 captionFieldsMap.put(field, entry);
             }

@@ -67,7 +67,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         MassaKRL10Settings massaKRL10Settings = springContext.containsBean("massaKRL10Settings") ? (MassaKRL10Settings) springContext.getBean("massaKRL10Settings") : null;
-        Integer nameLineLength = massaKRL10Settings != null ? massaKRL10Settings.getNameLineLength() : null;;
+        Integer nameLineLength = massaKRL10Settings != null ? massaKRL10Settings.getNameLineLength() : null;
 
         Map<String, String> brokenPortsMap = new HashMap<>();
         if (transactionInfoList.isEmpty()) {

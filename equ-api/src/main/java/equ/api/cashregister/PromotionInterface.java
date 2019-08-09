@@ -2,7 +2,6 @@ package equ.api.cashregister;
 
 import lsfusion.interop.server.RmiServerInterface;
 
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 

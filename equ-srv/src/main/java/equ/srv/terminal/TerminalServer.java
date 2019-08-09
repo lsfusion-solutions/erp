@@ -128,10 +128,6 @@ public class TerminalServer extends MonitorServer {
         stopped = true;
         if (started) {
             logger.info("Stopping Terminal Server.");
-            try {
-            } catch (Exception e) {
-                throw new RuntimeException("Error stopping Terminal Server: ", e);
-            }
         }
     }
 

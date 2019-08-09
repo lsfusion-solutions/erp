@@ -649,7 +649,7 @@ public class ImportAction extends DefaultImportAction {
             for (int start = 0; true; start += numberAtATime) {
 
                 int finish = (start + numberAtATime) < userInvoiceDetailsList.size() ? (start + numberAtATime) : userInvoiceDetailsList.size();
-                List<UserInvoiceDetail> dataUserInvoiceDetail = start < finish ? userInvoiceDetailsList.subList(start, finish) : new ArrayList<UserInvoiceDetail>();
+                List<UserInvoiceDetail> dataUserInvoiceDetail = start < finish ? userInvoiceDetailsList.subList(start, finish) : new ArrayList<>();
                 if (dataUserInvoiceDetail.isEmpty())
                     return;
 
@@ -1138,7 +1138,7 @@ public class ImportAction extends DefaultImportAction {
             for (int start = 0; true; start += numberAtATime) {
 
                 int finish = (start + numberAtATime) < priceListStoresList.size() ? (start + numberAtATime) : priceListStoresList.size();
-                List<PriceListStore> dataPriceListStores = start < finish ? priceListStoresList.subList(start, finish) : new ArrayList<PriceListStore>();
+                List<PriceListStore> dataPriceListStores = start < finish ? priceListStoresList.subList(start, finish) : new ArrayList<>();
                 if (dataPriceListStores.isEmpty())
                     return;
 
@@ -1253,7 +1253,7 @@ public class ImportAction extends DefaultImportAction {
             for (int start = 0; true; start += numberAtATime) {
 
                 int finish = (start + numberAtATime) < priceListSuppliersList.size() ? (start + numberAtATime) : priceListSuppliersList.size();
-                List<PriceList> dataPriceListSuppliers = start < finish ? priceListSuppliersList.subList(start, finish) : new ArrayList<PriceList>();
+                List<PriceList> dataPriceListSuppliers = start < finish ? priceListSuppliersList.subList(start, finish) : new ArrayList<>();
                 if (dataPriceListSuppliers.isEmpty())
                     return;
 

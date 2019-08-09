@@ -324,7 +324,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
                 release();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<String>(), cleared);
+            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
         }
 
     }

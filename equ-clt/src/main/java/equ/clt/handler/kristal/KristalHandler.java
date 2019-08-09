@@ -268,7 +268,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
                                     List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<>() : Lists.reverse(hierarchyItemGroup);
                                     for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
                                         String idItemGroup = importGroupType.equals(1) ?
                                                 makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false, true)

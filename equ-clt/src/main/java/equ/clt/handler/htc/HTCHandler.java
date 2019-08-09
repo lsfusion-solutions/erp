@@ -78,7 +78,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                             succeededCashRegisterList.add(cashRegister);
                         else {
                             String directory = cashRegister.directory;
-                            List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
+                            List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<>();
                             cashRegisterEntry.add(cashRegister);
                             directoryMap.put(directory, cashRegisterEntry);
                         }
@@ -814,7 +814,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
         for (RequestExchange entry : requestExchangeList) {
             for (String directory : getDirectorySet(entry)) {
-                List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<RequestExchange>();
+                List<RequestExchange> requestExchangeEntry = requestExchangeMap.containsKey(directory) ? requestExchangeMap.get(directory) : new ArrayList<>();
                 requestExchangeEntry.add(entry);
                 requestExchangeMap.put(directory, requestExchangeEntry);
             }

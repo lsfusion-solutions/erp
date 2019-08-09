@@ -17,7 +17,6 @@ import java.net.URL;
 import java.security.Security;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.List;
 
 public class EVATHandler {
 

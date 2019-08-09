@@ -406,7 +406,7 @@ public class SendSalesEquipmentServer {
                     Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery");
                     String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
                     if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
-                        List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<List<Object>>();
+                        List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<>();
                         nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
                         cashRegisterList.put(nppGroupMachinery, nppMachineryList);
                     }

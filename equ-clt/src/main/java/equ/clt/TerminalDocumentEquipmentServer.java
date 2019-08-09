@@ -23,7 +23,7 @@ public class TerminalDocumentEquipmentServer {
         Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<>();
         for (TerminalInfo terminal : terminalInfoList) {
             if (!handlerModelTerminalMap.containsKey(terminal.handlerModel))
-                handlerModelTerminalMap.put(terminal.handlerModel, new ArrayList<TerminalInfo>());
+                handlerModelTerminalMap.put(terminal.handlerModel, new ArrayList<>());
             handlerModelTerminalMap.get(terminal.handlerModel).add(terminal);
         }
 

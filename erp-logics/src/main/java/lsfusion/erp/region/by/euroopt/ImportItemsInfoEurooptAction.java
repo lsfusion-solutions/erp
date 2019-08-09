@@ -74,7 +74,7 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
                 if (doc != null) {
                     String title = doc.getElementsByTag("title").text().replace(" - Каталог товаров", "");
                     Elements descriptionElement = doc.getElementsByClass("description");
-                    List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<Node>() : descriptionElement.get(0).childNodes();
+                    List<Node> descriptionAttributes = descriptionElement.size() == 0 ? new ArrayList<>() : descriptionElement.get(0).childNodes();
                     String idBarcode = null;
                     String captionItem = doc.getElementsByTag("h1").text();
                     String brandItem = null;

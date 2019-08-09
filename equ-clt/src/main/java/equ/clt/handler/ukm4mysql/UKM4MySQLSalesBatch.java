@@ -5,7 +5,6 @@ import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import lsfusion.base.Pair;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 

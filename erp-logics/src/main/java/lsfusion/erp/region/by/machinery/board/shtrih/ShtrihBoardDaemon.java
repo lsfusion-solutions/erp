@@ -12,7 +12,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
-import org.springframework.util.Assert;
 
 import java.io.*;
 import java.math.BigDecimal;
