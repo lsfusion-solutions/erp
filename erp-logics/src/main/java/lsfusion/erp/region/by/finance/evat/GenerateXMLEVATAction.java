@@ -32,6 +32,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -62,7 +63,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     Map<String, Map<Long, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Long, String>> evatMap = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("unp", findProperty("unpSender[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.addProperty("exportNumber", findProperty("exportNumber[EVAT]").getExpr(context.getModifier(), evatExpr));
@@ -86,7 +87,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     Map<String, Map<Long, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Long, List<Object>>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("unp", findProperty("unpSender[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
@@ -194,12 +195,12 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
 
             if (error.isEmpty()) {
                 tmpFile = File.createTempFile("evat", "xml");
-                outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
+                outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), StandardCharsets.UTF_8), "UTF-8");
                 RawFileData fileData = new RawFileData(tmpFile);
                 if (choosePath)
                     context.delayUserInterfaction(new WriteClientAction(fileData, documentNumber, "xml", false, true));
                 if (saveToLocal) findProperty("generatedXML[]").change(new FileData(fileData, "xml"), context);
-                return Arrays.asList((Object) fileData, documentNumber);
+                return Arrays.asList(fileData, documentNumber);
 
             } else {
                 context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
@@ -301,7 +302,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String countryCode = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
         String name = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
-        Integer branchCodeSupplier = (Integer) findProperty("branchCodeSupplier[EVAT]").read(context, evatObject);
+        String branchCodeSupplier = (String) findProperty("branchCodeSupplier[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressSupplier[EVAT]").read(context, evatObject));
         //String numberInvoicePrincipal = trim((String) findProperty("numberInvoicePrincipal[EVAT]").read(context, evatObject));
         //String dateInvoicePrincipal = formatDate((Date) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
@@ -320,7 +321,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         addBooleanElement(namespace, providerElement, "bigCompany", bigCompany);
         addStringElement(namespace, providerElement, "countryCode", countryCode);
         addStringElement(namespace, providerElement, "unp", unp);
-        addIntegerElement(namespace, providerElement, "branchCode", branchCodeSupplier);
+        addStringElement(namespace, providerElement, "branchCode", branchCodeSupplier);
         addStringElement(namespace, providerElement, "name", name);
         addStringElement(namespace, providerElement, "address", address);
         //с ними не проходит
@@ -348,7 +349,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String countryCode = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
         String name = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
-        Integer branchCodeCustomer = (Integer) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
+        String branchCodeCustomer = (String) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
         String numberTaxes = trim((String) findProperty("numberTaxesCustomer[EVAT]").read(context, evatObject));
         String dateTaxes = formatDate((Date) findProperty("dateTaxesCustomer[EVAT]").read(context, evatObject));
@@ -363,7 +364,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         if (!noCustomer) {
             addStringElement(namespace, recipientElement, "countryCode", countryCode);
             addStringElement(namespace, recipientElement, "unp", unp);
-            addIntegerElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
+            addStringElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
             addStringElement(namespace, recipientElement, "name", name);
             addStringElement(namespace, recipientElement, "address", address);
             addStringElement(namespace, recipientElement, "declaration", declarationCustomer);
@@ -443,7 +444,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         rosterElement.setAttribute("totalCost", bigDecimalToString(totalSum, "0"));
 
         KeyExpr evatDetailExpr = new KeyExpr("evatDetail");
-        ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
+        ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev("evatDetail", evatDetailExpr);
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
         String[] evatDetailNames = new String[]{"objValue", "name", "code", "evatCodeUOM", "codeOced",
@@ -455,7 +456,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             evatDetailQuery.addProperty(evatDetailNames[i], evatDetailProperties[i].getExpr(evatDetailExpr));
         }
         evatDetailQuery.and(findProperty("evat[EVATDetail]").getExpr(evatDetailExpr).compare(evatObject.getExpr(), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> evatDetailResults = evatDetailQuery.execute(context, MapFact.singletonOrder((Object) "objValue", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> evatDetailResults = evatDetailQuery.execute(context, MapFact.singletonOrder("objValue", false));
         for (int i = 0, size = evatDetailResults.size(); i < size; i++) {
             ImMap<Object, Object> entry = evatDetailResults.getValue(i);
             String name = trim((String) entry.get("name"));
