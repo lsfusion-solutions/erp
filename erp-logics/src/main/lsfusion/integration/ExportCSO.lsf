@@ -145,13 +145,21 @@ GROUP ArticleDocumentData : DocumentData;
 
 localImage = DATA LOCAL IMAGEFILE (Item);
 
+countImagesCSO 'Кол-во картинок в одном документе' = DATA INTEGER ();
+
+number = DATA LOCAL INTEGER ();
+isEnd = DATA LOCAL BOOLEAN ();
+
+index(Item i, CustomGroupType t) = PARTITION SUM 1 IF customGroup(t, i) AND activeCSO(i) AND isCSO(t) ORDER i,t;
+countIn() = GROUP SUM 1 IF customGroup(CustomGroupType t, Item i) AND activeCSO(i) AND isCSO(t);
+
 FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
           
     PROPERTIES IN headI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
     PROPERTIES  IN headI         h1 = 'SAP PI' EXTID 'Receiver'
     PROPERTIES  IN headI         h2 = 'SAP ERP' EXTID 'Sender'
-    PROPERTIES  IN headI         h3 = TRUE EXTID 'SessionEnd'
-    PROPERTIES  IN headI         h33 = 1 EXTID'SessionMessageNumber'
+    PROPERTIES  IN headI         h3 = (IF isEnd() THEN 'true' ELSE 'false') EXTID 'SessionEnd'
+    PROPERTIES  IN headI         h33 = number() EXTID'SessionMessageNumber'
     PROPERTIES  IN headI         h4 = [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
     PROPERTIES  IN headI         h5 = 'F' EXTID 'SessionType'                      
                            
@@ -163,9 +171,9 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemI
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
     PROPERTIES  IN ArticleDocumentData    =localImage(i) EXTID 'Object'    
-    FILTERS customGroup(type, i), 
-            activeCSO(i),
-            isCSO(type)       
+    FILTERS index(i,type),
+            (index(i,type) > ((number() - 1) * countImagesCSO())) OR NOT countImagesCSO(),
+            (index(i,type) <= (number() * countImagesCSO())) OR NOT countImagesCSO()
 ; 
 
 httpHeadersADM(TEXT name) = CASE
@@ -179,28 +187,33 @@ articleDocumentMessage 'Изображения товаров КСО (ArticleDoc
         IF fileSize() > 15000 THEN {
             resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/10000));
             localImage(i) <- resizedImage();
-        }   
+        }
         convertImage(localImage(i), 'png');
         localImage(i) <- convertedImage();
         
-    } 
-    
-    EXPORT ArticleDocumentMessage XML TO System.exportFile;    
-    LOCAL result = FILE();
-    LOCAL message = TEXT();    
-    TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', 'Sending')));
-        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersADM PARAMS System.exportFile() TO result; 
-        message() <- 'ArticleDocumentMessage - отправлен'; 
-    } CATCH {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
-        fileToString(result(), 'UTF-8');
-        logToFile('CSO', (CONCAT '\n', 'ArticleDocumentMessage',resultString()));
-        message() <- 'ArticleDocumentMessage - есть ошибки, обратитесь к администратору';          
-    } 
-    IF message()  THEN {
-        MESSAGE message() NOWAIT;
-    }              
+    }
+    LOCAL countN = INTEGER ();
+    countN() <- OVERRIDE divideInteger(countIn(),countImagesCSO()) (+) (IF mod(countIn(),countImagesCSO()) > 0 THEN 1), 1;
+    FOR iterate(INTEGER n, 1, countN()) DO {
+        number() <- n;
+        isEnd() <- n == countN();
+        EXPORT ArticleDocumentMessage XML TO System.exportFile;
+        LOCAL result = FILE();
+        LOCAL message = TEXT();
+        TRY {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', 'Sending')));
+            EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersADM PARAMS System.exportFile() TO result;
+            message() <- 'ArticleDocumentMessage - отправлен';
+        } CATCH {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+            fileToString(result(), 'UTF-8');
+            logToFile('CSO', (CONCAT '\n', 'ArticleDocumentMessage',resultString()));
+            message() <- 'ArticleDocumentMessage - есть ошибки, обратитесь к администратору';
+        }
+        IF message()  THEN {
+            MESSAGE message() NOWAIT;
+        }
+    }
 }
 
 //------------ //PI_SAP_ArticleHierarchy.xml
@@ -274,7 +287,7 @@ articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
 }
 
 EXTEND FORM integrationData 
-    PROPERTIES() dataExchangeRegisterAddress
+    PROPERTIES() dataExchangeRegisterAddress, countImagesCSO
     PROPERTIES() articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
 ;
 
@@ -283,6 +296,7 @@ DESIGN integrationData {
         NEW kso {
             caption = 'КСО';
             MOVE PROPERTY (dataExchangeRegisterAddress());
+            MOVE PROPERTY (countImagesCSO());
             MOVE PROPERTY (articleHierarchyObject());
             MOVE PROPERTY (articleMessage());
             MOVE PROPERTY (articleDocumentMessage());
