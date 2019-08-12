@@ -209,7 +209,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
                     (BigDecimal) values.get(8), (BigDecimal) values.get(5)));
         }
         
-        Collections.sort(generalLedgerList, COMPARATOR);
+        generalLedgerList.sort(COMPARATOR);
 
         for(GeneralLedger gl : generalLedgerList) {
         dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4

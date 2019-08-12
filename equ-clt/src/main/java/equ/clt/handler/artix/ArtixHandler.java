@@ -642,10 +642,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        Collections.sort(files, new Comparator<Pair<File, Boolean>>() {
+        files.sort(new Comparator<Pair<File, Boolean>>() {
             public int compare(Pair<File, Boolean> f1, Pair<File, Boolean> f2) {
-                if(f1.second) return f2.second ? compareDates(f1.first, f2.first) : -1; //f2 is not priority
-                if(f2.second) return 1; //f1 is not priority
+                if (f1.second) return f2.second ? compareDates(f1.first, f2.first) : -1; //f2 is not priority
+                if (f2.second) return 1; //f1 is not priority
                 return compareDates(f1.first, f2.first);
             }
         });
