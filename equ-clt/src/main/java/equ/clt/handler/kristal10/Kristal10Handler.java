@@ -1067,7 +1067,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
-                                    String weightCode = directoryWeightCodeMap.getOrDefault(key, "21");
+                                    String weightCode = directoryWeightCodeMap.containsKey(key) ? directoryWeightCodeMap.get(key) : "21";
 
                                     String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);

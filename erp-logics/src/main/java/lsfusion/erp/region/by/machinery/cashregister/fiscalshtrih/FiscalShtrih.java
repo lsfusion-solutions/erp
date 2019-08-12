@@ -38,7 +38,7 @@ public class FiscalShtrih {
 
         closePort();
 
-        int codeBaudRate = baudRateMap.getOrDefault(baudRate, 6);
+        int codeBaudRate = baudRateMap.containsKey(baudRate) ? baudRateMap.get(baudRate) : 6;
 
         shtrihActiveXComponent.setProperty("Password", new Variant(password));
         shtrihActiveXComponent.setProperty("ComNumber", new Variant(comPort));

@@ -953,7 +953,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        value = importSettings.getStockMapping().getOrDefault(value, value);
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
                         fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
@@ -1081,7 +1081,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        value = importSettings.getStockMapping().getOrDefault(value, value);
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
                         fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
@@ -1204,7 +1204,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        value = importSettings.getStockMapping().getOrDefault(value, value);
+                        value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                         fieldValues.put("idCustomerStock", value);
                         fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                         break;
@@ -1343,7 +1343,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                             fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                             break;
                         case "idCustomerStock":
-                            value = importSettings.getStockMapping().getOrDefault(value, value);
+                            value = importSettings.getStockMapping().containsKey(value) ? importSettings.getStockMapping().get(value) : value;
                             fieldValues.put("idCustomerStock", value);
                             fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
                             break;

@@ -597,7 +597,7 @@ public class EquipmentServer {
                         removingTaskSet.add(transactionInfo.getKey());
                     }
                 }
-                resultTask.transactionEntry.sort(COMPARATOR);
+                Collections.sort(resultTask.transactionEntry, COMPARATOR);
                 for(Long task : removingTaskSet)
                     waitingTaskQueueMap.remove(task);
             }
@@ -625,7 +625,12 @@ public class EquipmentServer {
                 if(transactionEntry.getValue())
                     succeededTaskList.add(transactionEntry.getKey().id);
                 else {
-                    waitingTaskQueueMap.entrySet().removeIf(entry -> groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue())));
+                    for(Iterator<Map.Entry<Long, TransactionInfo>> it = waitingTaskQueueMap.entrySet().iterator(); it.hasNext(); ) {
+                        Map.Entry<Long, TransactionInfo> entry = it.next();
+                        if(groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue()))) {
+                            it.remove();
+                        }
+                    }
                 }
                 proceededTaskList.remove(transactionEntry.getKey().id);
             }

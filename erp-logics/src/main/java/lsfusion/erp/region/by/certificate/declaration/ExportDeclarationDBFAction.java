@@ -274,7 +274,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         }
 
         customsDocumentDetailList.addAll(complianceDetailList);
-        customsDocumentDetailList.sort(COMPARATOR);
+        Collections.sort(customsDocumentDetailList, COMPARATOR);
 
         return new G44(numberDeclaration, customsDocumentDetailList);
     }
