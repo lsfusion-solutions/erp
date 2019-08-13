@@ -2,7 +2,6 @@ package lsfusion.erp.daemon;
 
 import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.ExecuteClientAction;
-import lsfusion.interop.action.ICleanListener;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.awt.*;
@@ -16,12 +15,7 @@ public class DiscountCardDaemonClientAction extends ExecuteClientAction {
         final DiscountCardDaemonListener discountCardDaemonListener = new DiscountCardDaemonListener();
         discountCardDaemonListener.setEventBus(dispatcher.getEventBus());
         discountCardDaemonListener.start();
-        dispatcher.addCleanListener(new ICleanListener() {
-            @Override
-            public void clean() {
-                uninstall(discountCardDaemonListener);
-            }
-        });
+        dispatcher.addCleanListener(() -> uninstall(discountCardDaemonListener));
     }
 
     private static class DiscountCardDaemonListener extends AbstractDaemonListener implements Serializable, KeyEventDispatcher {

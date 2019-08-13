@@ -909,19 +909,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
         String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export/" : exportPrefixPath);
 
-        File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname != null && pathname.getName().startsWith(notDetailed ? "ReportGang1C" : "ReportCheque1C") && pathname.getPath().endsWith(".xml");
-            }
-        });
+        File[] filesList = new File(exchangeDirectory).listFiles(pathname -> pathname != null && pathname.getName().startsWith(notDetailed ? "ReportGang1C" : "ReportCheque1C") && pathname.getPath().endsWith(".xml"));
 
-        File[] deletingFilesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname != null && pathname.getName().startsWith(notDetailed ? "ReportCheque1C" : "ReportGang1C") && pathname.getPath().endsWith(".xml");
-            }
-        });
+        File[] deletingFilesList = new File(exchangeDirectory).listFiles(pathname -> pathname != null && pathname.getName().startsWith(notDetailed ? "ReportCheque1C" : "ReportGang1C") && pathname.getPath().endsWith(".xml"));
 
         if (deletingFilesList != null) {
             for (File file : deletingFilesList) {

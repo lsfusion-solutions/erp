@@ -209,7 +209,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
                     (BigDecimal) values.get(8), (BigDecimal) values.get(5)));
         }
         
-        Collections.sort(generalLedgerList, COMPARATOR);
+        generalLedgerList.sort(COMPARATOR);
 
         for(GeneralLedger gl : generalLedgerList) {
         dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
@@ -238,14 +238,12 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         }
     }
 
-    private static Comparator<GeneralLedger> COMPARATOR = new Comparator<GeneralLedger>() {
-        public int compare(GeneralLedger g1, GeneralLedger g2) {
-            int result = g1.dateGeneralLedger == null ? (g2.dateGeneralLedger == null ? 0 : -1) : 
-                    (g2.dateGeneralLedger == null ? 1 : g1.dateGeneralLedger.compareTo(g2.dateGeneralLedger));
-            if (result == 0)
-                result = g1.numberGeneralLedger == null ? (g2.numberGeneralLedger == null ? 0 : -1) : 
-                        (g2.numberGeneralLedger == null ? 1 : g1.numberGeneralLedger.compareTo(g2.numberGeneralLedger));
-            return result;
-        }
+    private static Comparator<GeneralLedger> COMPARATOR = (g1, g2) -> {
+        int result = g1.dateGeneralLedger == null ? (g2.dateGeneralLedger == null ? 0 : -1) : 
+                (g2.dateGeneralLedger == null ? 1 : g1.dateGeneralLedger.compareTo(g2.dateGeneralLedger));
+        if (result == 0)
+            result = g1.numberGeneralLedger == null ? (g2.numberGeneralLedger == null ? 0 : -1) : 
+                    (g2.numberGeneralLedger == null ? 1 : g1.numberGeneralLedger.compareTo(g2.numberGeneralLedger));
+        return result;
     };
 }

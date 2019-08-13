@@ -274,7 +274,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         }
 
         customsDocumentDetailList.addAll(complianceDetailList);
-        Collections.sort(customsDocumentDetailList, COMPARATOR);
+        customsDocumentDetailList.sort(COMPARATOR);
 
         return new G44(numberDeclaration, customsDocumentDetailList);
     }
@@ -643,13 +643,11 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         return nameValueFieldMap;
     }
 
-    private static Comparator<G44Detail> COMPARATOR = new Comparator<G44Detail>() {
-        public int compare(G44Detail o1, G44Detail o2) {
-            if (!o1.numberDeclarationDetail.equals(o2.numberDeclarationDetail))
-                return o1.numberDeclarationDetail.compareTo(o2.numberDeclarationDetail);
-            else
-                return o1.order.compareTo(o2.order);
-        }
+    private static Comparator<G44Detail> COMPARATOR = (o1, o2) -> {
+        if (!o1.numberDeclarationDetail.equals(o2.numberDeclarationDetail))
+            return o1.numberDeclarationDetail.compareTo(o2.numberDeclarationDetail);
+        else
+            return o1.order.compareTo(o2.order);
     };
 
 

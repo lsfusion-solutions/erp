@@ -629,12 +629,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         for (Pair<File, Boolean> dirEntry : getSoftCheckDirectories(directoryList, priorityDirectoriesCount)) {
             File dir = dirEntry.first;
             boolean priority = dirEntry.second;
-            File[] filesList = dir.listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
-                }
-            });
+            File[] filesList = dir.listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
             if (filesList != null) {
                 for (File file : filesList) {
                         files.add(Pair.create(file, priority));
@@ -642,12 +637,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
 
-        Collections.sort(files, new Comparator<Pair<File, Boolean>>() {
-            public int compare(Pair<File, Boolean> f1, Pair<File, Boolean> f2) {
-                if(f1.second) return f2.second ? compareDates(f1.first, f2.first) : -1; //f2 is not priority
-                if(f2.second) return 1; //f1 is not priority
-                return compareDates(f1.first, f2.first);
-            }
+        files.sort((f1, f2) -> {
+            if (f1.second) return f2.second ? compareDates(f1.first, f2.first) : -1; //f2 is not priority
+            if (f2.second) return 1; //f1 is not priority
+            return compareDates(f1.first, f2.first);
         });
 
         int totalFilesCount = files.size();
@@ -724,12 +717,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             String directory = directories.get(i);
             boolean priority = i < priorityDirectoriesCount;
             if(directory != null) {
-                File[] subDirectoryList = new File(directory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File file) {
-                        return file.isDirectory();
-                    }
-                });
+                File[] subDirectoryList = new File(directory).listFiles(File::isDirectory);
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
                         result.add(Pair.create(subDirectory, priority));
@@ -764,12 +752,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             for (Map.Entry<String, CashRegisterInfo> directoryEntry : directoryCashRegisterMap.entrySet()) {
                 String directory = directoryEntry.getKey();
                 CashRegisterInfo cashRegister = directoryEntry.getValue();
-                File[] filesList = new File(directory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File pathname) {
-                        return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
-                    }
-                });
+                File[] filesList = new File(directory).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
 
                 if (filesList != null && filesList.length > 0) {
                     for (File file : filesList) {
@@ -987,12 +970,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
         List<File> files = new ArrayList<>();
         for(String dir : directorySet) {
-            File[] filesList = new File(dir).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json");
-                }
-            });
+            File[] filesList = new File(dir).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
             if(filesList != null)
                 files.addAll(Arrays.asList(filesList));
         }

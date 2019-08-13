@@ -119,17 +119,14 @@ public class FiscalVMK {
 
     public static boolean safeOpenPort(final boolean isUnix, final String logPath, final String ip, final String comPort, final int baudRate, final int timeout) {
         try {
-            final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
-                @Override
-                public Boolean call() throws Exception {
-                    setLogPath(logPath);
-                    if(ip != null) {
-                        openPort(ip, Integer.parseInt(comPort));
-                    } else {
-                        openPort(getPort(comPort, isUnix), baudRate);
-                    }
-                    return true;
+            final Future<Boolean> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
+                setLogPath(logPath);
+                if(ip != null) {
+                    openPort(ip, Integer.parseInt(comPort));
+                } else {
+                    openPort(getPort(comPort, isUnix), baudRate);
                 }
+                return true;
             });
 
             boolean result = false;

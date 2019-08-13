@@ -531,12 +531,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
             String exchangeDirectory = directory + "/reports/";
 
-            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return (pathname.getName().startsWith("cash_in") || pathname.getName().startsWith("cash_out")) && pathname.getPath().endsWith(".xml");
-                }
-            });
+            File[] filesList = new File(exchangeDirectory).listFiles(pathname -> (pathname.getName().startsWith("cash_in") || pathname.getName().startsWith("cash_out")) && pathname.getPath().endsWith(".xml"));
 
             if (filesList == null || filesList.length == 0)
                 sendSalesLogger.info("Kristal10: No cash documents found in " + exchangeDirectory);
@@ -888,12 +883,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
         String exchangeDirectory = directory + "/reports/";
 
-        File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return pathname.getName().startsWith("purchases") && pathname.getPath().endsWith(".xml");
-            }
-        });
+        File[] filesList = new File(exchangeDirectory).listFiles(pathname -> pathname.getName().startsWith("purchases") && pathname.getPath().endsWith(".xml"));
         
         Set<String> ids = new HashSet<>();
         Set<String> usedBarcodes = new HashSet<>();
@@ -905,11 +895,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             else
                 sendSalesLogger.info(String.format("Kristal10: found %s file(s) in %s, will read %s file(s)", filesList.length, exchangeDirectory, Math.min(filesList.length, maxFilesCount)));
 
-            Arrays.sort(filesList, new Comparator<File>() {
-                public int compare(File f1, File f2) {
-                    return Long.compare(f1.lastModified(), f2.lastModified());
-                }
-            });
+            Arrays.sort(filesList, (f1, f2) -> Long.compare(f1.lastModified(), f2.lastModified()));
 
             int filesCount = 0;
             for (File file : filesList) {
@@ -1067,7 +1053,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
-                                    String weightCode = directoryWeightCodeMap.containsKey(key) ? directoryWeightCodeMap.get(key) : "21";
+                                    String weightCode = directoryWeightCodeMap.getOrDefault(key, "21");
 
                                     String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
@@ -1203,12 +1189,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
             String exchangeDirectory = directory + "/reports/";
 
-            File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return pathname.getName().startsWith("zreports") && pathname.getPath().endsWith(".xml");
-                }
-            });
+            File[] filesList = new File(exchangeDirectory).listFiles(pathname -> pathname.getName().startsWith("zreports") && pathname.getPath().endsWith(".xml"));
 
             if (filesList != null && filesList.length > 0) {
                 sendSalesLogger.info("Kristal10: found " + filesList.length + " z-report(s) in " + exchangeDirectory);

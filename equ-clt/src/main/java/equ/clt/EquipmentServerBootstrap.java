@@ -51,44 +51,41 @@ public class EquipmentServerBootstrap {
             equ = null;
         }
 
-        Thread dumpThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                boolean exit = false;
+        Thread dumpThread = new Thread(() -> {
+            boolean exit = false;
 
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException e) {
-                    exit = true;
-                }
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                exit = true;
+            }
 
-                while (!exit) {
-                    ThreadInfo[] threadsInfo = ManagementFactory.getThreadMXBean().dumpAllThreads(true, false);
-                    logger.info("--------------------------Active threads--------------------------");
-                    int active = 0;
-                    for (ThreadInfo threadInfo : threadsInfo) {
-                        int id = (int) threadInfo.getThreadId();
-                        String status = String.valueOf(threadInfo.getThreadState());
-                        String name = threadInfo.getThreadName();
-                        String lockName = threadInfo.getLockName();
-                        String lockOwnerId = String.valueOf(threadInfo.getLockOwnerId());
-                        String lockOwnerName = threadInfo.getLockOwnerName();
-                        String stackTrace = stackTraceToString(threadInfo.getStackTrace());
-                        if (!stackTrace.startsWith("sun.management.ThreadImpl.dumpThreads")) {
-                            logger.info(String.format("ID: %s, status: %s, name: %s, lockName: %s, lockOwnerId: %s, lockOwnerName: %s\n%s",
-                                    id, status, name, lockName, lockOwnerId, lockOwnerName, stackTrace));
-                            active++;
-                        }
+            while (!exit) {
+                ThreadInfo[] threadsInfo = ManagementFactory.getThreadMXBean().dumpAllThreads(true, false);
+                logger.info("--------------------------Active threads--------------------------");
+                int active = 0;
+                for (ThreadInfo threadInfo : threadsInfo) {
+                    int id = (int) threadInfo.getThreadId();
+                    String status = String.valueOf(threadInfo.getThreadState());
+                    String name = threadInfo.getThreadName();
+                    String lockName = threadInfo.getLockName();
+                    String lockOwnerId = String.valueOf(threadInfo.getLockOwnerId());
+                    String lockOwnerName = threadInfo.getLockOwnerName();
+                    String stackTrace = stackTraceToString(threadInfo.getStackTrace());
+                    if (!stackTrace.startsWith("sun.management.ThreadImpl.dumpThreads")) {
+                        logger.info(String.format("ID: %s, status: %s, name: %s, lockName: %s, lockOwnerId: %s, lockOwnerName: %s\n%s",
+                                id, status, name, lockName, lockOwnerId, lockOwnerName, stackTrace));
+                        active++;
                     }
-                    logger.info("--------------------------Active threads count: " + active + "--------------------------");
-                    if (active == 0)
+                }
+                logger.info("--------------------------Active threads count: " + active + "--------------------------");
+                if (active == 0)
+                    exit = true;
+                else {
+                    try {
+                        Thread.sleep(30000);
+                    } catch (InterruptedException e) {
                         exit = true;
-                    else {
-                        try {
-                            Thread.sleep(30000);
-                        } catch (InterruptedException e) {
-                            exit = true;
-                        }
                     }
                 }
             }

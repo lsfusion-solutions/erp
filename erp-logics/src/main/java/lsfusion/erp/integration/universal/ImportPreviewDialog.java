@@ -39,21 +39,10 @@ public class ImportPreviewDialog extends JDialog {
         JScrollPane tablePane = new JScrollPane(table);
 
         JButton OKButton = new JButton("OK");
-        OKButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                onOk();
-
-            }
-        });
+        OKButton.addActionListener(e -> onOk());
 
         JButton cancelButton = new JButton("Отмена");
-        cancelButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                onCancel();
-            }
-        });
+        cancelButton.addActionListener(e -> onCancel());
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BorderLayout());

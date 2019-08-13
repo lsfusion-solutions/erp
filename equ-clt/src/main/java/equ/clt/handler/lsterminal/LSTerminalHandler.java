@@ -204,12 +204,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
                 String exchangeDirectory = directoryEntry.getKey() + "/exchange";
 
-                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File pathname) {
-                        return pathname.getName().toUpperCase().startsWith("DOK_") && pathname.getPath().toUpperCase().endsWith(".DB");
-                    }
-                });
+                File[] filesList = new File(exchangeDirectory).listFiles(pathname -> pathname.getName().toUpperCase().startsWith("DOK_") && pathname.getPath().toUpperCase().endsWith(".DB"));
 
                 if (filesList == null || filesList.length == 0)
                     sendTerminalDocumentLogger.info("LSTerminal: No terminal documents found in " + exchangeDirectory);

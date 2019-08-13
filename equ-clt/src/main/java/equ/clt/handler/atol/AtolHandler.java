@@ -230,12 +230,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                 String exchangeDirectory = directory + "/OUT/";
 
-                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File pathname) {
-                        return acceptSalesFile(pathname);
-                    }
-                });
+                File[] filesList = new File(exchangeDirectory).listFiles(this::acceptSalesFile);
                 if (filesList != null) {
                     for (File file : filesList) {
 
@@ -302,12 +297,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                 String exchangeDirectory = directory + "/OUT/";
 
-                File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-                    @Override
-                    public boolean accept(File pathname) {
-                        return acceptSalesFile(pathname);
-                    }
-                });
+                File[] filesList = new File(exchangeDirectory).listFiles(this::acceptSalesFile);
                 if (filesList != null) {
                     for (File file : filesList) {
 
@@ -388,12 +378,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
         String exchangeDirectory = directory + "/OUT/";
 
-        File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
-            @Override
-            public boolean accept(File pathname) {
-                return acceptSalesFile(pathname);
-            }
-        });
+        File[] filesList = new File(exchangeDirectory).listFiles(this::acceptSalesFile);
 
         if (filesList != null) {
             for (File file : filesList) {

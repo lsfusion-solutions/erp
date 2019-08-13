@@ -164,17 +164,15 @@ public class TerminalServer extends MonitorServer {
     }
 
     public void startListenThread() {
-        listenThread = new Thread(new Runnable() {
-            public void run() {
-                while (!stopped) {
-                    try {
-                        Socket socket = listenServerSocket.accept();
-                        socket.setSoTimeout(30000);
-                        logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
-                        listenExecutorService.submit(new SocketCallable(socket));
-                    } catch (IOException e) {
-                        logger.error("Error occurred while submitting socket: ", e);
-                    }
+        listenThread = new Thread(() -> {
+            while (!stopped) {
+                try {
+                    Socket socket = listenServerSocket.accept();
+                    socket.setSoTimeout(30000);
+                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
+                    listenExecutorService.submit(new SocketCallable(socket));
+                } catch (IOException e) {
+                    logger.error("Error occurred while submitting socket: ", e);
                 }
             }
         });

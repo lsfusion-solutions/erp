@@ -49,16 +49,13 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
         if (baudRateBoard != null && comPortBoard != null) {
 
             if (timeout != null) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Thread.sleep(timeout);
-                            writeToPort();
-                        } catch (InterruptedException ignored) {
-                        }
-
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(timeout);
+                        writeToPort();
+                    } catch (InterruptedException ignored) {
                     }
+
                 }).start();
             } else {
                 return writeToPort();

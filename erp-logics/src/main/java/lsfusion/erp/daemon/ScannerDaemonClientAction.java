@@ -1,11 +1,9 @@
 package lsfusion.erp.daemon;
 
 import jssc.SerialPort;
-import jssc.SerialPortEvent;
 import jssc.SerialPortException;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.server.physics.dev.integration.external.to.equ.com.SerialPortEventListener;
 import lsfusion.server.physics.dev.integration.external.to.equ.com.SerialPortHandler;
 import org.apache.commons.lang.StringUtils;
 
@@ -69,47 +67,44 @@ public class ScannerDaemonClientAction implements ClientAction {
             try {
                 String portName = "COM" + currentCom;
 
-                SerialPortHandler.addSerialPort(dispatcher, portName, 9600, new SerialPortEventListener() {
-                    @Override
-                    public void serialEvent(SerialPortEvent event, SerialPort serialPort) {
-                        if (event.isRXCHAR()) {
-                            String barcode = barcodeMap.get(event.getPortName());
-                            if (singleRead) {
-                                try {
-                                    byte[] portBytes;
+                SerialPortHandler.addSerialPort(dispatcher, portName, 9600, (event, serialPort) -> {
+                    if (event.isRXCHAR()) {
+                        String barcode = barcodeMap.get(event.getPortName());
+                        if (singleRead) {
+                            try {
+                                byte[] portBytes;
 
-                                    Thread.sleep(50);
-                                    portBytes = serialPort.readBytes();
+                                Thread.sleep(50);
+                                portBytes = serialPort.readBytes();
 
-                                    if (portBytes != null) {
-                                        barcode = "";
-                                        for (byte portByte : portBytes) {
-                                            if (((char) portByte) != '\n' && ((char) portByte) != '\r')
-                                                barcode += (char) portByte;
-                                        }
-                                        if (!barcode.isEmpty())
-                                            eventBus.fireValueChanged(SCANNER_SID, barcode.trim());
+                                if (portBytes != null) {
+                                    barcode = "";
+                                    for (byte portByte : portBytes) {
+                                        if (((char) portByte) != '\n' && ((char) portByte) != '\r')
+                                            barcode += (char) portByte;
                                     }
-                                } catch (SerialPortException | InterruptedException ex) {
-                                    throw new RuntimeException(ex);
+                                    if (!barcode.isEmpty())
+                                        eventBus.fireValueChanged(SCANNER_SID, barcode.trim());
                                 }
-                            } else if (event.isRXCHAR() && event.getEventValue() > 0) {
-                                try {
-                                    char ch = (char) serialPort.readBytes(1)[0];
-                                    if (ch >= '0' && ch <= '9')
-                                        barcode += ch;
-                                    if (event.getEventValue() == 1) {
-                                        eventBus.fireValueChanged(SCANNER_SID, barcode);
-                                        barcode = "";
-                                    }
-                                } catch (SerialPortException ex) {
-                                    throw new RuntimeException(ex);
-                                }
+                            } catch (SerialPortException | InterruptedException ex) {
+                                throw new RuntimeException(ex);
                             }
-                            barcodeMap.put(event.getPortName(), barcode);
+                        } else if (event.isRXCHAR() && event.getEventValue() > 0) {
+                            try {
+                                char ch = (char) serialPort.readBytes(1)[0];
+                                if (ch >= '0' && ch <= '9')
+                                    barcode += ch;
+                                if (event.getEventValue() == 1) {
+                                    eventBus.fireValueChanged(SCANNER_SID, barcode);
+                                    barcode = "";
+                                }
+                            } catch (SerialPortException ex) {
+                                throw new RuntimeException(ex);
+                            }
                         }
+                        barcodeMap.put(event.getPortName(), barcode);
                     }
-                    }, SerialPort.MASK_RXCHAR | SerialPort.MASK_CTS | SerialPort.MASK_DSR);
+                }, SerialPort.MASK_RXCHAR | SerialPort.MASK_CTS | SerialPort.MASK_DSR);
                 barcodeMap.put(portName, "");
             } catch (Exception e) {
                 result = e.getMessage() != null ? e.getMessage() : "Internal Server Error";

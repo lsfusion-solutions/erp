@@ -216,12 +216,7 @@ public class DefaultIntegrationAction extends InternalAction {
 
     private void safeCheckFileExistence(final String filePath) {
         try {
-            final Future<Boolean> future = executor.submit(new Callable() {
-                @Override
-                public Boolean call() throws Exception {
-                    return new File(filePath).exists();
-                }
-            });
+            final Future<Boolean> future = executor.submit((Callable) () -> new File(filePath).exists());
 
             boolean result = false;
             try {

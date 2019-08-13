@@ -222,22 +222,19 @@ public class EquipmentServer {
         singleTransactionExecutor = Executors.newFixedThreadPool(transactionThreadCount);
         futures = new ArrayList<>();
         for (int i = 0; i < transactionThreadCount; i++) {
-            futures.add(singleTransactionExecutor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
-                        try {
-                            SingleTransactionTask task = taskPool.getTask();
-                            if (task == null)
-                                Thread.sleep(millis);
-                            else {
-                                equipmentLogger.info("task group started: " + task.groupId);
-                                task.run();
-                                equipmentLogger.info("task group done: " + task.groupId);
-                            }
-                        } catch (Exception e) {
-                            equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
+            futures.add(singleTransactionExecutor.submit(() -> {
+                while (!Thread.currentThread().isInterrupted() && !singleTransactionExecutor.isShutdown()) {
+                    try {
+                        SingleTransactionTask task = taskPool.getTask();
+                        if (task == null)
+                            Thread.sleep(millis);
+                        else {
+                            equipmentLogger.info("task group started: " + task.groupId);
+                            task.run();
+                            equipmentLogger.info("task group done: " + task.groupId);
                         }
+                    } catch (Exception e) {
+                        equipmentLogger.error("Unhandled exception in singleTransactionExecutor: ", e);
                     }
                 }
             }));
@@ -452,11 +449,7 @@ public class EquipmentServer {
     }
 
 
-    private static Comparator<TransactionInfo> COMPARATOR = new Comparator<TransactionInfo>() {
-        public int compare(TransactionInfo o1, TransactionInfo o2) {
-            return o1.dateTimeCode.compareTo(o2.dateTimeCode);
-        }
-    };
+    private static Comparator<TransactionInfo> COMPARATOR = Comparator.comparing(o -> o.dateTimeCode);
 
     public void stop() {
         interruptThread(processTransactionThread);
@@ -597,7 +590,7 @@ public class EquipmentServer {
                         removingTaskSet.add(transactionInfo.getKey());
                     }
                 }
-                Collections.sort(resultTask.transactionEntry, COMPARATOR);
+                resultTask.transactionEntry.sort(COMPARATOR);
                 for(Long task : removingTaskSet)
                     waitingTaskQueueMap.remove(task);
             }
@@ -625,12 +618,7 @@ public class EquipmentServer {
                 if(transactionEntry.getValue())
                     succeededTaskList.add(transactionEntry.getKey().id);
                 else {
-                    for(Iterator<Map.Entry<Long, TransactionInfo>> it = waitingTaskQueueMap.entrySet().iterator(); it.hasNext(); ) {
-                        Map.Entry<Long, TransactionInfo> entry = it.next();
-                        if(groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue()))) {
-                            it.remove();
-                        }
-                    }
+                    waitingTaskQueueMap.entrySet().removeIf(entry -> groupId != null && groupId.equals(getTransactionInfoGroupId(entry.getValue())));
                 }
                 proceededTaskList.remove(transactionEntry.getKey().id);
             }
