@@ -12,8 +12,83 @@ curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMER
 curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](Table);
 curRows 'Тек. количество записей' = DATA LOCAL NESTED INTEGER (Table);
 
+deleteIndexes 'Удалять индексы при упаковке' = DATA BOOLEAN (Table);
+
+CLASS Index 'Индекс';
+
+table 'Таблица' = DATA Table (Index);
+name 'Наименование' = DATA STRING (Index);
+tablespace 'Tablespace' = DATA STRING (Index);
+definition 'Скрипт' = DATA STRING (Index);
+isConstraint 'Constraint' = DATA BOOLEAN (Index);
+
+index = GROUP AGGR Index x BY name(x);
+
+getIndexes 'Получить список индексов'(Table t) {
+    NEWSESSION {
+        EXTERNAL SQL 'LOCAL'
+            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid) from pg_indexes i left join pg_constraint c ON i.indexname = c.conname where tablename = $1' 
+            PARAMS lower(sid(t))
+            TO file;
+            
+        IMPORT TABLE FROM file() FIELDS STRING indexname, STRING tablespace NULL , STRING definition, STRING constraint NULL DO {
+            IF NOT index(indexname) THEN NEW i = Index {
+                name(i) <- indexname;
+            }
+            FOR name(Index i ) == indexname DO {
+                table(i) <- t;
+                tablespace(i) <- tablespace;
+                definition(i) <- OVERRIDE constraint, definition;
+                isConstraint(i) <- TRUE IF constraint;
+            }
+        }
+        
+        APPLY;
+        
+    }
+} ASON CONTEXTMENU sid[Table];
+
+dropIndexes 'Удалить индексы' (Table t) {
+    logToFile('database-tools', 'DROP INDEXES');
+    runSQL(CONCAT '\n',
+        ('ALTER TABLE ' + lower(sid(t)) + (GROUP CONCAT (' DROP CONSTRAINT ' + name(Index i)) IF isConstraint(i) AND table(i) == t, '\n') + ';'),
+        (GROUP CONCAT ('DROP INDEX ' + name(Index i)) IF NOT isConstraint(i) AND table(i) == t, ';\n')
+    );
+}
+
+
+dataCountTreads = DATA INTEGER ();
+countTreads 'Количество потоков'() = OVERRIDE dataCountTreads(), 4;
+
+createIndexes 'Создать индексы' (Table t) {
+    NEWEXECUTOR 
+        FOR table(Index i) == t DO 
+            NEWTHREAD NEWSESSION NEWSQL {
+                logToFile('database-tools', 'CREATE INDEX '+ name(i) + ' start');
+                TRY {
+                    IF isConstraint(i) THEN {
+                        runSQL('ALTER TABLE ' + lower(sid(t)) + ' ADD CONSTRAINT ' + name(i) + ' ' + definition(i));
+                    } ELSE {
+                        runSQL(definition(i));                
+                    }
+                } CATCH {
+                    logToFile('database-tools', (CONCAT '', 'CREATE INDEX '+ name(i) + ' error: ', messageCaughtException() ));
+                }
+                logToFile('database-tools', 'CREATE INDEX '+ name(i) + ' end');
+            } 
+	THREADS countTreads();
+}
+
 reindex 'REINDEX' (Table t) {
-    runSQL('REINDEX TABLE ' + sid(t));
+    IF deleteIndexes(t) THEN {
+        getIndexes(t);
+        dropIndexes(t);
+        createIndexes(t);
+    } ELSE {
+        logToFile('database-tools', 'REINDEX TABLE ' + sid(t) + ' start');
+        runSQL('REINDEX TABLE ' + sid(t));
+        logToFile('database-tools', 'REINDEX TABLE ' + sid(t) + ' end');
+    }
     NEWSESSION {
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
         APPLY;
@@ -21,7 +96,16 @@ reindex 'REINDEX' (Table t) {
 } ASON CONTEXTMENU sid[Table];
 
 vacuum 'VACUUM FULL' (Table t) {
+    IF deleteIndexes(t) THEN {
+        getIndexes(t);
+        dropIndexes(t);
+    }
+    logToFile('database-tools', 'VACUUM FULL ' + sid(t) + ' start');
     runSQL('VACUUM FULL ' + sid(t));
+    logToFile('database-tools', 'VACUUM FULL ' + sid(t) + ' end');
+    IF deleteIndexes(t) THEN {
+        createIndexes(t);
+    }    
     NEWSESSION {
         dataSize(t) <- [FORMULA NUMERIC[15,3] 'pg_table_size($1) /1024/1024.0'](lower(sid(t)));
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
@@ -93,13 +177,9 @@ smartVacuum 'Smart VACUUM'() {
     
     FOR curDataSize(Table t)  AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
         IF needVacuum(t) THEN {
-            logToFile('database-tools', 'Smart VACUUM - VACUUM FULL ' + sid(t) + ' start');
             vacuum(t);
-            logToFile('database-tools', 'Smart VACUUM - VACUUM FULL ' + sid(t) + ' end');
         } ELSE {
-            logToFile('database-tools', 'Smart VACUUM - REINDEX TABLE ' + sid(t) + ' start');
             reindex(t);
-            logToFile('database-tools', 'Smart VACUUM - REINDEX TABLE ' + sid(t) + ' end');
         }
     }
     
@@ -212,7 +292,7 @@ EXTEND FORM tools
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
-    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize
+    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE 
     PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
@@ -228,7 +308,11 @@ EXTEND FORM tools
     PROPERTIES(tc) READONLY sid, caption, return, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, notNullQuantity , percentNotNull
     FILTERS table(tc)==t
     
-    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows
+    OBJECTS i=Index
+    PROPERTIES(i)  name, definition, isConstraint
+    FILTERS table(i)==t
+    
+    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows, countTreads
     
     EVENTS 
         ON INIT loadCurSize(),
@@ -247,15 +331,13 @@ DESIGN tools{
                     MOVE PROPERTY (vacuumSize());
                     MOVE PROPERTY (vacuumCoeff());
                     MOVE PROPERTY (nameVacuumOrderType());
+                    MOVE PROPERTY (countTreads());
                     MOVE PROPERTY (smartVacuum());
                 }
                 NEW stats{
                     caption = 'Статистика';
                     MOVE PROPERTY (loadCurRows());
                 }
-                MOVE PROPERTY (formApply());
-                MOVE PROPERTY (formCancel());
-                MOVE PROPERTY (formRefresh());
             }
             NEW dbRight{
                 fill = 1;
@@ -266,6 +348,7 @@ DESIGN tools{
                     type = TABBED;
                     MOVE BOX (tc);
                     MOVE BOX (tk);
+                    MOVE BOX (i);
                 }
             }
         }
