@@ -14,7 +14,6 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import java.io.InvalidClassException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
 import java.rmi.ConnectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -108,7 +107,7 @@ public class EquipmentServer {
                                 remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
                             } catch (NotBoundException e) {
                                 equipmentLogger.error("Naming lookup error, possible Equipment Server is disabled, check serverComputer()", e);
-                            } catch (MalformedURLException | RemoteException e) {
+                            } catch (RemoteException e) {
                                 equipmentLogger.error("Naming lookup error : ", e);
                             }
 
