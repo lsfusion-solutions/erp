@@ -1,0 +1,51 @@
+MODULE ProductionOrderWorkshop;
+
+REQUIRE ProductionOrder, ProductionOperation, ProductionConsumptionConsignmentBy, ProductionOrderConsignmentBy;
+
+NAMESPACE Production;
+
+@defineDocumentHeaderStock (order, stock, 'Цех', workshop);
+
+CONSTRAINT company(Order order) AND workshopStock(order) AND NOT
+in(company(order), workshopStock(order))
+    CHECKED BY workshopStock[Order]
+        MESSAGE 'Организация и цех для производственного заказа не имеют связи';
+        
+@defineDocumentDetailStock (order, productDetail, stock, workshopStock, 'Цех');
+
+@defineOperationStock(workshop, ws, 'Цеха');
+
+DESIGN operation {
+    tabContainer {
+        MOVE workshopStockContainer AFTER productsStockContainer;
+    }
+}
+
+@defineDocumentOperationStock(order, workshop, 'Цех');
+
+@defineDocumentDialogStock(order, company,  workshop, company, );
+
+EXTEND FORM orders PROPERTIES (o) nameWorkshopStock AFTER nameProductsStock(o);
+EXTEND FORM order PROPERTIES (o) nameWorkshopStock ON CHANGE changeWorkshopStockCompany(o);
+
+DESIGN order {
+    headerRow1 {
+        headerRow111 {
+            MOVE PROPERTY (nameWorkshopStock(o));
+        }
+        NEW headerRow130 AFTER headerRow11 {
+            type = CONTAINERH;
+            NEW headerRow1301 {
+                caption = 'Расценка';
+                type = CONTAINERH;
+                MOVE PROPERTY(createPricing(o));
+                MOVE PROPERTY(namePricingOperation(o));
+                MOVE PROPERTY(namePricingCommittee(o));
+            }
+            MOVE headerRow112;
+        }
+    }
+}
+
+overSupplierStock(Order c) += workshopStock(c);
+overCustomerStock(Consumption c) += GROUP MAX workshopStock(Order o) IF quantityConsumptionDetail(o, c);
