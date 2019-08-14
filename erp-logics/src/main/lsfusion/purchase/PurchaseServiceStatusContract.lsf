@@ -34,7 +34,7 @@ backgroundServiceStatus (ContractSku c) = CASE
 prevStatus 'Статус качества сервиса'  =
     GROUP LAST serviceStatus(ServiceStatusDetail d)
         ORDER toDate(d), d
-        WHERE DATE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d)
+        WHERE fromDate(d)<= DATE date AND date <= toDate(d) AND NOT isChange(d)
         BY contractSku(d), date;
 
 
@@ -49,6 +49,26 @@ sumService (contract, DATE dateFrom, DATE dateTo)= GROUP SUM sumOrderDetail(Orde
 percentSumExecutionService '% исп. заявки (сумма)' (ContractSku c, DATE dateFrom, DATE dateTo) = sumShippedService(c, dateFrom, dateTo)*100.00 /
     (sumService(c, dateFrom, dateTo) IF sumService(c, dateFrom, dateTo)!=0);   
 
+percFine '% штрафа' = DATA NUMERIC[18,5](ContractSku) IN payment;
+
+EXTEND FORM userContractSku
+    PROPERTIES (c) percFine
+;
+EXTEND FORM contracts
+    PROPERTIES (c) READONLY GRID percFine
+;
+
+sum 'Сумма недопоставки' = DATA NUMERIC[18,5](ServiceStatusDetail);
+percFine '% штрафа' = DATA NUMERIC[18,5](ServiceStatusDetail);
+sumFine 'Сумма штрафа' (ServiceStatusDetail d) = round2(sum(d)*percFine(d)/100.0) IF serviceStatus(d)==ServiceStatus.fine;
+useExclude 'Есть категории-исключения' = DATA BOOLEAN (ServiceStatusDetail);
+
+sumFine 'Сумма штрафа' (ContractSku c) = sumFine(lastServiceStatusDetail(c));
+
+countExcludeService (ContractSku c, DATE dateFrom, DATE dateTo)= GROUP SUM excludeGroupService(Order order) 
+    IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) 
+        BY contractSku(order); 
+
 overCreateServiceStatusDetailContract  ABSTRACT LIST ( );
 extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + { 
 
@@ -60,8 +80,7 @@ extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + {
     in(ContractSku c) <- NULL;
     
     in(ContractSku c) <- TRUE WHERE isSupplier(supplier(c)) AND isCompany(customer(c)) AND NOT isCompany(supplier(c)) AND dateFrom(c) <= dTo AND NOT dateTo(c) <dFrom AND NOT notCalcServiceStatus(supplier(c));
-    prev(ContractSku c) <- (IF serviceStatus(lastServiceStatusDetail(c)) THEN serviceStatus(lastServiceStatusDetail(c)) ELSE serviceStatus(lastServiceStatusDetail(supplier(c)))) 
-                            WHERE in(c);
+    prev(ContractSku c) <- serviceStatus(lastServiceStatusDetail(c))  WHERE in(c);
                            
      
     FOR in(ContractSku c) DO NEWSESSION NESTED (prev[ContractSku], in[ContractSku]) {
@@ -71,23 +90,24 @@ extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + {
             legalEntity(d) <- supplier(c);
             fromDate(d) <- dFrom;
             toDate(d) <- dTo;
-            percService(d) <- NUMERIC[16,2](OVERRIDE percentSumExecutionService(c,fromDate(d),toDate(d)), 0.0 IF sumService(c,fromDate(d),toDate(d)));
-            
+            useExclude(d) <- TRUE IF countExcludeService(c,dFrom,dTo);
+            sum(d) <- (sumService(c,dFrom,dTo) (-) sumShippedService(c,dFrom,dTo)) WHERE (sumService(c,dFrom,dTo) (-) sumShippedService(c,dFrom,dTo))>0.0;
+            percFine(d) <- percFine(c);
+            percService(d) <- NUMERIC[16,2](OVERRIDE percentSumExecutionService(c,dFrom,dTo), 0.0 IF sumService(c,dFrom,dTo));
+
             IF percService(d) AND dataPercService(c) THEN {
-                
-                IF percService(d) >= dataPercService(c) THEN {
-                    serviceStatus(d) <- ServiceStatus.good;
+                IF percService(d) >= dataPercService(c) THEN {                    
+                    serviceStatus(d) <- CASE 
+                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.fine AND NOT prev(contractSku(d))== ServiceStatus.finePay AND NOT useExclude(d) THEN ServiceStatus.stopping                                     
+                            ELSE ServiceStatus.good;
+                    
                 } ELSE {
-                    IF prevStatus(contractSku(d),sumMonth (dFrom, -1)) THEN {
-                        serviceStatus(d) <- IF prevStatus(contractSku(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-                                                THEN ServiceStatus.stopping 
-                                                ELSE ServiceStatus.warning;    	                
-                    } ELSE {
-                        serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
-                                                THEN ServiceStatus.stopping 
-                                                ELSE ServiceStatus.warning; 	                
-                    }
-    
+                    serviceStatus(d) <- CASE 
+                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.fine AND NOT useExclude(d) THEN ServiceStatus.stopping
+                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.finePay AND NOT useExclude(d) THEN ServiceStatus.stopping
+                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) == ServiceStatus.warning AND NOT useExclude(d) THEN ServiceStatus.fine
+                            ELSE ServiceStatus.warning
+                            ;  
                 }                 
             }
             isChange(c) <- TRUE WHERE (prev(c) OR serviceStatus(d)) AND NOT (prev(c) == serviceStatus(d));             
@@ -97,10 +117,6 @@ extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + {
     
     overCreateServiceStatusDetailContract();	
 }
-
-//createServiceStatusDetailContract()  { 
-//    createServiceStatusDetailContract(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
-//};
 
 changeServiceStatusContract (ContractSku c)  { 
     NEWSESSION {
@@ -129,15 +145,17 @@ changeServiceStatusContract (ContractSku c)  {
     }    
 }
 
+
 EXTEND FORM legalEntity
     
     OBJECTS cs = ContractSku
     PROPERTIES (cs) SHOWIF isSupplier(l) READONLY number, series, dateFrom, dateTo,
-                dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) CHANGEABLE, percService 
+                dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) CHANGEABLE, 
+                percService, sumFine  
     FILTERS supplier(cs) == l
     OBJECTS sdc = ServiceStatusDetail
     
-    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY fromDate, toDate, percService, nameServiceStatus
+    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY fromDate, toDate, percService, sum, percFine, sumFine, useExclude, nameServiceStatus
     PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY createdTime, createdNameUser, createdHostnameComputer
     ORDER fromDate(sdc) DESC
     FILTERS legalEntity(sdc) == l,

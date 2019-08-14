@@ -9,14 +9,30 @@ dataPercService 'Качество сервиса (контроль), %' = DATA N
 CLASS ServiceStatus 'Статус качества сервиса' {
     good 'Хорошо',
     warning 'Предупреждение',
+    fine 'Штраф',
+    finePay 'Штраф оплачен',
     stopping 'Стоп лист'    
 } 
 TABLE serviceStatus (ServiceStatus);
+order 'Порядок' = DATA INTEGER (ServiceStatus) CHARWIDTH 2;
+fillOrderServiceStatus = DATA BOOLEAN ();
+
+onStarted() + {
+    IF NOT fillOrderServiceStatus() THEN {
+        order(ServiceStatus s) <- CASE 
+                                    WHEN  ServiceStatus.good==s THEN 1
+                                    WHEN  ServiceStatus.warning==s THEN 2
+                                    WHEN  ServiceStatus.fine==s THEN 3                                    
+                                    WHEN  ServiceStatus.finePay==s THEN 4                                                                        
+                                    WHEN  ServiceStatus.stopping==s THEN 5;  
+        fillOrderServiceStatus() <- TRUE;
+    }
+}
 
 FORM serviceStatus 'Статус качества сервиса' 
     OBJECTS t = ServiceStatus
-    PROPERTIES(t) READONLY staticCaption
-    
+    PROPERTIES(t) READONLY order, staticCaption
+    ORDER order(t)
     LIST ServiceStatus OBJECT t
 ;
 
@@ -76,8 +92,8 @@ EXTEND FORM itemGroups
     PROPERTIES(g) READONLYIF isReadonly() excludePercService
 ;
 overExcludeService  = ABSTRACT VALUE BOOLEAN (Purchase.Order);
-excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail)](o)
-                                                                                   OR overExcludeService(o);
+excludeGroupService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) = [GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail)](o);
+excludeService 'Исключить из подстчета "Качество сервиса"' (Purchase.Order o) =excludeGroupService(o) OR overExcludeService(o);
 
 sumShippedService (supplier, DATE dateFrom, DATE dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
