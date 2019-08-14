@@ -24,6 +24,7 @@ replace  ABSTRACT LIST ( Sku, Batch);
 // --------------------------------- Партии ------------------------------------------------ //
 
 TABLE batch(Batch);
+TABLE descriptionBatch(Batch);
 TABLE skuLedgerBatch (SkuLedger, Batch);
 TABLE batchStock(Batch, Stock);
 
@@ -81,7 +82,7 @@ nameStock 'Склад' (Batch batch) = name(stock(batch));
 cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) MATERIALIZED;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
-description 'Описание' (batch) = ABSTRACT ISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30;
+description 'Описание' (batch) = ABSTRACT ISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30 TABLE descriptionBatch;
 name 'Название' (batch) = ABSTRACT ISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30;
 
 expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
@@ -92,7 +93,7 @@ prevManufactureDate 'Дата изготовления' (Batch batch) = PREV(man
 
 number 'Номер документа' = ABSTRACT STRING[28] (Batch) CHARWIDTH 8 MATERIALIZED;
 series 'Серия документа' = ABSTRACT BPSTRING[2] (Batch) CHARWIDTH 3 NOFLEX MATERIALIZED;
-seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) CHARWIDTH 7 MATERIALIZED;
+seriesNumber 'Серия/Номер' (Batch o) = CONCAT '', series(o), number(o) CHARWIDTH 7;
     
 supplier = ABSTRACT LegalEntity (Batch) MATERIALIZED;
 prevSupplier (Batch batch) = PREV(supplier(batch));
