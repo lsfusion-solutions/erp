@@ -8,7 +8,7 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
 
     public EquipmentServerInterface remote;
     
-    public abstract String getGroupId(T transactionInfo) throws IOException;
+    public abstract String getGroupId(T transactionInfo);
 
     public abstract Map<Long, SendTransactionBatch> sendTransaction(List<T> transactionInfoList) throws IOException;
 

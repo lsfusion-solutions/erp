@@ -38,7 +38,7 @@ public class ExportDeclarationAction extends DefaultExportAction {
         declarationInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
             List<String> exportNames = BaseUtils.toList("numberDeclarationDetail", "nameCustomsDeclarationDetail",
                     "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",

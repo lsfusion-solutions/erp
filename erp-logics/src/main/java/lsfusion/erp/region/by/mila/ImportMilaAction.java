@@ -301,7 +301,7 @@ public class ImportMilaAction extends InternalAction {
         String errMsg = "Неизвестная ошибка";
 
         //  Производит чтение страницы, по выбранному URL
-        boolean loadUrl(String url) throws IOException {
+        boolean loadUrl(String url) {
             try {
                 Connection connection = Jsoup.connect(url);
                 connection.timeout(timeout);
@@ -317,7 +317,7 @@ public class ImportMilaAction extends InternalAction {
         }
 
         // Записывает ранее считанную страницу из WEB в текстовый документ
-        boolean saveDoc(String fileName) throws IOException {
+        boolean saveDoc(String fileName) {
             boolean lRet = true;
             if (doc == null) return errBox("Документ не существует");
             try {
@@ -363,7 +363,7 @@ public class ImportMilaAction extends InternalAction {
         boolean lAdd = true;
 
         // Запись текстовой строки в текстовый файл
-        boolean strToFile(String cText, String fileName) throws IOException {
+        boolean strToFile(String cText, String fileName) {
             boolean lRet = true;
             try {
                 FileWriter ob = new FileWriter(fileName, lAdd);
@@ -376,7 +376,7 @@ public class ImportMilaAction extends InternalAction {
         }
 
         // Чтение файл в текстовый буфер cResult
-        boolean fileToStr(String fileName) throws IOException {
+        boolean fileToStr(String fileName) {
             cResult = "";
             boolean lRet = true;
             try {

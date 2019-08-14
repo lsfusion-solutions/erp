@@ -74,7 +74,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -318,7 +318,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
@@ -883,7 +883,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;

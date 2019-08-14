@@ -31,7 +31,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
             settings = login(context, true);
             if (settings.error == null) {

@@ -203,7 +203,7 @@ public class MachineryExchangeEquipmentServer {
         return extraCashRegisterSet;
     }
 
-    public static void errorRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException {
+    public static void errorRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Map<Long, Throwable> failedRequestsMap) throws SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = server.createSession()) {
                 for (Map.Entry<Long, Throwable> request : failedRequestsMap.entrySet()) {
@@ -216,7 +216,7 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    public static void errorRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long requestExchange, Throwable t) throws RemoteException, SQLException {
+    public static void errorRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long requestExchange, Throwable t) throws SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = server.createSession()) {
                 errorRequestExchange(session, requestExchange, t);
@@ -236,7 +236,7 @@ public class MachineryExchangeEquipmentServer {
         machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(requestExchange, session, errorObject);
     }
 
-    public static void finishRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Set<Long> succeededRequestsSet) throws RemoteException, SQLException {
+    public static void finishRequestExchange(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Set<Long> succeededRequestsSet) throws SQLException {
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = server.createSession()) {
                 for (Long request : succeededRequestsSet) {
@@ -255,7 +255,7 @@ public class MachineryExchangeEquipmentServer {
         return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
-    public static List<DiscountCard> readDiscountCardList(DBManager dbManager, EquipmentServer server, RequestExchange requestExchange) throws RemoteException, SQLException {
+    public static List<DiscountCard> readDiscountCardList(DBManager dbManager, EquipmentServer server, RequestExchange requestExchange) {
         List<DiscountCard> discountCardList = new ArrayList<>();
         if(discountCardLM != null) {
             try (DataSession session = server.createSession()) {
@@ -356,7 +356,7 @@ public class MachineryExchangeEquipmentServer {
         return cashierInfoList;
     }
 
-    public static List<TerminalOrder> readTerminalOrderList(DBManager dbManager, EquipmentServer server, RequestExchange requestExchange) throws RemoteException, SQLException {
+    public static List<TerminalOrder> readTerminalOrderList(DBManager dbManager, EquipmentServer server, RequestExchange requestExchange) throws SQLException {
         List<TerminalOrder> terminalOrderList = new ArrayList<>();
         if (purchaseInvoiceAgreementLM != null) {
             try (DataSession session = server.createSession()) {
@@ -414,7 +414,7 @@ public class MachineryExchangeEquipmentServer {
         return terminalOrderList;
     }
 
-    public static List<MachineryInfo> readMachineryInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
+    public static List<MachineryInfo> readMachineryInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws SQLException {
         List<MachineryInfo> machineryInfoList = new ArrayList<>();
         if (machineryLM != null) {
             try (DataSession session = server.createSession()) {

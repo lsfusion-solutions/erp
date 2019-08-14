@@ -21,7 +21,7 @@ public class FiscalShtrihCustomOperationClientAction implements ClientAction {
 
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalShtrih.init();

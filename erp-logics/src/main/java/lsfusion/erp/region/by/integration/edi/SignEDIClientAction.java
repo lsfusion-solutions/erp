@@ -25,7 +25,7 @@ public class SignEDIClientAction implements ClientAction {
     }
 
     @Override
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
         try {
             return new SignEDIWorker(files, signerPath, outputDir, certificate, password).execute();
         } catch (InterruptedException | ExecutionException e) {

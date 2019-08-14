@@ -49,7 +49,7 @@ public class ImportAction extends DefaultImportAction {
     DataObject defaultDate = new DataObject(defaultDateFrom, DateClass.instance);
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
         makeImport(new ImportData(), context);
     }
 
@@ -240,18 +240,14 @@ public class ImportAction extends DefaultImportAction {
 
     private void importItems(List<Item> itemsList, Integer numberOfItemsAtATime) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
-        try {
-            Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
-            if (itemsList != null) {
-                int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
-                Integer rest = itemsList.size();
-                for (int i = 0; i < amountOfImportIterations; i++) {
-                    importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)));
-                    rest -= numAtATime;
-                }
+        Integer numAtATime = (numberOfItemsAtATime == null || numberOfItemsAtATime <= 0) ? 5000 : numberOfItemsAtATime;
+        if (itemsList != null) {
+            int amountOfImportIterations = (int) Math.ceil((double) itemsList.size() / numAtATime);
+            Integer rest = itemsList.size();
+            for (int i = 0; i < amountOfImportIterations; i++) {
+                importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)));
+                rest -= numAtATime;
             }
-        } catch (xBaseJException | IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -298,7 +294,7 @@ public class ImportAction extends DefaultImportAction {
     }
 
 
-    private void importPackOfItems(List<Item> itemsList) throws SQLException, IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void importPackOfItems(List<Item> itemsList) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         if (!notNullNorEmpty(itemsList)) return;
 
         ERPLoggers.importLogger.info("importItems " + itemsList.size());

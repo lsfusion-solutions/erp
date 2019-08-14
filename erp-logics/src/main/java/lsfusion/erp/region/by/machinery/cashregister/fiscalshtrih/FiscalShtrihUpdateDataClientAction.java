@@ -22,7 +22,7 @@ public class FiscalShtrihUpdateDataClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         FiscalShtrih.init();
         try {

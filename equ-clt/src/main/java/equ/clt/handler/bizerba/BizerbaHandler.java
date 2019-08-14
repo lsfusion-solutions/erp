@@ -74,7 +74,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         } else return model;
     }
 
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList, String charset, boolean encode) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList, String charset, boolean encode) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -142,7 +142,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) {
         try {
             if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
                 processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scales...");
@@ -185,7 +185,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return receiveReply(errors, port, charset, ip, false);
     }
 
-    private String receiveReply(List<String> errors, TCPPort port, String charset, String ip, boolean longAction) throws CommunicationException {
+    private String receiveReply(List<String> errors, TCPPort port, String charset, String ip, boolean longAction) {
         String reply;
         Pattern pattern = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
@@ -348,21 +348,21 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return result;
     }
 
-    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException {
         String command = "ATST  " + separator +"L" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, ip, encode);
         return receiveReply(errors, port, charset, ip, true);
     }
 
-    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) throws CommunicationException {
         String command = "PLST  " + separator + "L" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, ip, encode);
         return receiveReply(errors, port, charset, ip, true);
     }
 
-    private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber, String charset, boolean encode) throws CommunicationException, IOException {
+    private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber, String charset, boolean encode) throws CommunicationException {
         String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator + "ATNU" + messageNumber + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, charset, scales.port, encode);
@@ -370,7 +370,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return result.equals("0") ? null : result;
     }
 
-    public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item, String charset, boolean encode) throws CommunicationException, IOException {
+    public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item, String charset, boolean encode) throws CommunicationException {
         Integer plu = getPluNumber(scales, item);
         processStopListLogger.info(String.format("Bizerba: clearing plu %s", plu));
         String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator
@@ -383,7 +383,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return receiveReply(errors, port, charset, scales.port);
     }
 
-    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException, IOException {
+    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) throws CommunicationException {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
@@ -563,7 +563,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return null;
     }
 
-    private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
+    private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException {
         long timeZero = new Date(1970-1900, 0, 1, 0, 0, 0).getTime() / 1000;
         String command = "UHR   " + separator + "N00" + separator + "UUHR" + (System.currentTimeMillis() / 1000 - timeZero) + endCommand;
         clearReceiveBuffer(port);
@@ -611,7 +611,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         }
 
         @Override
-        public SendTransactionResult call() throws Exception {
+        public SendTransactionResult call() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             String openPortResult = openPort(port, scales.port, true);
@@ -699,7 +699,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         }
 
         @Override
-        public List<String> call() throws Exception {
+        public List<String> call() {
             List<String> localErrors = new ArrayList<>();
             String openPortResult = openPort(port, scales.port, false);
             if(openPortResult != null) {

@@ -61,7 +61,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
             new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");

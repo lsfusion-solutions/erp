@@ -14,7 +14,7 @@ public class FiscalVMKDisplayTextClientAction extends FiscalVMKClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
 

@@ -43,7 +43,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
 
             DataObject itemGroupLoyaObject = context.getDataKeyValue(itemGroupLoyaInterface);

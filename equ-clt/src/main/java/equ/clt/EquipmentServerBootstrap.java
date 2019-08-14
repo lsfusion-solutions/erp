@@ -20,7 +20,7 @@ public class EquipmentServerBootstrap {
 
     private static EquipmentServer equ;
 
-    public static void start() throws IOException {
+    public static void start() {
         logger.info("Server is starting...");
 
         initSpringContext();

@@ -58,7 +58,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 

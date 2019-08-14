@@ -40,7 +40,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList != null) {
@@ -205,7 +205,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         for (RequestExchange entry : requestExchangeList) {
             try {
                 Class.forName("com.mysql.jdbc.Driver");

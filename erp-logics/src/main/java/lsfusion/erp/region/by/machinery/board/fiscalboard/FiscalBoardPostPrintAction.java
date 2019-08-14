@@ -23,7 +23,7 @@ public class FiscalBoardPostPrintAction extends FiscalBoardAction {
         receiptInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 

@@ -25,7 +25,7 @@ public class DataSocket {
         inputStream = new DataInputStream(socket.getInputStream());
     }
 
-    public void close() throws CommunicationException, IOException {
+    public void close() throws IOException {
         if (socket != null) {
             socket.close();
             socket = null;

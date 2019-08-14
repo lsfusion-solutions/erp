@@ -39,7 +39,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
     }
 
     @Override
-    public PromotionInfo readPromotionInfo() throws RemoteException, SQLException {
+    public PromotionInfo readPromotionInfo() throws RemoteException {
         try {
 
             BusinessLogics BL = logicsInstance.getBusinessLogics();
@@ -138,7 +138,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
     }
     
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
     }
 
     @Override

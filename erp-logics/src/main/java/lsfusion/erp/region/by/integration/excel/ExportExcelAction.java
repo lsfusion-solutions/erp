@@ -58,7 +58,7 @@ public abstract class ExportExcelAction extends DefaultIntegrationAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
             Pair<String, RawFileData> fileEntry = createFile(context);
             context.delayUserInterfaction(new WriteClientAction(fileEntry.second, fileEntry.first, "xls", false, true));

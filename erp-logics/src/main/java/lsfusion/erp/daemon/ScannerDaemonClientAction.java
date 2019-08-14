@@ -24,7 +24,7 @@ public class ScannerDaemonClientAction implements ClientAction {
     }
 
     @Override
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
         ScannerDaemonListener scannerDaemonListener = new ScannerDaemonListener(dispatcher, comPort, singleRead);
         scannerDaemonListener.setEventBus(dispatcher.getEventBus());
         return scannerDaemonListener.start();

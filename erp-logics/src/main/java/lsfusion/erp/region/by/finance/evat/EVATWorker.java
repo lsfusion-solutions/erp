@@ -37,7 +37,7 @@ class EVATWorker {
 
       SwingWorker<List<List<Object>>, Void> mySwingWorker = new SwingWorker<List<List<Object>>, Void>(){
          @Override
-         protected List<List<Object>> doInBackground() throws Exception {
+         protected List<List<Object>> doInBackground() {
             switch (type) {
                case 0:
                   if(useActiveX)

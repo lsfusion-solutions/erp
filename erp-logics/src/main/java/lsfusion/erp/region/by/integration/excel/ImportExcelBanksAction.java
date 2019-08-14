@@ -27,7 +27,7 @@ public class ImportExcelBanksAction extends ImportExcelAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
         try {
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( "Файлы таблиц", "xls");

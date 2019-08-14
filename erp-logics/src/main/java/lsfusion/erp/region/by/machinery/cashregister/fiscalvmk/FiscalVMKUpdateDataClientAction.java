@@ -11,7 +11,7 @@ public class FiscalVMKUpdateDataClientAction extends FiscalVMKClientAction {
         super(isUnix, logPath, ip, comPort, baudRate);
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
         try {
             FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
             FiscalVMK.closePort();

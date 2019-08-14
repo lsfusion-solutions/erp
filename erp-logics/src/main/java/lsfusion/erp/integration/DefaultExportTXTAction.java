@@ -28,7 +28,7 @@ public class DefaultExportTXTAction extends DefaultExportAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
     }
 
     protected String fillSymbolsLine(char c, int length) {

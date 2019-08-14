@@ -31,12 +31,12 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public String getGroupId(TransactionInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionInfo transactionInfo) {
         return "lsterminal";
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List transactionInfoList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -72,7 +72,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public void sendTerminalOrderList(List terminalOrderList, MachineryInfo machinery) throws IOException {
+    public void sendTerminalOrderList(List terminalOrderList, MachineryInfo machinery) {
         try {
 
             File directory = new File(machinery.directory + dbPath);
@@ -121,7 +121,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public void saveTransactionTerminalInfo(TransactionTerminalInfo transactionInfo) throws IOException {
+    public void saveTransactionTerminalInfo(TransactionTerminalInfo transactionInfo) {
 
         processTransactionLogger.info("LSTerminal: save Transaction #" + transactionInfo.id);
 
@@ -182,7 +182,7 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public TerminalDocumentBatch readTerminalDocumentInfo(List machineryInfoList) throws IOException {
+    public TerminalDocumentBatch readTerminalDocumentInfo(List machineryInfoList) {
 
         try {
 

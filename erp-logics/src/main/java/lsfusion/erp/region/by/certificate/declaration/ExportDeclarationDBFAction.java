@@ -47,7 +47,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         declarationInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
 
@@ -634,7 +634,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         return dataFields.toArray(new OverJDBField[dataFields.size()]);
     }
 
-    private Map<String, Object> getNameValueFieldMap(Map<Field, Object> dbfFields) throws JDBFException {
+    private Map<String, Object> getNameValueFieldMap(Map<Field, Object> dbfFields) {
         LinkedHashMap<String, Object> nameValueFieldMap = new LinkedHashMap<>();
 
         for (Map.Entry<Field, Object> entry : dbfFields.entrySet()) {

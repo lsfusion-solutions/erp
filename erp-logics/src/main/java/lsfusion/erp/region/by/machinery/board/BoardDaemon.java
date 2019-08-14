@@ -44,7 +44,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
     protected abstract Callable getCallable(Socket socket);
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         Assert.notNull(businessLogics, "businessLogics must be specified");
         Assert.notNull(dbManager, "dbManager must be specified");
         Assert.notNull(logicsInstance, "logicsInstance must be specified");
@@ -55,7 +55,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
         return logicsInstance;
     }
 
-    protected void setupDaemon(DBManager dbManager, String host, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    protected void setupDaemon(DBManager dbManager, String host, Integer port) {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();

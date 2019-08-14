@@ -50,7 +50,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
 
         //System.setProperty(LibraryLoader.JACOB_DLL_PATH, "E:\\work\\Кассы-весы\\dll\\jacob-1.15-M3-x86.dll");
 
@@ -691,7 +691,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         return !value.toString().equals("0");
     }
 
-    private int clearGoodsDB(List<String> errors, UDPPort port) throws IOException, CommunicationException, InterruptedException {
+    private int clearGoodsDB(List<String> errors, UDPPort port) throws IOException, InterruptedException {
         ByteBuffer bytes = ByteBuffer.allocate(5);
         bytes.put((byte) 24); //18H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4);
@@ -710,7 +710,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         return result;
     }
     
-    private int setMessageData(List<String> errors, UDPPort port, int messageNumber, int stringNumber, String messageString) throws IOException, CommunicationException {
+    private int setMessageData(List<String> errors, UDPPort port, int messageNumber, int stringNumber, String messageString) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(58);
         bytes.put((byte) 82); //52H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
@@ -721,7 +721,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private int setPLUDataEx(List<String> errors, UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
-                             int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType) throws IOException, CommunicationException {
+                             int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
@@ -776,7 +776,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         return receiveStateReply(errors, port);
     }*/
 
-    private int receiveReply(List<String> errors, UDPPort port) throws CommunicationException {
+    private int receiveReply(List<String> errors, UDPPort port) {
         try {
             byte[] var2 = new byte[255];
             port.receiveCommand(var2);

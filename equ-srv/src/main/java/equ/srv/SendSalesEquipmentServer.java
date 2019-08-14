@@ -51,7 +51,7 @@ public class SendSalesEquipmentServer {
         zReportLM = BL.getModule("ZReport");
     }
 
-    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
+    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws SQLException {
         List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
         if (cashRegisterLM != null) {
             try (DataSession session = server.createSession()) {
@@ -101,7 +101,7 @@ public class SendSalesEquipmentServer {
         return cashRegisterInfoList;
     }
 
-    public static Set<String> readCashDocumentSet(DBManager dbManager, EquipmentServer server) throws IOException, SQLException {
+    public static Set<String> readCashDocumentSet(DBManager dbManager, EquipmentServer server) throws SQLException {
         Set<String> cashDocumentSet = new HashSet<>();
         if (cashOperationLM != null) {
             try (DataSession session = server.createSession()) {
@@ -123,7 +123,7 @@ public class SendSalesEquipmentServer {
         return cashDocumentSet;
     }
 
-    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) throws IOException, SQLException {
+    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) {
         if (cashOperationLM != null && cashDocumentList != null) {
 
             try {
@@ -315,7 +315,7 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager, EquipmentServer server) throws RemoteException, SQLException {
+    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager, EquipmentServer server) throws SQLException {
         Map<String, BigDecimal> zReportSumMap = new HashMap<>();
         if (zReportLM != null) {
             try (DataSession session = server.createSession()) {
@@ -343,7 +343,7 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws RemoteException, SQLException {
+    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws SQLException {
         if (zReportLM != null) {
             try {
                 for (String idZReport : idZReportList) {
@@ -359,7 +359,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static void logRequestZReportSumCheck(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+    public static void logRequestZReportSumCheck(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) {
         if (machineryPriceTransactionLM != null && cashRegisterLM != null && EquipmentServer.notNullNorEmpty(checkSumResult)) {
             try (DataSession session = server.createSession()) {
                 for (List<Object> entry : checkSumResult) {
@@ -379,7 +379,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, EquipmentServer server, String idStock) throws RemoteException, SQLException {
+    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, EquipmentServer server, String idStock) {
         Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
         if(equipmentCashRegisterLM != null)
             try (DataSession session = server.createSession()) {

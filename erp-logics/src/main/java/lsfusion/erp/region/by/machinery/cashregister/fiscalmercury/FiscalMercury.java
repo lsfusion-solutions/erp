@@ -199,7 +199,7 @@ public class FiscalMercury {
         return checkErrors(result, true);
     }
 
-    private static boolean checkErrors(int errorCode, Boolean throwException) throws RuntimeException, UnsupportedEncodingException {
+    private static boolean checkErrors(int errorCode, Boolean throwException) throws RuntimeException {
         if (errorCode < 0) {
             if (throwException) {
                 byte[] description = new byte[100];

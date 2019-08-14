@@ -34,7 +34,7 @@ public class TerminalYarus {
         }
     }
 
-    public static String operation(String host, Integer port, int type, BigDecimal sum, String comment) throws RuntimeException, UnsupportedEncodingException {
+    public static String operation(String host, Integer port, int type, BigDecimal sum, String comment) throws RuntimeException {
 
         try {
 
@@ -196,7 +196,7 @@ public class TerminalYarus {
             }
         }
 
-        public byte[] receiveCommand() throws CommunicationException, IOException {
+        public byte[] receiveCommand() throws IOException {
             byte[] response = new byte[25];
             DatagramPacket packet = new DatagramPacket(response, response.length);
             socket.receive(packet);

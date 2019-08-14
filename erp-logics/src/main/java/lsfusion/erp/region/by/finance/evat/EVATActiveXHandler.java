@@ -77,8 +77,7 @@ public class EVATActiveXHandler {
         return result;
     }
 
-    private List<Object> sendFile(List<Object> fileNumberEntry, Long evat, Dispatch service, File archiveDir, String xsdPath)
-            throws Exception {
+    private List<Object> sendFile(List<Object> fileNumberEntry, Long evat, Dispatch service, File archiveDir, String xsdPath) {
         List<Object> result = null;
         RawFileData file = (RawFileData) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
@@ -177,7 +176,7 @@ public class EVATActiveXHandler {
         return result;
     }
 
-    private void initService(String serviceUrl) throws Exception {
+    private void initService(String serviceUrl) {
         if (service == null) {
             logger.info("EVAT: initService started");
 

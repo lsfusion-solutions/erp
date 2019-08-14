@@ -24,7 +24,7 @@ public class FiscalCasbiServiceInOutAction extends InternalAction {
         cashOperationInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 

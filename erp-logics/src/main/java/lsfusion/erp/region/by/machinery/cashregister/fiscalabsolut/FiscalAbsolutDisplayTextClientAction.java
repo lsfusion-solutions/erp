@@ -21,7 +21,7 @@ public class FiscalAbsolutDisplayTextClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
 

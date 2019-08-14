@@ -24,7 +24,7 @@ public class ScannerDaemonAction extends InternalAction {
     }
 
     @Override
-    protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
         String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead));

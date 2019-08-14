@@ -65,7 +65,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) {
         return null;
     }
 
@@ -75,7 +75,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
         return true;
     }
 
@@ -100,12 +100,12 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         return null;
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
 
     }
 

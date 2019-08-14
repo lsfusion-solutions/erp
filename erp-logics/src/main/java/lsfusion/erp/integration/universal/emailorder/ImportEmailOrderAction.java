@@ -160,7 +160,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
         }
     }
 
-    private List<List<Object>> importOrderFromXLSX(RawFileData file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {
+    private List<List<Object>> importOrderFromXLSX(RawFileData file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException {
 
         List<List<Object>> result = new ArrayList<>();
 

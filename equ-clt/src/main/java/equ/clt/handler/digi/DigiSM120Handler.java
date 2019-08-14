@@ -9,7 +9,6 @@ import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -36,7 +35,7 @@ public class DigiSM120Handler extends DigiHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -305,11 +304,7 @@ public class DigiSM120Handler extends DigiHandler {
                 logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
                 processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
-                try {
-                    socket.close();
-                } catch (CommunicationException e) {
-                    logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
-                }
+                socket.close();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);

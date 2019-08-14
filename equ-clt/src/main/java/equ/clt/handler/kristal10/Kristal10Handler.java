@@ -55,7 +55,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         Map<File, Long> fileMap = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -421,7 +421,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
@@ -512,7 +512,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
@@ -732,7 +732,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+    public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
@@ -849,7 +849,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();

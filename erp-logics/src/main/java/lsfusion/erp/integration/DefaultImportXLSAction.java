@@ -111,7 +111,7 @@ public class DefaultImportXLSAction extends DefaultImportAction {
         return imageMap;
     }
 
-    protected RawFileData getXLSImageFieldValue(Map<String, RawFileData> imageMap, Integer row, Integer column) throws UniversalImportException {
+    protected RawFileData getXLSImageFieldValue(Map<String, RawFileData> imageMap, Integer row, Integer column) {
         if (row == null || column == null)
             return null;
         else

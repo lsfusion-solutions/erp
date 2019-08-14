@@ -52,7 +52,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) {
 
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
         String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();

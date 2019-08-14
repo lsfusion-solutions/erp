@@ -18,7 +18,7 @@ public class FiscalEpsonPrintCopyReceiptAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);

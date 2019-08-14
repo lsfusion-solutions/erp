@@ -12,7 +12,7 @@ public class CL5000DHandler extends CL5000JHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
         String groupId = "";
         for (MachineryInfo scales : transactionInfo.machineryInfoList) {
             groupId += scales.port + ";";

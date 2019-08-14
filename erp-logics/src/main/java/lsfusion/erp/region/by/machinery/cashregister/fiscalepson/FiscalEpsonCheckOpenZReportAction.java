@@ -25,7 +25,7 @@ public class FiscalEpsonCheckOpenZReportAction extends InternalAction {
         zReportInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
             DataObject zReportObject = context.getDataKeyValue(zReportInterface);

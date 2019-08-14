@@ -24,7 +24,7 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
         this.offsetBefore = offsetBefore == null ? 0 : offsetBefore;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalEpson.init();

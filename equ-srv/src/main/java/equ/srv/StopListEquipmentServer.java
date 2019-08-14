@@ -58,11 +58,11 @@ public class StopListEquipmentServer {
         stopListLM = BL.getModule("StopList");
     }
 
-    public static boolean enabledStopListInfo() throws RemoteException, SQLException {
+    public static boolean enabledStopListInfo() {
         return (cashRegisterLM != null || scalesLM != null)  && stopListLM != null;
     }
 
-    public static List<StopListInfo> readStopListInfo(DBManager dbManager, EquipmentServer server) throws RemoteException, SQLException {
+    public static List<StopListInfo> readStopListInfo(DBManager dbManager, EquipmentServer server) throws SQLException {
 
         List<StopListInfo> stopListInfoList = new ArrayList<>();
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
@@ -268,7 +268,7 @@ public class StopListEquipmentServer {
 
 
 
-    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Exception e) throws RemoteException, SQLException {
+    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Exception e) {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
                 DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
@@ -287,7 +287,7 @@ public class StopListEquipmentServer {
         }
     }
 
-    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
+    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Set<String> idStockSet) {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
                 DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));

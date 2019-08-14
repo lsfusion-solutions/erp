@@ -7,6 +7,6 @@ import java.sql.SQLException;
 
 public interface PromotionInterface extends RmiServerInterface {
     
-    PromotionInfo readPromotionInfo() throws RemoteException, SQLException;
+    PromotionInfo readPromotionInfo() throws RemoteException;
     
 }

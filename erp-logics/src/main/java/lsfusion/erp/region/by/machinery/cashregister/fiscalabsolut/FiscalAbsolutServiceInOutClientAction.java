@@ -22,7 +22,7 @@ public class FiscalAbsolutServiceInOutClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         boolean opened = false;
         try {

@@ -162,7 +162,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException | BiffException | xBaseJException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -854,7 +854,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                                                                            Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
                                                                            RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
                                                                            String staticNameImportType, String staticCaptionImportType)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
+            throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         List<List<PurchaseInvoiceDetail>> userInvoiceDetailsList;
 

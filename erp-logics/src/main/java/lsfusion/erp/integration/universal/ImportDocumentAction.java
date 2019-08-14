@@ -162,13 +162,13 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         else return findProperty("skuBatch[STRING[100]]");
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, ImportKey<?> key) {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);
     }
 
-    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, Object key) throws ScriptingErrorLog.SemanticErrorException {
+    protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LP sidProperty, String nameField, Object key) {
         ImportField field = new ImportField(sidProperty);
         props.add(new ImportProperty(field, sidProperty.getMapping(key), getReplaceOnlyNull(importColumns, nameField)));
         fields.add(field);

@@ -24,7 +24,7 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         super(ks);
     }
 
-    public CustomKeyInteractiveSelector(int certIndex) throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+    public CustomKeyInteractiveSelector(int certIndex) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         super(getDefaultKS());
         this.certIndex = certIndex;
     }
@@ -40,14 +40,14 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         return this.promptPasswordInternal(request);
     }
 
-    private char[] promptPasswordInternal(String request) throws IOException {
+    private char[] promptPasswordInternal(String request) {
         Console console = System.console();
         console.printf(request, new Object[0]);
         char[] answer = console.readPassword();
         return answer != null && answer.length >= 8?answer:this.promptPasswordInternal("Минимальная длина пароля 8 символов, повторите ввод пароля: ");
     }
 
-    public String chooseAlias(String[] aliases) throws IOException {
+    public String chooseAlias(String[] aliases) {
         /*System.out.println("Список ключей:");
 
         for(int i = 0; i < aliases.length; ++i) {

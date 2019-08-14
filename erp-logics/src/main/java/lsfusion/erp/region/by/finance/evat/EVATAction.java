@@ -142,7 +142,7 @@ public class EVATAction extends GenerateXMLEVATAction {
         }
     }
 
-    private ObjectValue getServerStatusObject(String value, String number) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private ObjectValue getServerStatusObject(String value, String number) throws ScriptingErrorLog.SemanticErrorException {
         ObjectValue serverStatusObject = null;
         if(value != null) {
             String id = null;

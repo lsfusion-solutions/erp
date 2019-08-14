@@ -36,7 +36,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
         declarationInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
 
@@ -100,7 +100,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
         }
     }
 
-    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(RawFileData entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
+    private Map<String, List<List<Object>>> readDeclarationAdjustmentsFromDBF(RawFileData entry) throws IOException, xBaseJException {
 
         Map<String, List<List<Object>>> declarationsMap = new HashMap<>();
         File tempFile = null;

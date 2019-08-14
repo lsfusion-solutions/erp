@@ -32,7 +32,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -148,7 +148,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
 
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
@@ -276,7 +276,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
 
         try {
 
@@ -362,7 +362,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 

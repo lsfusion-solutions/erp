@@ -18,7 +18,7 @@ public class FiscalVMKAdvancePaperAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
             boolean isUnix = findProperty("isUnix[]").read(context) != null;

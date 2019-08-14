@@ -21,7 +21,7 @@ public class FiscalEpsonPrintCopyReceiptClientAction implements ClientAction {
         this.sessionNumber = sessionNumber;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalEpson.init();

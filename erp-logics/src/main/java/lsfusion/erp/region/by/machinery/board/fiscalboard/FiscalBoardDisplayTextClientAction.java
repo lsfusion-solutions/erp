@@ -44,7 +44,7 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         if (baudRateBoard != null && comPortBoard != null) {
 

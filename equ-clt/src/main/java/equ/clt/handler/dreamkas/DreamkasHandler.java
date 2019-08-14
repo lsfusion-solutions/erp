@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
@@ -67,7 +66,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
 
     @Override
 // Вызывается при импорте данных в кассовый сервер
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList == null) return null;

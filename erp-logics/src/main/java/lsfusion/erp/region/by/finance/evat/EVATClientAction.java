@@ -40,7 +40,7 @@ public class EVATClientAction implements ClientAction {
     }
 
     @Override
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
         if(!initialized) {
             if(path != null) {
                 String libraryPath = System.getProperty("java.library.path");

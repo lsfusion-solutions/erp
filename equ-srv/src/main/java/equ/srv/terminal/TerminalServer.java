@@ -115,7 +115,7 @@ public class TerminalServer extends MonitorServer {
                 } else {
                     logger.info("Terminal Server disabled, no host/port settings found");
                 }
-            } catch (RemoteException | SQLException e) {
+            } catch (SQLException e) {
                 logger.error("Error reading Terminal Server settings");
             }
         } else {

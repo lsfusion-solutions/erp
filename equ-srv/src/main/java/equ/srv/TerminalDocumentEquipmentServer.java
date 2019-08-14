@@ -39,7 +39,7 @@ public class TerminalDocumentEquipmentServer {
         terminalLM = BL.getModule("EquipmentTerminal");
     }
 
-    public static List<TerminalInfo> readTerminalInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws RemoteException, SQLException {
+    public static List<TerminalInfo> readTerminalInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws SQLException {
         List<TerminalInfo> terminalInfoList = new ArrayList<>();
         if (terminalLM != null) {
             try (DataSession session = server.createSession()) {
@@ -86,7 +86,7 @@ public class TerminalDocumentEquipmentServer {
         return terminalInfoList;
     }
 
-    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
+    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList) {
         try {
 
             List<ImportProperty<?>> props = new ArrayList<>();

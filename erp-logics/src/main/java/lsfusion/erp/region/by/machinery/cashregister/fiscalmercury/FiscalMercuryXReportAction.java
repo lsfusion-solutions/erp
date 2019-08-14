@@ -15,7 +15,7 @@ public class FiscalMercuryXReportAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
             String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(1));

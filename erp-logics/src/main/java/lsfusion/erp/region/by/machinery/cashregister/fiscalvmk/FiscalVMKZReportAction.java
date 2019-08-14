@@ -19,7 +19,7 @@ public class FiscalVMKZReportAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
             DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);

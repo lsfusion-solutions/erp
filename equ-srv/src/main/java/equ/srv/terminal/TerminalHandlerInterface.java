@@ -13,19 +13,19 @@ public interface TerminalHandlerInterface {
     
     void init();
     
-    List<Object> readHostPort(DataSession session) throws RemoteException, SQLException;
+    List<Object> readHostPort(DataSession session);
 
-    Object readItem(DataSession session, DataObject user, String barcode, String bin) throws RemoteException, SQLException;
+    Object readItem(DataSession session, DataObject user, String barcode, String bin);
 
-    String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException;
+    String readItemHtml(DataSession session, String barcode, String idStock);
 
-    RawFileData readBase(DataSession session, DataObject userObject) throws RemoteException, SQLException;
+    RawFileData readBase(DataSession session, DataObject userObject) throws SQLException;
 
-    String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin) throws RemoteException, SQLException;
+    String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin);
 
-    String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
+    String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument);
 
-    boolean isActiveTerminal(DataSession session, ExecutionStack stack, String idTerminal) throws RemoteException, SQLException;
+    boolean isActiveTerminal(DataSession session, ExecutionStack stack, String idTerminal);
 
-    DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) throws RemoteException, SQLException;
+    DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal);
 }

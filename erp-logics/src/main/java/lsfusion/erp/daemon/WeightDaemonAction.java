@@ -22,7 +22,7 @@ public class WeightDaemonAction extends InternalAction {
 
 
     @Override
-    protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         context.requestUserInteraction(new WeightDaemonClientAction(comPort));
     }

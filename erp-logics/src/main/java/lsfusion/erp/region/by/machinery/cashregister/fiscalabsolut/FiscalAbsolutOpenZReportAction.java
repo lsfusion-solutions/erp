@@ -17,7 +17,7 @@ public class FiscalAbsolutOpenZReportAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);

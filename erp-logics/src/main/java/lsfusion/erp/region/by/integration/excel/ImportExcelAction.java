@@ -32,7 +32,7 @@ public class ImportExcelAction extends DefaultImportAction {
         return sheet;
     }
 
-    protected static String parseString(Cell cell) throws ParseException {
+    protected static String parseString(Cell cell) {
         String value = cell == null ? null : (cell instanceof NumberCell ? String.valueOf(new DecimalFormat("#.#####").format(((NumberCell) cell).getValue())) : cell.getContents());
         return value == null || value.isEmpty() ? null : value.trim();
     }

@@ -18,7 +18,7 @@ public class ImportPreviewClientAction implements ClientAction {
         this.articleSet = articleSet;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         ImportPreviewDialog dialog = new ImportPreviewDialog(overridingArticles, articleSet);
         return dialog.execute();

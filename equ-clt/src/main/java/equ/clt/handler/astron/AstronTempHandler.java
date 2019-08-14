@@ -18,7 +18,7 @@ public class AstronTempHandler extends AstronHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         return new HashMap<>();
     }
 

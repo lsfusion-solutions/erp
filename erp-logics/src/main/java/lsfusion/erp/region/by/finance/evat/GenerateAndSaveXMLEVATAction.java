@@ -21,7 +21,7 @@ public class GenerateAndSaveXMLEVATAction extends GenerateXMLEVATAction {
         evatInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         DataObject evatObject = context.getDataKeyValue(evatInterface);
         generateXML(context, evatObject, false, true);
     }

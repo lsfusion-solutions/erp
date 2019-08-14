@@ -42,7 +42,7 @@ public class InventoryTechHandler extends TerminalHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 

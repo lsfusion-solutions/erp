@@ -19,7 +19,7 @@ public class FiscalDatecsCustomOperationClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalDatecs.init();

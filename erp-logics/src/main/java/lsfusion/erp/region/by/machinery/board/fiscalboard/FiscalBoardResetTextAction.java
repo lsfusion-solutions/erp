@@ -20,7 +20,7 @@ public class FiscalBoardResetTextAction extends FiscalBoardAction {
         timeoutInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         Integer timeout = (Integer) context.getKeyValue(timeoutInterface).getValue();
 

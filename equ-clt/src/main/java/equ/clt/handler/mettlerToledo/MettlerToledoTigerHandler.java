@@ -49,7 +49,7 @@ public class MettlerToledoTigerHandler extends DefaultScalesHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         Map<String, String> brokenPortsMap = new HashMap<>();

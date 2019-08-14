@@ -11,7 +11,7 @@ import java.util.Map;
 
 public interface SoftCheckInterface extends RmiServerInterface {
     
-    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceMap) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceMap) throws RemoteException;
 
-    String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException;
+    String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException;
 }

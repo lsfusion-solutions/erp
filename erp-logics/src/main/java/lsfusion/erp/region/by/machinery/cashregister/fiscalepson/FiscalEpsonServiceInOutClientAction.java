@@ -22,7 +22,7 @@ public class FiscalEpsonServiceInOutClientAction implements ClientAction {
     }
 
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalEpson.init();

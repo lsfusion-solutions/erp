@@ -41,7 +41,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
             ObjectValue dateFrom = findProperty("dateFromExportGeneralLedgerDBF[]").readClasses(context);
             ObjectValue dateTo = findProperty("dateToExportGeneralLedgerDBF[]").readClasses(context);

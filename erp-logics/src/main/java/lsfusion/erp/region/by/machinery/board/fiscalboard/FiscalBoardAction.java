@@ -18,7 +18,7 @@ public abstract class FiscalBoardAction extends InternalAction {
         super(LM, classes);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
     }
 
     protected String fillSpaces(String line, int length) {

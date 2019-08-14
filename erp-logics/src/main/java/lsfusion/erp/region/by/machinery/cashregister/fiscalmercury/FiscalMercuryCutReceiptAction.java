@@ -15,7 +15,7 @@ public class FiscalMercuryCutReceiptAction extends InternalAction {
         super(LM);
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
 
         String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(5));
         if (result != null)

@@ -12,7 +12,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -60,7 +59,7 @@ public class DigiHandler extends DefaultScalesHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
 
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
@@ -331,24 +330,14 @@ public class DigiHandler extends DefaultScalesHandler {
     }
 
     protected int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
-        int attempts = 0;
-        while (attempts < 3) {
-            try {
-                if(debugMode)
-                    processTransactionLogger.info(Hex.encodeHexString(bytes));
-                socket.outputStream.write(bytes);
-                socket.outputStream.flush();
-                return receiveReply(socket);
-            } catch (CommunicationException e) {
-                attempts++;
-                if (attempts == 3)
-                    processTransactionLogger.error(getLogPrefix() + "SendCommand Error: ", e);
-            }
-        }
-        return -1;
+        if(debugMode)
+            processTransactionLogger.info(Hex.encodeHexString(bytes));
+        socket.outputStream.write(bytes);
+        socket.outputStream.flush();
+        return receiveReply(socket);
     }
 
-    private int receiveReply(DataSocket socket) throws CommunicationException {
+    private int receiveReply(DataSocket socket) {
         try {
             byte[] buffer = new byte[10];
             socket.inputStream.read(buffer);
@@ -388,7 +377,7 @@ public class DigiHandler extends DefaultScalesHandler {
         return value.getBytes("cp866");
     }
 
-    private byte[] getHexBytes(String value) throws UnsupportedEncodingException {
+    private byte[] getHexBytes(String value) {
         int len = value.length();
         byte[] data = new byte[len / 2];
         for (int i = 0; i < len; i += 2) {
@@ -454,11 +443,7 @@ public class DigiHandler extends DefaultScalesHandler {
                 logError(localErrors, String.format(getLogPrefix() + "IP %s error, transaction %s;", scales.port, transaction.id), e);
             } finally {
                 processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
-                try {
-                    socket.close();
-                } catch (CommunicationException e) {
-                    logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
-                }
+                socket.close();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, localErrors, cleared);

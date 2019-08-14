@@ -12,7 +12,6 @@ import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -108,11 +107,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
                             exception = e;
                         } finally {
                             processTransactionLogger.info("CL5000: Finally disconnecting... " + scales.port);
-                            try {
-                                socket.close();
-                            } catch (CommunicationException e) {
-                                processTransactionLogger.info("CL5000PrintHandler close port error: ", e);
-                            }
+                            socket.close();
                         }
                     }
                 }
@@ -132,7 +127,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
         }
     }
 
-    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description, BigDecimal extraPercent) throws IOException, CommunicationException {
+    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description, BigDecimal extraPercent) throws IOException {
         int descriptionLength = description == null ? 0 : (description.length() + 1);
         ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -189,7 +184,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
         return sendCommand(socket, bytes.array());
     }
 
-    private int deleteAllPlu(DataSocket socket) throws IOException, CommunicationException {
+    private int deleteAllPlu(DataSocket socket) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(19);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -213,7 +208,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
         return sendCommand(socket, bytes.array());
     }
 
-    private int deletePlu(DataSocket socket, short weightCode, int pluNumber) throws IOException, CommunicationException {
+    private int deletePlu(DataSocket socket, short weightCode, int pluNumber) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(19);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -247,21 +242,11 @@ public class CL5000JHandler extends DefaultScalesHandler {
     }
 
     private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
-        int attempts = 0;
-        while (attempts < 3) {
-            try {
-                socket.outputStream.write(bytes);
-                return receiveReply(socket);
-            } catch (CommunicationException e) {
-                attempts++;
-                if (attempts == 3)
-                    processTransactionLogger.error("CL5000 SendCommand Error: ", e);
-            }
-        }
-        return -1;
+        socket.outputStream.write(bytes);
+        return receiveReply(socket);
     }
 
-    private int receiveReply(DataSocket socket) throws CommunicationException {
+    private int receiveReply(DataSocket socket) {
         try {
             byte[] buffer = new byte[255];
             socket.inputStream.read(buffer);
@@ -326,11 +311,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
                             processStopListLogger.error(String.format("CL5000: Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
                         } finally {
                             processStopListLogger.info("CL5000: Finally disconnecting..." + scales.port);
-                            try {
-                                socket.close();
-                            } catch (CommunicationException e) {
-                                processStopListLogger.info("CL5000 close port error: ", e);
-                            }
+                            socket.close();
                         }
                     }
                 }
@@ -339,7 +320,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
         String groupId = "";
         for (MachineryInfo scales : transactionInfo.machineryInfoList) {
             groupId += scales.port + ";";

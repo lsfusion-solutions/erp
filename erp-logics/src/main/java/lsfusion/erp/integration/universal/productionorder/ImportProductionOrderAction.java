@@ -281,7 +281,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
 
     public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
-            throws ParseException, UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+            throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList;
 
@@ -316,7 +316,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
     private List<ProductionOrderDetail> importOrdersFromXLS(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
 
@@ -353,7 +353,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
     private List<ProductionOrderDetail> importOrdersFromCSV(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
-            throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
+            throws UniversalImportException, IOException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         
@@ -394,7 +394,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
     private List<ProductionOrderDetail> importOrdersFromXLSX(RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                              List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                              Integer startRow, Boolean isPosted, DataObject orderObject)
-            throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, UniversalImportException {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         

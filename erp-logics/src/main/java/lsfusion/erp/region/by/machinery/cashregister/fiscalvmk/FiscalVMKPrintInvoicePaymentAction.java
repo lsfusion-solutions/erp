@@ -29,7 +29,7 @@ public class FiscalVMKPrintInvoicePaymentAction extends InternalAction {
         paymentInterface = i.next();
     }
 
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);

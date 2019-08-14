@@ -42,7 +42,7 @@ public class TerminalEquipmentServer {
         terminalOrderLM = BL.getModule("TerminalOrder");
     }
 
-    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws SQLException {
         Map<String, TerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {

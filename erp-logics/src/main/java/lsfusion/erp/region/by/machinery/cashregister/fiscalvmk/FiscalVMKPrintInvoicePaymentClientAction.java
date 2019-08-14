@@ -18,7 +18,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
         this.sale = sale;
     }
     
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
 

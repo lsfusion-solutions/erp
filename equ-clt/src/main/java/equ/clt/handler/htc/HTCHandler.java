@@ -50,7 +50,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -600,7 +600,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
         HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
         boolean makeBackup = htcSettings == null || htcSettings.isMakeBackup();
@@ -806,7 +806,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
         Map<String, List<RequestExchange>> requestExchangeMap = new HashMap<>();
 
         HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
@@ -913,7 +913,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         }
 
         @Override
-        public Map<Long, String> call() throws Exception {
+        public Map<Long, String> call() {
             Map<Long, String> result = new HashMap<>();
             boolean failed = false;
             for (RequestExchange requestExchange : requestExchanges) {

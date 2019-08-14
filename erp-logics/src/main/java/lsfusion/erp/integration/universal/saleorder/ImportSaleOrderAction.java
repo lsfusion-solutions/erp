@@ -574,7 +574,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
-            throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
+            throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
         List<SaleOrderDetail> primaryList = new ArrayList<>();
         List<SaleOrderDetail> secondaryList = new ArrayList<>();

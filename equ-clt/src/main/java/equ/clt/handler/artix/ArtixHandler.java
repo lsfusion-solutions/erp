@@ -62,7 +62,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();

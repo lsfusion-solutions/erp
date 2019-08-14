@@ -32,7 +32,7 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
         this.useSKNO = useSKNO;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalAbsolut.openPort(logPath, comPort, baudRate);

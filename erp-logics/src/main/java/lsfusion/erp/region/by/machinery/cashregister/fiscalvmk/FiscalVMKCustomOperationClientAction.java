@@ -20,7 +20,7 @@ public class FiscalVMKCustomOperationClientAction extends FiscalVMKClientAction 
         this.textTop = textTop;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         try {
             FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);

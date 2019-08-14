@@ -37,7 +37,7 @@ public class ValidateXMLAction extends InternalAction {
     }
 
     @Override
-    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
 
         try {
 

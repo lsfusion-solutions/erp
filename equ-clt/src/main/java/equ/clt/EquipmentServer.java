@@ -1,16 +1,16 @@
 package equ.clt;
 
 import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.cashregister.CashRegisterHandler;
 import equ.api.scales.ScalesHandler;
-import equ.api.terminal.*;
-import lsfusion.base.col.heavy.OrderedMap;
+import equ.api.terminal.TerminalHandler;
+import equ.api.terminal.TransactionTerminalInfo;
 import lsfusion.base.DaemonThreadFactory;
+import lsfusion.base.col.heavy.OrderedMap;
 import lsfusion.base.remote.RMIUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.io.InvalidClassException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -573,7 +573,7 @@ public class EquipmentServer {
                                 break;
                         }
                     }
-                } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
+                } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
                     equipmentLogger.error("EquipmentServer Error: ", e);
                 }
             }
@@ -598,7 +598,7 @@ public class EquipmentServer {
         }
 
         //метод, считывающий задания из базы
-        synchronized void addTasks(List<TransactionInfo> transactionInfoList) throws Exception {
+        synchronized void addTasks(List<TransactionInfo> transactionInfoList) {
             Map<Long, TransactionInfo> newWaitingTaskQueueMap = new OrderedMap<>();
             for(TransactionInfo transaction : transactionInfoList) {
                 if(!succeededTaskList.contains(transaction.id) && !proceededTaskList.contains(transaction.id)) {
@@ -630,7 +630,7 @@ public class EquipmentServer {
                 MachineryHandler clsHandler = (MachineryHandler) getHandler(transactionInfo.handlerModel, remote);
                 return clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
 
-            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException | IOException e) {
+            } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException | ClassNotFoundException e) {
                 equipmentLogger.error("EquipmentServer Error: ", e);
                 return "No handler";
             }

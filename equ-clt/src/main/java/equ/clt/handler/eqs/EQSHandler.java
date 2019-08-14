@@ -54,7 +54,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -174,7 +174,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
         if (!stopListInfo.exclude) {
 
             EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
@@ -234,7 +234,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) {
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         int discountCardThreadCount = eqsSettings != null ? eqsSettings.getDiscountCardThreadCount() : 0;
         boolean skipIdDepartmentStore = eqsSettings != null && eqsSettings.getSkipIdDepartmentStore() != null && eqsSettings.getSkipIdDepartmentStore();
@@ -276,7 +276,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         }
 
         @Override
-        public Exception call() throws Exception {
+        public Exception call() {
             EQSConnectionString params = new EQSConnectionString(directory);
 
             if (params.connectionString != null) {
@@ -612,7 +612,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
-                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException, ParseException {
+                                 Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
         for (RequestExchange entry : requestExchangeList) {
             Connection conn = null;
             Statement statement = null;

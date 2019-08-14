@@ -58,12 +58,12 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
         return "MassaKRL10";
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) {
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         MassaKRL10Settings massaKRL10Settings = springContext.containsBean("massaKRL10Settings") ? (MassaKRL10Settings) springContext.getBean("massaKRL10Settings") : null;
@@ -214,7 +214,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return enabledScalesList;
     }
 
-    private byte[] receiveReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
+    private byte[] receiveReply(List<String> errors, TCPPort port, String ip) {
         byte[] reply = new byte[500];
         try {
             long startTime = new Date().getTime();
@@ -281,7 +281,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         }
     }
 
-    private void sendCommand(List<String> errors, TCPPort port, byte[] command, short current, short total, byte commandFileType) throws CommunicationException, IOException, DecoderException {
+    private void sendCommand(List<String> errors, TCPPort port, byte[] command, short current, short total, byte commandFileType) throws IOException {
         try {
 
             ByteBuffer bytes = ByteBuffer.allocate(15 + command.length);
@@ -323,7 +323,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         }
     }
 
-    private void resetFiles(List<String> errors, TCPPort port) throws CommunicationException, IOException {
+    private void resetFiles(List<String> errors, TCPPort port) {
         try {
 
             ByteBuffer bytes = ByteBuffer.allocate(12);
@@ -371,7 +371,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
     }
 
 
-    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws InterruptedException, IOException, CommunicationException {
+    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws IOException, CommunicationException {
         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s Clear Files", scales.port));
         resetFiles(errors, port);
         boolean cleared = getResetFilesReply(errors, port, scales.port);
@@ -387,7 +387,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private byte[] getItemBytes(ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, boolean first) throws DecoderException {
+    private byte[] getItemBytes(ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, boolean first) {
         byte[] firstBytes = first ? getBytes("01PC0000000001") : new byte[0];
         //потенциально длина со знаками переноса строк ("|") может превысить максимум
 
@@ -514,7 +514,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return getCommandReply(errors, port, port.getAddress(), commandFileType);
     }
 
-    private byte[] getPLUBytes(ScalesItemInfo item, boolean first) throws DecoderException {
+    private byte[] getPLUBytes(ScalesItemInfo item, boolean first) {
         byte[] firstBytes = first ? getBytes("05PC0000000001") : new byte[0];
 
         int length = 25 + firstBytes.length;
@@ -556,7 +556,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) {
         //todo: Единственный пока способ реализации стоп-листов - считывать из весов все товары,
         //удалять ненужные и загружать назад.
         /*try {
@@ -600,7 +600,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         }
 
         @Override
-        public SendTransactionResult call() throws Exception {
+        public SendTransactionResult call() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
             String openPortResult = openPort(localErrors, port, scales.port, true);

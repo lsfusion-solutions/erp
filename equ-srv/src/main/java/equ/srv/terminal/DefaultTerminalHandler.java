@@ -64,7 +64,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public List<Object> readHostPort(DataSession session) throws RemoteException, SQLException {
+    public List<Object> readHostPort(DataSession session) {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
@@ -78,7 +78,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public Object readItem(DataSession session, DataObject user, String barcode, String bin) throws RemoteException, SQLException {
+    public Object readItem(DataSession session, DataObject user, String barcode, String bin) {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
@@ -124,7 +124,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException {
+    public String readItemHtml(DataSession session, String barcode, String idStock) {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
@@ -230,7 +230,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public String savePallet(DataSession session, ExecutionStack stack, DataObject userObject, String numberPallet, String nameBin) throws RemoteException, SQLException {
+    public String savePallet(DataSession session, ExecutionStack stack, DataObject userObject, String numberPallet, String nameBin) {
         return null;
     }
 
@@ -814,7 +814,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) throws RemoteException, SQLException {
+    public DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
