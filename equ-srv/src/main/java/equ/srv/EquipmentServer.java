@@ -972,22 +972,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             executor.shutdown();
 
-            InterruptedException exception = null;
-            for (Future<String> future : futures) {
-                try {
+            try {
+                for (Future<String> future : futures) {
                     String futureResult = future.get();
-                    if (result == null && futureResult != null)
+                    if (result == null && futureResult != null) {
                         result = futureResult;
-                } catch (InterruptedException e) {
-                    exception = e;
+                    }
+                }
+            } catch (InterruptedException e) {
+                for (Future<String> future : futures) {
                     future.cancel(true);
                 }
+                throw Throwables.propagate(e);
             }
-            if(exception != null) {
-                throw Throwables.propagate(exception);
-            } else {
-                return result;
-            }
+            return result;
         }
     }
 
