@@ -1,0 +1,31 @@
+MODULE ProductionOrderSku;
+
+REQUIRE ProductionOrder, Warehouse, Store;
+
+NAMESPACE Production;
+
+skuGroup = DATA ItemGroup(Stock);
+nameSkuGroup 'Группа товаров' (Stock st) = name(skuGroup(st));
+
+EXTEND FORM warehouse PROPERTIES nameSkuGroup(w);
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY (nameSkuGroup(w));
+    }
+}
+
+EXTEND FORM departmentStore PROPERTIES nameSkuGroup(d);
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY (nameSkuGroup(d));
+    }
+}
+
+fillNegativeBalanceProductDetail 'Добавить строки с отрицательным остатком' (Order o, Stock st) {
+    FOR balanceB(Sku sk, st, date(o)) < 0 AND level(skuGroup(sk), skuGroup(st)) DO NEW d = ProductDetail {
+        order(d) <- o;
+        sku(d) <- sk;
+    }
+}
