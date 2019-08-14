@@ -28,14 +28,14 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException;
 
     //processDeleteBarcode consumer
-    boolean enabledDeleteBarcodeInfo() throws RemoteException;
+    boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException;
     List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException;
-    void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException;
-    void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) throws RemoteException;
-    void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) throws RemoteException;
+    void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException, SQLException;
+    void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) throws RemoteException, SQLException;
+    void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) throws RemoteException, SQLException;
 
     //sendTerminalDocument consumer
-    boolean enabledTerminalInfo() throws RemoteException;
+    boolean enabledTerminalInfo() throws RemoteException, SQLException;
     List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException;
     String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException;
 
@@ -54,12 +54,12 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //sendSales consumer
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory);
+    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) throws IOException, SQLException;
     Set<String> readCashDocumentSet() throws IOException, SQLException;
     String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException;
 
     //checkZReportSum
-    Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException;
+    Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
     Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
     void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
 
@@ -69,16 +69,16 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //processTransaction consumer
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException;
-    void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException;
-    void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException;
-    void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException;
+    void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
+    void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
+    void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException;
+    void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException;
     
-    void errorTransactionReport(Long transactionID, Throwable exception) throws RemoteException;
+    void errorTransactionReport(Long transactionID, Throwable exception) throws RemoteException, SQLException;
 
-    void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws RemoteException;
+    void errorEquipmentServerReport(String equipmentServer, Throwable exception, String extraData) throws RemoteException, SQLException;
 
-    EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException;
+    EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
 
     //processMonitor consumer
     boolean needUpdateProcessMonitor(String sidEquipmentServer) throws RemoteException, SQLException;
