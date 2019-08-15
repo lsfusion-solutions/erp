@@ -12,6 +12,7 @@ import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 
@@ -23,15 +24,12 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static equ.clt.handler.HandlerUtils.safeAdd;
-import static equ.clt.handler.HandlerUtils.safeDivide;
-import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static equ.clt.handler.HandlerUtils.*;
 
 public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
 
@@ -192,6 +190,13 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 addStringElement(good, "shop-indices", shopIndices);
 
                             addStringElement(good, "name", item.name);
+
+                            if (item.info != null) {
+                                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("kristal10");
+                                if (infoJSON != null) {
+                                    addStringElement(good, "pyro", String.valueOf(infoJSON.optBoolean("pyro")));
+                                }
+                            }
 
                             //parent: good
                             Element barcode = new Element("bar-code");
@@ -849,7 +854,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
@@ -1219,7 +1224,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
                                 BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
                                 BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-                                zReportSumMap.put(idZReport, Arrays.asList((Object) kristalSum, numberCashRegister, numberZReport, idZReport));
+                                zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
 
                             }
                             String dir = file.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "/";
@@ -1292,7 +1297,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private String readStringXMLValue(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
@@ -1303,7 +1308,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private String readStringXMLAttribute(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
@@ -1314,7 +1319,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private BigDecimal readBigDecimalXMLValue(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
@@ -1330,7 +1335,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private BigDecimal readBigDecimalXMLAttribute(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
@@ -1346,7 +1351,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private Integer readIntegerXMLValue(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getChildText(field);
         if (value == null || value.isEmpty()) {
@@ -1362,7 +1367,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private Integer readIntegerXMLAttribute(Object element, String field) {
-        if (element == null || !(element instanceof Element))
+        if (!(element instanceof Element))
             return null;
         String value = ((Element) element).getAttributeValue(field);
         if (value == null || value.isEmpty()) {
