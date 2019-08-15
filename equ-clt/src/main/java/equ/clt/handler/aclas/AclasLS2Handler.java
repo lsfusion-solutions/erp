@@ -183,7 +183,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.newLine();
                 boolean isWeight = isWeight(item);
-                String name1 = trim(item.name, 40);
+                String name1 = trim(item.name, "", 40).replace("\t", "").replace("\t", "");
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(".", ",");
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
@@ -211,7 +211,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
 
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.newLine();
-                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, trim(item.description, 1000)).iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, trim(item.description, "", 1000).replace("\t", "").replace("\n", "")).iterator(), "\t"));
             }
 
             bw.close();
