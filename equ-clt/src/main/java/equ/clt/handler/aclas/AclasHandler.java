@@ -6,9 +6,8 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
-import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -26,9 +25,7 @@ import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class AclasHandler extends DefaultScalesHandler {
-
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+public class AclasHandler extends MultithreadScalesHandler {
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -378,18 +375,6 @@ public class AclasHandler extends DefaultScalesHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-    }
-
-    class SendTransactionResult {
-        public ScalesInfo scalesInfo;
-        public List<String> localErrors;
-        public boolean cleared;
-
-        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
-            this.scalesInfo = scalesInfo;
-            this.localErrors = localErrors;
-            this.cleared = cleared;
-        }
     }
 
     private static class UDPPort {

@@ -8,10 +8,9 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
-import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
@@ -24,13 +23,11 @@ import java.util.concurrent.Future;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class AclasLS2Handler extends DefaultScalesHandler {
+public class AclasLS2Handler extends MultithreadScalesHandler {
 
     private static int pluFile = 0x0000;
     private static int noteFile = 0x000c;
     private static int hotKeyFile = 0x0003;
-
-    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
     protected FileSystemXmlApplicationContext springContext;
 
@@ -183,7 +180,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.newLine();
                 boolean isWeight = isWeight(item);
-                String name1 = trim(item.name, "", 40).replace("\t", "").replace("\t", "");
+                String name1 = escape(trim(item.name, "", 40));
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(".", ",");
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
@@ -211,7 +208,7 @@ public class AclasLS2Handler extends DefaultScalesHandler {
 
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.newLine();
-                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, trim(item.description, "", 1000).replace("\t", "").replace("\n", "")).iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, escape(trim(item.description, "", 1000))).iterator(), "\t"));
             }
 
             bw.close();
@@ -242,6 +239,10 @@ public class AclasLS2Handler extends DefaultScalesHandler {
         } finally {
             safeFileDelete(file);
         }
+    }
+
+    private String escape(String value) {
+        return value.replace("\t", "{$09}").replace("\n", "{$0A}").replace("\r", "{$0D}");
     }
 
     private String getErrorDescription(int error) {
@@ -327,18 +328,6 @@ public class AclasLS2Handler extends DefaultScalesHandler {
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
         }
 
-    }
-
-    class SendTransactionResult {
-        public ScalesInfo scalesInfo;
-        public List<String> localErrors;
-        public boolean cleared;
-
-        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
-            this.scalesInfo = scalesInfo;
-            this.localErrors = localErrors;
-            this.cleared = cleared;
-        }
     }
 
     private void safeFileDelete(File file) {

@@ -6,11 +6,9 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
-import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import org.apache.log4j.Logger;
-import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -24,15 +22,13 @@ import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
-public class MettlerToledoTigerHandler extends DefaultScalesHandler {
+public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
 
     private static byte stx = 0x02;
     private static byte ack = 0x06;
 
     private static short pluID = 207;
     private static short extraTextID = 209;
-
-    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {
@@ -342,18 +338,6 @@ public class MettlerToledoTigerHandler extends DefaultScalesHandler {
             return new SendTransactionResult(scales, localErrors, cleared);
         }
 
-    }
-
-    class SendTransactionResult {
-        public ScalesInfo scalesInfo;
-        public List<String> localErrors;
-        public boolean cleared;
-
-        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
-            this.scalesInfo = scalesInfo;
-            this.localErrors = localErrors;
-            this.cleared = cleared;
-        }
     }
 
     int[] tableCRC16 =
