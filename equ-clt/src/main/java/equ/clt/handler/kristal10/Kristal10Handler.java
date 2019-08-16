@@ -194,7 +194,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             if (item.info != null) {
                                 JSONObject infoJSON = new JSONObject(item.info).optJSONObject("kristal10");
                                 if (infoJSON != null) {
-                                    addStringElement(good, "pyro", String.valueOf(infoJSON.optBoolean("pyro")));
+                                    addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
                                 }
                             }
 
