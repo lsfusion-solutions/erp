@@ -53,13 +53,13 @@ acceptingDate 'Дата принятия на учет' = DATA DATE (UserInvoice
 
 exciseBase 'База для акциза' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 exciseBase(UserInvoiceDetail d) <- round2(sum(d) * rateExchange(d)) 
-    WHEN CHANGED (sum(d)) OR CHANGED (rateExchange(d)) AND isVatStatement(d) AND exciseType();
+    WHEN (CHANGED (sum(d)) OR CHANGED (rateExchange(d))) AND isVatStatement(d) AND exciseType();
     
 excisePerc 'Ставка акциза' = DATA NUMERIC[8,2](UserInvoiceDetail) TABLE vatStatement;
     
 exciseSum 'Сумма акциза' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 exciseSum(UserInvoiceDetail d) <- round2(exciseBase(d) * excisePerc(d) / 100.0) 
-    WHEN CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d)) AND isVatStatement(d); 
+    WHEN (CHANGED (exciseBase(d)) OR CHANGED (excisePerc(d))) AND isVatStatement(d); 
     
 vatBase 'База для НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 vatBase(UserInvoiceDetail d) <- IF inShipmentVATStatement(operation(d)) THEN round2(sum(d) * rateExchange(d)*shipmentQuantity(d)/quantity(d)) ELSE round2(sum(d) * rateExchange(d)) 
@@ -71,7 +71,7 @@ valueVATStatement(UserInvoiceDetail d) <- valueVAT[Item](sku(d))
     
 VATStatementSum 'Сумма НДС' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE vatStatement;
 VATStatementSum(UserInvoiceDetail d) <- round2(vatBase(d) * valueVATStatement(d) / 100.0) 
-    WHEN CHANGED (vatBase(d)) OR CHANGED (valueVATStatement(d)) AND isVatStatement(d); 
+    WHEN (CHANGED (vatBase(d)) OR CHANGED (valueVATStatement(d))) AND isVatStatement(d); 
     
 EXTEND FORM userInvoice
     OBJECTS d4 = UserInvoiceDetail GRID
