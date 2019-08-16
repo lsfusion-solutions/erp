@@ -191,49 +191,46 @@ fillSku 'Заполнить данные'(RangeDocument d) {
             daysOnStock(Sku sk, DepartmentStore ds, d) <- daysOn(sk,ds);
         }
         
-        quantitySold(Sku sk, DepartmentStore ds, d) <- (GROUP SUM quantitySold(sk,ds, DATE date) IF iterate(date,df,dt)) WHERE include(ds) AND include(d,sk);
-        markupSumSold(Sku sk, DepartmentStore ds, d) <- (GROUP SUM markupSumSold(sk,ds, DATE date) IF iterate(date,df,dt)) WHERE include(ds) AND include(d,sk);
-        sumSold(Sku sk, DepartmentStore ds, d) <- (GROUP SUM sumSold(sk,ds, DATE date) IF iterate(date,df,dt)) WHERE include(ds) AND include(d,sk);
+        quantitySold(Sku sk, DepartmentStore ds, d) <- quantitySold(sk, ds, df, dt) IF include(ds) AND include(d,sk);
+        markupSumSold(Sku sk, DepartmentStore ds, d) <- markupSumSold(sk, ds, df, dt) IF include(ds) AND include(d,sk);
+        sumSold(Sku sk, DepartmentStore ds, d) <- sumSold(sk, ds, df, dt) IF include(ds) AND include(d,sk);
         
         IF averageSoldStoreType(d) THEN {
             LOCAL daysOnStock = INTEGER (Sku, StoreType);
             LOCAL quantitySold = NUMERIC[16,5] (Sku, StoreType);
             LOCAL markupSumSold = NUMERIC[18,4] (Sku, StoreType);
             LOCAL sumSold = NUMERIC[18,4] (Sku, StoreType);
-            daysOnStock(Sku sk, StoreType t) <- (GROUP SUM daysOnStock(sk, DepartmentStore ds, d) IF storeType(ds) == t) WHERE include(d,sk);
-            quantitySold(Sku sk, StoreType t) <- (GROUP SUM quantitySold(sk, DepartmentStore ds, d) IF storeType(ds) == t) WHERE include(d,sk);
-            markupSumSold(Sku sk, StoreType t) <- (GROUP SUM markupSumSold(sk, DepartmentStore ds, d) IF storeType(ds) == t) WHERE include(d,sk);
-            sumSold(Sku sk, StoreType t) <- (GROUP SUM sumSold(sk, DepartmentStore ds, d) IF storeType(ds) == t) WHERE include(d,sk);
+            daysOnStock(Sku sk, StoreType t) <- GROUP SUM daysOnStock(sk, DepartmentStore ds, d) IF storeType(ds) == t ;
+            quantitySold(Sku sk, StoreType t) <- GROUP SUM quantitySold(sk, DepartmentStore ds, d) IF storeType(ds) == t;
+            markupSumSold(Sku sk, StoreType t) <- GROUP SUM markupSumSold(sk, DepartmentStore ds, d) IF storeType(ds) == t;
+            sumSold(Sku sk, StoreType t) <- GROUP SUM sumSold(sk, DepartmentStore ds, d) IF storeType(ds) == t;
             
-            averageQuantitySold(Sku sk, StoreType t, d) <- (quantitySold(sk,t) / daysOnStock(sk,t)) WHERE include(d,sk);
-            averageMarkupSumSold(Sku sk, StoreType t, d) <- (markupSumSold(sk,t) / daysOnStock(sk,t)) WHERE include(d,sk);
-            averageSumSold(Sku sk, StoreType t, d) <- (sumSold(sk,t) / daysOnStock(sk,t)) WHERE include(d,sk);
+            averageQuantitySold(Sku sk, StoreType t, d) <- (quantitySold(sk,t) / daysOnStock(sk,t));
+            averageMarkupSumSold(Sku sk, StoreType t, d) <- (markupSumSold(sk,t) / daysOnStock(sk,t));
+            averageSumSold(Sku sk, StoreType t, d) <- (sumSold(sk,t) / daysOnStock(sk,t));
         }
+        
         IF averageSoldChainStores(d) THEN {
             LOCAL daysOnStock = INTEGER (Sku, ChainStores);
             LOCAL quantitySold = NUMERIC[16,5] (Sku, ChainStores);
             LOCAL markupSumSold = NUMERIC[18,4] (Sku, ChainStores);
             LOCAL sumSold = NUMERIC[18,4] (Sku, ChainStores);
-            daysOnStock(Sku sk, ChainStores c) <- (GROUP SUM daysOnStock(sk, DepartmentStore ds, d) IF chainStores(ds) == c) WHERE include(d,sk);
-            quantitySold(Sku sk, ChainStores c) <- (GROUP SUM quantitySold(sk, DepartmentStore ds, d) IF chainStores(ds) == c) WHERE include(d,sk);
-            markupSumSold(Sku sk, ChainStores c) <- (GROUP SUM markupSumSold(sk, DepartmentStore ds, d) IF chainStores(ds) == c) WHERE include(d,sk);
-            sumSold(Sku sk, ChainStores c) <- (GROUP SUM sumSold(sk, DepartmentStore ds, d) IF chainStores(ds) == c) WHERE include(d,sk);
+            daysOnStock(Sku sk, ChainStores c) <- GROUP SUM daysOnStock(sk, DepartmentStore ds, d) IF chainStores(ds) == c;
+            quantitySold(Sku sk, ChainStores c) <- GROUP SUM quantitySold(sk, DepartmentStore ds, d) IF chainStores(ds) == c;
+            markupSumSold(Sku sk, ChainStores c) <- GROUP SUM markupSumSold(sk, DepartmentStore ds, d) IF chainStores(ds) == c;
+            sumSold(Sku sk, ChainStores c) <- GROUP SUM sumSold(sk, DepartmentStore ds, d) IF chainStores(ds) == c;
             
-            averageQuantitySold(Sku sk, ChainStores c, d) <- (quantitySold(sk,c) / daysOnStock(sk,c)) WHERE include(d,sk);
-            averageMarkupSumSold(Sku sk, ChainStores c, d) <- (markupSumSold(sk,c) / daysOnStock(sk,c)) WHERE include(d,sk);
-            averageSumSold(Sku sk, ChainStores c, d) <- (sumSold(sk,c) / daysOnStock(sk,c)) WHERE include(d,sk);
+            averageQuantitySold(Sku sk, ChainStores c, d) <- quantitySold(sk,c) / daysOnStock(sk,c);
+            averageMarkupSumSold(Sku sk, ChainStores c, d) <- markupSumSold(sk,c) / daysOnStock(sk,c);
+            averageSumSold(Sku sk, ChainStores c, d) <- sumSold(sk,c) / daysOnStock(sk,c);
         }
-        daysOnStock(Sku sk, DepartmentStore ds, d) <- NULL WHERE NOT include(d,ds);
-        quantitySold(Sku sk, DepartmentStore ds, d) <- NULL WHERE NOT include(d,ds);
-        markupSumSold(Sku sk, DepartmentStore ds, d) <- NULL WHERE NOT include(d,ds);
-        sumSold(Sku sk, DepartmentStore ds, d) <- NULL WHERE NOT include(d,ds);
         
-        daysOnRange(Sku sk, DepartmentStore ds, d) <- (GROUP SUM 1 IF countRange(sk,ds, DATE date) IF iterate(date,df,dt)) WHERE include(d,ds) AND include(d,sk);
-        daysOfAbsence(Sku sk, DepartmentStore ds, d) <- (GROUP SUM 1 IF countRange(sk,ds, DATE date) AND NOT (balanceA(sk,ds,date) OR quantitySold(sk,ds,date)) IF iterate(date,df,dt)) WHERE include(d,ds) AND include(d,sk);
+        daysOnRange(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds, DATE date) IF iterate(date,df,dt) AND include(d,ds) AND include(d,sk);
+        daysOfAbsence(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds, DATE date) AND NOT (balanceA(sk,ds,date) OR quantitySold(sk,ds,date)) AND iterate(date,df,dt) AND include(d,ds) AND include(d,sk);
         
-        averageQuantitySold(Sku sk, DepartmentStore ds, d) <- (quantitySold(sk,ds,d) / daysOnStock(sk,ds,d)) WHERE include(d,ds) AND include(d,sk);
-        averageMarkupSumSold(Sku sk, DepartmentStore ds, d) <- (markupSumSold(sk,ds,d) / daysOnStock(sk,ds,d)) WHERE include(d,ds) AND include(d,sk);
-        averageSumSold(Sku sk, DepartmentStore ds, d) <- (sumSold(sk,ds,d) / daysOnStock(sk,ds,d)) WHERE include(d,ds) AND include(d,sk);
+        averageQuantitySold(Sku sk, DepartmentStore ds, d) <- quantitySold(sk,ds,d) / daysOnStock(sk,ds,d);
+        averageMarkupSumSold(Sku sk, DepartmentStore ds, d) <- markupSumSold(sk,ds,d) / daysOnStock(sk,ds,d);
+        averageSumSold(Sku sk, DepartmentStore ds, d) <- sumSold(sk,ds,d) / daysOnStock(sk,ds,d);
         
         lostQuantitySold(Sku sk, DepartmentStore ds, d) <- daysOfAbsence(sk,ds,d) * overAverageQuantitySold(sk,ds,d);
         lostMarkupSumSold(Sku sk, DepartmentStore ds, d) <- daysOfAbsence(sk,ds,d) * overAverageMarkupSumSold(sk,ds,d);
