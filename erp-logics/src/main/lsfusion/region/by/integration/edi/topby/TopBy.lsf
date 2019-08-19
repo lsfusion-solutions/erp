@@ -451,7 +451,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
-            IF documentType() == 'BLRWBL' THEN {
+            IF documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- 'm' + messageDocumentNumber();
@@ -460,9 +460,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         dateTime(m) <- messageDocumentDate();
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
-                        documentNumber() <- deliveryNoteNumberEInvoiceBlrwbl(documentNumber());
-                        eInvoice(m) <- eInvoiceDeliveryNoteNumber(documentNumber());
-                        type(m) <- EInvoiceMessageType.systemmessage_blrwbl;
+                        eInvoice(m) <- CASE
+                            WHEN documentType() == 'BLRWBL' THEN eInvoiceBlrwbl(documentNumber())
+                            WHEN documentType() == 'BLRWBR' THEN eInvoiceBlrwbr(documentNumber());
+                        type(m) <- CASE
+                            WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
+                            WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr;
                         XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {

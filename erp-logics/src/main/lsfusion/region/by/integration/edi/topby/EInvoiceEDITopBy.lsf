@@ -13,6 +13,7 @@ blrwblDocumentNumber = DATA LOCAL NESTED STRING[28]();
 GROUP deliveryNote EXTID 'DeliveryNote';
 blrwblDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blrwblDateTime = DATA LOCAL NESTED DATETIME();
+blrwblDeliveryNoteDate = DATA LOCAL NESTED DATE();
 blrwblFunctionCode = DATA LOCAL NESTED STRING[3]();
 GROUP blrwblShipper EXTID 'Shipper' : deliveryNote;
 blrwblSupplierGLN = DATA LOCAL NESTED STRING[13]();
@@ -36,6 +37,7 @@ blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 FORM blrwbl
     PROPERTIES IN messageHeader blrwblDocumentNumber() EXTID 'MessageID'
     PROPERTIES IN deliveryNote blrwblDeliveryNoteNumber() EXTID 'DeliveryNoteID',
+                               blrwblDeliveryNoteDate() EXTID 'DeliveryNoteDate',
                                blrwblDateTime() EXTID 'CreationDateTime',
                                blrwblFunctionCode() EXTID 'FunctionCode'
     PROPERTIES IN blrwblShipper blrwblSupplierGLN() EXTID 'GLN'
@@ -71,7 +73,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
                     number(ei) <- blrwblDocumentNumber();
                     dateTime(ei) <- blrwblDateTime();
-                    deliveryNoteDateTime(ei) <- blrwblDateTime();
+                    deliveryNoteDateTime(ei) <- DATETIME (blrwblDeliveryNoteDate());
                     deliveryNoteNumber(ei) <- blrwblDeliveryNoteNumber();
                     isCancel(ei) <- isCancel();
                     supplier(ei) <- legalEntityGLN(blrwblSupplierGLN());
