@@ -59,7 +59,7 @@ public class SendSalesEquipmentServer {
                 KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
@@ -83,7 +83,7 @@ public class SendSalesEquipmentServer {
                 query.and(cashRegisterLM.findProperty("groupMachinery[Machinery]").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
                 query.and(cashRegisterLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
                 query.and(cashRegisterLM.findProperty("active[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session, MapFact.singletonOrder((Object)"priority", true));
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session, MapFact.singletonOrder("priority", true));
 
                 for (int i = 0, size = result.size(); i < size; i++) {
                     ImMap<Object, Object> row = result.getValue(i);
@@ -107,7 +107,7 @@ public class SendSalesEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("CashDocument", cashDocumentExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 query.addProperty("idCashDocument", cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
                 query.and(cashOperationLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
@@ -236,10 +236,10 @@ public class SendSalesEquipmentServer {
                     if (cashDocument.sumCashDocument != null) {
                         String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(cashDocument.dateCashDocument);
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
-                            dataIncome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                            dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
                                     cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
                         else
-                            dataOutcome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                            dataOutcome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
                                     cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
                     }
                 }
@@ -283,7 +283,7 @@ public class SendSalesEquipmentServer {
                 DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("zReport", zReportExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport",
                         "dateZReport", "nameDepartmentStore"};
@@ -303,7 +303,7 @@ public class SendSalesEquipmentServer {
                     BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport");
                     Date dateZReport = (Date) entry.get("dateZReport");
                     String nameDepartmentStore = (String) entry.get("nameDepartmentStore");
-                    zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList((Object) sumZReport,
+                    zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList(sumZReport,
                             dateZReport, nameDepartmentStore));
                 }
 
@@ -322,7 +322,7 @@ public class SendSalesEquipmentServer {
 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("ZReport", zReportExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 query.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
@@ -387,7 +387,7 @@ public class SendSalesEquipmentServer {
                 DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
 
                 KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
@@ -407,7 +407,7 @@ public class SendSalesEquipmentServer {
                     String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
                     if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
                         List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<>();
-                        nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
+                        nppMachineryList.add(Arrays.asList(nppMachinery, overDirectoryMachinery));
                         cashRegisterList.put(nppGroupMachinery, nppMachineryList);
                     }
                 }
@@ -424,7 +424,7 @@ public class SendSalesEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "groupCashRegister", groupCashRegisterExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("groupCashRegister", groupCashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 query.addProperty("npp", equipmentCashRegisterLM.findProperty("npp[GroupCashRegister]").getExpr(groupCashRegisterExpr));
                 query.and(equipmentCashRegisterLM.findProperty("allowReceiptsAfterDocumentsClosedDate[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());

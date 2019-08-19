@@ -112,7 +112,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                     storeFileToFTP(pricePath, baseFile);
                                     processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, pricePath));
                                     storeFileToFTP(flagPricePath, flagPriceFile);
-                                    waitList.add(Arrays.<Object>asList(ftp, pricePath, flagPricePath, directory));
+                                    waitList.add(Arrays.asList(ftp, pricePath, flagPricePath, directory));
                                 } catch (Exception e) {
                                     brokenDirectoriesMap.put(directory, e);
                                     exception = e;
@@ -153,7 +153,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                         FileCopyUtils.copy(baseFile, priceFile);
                                         processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, pricePath));
                                         if (flagPriceFile.createNewFile())
-                                            waitList.add(Arrays.<Object>asList(ftp, priceFile, flagPriceFile, directory));
+                                            waitList.add(Arrays.asList(ftp, priceFile, flagPriceFile, directory));
                                         else {
                                             processTransactionLogger.error("BelCoopSoyuz: error while create flag file " + flagPriceFile.getAbsolutePath());
                                         }
@@ -294,7 +294,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             boolean noPort = connectionStringMatcher.groupCount() == 4;
             Integer port = noPort || connectionStringMatcher.group(4) == null ? defaultPort : Integer.parseInt(connectionStringMatcher.group(4)); //21
             String remoteFile = connectionStringMatcher.group(noPort ? 4 : 5);
-            return Arrays.asList((Object) username, password, server, port, remoteFile);
+            return Arrays.asList(username, password, server, port, remoteFile);
         } else return null;
     }
 
@@ -699,12 +699,12 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                         switch (type) {
                             case "ТОВАР":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                                         priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, cashRegister));
                                 break;
                             case "ТОВАР ВОЗВРАТ":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
                                         priceReceiptDetail, HandlerUtils.safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection, cashRegister));
                                 break;
                             case "ВСЕГО":

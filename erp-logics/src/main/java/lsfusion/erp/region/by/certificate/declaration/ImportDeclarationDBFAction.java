@@ -65,7 +65,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
         Map<String, List<List<Object>>> declarationsMap = readDeclarationsFromDBF(context, declarationObject, entry);
 
         KeyExpr declarationDetailExpr = new KeyExpr("DeclarationDetail");
-        ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
+        ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev("declarationDetail", declarationDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(declarationDetailKeys);
 
         query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
@@ -135,7 +135,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
                     List<List<Object>> declarationEntry = declarationsMap.get(curNumberDeclaration);
                     if (declarationEntry == null)
                         declarationEntry = new ArrayList<>();
-                    declarationEntry.add(Arrays.asList((Object) curNumberDeclarationDetail, dutySum, VATSum, homeSum));
+                    declarationEntry.add(Arrays.asList(curNumberDeclarationDetail, dutySum, VATSum, homeSum));
                     declarationsMap.put(curNumberDeclaration, declarationEntry);
                     dutySum = null;
                     VATSum = null;
@@ -183,7 +183,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
                 List<List<Object>> declarationEntry = declarationsMap.get(curNumberDeclaration);
                 if (declarationEntry == null)
                     declarationEntry = new ArrayList<>();
-                declarationEntry.add(Arrays.asList((Object) curNumberDeclarationDetail, dutySum, VATSum, homeSum));
+                declarationEntry.add(Arrays.asList(curNumberDeclarationDetail, dutySum, VATSum, homeSum));
                 declarationsMap.put(curNumberDeclaration, declarationEntry);
             }
         } finally {

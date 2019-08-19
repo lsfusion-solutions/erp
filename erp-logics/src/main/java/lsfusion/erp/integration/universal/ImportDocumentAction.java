@@ -61,7 +61,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
 
         KeyExpr importTypeDetailExpr = new KeyExpr("importTypeDetail");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
         LP[] properties = findProperties("staticName[ImportTypeDetail]", "staticCaption[ImportTypeDetail]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
@@ -107,7 +107,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         Map<String, String> stockMapping = new HashMap<>();
 
         KeyExpr key = new KeyExpr("stockMappingEntry");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "StockMappingEntry", key);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("StockMappingEntry", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         
         query.addProperty("idStockMappingEntry", findProperty("id[StockMappingEntry]").getExpr(session.getModifier(), key));

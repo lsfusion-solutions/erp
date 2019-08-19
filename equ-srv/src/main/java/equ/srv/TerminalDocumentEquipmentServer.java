@@ -47,7 +47,7 @@ public class TerminalDocumentEquipmentServer {
                 KeyExpr groupTerminalExpr = new KeyExpr("groupTerminal");
                 KeyExpr terminalExpr = new KeyExpr("terminal");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "GroupTerminal", groupTerminalExpr, "terminal", terminalExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("GroupTerminal", groupTerminalExpr, "terminal", terminalExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] terminalNames = new String[]{"nppMachinery", "portMachinery"};

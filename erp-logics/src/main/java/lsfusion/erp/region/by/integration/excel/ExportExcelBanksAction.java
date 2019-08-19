@@ -46,7 +46,7 @@ public class ExportExcelBanksAction extends ExportExcelAction {
         try {
 
             KeyExpr bankExpr = new KeyExpr("Bank");
-            ImRevMap<Object, KeyExpr> bankKeys = MapFact.singletonRev((Object) "Bank", bankExpr);
+            ImRevMap<Object, KeyExpr> bankKeys = MapFact.singletonRev("Bank", bankExpr);
 
             String[] bankNames = new String[]{"idBank", "nameBank", "departmentBank", "MFOBank", "CBUBank"};
             LP[] bankProperties = findProperties("id[Bank]", "name[Bank]", "department[Bank]", "MFO[Bank]", "CBU[Bank]");

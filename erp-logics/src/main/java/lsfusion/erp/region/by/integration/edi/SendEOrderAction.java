@@ -165,7 +165,7 @@ public class SendEOrderAction extends EDIAction {
         addStringElement(rootElement, "deliveryDateTimeFirst", deliveryDate);
 
         KeyExpr eOrderDetailExpr = new KeyExpr("eOrderDetail");
-        ImRevMap<Object, KeyExpr> eOrderDetailKeys = MapFact.singletonRev((Object) "eOrderDetail", eOrderDetailExpr);
+        ImRevMap<Object, KeyExpr> eOrderDetailKeys = MapFact.singletonRev("eOrderDetail", eOrderDetailExpr);
 
         QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 

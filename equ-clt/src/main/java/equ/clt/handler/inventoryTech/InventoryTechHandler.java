@@ -260,7 +260,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 String idDocumentType = getDBFFieldValue(dbfFile, "CVIDDOC", charset);
                 String accepted = getDBFFieldValue(dbfFile, "ACCEPTED", charset);
                 if(accepted != null && accepted.equals("0"))
-                    data.put(idDoc, Arrays.asList((Object) title, idTerminalHandbookType1, idTerminalHandbookType2,
+                    data.put(idDoc, Arrays.asList(title, idTerminalHandbookType1, idTerminalHandbookType2,
                             quantityDocument, idDocumentType, dateTime, i + 1));
 
             }

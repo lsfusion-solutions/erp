@@ -64,7 +64,7 @@ public class EVATHandler {
                         result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, 0));
                     }
                 } else {
-                    result.add(Arrays.<Object>asList(0, "Unable to create archive directory", true));
+                    result.add(Arrays.asList(0, "Unable to create archive directory", true));
                 }
 
             } catch (Exception e) {
@@ -98,7 +98,7 @@ public class EVATHandler {
             byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
             boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
             if (!isDocumentValid) {
-                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", number), true);
+                result = Arrays.asList(evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", number), true);
             } else {
 
                 eDoc.sign();
@@ -126,7 +126,7 @@ public class EVATHandler {
 
                     logger.info("Ответ сервера проверен. Cчет/фактура принята в обработку. "
                             + "Сообщение сервера: " + resultMessage);
-                    result = Arrays.asList((Object) evat, resultMessage, false);
+                    result = Arrays.asList(evat, resultMessage, false);
 
                 } else {
                     logger.info(String.format("EVAT %s: SignAndSend. Ticket is not accepted", number));
@@ -135,7 +135,7 @@ public class EVATHandler {
                     // Сохранение квитанции в файл
                     writeFile(ticketFile, ticket.getEncoded());
                     logger.info(err.getMessage());
-                    result = Arrays.asList((Object) evat, err.getMessage(), true);
+                    result = Arrays.asList(evat, err.getMessage(), true);
                 }
 
                 //конец непроверенного кода
@@ -151,7 +151,7 @@ public class EVATHandler {
 
             } else {
                 logger.error("Send file error", e);
-                return Arrays.asList((Object) evat, e.getMessage(), true);
+                return Arrays.asList(evat, e.getMessage(), true);
             }
         }
         return result;
@@ -184,7 +184,7 @@ public class EVATHandler {
                     String resultMessage = verified ? status.getMessage() : status.getLastError().getMessage();
                     String resultStatus = verified ? status.getStatus() : null;
                     logger.info(String.format("EVAT %s: Cтатус %s, сообщение %s", invoiceNumber, resultStatus, resultMessage));
-                    result.add(Arrays.asList((Object) evat, resultMessage, resultStatus, invoiceNumber));
+                    result.add(Arrays.asList(evat, resultMessage, resultStatus, invoiceNumber));
                 }
             }
         } catch (Exception e) {

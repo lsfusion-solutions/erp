@@ -108,7 +108,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                     KeyExpr emailExpr = new KeyExpr("email");
                     KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
-                    ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
+                    ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap("email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
                     emailQuery.addProperty("fromAddressEmail", findProperty("fromAddress[Email]").getExpr(session.getModifier(), emailExpr));
@@ -199,7 +199,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                                             if (importResult >= IMPORT_RESULT_OK) {
                                                 String result;
                                                 if(cancelSession) {
-                                                    newContext.cancel(SetFact.<SessionDataProperty>EMPTY());
+                                                    newContext.cancel(SetFact.EMPTY());
                                                     result = "Session canceled";
                                                 } else 
                                                     result = newContext.applyMessage();

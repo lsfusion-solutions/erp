@@ -51,7 +51,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     //PromotionTime
                     KeyExpr htcPromotionTimeExpr = new KeyExpr("htcPromotionTime");
-                    ImRevMap<Object, KeyExpr> htcPromotionTimeKeys = MapFact.singletonRev((Object) "htcPromotionTime", htcPromotionTimeExpr);
+                    ImRevMap<Object, KeyExpr> htcPromotionTimeKeys = MapFact.singletonRev("htcPromotionTime", htcPromotionTimeExpr);
                     QueryBuilder<Object, Object> htcPromotionTimeQuery = new QueryBuilder<>(htcPromotionTimeKeys);
 
                     String[] htcPromotionTimeNames = new String[]{"isStopHTCPromotionTime", "captionDayHTCPromotionTime",
@@ -80,7 +80,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     //PromotionQuantity
                     KeyExpr htcPromotionQuantityExpr = new KeyExpr("htcPromotionQuantity");
-                    ImRevMap<Object, KeyExpr> htcPromotionQuantityKeys = MapFact.singletonRev((Object) "htcPromotionQuantity", htcPromotionQuantityExpr);
+                    ImRevMap<Object, KeyExpr> htcPromotionQuantityKeys = MapFact.singletonRev("htcPromotionQuantity", htcPromotionQuantityExpr);
                     QueryBuilder<Object, Object> htcPromotionQuantityQuery = new QueryBuilder<>(htcPromotionQuantityKeys);
 
                     String[] htcPromotionQuantityNames = new String[]{"isStopHTCPromotionQuantity", "barcodeItemHTCPromotionQuantity",
@@ -108,7 +108,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     //PromotionSum
                     KeyExpr htcPromotionSumExpr = new KeyExpr("htcPromotionSum");
-                    ImRevMap<Object, KeyExpr> htcPromotionSumKeys = MapFact.singletonRev((Object) "htcPromotionSum", htcPromotionSumExpr);
+                    ImRevMap<Object, KeyExpr> htcPromotionSumKeys = MapFact.singletonRev("htcPromotionSum", htcPromotionSumExpr);
                     QueryBuilder<Object, Object> htcPromotionSumQuery = new QueryBuilder<>(htcPromotionSumKeys);
 
                     String[] htcPromotionSumNames = new String[]{"isStopHTCPromotionSum", "sumHTCPromotionSum", "percentHTCPromotionSum"};

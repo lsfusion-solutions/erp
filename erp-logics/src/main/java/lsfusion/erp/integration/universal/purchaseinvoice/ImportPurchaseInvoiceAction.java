@@ -153,7 +153,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                         if(needToApply) {
                             if(cancelSession)
-                                context.cancel(SetFact.<SessionDataProperty>EMPTY());
+                                context.cancel(SetFact.EMPTY());
                             else 
                                 context.apply();
                         }
@@ -1486,7 +1486,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         Map<String, String> articlePropertyMap = new HashMap<>();
 
         KeyExpr articleExpr = new KeyExpr("Article");
-        ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev((Object) "Article", articleExpr);
+        ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev("Article", articleExpr);
 
         QueryBuilder<Object, Object> articleQuery = new QueryBuilder<>(articleKeys);
         articleQuery.addProperty("idArticle", idArticleProp.getExpr(session.getModifier(), articleExpr));
@@ -1514,7 +1514,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         Set<String> purchaseInvoiceSet = new HashSet<>();
 
         KeyExpr key = new KeyExpr("purchase.invoice");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "Purchase.Invoice", key);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("Purchase.Invoice", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         query.addProperty("Purchase.idUserInvoice", findProperty("id[UserInvoice]").getExpr(session.getModifier(), key));

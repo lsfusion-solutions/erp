@@ -134,9 +134,9 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
                     Date dateTo = new Date(DateUtils.parseDate(dateToValue, new String[]{"yyyyMMdd"}).getTime());
                     if (type.equals(4)) {
                         if (codeCustomsGroup.length() == 10)
-                            data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
                         else
-                            dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
                     }
                 }
             }

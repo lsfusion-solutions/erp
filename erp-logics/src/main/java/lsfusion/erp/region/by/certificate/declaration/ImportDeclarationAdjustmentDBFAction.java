@@ -129,7 +129,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
                     List<List<Object>> declarationEntry = declarationsMap.get(curNumberDeclaration);
                     if (declarationEntry == null)
                         declarationEntry = new ArrayList<>();
-                    declarationEntry.add(Arrays.asList((Object) 1, curNumberDeclarationAdjustment, dutySum, VATSum, homeSum));
+                    declarationEntry.add(Arrays.asList(1, curNumberDeclarationAdjustment, dutySum, VATSum, homeSum));
                     declarationsMap.put(curNumberDeclaration, declarationEntry);
                     dutySum = null;
                     VATSum = null;
@@ -167,7 +167,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
                 List<List<Object>> declarationEntry = declarationsMap.get(curNumberDeclaration);
                 if (declarationEntry == null)
                     declarationEntry = new ArrayList<>();
-                declarationEntry.add(Arrays.asList((Object) 1, curNumberDeclarationAdjustment, dutySum, VATSum, homeSum));
+                declarationEntry.add(Arrays.asList(1, curNumberDeclarationAdjustment, dutySum, VATSum, homeSum));
                 declarationsMap.put(curNumberDeclaration, declarationEntry);
             }
         } finally {

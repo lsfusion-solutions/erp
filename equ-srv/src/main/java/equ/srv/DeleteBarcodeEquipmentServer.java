@@ -52,7 +52,7 @@ class DeleteBarcodeEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr deleteBarcodeExpr = new KeyExpr("deleteBarcode");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "deleteBarcode", deleteBarcodeExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("deleteBarcode", deleteBarcodeExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"barcodeObject", "barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
                         "nppGroupMachinery", "handlerModelGroupMachinery", "valueVATSku", "idItemGroup", "nameItemGroup", "directoryGroupMachinery",};

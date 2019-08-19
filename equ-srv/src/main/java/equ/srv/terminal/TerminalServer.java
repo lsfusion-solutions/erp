@@ -311,7 +311,7 @@ public class TerminalServer extends MonitorServer {
                                                 String extraField1DocumentDetail = line.length <= 8 ? null : formatValue(line[8]);
                                                 String extraField2DocumentDetail = line.length <= 9 ? null : formatValue(line[9]);
                                                 String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
-                                                terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
+                                                terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
                                                         parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
@@ -321,7 +321,7 @@ public class TerminalServer extends MonitorServer {
                                         logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
-                                            terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
+                                            terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
                                         result = importTerminalDocumentDetail(idDocument, userInfo.user, userInfo.idTerminal, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;

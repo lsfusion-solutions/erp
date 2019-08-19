@@ -186,7 +186,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         List<GiftCard> giftCards = new ArrayList<>();
 
         KeyExpr giftCardExpr = new KeyExpr("giftCard");
-        ImRevMap<Object, KeyExpr> giftCardKeys = MapFact.singletonRev((Object) "giftCard", giftCardExpr);
+        ImRevMap<Object, KeyExpr> giftCardKeys = MapFact.singletonRev("giftCard", giftCardExpr);
 
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
@@ -251,7 +251,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
         List<List<Object>> data = new ArrayList<>();
         for(GiftCard giftCard : giftCards) {
-            data.add(Arrays.<Object>asList(giftCard.number, true, giftCard.active ? true : null));
+            data.add(Arrays.asList(giftCard.number, true, giftCard.active ? true : null));
         }
 
         List<ImportProperty<?>> props = new ArrayList<>();

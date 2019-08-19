@@ -69,7 +69,7 @@ public class MachineryExchangeEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
-                ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev((Object) "requestExchange", requestExchangeExpr);
+                ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev("requestExchange", requestExchangeExpr);
                 QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
 
                 String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
@@ -97,7 +97,7 @@ public class MachineryExchangeEquipmentServer {
                         if(terminalLM != null) {
 
                             KeyExpr terminalExpr = new KeyExpr("terminal");
-                            ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev((Object) "terminal", terminalExpr);
+                            ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev("terminal", terminalExpr);
                             QueryBuilder<Object, Object> terminalQuery = new QueryBuilder<>(terminalKeys);
 
                             String[] terminalNames = new String[]{"idStockTerminal"};
@@ -131,7 +131,7 @@ public class MachineryExchangeEquipmentServer {
                             String idStock = null;
 
                             KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                            ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                            ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
                             QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
 
                             String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppGroupMachinery",
@@ -179,7 +179,7 @@ public class MachineryExchangeEquipmentServer {
         Set<CashRegisterInfo> extraCashRegisterSet = new HashSet<>();
         KeyExpr stockExpr = new KeyExpr("stock");
         KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "cashRegister", cashRegisterExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("stock", stockExpr, "cashRegister", cashRegisterExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         String[] cashRegisterNames = new String[]{"npp", "nppGroup", "overDirectory", "idStock", "handlerModel"};
@@ -261,7 +261,7 @@ public class MachineryExchangeEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr discountCardExpr = new KeyExpr("discountCard");
-                ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
+                ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev("discountCard", discountCardExpr);
 
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard",
@@ -286,7 +286,7 @@ public class MachineryExchangeEquipmentServer {
                 if(requestExchange.startDate != null)
                     discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(requestExchange.startDate, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder("idDiscountCard", false));
 
                 for (int i = 0, size = discountCardResult.size(); i < size; i++) {
                     ImMap<Object, Object> row = discountCardResult.getValue(i);
@@ -325,7 +325,7 @@ public class MachineryExchangeEquipmentServer {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr employeeExpr = new KeyExpr("employee");
-                ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev((Object) "employee", employeeExpr);
+                ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev("employee", employeeExpr);
 
                 QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
                 String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
@@ -362,7 +362,7 @@ public class MachineryExchangeEquipmentServer {
             try (DataSession session = server.createSession()) {
                 KeyExpr orderExpr = new KeyExpr("order");
                 KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
-                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
+                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
                 LP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idExternalStock[Order.Order]");
@@ -422,7 +422,7 @@ public class MachineryExchangeEquipmentServer {
                 KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
                 KeyExpr machineryExpr = new KeyExpr("machinery");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};

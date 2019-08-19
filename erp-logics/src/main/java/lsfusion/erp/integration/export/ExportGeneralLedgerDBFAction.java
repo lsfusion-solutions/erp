@@ -88,7 +88,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         KeyExpr generalLedgerExpr = new KeyExpr("GeneralLedger");
         KeyExpr dimensionTypeExpr = new KeyExpr("DimensionType");
 
-        ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.toRevMap((Object) "GeneralLedger", generalLedgerExpr, "DimensionType", dimensionTypeExpr);
+        ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.toRevMap("GeneralLedger", generalLedgerExpr, "DimensionType", dimensionTypeExpr);
 
         QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<>(generalLedgerKeys);
 
@@ -191,7 +191,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
                     credit4Map.put(generalLedgerObject, nameCredit);
             }
 
-            generalLedgerMap.put(generalLedgerObject, Arrays.asList((Object) dateGeneralLedger, numberGeneralLedger,
+            generalLedgerMap.put(generalLedgerObject, Arrays.asList(dateGeneralLedger, numberGeneralLedger,
                     description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger, seriesGeneralLedger, quantityGeneralLedger));
         }
 

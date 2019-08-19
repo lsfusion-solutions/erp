@@ -185,7 +185,7 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
     private List<String> getItemURLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemURLs = new ArrayList<>();
         KeyExpr itemExpr = new KeyExpr("eurooptItem");
-        ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "eurooptItem", itemExpr);
+        ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev("eurooptItem", itemExpr);
 
         QueryBuilder<Object, Object> itemQuery = new QueryBuilder<>(itemKeys);
         itemQuery.addProperty("url", findProperty("url[EurooptItem]").getExpr(context.getModifier(), itemExpr));

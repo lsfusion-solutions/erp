@@ -49,7 +49,7 @@ public class TerminalEquipmentServer {
             try {
                 KeyExpr orderExpr = new KeyExpr("terminalOrder");
                 KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
-                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
+                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
                 LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]", "idSupplier[TerminalOrder]");
@@ -130,7 +130,7 @@ public class TerminalEquipmentServer {
 
             KeyExpr skuExpr = new KeyExpr("Sku");
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
-            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
+            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
@@ -155,7 +155,7 @@ public class TerminalEquipmentServer {
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
             LP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
@@ -178,7 +178,7 @@ public class TerminalEquipmentServer {
         ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
@@ -212,7 +212,7 @@ public class TerminalEquipmentServer {
         if (terminalLM != null) {
 
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
-            ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+            ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev("terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
             String[] names = new String[]{"exportId", "name", "propertyID", "propertyName", "filterProperty", "extInfoProperty"};
             LP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]",
@@ -238,7 +238,7 @@ public class TerminalEquipmentServer {
                     ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
                     if (interfaces.size() == 1) {
                         KeyExpr customANAExpr = new KeyExpr("customANA");
-                        ImRevMap<Object, KeyExpr> customANAKeys = MapFact.singletonRev((Object) "customANA", customANAExpr);
+                        ImRevMap<Object, KeyExpr> customANAKeys = MapFact.singletonRev("customANA", customANAExpr);
                         QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
                         customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
                         customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
@@ -283,7 +283,7 @@ public class TerminalEquipmentServer {
         ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
         if (terminalLM != null) {
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
-            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
+            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev("LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
             LP<?>[] legalEntityProperties = terminalLM.findProperties("id[LegalEntity]", "name[LegalEntity]");

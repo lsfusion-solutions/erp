@@ -60,10 +60,10 @@ public class EVATActiveXHandler {
                             result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath));
                         }
                     } else {
-                        result.add(Arrays.<Object>asList(0, "Unable to create archive directory", true));
+                        result.add(Arrays.asList(0, "Unable to create archive directory", true));
                     }
                 } else {
-                    result.add(Arrays.<Object>asList(0, "Unable to connect or login", true));
+                    result.add(Arrays.asList(0, "Unable to connect or login", true));
                 }
 
             } catch (Exception e) {
@@ -107,7 +107,7 @@ public class EVATActiveXHandler {
                         // Проверка квитанции
                         if (res.getInt() == 0) {
                             logger.info("Ответ сервера проверен. Cчет/фактура принята в обработку. Сообщение сервера: Accepted");
-                            result = Arrays.asList((Object) evat, "Accepted", false);
+                            result = Arrays.asList(evat, "Accepted", false);
                         } else {
                             logger.info(String.format("EVAT %s: SignAndSend. Ticket is not accepted", number));
                             Variant err = Dispatch.call(service, "LastError");
@@ -130,7 +130,7 @@ public class EVATActiveXHandler {
             logger.info(String.format("EVAT %s: Error occurred", number));
             disconnect(service);
             logger.error("Send file error", e);
-            return Arrays.asList((Object) evat, e.getMessage(), true);
+            return Arrays.asList(evat, e.getMessage(), true);
         } finally {
             if(archiveDir == null && originalFile!= null && !originalFile.delete())
                 originalFile.deleteOnExit();
@@ -163,7 +163,7 @@ public class EVATActiveXHandler {
                         String resultMessage = verified ? Dispatch.call(status, "Message").getString() : Dispatch.call(service, "LastError").getString();
                         String resultStatus = verified ? Dispatch.call(status, "Status").getString() : null;
                         logger.info(String.format("EVAT %s: Статус %s, сообщение %s", invoiceNumber, resultStatus, resultMessage));
-                        result.add(Arrays.asList((Object) evat, resultMessage, resultStatus, invoiceNumber));
+                        result.add(Arrays.asList(evat, resultMessage, resultStatus, invoiceNumber));
                     }
                 }
             }

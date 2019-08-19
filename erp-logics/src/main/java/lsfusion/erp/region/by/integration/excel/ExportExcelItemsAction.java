@@ -60,7 +60,7 @@ public class ExportExcelItemsAction extends ExportExcelAction {
             ObjectValue wholesaleCPLT = findProperty("id[CalcPriceListType]").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
 
             KeyExpr itemExpr = new KeyExpr("Item");
-            ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
+            ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev("Item", itemExpr);
 
             QueryBuilder<Object, Object> itemQuery = new QueryBuilder<>(itemKeys);
             String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",

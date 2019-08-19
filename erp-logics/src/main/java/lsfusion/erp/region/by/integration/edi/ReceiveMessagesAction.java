@@ -517,7 +517,7 @@ public class ReceiveMessagesAction extends EDIAction {
                         String orderNumber = trim(reference.getChildText("documentNumber"));
                         String code = reference.getChildText("code");
                         String description = getDescriptionByCode(reference.getChildText("description"), code);
-                        return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
+                        return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList(documentNumber, dateTime, code, description, orderNumber)), null);
                     case "BLRWBR":
                     case "BLRAPN":
                         ERPLoggers.importLogger.error(String.format("%s Parse Order Message %s skipped for documentType %s", provider, documentId, documentType));
@@ -636,11 +636,11 @@ public class ReceiveMessagesAction extends EDIAction {
             BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
             if (barcode != null)
-                firstData.add(Arrays.<Object>asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                firstData.add(Arrays.asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                         deliveryDateTimeFirst, deliveryDateTimeSecond, idDetail, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
                         sumNoNDS, sumNDS));
             else
-                secondData.add(Arrays.<Object>asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                secondData.add(Arrays.asList(id, documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                         deliveryDateTimeFirst, deliveryDateTimeSecond, idDetail, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
                         sumNoNDS, sumNDS));
         }
@@ -861,11 +861,11 @@ public class ReceiveMessagesAction extends EDIAction {
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
             if (barcode != null)
-                firstData.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                firstData.add(Arrays.asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                         deliveryDateTimeFirst, idDetail, barcode, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
             else
-                secondData.add(Arrays.<Object>asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                secondData.add(Arrays.asList(id, documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                         deliveryDateTimeFirst, idDetail, GTIN, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
@@ -1067,7 +1067,7 @@ public class ReceiveMessagesAction extends EDIAction {
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("LineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("LineItemAmountCharges"));
             if (lineItemID != null || lineItemBuyerID != null)
-                data.add(Arrays.<Object>asList(idDetail, lineItemID, lineItemBuyerID, lineItemName,
+                data.add(Arrays.asList(idDetail, lineItemID, lineItemBuyerID, lineItemName,
                         quantityDespatched, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
@@ -1228,7 +1228,7 @@ public class ReceiveMessagesAction extends EDIAction {
                 if (errorOrAcknowledgementElement != null) {
                     String code = errorOrAcknowledgementElement.getChildText("Code");
                     String description = getDescriptionByCode(errorOrAcknowledgementElement.getChildText("Description"), code);
-                    return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, invoiceNumber)), null);
+                    return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList(documentNumber, dateTime, code, description, invoiceNumber)), null);
                 }
             }
         } else
@@ -1457,7 +1457,7 @@ public class ReceiveMessagesAction extends EDIAction {
             }
 
             KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "eOrderDetail", orderDetailExpr);
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("eOrderDetail", orderDetailExpr);
 
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idBarcode", "GTINBarcode"};

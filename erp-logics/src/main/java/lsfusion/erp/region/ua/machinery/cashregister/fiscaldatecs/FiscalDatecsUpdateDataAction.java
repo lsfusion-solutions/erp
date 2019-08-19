@@ -40,7 +40,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
             KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
-            ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
+            ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap("customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
             QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<>(operatorKeys);
             operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
@@ -64,7 +64,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
             DataObject taxVATObject = ((ConcreteCustomClass) findClass("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
-            ImRevMap<Object, KeyExpr> rangeKeys = MapFact.toRevMap((Object) "range", rangeExpr, "tax", taxExpr);
+            ImRevMap<Object, KeyExpr> rangeKeys = MapFact.toRevMap("range", rangeExpr, "tax", taxExpr);
 
             QueryBuilder<Object, Object> rangeQuery = new QueryBuilder<>(rangeKeys);
             rangeQuery.addProperty("numberRange", findProperty("number[Range]").getExpr(context.getModifier(), rangeExpr));

@@ -304,7 +304,7 @@ public class LSTerminalHandler extends TerminalHandler {
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
-            itemsList.add(Arrays.asList((Object) dv, num, vop, ana1, ana2, barcode, quantity, price, String.valueOf(npp), comment));
+            itemsList.add(Arrays.asList(dv, num, vop, ana1, ana2, barcode, quantity, price, String.valueOf(npp), comment));
         }
         resultSet.close();
         statement.close();

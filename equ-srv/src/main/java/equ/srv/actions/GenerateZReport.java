@@ -56,7 +56,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
 
                 KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
                 KeyExpr itemExpr = new KeyExpr("item");
-                ImRevMap<Object, KeyExpr> newKeys = MapFact.<Object, KeyExpr>toRevMap("departmentStore", departmentStoreExpr, "item", itemExpr);
+                ImRevMap<Object, KeyExpr> newKeys = MapFact.toRevMap("departmentStore", departmentStoreExpr, "item", itemExpr);
 
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(newKeys);
                 query.addProperty("currentBalanceSkuStock", findProperty("currentBalance[Sku,Stock]").getExpr(itemExpr, departmentStoreExpr));
@@ -92,7 +92,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 for (DataObject departmentStoreObject : departmentStoreList) {
                     KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
-                    ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                    ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
                     QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(keys);
                     cashRegisterQuery.addProperty("maxNumberZReport", findProperty("maxNumberZReport[CashRegister]").getExpr(cashRegisterExpr));
                     cashRegisterQuery.addProperty("nppMachinery", findProperty("npp[Machinery]").getExpr(cashRegisterExpr));
@@ -115,7 +115,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 List<String> discountCardList = new ArrayList<>();
                 KeyExpr discountCardExpr = new KeyExpr("discountCard");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("discountCard", discountCardExpr);
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(keys);
                 discountCardQuery.addProperty("seriesNumber", findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr));
                 discountCardQuery.and(findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr).getWhere());

@@ -160,7 +160,7 @@ public abstract class ExportExcelXSSFPivotAction extends InternalAction {
                         }
                     }                    
                     String formula = fieldValue == null ? field : null;
-                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth));
+                    resultEntry.add(Arrays.asList((fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth));
                 }
                 result.add(resultEntry);
             }

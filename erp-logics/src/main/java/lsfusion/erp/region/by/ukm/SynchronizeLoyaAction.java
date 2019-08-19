@@ -90,7 +90,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         List<Brand> result = new ArrayList<>();
 
         KeyExpr brandExpr = new KeyExpr("Brand");
-        ImRevMap<Object, KeyExpr> brandKeys = MapFact.singletonRev((Object) "brand", brandExpr);
+        ImRevMap<Object, KeyExpr> brandKeys = MapFact.singletonRev("brand", brandExpr);
         QueryBuilder<Object, Object> brandQuery = new QueryBuilder<>(brandKeys);
 
         String[] brandNames = new String[]{"idLoya", "name"};
@@ -117,7 +117,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         Map<Long, Category> itemGroupMap = new HashMap<>();
 
         KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");
-        ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev((Object) "itemGroup", itemGroupExpr);
+        ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev("itemGroup", itemGroupExpr);
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[]{"overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
@@ -170,7 +170,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         KeyExpr groupExpr = new KeyExpr("loyaItemGroup");
         KeyExpr skuExpr = new KeyExpr("sku");
 
-        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "loyaItemGroup", groupExpr, "sku", skuExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("loyaItemGroup", groupExpr, "sku", skuExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         String[] loyaItemGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup",
@@ -228,7 +228,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
 
         //get loya groups without items and not active for deletion
         KeyExpr emptyGroupExpr = new KeyExpr("loyaItemGroup");
-        QueryBuilder<Object, Object> emptyQuery = new QueryBuilder<>(MapFact.singletonRev((Object) "loyaItemGroup", emptyGroupExpr));
+        QueryBuilder<Object, Object> emptyQuery = new QueryBuilder<>(MapFact.singletonRev("loyaItemGroup", emptyGroupExpr));
         String[] emptyGroupNames = new String[]{"idLoyaItemGroup", "nameLoyaItemGroup", "descriptionLoyaItemGroup", "empty", "active", "maxDiscountLoyaItemGroup", "maxAllowBonusLoyaItemGroup", "maxAwardBonusLoyaItemGroup"};
         LP[] emptyGroupProperties = findProperties("id[LoyaItemGroup]", "name[LoyaItemGroup]", "description[LoyaItemGroup]", "empty[LoyaItemGroup]",
                 "active[LoyaItemGroup]", "overMaxDiscountLoyaItemGroup[LoyaItemGroup]", "overMaxAllowBonusLoyaItemGroup[LoyaItemGroup]", "overMaxAwardBonusLoyaItemGroup[LoyaItemGroup]");
@@ -267,7 +267,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         KeyExpr skuExpr = new KeyExpr("sku");
         KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
 
-        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "sku", skuExpr, "departmentStore", departmentStoreExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("sku", skuExpr, "departmentStore", departmentStoreExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));

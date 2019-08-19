@@ -72,7 +72,7 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
             DataObject dateToObject = context.getDataKeyValue(dateToInterface);
 
             KeyExpr userInvoiceExpr = new KeyExpr("UserInvoice");
-            ImRevMap<Object, KeyExpr> userInvoiceKeys = MapFact.singletonRev((Object) "UserInvoice", userInvoiceExpr);
+            ImRevMap<Object, KeyExpr> userInvoiceKeys = MapFact.singletonRev("UserInvoice", userInvoiceExpr);
 
             String[] userInvoiceNames = new String[]{"seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
@@ -104,7 +104,7 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
                     Long supplierStockID = (Long) userInvoiceValue.get("Purchase.supplierStockInvoice");
 
                     KeyExpr userInvoiceDetailExpr = new KeyExpr("UserInvoiceDetail");
-                    ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev((Object) "UserInvoiceDetail", userInvoiceDetailExpr);
+                    ImRevMap<Object, KeyExpr> userInvoiceDetailKeys = MapFact.singletonRev("UserInvoiceDetail", userInvoiceDetailExpr);
 
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<>(userInvoiceDetailKeys);
                     String[] userInvoiceDetailNames = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",

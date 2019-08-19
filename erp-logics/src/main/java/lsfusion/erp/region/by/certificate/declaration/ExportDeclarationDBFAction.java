@@ -148,7 +148,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         }
         query.and(isDeclarationDetail.getExpr(key).getWhere());
         query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder("numberDeclarationDetail", false));
 
         if (result.size() == 0)
             return null;
@@ -207,7 +207,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         KeyExpr declarationDetailExpr = new KeyExpr("declarationDetail");
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
-        ImRevMap<Object, KeyExpr> customsDocumentKeys = MapFact.toRevMap((Object) "declarationDetail", declarationDetailExpr, "customsDocument", customsDocumentExpr);
+        ImRevMap<Object, KeyExpr> customsDocumentKeys = MapFact.toRevMap("declarationDetail", declarationDetailExpr, "customsDocument", customsDocumentExpr);
 
         QueryBuilder<Object, Object> customsDocumentQuery = new QueryBuilder<>(customsDocumentKeys);
 
@@ -219,7 +219,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         customsDocumentQuery.and(findProperty("in[DeclarationDetail,CustomsDocument]").getExpr(declarationDetailExpr, customsDocumentExpr).getWhere());
         customsDocumentQuery.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customsDocumentResult = customsDocumentQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customsDocumentResult = customsDocumentQuery.execute(context, MapFact.singletonOrder("numberDeclarationDetail", false));
 
         for (int i = 0, size = customsDocumentResult.size(); i < size; i++) {
             ImMap<Object, Object> resultValues = customsDocumentResult.getValue(i);
@@ -247,7 +247,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
         KeyExpr complianceExpr = new KeyExpr("compliance");
-        ImRevMap<Object, KeyExpr> complianceKeys = MapFact.toRevMap((Object) "declarationDetail", declarationDetail2Expr, "compliance", complianceExpr);
+        ImRevMap<Object, KeyExpr> complianceKeys = MapFact.toRevMap("declarationDetail", declarationDetail2Expr, "compliance", complianceExpr);
 
         QueryBuilder<Object, Object> complianceQuery = new QueryBuilder<>(complianceKeys);
 
@@ -258,7 +258,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         complianceQuery.and(findProperty("in[DeclarationDetail,Compliance]").getExpr(declarationDetail2Expr, complianceExpr).getWhere());
         complianceQuery.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetail2Expr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> complianceResult = complianceQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> complianceResult = complianceQuery.execute(context, MapFact.singletonOrder("numberDeclarationDetail", false));
 
         for (int i = 0, size = complianceResult.size(); i < size; i++) {
             ImMap<Object, Object> resultValues = complianceResult.getValue(i);

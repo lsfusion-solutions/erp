@@ -31,7 +31,7 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
 
     private static KeyStore getDefaultKS() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         KeyStore ks = KeyStore.getInstance("AvPersonal");
-        ks.load((InputStream)null, (char[])null);
+        ks.load(null, null);
         return ks;
     }
 

@@ -697,7 +697,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
                                 BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
                                 String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
-                                receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
+                                receiptMap.put(numberReceipt, Arrays.asList(sumCash, sumCard, idDiscountCard));
                             }
 
                         }
@@ -746,7 +746,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
 
                                     salesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                            timeReceipt, idEmployee, null, null, sumCard, sumCash, (BigDecimal) null, barcodeItem, null, null, null, quantityReceiptDetail,
+                                            timeReceipt, idEmployee, null, null, sumCard, sumCash, null, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                             nameSalesFile, null, cashRegister));
                                 }

@@ -254,7 +254,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
         Map<String, String> barcodeMap = new HashMap<>();
         KeyExpr itemListExpr = new KeyExpr("eurooptItemList");
         KeyExpr itemExpr = new KeyExpr("eurooptItem");
-        ImRevMap<Object, KeyExpr> itemListKeys = MapFact.toRevMap((Object) "eurooptItemList", itemListExpr, "eurooptItem", itemExpr);
+        ImRevMap<Object, KeyExpr> itemListKeys = MapFact.toRevMap("eurooptItemList", itemListExpr, "eurooptItem", itemExpr);
 
         QueryBuilder<Object, Object> query = new QueryBuilder<>(itemListKeys);
         query.addProperty("urlItemList", findProperty("url[EurooptItemList]").getExpr(context.getModifier(), itemListExpr));

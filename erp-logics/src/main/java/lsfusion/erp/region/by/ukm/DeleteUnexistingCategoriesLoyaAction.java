@@ -51,7 +51,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         Set<Long> itemGroupSet = new HashSet<>();
 
         KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "itemGroup", itemGroupExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("itemGroup", itemGroupExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("overId", findProperty("overId[ItemGroup]").getExpr(itemGroupExpr));
         query.and(findProperty("overId[ItemGroup]").getExpr(itemGroupExpr).getWhere());

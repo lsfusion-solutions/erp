@@ -73,7 +73,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
                             findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
                             if (cancelSession) {
-                                newContext.cancel(SetFact.<SessionDataProperty>EMPTY());
+                                newContext.cancel(SetFact.EMPTY());
                             } else {
                                 newContext.apply();
                             }

@@ -67,7 +67,7 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
             DataObject dateToObject = context.getDataKeyValue(dateToInterface);
 
             KeyExpr generalLedgerExpr = new KeyExpr("GeneralLedger");
-            ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.singletonRev((Object) "GeneralLedger", generalLedgerExpr);
+            ImRevMap<Object, KeyExpr> generalLedgerKeys = MapFact.singletonRev("GeneralLedger", generalLedgerExpr);
 
             String[] generalLedgerNames = new String[]{"isPostedGeneralLedger", "dateGeneralLedger",
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",

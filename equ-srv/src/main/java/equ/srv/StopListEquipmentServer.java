@@ -70,7 +70,7 @@ public class StopListEquipmentServer {
             try (DataSession session = server.createSession()) {
                 Map<String, Map<String, Set<MachineryInfo>>> stockMap = null;
                 KeyExpr stopListExpr = new KeyExpr("stopList");
-                ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev((Object) "stopList", stopListExpr);
+                ImRevMap<Object, KeyExpr> slKeys = MapFact.singletonRev("stopList", stopListExpr);
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<>(slKeys);
                 String[] slNames = new String[]{"excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList",
                         "toDateStopList", "toTimeStopList"};
@@ -98,7 +98,7 @@ public class StopListEquipmentServer {
                     Map<Integer, Set<String>> itemsInGroupMachineryMap = new HashMap();
                     KeyExpr stockExpr = new KeyExpr("stock");
                     KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
-                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
+                    ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap("stock", stockExpr, "groupMachinery", groupMachineryExpr);
                     QueryBuilder<Object, Object> stockQuery = new QueryBuilder<>(stockKeys);
                     stockQuery.addProperty("idStock", stopListLM.findProperty("id[Stock]").getExpr(stockExpr));
                     stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("npp[GroupMachinery]").getExpr(groupMachineryExpr));
@@ -154,7 +154,7 @@ public class StopListEquipmentServer {
 
         KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
         KeyExpr machineryExpr = new KeyExpr("machinery");
-        ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
+        ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap("groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
         QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
         String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
@@ -206,7 +206,7 @@ public class StopListEquipmentServer {
         Map<String, ItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev("stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
@@ -253,7 +253,7 @@ public class StopListEquipmentServer {
         Set<String> inGroupMachineryItemSet = new HashSet<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("stopListDetail", sldExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSku[StopListDetail]").getExpr(sldExpr));
         query.and(stopListLM.findProperty("in[GroupMachinery,StopListDetail]").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());

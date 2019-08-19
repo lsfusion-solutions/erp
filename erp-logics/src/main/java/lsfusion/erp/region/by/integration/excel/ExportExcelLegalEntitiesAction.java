@@ -47,7 +47,7 @@ public class ExportExcelLegalEntitiesAction extends ExportExcelAction {
         try {
 
             KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
-            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
+            ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev("LegalEntity", legalEntityExpr);
 
             String[] legalEntityNames = new String[]{"nameLegalEntity", "fullNameLegalEntity",
                     "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",

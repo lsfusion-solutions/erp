@@ -154,7 +154,7 @@ public class ExportDeclarationAction extends DefaultExportAction {
 
                 //Creation of TSDocs44.csv
                 KeyExpr invoiceExpr = new KeyExpr("invoice");
-                ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev((Object)"invoice", invoiceExpr);
+                ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev("invoice", invoiceExpr);
 
                 QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<>(invoiceKeys);
                 invoiceQuery.addProperty("seriesNumberInvoice", findProperty("seriesNumber[Purchase.Invoice]").getExpr(invoiceExpr));

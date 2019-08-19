@@ -70,7 +70,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if (terminalHandlerLM != null) {
                 String host = (String) terminalHandlerLM.findProperty("hostTerminalServer[]").read(session);
                 Integer port = (Integer) terminalHandlerLM.findProperty("portTerminalServer[]").read(session);
-                return Arrays.asList((Object) host, port);
+                return Arrays.asList(host, port);
             } else return new ArrayList<>();
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -246,7 +246,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal").read(session) != null;
 
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
-                ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
+                ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
 
                 QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
                 barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
@@ -302,7 +302,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         if (terminalHandlerLM != null) {
 
             KeyExpr barcodeExpr = new KeyExpr("barcode");
-            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
+            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
 
             QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
             barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));

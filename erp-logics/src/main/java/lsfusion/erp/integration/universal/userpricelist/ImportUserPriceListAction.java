@@ -1007,7 +1007,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
 
         KeyExpr importUserPriceListTypeDetailExpr = new KeyExpr("importUserPriceListTypeDetail");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportUserPriceListTypeDetail", "nameKeyImportUserPriceListTypeDetail"};
         LP[] properties = findProperties("staticName[ImportUserPriceListTypeDetail]", "staticCaption[ImportUserPriceListTypeDetail]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");

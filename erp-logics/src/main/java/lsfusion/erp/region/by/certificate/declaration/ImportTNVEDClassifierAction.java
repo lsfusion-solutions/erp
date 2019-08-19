@@ -83,7 +83,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
                     groupID = "-" + i;
                     hasCode = null;
                 }
-                data.add(Arrays.asList((Object) groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, defaultDate));
+                data.add(Arrays.asList(groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, defaultDate));
             }
         } finally {
             if(dbfFile != null)
@@ -154,7 +154,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
                     groupID = "-" + i;
                 }
 
-                data.add(Arrays.asList((Object) groupID, parentID));
+                data.add(Arrays.asList(groupID, parentID));
                 groupIDsList.add(groupID);
             }
         } finally {

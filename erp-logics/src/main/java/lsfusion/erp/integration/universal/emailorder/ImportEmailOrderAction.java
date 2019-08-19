@@ -69,7 +69,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
             } else {
                 KeyExpr emailExpr = new KeyExpr("email");
                 KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
-                ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
+                ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap("email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                 QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
                 emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(attachmentEmailExpr));
@@ -89,7 +89,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
                     String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                     if (nameAttachmentEmail != null) {
                         if (nameAttachmentEmail.toLowerCase().endsWith(".xls") || nameAttachmentEmail.toLowerCase().endsWith(".xlsx")) {
-                            attachmentMap.put(attachmentEmailObject, Arrays.asList((Object) fileAttachment, nameAttachmentEmail));
+                            attachmentMap.put(attachmentEmailObject, Arrays.asList(fileAttachment, nameAttachmentEmail));
                         }
                     }
                 }
@@ -187,7 +187,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
                     if (index != null) {
                         BigDecimal quantity = getXLSXBigDecimalFieldValue(sheet, i, quantityColumn);
                         if (quantity != null)
-                            result.add(Arrays.asList((Object) numberOrder, true, index.intValue(), quantity));
+                            result.add(Arrays.asList(numberOrder, true, index.intValue(), quantity));
                     }
                 }
             }

@@ -334,7 +334,7 @@ public class SendEInvoiceSupplierAction extends EDIAction {
     private List<EInvoiceDetail> getEInvoiceDetailList(ExecutionContext context, DataObject eInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<EInvoiceDetail> result = new ArrayList<>();
         KeyExpr eInvoiceDetailExpr = new KeyExpr("eInvoiceDetail");
-        ImRevMap<Object, KeyExpr> eInvoiceDetailKeys = MapFact.singletonRev((Object) "eInvoiceDetail", eInvoiceDetailExpr);
+        ImRevMap<Object, KeyExpr> eInvoiceDetailKeys = MapFact.singletonRev("eInvoiceDetail", eInvoiceDetailExpr);
 
         QueryBuilder<Object, Object> eInvoiceDetailQuery = new QueryBuilder<>(eInvoiceDetailKeys);
         String[] eInvoiceDetailNames = new String[]{"lineItemID", "lineItemBuyerID", "lineItemName", "grossWeightValue", "quantityDespatched", "lineItemQuantityUOM",
