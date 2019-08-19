@@ -38,9 +38,11 @@ backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE
 
 daysToRevision 'Дней до пересмотра' = DATA INTEGER (Range);
 
+inactive 'Неактивная' = DATA BOOLEAN (Range);
+
 FORM range 'Ассортиментная матрица'
     OBJECTS r = Range PANEL
-    PROPERTIES(r) name, daysToRevision
+    PROPERTIES(r) name, daysToRevision, inactive
 
     TREE skuTree sg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
@@ -84,11 +86,14 @@ FORM ranges 'Ассортиментные матрицы'
     
     OBJECTS r = Range
     PROPERTIES(r) READONLY name
+    PROPERTIES READONLYIF isReadonly() inactive(r)
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDER name(r)
     
     LIST Range OBJECT r
+
+    FILTERGROUP active FILTER 'Активные' NOT inactive(r) DEFAULT
 ;
 
 DESIGN ranges {
@@ -481,6 +486,7 @@ FORM storeRange 'Ассортимент магазинов'
     //PROPERTIES countSku(sr, st, d) COLUMNS (st) HEADER name(st) 
     ORDER name(sr)
     FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
+    FILTERGROUP active FILTER 'Активные' NOT inactive(sr) DEFAULT
 
     OBJECTS ss = Sku GRID 
     PROPERTIES(ss) READONLY BACKGROUND backgroundRange(ss) idBarcode, name, nameUOM
