@@ -24,7 +24,6 @@ replace  ABSTRACT LIST ( Sku, Batch);
 // --------------------------------- Партии ------------------------------------------------ //
 
 TABLE batch(Batch);
-TABLE descriptionBatch(Batch);
 TABLE skuLedgerBatch (SkuLedger, Batch);
 TABLE batchStock(Batch, Stock);
 
@@ -82,8 +81,7 @@ nameStock 'Склад' (Batch batch) = name(stock(batch));
 cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) MATERIALIZED;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
-description 'Описание' (batch) = ABSTRACT ISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30 TABLE descriptionBatch;
-name 'Название' (batch) = ABSTRACT ISTRING[200] (Batch) MATERIALIZED IN id CHARWIDTH 30 TABLE descriptionBatch;
+description 'Описание' (batch) = ABSTRACT ISTRING[200] (Batch) IN id CHARWIDTH 30;
 
 expiryDate 'Годен до' (batch) = ABSTRACT DATE (Batch) MATERIALIZED INDEXED;
 prevExpiryDate 'Годен до' (Batch batch) = PREV(expiryDate(batch));
@@ -102,11 +100,9 @@ INDEX supplier(Batch b), sku(b);
 
 nameSupplier 'Поставщик' (Batch batch) = name(supplier(batch));
 fullNameSupplier 'Поставщик' (Batch batch) = fullName(supplier(batch));
-
 idSupplier 'Код поставщика' (Batch batch) = id(supplier(batch));
-addressSupplier 'Адрес поставщика' (Batch batch) = address(supplier(batch));
 
-supplierGroup (Batch batch) = legalEntityGroup(supplier(batch));
+name 'Название' (Batch batch) = ISTRING[200](CONCAT '/ ', BPSTRING[10](date(batch)), seriesNumber(batch), fullNameSupplier(batch));
 
 supplierStock = ABSTRACT Stock (Batch) MATERIALIZED;
 nameSupplierStock 'Склад поставщика' (Batch batch) = name(supplierStock(batch));
@@ -1624,7 +1620,6 @@ END
 
 META defineDocumentDetailBatchCustomPrefixInner(detail, batchProp, batchClass, prefix)
     batchProp = DATA batchClass (###detail) INDEXED;
-    description##batchClass 'Партия' (###detail detail) = Stock.description(batchProp(detail)) CHARWIDTH 20;
     name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) CHARWIDTH 20;
     documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) CHARWIDTH 20;
     
@@ -1655,7 +1650,6 @@ END
 
 META defineDocumentAbstractDetailBatchCustomInner(detail, batchProp, batchClass)
     batchProp = ABSTRACT batchClass (###detail) MATERIALIZED INDEXED;
-    description##batchClass 'Партия' (###detail detail) = description(batchProp(detail)) CHARWIDTH 20;
     name##batchClass 'Партия' (###detail detail) = name(batchProp(detail)) CHARWIDTH 20;
     documentName##batchClass 'Наименование (для документов)' (###detail detail) = documentNameSku(batchProp(detail)) CHARWIDTH 20;
 END
