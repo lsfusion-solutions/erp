@@ -2,23 +2,18 @@ package equ.clt.handler.aclas;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import equ.api.MachineryInfo;
-import equ.api.SendTransactionBatch;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.EquipmentServer;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.trim;
@@ -37,73 +32,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     protected String getLogPrefix() {
         return "Aclas LS-2: ";
-    }
-
-    @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) {
-
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-        String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
-
-        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
-
-        Map<String, String> brokenPortsMap = new HashMap<>();
-        if(transactionInfoList.isEmpty()) {
-            processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
-        }
-        for(TransactionScalesInfo transaction : transactionInfoList) {
-            processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
-
-            List<MachineryInfo> succeededScalesList = new ArrayList<>();
-            List<MachineryInfo> clearedScalesList = new ArrayList<>();
-            Exception exception = null;
-            try {
-
-                if (!transaction.machineryInfoList.isEmpty()) {
-
-                    List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
-                    Map<String, List<String>> errors = new HashMap<>();
-                    Set<String> ips = new HashSet<>();
-
-                    processTransactionLogger.info(getLogPrefix() + "Starting sending to " + enabledScalesList.size() + " scales...");
-                    Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
-                    for (ScalesInfo scales : enabledScalesList) {
-                        if (scales.port != null) {
-                            String brokenPortError = brokenPortsMap.get(scales.port);
-                            if(brokenPortError != null) {
-                                errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
-                            } else {
-                                ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(libraryDir, transaction, scales));
-                            }
-                        }
-                    }
-
-                    if(!taskList.isEmpty()) {
-                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "AclasSendTransaction");
-                        List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                        for (Future<SendTransactionResult> threadResult : threadResults) {
-                            if(threadResult.get().localErrors.isEmpty())
-                                succeededScalesList.add(threadResult.get().scalesInfo);
-                            else {
-                                brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
-                                errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
-                            }
-                            if(threadResult.get().cleared)
-                                clearedScalesList.add(threadResult.get().scalesInfo);
-                        }
-                        singleTransactionExecutor.shutdown();
-                    }
-                    if(!enabledScalesList.isEmpty())
-                        errorMessages(errors, ips, brokenPortsMap);
-
-                }
-            } catch (Exception e) {
-                exception = e;
-            }
-            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
-        }
-        return sendTransactionBatchMap;
     }
 
     private boolean init(String libraryDir) {
@@ -273,19 +201,23 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    class SendTransactionTask implements Callable<SendTransactionResult> {
-        String libraryDir;
-        TransactionScalesInfo transaction;
-        ScalesInfo scales;
+    @Override
+    protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
+        String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
+        return new AClasLS2SendTransactionTask(transaction, scales, libraryDir);
+    }
 
-        public SendTransactionTask(String libraryDir, TransactionScalesInfo transaction, ScalesInfo scales) {
+    class AClasLS2SendTransactionTask extends SendTransactionTask {
+        String libraryDir;
+
+        public AClasLS2SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, String libraryDir) {
+            super(transaction, scales);
             this.libraryDir = libraryDir;
-            this.transaction = transaction;
-            this.scales = scales;
         }
 
         @Override
-        public SendTransactionResult call() {
+        protected Pair<List<String>, Boolean> run() {
             String error;
             boolean cleared = false;
             try {
@@ -316,9 +248,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 release();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
+            return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
         }
-
     }
 
     public static class AclasSDK {
