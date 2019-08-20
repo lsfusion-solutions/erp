@@ -31,15 +31,6 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     private static short extraTextID = 209;
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        StringBuilder groupId = new StringBuilder();
-        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId.append(scales.port).append(";");
-        }
-        return getLogPrefix() + groupId;
-    }
-
-    @Override
     protected String getLogPrefix() {
         return "MettlerToledo Tiger: ";
     }

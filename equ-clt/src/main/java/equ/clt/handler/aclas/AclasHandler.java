@@ -33,15 +33,6 @@ public class AclasHandler extends MultithreadScalesHandler {
         this.springContext = springContext;
     }
 
-    @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        StringBuilder groupId = new StringBuilder();
-        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId.append(scales.port).append(";");
-        }
-        return getLogPrefix() + groupId;
-    }
-
     protected String getLogPrefix() {
         return "Aclas: ";
     }

@@ -35,15 +35,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         this.springContext = springContext;
     }
 
-    @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        StringBuilder groupId = new StringBuilder();
-        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId.append(scales.port).append(";");
-        }
-        return getLogPrefix() + groupId;
-    }
-
     protected String getLogPrefix() {
         return "Aclas LS-2: ";
     }
@@ -153,7 +144,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             //}
             return result;
         } finally {
-            safeFileDelete(clearFile);
+            safeDelete(clearFile);
         }
     }
 
@@ -195,7 +186,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile);
         } finally {
-            safeFileDelete(file);
+            safeDelete(file);
         }
     }
 
@@ -215,7 +206,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile);
         } finally {
-            safeFileDelete(file);
+            safeDelete(file);
         }
     }
 
@@ -237,7 +228,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile);
         } finally {
-            safeFileDelete(file);
+            safeDelete(file);
         }
     }
 
@@ -328,12 +319,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);
         }
 
-    }
-
-    private void safeFileDelete(File file) {
-        if (file != null && file.exists() && !file.delete()) {
-            file.deleteOnExit();
-        }
     }
 
     public static class AclasSDK {
