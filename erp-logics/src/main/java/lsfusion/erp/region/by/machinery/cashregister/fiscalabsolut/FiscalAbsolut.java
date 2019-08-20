@@ -9,6 +9,7 @@ import org.apache.log4j.Logger;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -444,7 +445,7 @@ public class FiscalAbsolut {
         OutputStreamWriter sw = null;
         try {
 
-            sw = new OutputStreamWriter(new FileOutputStream(new File("logs/absolut.txt"), true), "UTF-8");
+            sw = new OutputStreamWriter(new FileOutputStream(new File("logs/absolut.txt"), true), StandardCharsets.UTF_8);
             String dateTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             for(ReceiptItem item : receipt.receiptSaleList) {
                 sw.write(String.format("%s|%s|1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,

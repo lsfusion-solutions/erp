@@ -19,6 +19,7 @@ import org.xBaseJ.xBaseJException;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
@@ -968,7 +969,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             File receiptFile = new File(directory + "/Receipt.dbf");
             if (new File(directory).exists()) {
                 safeFileDelete(ansFile, sendSalesLogger);
-                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), "utf-8"));
+                Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(queryFile), StandardCharsets.UTF_8));
                 writer.write(date);
                 writer.close();
                 result = waitRequestSalesInfo(queryFile, ansFile, salesFile, receiptFile);

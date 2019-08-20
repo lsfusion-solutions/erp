@@ -32,6 +32,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
@@ -357,7 +358,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
 
         List<ProductionOrderDetail> result = new ArrayList<>();
         
-        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream(), "utf-8"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(importFile.getInputStream(), StandardCharsets.UTF_8));
         String line;
         
         List<String[]> valuesList = new ArrayList<>();

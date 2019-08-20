@@ -11,6 +11,7 @@ import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -161,7 +162,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                 String exchangeDirectory = directory + "/IN";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     File salesFlagFile = new File(exchangeDirectory + "/sales-flag.txt");
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), "utf-8"));
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(salesFlagFile), StandardCharsets.UTF_8));
                     writer.write("$$$TRANSACTIONSBYDATERANGE");
                     writer.newLine();
                     writer.write(dateFrom + ";" + dateTo);

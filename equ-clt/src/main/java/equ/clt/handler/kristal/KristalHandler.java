@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.sql.Date;
 import java.text.ParseException;
@@ -340,7 +341,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export" : exportPrefixPath) + "/request/";
 
                 if (makeDirsIfNeeded(exchangeDirectory)) {
-                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), "utf-8"));
+                    Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(exchangeDirectory + "request.xml"), StandardCharsets.UTF_8));
 
                     String data = String.format("<?xml version=\"1.0\" encoding=\"windows-1251\" ?>\n" +
                             "<REPORLOAD REPORTTYPE=\"2\" >\n" +
