@@ -412,6 +412,7 @@ EXTEND FORM storeRange
     PROPERTIES(r, t, d) nameLevel COLUMNS (t) HEADER name(t) BACKGROUND backgroundLevel(r, t, d) ON CHANGE changeLevel(r, t, d) ON CHANGEWYS changeWYSLevel(r, t, d),
                         countSku COLUMNS(t) HEADER name(t)
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
+    FILTERGROUP activeRange FILTER 'Активные' NOT inactive(r) DEFAULT
     ORDER name(r)
 
     OBJECTS s = Sku GRID 
@@ -651,15 +652,13 @@ DESIGN rangeRev {
     }
 }
 
-in (r, Sku s) = GROUP SUM 1 IF level(RangeRev v, s) BY range(v);
-
 ranges 'Ассортиментные матрицы' (Sku s, DATE d) = GROUP CONCAT name(Range r) IF level(r, s, d) ,', ' CHARWIDTH 30; 
 
 EXTEND FORM ranges 
     PROPERTIES READONLY nameLevel(r, s, d), ranges(s, d)
     ORDER nameLevel(r, s, d), name(s)
     FILTERGROUP filterSku
-        FILTER 'По матрице' in(r, s) DEFAULT
+        FILTER 'По матрице' level(r, s, d) DEFAULT
         FILTER 'По группе' ranges(s, d) AND isParent(sg, s)
         
 ;
