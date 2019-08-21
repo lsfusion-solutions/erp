@@ -6,7 +6,6 @@ import equ.api.StopListInfo;
 import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -26,12 +25,12 @@ public class BizerbaSCIIHandler extends BizerbaHandler {
     }
 
     @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
         return sendTransaction(transactionList, charset, encode);
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) {
         sendStopListInfo(stopListInfo, machineryInfoSet, charset, encode);
     }
 }
