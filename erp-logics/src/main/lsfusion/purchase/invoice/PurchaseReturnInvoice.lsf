@@ -144,12 +144,18 @@ EXTEND FORM userInvoice
 EXTEND FORM userInvoice
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalance(b, i) 'F10' DEFAULT
+        FILTER 'С остатком' prevCurrentBalance(b, i) 'F10' DEFAULT
         FILTER 'В документе ' quantityUserInvoiceDetail(b, i) 'F9'
+        FILTER 'С движением за последний месяц' prevDateTime(b, customerStock(i)) > subtractDay(dateTime(i), 30)
+        FILTER 'С движением за последний год' prevDateTime(b, customerStock(i)) > subtractDay(dateTime(i), 365)
+        FILTER 'С движением' prevCountLedger(b, customerStock(i))
         
     FILTERGROUP filter4
         FILTER 'С поступлением ' countPurchaseSupplier(supplier(i), sku(b)) 'F8'
         FILTER 'В прайсе ' companyA(priceListType(i, b), b, customerStock(i), dateTime(i)) == supplier(i) 'F7'
+
+    FILTERGROUP filter5
+        FILTER 'По поставщику' prevSupplier(b) = supplier(i) DEFAULT
 ;
 
 // Резервы
