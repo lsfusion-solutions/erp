@@ -46,9 +46,9 @@ public class FillDaysOffAction extends InternalAction {
             //    return;
             //}
 
-            long wholeYearMillisecs = new GregorianCalendar(currentYear + 3, 0, 1).getTimeInMillis() - new GregorianCalendar(currentYear, 0, 1).getTimeInMillis()/*current.getTimeInMillis()*/;
+            long wholeYearMillisecs = new GregorianCalendar(currentYear + 3, Calendar.JANUARY, 1).getTimeInMillis() - new GregorianCalendar(currentYear, Calendar.JANUARY, 1).getTimeInMillis()/*current.getTimeInMillis()*/;
             long wholeYearDays = wholeYearMillisecs / 1000 / 60 / 60 / 24;
-            Calendar cal = new GregorianCalendar(currentYear, 0, 1);
+            Calendar cal = new GregorianCalendar(currentYear, Calendar.JANUARY, 1);
             for (int i = 0; i < wholeYearDays; i++) {
                 cal.add(Calendar.DAY_OF_MONTH, 1);
                 int day = cal.get(Calendar.DAY_OF_WEEK);
@@ -58,7 +58,7 @@ public class FillDaysOffAction extends InternalAction {
             }
 
             for (int i = 0; i < 3; i++) {
-                Calendar calendar = new GregorianCalendar(currentYear + i, 0, 1);
+                Calendar calendar = new GregorianCalendar(currentYear + i, Calendar.JANUARY, 1);
                 int day = calendar.get(Calendar.DAY_OF_WEEK);
                 if (day != 1 && day != 7)
                     addDayOff(newContext, countryObject, calendar.getTimeInMillis());
