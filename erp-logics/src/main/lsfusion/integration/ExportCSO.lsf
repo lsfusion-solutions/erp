@@ -143,6 +143,8 @@ GROUP itemI EXTID 'Item';
 GROUP DocumentData : itemI;
 GROUP ArticleDocumentData : DocumentData;
 
+timeStamp = DATA LOCAL STRING ();
+
 localImage = DATA LOCAL IMAGEFILE (Item);
 
 countImagesCSO 'Кол-во картинок в одном документе' = DATA INTEGER ();
@@ -160,7 +162,7 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  IN headI         h2 = 'SAP ERP' EXTID 'Sender'
     PROPERTIES  IN headI         h3 = (IF isEnd() THEN 'true' ELSE 'false') EXTID 'SessionEnd'
     PROPERTIES  IN headI         h33 = number() EXTID'SessionMessageNumber'
-    PROPERTIES  IN headI         h4 = [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
+    PROPERTIES  IN headI         h4 = timeStamp() EXTID 'SessionTimeStamp'
     PROPERTIES  IN headI         h5 = 'F' EXTID 'SessionType'                      
                            
     PROPERTIES IN itemsI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
@@ -192,6 +194,7 @@ articleDocumentMessage 'Изображения товаров КСО (ArticleDoc
         localImage(i) <- convertedImage();
         
     }
+    timeStamp() <- [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime());
     LOCAL countN = INTEGER ();
     countN() <- OVERRIDE divideInteger(countIn(),countImagesCSO()) (+) (IF mod(countIn(),countImagesCSO()) > 0 THEN 1), 1;
     FOR iterate(INTEGER n, 1, countN()) DO {
