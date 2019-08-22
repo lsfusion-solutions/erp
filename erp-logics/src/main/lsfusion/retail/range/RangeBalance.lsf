@@ -77,7 +77,8 @@ nameIncludeSkuGroups 'Группы товаров' (RangeDocument d)= GROUP CONC
 TABLE skuDepartmentStoreRangeDocument (Sku,DepartmentStore,RangeDocument);
 daysOnStock 'Дней на складе' = DATA INTEGER (Sku,DepartmentStore,RangeDocument);
 daysOnRange 'Дней в ассортименте' = DATA INTEGER (Sku,DepartmentStore,RangeDocument);
-daysOfAbsence 'Дней отсутствия' = DATA INTEGER (Sku,DepartmentStore,RangeDocument);
+daysOfAbsence 'Дней отсутствия' (Sku s, DepartmentStore d, RangeDocument r) =
+    daysOnRange(s, d, r) - (OVERRIDE daysOnStock(s, d, r), 0.0); 
 
 quantitySold 'Продано (кол-во)' = DATA NUMERIC[16,5] (Sku,DepartmentStore,RangeDocument);
 markupSumSold 'Продано (надбавка)' = DATA NUMERIC[18,4] (Sku,DepartmentStore,RangeDocument);
@@ -142,7 +143,6 @@ fillSku 'Заполнить данные'(RangeDocument d) {
     ELSE FOR DATE df == fromDate(d) AND DATE dt == toDate(d) DO {
         daysOnStock(Sku sk, DepartmentStore ds, d) <- NULL;
         daysOnRange(Sku sk, DepartmentStore ds, d) <- NULL;
-        daysOfAbsence(Sku sk, DepartmentStore ds, d) <- NULL;
         
         quantitySold(Sku sk, DepartmentStore ds, d) <- NULL;
         markupSumSold(Sku sk, DepartmentStore ds, d) <- NULL;
@@ -163,6 +163,8 @@ fillSku 'Заполнить данные'(RangeDocument d) {
         averageQuantitySold(Sku sk, ChainStores c, d) <- NULL;
         averageMarkupSumSold(Sku sk, ChainStores c, d) <- NULL;
         averageSumSold(Sku sk, ChainStores c, d) <- NULL;
+        
+        APPLY;
         
         LOCAL include = BOOLEAN (DepartmentStore);
         include(DepartmentStore ds) <- TRUE WHERE include(d,ds);
@@ -225,8 +227,7 @@ fillSku 'Заполнить данные'(RangeDocument d) {
             averageSumSold(Sku sk, ChainStores c, d) <- sumSold(sk,c) / daysOnStock(sk,c);
         }
         
-        daysOnRange(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds, DATE date) IF iterate(date,df,dt) AND include(d,ds) AND include(d,sk);
-        daysOfAbsence(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds, DATE date) AND NOT (balanceA(sk,ds,date) OR quantitySold(sk,ds,date)) AND iterate(date,df,dt) AND include(d,ds) AND include(d,sk);
+        daysOnRange(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds,DATE date) IF iterate(date,df,dt) AND include(ds) AND include(d,sk);
         
         averageQuantitySold(Sku sk, DepartmentStore ds, d) <- quantitySold(sk,ds,d) / daysOnStock(sk,ds,d);
         averageMarkupSumSold(Sku sk, DepartmentStore ds, d) <- markupSumSold(sk,ds,d) / daysOnStock(sk,ds,d);
@@ -235,6 +236,8 @@ fillSku 'Заполнить данные'(RangeDocument d) {
         lostQuantitySold(Sku sk, DepartmentStore ds, d) <- daysOfAbsence(sk,ds,d) * overAverageQuantitySold(sk,ds,d);
         lostMarkupSumSold(Sku sk, DepartmentStore ds, d) <- daysOfAbsence(sk,ds,d) * overAverageMarkupSumSold(sk,ds,d);
         lostSumSold(Sku sk, DepartmentStore ds, d) <- daysOfAbsence(sk,ds,d) * overAverageSumSold(sk,ds,d);
+        
+        APPLY;
     }
 }
 
@@ -469,7 +472,11 @@ DESIGN rangeBalance {
         NEW rightPane{
             type = TABBED;
             fill = 2;
-            MOVE BOX(d);
+            MOVE BOX(d) {
+                GRID(d) {
+                    headerHeight = 60;
+                }
+            }
 //            NEW rightPane1 {
 //                caption = 'Магазин';
 //                fill = 1;   
