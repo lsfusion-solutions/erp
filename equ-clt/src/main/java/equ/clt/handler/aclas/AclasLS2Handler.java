@@ -256,7 +256,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         public interface AclasSDKLibrary extends Library {
 
-            AclasSDKLibrary aclasSDK = (AclasSDKLibrary) Native.loadLibrary("AclasSDK", AclasSDKLibrary.class, getOptions());
+            AclasSDKLibrary aclasSDK = (AclasSDKLibrary) Native.loadLibrary("aclassdk", AclasSDKLibrary.class, getOptions());
 
             boolean AclasSDK_Initialize(Integer pointer);
 
