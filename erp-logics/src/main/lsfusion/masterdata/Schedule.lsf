@@ -1,6 +1,6 @@
 MODULE Schedule;
 
-REQUIRE Time, MasterData, Utils;
+REQUIRE Time, MasterData, Utils, Country;
 
 CLASS Schedule 'Расписание';
 
@@ -31,11 +31,14 @@ CONSTRAINT (dowFrom(ScheduleDetail d) AND NOT dowTo(d)) OR (dowTo(d) AND NOT dow
     
 CONSTRAINT (dateFrom(ScheduleDetail d) AND NOT dateTo(d)) OR (dateTo(d) AND NOT dateFrom(d))
     MESSAGE 'Интервал должен быть закрытым';   
+    
+CLASS Holidays 'Выходные дни' {
+    onlyWeekdays 'Только по будням',
+    onlyHolidays 'Только по выходным'    
+}    
 
-dateCaption 'День' = DATA LOCAL NESTED STRING[100] (INTEGER ); 
-day = DATA LOCAL NESTED INTEGER (INTEGER );
-month = DATA LOCAL NESTED INTEGER (INTEGER );
-dow = DATA LOCAL NESTED INTEGER (INTEGER );
+holidays = DATA Holidays (ScheduleDetail);
+captionHolidays 'Выходные дни' (ScheduleDetail d)= staticCaption(holidays(d));
 
 inDate (DATETIME date, ScheduleDetail d) =
     CASE WHEN d IS ScheduleDetail AND dateFrom(d) AND dateTo(d) AND number(extractMonth(dateFrom(d)))<=number(extractMonth(dateTo(d))) AND
@@ -74,9 +77,23 @@ inTime (DATETIME hour, ScheduleDetail d)=
 inTime =
     GROUP SUM 1 IF inTime(DATETIME hour, ScheduleDetail d) BY hour, schedule(d);             
 
-in (DATETIME dt, Schedule s) = inDate(dt,s) AND inDOW(dt,s) AND inTime(dt,s); 
-in (INTEGER hour, INTEGER date, Schedule s) = in(toDateTimeFormat(STRING(currentYear())+lpad(STRING(month(date)),2,'0')+lpad(STRING(day(date)),2,'0')+lpad(STRING(hour),2,'0')+'00'+'00','YYYYMMDDHH24MISS'),s);
-    
+inHolidays (DATETIME date, ScheduleDetail d) =
+    CASE WHEN d IS ScheduleDetail AND holidays(d) AND holidays(d)==Holidays.onlyHolidays AND isDayOff(defaultCountry(),toDate(date)) THEN TRUE
+         WHEN d IS ScheduleDetail AND holidays(d) AND holidays(d)==Holidays.onlyWeekdays AND NOT isDayOff(defaultCountry(),toDate(date)) THEN TRUE
+         WHEN d IS ScheduleDetail AND NOT holidays(d) AND date IS DATETIME THEN TRUE
+         ELSE NULL;
+         
+inHolidays =
+    GROUP SUM 1 IF inHolidays(DATETIME hour, ScheduleDetail d) BY hour, schedule(d);             
+
+in (DATETIME dt, Schedule s) = inDate(dt,s) AND inDOW(dt,s) AND inTime(dt,s) AND inHolidays(dt,s); 
+
+dateCaption 'День' = DATA LOCAL NESTED STRING[100] (INTEGER ); 
+day = DATA LOCAL NESTED INTEGER (INTEGER );
+month = DATA LOCAL NESTED INTEGER (INTEGER );
+dow = DATA LOCAL NESTED INTEGER (INTEGER );
+
+in (INTEGER hour, INTEGER date, Schedule s) = in(toDateTimeFormat(STRING(currentYear())+lpad(STRING(month(date)),2,'0')+lpad(STRING(day(date)),2,'0')+lpad(STRING(hour),2,'0')+'00'+'00','YYYYMMDDHH24MISS'),s);    
 showIn = DATA LOCAL NESTED INTEGER (INTEGER, INTEGER, Schedule);           
 //showIn (INTEGER h, INTEGER d, Schedule s) = ' ' IF in(h,d,s);             
 background (INTEGER h, INTEGER d, Schedule s) = IF in(h,d,s) THEN RGB(125,125,255) ;             
@@ -118,7 +135,7 @@ FORM schedule 'Расписание'
     PROPERTIES(s) name     
     
     OBJECTS d = ScheduleDetail
-    PROPERTIES(d) captionDateFrom ON CHANGE changeDateFrom(d), captionDateTo ON CHANGE changeDateTo(d), captionDowFrom, captionDowTo, timeFrom, timeTo       
+    PROPERTIES(d) captionDateFrom ON CHANGE changeDateFrom(d), captionDateTo ON CHANGE changeDateTo(d), captionDowFrom, captionDowTo, timeFrom, timeTo, captionHolidays       
     PROPERTIES(d) NEW, DELETE  
     
     FILTERS schedule(d)==s
@@ -177,7 +194,7 @@ FORM dialogSchedules 'Расписания'
     PROPERTIES(s) READONLY name
     
     OBJECTS d = ScheduleDetail
-    PROPERTIES(d) READONLY captionDateFrom, captionDateTo, captionDowFrom, captionDowTo, timeFrom, timeTo
+    PROPERTIES(d) READONLY captionDateFrom, captionDateTo, captionDowFrom, captionDowTo, timeFrom, timeTo, captionHolidays
     
     FILTERS schedule(d)==s
 
@@ -193,7 +210,7 @@ FORM schedules 'Расписания'
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
         
     OBJECTS d = ScheduleDetail
-    PROPERTIES(d) READONLY captionDateFrom, captionDateTo, captionDowFrom, captionDowTo, timeFrom, timeTo
+    PROPERTIES(d) READONLY captionDateFrom, captionDateTo, captionDowFrom, captionDowTo, timeFrom, timeTo, captionHolidays
 
     FILTERS schedule(d)==s  
     
