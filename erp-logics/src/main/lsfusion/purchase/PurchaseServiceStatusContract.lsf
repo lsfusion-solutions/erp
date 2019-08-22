@@ -67,26 +67,9 @@ sum 'Сумма недопоставки' = DATA NUMERIC[18,5](ServiceStatusDeta
 percFine '% штрафа' = DATA NUMERIC[18,5](ServiceStatusDetail);
 sumFine 'Сумма штрафа' (ServiceStatusDetail d) = round2(sum(d)*percFine(d)/100.0) IF serviceStatus(d)==ServiceStatus.fine AND NOT useExclude(d);
 isPay 'Оплачен' = DATA BOOLEAN (ServiceStatusDetail);
-pay 'Оплатить' (ServiceStatusDetail d) {
-    NEWSESSION {
-        isPay(d) <- TRUE;   
-        APPLY; 
-    }
-}
-payCancel 'Отменить оплату' (ServiceStatusDetail d) {
-    NEWSESSION {
-        isPay(d) <- NULL;   
-        APPLY; 
-    }
-}
+
 sumFine 'Сумма штрафа' (ContractSku c) = sumFine(lastServiceStatusDetail(c));
 isPay 'Оплачен' (ContractSku c) = isPay(lastServiceStatusDetail(c));
-pay 'Оплатить' (ContractSku c)  {
-    pay(lastServiceStatusDetail(c));   
-}
-payCancel 'Отменить оплату' (ContractSku c)  {
-    payCancel(lastServiceStatusDetail(c));   
-}
 
 countExcludeService (ContractSku c, DATE dateFrom, DATE dateTo)= GROUP SUM excludeGroupService(Order order) 
     IF shipmentDate(order) >= dateFrom AND shipmentDate(order) <= dateTo AND isPosted(order) AND isSent(order) 
@@ -183,18 +166,12 @@ EXTEND FORM legalEntity
                 dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(cs) BACKGROUND backgroundServiceStatus(cs) CHANGEABLE, 
                 percService, sumFine
     PROPERTIES (cs) SHOWIF (isSupplier(l) AND sumFine(cs)) READONLY isPay
-    PROPERTIES (cs) SHOWIF (isSupplier(l) AND sumFine(cs) AND NOT isPay(cs)) TOOLBAR pay
-    PROPERTIES (cs) SHOWIF (isSupplier(l) AND isPay(cs)) TOOLBAR payCancel
                  
     FILTERS supplier(cs) == l
     OBJECTS sdc = ServiceStatusDetail
     PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY series, number      
     PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY fromDate, toDate, percService, sum, percFine, sumFine, isPay, useExclude, nameServiceStatus
-    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY createdTime, createdNameUser, createdHostnameComputer
-    
-    PROPERTIES (sdc) SHOWIF (isSupplier(l) AND sumFine(sdc) AND NOT isPay(sdc)) TOOLBAR pay
-    PROPERTIES (sdc) SHOWIF (isSupplier(l) AND isPay(sdc)) TOOLBAR payCancel    
-    
+    PROPERTIES (sdc) SHOWIF isSupplier(l) READONLY createdTime, createdNameUser, createdHostnameComputer         
     ORDER fromDate(sdc) DESC
     FILTERS legalEntity(sdc) == l,
             contractSku(sdc) == cs
@@ -229,15 +206,11 @@ EXTEND FORM userContractSku
                 dataPercService CHANGEABLE , nameServiceStatus ON CHANGE changeServiceStatusContract(c) BACKGROUND backgroundServiceStatus(c) CHANGEABLE, 
                 percService, sumFine 
     PROPERTIES (c) SHOWIF (sumFine(c)) READONLY isPay
-    PROPERTIES (c) SHOWIF (sumFine(c) AND NOT isPay(c)) pay
-    PROPERTIES (c) SHOWIF (isPay(c)) payCancel
     
     OBJECTS sdc = ServiceStatusDetail
     
     PROPERTIES (sdc) READONLY series, number, fromDate, toDate, percService, sum, percFine, sumFine, isPay, useExclude, nameServiceStatus
-    PROPERTIES (sdc) READONLY createdTime, createdNameUser, createdHostnameComputer
-    PROPERTIES (sdc) SHOWIF (sumFine(sdc) AND NOT isPay(sdc)) TOOLBAR pay
-    PROPERTIES (sdc) SHOWIF (isPay(sdc)) TOOLBAR payCancel      
+    PROPERTIES (sdc) READONLY createdTime, createdNameUser, createdHostnameComputer 
     
     ORDER fromDate(sdc) DESC
     FILTERS legalEntity(sdc) == supplier(c),
@@ -256,8 +229,6 @@ DESIGN userContractSku{
                 MOVE PROPERTY (dataPercService(c));
                 MOVE PROPERTY (sumFine(c));
                 MOVE PROPERTY (isPay(c));                
-                MOVE PROPERTY (pay(c));
-                MOVE PROPERTY (payCancel(c));
             }            
             MOVE BOX(sdc);
         }
