@@ -191,7 +191,7 @@ public class SendSalesEquipmentServer {
     }
 
     static void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
-            throws RemoteException, SQLException, ClassNotFoundException {
+            throws RemoteException, SQLException {
         Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
         if (handlerZReportSumMap != null) {
             ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap, remote.readZReportSumMap());

@@ -175,7 +175,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         port.getOutputStream().flush();
     }
 
-    private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
+    private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) {
         boolean result = false;
         byte[] reply = receiveReply(errors, port, ip);
         if (reply != null) {
@@ -234,7 +234,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return reply;
     }
 
-    private boolean getResetFilesReply(List<String> errors, TCPPort port, String ip) throws CommunicationException {
+    private boolean getResetFilesReply(List<String> errors, TCPPort port, String ip) {
         boolean cleared = false;
         try {
             byte[] reply = receiveReply(errors, port, ip);
@@ -371,7 +371,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
     }
 
 
-    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws IOException, CommunicationException {
+    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) {
         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s Clear Files", scales.port));
         resetFiles(errors, port);
         boolean cleared = getResetFilesReply(errors, port, scales.port);
@@ -380,7 +380,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return cleared;
     }
 
-    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
+    private boolean loadItem(List<String> errors, TCPPort port, ScalesItemInfo item, Integer nameLineLength, String barcodePrefix, short current, short total, boolean first, byte commandFileType) throws IOException {
         byte[] bytes = getItemBytes(item, nameLineLength, barcodePrefix, first);
         clearReceiveBuffer(port);
         sendCommand(errors, port, bytes, current, total, commandFileType);
@@ -481,7 +481,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return bytes.array();
     }
 
-    private boolean getCommandReply(List<String> errors, TCPPort port, String ip, byte commandFileType) throws CommunicationException {
+    private boolean getCommandReply(List<String> errors, TCPPort port, String ip, byte commandFileType) {
         boolean result = false;
         byte[] reply = receiveReply(errors, port, ip);
         if (reply != null) {
@@ -507,7 +507,7 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return result;
     }
 
-    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws CommunicationException, IOException, DecoderException {
+    private boolean loadPLU(List<String> errors, TCPPort port, ScalesItemInfo item, short current, short total, boolean first, byte commandFileType) throws IOException {
         byte[] bytes = getPLUBytes(item, first);
         clearReceiveBuffer(port);
         sendCommand(errors, port, bytes, current, total, commandFileType);
