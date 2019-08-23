@@ -1,0 +1,67 @@
+MODULE LogTools;
+
+REQUIRE Tools, Utils;
+
+NAMESPACE Tools;
+
+CLASS LogRotate 'Log Rotate' : StaticObject;
+
+rotate 'Количество хранимых файлов' = ABSTRACT CASE INTEGER (LogRotate);
+
+CLASS RotareType {
+    daily,
+    weekly,
+    monthly
+}
+
+rotateType 'Производить ротацию раз в' = ABSTRACT CASE RotareType(LogRotate);
+nameRotateType 'Производить ротацию раз в'(LogRotate l) = staticCaption(rotateType(l));
+
+META defineLogRotate(name, count, type, caption)
+    EXTEND CLASS LogRotate {name caption}
+    rotate(LogRotate l) += WHEN l == LogRotate.name THEN count;
+    rotateType(LogRotate l) += WHEN l == LogRotate.name THEN RotareType.type;
+END
+META defineLogRotate(name, count, type)
+    @defineLogRotate(name, count, type, );
+END
+
+// (Linux only)
+dataLogsPath = DATA STRING ();
+
+logsPath 'Путь к логам' () = OVERRIDE dataLogsPath(), '/usr/lsfusion/logs/'; 
+
+logString'Тескст'(LogRotate l) = logsPath() + staticCaption(l) + '.log \{' +
+                          '\n   rotate ' + rotate(l) +
+                          '\n   ' + staticCaption(rotateType(l)) +
+                          '\n   compress' +
+                          '\n   missingok' +
+                          '\n   notifempty' +
+                          '\n\}';
+                          
+makeLogRotate 'Создать запись в logrotate.d'() {
+    stringToFile(GROUP CONCAT logString(LogRotate r) ,'\n' ORDER r);
+    
+    WRITE resultFile() TO '/etc/logrotate.d/lsfusion';
+}
+//
+                          
+EXTEND FORM tools
+    OBJECTS l =  LogRotate
+    PROPERTIES (l) READONLY staticName, staticCaption, rotate, nameRotateType, logString
+    PROPERTIES () logsPath, makeLogRotate
+;
+
+DESIGN tools{
+    pane {
+        NEW logMain{
+            caption = 'Логи';
+            MOVE BOX (l);
+            NEW linux {
+                caption = 'Linux';
+                MOVE PROPERTY (logsPath());
+                MOVE PROPERTY (makeLogRotate());
+            } 
+        }
+    }
+}

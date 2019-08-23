@@ -1,9 +1,10 @@
 MODULE DatabaseTools;
 
-REQUIRE Tools, Reflection, SQLUtils;
+REQUIRE Tools, Reflection, SQLUtils, LogTools;
 
 NAMESPACE Tools;
 
+@defineLogRotate(databaseTools, 5, weekly,'database-tools');
 
 dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](Table);
 indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
@@ -62,7 +63,7 @@ countTreads 'Количество потоков'() = OVERRIDE dataCountTreads()
 
 createIndexes 'Создать индексы' (Table t) {
     NEWEXECUTOR 
-        FOR table(Index i) == t DO 
+        FOR table(Index i) == t ORDER isConstraint(i), i DO 
             NEWTHREAD NEWSESSION NEWSQL {
                 logToFile('database-tools', 'CREATE INDEX '+ name(i) + ' start');
                 TRY {
