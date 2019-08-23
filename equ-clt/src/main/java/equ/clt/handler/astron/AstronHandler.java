@@ -8,13 +8,15 @@ import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
+import org.apache.log4j.EnhancedPatternLayout;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -26,6 +28,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
+    static Logger astronLogger;
+    static {
+        try {
+            astronLogger = Logger.getLogger("astronLog");
+            astronLogger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
+                    "logs/astron.log");
+            astronLogger.removeAllAppenders();
+            astronLogger.addAppender(fileAppender);
+
+        } catch (Exception ignored) {
+        }
+    }
 
     private static String logPrefix = "Astron: ";
 
@@ -666,7 +682,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createSalesIndex(conn);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
+            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
                     "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales." + getSalesNumField() + ", sales.SAREAID, " +
                     "sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
@@ -676,6 +692,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
             List<AstronRecord> curRecordList = new ArrayList<>();
+            String currentUniqueReceiptId = null;
             BigDecimal prologSum = BigDecimal.ZERO;
 
             BigDecimal sumCash = null;
@@ -758,6 +775,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
 //                        sendSalesLogger.info(String.format("prolog: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
 //                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+                        String uniqueReceiptId = sAreaId + "/" + nppCashRegister + "/" + sessionId + "/" + numberReceipt;
+                        if (uniqueReceiptId.equals(currentUniqueReceiptId)) {
+                            astronLogger.info("Некорректные строки в чеке " + uniqueReceiptId);
+                        } else {
+                            currentUniqueReceiptId = uniqueReceiptId;
+                        }
+
                         sumCash = null;
                         sumCard = null;
                         sumGiftCard = null;
