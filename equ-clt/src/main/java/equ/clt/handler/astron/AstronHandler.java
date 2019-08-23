@@ -11,9 +11,10 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
+import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.*;
+import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -665,7 +666,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createSalesIndex(conn);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
+            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
                     "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales." + getSalesNumField() + ", sales.SAREAID, " +
                     "sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
                     "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
@@ -675,8 +676,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
             List<AstronRecord> curRecordList = new ArrayList<>();
-            String currentUniqueReceiptId = null;
-            Integer currentSRecNum = null;
             BigDecimal prologSum = BigDecimal.ZERO;
 
             BigDecimal sumCash = null;
@@ -704,7 +703,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Time timeReceipt = new Time(salesTime);
 
                 Integer numberReceipt = rs.getInt("FRECNUM");
-                Integer sRecNum = rs.getInt("SRECNUM");
                 //пока только код кассира. Имена можно взять в таблице CASHIER, если её нам начнут выгружать
                 String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                 Integer type = rs.getInt("SALESTYPE");
@@ -718,44 +716,40 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
 //                        sendSalesLogger.info(String.format("sale: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
 //                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                        if(sRecNum.equals(currentSRecNum)) {
-                            String idBarcode = rs.getString("SALESBARC");
-                            String idItem = String.valueOf(rs.getInt("SALESCODE"));
-                            BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
-                            BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
-                            BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                            totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
-                            sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-                            curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
-                                    null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
-                                    salesNum, null, null, cashRegister));
-                            curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                            prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
-                            break;
-                        }
+                        String idBarcode = rs.getString("SALESBARC");
+                        String idItem = String.valueOf(rs.getInt("SALESCODE"));
+                        BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
+                        BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
+                        BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                        BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
+                        totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
+                        sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
+                        curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
+                                numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
+                                null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
+                                salesNum, null, null, cashRegister));
+                        curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                        prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
+                        break;
                     }
                     case 1: {//оплата
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
 //                        sendSalesLogger.info(String.format("payment: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
 //                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                        if(sRecNum.equals(currentSRecNum)) {
-                            BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            if (isReturn)
-                                sum = safeNegate(sum);
-                            switch (type) {
-                                case 1:
-                                    sumCard = safeAdd(sumCard, sum);
-                                    break;
-                                case 2:
-                                    sumGiftCard = safeAdd(sumGiftCard, sum);
-                                    break;
-                                case 0:
-                                default:
-                                    sumCash = safeAdd(sumCash, sum);
-                                    break;
-                            }
+                        BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                        if(isReturn)
+                            sum = safeNegate(sum);
+                        switch (type) {
+                            case 1:
+                                sumCard = safeAdd(sumCard, sum);
+                                break;
+                            case 2:
+                                sumGiftCard = safeAdd(sumGiftCard, sum);
+                                break;
+                            case 0:
+                            default:
+                                sumCash = safeAdd(sumCash, sum);
+                                break;
                         }
                         curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         break;
@@ -764,39 +758,31 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         //временный лог для того, чтобы выявить, откуда попадают лишние оплаты в чек
 //                        sendSalesLogger.info(String.format("prolog: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
 //                                rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                        String uniqueReceiptId = sAreaId + "/" + nppCashRegister + "/" + sessionId + "/" + numberReceipt;
-                        if (uniqueReceiptId.equals(currentUniqueReceiptId)) {
-                            sendSalesLogger.info("Некорректные строки в чеке " + uniqueReceiptId);
+                        sumCash = null;
+                        sumCard = null;
+                        sumGiftCard = null;
+                        if(prologSum.compareTo(BigDecimal.ZERO) == 0) {
+                            salesInfoList.addAll(curSalesInfoList);
+                            recordList.addAll(curRecordList);
                         } else {
-                            currentUniqueReceiptId = uniqueReceiptId;
-                            currentSRecNum = sRecNum; //запоминаем sRecNum, в одном чеке это поле одинаковое для всех строк, если отличаются - игнорируем
+                            sendSalesLogger.info(String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
+                                    rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+                        }
+                        curSalesInfoList = new ArrayList<>();
+                        curRecordList = new ArrayList<>();
+                        prologSum = rs.getBigDecimal("SALESSUM");
 
-                            sumCash = null;
-                            sumCard = null;
-                            sumGiftCard = null;
-                            if(prologSum.compareTo(BigDecimal.ZERO) == 0) {
-                                salesInfoList.addAll(curSalesInfoList);
-                                recordList.addAll(curRecordList);
-                            } else {
-                                sendSalesLogger.info(String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s",
-                                        rs.getInt("SAREAID"), nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                            }
-                            curSalesInfoList = new ArrayList<>();
-                            curRecordList = new ArrayList<>();
-                            prologSum = rs.getBigDecimal("SALESSUM");
-
-                            if (isReturn) { //чек возврата
-                                String salesAttrs = rs.getString("SALESATTRS");
-                                String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
-                                String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
-                                String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
-                                String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
-                                Date dateReceiptOriginal = salesAttrsSplitted.length > 7 ? new Date(DateUtils.parseDate(salesAttrsSplitted[7], "yyyyMMddHHmmss").getTime()) : null;
-                                idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
-                                        + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
-                            } else {
-                                idSaleReceiptReceiptReturnDetail = null;
-                            }
+                        if (isReturn) { //чек возврата
+                            String salesAttrs = rs.getString("SALESATTRS");
+                            String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
+                            String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
+                            String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
+                            String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
+                            Date dateReceiptOriginal = salesAttrsSplitted.length > 7 ? new Date(DateUtils.parseDate(salesAttrsSplitted[7], "yyyyMMddHHmmss").getTime()) : null;
+                            idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
+                                    + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                        } else {
+                            idSaleReceiptReceiptReturnDetail = null;
                         }
                         curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         break;
