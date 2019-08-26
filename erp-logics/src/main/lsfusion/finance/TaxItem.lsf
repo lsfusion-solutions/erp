@@ -73,6 +73,7 @@ EXTEND FORM migrationData
 //--
 dataVAT 'НДС (по умолчанию)' = DATA Range (Country, ItemGroup);
 numberDataVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(dataVAT(country,itemGroup)) IN defaultItemGroup;
+valueDataVAT 'НДС, % (по умолчанию)' (Country country, ItemGroup itemGroup) = valueRate(dataVAT(country,itemGroup)) IN defaultItemGroup;
 
 levelParentVAT (Country country, ItemGroup itemGroup) = GROUP MIN level(itemGroup, ItemGroup parent) IF dataVAT(country,parent) MATERIALIZED;    
 nearestParentVAT (Country country, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentVAT(country,itemGroup));
@@ -89,6 +90,9 @@ prevVAT (Country country, ItemGroup itemGroup) =
 numberVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(VAT(country,itemGroup)) IN defaultItemGroup;
 prevNumberVAT 'НДС, номер (по умолчанию)' (Country country, ItemGroup itemGroup) = number(prevVAT(country,itemGroup)) IN defaultItemGroup;
 
+valueVAT 'НДС, % (по умолчанию)' (Country country, ItemGroup itemGroup) = valueRate(VAT(country,itemGroup)) IN defaultItemGroup;
+prevValueVAT 'НДС, % (по умолчанию)' (Country country, ItemGroup itemGroup) = valueRate(prevVAT(country,itemGroup)) IN defaultItemGroup;
+
 assignVATItems 'Назначить всем товарам группы' (Country c, ItemGroup group)  { 
 	NEWSESSION {
 	    VAT(Item i, c) <- prevVAT(c,group) WHERE isParent(group,i);
@@ -99,7 +103,7 @@ assignVATItems 'Назначить всем товарам группы' (Countr
 EXTEND FORM itemGroup
     OBJECTS vc=Country 
     PROPERTIES(vc)   READONLY name
-    PROPERTIES(vc,g) prevNumberVAT
+    PROPERTIES(vc,g) prevNumberVAT, prevValueVAT
     PROPERTIES(vc,g) assignVATItems DRAW vc
     FILTERGROUP isResidentVAT
         FILTER 'Отечественный производитель' resident(vc) OR defaultCountry() == vc DEFAULT 
