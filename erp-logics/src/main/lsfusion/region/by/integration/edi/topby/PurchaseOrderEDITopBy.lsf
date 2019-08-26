@@ -122,8 +122,8 @@ ordrspBuyerGLN = DATA LOCAL NESTED STRING[13]();
 ordrspDestinationGLN = DATA LOCAL NESTED STRING[13]();
 ordrspSupplierGLN = DATA LOCAL NESTED STRING[13]();
 ordrspOrderNumber = DATA LOCAL NESTED STRING[28]();
-ordrspDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
-ordrspDeliveryDateTimeSecond = DATA LOCAL NESTED DATETIME();
+ordrspDeliveryDateTimeFirst = DATA LOCAL NESTED TEXT();
+ordrspDeliveryDateTimeSecond = DATA LOCAL NESTED TEXT();
 ordrspComment = DATA LOCAL NESTED TEXT();
 ordrspGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
 ordrspAction = DATA LOCAL NESTED INTEGER(INTEGER);
@@ -177,8 +177,14 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         customer(r) <- legalEntityGLN(ordrspBuyerGLN());
                         customerStock(r) <- companyStockGLN(ordrspDestinationGLN());
                         eOrder(r) <- eOrder(ordrspOrderNumber());
-                        deliveryDateTime(r) <- ordrspDeliveryDateTimeFirst();
-                        deliveryDateTimeSecond(r) <- ordrspDeliveryDateTimeSecond();
+                        IF left(ordrspDeliveryDateTimeFirst(),1) == 'T' THEN {
+                            ordrspDeliveryDateTimeFirst() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeFirst();
+                        }
+                        IF left(ordrspDeliveryDateTimeSecond(),1) == 'T' THEN {
+                            ordrspDeliveryDateTimeSecond() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeSecond();
+                        }
+                        deliveryDateTime(r) <- toDateTimeFormat(ordrspDeliveryDateTimeFirst(),'yyyy-MM-ddThh24:mi:ss');
+                        deliveryDateTimeSecond(r) <- toDateTimeFormat(ordrspDeliveryDateTimeSecond(),'yyyy-MM-ddThh24:mi:ss');
                         XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         
                         LOCAL indexSku = INTEGER (INTEGER);
