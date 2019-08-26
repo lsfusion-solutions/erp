@@ -78,18 +78,13 @@ public class LSTerminalHandler extends TerminalHandler {
             File directory = new File(machinery.directory + dbPath);
             if (directory.exists() || directory.mkdir()) {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = null;
-                try {
-                    connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(machinery.directory + dbPath, machinery.numberGroup));
+                try(Connection connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(machinery.directory + dbPath, machinery.numberGroup))) {
 
                     createGoodsTableIfNotExists(connection);
                     updateTerminalGoodsTable(connection, terminalOrderList);
 
                     createOrderTable(connection);
                     updateOrderTable(connection, terminalOrderList);
-                } finally {
-                    if(connection != null)
-                        connection.close();
                 }
 
             } else {
@@ -130,11 +125,8 @@ public class LSTerminalHandler extends TerminalHandler {
         if (directory.exists() || directory.mkdir()) {
             try {
                 Class.forName("org.sqlite.JDBC");
-                Connection connection = null;
-                try {
-                    connection = DriverManager.getConnection("jdbc:sqlite:" +
-                            makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal));
 
+                try(Connection connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(transactionInfo.directoryGroupTerminal + dbPath, nppGroupTerminal))) {
                     processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table Goods", transactionInfo.id));
                     createGoodsTableIfNotExists(connection);
                     updateGoodsTable(connection, transactionInfo);
@@ -154,9 +146,6 @@ public class LSTerminalHandler extends TerminalHandler {
                     processTransactionLogger.info(String.format("LSTerminal: Transaction #%s, creating or updating table VOP", transactionInfo.id));
                     createVOPTableIfNotExists(connection);
                     updateVOPTable(connection, transactionInfo);
-                } finally {
-                    if(connection != null)
-                        connection.close();
                 }
 
             } catch (Exception e) {
@@ -218,9 +207,8 @@ public class LSTerminalHandler extends TerminalHandler {
                             if (isFileLocked(file)) {
                                 sendTerminalDocumentLogger.info("LSTerminal: " + fileName + " is locked");
                             } else {
-                                Connection connection = null;
-                                try {
-                                    connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
+
+                                try(Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
                                     List<List<Object>> dokData = readDokFile(connection);
 
                                     for (List<Object> entry : dokData) {
@@ -248,9 +236,6 @@ public class LSTerminalHandler extends TerminalHandler {
                                                     idDocumentType, null, idDocumentDetail, numberDocumentDetail, barcode, null,
                                                     price, quantity, sum));
                                     }
-                                } finally {
-                                    if(connection != null)
-                                        connection.close();
                                 }
                                 filePathList.add(file.getAbsolutePath());
                             }

@@ -78,8 +78,8 @@ public class JsonReadProcess {
         StringBuilder sResult = new StringBuilder();
         try {
             JSONObject ob = (JSONObject) ojs;
-            for (Iterator iterator = ob.keySet().iterator(); iterator.hasNext(); ) {
-                cKey = (String) iterator.next();
+            for (Object o : ob.keySet()) {
+                cKey = (String) o;
                 if (sResult.length() > 0) sResult.append(",");
                 o1 = ob.get(cKey);
                 if (o1 == null) return errBox("Неизвестное значение " + cKey);

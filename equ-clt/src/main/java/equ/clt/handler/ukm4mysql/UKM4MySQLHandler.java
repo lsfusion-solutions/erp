@@ -12,10 +12,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -125,10 +124,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 Integer nppGroupMachinery = transaction.departmentNumberGroupCashRegister != null ?
                                         transaction.departmentNumberGroupCashRegister : transaction.nppGroupMachinery;
 
-                                Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-
                                 Exception exception = null;
-                                try {
+                                try(Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
 
                                     if (version == null)
                                         version = getVersion(conn);
@@ -198,9 +195,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                                 } catch (Exception e) {
                                     exception = e;
-                                } finally {
-                                    if (conn != null)
-                                        conn.close();
                                 }
                                 sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                             }
@@ -222,19 +216,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return sendTransactionBatchMap;
     }
 
-    private int getVersion(Connection conn) throws SQLException {
+    private int getVersion(Connection conn) {
         int version;
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try(Statement statement = conn.createStatement()) {
             String query = "select max(version) from `signal`";
             ResultSet rs = statement.executeQuery(query);
             version = rs.next() ? rs.getInt(1) : 0;
         } catch (SQLException e) {
             version = 0;
-        } finally {
-            if (statement != null)
-                statement.close();
         }
         return version;
     }
@@ -246,10 +235,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Set<String> usedGroups = new HashSet<>();
 
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)");
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
@@ -275,9 +261,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
     }
@@ -368,11 +351,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" +
-                                "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO items_stocks (store, item, stock, version, deleted) VALUES (?, ?, ?, ?, ?)" + "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     if (item.section != null) {
@@ -402,9 +381,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
     }
@@ -412,11 +388,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private void exportStocks(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO stocks (store, id, name, version, deleted) VALUES (?, ?, ?, ?, 0)" +
-                                "ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)");
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO stocks (store, id, name, version, deleted) VALUES (?, ?, ?, ?, 0)" + "ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)")) {
 
                 Set<String> sections = new HashSet<>();
                 for (CashRegisterItemInfo item : transaction.itemsList) {
@@ -441,19 +413,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
     }
 
     private void exportPriceList(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, int version) throws SQLException {
         conn.setAutoCommit(false);
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO pricelist (id, name, version, deleted) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)");
+        try (PreparedStatement ps = conn.prepareStatement("INSERT INTO pricelist (id, name, version, deleted) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), deleted=VALUES(deleted)")) {
 
             ps.setInt(1, npp); //id
             ps.setString(2, "Прайс-лист " + trim(String.valueOf(transaction.nameStockGroupCashRegister), "", 89)); //name
@@ -465,20 +431,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.commit();
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
     private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                                "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " + "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setInt(1, npp); //pricelist
@@ -494,9 +453,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
     }
@@ -504,10 +460,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, Integer npp, String weightCode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            PreparedStatement ps = null;
-            try {
-                ps = conn.prepareStatement(
-                        "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
@@ -525,9 +478,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
-            } finally {
-                if (ps != null)
-                    ps.close();
             }
         }
     }
@@ -602,12 +552,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVarDeleteBarcode(Connection conn, List<CashRegisterItemInfo> barcodeList, int version) throws SQLException {
-        PreparedStatement ps = null;
-        try {
-            ps = conn.prepareStatement(
-                    "INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " +
-                            "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
+    private void exportVarDeleteBarcode(Connection conn, List<CashRegisterItemInfo> barcodeList, int version) {
+        try (PreparedStatement ps = conn.prepareStatement("INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " + "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)")) {
             for (CashRegisterItemInfo item : barcodeList) {
                 ps.setString(1, trim(item.idBarcode, 40)); //id
                 ps.setInt(2, version); //version
@@ -618,9 +564,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             conn.commit();
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (ps != null)
-                ps.close();
         }
     }
 
@@ -709,12 +652,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout, boolean wait) throws SQLException {
         conn.setAutoCommit(true);
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try (Statement statement = conn.createStatement()) {
 
-            String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);",
-                    (transaction != null && transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
+            String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);", (transaction != null && transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
             statement.executeUpdate(sql);
 
             if (wait) {
@@ -734,24 +674,16 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
-    private boolean waitForSignalExecution(Connection conn, int version) throws SQLException {
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+    private boolean waitForSignalExecution(Connection conn, int version) {
+        try (Statement statement = conn.createStatement()) {
             String sql = "SELECT COUNT(*) FROM `signal` WHERE version = " + version;
             ResultSet resultSet = statement.executeQuery(sql);
             return !resultSet.next() || resultSet.getInt(1) == 0;
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
@@ -1100,22 +1032,18 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private Map<String, Payment> readPaymentMap(Connection conn, Set<Integer> cashPayments,
-                                                Set<Integer> cardPayments, Set<Integer> giftCardPayments, List<String> giftCardList) throws SQLException {
+                                                Set<Integer> cardPayments, Set<Integer> giftCardPayments, List<String> giftCardList) {
 
         Map<String, Payment> paymentMap = new HashMap<>();
 
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try (Statement statement = conn.createStatement()) {
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
-            String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " +
-                    "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
-                    "where r.ext_processed = 0 AND r.result = 0 AND p.type = 0"; // type 3 это сдача, type 2 - аннулирование
+            String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " + "where r.ext_processed = 0 AND r.result = 0 AND p.type = 0"; // type 3 это сдача, type 2 - аннулирование
             ResultSet rs = statement.executeQuery(query);
             while (rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
                 Integer idReceipt = rs.getInt(2); //receipt_header
-                String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
+                String key = cash_id + "/" + idReceipt;
                 Integer paymentType = rs.getInt(3);//payment_id
                 if (cashPayments.contains(paymentType)) //нал
                     paymentType = 0;
@@ -1130,7 +1058,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 String giftCard = rs.getString(6); //p.card_number
                 if (giftCard.isEmpty())
                     giftCard = null;
-                
+
                 if (giftCard != null && giftCardList != null) {
                     for (String prefix : giftCardList) {
                         if (giftCard.startsWith(prefix)) {
@@ -1158,9 +1086,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
         return paymentMap;
     }
@@ -1194,16 +1119,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
-                                                     String directory) throws SQLException {
+                                                     String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
         Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
         Set<String> usedBarcodes = new HashSet<>();
 
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try (Statement statement = conn.createStatement()) {
             String query = "SELECT sql_no_cache i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
                     " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.value, l.user_id, l.user_name, s.number, r.client_card_code " +
                     " FROM receipt_item AS i" +
@@ -1300,9 +1223,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 sendSalesLogger.info(String.format(logPrefix + "found %s records", salesInfoList.size()));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
         return new UKM4MySQLSalesBatch(salesInfoList, receiptSet, directory);
     }

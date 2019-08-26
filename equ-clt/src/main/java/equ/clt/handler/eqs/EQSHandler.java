@@ -71,37 +71,29 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
-                    try {
+                    skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister));
 
-                        skipIdDepartmentStore = skipIdDepartmentStore && (forceIdDepartmentStoresList == null || !forceIdDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister));
-
-                        String directory = null;
-                        for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                            if (cashRegister.directory != null) {
-                                directory = cashRegister.directory;
-                            }
+                    String directory = null;
+                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                        if (cashRegister.directory != null) {
+                            directory = cashRegister.directory;
                         }
-                        EQSConnectionString params = new EQSConnectionString(directory);
+                    }
+                    EQSConnectionString params = new EQSConnectionString(directory);
 
-                        if (params.connectionString == null) {
-                            processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
-                        } else {
-                            processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-                            Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                            Exception exception = null;
-                            try {
-                                processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
-                                exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
-                            } catch (Exception e) {
-                                exception = e;
-                            } finally {
-                                if (conn != null)
-                                    conn.close();
-                            }
-                            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+                    if (params.connectionString == null) {
+                        processTransactionLogger.error(logPrefix + "No connectionString in EQSSettings found");
+                    } else {
+                        processTransactionLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+
+                        Exception exception = null;
+                        try(Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
+                            processTransactionLogger.info(String.format(logPrefix + "transaction %s, table plu", transaction.id));
+                            exportItems(conn, transaction, appendBarcode, skipIdDepartmentStore);
+                        } catch (Exception e) {
+                            exception = e;
                         }
-                    } catch (SQLException e) {
-                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(e));
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
                 }
             } catch (ClassNotFoundException e) {
@@ -352,18 +344,10 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 sendSalesLogger.error(logPrefix + "No connectionString in EQSSettings found");
             } else {
 
-                Connection conn = null;
-
-                try {
-                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
-                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                try (Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
                     sendSalesLogger.info(String.format(logPrefix + "connected to %s", params.connectionString));
-
                     salesBatch = readSalesInfoFromSQL(conn, machineryMap, params.connectionString, directory);
-
-                } finally {
-                    if (conn != null)
-                        conn.close();
                 }
             }
         } catch (Exception e) {
@@ -372,7 +356,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         return salesBatch;
     }
 
-    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String connectionString, String directory) throws SQLException {
+    private EQSSalesBatch readSalesInfoFromSQL(Connection conn, Map<Integer, CashRegisterInfo> machineryMap, String connectionString, String directory) {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -382,9 +366,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
         Set<Integer> readRecordSet = new HashSet<>();
 
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try(Statement statement = conn.createStatement()) {
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query = "SELECT sql_no_cache type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id," +
                     " zreport, payment, customer, `change`, pdiscount, operator FROM history WHERE new = 1 ORDER BY ecr, id";
@@ -585,9 +567,6 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         } catch (SQLException e) {
             sendSalesLogger.error(logPrefix + "failed to read sales. ConnectionString: " + connectionString, e);
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
     }
