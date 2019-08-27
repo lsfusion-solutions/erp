@@ -39,7 +39,7 @@ getIndexes 'Получить список индексов'(Table t) {
             FOR name(Index i ) == indexname DO {
                 table(i) <- t;
                 tablespace(i) <- tablespace;
-                definition(i) <- OVERRIDE constraint, definition;
+                definition(i) <- definition;
                 isConstraint(i) <- TRUE IF constraint;
             }
         }
@@ -63,21 +63,28 @@ countTreads 'Количество потоков'() = OVERRIDE dataCountTreads()
 
 createIndexes 'Создать индексы' (Table t) {
     NEWEXECUTOR 
-        FOR table(Index i) == t ORDER isConstraint(i), i DO 
+        FOR table(Index i) == t DO 
             NEWTHREAD NEWSESSION NEWSQL {
                 logToFile('database-tools', 'CREATE INDEX '+ name(i) + ' start');
                 TRY {
-                    IF isConstraint(i) THEN {
-                        runSQL('ALTER TABLE ' + lower(sid(t)) + ' ADD CONSTRAINT ' + name(i) + ' ' + definition(i));
-                    } ELSE {
-                        runSQL(definition(i));                
-                    }
+                    runSQL(definition(i));
                 } CATCH {
                     logToFile('database-tools', (CONCAT '', 'CREATE INDEX '+ name(i) + ' error: ', messageCaughtException() ));
                 }
                 logToFile('database-tools', 'CREATE INDEX '+ name(i) + ' end');
             } 
 	THREADS countTreads();
+    
+    FOR isConstraint(Index i) AND table(i) == t DO {
+        TRY {
+            logToFile('database-tools', 'ADD CONSTRAINT  '+ name(i) + ' start');
+            //пока полагаемся что у нас только PRIMARY KEY иначе нужно будет проверять что pg_get_constraintdef
+            runSQL('ALTER TABLE ' + lower(sid(t)) + ' ADD CONSTRAINT ' + name(i) + ' PRIMARY KEY USING INDEX ' + name(i)); 
+        } CATCH {
+            logToFile('database-tools', (CONCAT '', 'ADD CONSTRAINT '+ name(i) + ' error: ', messageCaughtException() ));
+        }
+        logToFile('database-tools', 'ADD CONSTRAINT  '+ name(i) + ' end');
+    } 
 }
 
 reindex 'REINDEX' (Table t) {
@@ -314,17 +321,13 @@ EXTEND FORM tools
     FILTERS table(i)==t
     
     PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows, countTreads
-    
-    EVENTS 
-        ON INIT loadCurSize(),
-        ON INIT loadCurRows()
 ;
 
 DESIGN tools{
     pane{
         NEW dbMain{
             caption = 'Таблицы';
-            type =CONTAINERH;
+            type = CONTAINERH;
             NEW dbLeft{
                 NEW vacuum {
                     caption = 'Упаковка';
@@ -354,4 +357,9 @@ DESIGN tools{
             }
         }
     }
+}
+
+WHEN LOCAL SET(ACTIVE TAB tools.dbMain) DO {
+    loadCurSize();
+    loadCurRows();
 }
