@@ -98,7 +98,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             String barcodePrefix = scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22";
             for (ScalesItemInfo item : transaction.itemsList) {
-                bw.newLine();
+                bw.write(0x0d);
+                bw.write(0x0a);
                 boolean isWeight = isWeight(item);
                 String name1 = escape(trim(item.name, "", 40));
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(".", ",");
@@ -132,7 +133,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
             for (ScalesItemInfo item : transaction.itemsList) {
-                bw.newLine();
+                bw.write(0x0d);
+                bw.write(0x0a);
                 bw.write(StringUtils.join(Arrays.asList(item.idBarcode, escape(trim(item.description, "", 1000))).iterator(), "\t"));
             }
 
@@ -153,7 +155,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             for (ScalesItemInfo item : transaction.itemsList) {
                 if(item.pluNumber != null) {
-                    bw.newLine();
+                    bw.write(0x0d);
+                    bw.write(0x0a);
                     bw.write(StringUtils.join(Arrays.asList(item.pluNumber, item.idBarcode).iterator(), "\t"));
                 }
             }
