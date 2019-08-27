@@ -4,18 +4,15 @@ import com.google.common.base.Throwables;
 import com.google.common.io.LittleEndianDataInputStream;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
-import equ.api.SendTransactionBatch;
 import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.EquipmentServer;
-import equ.clt.handler.DefaultScalesHandler;
+import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
-import org.apache.commons.codec.DecoderException;
+import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -26,17 +23,14 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 import static equ.clt.handler.HandlerUtils.trim;
 
-public class MassaKRL10Handler extends DefaultScalesHandler {
-
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+public class MassaKRL10Handler extends MultithreadScalesHandler {
 
     byte notSnapshotItemByte = (byte) 101;
     byte snapshotItemByte = (byte) 1;
@@ -62,83 +56,16 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         return "MassaKRL10";
     }
 
-    @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionInfoList) {
-        Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
-
-        MassaKRL10Settings massaKRL10Settings = springContext.containsBean("massaKRL10Settings") ? (MassaKRL10Settings) springContext.getBean("massaKRL10Settings") : null;
-        Integer nameLineLength = massaKRL10Settings != null ? massaKRL10Settings.getNameLineLength() : null;
-
-        Map<String, String> brokenPortsMap = new HashMap<>();
-        if (transactionInfoList.isEmpty()) {
-            processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
-        }
-        for (TransactionScalesInfo transaction : transactionInfoList) {
-            processTransactionLogger.info(getLogPrefix() + "Send Transaction # " + transaction.id);
-
-            List<MachineryInfo> succeededScalesList = new ArrayList<>();
-            List<MachineryInfo> clearedScalesList = new ArrayList<>();
-            Exception exception = null;
-            try {
-
-                if (!transaction.machineryInfoList.isEmpty()) {
-
-                    List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
-                    Map<String, List<String>> errors = new HashMap<>();
-                    Set<String> ips = new HashSet<>();
-
-                    processTransactionLogger.info(getLogPrefix() + "Starting sending to " + enabledScalesList.size() + " scales...");
-                    Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
-                    for (ScalesInfo scales : enabledScalesList) {
-                        TCPPort port = new TCPPort(scales.port, 5001);
-                        if (scales.port != null) {
-                            String brokenPortError = brokenPortsMap.get(scales.port);
-                            if (brokenPortError != null) {
-                                errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
-                            } else {
-                                ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, port, nameLineLength));
-                            }
-                        }
-                    }
-
-                    if (!taskList.isEmpty()) {
-                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "MassaKRL10SendTransaction");
-                        List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                        for (Future<SendTransactionResult> threadResult : threadResults) {
-                            if (threadResult.get().localErrors.isEmpty())
-                                succeededScalesList.add(threadResult.get().scalesInfo);
-                            else {
-                                brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
-                                errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
-                            }
-                            if (threadResult.get().cleared)
-                                clearedScalesList.add(threadResult.get().scalesInfo);
-                        }
-                        singleTransactionExecutor.shutdown();
-                    }
-                    if (!enabledScalesList.isEmpty())
-                        errorMessages(errors, ips, brokenPortsMap);
-
-                }
-            } catch (Exception e) {
-                exception = e;
-            }
-            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
-        }
-        return sendTransactionBatchMap;
-    }
-
-    private String openPort(List<String> errors, TCPPort port, String ip, boolean transaction) {
+    private String openPort(List<String> errors, TCPPort port, String ip) {
         try {
-            (transaction ? processTransactionLogger : processStopListLogger).info(getLogPrefix() + "Connecting..." + ip);
+            processTransactionLogger.info(getLogPrefix() + "Connecting..." + ip);
             port.open();
 
             sendSetWorkMode(port);
             if (!getSetWorkModeReply(errors, port, ip))
                 return "SetWorkMode failed";
         } catch (Exception e) {
-            (transaction ? processTransactionLogger : processStopListLogger).error("Error: ", e);
+            processTransactionLogger.error("Error: ", e);
             return e.getMessage();
         }
         return null;
@@ -586,24 +513,27 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
         }*/
     }
 
-    class SendTransactionTask implements Callable<SendTransactionResult> {
-        TransactionScalesInfo transaction;
-        ScalesInfo scales;
-        TCPPort port;
+    @Override
+    protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
+        MassaKRL10Settings massaKRL10Settings = springContext.containsBean("massaKRL10Settings") ? (MassaKRL10Settings) springContext.getBean("massaKRL10Settings") : null;
+        Integer nameLineLength = massaKRL10Settings != null ? massaKRL10Settings.getNameLineLength() : null;
+        return new MassaKRL10SendTransactionTask(transaction, scales, nameLineLength);
+    }
+
+    class MassaKRL10SendTransactionTask extends SendTransactionTask {
         Integer nameLineLength;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, Integer nameLineLength) {
-            this.transaction = transaction;
-            this.scales = scales;
-            this.port = port;
+        public MassaKRL10SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, Integer nameLineLength) {
+            super(transaction, scales);
             this.nameLineLength = nameLineLength;
         }
 
         @Override
-        public SendTransactionResult call() {
+        protected Pair<List<String>, Boolean> run() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
-            String openPortResult = openPort(localErrors, port, scales.port, true);
+            TCPPort port = new TCPPort(scales.port, 5001);
+            String openPortResult = openPort(localErrors, port, scales.port);
             if (openPortResult != null) {
                 localErrors.add(openPortResult + ", transaction: " + transaction.id + ";");
             } else {
@@ -691,88 +621,9 @@ public class MassaKRL10Handler extends DefaultScalesHandler {
                 }
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
-            return new SendTransactionResult(scales, localErrors, cleared);
-        }
-
-    }
-
-    class SendTransactionResult {
-        public ScalesInfo scalesInfo;
-        public List<String> localErrors;
-        public boolean cleared;
-
-        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
-            this.scalesInfo = scalesInfo;
-            this.localErrors = localErrors;
-            this.cleared = cleared;
+            return Pair.create(localErrors, cleared);
         }
     }
-
-    /*class SendStopListTask implements Callable<List<String>> {
-        StopListInfo stopListInfo;
-        ScalesInfo scales;
-        TCPPort port;
-
-        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales, TCPPort port) {
-            this.stopListInfo = stopListInfo;
-            this.scales = scales;
-            this.port = port;
-        }
-
-        @Override
-        public List<String> call() throws Exception {
-            List<String> localErrors = new ArrayList<>();
-            String openPortResult = openPort(localErrors, port, scales.port, false);
-            if (openPortResult != null) {
-                localErrors.add(openPortResult);
-            } else {
-                int globalError = 0;
-                try {
-
-                    processStopListLogger.info(logPrefix + "Sending StopLists..." + scales.port);
-                    if (localErrors.isEmpty()) {
-                        int count = 0;
-                        for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                            count++;
-                            if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                    if (!skip(item.idItem)) {
-                                        processStopListLogger.info(String.format(logPrefix + "IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
-                                        String result = "0";//clearItem(localErrors, port, scales, item);
-                                        if (!result.equals("0")) {
-                                            logError(localErrors, String.format(logPrefix + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
-                                            globalError++;
-                                        }
-                                    }
-                                } else {
-                                    processStopListLogger.info(String.format(logPrefix + "IP %s, item #%s: incorrect barcode %s", scales.port, count, item.idBarcode));
-                                }
-                            } else break;
-                        }
-                    }
-                    port.close();
-
-                } catch (Exception e) {
-                    logError(localErrors, String.format(logPrefix + "IP %s error ", scales.port), e);
-                } finally {
-                    processStopListLogger.info(logPrefix + "Finally disconnecting..." + scales.port);
-                    try {
-                        port.close();
-                    } catch (CommunicationException e) {
-                        logError(localErrors, String.format(getLogPrefix() + "IP %s close port error ", scales.port), e);
-                    }
-                }
-            }
-            processStopListLogger.info(logPrefix + "Completed ip: " + scales.port);
-            return localErrors;
-        }
-
-        private boolean skip(String idItem) {
-            Set<String> skuSet = stopListInfo.inGroupMachineryItemMap.get(scales.numberGroup);
-            return skuSet == null || !skuSet.contains(idItem);
-        }
-
-    }*/
 
     private byte[] getBytes(String value) {
         return value.getBytes(Charset.forName("cp1251"));
