@@ -99,7 +99,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 bw.write(0x0a);
                 boolean isWeight = isWeight(item);
                 String name1 = escape(trim(item.name, "", 40));
-                String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(".", ",");
+                String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(",", ".");
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
                 String packageType = isWeight ? "0" : "2";
