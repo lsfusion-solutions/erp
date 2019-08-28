@@ -135,7 +135,7 @@ GROUP ArticleDocumentData : DocumentData;
 timeStamp = DATA LOCAL STRING ();
 
 localImage = DATA LOCAL IMAGEFILE (Item);
-
+localImage = DATA LOCAL IMAGEFILE (CustomGroup);
 countImagesCSO 'Кол-во картинок в одном документе' = DATA INTEGER ();
 
 number = DATA LOCAL INTEGER ();
@@ -244,7 +244,8 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     PROPERTIES IN ArticleHierarchyDescriptionDataC    = name(i) EXTID 'Description'
     PROPERTIES IN ArticleHierarchyDescriptionDataC    = 'RU' IF i IS CustomGroup EXTID 'LanguageId'     
     PROPERTIES                                        = id(parent(i)) EXTID 'ParentId'
-    
+    PROPERTIES                                        = localImage(i) EXTID 'Picture'    
+        
     OBJECTS in = CustomGroupType IN itemC EXTID 'SalesOrganization'
     FILTERS in == type     
     PROPERTIES                                        = '1' IF in IS CustomGroupType  EXTID 'value'       
@@ -260,6 +261,12 @@ httpHeadersAH(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies';
     
 articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
+    localImage(CustomGroup g) <- NULL;
+    FOR isCSO(customGroupType(CustomGroup i)) AND image(i) DO {
+        convertImage(image(i), 'png');
+        localImage(i) <- convertedImage();        
+    }
+
     EXPORT ArticleHierarchy XML TO System.exportFile;     
     LOCAL result = FILE();
     LOCAL message = TEXT();    
