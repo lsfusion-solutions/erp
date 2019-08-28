@@ -111,11 +111,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             bw.close();
 
-            //временно сохраняем файлы, чтобы понять, в чём проблема
-            AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-            String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
-            FileUtils.copyFile(file, new File(libraryDir + "/" + file.getName()));
-
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile);
         } finally {
             safeDelete(file);
