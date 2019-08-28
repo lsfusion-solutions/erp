@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -59,8 +58,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int clearData(ScalesInfo scales) throws IOException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(clearFile), StandardCharsets.UTF_8));
-            bw.write('\ufeff'); //bom
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(clearFile), "cp1251"));
             bw.close();
 
             int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile);
@@ -91,8 +89,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            bw.write('\ufeff'); //bom
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
             bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price",
                     "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
@@ -128,8 +125,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            bw.write('\ufeff'); //bom
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
             bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
             for (ScalesItemInfo item : transaction.itemsList) {
@@ -149,8 +145,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8));
-            bw.write('\ufeff'); //bom
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
             bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
             for (ScalesItemInfo item : transaction.itemsList) {
@@ -289,16 +284,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             AclasSDKLibrary.aclasSDK.AclasSDK_Finalize();
         }
 
-        public static int clearData(String ip, String filePath, Integer dataType) {
+        public static int clearData(String ip, String filePath, Integer dataType) throws UnsupportedEncodingException {
             return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
         }
 
-        public static int loadData(String ip, String filePath, Integer dataType) {
+        public static int loadData(String ip, String filePath, Integer dataType) throws UnsupportedEncodingException {
             return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
         }
 
-        private static byte[] getBytes(String value) {
-            return (value + "\0").getBytes(StandardCharsets.UTF_8);
+        private static byte[] getBytes(String value) throws UnsupportedEncodingException {
+            return (value + "\0").getBytes("cp1251");
         }
     }
 }
