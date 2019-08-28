@@ -28,8 +28,14 @@ public abstract class DefaultScalesHandler extends ScalesHandler {
 
     protected abstract String getLogPrefix();
 
-    protected boolean isWeight(ScalesItemInfo item) {
-        return item.passScalesItem && item.splitItem;
+    protected boolean isWeight(ScalesItemInfo item, int type) {
+        switch (type) {
+            case 0:
+            default:
+                return item.passScalesItem && item.splitItem;
+            case 1:
+                return item.passScalesItem && (item.shortNameUOM == null || !item.shortNameUOM.toUpperCase().startsWith("ШТ"));
+        }
     }
 
     protected List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {

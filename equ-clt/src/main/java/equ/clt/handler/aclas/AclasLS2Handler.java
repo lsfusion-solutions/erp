@@ -97,7 +97,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.write(0x0d);
                 bw.write(0x0a);
-                boolean isWeight = isWeight(item);
+                boolean isWeight = isWeight(item, 1);
                 String name1 = escape(trim(item.name, "", 40));
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(",", ".");
                 String unitID = isWeight ? "4" : "10";

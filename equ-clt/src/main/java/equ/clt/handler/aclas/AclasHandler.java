@@ -155,7 +155,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         //rebate, 1 byte
         bytes.put((byte) 0);
 
-        boolean weightItem = isWeight(item);
+        boolean weightItem = isWeight(item, 0);
 
         // Department, 1 byte
         bytes.put(parseDepartmentNumber(weightItem ? scales.weightCodeGroupScales : scales.pieceCodeGroupScales));

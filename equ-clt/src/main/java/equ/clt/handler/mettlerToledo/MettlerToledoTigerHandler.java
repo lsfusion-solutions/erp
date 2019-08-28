@@ -126,7 +126,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         bytes.putShort((short) 0);
 
         //Флаг артикула, 2 bytes
-        bytes.putShort((short) (isWeight(item) ? 0 : 1));
+        bytes.putShort((short) (isWeight(item, 0) ? 0 : 1));
 
         //Срок годности(дни), 2 bytes
         bytes.putShort(item.daysExpiry != null ? item.daysExpiry.shortValue() : 0);
