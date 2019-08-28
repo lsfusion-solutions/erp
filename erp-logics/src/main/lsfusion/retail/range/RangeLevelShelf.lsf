@@ -1,0 +1,15 @@
+MODULE RangeLevelShelf;
+
+REQUIRE RangeLevel, PurchaseDemand;
+
+NAMESPACE Range;
+
+shelfQuantity 'Кол-во на полке' = DATA NUMERIC[16,5](RangeRev, Sku, RangeLevel);
+
+EXTEND FORM rangeRev 
+    OBJECTS vl = RangeLevel
+    PROPERTIES shelfQuantity(v, s, vl) COLUMNS (vl) HEADER 'Кол-во на полке (' + name(vl) + ')'
+;
+
+shelfQuantity (Stock st, Sku sk, DATE d) = GROUP SUM shelfQuantity(rangeRev(Range r, d), sk, RangeLevel l) IF overLevel(r, store(st), d);
+purchaseReserve(Stock st, Sku sk, DATE d) += shelfQuantity(st, sk, d);

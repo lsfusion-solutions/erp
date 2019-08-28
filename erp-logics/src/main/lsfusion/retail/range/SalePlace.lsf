@@ -1,0 +1,139 @@
+MODULE SalePlace;
+
+REQUIRE Sku, Store, Barcode, Range, PurchaseDemand;
+
+CLASS SalePlace 'Место продажи';
+TABLE salePlace (SalePlace);
+
+name '{master.data.name}' = DATA ISTRING[100] (SalePlace) CHARWIDTH 20;
+
+dateFrom 'Дата с' = DATA DATE (SalePlace) NONULL;
+dateTo 'Дата по' = DATA DATE (SalePlace);
+
+dataIn = DATA BOOLEAN (SalePlace, StockGroup);
+in 'Вкл.' (SalePlace sp, StockGroup st) = OVERRIDE dataIn(sp, st), TRUE IF (GROUP SUM 1 IF dataIn(sp, StockGroup g) AND level(st, g));
+
+dataIn = DATA BOOLEAN (SalePlace, DepartmentStore);
+in 'Вкл.' (SalePlace sp, DepartmentStore st) = OVERRIDE dataIn(sp, st), in(sp, stockGroup(st));
+
+stockGroups 'Группы складов' (SalePlace sp) = GROUP CONCAT name(StockGroup st) IF dataIn(sp, st) AND NOT in(sp, parent(st)), ', ' ORDER parent(st), st;
+departmentStores 'Магазины' (SalePlace sp) = GROUP CONCAT name(DepartmentStore st) IF dataIn(sp, st) AND NOT in(sp, stockGroup(st)), ', ' ORDER stockGroup(st), st;
+stocks 'Магазины' (SalePlace sp) = CONCAT ', ', stockGroups(sp), departmentStores(sp) CHARWIDTH 80;
+
+FORM dialogStockGroup 'Магазины'
+    OBJECTS sp = SalePlace PANEL 
+    
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY VALUE (a), sgTreeName = name(sg)
+    ORDER sgTreeName
+    FILTERS stringEqualsAll(a)
+    PROPERTIES (sp, sg)  in
+
+    OBJECTS s = DepartmentStore GRID
+    PROPERTIES(s) READONLY id 
+    PROPERTIES(s) READONLY name, nameStockGroup
+    PROPERTIES(sp, s) in 
+    ORDER name(s)
+    FILTERS isParent(sg, s) OR (s IS DepartmentStore AND NOT sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+;
+
+DESIGN dialogStockGroup {
+    size = (800, 600);
+    OBJECTS {
+        NEW tables {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX (TREE stockTree);
+            MOVE BOX (s);
+        }
+    }
+}
+
+CLASS SalePlaceDetail 'Строка места продажи';
+TABLE salePlaceDetail (SalePlaceDetail);
+
+salePlace = DATA SalePlace(SalePlaceDetail) NONULL DELETE INDEXED;
+
+dateFrom 'Дата с' (SalePlaceDetail d) = dateFrom(salePlace(d));
+dateTo 'Дата по' (SalePlaceDetail d) = dateTo(salePlace(d));
+
+sku = DATA Sku(SalePlaceDetail);
+nameSku 'Товар' (SalePlaceDetail d) = name(sku(d));
+idSku 'Код товара' (SalePlaceDetail d) = id(sku(d));
+idBarcodeSku 'Штрихкод' (SalePlaceDetail d) = idBarcode(sku(d));
+shortNameUOMSku 'Ед. изм.' (SalePlaceDetail d) = shortNameUOM(sku(d));
+
+quantity 'Кол-во' = DATA NUMERIC[16,5](SalePlaceDetail);
+dataQuantity 'Кол-во' = DATA NUMERIC[16,5](SalePlaceDetail, Stock);
+quantity 'Кол-во' (SalePlaceDetail d, Stock st) = OVERRIDE dataQuantity(d, st), quantity(d) IF in(salePlace(d), st) MATERIALIZED;
+
+WHEN CHANGED (in(SalePlace sp, DepartmentStore ds)) DO {
+    dataQuantity(SalePlaceDetail d, DepartmentStore st) <- NULL WHERE salePlace(d) == sp AND NOT in(sp, st) ;
+}
+
+quantitySalePlace 'Кол-во по местам продаж' (Sku sk, Stock st, DATE d) = 
+    GROUP SUM quantity(SalePlaceDetail dd, st) IF d >= dateFrom(dd) AND NOT d > dateTo(dd) BY sku(dd);
+
+extraReserve (Stock st, Sku sk, DATE d) += quantitySalePlace(sk, st, d);
+
+FORM salePlace 'Место продажи'
+    OBJECTS o = SalePlace PANEL
+    PROPERTIES(o) name, dateFrom, dateTo, stocks ON CHANGE { SHOW dialogStockGroup OBJECTS sp = o; }
+    
+    OBJECTS d = SalePlaceDetail
+    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
+    FILTERS salePlace(d) == o
+    
+    OBJECTS st = Stock
+    OBJECTS dd = SalePlaceDetail
+    PROPERTIES (dd) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, shortNameUOMSku, NEW, DELETE
+    PROPERTIES quantity(dd, st) COLUMNS (st) HEADER name(st) BACKGROUND RGB (255, 255, 200) IF dataQuantity(dd, st)
+    FILTERS salePlace(dd) == o, in(o, st)
+    
+    EDIT SalePlace OBJECT o
+;
+
+DESIGN salePlace {
+    OBJECTS {
+        NEW tab AFTER BOX (o) {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX (d) { caption = 'Спецификация'; }
+            MOVE BOX (dd) { caption = 'По складам'; }
+        }
+    }
+}
+
+FORM salePlaces 'Места продаж'
+    OBJECTS o = SalePlace
+    PROPERTIES(o) READONLY name, dateFrom, dateTo, stocks
+    PROPERTIES (o) NEWSESSION NEW, EDIT, DELETE 
+    
+    OBJECTS st = Stock
+    OBJECTS dd = SalePlaceDetail
+    PROPERTIES (dd) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES READONLY quantity(dd, st) COLUMNS (st) HEADER name(st) BACKGROUND RGB (255, 255, 200) IF dataQuantity(dd, st)
+    FILTERS salePlace(dd) == o, in(o, st)
+    
+;
+
+FORM dialogSalePlaces 'Места продаж'
+    OBJECTS o = SalePlace
+    PROPERTIES(o) READONLY name, dateFrom, dateTo, stocks
+    
+    OBJECTS st = Stock
+    OBJECTS dd = SalePlaceDetail
+    PROPERTIES (dd) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES READONLY quantity(dd, st) COLUMNS (st) HEADER name(st) BACKGROUND RGB (255, 255, 200) IF dataQuantity(dd, st)
+    FILTERS salePlace(dd) == o, in(o, st)
+    
+    
+    LIST SalePlace OBJECT o
+;
+
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW salePlaces;
+    }
+}
