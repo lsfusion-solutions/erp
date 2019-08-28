@@ -1,23 +1,14 @@
 package equ.clt.handler.bizerba;
 
 import equ.api.ItemInfo;
-import equ.api.MachineryInfo;
-import equ.api.SendTransactionBatch;
-import equ.api.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
-import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.TCPPort;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class BizerbaPCBasedHandler extends BizerbaHandler {
-
-    protected String charset = "utf-8";
-    protected boolean encode = false;
 
     public BizerbaPCBasedHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext);
@@ -26,16 +17,6 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
     @Override
     protected String getModel() {
         return "bizerbapc";
-    }
-
-    @Override
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
-        return sendTransaction(transactionList, charset, encode);
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) {
-        sendStopListInfo(stopListInfo, machineryInfoSet, charset, encode);
     }
 
     @Override
@@ -48,8 +29,8 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
         if(item.imagesCount != null) {
             for (int i = 1; i <= item.imagesCount; i++) {
                 clearReceiveBuffer(port);
-                sendCommand(errors, port, getLoadImageMessage(scales, item, i, 0), charset, scales.port, encode);
-                String result = receiveReply(errors, port, charset, scales.port);
+                sendCommand(errors, port, getLoadImageMessage(scales, item, i, 0), scales.port);
+                String result = receiveReply(errors, port, scales.port);
                 if (!result.equals("0")) {
                     logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [image %s]", scales.port, result, item.idItem, i));
                     return result;
@@ -59,8 +40,8 @@ public class BizerbaPCBasedHandler extends BizerbaHandler {
             //шлём удаление. Пока что рассчитано на то, что max imagesCount = 1
             int i = 1;
             clearReceiveBuffer(port);
-            sendCommand(errors, port, getLoadImageMessage(scales, item, i, 1), charset, scales.port, encode);
-            String result = receiveReply(errors, port, charset, scales.port);
+            sendCommand(errors, port, getLoadImageMessage(scales, item, i, 1), scales.port);
+            String result = receiveReply(errors, port, scales.port);
             if (!result.equals("0")) {
                 logError(errors, String.format("Bizerba: IP %s Result is %s, item: %s [image %s]", scales.port, result, item.idItem, i));
                 return result;

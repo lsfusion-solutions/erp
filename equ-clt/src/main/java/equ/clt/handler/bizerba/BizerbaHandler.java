@@ -54,6 +54,14 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return "Bizerba: ";
     }
 
+    protected String getCharset() {
+        return "utf-8";
+    }
+
+    protected boolean isEncode() {
+        return false;
+    }
+
     protected FileSystemXmlApplicationContext springContext;
 
     public BizerbaHandler(FileSystemXmlApplicationContext springContext) {
@@ -74,7 +82,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         } else return model;
     }
 
-    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList, String charset, boolean encode) {
+    public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -110,7 +118,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                                 errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
                             } else {
                                 ips.add(scales.port);
-                                taskList.add(new SendTransactionTask(transaction, scales, port, charset, encode, capitalLetters, notInvertPrices));
+                                taskList.add(new SendTransactionTask(transaction, scales, port, capitalLetters, notInvertPrices));
                             }
                         }
                     }
@@ -142,7 +150,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet, String charset, boolean encode) {
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) {
         try {
             if (!stopListInfo.stopListItemMap.isEmpty() && !stopListInfo.exclude) {
                 processStopListLogger.info("Bizerba: Starting sending StopLists to " + machineryInfoSet.size() + " scales...");
@@ -150,7 +158,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                 for (MachineryInfo machinery : machineryInfoSet) {
                     TCPPort port = new TCPPort(machinery.port, 1025);
                     if (machinery.port != null && machinery instanceof ScalesInfo) {
-                        taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port, charset, encode));
+                        taskList.add(new SendStopListTask(stopListInfo, (ScalesInfo) machinery, port));
                     }
                 }
 
@@ -181,11 +189,11 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return null;
     }
 
-    protected String receiveReply(List<String> errors, TCPPort port, String charset, String ip) {
-        return receiveReply(errors, port, charset, ip, false);
+    protected String receiveReply(List<String> errors, TCPPort port, String ip) {
+        return receiveReply(errors, port, ip, false);
     }
 
-    private String receiveReply(List<String> errors, TCPPort port, String charset, String ip, boolean longAction) {
+    private String receiveReply(List<String> errors, TCPPort port, String ip, boolean longAction) {
         String reply;
         Pattern pattern = Pattern.compile("QUIT(\\d+)");
         byte[] var4 = new byte[500];
@@ -197,7 +205,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
             do {
                 if(port.getBisStream().available() != 0) {
                     port.getBisStream().read(var4);
-                    reply = new String(var4, charset);
+                    reply = new String(var4, getCharset());
 
                     Matcher matcher = pattern.matcher(reply);
                     if (matcher.find()) {
@@ -317,10 +325,10 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return "WALO" + flag; //Cancel flag: 0= record is modified or created; 1= record is deleted
     }
 
-    protected void sendCommand(List<String> errors, TCPPort port, String command, String charset, String ip, boolean encode) {
+    protected void sendCommand(List<String> errors, TCPPort port, String command, String ip) {
         try {
-            byte[] commandBytes = command.getBytes(charset);
-            if(encode)
+            byte[] commandBytes = command.getBytes(getCharset());
+            if(isEncode())
                 encode(commandBytes);
             port.getOutputStream().write(commandBytes);
             port.getOutputStream().flush();
@@ -329,16 +337,16 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         }
     }
 
-    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales, String charset, boolean encode) throws InterruptedException {
+    protected boolean clearAll(List<String> errors, TCPPort port, ScalesInfo scales) throws InterruptedException {
         processTransactionLogger.info(String.format("Bizerba: IP %s ClearAllPLU", scales.port));
         boolean result = true;
-        String clear = clearAllPLU(errors, port, scales, charset, scales.port, encode);
+        String clear = clearAllPLU(errors, port, scales, scales.port);
         if (!clear.equals("0")) {
             logError(errors, String.format("Bizerba: IP %s ClearAllPLU, Error %s", scales.port, clear));
             result = false;
         } else {
             processTransactionLogger.info(String.format("Bizerba: IP %s ClearAllMessages", scales.port));
-            clear = clearAllMessages(errors, port, scales, charset, scales.port, encode);
+            clear = clearAllMessages(errors, port, scales, scales.port);
             if (!clear.equals("0")) {
                 logError(errors, String.format("Bizerba: IP %s ClearAllMessages, Error %s", scales.port, clear));
                 result = false;
@@ -348,29 +356,29 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return result;
     }
 
-    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) {
+    private String clearAllMessages(List<String> errors, TCPPort port, ScalesInfo scales, String ip) {
         String command = "ATST  " + separator +"L" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, ip, encode);
-        return receiveReply(errors, port, charset, ip, true);
+        sendCommand(errors, port, command, ip);
+        return receiveReply(errors, port, ip, true);
     }
 
-    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String charset, String ip, boolean encode) {
+    private String clearAllPLU(List<String> errors, TCPPort port, ScalesInfo scales, String ip) {
         String command = "PLST  " + separator + "L" + zeroedInt(scales.number, 2) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, ip, encode);
-        return receiveReply(errors, port, charset, ip, true);
+        sendCommand(errors, port, command, ip);
+        return receiveReply(errors, port, ip, true);
     }
 
-    private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber, String charset, boolean encode) {
+    private String clearMessage(List<String> errors, TCPPort port, ScalesInfo scales, int messageNumber) {
         String command = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator + "ATNU" + messageNumber + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, scales.port, encode);
-        String result = receiveReply(errors, port, charset, scales.port);
+        sendCommand(errors, port, command, scales.port);
+        String result = receiveReply(errors, port, scales.port);
         return result.equals("0") ? null : result;
     }
 
-    public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item, String charset, boolean encode) {
+    public String clearPLU(List<String> errors, TCPPort port, ScalesInfo scales, ItemInfo item) {
         Integer plu = getPluNumber(scales, item);
         processStopListLogger.info(String.format("Bizerba: clearing plu %s", plu));
         String command = "PLST  \u001bS" + zeroedInt(scales.number, 2) + separator + getCancelFlag(1) + separator
@@ -379,19 +387,19 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                 + "HBA10" + separator + "HBA20" + separator + "KLGE0" + separator + "ALT10" + separator + "PLTEXXX"
                 + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, scales.port, encode);
-        return receiveReply(errors, port, charset, scales.port);
+        sendCommand(errors, port, command, scales.port);
+        return receiveReply(errors, port, scales.port);
     }
 
-    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String charset, String ip, boolean encode) {
+    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItemInfo item, String ip) {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
             messageText = messageText == null ? "" : messageText;
             String message = "ATST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "ATNU" + messageNumber + separator + "ATTE" + messageText + endCommand;
             clearReceiveBuffer(port);
-            sendCommand(errors, port, message, charset, ip, encode);
-            String result = receiveReply(errors, port, charset, ip);
+            sendCommand(errors, port, message, ip);
+            String result = receiveReply(errors, port, ip);
             String error = getError(result, ip, item.idItem, messageNumber);
             if (error != null) {
                 logError(errors, error);
@@ -401,7 +409,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return null;
     }
 
-    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode) {
+    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) {
         OrderedMap<Integer, String> messageMap = new OrderedMap<>();
         Integer pluNumber = getPluNumber(item);
         int count = 0;
@@ -431,14 +439,13 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
             }
         }
         while (count < 4) {
-            clearMessage(errors, port, scales, pluNumber * 10 + count, charset, encode);
+            clearMessage(errors, port, scales, pluNumber * 10 + count);
             ++count;
         }
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset,
-                           boolean encode, boolean capitalLetters, boolean notInvertPrices) {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters, boolean notInvertPrices) {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -452,8 +459,8 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         int department = 1;
         boolean manualWeight = false;
 
-        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, charset, encode);
-        String result = loadPLUMessages(errors, port, scales, messageMap, item, charset, scales.port, encode);
+        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item);
+        String result = loadPLUMessages(errors, port, scales, messageMap, item, scales.port);
         if(result != null) {
             return result;
         }
@@ -537,8 +544,8 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
 
         command1 = command1 + "BLK " + separator;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command1, charset, scales.port, encode);
-        return receiveReply(errors, port, charset, scales.port);
+        sendCommand(errors, port, command1, scales.port);
+        return receiveReply(errors, port, scales.port);
     }
 
     protected String getPricesCommand(int price, int retailPrice, boolean notInvertPrices) {
@@ -563,12 +570,12 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         return null;
     }
 
-    private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) {
+    private String synchronizeTime(List<String> errors, TCPPort port, String ip) {
         long timeZero = new Date(1970-1900, 0, 1, 0, 0, 0).getTime() / 1000;
         String command = "UHR   " + separator + "N00" + separator + "UUHR" + (System.currentTimeMillis() / 1000 - timeZero) + endCommand;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command, charset, ip, encode);
-        return receiveReply(errors, port, charset, ip, false);
+        sendCommand(errors, port, command, ip);
+        return receiveReply(errors, port, ip, false);
     }
 
     private String getError(String result, String ip, String idItem, Integer messageNumber) {
@@ -594,18 +601,13 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         TransactionScalesInfo transaction;
         ScalesInfo scales;
         TCPPort port;
-        String charset;
-        boolean encode;
         boolean capitalLetters;
         boolean notInvertPrices;
 
-        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, String charset,
-                                   boolean encode, boolean capitalLetters, boolean notInvertPrices) {
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, TCPPort port, boolean capitalLetters, boolean notInvertPrices) {
             this.transaction = transaction;
             this.scales = scales;
             this.port = port;
-            this.charset = charset;
-            this.encode = encode;
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
         }
@@ -622,13 +624,13 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                 try {
                     boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                     if (needToClear) {
-                        cleared = clearAll(localErrors, port, scales, charset, encode);
+                        cleared = clearAll(localErrors, port, scales);
                     }
 
                     if(cleared || !needToClear) {
                         processTransactionLogger.info("Bizerba: Sending items..." + scales.port);
                         if (localErrors.isEmpty()) {
-                            synchronizeTime(localErrors, port, charset, scales.port, encode);
+                            synchronizeTime(localErrors, port, scales.port);
                             int count = 0;
                             for (ScalesItemInfo item : transaction.itemsList) {
                                 count++;
@@ -638,7 +640,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters, notInvertPrices);
+                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {
@@ -687,15 +689,11 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
         StopListInfo stopListInfo;
         ScalesInfo scales;
         TCPPort port;
-        String charset;
-        boolean encode;
 
-        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales, TCPPort port, String charset, boolean encode) {
+        public SendStopListTask(StopListInfo stopListInfo, ScalesInfo scales, TCPPort port) {
             this.stopListInfo = stopListInfo;
             this.scales = scales;
             this.port = port;
-            this.charset = charset;
-            this.encode = encode;
         }
 
         @Override
@@ -716,7 +714,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
                             if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                 if(!skip(item.idItem)) {
                                     processStopListLogger.info(String.format("Bizerba: IP %s, sending StopList for item #%s (barcode %s) of %s", scales.port, count, item.idBarcode, stopListInfo.stopListItemMap.values().size()));
-                                    String result = clearPLU(localErrors, port, scales, item, charset, encode);
+                                    String result = clearPLU(localErrors, port, scales, item);
                                     if (!result.equals("0")) {
                                         logError(localErrors, String.format("Bizerba: IP %s, Result %s, item %s", scales.port, result, item.idItem));
                                         globalError++;
