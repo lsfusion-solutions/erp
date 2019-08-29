@@ -31,7 +31,7 @@ DESIGN separations { BOX { size = (600, 400); } }
 TABLE brandLegalEntity(Brand, LegalEntity);
 
 separation = DATA  Separation(Brand, LegalEntity);
-nameSeparation 'Признак распределения' (Brand b, LegalEntity l) = name(separation(b, l));
+nameSeparation 'Признак разделения' (Brand b, LegalEntity l) = name(separation(b, l));
 
 EXTEND CLASS Separation {
     none 'Отсутствует'
@@ -41,7 +41,7 @@ EXTEND CLASS Separation {
 TABLE legalEntitySkuGroup(LegalEntity, SkuGroup);   
   
 dataSeparation  = DATA Separation (LegalEntity, SkuGroup);
-nameDataSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(dataSeparation(l,g));
+nameDataSeparation 'Признак разделения' (LegalEntity l, SkuGroup g) = name(dataSeparation(l,g));
 
 levelParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = GROUP
                                                               MIN level(skuGroup, SkuGroup parent) IF dataSeparation(supplier, parent) MATERIALIZED;    
@@ -51,15 +51,15 @@ nearestSeparation (LegalEntity supplier, SkuGroup skuGroup) = dataSeparation(sup
 separation  (LegalEntity supplier, SkuGroup skuGroup) =
     OVERRIDE dataSeparation(supplier, skuGroup), 
              nearestSeparation (supplier, skuGroup) MATERIALIZED;    
-nameSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
+nameSeparation 'Признак разделения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
 
 TABLE separationLegalEntitySku (LegalEntity, Sku);
 dataSeparation = DATA Separation (LegalEntity, Sku) TABLE separationLegalEntitySku;
-nameDataSeparation 'Признак распределения' (LegalEntity l, Sku s) = name(dataSeparation(l, s));
+nameDataSeparation 'Признак разделения' (LegalEntity l, Sku s) = name(dataSeparation(l, s));
 
 nullSeparation (LegalEntity l, Sku s) = OVERRIDE dataSeparation(l, s), separation(brand(s), l), separation(l, skuGroup(s));
 separation (LegalEntity l, Sku s) = OVERRIDE nullSeparation(l, s), Separation.none IF l IS LegalEntity AND s IS Sku;  
-nameSeparation 'Признак распределения (перегруженный)' (LegalEntity l, Sku s) = name(separation(l,s));
+nameSeparation 'Признак разделения (перегруженный)' (LegalEntity l, Sku s) = name(separation(l,s));
 
 countSeparationSkuGroup  (LegalEntity supplier) = GROUP SUM 1 IF separation(supplier, SkuGroup sku);                       
 countSeparationSku (LegalEntity supplier) = GROUP SUM 1 IF separation(supplier, Sku sku);   
@@ -67,13 +67,13 @@ countSeparationSku (LegalEntity supplier) = GROUP SUM 1 IF separation(supplier, 
 
 CONSTRAINT dataSeparation (LegalEntity l, SkuGroup g) AND NOT legalEntity(dataSeparation (l, g)) == l  
     CHECKED BY dataSeparation[LegalEntity,SkuGroup]
-        MESSAGE 'Признак распределения, заданный для группы, должен действовать и для организации.';
+        MESSAGE 'Признак разделения, заданный для группы, должен действовать и для организации.';
 CONSTRAINT separation(Brand b, LegalEntity l) AND NOT legalEntity(separation(b, l)) == l  
     CHECKED BY separation[Brand,LegalEntity]
-        MESSAGE 'Признак распределения, заданный для бренда, должен действовать и для организации.';
+        MESSAGE 'Признак разделения, заданный для бренда, должен действовать и для организации.';
 CONSTRAINT dataSeparation(LegalEntity l, Sku s) AND NOT legalEntity(dataSeparation(l, s)) == l  
     CHECKED BY dataSeparation[LegalEntity,Sku]
-        MESSAGE 'Признак распределения, заданный для бренда, должен действовать и для организации.';
+        MESSAGE 'Признак разделения, заданный для SKU, должен действовать и для организации.';
 
 EXTEND FORM legalEntity
     OBJECTS se = Separation GRID 
