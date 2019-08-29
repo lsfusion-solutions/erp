@@ -20,7 +20,7 @@ GROUP itemO EXTID 'Item';
 
 skipCSO = ABSTRACT BOOLEAN (Item);
 activeCSO (Item i) = active(i) AND NOT skipCSO(i);
-
+activeIndex (Item i, CustomGroupType type) = PARTITION SUM 1 IF customGroup(type, i) AND activeCSO(i) ORDER name(i),i BY type;
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
      
     PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -39,6 +39,7 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  =idBarcode(i) EXTID 'ArticleId' IN itemO
     PROPERTIES  =id(type) IF i IS Item EXTID 'HierarchyId' IN itemO
     PROPERTIES  =id(customGroup(type, i)) EXTID 'NodeId' IN itemO
+    PROPERTIES  =activeIndex(i,type) EXTID 'NumberInCatalogue' IN itemO
                     
     FILTERS customGroup(type, i), 
             activeCSO(i),
