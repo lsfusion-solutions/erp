@@ -42,7 +42,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
             if (fitHandler(cashRegister) && cashRegister.directory != null) {
                 Set<String> stockSet = directoryStockMap.get(cashRegister.directory);
                 if (stockSet == null)
-                    stockSet = new HashSet();
+                    stockSet = new HashSet<>();
                 if (cashRegister.idDepartmentStore != null)
                     stockSet.add(cashRegister.idDepartmentStore);
                 if(requestExchange.idStock != null)

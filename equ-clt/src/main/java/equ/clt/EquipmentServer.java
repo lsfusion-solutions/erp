@@ -743,8 +743,8 @@ public class EquipmentServer {
         private void errorTransactionReport(Long idTransactionInfo, Throwable e) {
             try {
                 remote.errorTransactionReport(idTransactionInfo, e);
-            } catch (Exception ignored) {
-                errorEquipmentServerReport(ignored);
+            } catch (Exception e1) {
+                errorEquipmentServerReport(e1);
             }
         }
 

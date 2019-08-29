@@ -137,7 +137,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         int len = nameItem.length();
                                                         String firstName = nameItem.substring(0, len < 28 ? len : 28);
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
-                                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate;
+                                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : item.expiryDate;
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
                                                         int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
@@ -205,7 +205,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                             if (error == 0) {
                                                                 processTransactionLogger.info("Shtrih: resetting item " + i);
                                                                 int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(9999.99),
-                                                                        0, 0, i, new Date(2001 - 1900, 0, 1), 0);
+                                                                        0, 0, i, new Date(2001 - 1900, Calendar.JANUARY, 1), 0);
                                                                 if (result != 0)
                                                                     error = result;
                                                             }
@@ -311,7 +311,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                                                         shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, 0, 1) : item.expiryDate));
+                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : item.expiryDate));
                                                         shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                                                         String description = item.description == null ? "" : item.description;

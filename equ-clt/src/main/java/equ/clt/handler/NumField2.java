@@ -1,4 +1,4 @@
-package equ.clt.handler; /**
+package equ.clt.handler; /*
  * Copyright (C) 2011 DEHOF ingenieur+technik
  * Dipl.-Ing. (BA) Thomas Nenninger
  * http://www.dehof.de
@@ -72,7 +72,7 @@ public class NumField2 extends NumField
     int i = Math.min(inString.length(),Length);
 
     //-- fill database
-		byte b[] = null;
+	  byte[] b;
     try 
     	{ b = inString.getBytes(DBF.encodedType); }
     catch(UnsupportedEncodingException uee)

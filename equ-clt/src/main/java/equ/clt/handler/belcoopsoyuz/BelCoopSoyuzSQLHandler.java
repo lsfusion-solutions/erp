@@ -12,11 +12,9 @@ import equ.clt.handler.DefaultCashRegisterHandler;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
 import java.sql.Date;
-import java.text.ParseException;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 

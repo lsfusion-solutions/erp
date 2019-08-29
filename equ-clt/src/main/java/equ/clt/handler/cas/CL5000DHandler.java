@@ -4,8 +4,6 @@ import equ.api.MachineryInfo;
 import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.IOException;
-
 public class CL5000DHandler extends CL5000JHandler {
     public CL5000DHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext, 400);

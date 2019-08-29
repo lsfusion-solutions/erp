@@ -22,7 +22,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean ignoreSalesWeightPrefix;
     private Integer cleanOldFilesDays;
     private String discountCardPercentType;
-    private Map<Double, String> discountCardPercentTypeMap = new HashMap();
+    private Map<Double, String> discountCardPercentTypeMap = new HashMap<>();
     private String discountCardDirectory;
     private String notGTINPrefixes;
     private List<String> notGTINPrefixesList = new ArrayList<>();
