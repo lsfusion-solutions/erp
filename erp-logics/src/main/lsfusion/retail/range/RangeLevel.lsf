@@ -912,33 +912,51 @@ moveUpLevel 'Сместить на уровень вверх' (Range r) {
         MESSAGE 'Нет следующего уровня в программе';
     }      
 } CONFIRM;
-moveDownLevel 'Сместить на уровень вниз' (Range r) {
-    IF NOT ( GROUP SUM 1 IF (in(r,RangeLevel l) OR dataInStore(r,l)) AND NOT prevLevel(l)) THEN {
-        NEWSESSION {
-            LOCAL NESTED ok =  BOOLEAN ();
-            ok() <- allowChangePast();       
-            FOR range(RangeRev v) == r  DO {
-                FOR  countSku(v, RangeLevel level) ORDER level DO {
-                    level (v, Sku s) <- prevLevel(level(v,s)) WHERE level(v,s) == level;
-                }
-            } 
-            in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
-            //in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r); 
-            dataLevel(r, Store ss, DATE dt) <- prevLevel(dataLevel(r, ss, dt)) WHERE dataLevel(r, ss, dt); 
-            in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM 1 IF dataLevel(r,Store ss, DATE dt) == level );              
-            IF NOT ok() THEN {
-                 allowChangePast() <- TRUE;
-                 APPLY;
-                 allowChangePast() <- NULL;
-                 APPLY;                             
-            } ELSE {
-                APPLY;
-            }
-        }
-    } ELSE {
-         MESSAGE 'Нет предыдущего уровня в программе.';
+
+FORM dialogMoveDownLevel 'Сместить на уровень вниз'
+    OBJECTS lvl = RangeLevel PANEL 
+    PROPERTIES level 'С какого уровня сместить' = name(lvl) SELECTOR 
+    
+    EVENTS ON INIT {
+        SEEK dialogMoveDownLevel.lvl = GROUP MIN RangeLevel l IF l IS RangeLevel;
     }
-} CONFIRM;
+;
+
+DESIGN dialogMoveDownLevel {
+    OBJECTS {
+        MOVE PROPERTY(level) { alignment = STRETCH; }
+    }
+}
+
+moveDownLevel 'Сместить на уровень вниз' (Range r) {
+    DIALOG dialogMoveDownLevel OBJECTS lvl INPUT DO {
+        IF NOT ( GROUP SUM 1 IF (in(r,RangeLevel l) OR dataInStore(r,l)) AND NOT prevLevel(l)) THEN {
+            NEWSESSION {
+                LOCAL NESTED ok =  BOOLEAN ();
+                ok() <- allowChangePast();       
+                FOR range(RangeRev v) == r  DO {
+                    FOR  countSku(v, RangeLevel level) AND level <= lvl ORDER level DO {
+                        level (v, Sku s) <- prevLevel(level(v,s)) WHERE level(v,s) == level;
+                    }
+                } 
+                in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM countSku(RangeRev v,level) IF range(v)==r);  
+                //in(r,RangeLevel level) <- NULL WHERE  NOT (GROUP SUM countSku(RangeRev v,level) IF range(v)==r); 
+                dataLevel(r, Store ss, DATE dt) <- prevLevel(dataLevel(r, ss, dt)) WHERE dataLevel(r, ss, dt); 
+                in(r,RangeLevel level) <- TRUE WHERE  (GROUP SUM 1 IF dataLevel(r,Store ss, DATE dt) == level );              
+                IF NOT ok() THEN {
+                     allowChangePast() <- TRUE;
+                     APPLY;
+                     allowChangePast() <- NULL;
+                     APPLY;                             
+                } ELSE {
+                    APPLY;
+                }
+            }
+        } ELSE {
+             MESSAGE 'Нет предыдущего уровня в программе.';
+        }
+    }
+};
 
 EXTEND FORM ranges 
     PROPERTIES (r) moveUpLevel, moveDownLevel
