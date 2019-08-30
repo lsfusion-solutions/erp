@@ -200,6 +200,20 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     }
 
     @Override
+    protected void beforeStartTransactionExecutor() {
+        processTransactionLogger.info(getLogPrefix() + "Connecting to library...");
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
+        String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
+        init(libraryDir);
+    }
+
+    @Override
+    protected void afterFinishTransactionExecutor() {
+        processTransactionLogger.info(getLogPrefix() + "Disconnecting from library...");
+        release();
+    }
+
+    @Override
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
         String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
@@ -219,31 +233,24 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             String error;
             boolean cleared = false;
             try {
-                if (init(libraryDir)) {
-                    int result = 0;
-                    boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
-                    if (needToClear) {
-                        result = clearData(scales);
-                        cleared = result == 0;
-                    }
-
-                    if (result == 0) {
-                        processTransactionLogger.info(getLogPrefix() + "Sending " + transaction.itemsList.size() + " items..." + scales.port);
-                        result = loadData(scales, transaction);
-                    }
-                    error = getErrorDescription(result);
-                } else {
-                    error = getLogPrefix() + "Failed to init";
+                int result = 0;
+                boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
+                if (needToClear) {
+                    result = clearData(scales);
+                    cleared = result == 0;
                 }
+
+                if (result == 0) {
+                    processTransactionLogger.info(getLogPrefix() + "Sending " + transaction.itemsList.size() + " items..." + scales.port);
+                    result = loadData(scales, transaction);
+                }
+                error = getErrorDescription(result);
                 if(error != null) {
                     processTransactionLogger.error(error);
                 }
             } catch (Throwable t) {
                 error = String.format(getLogPrefix() + "IP %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
                 processTransactionLogger.error(error, t);
-            } finally {
-                processTransactionLogger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
-                release();
             }
             processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return Pair.create(error != null ? Collections.singletonList(error) : new ArrayList<>(), cleared);

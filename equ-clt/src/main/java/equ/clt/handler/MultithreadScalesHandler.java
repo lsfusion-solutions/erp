@@ -65,19 +65,25 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
                     }
 
                     if(!taskList.isEmpty()) {
-                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "SendTransaction");
-                        List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
-                        for (Future<SendTransactionResult> threadResult : threadResults) {
-                            if(threadResult.get().localErrors.isEmpty())
-                                succeededScalesList.add(threadResult.get().scalesInfo);
-                            else {
-                                brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
-                                errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
+                        beforeStartTransactionExecutor();
+                        try {
+                            ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "SendTransaction");
+                            List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                            for (Future<SendTransactionResult> threadResult : threadResults) {
+                                if(threadResult.get().localErrors.isEmpty())
+                                    succeededScalesList.add(threadResult.get().scalesInfo);
+                                else {
+                                    brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
+                                    errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
+                                }
+                                if(threadResult.get().cleared)
+                                    clearedScalesList.add(threadResult.get().scalesInfo);
                             }
-                            if(threadResult.get().cleared)
-                                clearedScalesList.add(threadResult.get().scalesInfo);
+                            singleTransactionExecutor.shutdown();
+                        } finally {
+                            afterFinishTransactionExecutor();
                         }
-                        singleTransactionExecutor.shutdown();
+
                     }
                     if(!enabledScalesList.isEmpty())
                         errorMessages(errors, ips, brokenPortsMap);
@@ -89,6 +95,12 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
+    }
+
+    protected void beforeStartTransactionExecutor() {
+    }
+
+    protected void afterFinishTransactionExecutor() {
     }
 
     protected abstract SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales);
