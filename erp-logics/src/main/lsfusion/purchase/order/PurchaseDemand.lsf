@@ -107,6 +107,15 @@ EXTEND FORM userOrder
                         price 'Средняя цена' = NUMERIC[16,2] (sumSold(ks, st, day) / quantitySold(ks, st, day))
     
     FILTERS iterate(day, dateFromSoldPeriod(o), dateToSoldPeriod(o))
+    
+    OBJECTS po = Order
+    PROPERTIES (po) READONLY date,series, number, nameSupplierStock
+    PROPERTIES READONLY quantityOrderDetail(ks,po)
+    FILTERS quantityOrderDetail(ks,po),
+            customerStock(po)==st,
+            isPosted(po),
+            NOT po==o
+    ORDER date(po) DESC          
 ;
 
 DESIGN userOrder {
@@ -115,11 +124,20 @@ DESIGN userOrder {
             fill = 1;
             type = SPLITV;
             MOVE skuFilters { fill = 2; }
-            MOVE BOX (day) { 
-                fill = 1; 
-                PROPERTY (balanceB(ks, st, day)) { charWidth = 6; }
-                PROPERTY (quantitySold(ks, st, day)) { charWidth = 6; }
-                PROPERTY (price) { charWidth = 6; }
+            NEW tabContainer{
+                
+                fill = 1;
+                type = TABBED;
+                MOVE BOX(po){
+                    caption = 'История закупок';       
+                    PROPERTY (quantityOrderDetail(ks,po)) {caption = 'Кол-во';}          
+                }  
+                MOVE BOX (day) {
+                    caption = 'История продаж';                     
+                    PROPERTY (balanceB(ks, st, day)) { charWidth = 6; }
+                    PROPERTY (quantitySold(ks, st, day)) { charWidth = 6; }
+                    PROPERTY (price) { charWidth = 6; }
+                }                             
             }
         }
     }
