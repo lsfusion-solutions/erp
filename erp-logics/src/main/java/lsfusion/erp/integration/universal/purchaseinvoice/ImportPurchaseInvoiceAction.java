@@ -4,7 +4,7 @@ import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
 import jxl.read.biff.BiffException;
-import lsfusion.base.*;
+import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -18,31 +18,33 @@ import lsfusion.erp.integration.universal.ImportPreviewClientAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.*;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.property.data.SessionDataProperty;
-import lsfusion.server.language.ScriptingErrorLog;
-import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -83,20 +85,20 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
-            ObjectValue importTypeObject = findProperty("importType[UserInvoice]").readClasses(session, userInvoiceObject);
+            ObjectValue importTypeObject = findProperty("importType[UserInvoice]").readClasses(context, userInvoiceObject);
 
             if (importTypeObject instanceof DataObject) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                boolean checkInvoiceExistence = findProperty("autoImportCheckInvoiceExistence[ImportType]").read(session, (DataObject) importTypeObject) != null;
-                boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(session, (DataObject) importTypeObject) != null;
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                boolean checkInvoiceExistence = findProperty("autoImportCheckInvoiceExistence[ImportType]").read(context, (DataObject) importTypeObject) != null;
+                boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(context, (DataObject) importTypeObject) != null;
 
-                String staticCaptionImportType = trim((String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(session, importTypeObject));
-                String nameFieldImportType = trim((String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject));
+                String staticCaptionImportType = trim((String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject));
+                String nameFieldImportType = trim((String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject));
                 String[] splittedFieldImportType = nameFieldImportType == null ? null : nameFieldImportType.split("\\.");
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
@@ -140,7 +142,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                         if(userInvoiceObject != null) {
                             findProperty("original[Purchase.Invoice]").change(new DataObject(new FileData(file, fileExtension), DynamicFormatFileClass.get()), context, userInvoiceObject);
-                            findProperty("currentInvoice[]").change(userInvoiceObject, session);
+                            findProperty("currentInvoice[]").change(userInvoiceObject, context);
                         }
 
                         boolean cancelSession = false;
@@ -148,7 +150,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         if(script != null && !script.isEmpty()) {
                             needToApply = true;
                             findAction("executeScript[ImportType]").execute(context, importTypeObject);
-                            cancelSession = findProperty("cancelSession[]").read(session) != null;
+                            cancelSession = findProperty("cancelSession[]").read(context) != null;
                         }
 
                         if(needToApply) {
@@ -1551,7 +1553,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
     }
 
     private String makeIdUserInvoiceDetail(String idDocument, DataObject userInvoiceObject, int i) {
-        return (idDocument != null ? idDocument : (userInvoiceObject == null ? "" : String.valueOf(userInvoiceObject.object))) + i;
+        return (idDocument != null ? idDocument : (userInvoiceObject == null ? "" : String.valueOf(userInvoiceObject.object))) + "_" + i;
     }
 
     private String modifyNameCountry(String nameCountry) {
