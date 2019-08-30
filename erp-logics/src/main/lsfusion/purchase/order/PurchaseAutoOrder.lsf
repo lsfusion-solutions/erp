@@ -244,7 +244,8 @@ DESIGN options {
     } 
 }
 
-CONSTRAINT DROPPED (UserOrderDetail d IS UserOrderDetail) AND banDroppedAutoDetail() AND isAuto(PREV(userOrder(d))) AND PREV(autoQuantity(d)) MESSAGE 'Запрещено удалять строки автозаказа';
+skipBanDropAutoDetail = ABSTRACT VALUE BOOLEAN (UserOrderDetail);
+CONSTRAINT DROPPED (UserOrderDetail d IS UserOrderDetail) AND banDroppedAutoDetail() AND isAuto(PREV(userOrder(d))) AND PREV(autoQuantity(d)) AND NOT skipBanDropAutoDetail(d) MESSAGE 'Запрещено удалять строки автозаказа';
 
 CONSTRAINT autoQuantity(UserOrderDetail d) AND banQuantityAutoDetail() AND isAuto(userOrder(d)) AND NOT (quantity(d) >= autoQuantity(d))
     MESSAGE 'Запрещено заказывать меньше чем "Кол-во (автозаказ)"';
