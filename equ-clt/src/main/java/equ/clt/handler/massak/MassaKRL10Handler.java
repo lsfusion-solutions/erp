@@ -51,11 +51,6 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
         return "MassaKRL10: ";
     }
 
-    @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "MassaKRL10";
-    }
-
     private String openPort(List<String> errors, TCPPort port, String ip) {
         try {
             processTransactionLogger.info(getLogPrefix() + "Connecting..." + ip);

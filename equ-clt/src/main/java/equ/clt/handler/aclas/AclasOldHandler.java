@@ -1,17 +1,11 @@
 package equ.clt.handler.aclas;
 
-import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 public class AclasOldHandler extends AclasHandler {
 
     public AclasOldHandler(FileSystemXmlApplicationContext springContext) {
         super(springContext);
-    }
-
-    @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "aclas-old";
     }
 
     @Override
