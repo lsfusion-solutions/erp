@@ -29,6 +29,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         this.springContext = springContext;
     }
 
+    @Override
+    public String getGroupId(TransactionScalesInfo transactionInfo) {
+        return "aclasls2"; //параллелить нельзя, так как работаем с одной dll/so
+    }
+
     protected String getLogPrefix() {
         return "Aclas LS-2: ";
     }
