@@ -777,3 +777,28 @@ countCommonStocks (PromotionDetail d1, PromotionDetail d2) = GROUP SUM 1 IF in(p
 CONSTRAINT banSkuMultiPromotion() AND (SETCHANGED(sku(PromotionDetail d)) OR SETCHANGED(fromDate(d)) OR SETCHANGED(toDate(d)) OR CHANGED(stocks(d))) AND
     sku(PromotionDetail dd) == sku(d) AND dd != d AND fromDate(d) <= toDate(dd) AND toDate(d) >= fromDate(dd) AND countCommonStocks(d,dd)
             MESSAGE 'Товару запрещено участвовать в нескольких акциях';
+            
+EXTEND FORM itemInfo
+    OBJECTS pd = PromotionDetail
+    PROPERTIES  READONLY series 'Серия' = series(promotion(pd)), number 'Номер' = number(promotion(pd))
+    PROPERTIES (pd) READONLY  name, fromDate, toDate, namePromotionType, nameExtraPromotionType, namePromoType, nameOverFlyer
+    PROPERTIES  READONLY proposeDate 'Дата предложения' = proposeDate(promotion(pd)), approveDate 'Дата утверждения' = approveDate(promotion(pd)) 
+    
+    PROPERTIES(pd) READONLY BACKGROUND backgroundCur(pd) price, markup, retailPrice
+    PROPERTIES(pd) READONLY BACKGROUND backgroundAfter(pd) promotionPrice BACKGROUND backgroundPromo(pd), promotionVATPrice, promotionMarkup,
+                  proposedPromotionPrice BACKGROUND backgroundPromo(pd), promotionMarkupSum, discount
+    PROPERTIES(pd) READONLY nameOverPromoType, nameDiscountType, nameDiscountingType, changedTime, 
+                  changedNameUser, changedHostnameComputer, approved SHOWIF showApproved(pd)
+    PROPERTIES  READONLY stocks 'Склады' = stocks(promotion(pd))         
+    FILTERS sku(pd)==s, 
+            approved(pd)
+    FILTERGROUP stockPromo
+        FILTER 'По складу' in(promotion(pd),st1)        
+;
+DESIGN itemInfo{
+    bottomContainer{
+        MOVE BOX(pd){
+            caption='По акциям';
+        }
+    }
+}
