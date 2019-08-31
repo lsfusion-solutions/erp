@@ -476,7 +476,7 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
     sumSold (Sku sku, snapshot) <- (GROUP
             SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)) WHERE include(snapshot, sku);
     
-    percMarkupSold(Sku sku, snapshot) <- round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)) WHERE include(snapshot, sku);
+    percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
     
     IF levelGroup(snapshot) == 1 THEN {
         // считать проценты относительно общей суммы всех товаров
@@ -492,7 +492,7 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
             WHEN  percMarkupOrder(sku, snapshot) >  percA(snapshot)+percB(snapshot) THEN 'C' WHERE include(snapshot, sku)
         ;
         
-        percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 / sumSold(snapshot)) WHERE include(snapshot, sku);
+        percInSumSold (Sku sku, snapshot) <- OVERRIDE round4(sumSold(sku, snapshot)*100.00 / sumSold(snapshot)), 0.0 WHERE include(snapshot, sku);
         indexSumBest(Sku sku, snapshot) <- PARTITION SUM 1 IF sumSold(sku, snapshot) ORDER DESC sumSold(sku, snapshot), name(sku) BY snapshot WHERE include(snapshot, sku);
         partitionSumBest(Sku sku, snapshot) <- PARTITION SUM sumSold(sku, snapshot) ORDER indexSumBest(sku, snapshot) BY snapshot WHERE include(snapshot, sku);
         percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / sumSold(snapshot)) WHERE include(snapshot, sku);
