@@ -127,6 +127,8 @@ FORM messageOrders 'Сообщение'
     PROPERTIES () messageEmailOrders DRAW o
 ;
 
+overEmailList = ABSTRACT STRING[800](Order);
+
 calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { 
     
     LOCAL file = FILE ();
@@ -138,13 +140,12 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
     EMAIL
     FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
     SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
-    TO (OVERRIDE email(supplierStock(order)), email(supplier(order)))
+    TO (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order)))
     BODY bodyFile()
     ATTACH file() 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
 ; }
 
-overEmailList = ABSTRACT STRING[800](Order);
 
 EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
