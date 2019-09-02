@@ -282,7 +282,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
 
     public List<ProductionOrderDetail> importOrdersFromFile(DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator)
-            throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+            throws UniversalImportException, IOException, xBaseJException {
 
         List<ProductionOrderDetail> orderDetailsList;
 

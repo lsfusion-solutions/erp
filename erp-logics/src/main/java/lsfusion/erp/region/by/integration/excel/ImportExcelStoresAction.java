@@ -37,12 +37,12 @@ public class ImportExcelStoresAction extends ImportExcelAction {
 
                 new ImportAction(LM).makeImport(importData, context);
             }
-        } catch (IOException | BiffException | ParseException e) {
+        } catch (IOException | BiffException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    protected static List<LegalEntity> importStores(RawFileData file) throws IOException, BiffException, ParseException {
+    protected static List<LegalEntity> importStores(RawFileData file) throws IOException, BiffException {
 
         Sheet sheet = getSheet(file, 4);
 

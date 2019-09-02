@@ -49,7 +49,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
             try {
                 importOrder(context, file);
                 finishImportOrder(context, attachment.getKey());
-            } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
+            } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
                 ERPLoggers.importLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
             }
 
@@ -100,7 +100,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
         return attachmentMap;
     }
 
-    private void importOrder(ExecutionContext context, RawFileData file) throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importOrder(ExecutionContext context, RawFileData file) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow[]").read(context);
         String numberCell = (String) findProperty("importEmailOrderNumberCell[]").read(context);

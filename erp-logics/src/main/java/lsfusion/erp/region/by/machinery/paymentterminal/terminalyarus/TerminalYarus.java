@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -98,7 +97,7 @@ public class TerminalYarus {
         port.sendCommand(byteBuffer.array());
     }
 
-    public static byte receiveReply(UDPPort port) throws CommunicationException {
+    public static byte receiveReply(UDPPort port) {
         try {
 
             Thread.sleep(500);
@@ -151,7 +150,7 @@ public class TerminalYarus {
             case 3:
                 return "Операция, выполняемая кассиром, не завершена";
             default:
-                return "Код ошибки:" + String.valueOf(result);
+                return "Код ошибки:" + result;
         }
     }
 

@@ -81,7 +81,7 @@ public class FiscalMercury {
     public final static char GIFT_CARD = 2;
 
     //old
-    static void init() throws UnsupportedEncodingException {
+    static void init() {
         try {
             System.loadLibrary("megawdriver");
         } catch (Exception e) {
@@ -97,7 +97,7 @@ public class FiscalMercury {
 
     }
 
-    public static void connect() throws RuntimeException, UnsupportedEncodingException {
+    public static void connect() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWConnect();
         checkErrors(result, true);
     }
@@ -110,17 +110,17 @@ public class FiscalMercury {
         return true;
     }
 
-    public static void logout() throws RuntimeException, UnsupportedEncodingException {
+    public static void logout() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWLogOut();
         checkErrors(result, true);
     }
 
-    public static void advancePaper(int count) throws RuntimeException, UnsupportedEncodingException {
+    public static void advancePaper(int count) throws RuntimeException {
         int result = mercuryDLL.mercury.FrWFeed(count);
         checkErrors(result, true);
     }
 
-    public static boolean openDrawer() throws RuntimeException, UnsupportedEncodingException {
+    public static boolean openDrawer() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWOpenDrawer();
         return checkErrors(result, false);
     }
@@ -132,12 +132,12 @@ public class FiscalMercury {
         }
     }
 
-    public static void openDocument(char type) throws RuntimeException, UnsupportedEncodingException {
+    public static void openDocument(char type) throws RuntimeException {
         int result = mercuryDLL.mercury.FrWCreateDoc(type, 0, true, "Shablon.txt\0", "Shablon1.txt\0");
         checkErrors(result, true);
     }
 
-    public static void addItem(char dept, Long quantity, Long price, Long roundSum, Long discountSum, String barcode, char type) throws RuntimeException, UnsupportedEncodingException {
+    public static void addItem(char dept, Long quantity, Long price, Long roundSum, Long discountSum, String barcode, char type) throws RuntimeException {
         long[] sum = new long[1];
         while (barcode.length() < 26)
             barcode += " ";
@@ -148,44 +148,44 @@ public class FiscalMercury {
             addDiscount(String.valueOf(adjustment * (type == RETURN ? (-1) : 1)));
     }
 
-    public static void addDiscount(String sum) throws RuntimeException, UnsupportedEncodingException {
+    public static void addDiscount(String sum) throws RuntimeException {
         String realSum = null;
         String totalSum = null;
         int result = mercuryDLL.mercury.FrWAdjustment2((short) 1, sum, realSum, totalSum);
         checkErrors(result, true);
     }
 
-    public static void payment(String sumCash, String sumCard, String sumGiftCard) throws RuntimeException, UnsupportedEncodingException {
+    public static void payment(String sumCash, String sumCard, String sumGiftCard) throws RuntimeException {
         int result = mercuryDLL.mercury.FrWPayment2(sumCash, sumCard, sumGiftCard, "0", "0");
         checkErrors(result, true);
     }
 
-    public static void cancelReceipt() throws RuntimeException, UnsupportedEncodingException {
+    public static void cancelReceipt() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWCancelReceipt();
         checkErrors(result, true);
     }
 
-    public static boolean cashIncome(long sum) throws RuntimeException, UnsupportedEncodingException {
+    public static boolean cashIncome(long sum) throws RuntimeException {
         int result = mercuryDLL.mercury.FrWCashIncome(sum, 0);
         return checkErrors(result, true);
     }
 
-    public static boolean cashOutcome(long sum) throws RuntimeException, UnsupportedEncodingException {
+    public static boolean cashOutcome(long sum) throws RuntimeException {
         int result = mercuryDLL.mercury.FrWCashOutcome(sum, 0);
         return checkErrors(result, true);
     }
 
-    public static void xReport() throws RuntimeException, UnsupportedEncodingException {
+    public static void xReport() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWPrintReport(0, null, null);
         checkErrors(result, true);
     }
 
-    public static void zReport() throws RuntimeException, UnsupportedEncodingException {
+    public static void zReport() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWPrintReport(1, null, null);
         checkErrors(result, true);
     }
 
-    public static void inOut(char type, long sum) throws RuntimeException, UnsupportedEncodingException {
+    public static void inOut(char type, long sum) throws RuntimeException {
         openDocument(type);
         if (sum > 0)
             cashIncome(sum * 10000);
@@ -194,7 +194,7 @@ public class FiscalMercury {
         cutReceipt();
     }
 
-    public static boolean cutReceipt() throws RuntimeException, UnsupportedEncodingException {
+    public static boolean cutReceipt() throws RuntimeException {
         int result = mercuryDLL.mercury.FrWCutReceipt();
         return checkErrors(result, true);
     }

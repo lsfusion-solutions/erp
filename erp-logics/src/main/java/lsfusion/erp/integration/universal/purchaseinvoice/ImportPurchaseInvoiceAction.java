@@ -176,7 +176,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                           DataObject importTypeObject, RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
                           String staticNameImportType, String staticCaptionImportType, boolean completeIdItemAsEAN,
                           boolean checkInvoiceExistence, boolean ignoreInvoicesAfterDocumentsClosedDate)
-            throws SQLHandledException, ParseException, UniversalImportException, IOException, SQLException, BiffException,
+            throws SQLHandledException, UniversalImportException, IOException, SQLException,
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);

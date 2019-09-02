@@ -36,7 +36,7 @@ public class FillDaysOffAction extends InternalAction {
         }
     }
 
-    private void generateDates(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+    private void generateDates(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject) throws SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
         try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
             Calendar current = Calendar.getInstance();
             int currentYear = current.get(Calendar.YEAR);

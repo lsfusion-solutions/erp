@@ -40,12 +40,12 @@ public class ImportExcelGroupItemsAction extends ImportExcelAction {
 
                 new ImportAction(LM).makeImport(importData, context);
             }
-        } catch (IOException | BiffException | ParseException e) {
+        } catch (IOException | BiffException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    public static List<ItemGroup> importGroupItems(RawFileData file, Boolean parents) throws IOException, BiffException, ParseException {
+    public static List<ItemGroup> importGroupItems(RawFileData file, Boolean parents) throws IOException, BiffException {
 
         Sheet sheet = getSheet(file, 3);
 

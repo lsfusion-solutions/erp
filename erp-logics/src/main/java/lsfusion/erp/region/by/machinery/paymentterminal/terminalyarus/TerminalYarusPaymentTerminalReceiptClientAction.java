@@ -5,7 +5,6 @@ import lsfusion.interop.action.ClientActionDispatcher;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 import java.math.BigDecimal;
 
 public class TerminalYarusPaymentTerminalReceiptClientAction implements ClientAction {
@@ -24,7 +23,7 @@ public class TerminalYarusPaymentTerminalReceiptClientAction implements ClientAc
         this.comment = comment == null ? "" : comment;
     }
 
-    public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
+    public Object dispatch(ClientActionDispatcher dispatcher) {
 
         final JOptionPane optionPane = new JOptionPane("Вставьте банковскую карту в платёжный терминал", JOptionPane.INFORMATION_MESSAGE, JOptionPane.DEFAULT_OPTION, null, new Object[]{}, null);
 

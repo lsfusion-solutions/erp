@@ -4,16 +4,15 @@ import com.google.common.base.Throwables;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import org.apache.commons.io.FileUtils;
 import org.jsoup.Connection;
-import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -69,7 +68,7 @@ public class ImportMilaAction extends InternalAction {
     }
 
     // временно - сохраняет офлайн, для последующего использования
-    void saveDoc(String url, String fName) throws IOException {
+    void saveDoc(String url, String fName) {
         readSite oRs = new readSite();
         oRs.loadUrl(url);
         oRs.saveDoc(fName);
@@ -188,7 +187,7 @@ public class ImportMilaAction extends InternalAction {
     }
 
     //  Получаем расширенную информацию по конкретному товару
-    private boolean getProduct(String url) throws IOException {
+    private boolean getProduct(String url) {
         String cid = "", c_pic = "", c1 = "";
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
@@ -308,8 +307,6 @@ public class ImportMilaAction extends InternalAction {
                 connection.userAgent(cAgent);
                 doc = connection.get();
                 return true;
-            } catch (HttpStatusException e) {
-                errBox(e.getMessage());
             } catch (Exception e) {
                 errBox(e.getMessage());
             }
@@ -331,7 +328,7 @@ public class ImportMilaAction extends InternalAction {
         }
 
         // Загружает из файла html страницу и создает объект doc
-        boolean loadDoc(String fileName) throws IOException {
+        boolean loadDoc(String fileName) {
             boolean lRet = true;
             String cPage;
             ioFile o1 = new ioFile();

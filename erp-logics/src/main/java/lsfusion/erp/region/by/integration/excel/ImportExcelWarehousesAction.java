@@ -1,24 +1,22 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import jxl.Sheet;
+import jxl.Workbook;
 import jxl.WorkbookSettings;
+import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Warehouse;
 import lsfusion.erp.integration.WarehouseGroup;
-import jxl.Sheet;
-import jxl.Workbook;
-import jxl.read.biff.BiffException;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,12 +40,12 @@ public class ImportExcelWarehousesAction extends ImportExcelAction {
 
                 new ImportAction(LM).makeImport(importData, context);
             }
-        } catch (IOException | BiffException | ParseException e) {
+        } catch (IOException | BiffException e) {
             throw new RuntimeException(e);
         }
     }
 
-    protected static List<Warehouse> importWarehouses(RawFileData file) throws IOException, BiffException, ParseException {
+    protected static List<Warehouse> importWarehouses(RawFileData file) throws IOException, BiffException {
 
         Sheet sheet = getSheet(file, 6);
 
@@ -67,7 +65,7 @@ public class ImportExcelWarehousesAction extends ImportExcelAction {
         return data;
     }
 
-    protected static List<WarehouseGroup> importWarehouseGroups(RawFileData file) throws IOException, BiffException, ParseException {
+    protected static List<WarehouseGroup> importWarehouseGroups(RawFileData file) throws IOException, BiffException {
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setGCDisabled(true);

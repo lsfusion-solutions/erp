@@ -35,7 +35,7 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         return ks;
     }
 
-    public char[] promptPassword(String alias) throws IOException {
+    public char[] promptPassword(String alias) {
         String request = "Введите пароль для ключа \"" + alias + "\": ";
         return this.promptPasswordInternal(request);
     }

@@ -39,12 +39,12 @@ public class ImportExcelBanksAction extends ImportExcelAction {
 
                 new ImportAction(LM).makeImport(importData, context);
             }
-        } catch (IOException | ParseException | BiffException e) {
+        } catch (IOException | BiffException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    protected static List<Bank> importBanks(RawFileData file) throws IOException, BiffException, ParseException {
+    protected static List<Bank> importBanks(RawFileData file) throws IOException, BiffException {
 
         Sheet sheet = getSheet(file, 6);
 
