@@ -6,8 +6,7 @@ REQUIRE System,
         Machinery,
         Numerator,        
         Utils,
-        MachineryPriceTransaction,
-        CashRegister;
+        MachineryPriceTransaction;
 
 NAMESPACE StopList;
 
@@ -52,8 +51,8 @@ stocks 'Склады' (StopList stopList) = GROUP
 CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
     MESSAGE 'Для Запрета продаж по кассе выбран склад, который не принадлежит компании';                                       
 
-TABLE groupCashRegisterStopList (GroupCashRegister, StopList);
-in 'Вкл.' = DATA BOOLEAN (GroupCashRegister, StopList);                                       
+TABLE groupMachineryStopList (GroupMachinery, StopList);
+in 'Вкл.' = DATA BOOLEAN (GroupMachinery, StopList);                                       
 
 @defineDocumentPosted(stopList);
 @defineDocumentClosed(stopList);
@@ -173,13 +172,13 @@ FORM stopList 'Запрет продаж по кассе'
     FILTERS isParent(sg, ts)
     ORDER name(sg)
     
-    OBJECTS gcr = GroupCashRegister
-    PROPERTIES(gcr) READONLY active, departmentNumber, name
-    PROPERTIES(gcr,sl) in
-    FILTERS stock(gcr) == ts
-    ORDER departmentNumber(gcr)
+    OBJECTS gm = GroupMachinery
+    PROPERTIES(gm) READONLY active, npp, name, objectClassName
+    PROPERTIES(gm,sl) in
+    FILTERS stock(gm) == ts
+    ORDER npp(gm)
     
-    FILTERGROUP active FILTER 'Активные' active(gcr) DEFAULT
+    FILTERGROUP active FILTER 'Активные' active(gm) DEFAULT
 
     OBJECTS d = StopListDetail
     PROPERTIES(d)   index,
@@ -256,7 +255,7 @@ DESIGN stopList {
                     fill = 2;
                     type = SPLITV;
                     MOVE BOX(ts) { fill = 3;}
-                    MOVE BOX(gcr) {fill = 1;}
+                    MOVE BOX(gm) {fill = 1;}
                 }          
             }
             NEW specificationBox {
