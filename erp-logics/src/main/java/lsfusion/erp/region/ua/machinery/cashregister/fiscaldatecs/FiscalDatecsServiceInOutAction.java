@@ -27,15 +27,15 @@ public class FiscalDatecsServiceInOutAction extends InternalAction {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
-            Double sum = (Double) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context, cashOperationObject) != null;
+            Double sum = (Double) findProperty("sum[CashOperation]").read(context, cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalDatecsServiceInOutClientAction(baudRate, comPort, sum));
                 if (result == null){
-                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

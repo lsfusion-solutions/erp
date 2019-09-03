@@ -42,7 +42,7 @@ public class FiscalMercuryPrintReceiptAction extends InternalAction {
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt[]").execute(context);

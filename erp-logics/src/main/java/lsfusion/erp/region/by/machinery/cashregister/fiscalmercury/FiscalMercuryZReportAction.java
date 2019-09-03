@@ -7,7 +7,6 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 
@@ -19,12 +18,10 @@ public class FiscalMercuryZReportAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
-            DataSession session = context.getSession();
-
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(2));
                 if (result == null)
-                    findAction("closeCurrentZReport[]").execute(session, context.stack);
+                    findAction("closeCurrentZReport[]").execute(context);
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

@@ -7,7 +7,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 
@@ -19,10 +18,8 @@ public class FiscalDatecsZReportAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
-            DataSession session = context.getSession();
-
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             if (context.checkApply()) {
                 Object VATSumReceipt = context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(2, baudRate, comPort));
@@ -33,7 +30,7 @@ public class FiscalDatecsZReportAction extends InternalAction {
 //                        findProperty("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
 //                    }
                     context.apply();
-                    findAction("closeCurrentZReport[]").execute(session, context.stack);
+                    findAction("closeCurrentZReport[]").execute(context);
                 } else if (VATSumReceipt != null)
                     context.requestUserInteraction(new MessageClientAction((String) VATSumReceipt, "Ошибка"));
             }

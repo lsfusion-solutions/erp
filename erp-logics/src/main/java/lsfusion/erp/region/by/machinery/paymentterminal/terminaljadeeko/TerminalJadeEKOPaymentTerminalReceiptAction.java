@@ -36,7 +36,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptAction extends InternalAction 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
                 Integer comPort = (Integer) findProperty("comPortCurrentPaymentTerminalModelCashRegister[]").read(context);
                 BigDecimal sumCard = null;
@@ -76,7 +76,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptAction extends InternalAction 
 
                 String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null : (String) context.requestUserInteraction(new TerminalJadeEKOPaymentTerminalReceiptClientAction(comPort, sumCard.abs(), isSale, null));
 
-                findProperty("postPaymentTerminalReceiptResult[]").change(result, context.getSession());
+                findProperty("postPaymentTerminalReceiptResult[]").change(result, context);
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

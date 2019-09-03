@@ -10,7 +10,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 import java.util.Iterator;
@@ -27,23 +26,22 @@ public class FiscalDatecsDisplayTextAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
-        DataSession session = context.getSession();
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(context, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-                String name = (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject);
-                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(session, receiptDetailObject);
-                Double quantity = (Double) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
-                Double price = (Double) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                Double sum = (Double) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
-                Double articleDisc = (Double) findProperty("discountPercent[ReceiptSaleDetail]").read(session, receiptDetailObject);
-                Double articleDiscSum = (Double) findProperty("discountSum[ReceiptDetail]").read(session, receiptDetailObject);
+                String name = (String) findProperty("nameSku[ReceiptDetail]").read(context, receiptDetailObject);
+                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(context, receiptDetailObject);
+                Double quantity = (Double) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
+                Double price = (Double) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
+                Double sum = (Double) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
+                Double articleDisc = (Double) findProperty("discountPercent[ReceiptSaleDetail]").read(context, receiptDetailObject);
+                Double articleDiscSum = (Double) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject);
 
 
                 String result = (String) context.requestUserInteraction(new FiscalDatecsDisplayTextClientAction(baudRate, comPort, new ReceiptItem(price, quantity, barcode, name, sum, articleDisc, articleDiscSum, 0, 0)));

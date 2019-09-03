@@ -28,13 +28,13 @@ public class FiscalMercuryServiceInOutAction extends InternalAction {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context, cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context, cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryServiceInOutClientAction(sum));
                 if (result == null){
-                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

@@ -40,7 +40,7 @@ public class FiscalDatecsPrintReceiptAction extends InternalAction {
 
         try {
 
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt[]").execute(context);

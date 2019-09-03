@@ -17,7 +17,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -30,12 +29,9 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
-
-        DataSession session = context.getSession();
-
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -49,7 +45,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
 
             operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(context);
             List<UpdateDataOperator> operatorList = new ArrayList<>();
             for (ImMap<Object, Object> operatorValues : operatorResult.valueIt()) {
                 Integer number = (Integer) operatorValues.get("operatorNumberGroupCashRegisterCustomUser");
@@ -60,7 +56,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<>();
-            ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(session);
+            ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(context);
             DataObject taxVATObject = ((ConcreteCustomClass) findClass("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
@@ -76,7 +72,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
             rangeQuery.and(findProperty("number[Range]").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(context);
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");
                 Double value = (Double) rangeValues.get("valueCurrentRateRange");
