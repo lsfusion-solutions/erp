@@ -470,11 +470,11 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
     markupSumSold(Sku sku, snapshot) <- NULL;
     sumSold(Sku sku, snapshot) <- NULL;
     
-    markupSumSold (Sku sku, snapshot) <- (GROUP
-            SUM markupSumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)) WHERE include(snapshot, sku);
+    markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
+            SUM markupSumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
     
-    sumSold (Sku sku, snapshot) <- (GROUP
-            SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)) WHERE include(snapshot, sku);
+    sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP
+            SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
     
@@ -507,17 +507,17 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
     ELSE {
         // считать проценты относительно определенного уровня группы товаров
         
-        percInMarkupSold (Sku sku, snapshot) <- round4(markupSumSold(sku, snapshot)*100.00 /
-                markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
+        percInMarkupSold (Sku sku, snapshot) <- OVERRIDE round4(markupSumSold(sku, snapshot)*100.00 /
+                markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)), 0.0 WHERE include(snapshot, sku);
         
-        indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot)  ORDER DESC markupSumSold(sku, snapshot), name(sku)
+        indexMarkupBest(Sku sku, snapshot) <- PARTITION SUM 1 IF markupSumSold(sku, snapshot) ORDER DESC markupSumSold(sku, snapshot), name(sku)
                 BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
         partitionMarkupBest(Sku sku, snapshot) <- PARTITION SUM markupSumSold(sku, snapshot) ORDER indexMarkupBest(sku, snapshot) 
                 BY groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot WHERE include(snapshot, sku);
                 
-        percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / 
-                markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
+        percMarkupOrder(Sku sku, snapshot) <- OVERRIDE round4(partitionMarkupBest(sku, snapshot)*100.00 / 
+                markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)), 0.0 WHERE include(snapshot, sku);
         
         statusMarkup (Sku sku, snapshot) <- CASE 
             WHEN  percMarkupOrder(sku, snapshot) <= percA(snapshot) THEN 'A'
@@ -761,7 +761,7 @@ FORM snapshotABC 'ABC-отчет'
     
     OBJECTS           s=Sku
     FILTERS indexMarkupBest(s,r) AND isParent(sk, s)
-    
+
     PROPERTIES (s,r)  indexMarkupBest
     PROPERTIES        READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs() 
     PROPERTIES (s,r)  READONLY markupSumSold,
