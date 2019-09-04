@@ -52,7 +52,8 @@ CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
     MESSAGE 'Для Запрета продаж по кассе выбран склад, который не принадлежит компании';                                       
 
 TABLE groupMachineryStopList (GroupMachinery, StopList);
-in 'Вкл.' = DATA BOOLEAN (GroupMachinery, StopList);                                       
+in 'Вкл.' = DATA BOOLEAN (GroupMachinery, StopList);
+overIn 'Вкл.' (GroupMachinery gm, StopList sl) = OVERRIDE in(gm,sl), in(stock(gm),sl) AND NOT (GROUP SUM 1 IF in(GroupMachinery m,sl) AND stock(m) == stock(gm));
 
 @defineDocumentPosted(stopList);
 @defineDocumentClosed(stopList);
