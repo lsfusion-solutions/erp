@@ -18,8 +18,8 @@ public class FiscalCasbiXReportAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(1, comPort, baudRate));
             if (result == null) {

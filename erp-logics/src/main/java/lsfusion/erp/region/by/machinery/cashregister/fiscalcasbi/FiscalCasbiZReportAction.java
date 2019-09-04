@@ -22,10 +22,9 @@ public class FiscalCasbiZReportAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
-            DataSession session = context.getSession();
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(2, comPort, baudRate));
@@ -38,7 +37,7 @@ public class FiscalCasbiZReportAction extends InternalAction {
                         if (result != null)
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                         else
-                            findAction("closeCurrentZReport[]").execute(session, context.stack);
+                            findAction("closeCurrentZReport[]").execute(context);
                     }
                 }
             }

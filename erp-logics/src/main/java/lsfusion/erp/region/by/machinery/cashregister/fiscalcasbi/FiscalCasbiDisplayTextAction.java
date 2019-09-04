@@ -28,24 +28,23 @@ public class FiscalCasbiDisplayTextAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
-        DataSession session = context.getSession();
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(context, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-                String name = (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject);
-                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
-                BigDecimal articleDisc = (BigDecimal) findProperty("discountPercent[ReceiptSaleDetail]").read(session, receiptDetailObject);
+                String name = (String) findProperty("nameSku[ReceiptDetail]").read(context, receiptDetailObject);
+                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(context, receiptDetailObject);
+                BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
+                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
+                BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
+                BigDecimal articleDisc = (BigDecimal) findProperty("discountPercent[ReceiptSaleDetail]").read(context, receiptDetailObject);
 
-                String typeReceiptDetail = (String) findProperty("type[ReceiptDetail]").read(session, receiptDetailObject);
+                String typeReceiptDetail = (String) findProperty("type[ReceiptDetail]").read(context, receiptDetailObject);
                 Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
 
                 if (sum == null) sum = BigDecimal.ZERO;

@@ -3,23 +3,25 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.List;
 
 public class ExportExcelBanksAction extends ExportExcelAction {
 
@@ -41,8 +43,6 @@ public class ExportExcelBanksAction extends ExportExcelAction {
 
         List<List<String>> data = new ArrayList<>();
 
-        DataSession session = context.getSession();
-
         try {
 
             KeyExpr bankExpr = new KeyExpr("Bank");
@@ -59,7 +59,7 @@ public class ExportExcelBanksAction extends ExportExcelAction {
 
             bankQuery.and(findProperty("name[Bank]").getExpr(context.getModifier(), bankExpr).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> bankResult = bankQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> bankResult = bankQuery.execute(context);
 
             for (ImMap<Object, Object> bankValue : bankResult.values()) {
 

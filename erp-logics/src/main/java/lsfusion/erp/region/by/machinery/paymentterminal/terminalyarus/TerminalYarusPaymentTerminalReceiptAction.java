@@ -36,7 +36,7 @@ public class TerminalYarusPaymentTerminalReceiptAction extends InternalAction {
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
                 String host = (String) findProperty("hostPaymentTerminalCurrentCashRegister[]").read(context);
                 Integer port = (Integer) findProperty("comPortCurrentPaymentTerminalModelCashRegister[]").read(context);
@@ -79,7 +79,7 @@ public class TerminalYarusPaymentTerminalReceiptAction extends InternalAction {
                     String result = sumCard == null || sumCard.abs().equals(BigDecimal.ZERO) ? null :
                             (String) context.requestUserInteraction(new TerminalYarusPaymentTerminalReceiptClientAction(host, port, sumCard.abs(), isSale, null));
 
-                    findProperty("postPaymentTerminalReceiptResult[]").change(result, context.getSession());
+                    findProperty("postPaymentTerminalReceiptResult[]").change(result, context);
                 } else {
                     throw new RuntimeException("Не задан хост / порт терминала Yarus");
                 }
