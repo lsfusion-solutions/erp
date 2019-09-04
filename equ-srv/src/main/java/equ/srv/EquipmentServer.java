@@ -14,33 +14,33 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
+import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.remote.RmiManager;
-import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.StringClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
+import lsfusion.server.base.controller.remote.manager.RmiServer;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.base.controller.thread.ThreadLocalContext;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.expr.value.ValueExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
-import lsfusion.server.logics.*;
-import lsfusion.server.language.property.LP;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.LogicsInstance;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
+import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.data.StringClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
-import lsfusion.server.base.controller.remote.manager.RmiServer;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.InitializingBean;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
@@ -205,12 +205,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException {
+    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException {
         return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
     }
 
     @Override
-    public String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException {
+    public String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException {
         return softCheck == null ? null : softCheck.sendCashierTimeList(cashierTimeList);
     }
 
@@ -774,7 +774,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) throws RemoteException, SQLException {
+    public List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) {
         return MachineryExchangeEquipmentServer.readDiscountCardList(getDbManager(), this, requestExchange);
     }
 
@@ -784,12 +784,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean enabledStopListInfo() throws RemoteException, SQLException {
+    public boolean enabledStopListInfo() {
         return StopListEquipmentServer.enabledStopListInfo();
     }
 
     @Override
-    public List<StopListInfo> readStopListInfo() throws RemoteException, SQLException {
+    public List<StopListInfo> readStopListInfo() throws SQLException {
         return StopListEquipmentServer.readStopListInfo(getDbManager(), this);
     }
 
@@ -819,17 +819,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void errorStopListReport(String numberStopList, Exception e) throws RemoteException, SQLException {
+    public void errorStopListReport(String numberStopList, Exception e) {
         StopListEquipmentServer.errorStopListReport(getBusinessLogics(), getStack(), getDbManager(), this, numberStopList, e);
     }
 
     @Override
-    public void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
+    public void succeedStopList(String numberStopList, Set<String> idStockSet) {
         StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), getDbManager(), this, numberStopList, idStockSet);
     }
 
     @Override
-    public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException {
+    public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws SQLException {
         return MachineryExchangeEquipmentServer.readTerminalOrderList(getDbManager(), this, requestExchange);
     }
 
@@ -839,32 +839,32 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void finishRequestExchange(Set<Long> succeededRequestsSet) throws RemoteException, SQLException {
+    public void finishRequestExchange(Set<Long> succeededRequestsSet) throws SQLException {
         MachineryExchangeEquipmentServer.finishRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), succeededRequestsSet);
     }
 
     @Override
-    public void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException {
+    public void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws SQLException {
         MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), failedRequestsMap);
     }
 
     @Override
-    public void errorRequestExchange(Long requestExchange, Throwable t) throws RemoteException, SQLException {
+    public void errorRequestExchange(Long requestExchange, Throwable t) throws SQLException {
         MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), requestExchange, t);
     }
 
     @Override
-    public Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException {
+    public Map<String, BigDecimal> readZReportSumMap() throws SQLException {
         return SendSalesEquipmentServer.readZReportSumMap(getDbManager(), this);
     }
     
     @Override
-    public void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException {
+    public void succeedExtraCheckZReport(List<String> idZReportList) throws SQLException {
         SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), getDbManager(), this, getStack(), idZReportList);
     }
 
     @Override
-    public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws SQLException {
         return SendSalesEquipmentServer.readCashRegisterInfo(getDbManager(), this, sidEquipmentServer);
     }
 
@@ -874,17 +874,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws SQLException {
         return TerminalDocumentEquipmentServer.readTerminalInfo(getDbManager(), this, sidEquipmentServer);
     }
 
     @Override
-    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
+    public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) {
         return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), getDbManager(), this, getStack(), terminalDocumentDetailList);
     }
 
     @Override
-    public List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+    public List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws SQLException {
         return MachineryExchangeEquipmentServer.readMachineryInfo(getDbManager(), this, sidEquipmentServer);
     }
 
@@ -894,17 +894,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException {
+    public void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) {
         SendSalesEquipmentServer.logRequestZReportSumCheck(getDbManager(), this, getBusinessLogics(), getStack(), idRequestExchange, nppGroupMachinery, checkSumResult);
     }
 
     @Override
-    public Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException {
+    public Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) {
         return SendSalesEquipmentServer.readCashRegistersStock(getDbManager(), this, idStock);
     }
 
     @Override
-    public PromotionInfo readPromotionInfo() throws RemoteException, SQLException {
+    public PromotionInfo readPromotionInfo() throws RemoteException {
         return promotionInterface == null ? null : promotionInterface.readPromotionInfo();
     }
 
@@ -1964,12 +1964,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public Set<String> readCashDocumentSet() throws IOException, SQLException {
+    public Set<String> readCashDocumentSet() throws SQLException {
         return SendSalesEquipmentServer.readCashDocumentSet(getDbManager(), this);
     }
 
     @Override
-    public String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException {
+    public String sendCashDocumentInfo(List<CashDocument> cashDocumentList) {
         return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), getDbManager(), this, getStack(), cashDocumentList);
     }
 
@@ -2169,12 +2169,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public boolean needUpdateProcessMonitor(String sidEquipmentServer) throws RemoteException, SQLException {
+    public boolean needUpdateProcessMonitor(String sidEquipmentServer) {
         return ProcessMonitorEquipmentServer.needUpdateProcessMonitor(getDbManager(), this, sidEquipmentServer);
     }
 
     @Override
-    public void logProcesses(String sidEquipmentServer, String data) throws RemoteException, SQLException {
+    public void logProcesses(String sidEquipmentServer, String data) {
         ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), getDbManager(), this, getStack(), sidEquipmentServer, data);
     }
 
