@@ -8,7 +8,7 @@ select 'Отм.' = DATA LOCAL BOOLEAN (PriceListDetail);
 countSelectPriceListDetail 'Кол-во строк'  = GROUP SUM 1 IF select(PriceListDetail d) BY sku(d), priceList(d);
 countSelectPriceListDetail 'Кол-во строк'  = GROUP SUM 1 IF select(PriceListDetail d) BY priceList(d);
 
-createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ценники'(DepartmentStore departmentStore,  PriceList priceList, DataPriceListType dpt)  { 
+createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ценники'(DepartmentStore departmentStore,  PriceList priceList, PriceListType dpt)  { 
     select(Sku s)<- NULL;
     
     IF NOT countSelectPriceListDetail(priceList) THEN {
@@ -26,7 +26,7 @@ createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ц
             FOR select(LabelType type) DO {
                 NEW t = LabelTransaction {
                     departmentStore(t) <- departmentStore;
-                    priceListType(t) <- OVERRIDE dpt IF dpt IS DataPriceListType, retailPriceListType(departmentStore);    
+                    priceListType(t) <- dpt;    
                     date(t) <- fromDate(priceList);      
                     time(t) <- fromTime(priceList);
                     labelType(t) <- type;
@@ -72,6 +72,8 @@ createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ц
     select(PriceListDetail detail) <- NULL;
 } TOOLBAR;
 
+skitFilterPriceLiist = ABSTRACT BOOLEAN ();
+
 EXTEND FORM updatePriceDashboard
     OBJECTS pt = DataPriceListType PANEL 
     PROPERTIES (pt) SELECTOR name
@@ -83,7 +85,7 @@ EXTEND FORM updatePriceDashboard
            nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
     FILTERS in(psc,d),
-            in(psc,pt)
+            in(psc,pt) OR psc IS PriceList AND skitFilterPriceLiist()
     FILTERGROUP inactivePriceList
         FILTER 'Текущие' isActive(psc) 'F11'            
         FILTER 'Активные' isActive(psc) OR (fromDateTime(psc) > currentDateTime()) 'F10' DEFAULT        
