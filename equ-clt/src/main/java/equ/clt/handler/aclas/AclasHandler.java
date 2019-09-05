@@ -257,32 +257,30 @@ public class AclasHandler extends MultithreadScalesHandler {
 
                         if (cleared || !needToClear) {
                             processTransactionLogger.info(getLogPrefix() + "Sending items..." + scales.port);
-                            if (localErrors.isEmpty()) {
-                                //byte[] ascCode = getScaleStatus(udpPort);
-                                int count = 0;
-                                for (ScalesItemInfo item : transaction.itemsList) {
-                                    count++;
-                                    if (!Thread.currentThread().isInterrupted() && globalError < 5) {
-                                        if (item.idBarcode != null && item.idBarcode.length() <= 5) {
-                                            processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                            int attempts = 0;
-                                            Boolean result = null;
-                                            while ((result == null || !result) && attempts < 3) {
-                                                result = loadPLU(udpPort, scales, item);
-                                                attempts++;
-                                            }
-                                            if (!result) {
-                                                logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
-                                                globalError++;
-                                            }
-                                        } else {
-                                            processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                            //byte[] ascCode = getScaleStatus(udpPort);
+                            int count = 0;
+                            for (ScalesItemInfo item : transaction.itemsList) {
+                                count++;
+                                if (!Thread.currentThread().isInterrupted() && globalError < 5) {
+                                    if (item.idBarcode != null && item.idBarcode.length() <= 5) {
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                        int attempts = 0;
+                                        Boolean result = null;
+                                        while ((result == null || !result) && attempts < 3) {
+                                            result = loadPLU(udpPort, scales, item);
+                                            attempts++;
                                         }
-                                    } else break;
-                                }
-
-
+                                        if (!result) {
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                            globalError++;
+                                        }
+                                    } else {
+                                        processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, item #%s: incorrect barcode %s", scales.port, transaction.id, count, item.idBarcode));
+                                    }
+                                } else break;
                             }
+
+
                         }
                     } else {
                         logError(localErrors, String.format(getLogPrefix() + "IP %s, failed to connect", scales.port));

@@ -60,7 +60,7 @@ public class DBFUtils {
         int i;
 
         //-- fill database
-        byte b[];
+        byte[] b;
         try {
             b = inString.getBytes(DBF.encodedType);
         } catch (UnsupportedEncodingException uee) {

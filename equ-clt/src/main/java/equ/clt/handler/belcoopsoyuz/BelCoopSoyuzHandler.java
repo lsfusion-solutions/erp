@@ -132,8 +132,6 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
                                     File baseFile = new File(basePath);
                                     File baseMdxFile = new File(baseMDXPath);
-                                    if(ftp)
-                                        copyFTPToFile(basePath, baseFile);
 
                                     if(transaction.snapshot) {
                                         safeFileDelete(baseFile, processTransactionLogger);

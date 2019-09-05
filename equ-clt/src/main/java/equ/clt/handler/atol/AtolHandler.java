@@ -415,7 +415,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                         if (isPayment) {
                             for (SalesInfo salesInfo : currentSalesInfoList) {
-                                if (salesInfo.numberReceipt != null && numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
+                                if (salesInfo.numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
                                     Integer paymentType = getIntValue(entry, 8);
                                     BigDecimal sum = getBigDecimalValue(entry, 9);
                                     if (paymentType != null) {

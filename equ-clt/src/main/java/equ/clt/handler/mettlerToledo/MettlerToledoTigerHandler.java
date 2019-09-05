@@ -244,7 +244,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                                         attempts++;
                                     }
                                     if (!result) {
-                                        logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                        logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, false, item.idItem));
                                         globalError++;
                                     }
                                 } else {

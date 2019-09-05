@@ -261,9 +261,6 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
 
     private String makeString(int var1) {
         String var2 = Integer.toHexString(var1);
-        if(var2.length() > 8) {
-            var2 = var2.substring(0, 8);
-        }
         while(var2.length() < 8) {
             var2 = '0' + var2;
         }
@@ -571,7 +568,7 @@ public abstract class BizerbaHandler extends DefaultScalesHandler {
     }
 
     private String synchronizeTime(List<String> errors, TCPPort port, String ip) {
-        long timeZero = new Date(1970-1900, 0, 1, 0, 0, 0).getTime() / 1000;
+        long timeZero = new Date(1970-1900, Calendar.JANUARY, 1, 0, 0, 0).getTime() / 1000;
         String command = "UHR   " + separator + "N00" + separator + "UUHR" + (System.currentTimeMillis() / 1000 - timeZero) + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, ip);

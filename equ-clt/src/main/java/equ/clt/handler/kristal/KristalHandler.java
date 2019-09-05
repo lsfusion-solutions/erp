@@ -525,7 +525,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
             String where1 = "";
             if (requestExchange.dateFrom != null)
-                where1 = (where1.isEmpty() ? "WHERE " : "") + "LogOn >= '" + requestExchange.dateFrom + "'";
+                where1 = "WHERE " + "LogOn >= '" + requestExchange.dateFrom + "'";
             if (requestExchange.dateTo != null)
                 where1 += (where1.isEmpty() ? "WHERE " : " AND ") + " LogOn <= '" + requestExchange.dateTo + "'";
             String where2 = "";

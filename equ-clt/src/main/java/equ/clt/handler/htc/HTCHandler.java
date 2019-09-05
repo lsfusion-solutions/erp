@@ -784,9 +784,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     safeFileDelete(new File(directory + "/Sales.ans"), sendSalesLogger);
                 }
             }
-            for(String filePath : receiptFilesPathList) {
-                filePathList.add(filePath);
-            }
+            filePathList.addAll(receiptFilesPathList);
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new HTCSalesBatch(salesInfoList, filePathList);
