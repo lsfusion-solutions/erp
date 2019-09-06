@@ -274,12 +274,6 @@ addSkuLists 'Отметить списки SKU' () {
 
 EXTEND FORM currentBalanceSkuStock PROPERTIES addSkuLists();
 
-DESIGN currentBalanceSkuStock {
-    filter {
-        MOVE PROPERTY (addSkuLists());
-    }
-}
-
 createSkuListIn 'Создать список SKU' () {
     NEWSESSION NESTED (in[Item]) NEW l = List {
         FOR in(Item i) DO NEW d = ListDetail {
@@ -300,7 +294,16 @@ addToSkuListIn 'Добавить в список SKU' () {
     }
 }
 
-EXTEND FORM items PROPERTIES () createSkuListIn, addToSkuListIn;
+addSkuListsIn 'Отметить списки SKU' () {
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
+            in(sk) <- TRUE;
+        }
+    }
+    in(List l) <- NULL;
+}
+
+EXTEND FORM items PROPERTIES () createSkuListIn, addToSkuListIn, addSkuListsIn;
 
 DESIGN items {
     actions {
@@ -308,6 +311,7 @@ DESIGN items {
             caption = 'Отмеченные';
             MOVE PROPERTY (createSkuListIn());
             MOVE PROPERTY (addToSkuListIn());
+            MOVE PROPERTY (addSkuListsIn());
         }
     }
 }
@@ -348,6 +352,7 @@ DESIGN currentBalanceSkuStock {
             caption = 'Отмеченные';
             MOVE PROPERTY (createSkuListSelect());
             MOVE PROPERTY (addToSkuListSelect());
+            MOVE PROPERTY (addSkuLists());
         }
     }
 }
