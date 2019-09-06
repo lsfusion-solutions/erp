@@ -1,16 +1,15 @@
 package lsfusion.erp.region.by.masterdata;
 
 import lsfusion.erp.integration.DefaultIntegrationAction;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -88,8 +87,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
             ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
                     homeCurrencyField, rateField, foreignRateField, dateField), data);
 
-            DataSession session = context.getSession();
-            IntegrationService service = new IntegrationService(session, table, Arrays.asList(typeExchangeBYRKey,
+            IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeBYRKey,
                     typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
             service.synchronize(true, false);
             //session.apply(LM.getBL());

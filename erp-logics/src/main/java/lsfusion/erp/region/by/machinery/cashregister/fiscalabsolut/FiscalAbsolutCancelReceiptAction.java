@@ -29,11 +29,11 @@ public class FiscalAbsolutCancelReceiptAction extends InternalAction {
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
                 boolean useSKNO = findProperty("useSKNOAbsolutCurrentCashRegister[]").read(context) != null;
 

@@ -42,8 +42,6 @@ public class ExportExcelLegalEntitiesAction extends ExportExcelAction {
         
         List<List<String>> data = new ArrayList<>();
 
-        DataSession session = context.getSession();
-
         try {
 
             KeyExpr legalEntityExpr = new KeyExpr("LegalEntity");
@@ -64,7 +62,7 @@ public class ExportExcelLegalEntitiesAction extends ExportExcelAction {
 
             legalEntityQuery.and(findProperty("name[LegalEntity]").getExpr(context.getModifier(), legalEntityQuery.getMapExprs().get("LegalEntity")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(context);
 
             for (int i = 0, size = legalEntityResult.size(); i < size; i++) {
 

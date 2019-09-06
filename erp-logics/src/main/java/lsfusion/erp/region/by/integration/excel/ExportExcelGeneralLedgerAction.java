@@ -59,8 +59,6 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
 
         List<List<String>> data = new ArrayList<>();
 
-        DataSession session = context.getSession();
-
         try {
 
             DataObject dateFromObject = context.getDataKeyValue(dateFromInterface);
@@ -84,7 +82,7 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
 
             generalLedgerQuery.and(findProperty("sum[GeneralLedger]").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(context);
 
             for (ImMap<Object, Object> generalLedgerValue : generalLedgerResult.values()) {
 

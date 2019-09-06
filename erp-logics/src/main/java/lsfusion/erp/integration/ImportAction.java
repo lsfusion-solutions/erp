@@ -2,23 +2,21 @@ package lsfusion.erp.integration;
 
 import lsfusion.base.ExceptionUtils;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.data.StringClass;
-import lsfusion.server.logics.classes.data.time.TimeClass;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.StringClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.data.time.TimeClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
-import org.xBaseJ.xBaseJException;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -76,8 +74,8 @@ public class ImportAction extends DefaultImportAction {
 
             this.context = context;
 
-            ObjectValue countryBelarus = findProperty("country[BPSTRING[3]]").readClasses(context.getSession(), new DataObject("112", StringClass.get(3)));
-            findProperty("defaultCountry[]").change(countryBelarus, context.getSession());
+            ObjectValue countryBelarus = findProperty("country[BPSTRING[3]]").readClasses(context, new DataObject("112", StringClass.get(3)));
+            findProperty("defaultCountry[]").change(countryBelarus, context);
             context.apply();
 
             importItemGroups(importData.getItemGroupsList());
@@ -432,7 +430,7 @@ public class ImportAction extends DefaultImportAction {
         for (int i = 0; i < itemsList.size(); i++)
             data.get(i).add(itemsList.get(i).date);
 
-        ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context.getSession());
+        ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context);
         if(defaultCountryObject instanceof DataObject) {
             ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVAT[Item,Country,DATE]"));
             ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
@@ -1067,7 +1065,7 @@ public class ImportAction extends DefaultImportAction {
                 
                 if (!skipCertificateInvoiceParams) {
                     if (purchaseDeclarationDetailLM != null) {
-                        ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context.getSession());
+                        ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context);
                         ImportField codeCustomsGroupField = new ImportField(purchaseDeclarationDetailLM.findProperty("code[CustomsGroup]"));
                         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) purchaseDeclarationDetailLM.findClass("CustomsGroup"),
                                 purchaseDeclarationDetailLM.findProperty("customsGroup[BPSTRING[10]]").getMapping(codeCustomsGroupField));

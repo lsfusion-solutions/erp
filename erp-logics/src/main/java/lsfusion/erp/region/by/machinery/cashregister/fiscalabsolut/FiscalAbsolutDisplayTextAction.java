@@ -32,33 +32,32 @@ public class FiscalAbsolutDisplayTextAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
-        DataSession session = context.getSession();
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(context, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
 
                 String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-                String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(session, receiptDetailObject);
-                name = trim(name == null ? (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject) : name);
+                String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(context, receiptDetailObject);
+                name = trim(name == null ? (String) findProperty("nameSku[ReceiptDetail]").read(context, receiptDetailObject) : name);
                 name = name == null ? "" : name;
 
-                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
+                String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(context, receiptDetailObject);
+                BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
+                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
+                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, (DataObject) receiptObject);
                 double sum = sumValue == null ? 0 : sumValue.doubleValue();
-                BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(session, receiptDetailObject);
+                BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject);
                 double articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.doubleValue();
-                double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
-                double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
-                double valueVAT = getDouble((BigDecimal) findProperty("valueVAT[ReceiptDetail]").read(session, receiptDetailObject));
+                double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(context, receiptDetailObject));
+                double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(context, receiptDetailObject));
+                double valueVAT = getDouble((BigDecimal) findProperty("valueVAT[ReceiptDetail]").read(context, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalAbsolutDisplayTextClientAction(logPath, comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum,

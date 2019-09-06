@@ -1,18 +1,17 @@
 package lsfusion.erp.region.ru.masterdata;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -107,8 +106,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
             ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
                     homeCurrencyField, rateField, foreignRateField, dateField), data);
 
-            DataSession session = context.getSession();
-            IntegrationService service = new IntegrationService(session, table, Arrays.asList(typeExchangeRUKey,
+            IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeRUKey,
                     typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
             service.synchronize(true, false);
         }

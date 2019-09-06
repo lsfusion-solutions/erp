@@ -3,23 +3,22 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -64,8 +63,6 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
 
         List<List<String>> data = new ArrayList<>();
 
-        DataSession session = context.getSession();
-
         try {
 
             DataObject dateFromObject = context.getDataKeyValue(dateFromInterface);
@@ -85,7 +82,7 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
             userInvoiceQuery.and(findProperty("number[UserInvoice]").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
             userInvoiceQuery.and(findProperty("date[UserInvoice]").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(context);
 
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
                 DataObject userInvoiceObject = new DataObject((Long)userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteCustomClass) findClass("UserInvoice"));
