@@ -265,3 +265,25 @@ DESIGN priceList {
         MOVE PROPERTY (importPriceLists(p)) FIRST;
     }
 }
+
+overCopy ABSTRACT LIST (PriceList, PriceList);
+overCopy ABSTRACT LIST (PriceListDetail, PriceListDetail);
+copy 'Копировать' (PriceList l) {
+    NEWSESSION NEW n = PriceList {
+        date(n) <- date(l);
+        note(n) <- note(l);
+
+        in(n, Competitor c)<- in(l,c);
+        type(n)<- type(l);
+        FOR priceList(PriceListDetail d) == l DO NEW nd = PriceListDetail {
+            priceList(nd) <- n;
+            sku(nd) <- sku(d);
+            price(nd,Competitor c)<- price(d,c);
+            promotionPrice(nd,Competitor c)<- promotionPrice(d,c);
+            overCopy(d,nd);
+        }
+        overCopy(l, n);
+        SHOW priceList OBJECTS p = n DOCKED;
+    }
+}
+EXTEND FORM priceLists PROPERTIES copy(p) TOOLBAR;
