@@ -8,8 +8,8 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
     ReceiptInstance receipt;
     Integer giftCardPaymentType;
 
-    public FiscalPiritPrintReceiptClientAction(String comPort, Integer baudRate, String cashier, ReceiptInstance receipt, Integer giftCardPaymentType) {
-        super(comPort, baudRate, cashier);
+    public FiscalPiritPrintReceiptClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, ReceiptInstance receipt, Integer giftCardPaymentType) {
+        super(isUnix, comPort, baudRate, cashier);
         this.receipt = receipt;
         this.giftCardPaymentType = giftCardPaymentType;
     }
@@ -28,7 +28,7 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
         } else {
             SerialPort serialPort = null;
             try {
-                serialPort = FiscalPirit.openPort(comPort, baudRate);
+                serialPort = FiscalPirit.openPort(comPort, baudRate, isUnix);
                 FiscalPirit.preparePrint(serialPort);
 
                 Integer numberReceipt = null;

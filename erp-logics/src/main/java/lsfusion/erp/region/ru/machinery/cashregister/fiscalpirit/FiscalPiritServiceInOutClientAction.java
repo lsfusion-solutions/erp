@@ -9,8 +9,8 @@ import java.math.BigDecimal;
 public class FiscalPiritServiceInOutClientAction extends FiscalPiritClientAction {
     BigDecimal sum;
 
-    public FiscalPiritServiceInOutClientAction(String comPort, Integer baudRate, String cashier, BigDecimal sum) {
-        super(comPort, baudRate, cashier);
+    public FiscalPiritServiceInOutClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, BigDecimal sum) {
+        super(isUnix, comPort, baudRate, cashier);
         this.sum = sum;
     }
 
@@ -18,7 +18,7 @@ public class FiscalPiritServiceInOutClientAction extends FiscalPiritClientAction
 
         SerialPort serialPort = null;
         try {
-            serialPort = FiscalPirit.openPort(comPort, baudRate);
+            serialPort = FiscalPirit.openPort(comPort, baudRate, isUnix);
             FiscalPirit.preparePrint(serialPort);
             FiscalPirit.inOut(serialPort, cashier, sum);
         } catch (RuntimeException e) {

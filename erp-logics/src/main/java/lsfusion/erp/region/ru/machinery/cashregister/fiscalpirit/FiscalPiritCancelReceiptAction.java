@@ -31,11 +31,12 @@ public class FiscalPiritCancelReceiptAction extends InternalAction {
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
+                boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 String cashier = (String) findProperty("currentUserName[]").read(context);
 
-                String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(comPort, baudRate, cashier, 4));
+                String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 4));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalPiritCancelReceipt Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

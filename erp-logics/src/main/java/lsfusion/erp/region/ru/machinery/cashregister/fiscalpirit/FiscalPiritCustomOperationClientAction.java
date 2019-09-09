@@ -6,8 +6,8 @@ import lsfusion.interop.action.ClientActionDispatcher;
 public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAction {
     int type;
 
-    public FiscalPiritCustomOperationClientAction(String comPort, Integer baudRate, String cashier, int type) {
-        super(comPort, baudRate, cashier);
+    public FiscalPiritCustomOperationClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, int type) {
+        super(isUnix, comPort, baudRate, cashier);
         this.type = type;
     }
 
@@ -15,7 +15,7 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
 
         SerialPort serialPort = null;
         try {
-            serialPort = FiscalPirit.openPort(comPort, baudRate);
+            serialPort = FiscalPirit.openPort(comPort, baudRate, isUnix);
             FiscalPirit.preparePrint(serialPort);
             switch (type) {
                 case 1:

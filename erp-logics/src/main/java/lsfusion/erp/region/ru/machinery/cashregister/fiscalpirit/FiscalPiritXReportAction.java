@@ -21,11 +21,12 @@ public class FiscalPiritXReportAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("currentUserName[]").read(context);
 
-            String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(comPort, baudRate, cashier, 1));
+            String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 1));
             if (result == null) {
                 context.apply();
             }

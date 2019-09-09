@@ -39,9 +39,9 @@ public class FiscalPirit {
         }
     }
 
-    public static SerialPort openPort(String comPort, Integer baudRate) {
+    public static SerialPort openPort(String comPort, Integer baudRate, boolean isUnix) {
         try {
-            SerialPort serialPort = new SerialPort("COM" + comPort);
+            SerialPort serialPort = new SerialPort((isUnix ? "tty" : "COM") + comPort);
             serialPort.openPort();
             serialPort.setParams(baudRate, 8, 1, 0);
             return serialPort;

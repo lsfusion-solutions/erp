@@ -23,12 +23,13 @@ public class FiscalPiritZReportAction extends InternalAction {
 
             DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("currentUserName[]").read(context);
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(comPort, baudRate, cashier, 2));
+                Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 2));
                 if (result instanceof String) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 } else if(result instanceof Integer) {

@@ -30,6 +30,7 @@ public class FiscalPiritServiceInOutAction extends InternalAction {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
+            boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("currentUserName[]").read(context);
@@ -37,7 +38,7 @@ public class FiscalPiritServiceInOutAction extends InternalAction {
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context, cashOperationObject);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalPiritServiceInOutClientAction(comPort, baudRate, cashier, sum));
+                String result = (String) context.requestUserInteraction(new FiscalPiritServiceInOutClientAction(isUnix, comPort, baudRate, cashier, sum));
                 if (result == null){
                     findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else {

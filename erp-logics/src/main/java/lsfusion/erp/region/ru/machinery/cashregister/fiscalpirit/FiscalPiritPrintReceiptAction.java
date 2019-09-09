@@ -53,6 +53,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 else
                     ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error (Not Fiscal)");
             } else {
+                boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 String cashier = (String) findProperty("currentUserName[]").read(context);
@@ -150,7 +151,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 }
 
                 if (context.checkApply()) {
-                    Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
+                    Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(isUnix, comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             giftCardPaymentType));
                     if (result instanceof Integer) {
