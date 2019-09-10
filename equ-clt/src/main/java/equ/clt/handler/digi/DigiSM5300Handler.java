@@ -49,14 +49,13 @@ public class DigiSM5300Handler extends DigiHandler {
             private Set<Integer> usedGroups = new HashSet<>();
             @Override
             protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItemInfo item, Integer plu) throws IOException {
-                //JSONObject infoJSON = new JSONObject("{\"digism5300\": {\"numberGroup\": \"1\", nameGroup: \"Фрукты2\", \"nameItem\": \"Банан обыкновенный\"}}"/*item.info*/).optJSONObject("digism5300");
-                item.pluNumber = Integer.parseInt(item.idBarcode) % 10 + 1; //for test
-                if (/*infoJSON != null && */item.pluNumber != null) {
+                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("digism5300") : null;
+                if (infoJSON != null && item.pluNumber != null) {
 
-                    Integer numberGroup = 1;//infoJSON.optInt("numberGroup");
+                    Integer numberGroup = infoJSON.optInt("numberGroup");
                     numberGroup = numberGroup == 0 ? 1 : numberGroup < 10 ? numberGroup : (numberGroup + 20);
-                    String nameGroup = "Фрукты";//infoJSON.optString("nameGroup", "Group " + numberGroup);
-                    String nameItem = item.name;//infoJSON.optString("nameItem", item.name);
+                    String nameGroup = infoJSON.optString("nameGroup", "Group " + numberGroup);
+                    String nameItem = infoJSON.optString("nameItem", item.name);
 
                     processTransactionLogger.info(String.format(getLogPrefix() + "Sending key assignment %s to scales %s", item.pluNumber, scales.port));
                     int reply = sendRecord(socket, cmdWrite, fileKeyAssignment, makeKeyAssignmentRecord(item, numberGroup, nameGroup, nameItem, false));
