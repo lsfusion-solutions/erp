@@ -994,7 +994,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         List<SalesInfo> currentSalesInfoList = new ArrayList<>();
 
                         Map<String, Map<String, Object>> externalSumMap = new HashMap<>();
-                        Map<String, Long> dateTimeShiftMap = new HashMap<>();
+                        List<ShiftInfo> shiftList = new ArrayList<>();
                         Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
                         Matcher shiftMatcher = shiftPattern.matcher(fileContent);
                         if (shiftMatcher.matches()) {
@@ -1019,6 +1019,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                     }
 
                                     Long timeBeg = parseDateTime(documentObject.get("timeBeg"));
+                                    Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                     if (timeBeg != null) {
                                         Map<String, Object> zReportExtraFields = new HashMap<>();
                                         zReportExtraFields.put("sumCashEnd", sumCashEnd);
@@ -1026,7 +1027,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         zReportExtraFields.put("sumBack", sumBack);
                                         zReportExtraFields.put("externalSum", sumGain);
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
-                                        dateTimeShiftMap.put(numberCashRegister + "/" + numberZReport, timeBeg);
+                                        shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
                                     }
                                 }
                             }
@@ -1057,7 +1058,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         Date dateReceipt = timeEnd != null ? new Date(timeEnd) : null;
                                         Time timeReceipt = timeEnd != null ? new Time(timeEnd) : null;
 
-                                        Long dateTimeShift = dateTimeShiftMap.get(numberCashRegister + "/" + numberZReport);
+                                        Long dateTimeShift = getDateTimeShiftByReceipt(shiftList, numberCashRegister, numberZReport, timeEnd);
                                         Date dateZReport = dateTimeShift == null ? dateReceipt : new Date(dateTimeShift);
                                         Time timeZReport = dateTimeShift == null ? timeReceipt : new Time(dateTimeShift);
 
@@ -1367,5 +1368,36 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         if (checkSum != 0)
             checkSum = 10 - checkSum;
         return barcode.concat(String.valueOf(checkSum));
+    }
+
+    private Long getDateTimeShiftByReceipt(List<ShiftInfo> shiftList, Integer numberCashRegister, String numberZReport, Long dateTimeReceipt) {
+        //ищем по вхождению в интервал
+        for(ShiftInfo shift : shiftList) {
+            if(shift.numberCashRegister.equals(numberCashRegister) && shift.numberZReport.equals(numberZReport)
+                    && shift.from <= dateTimeReceipt && shift.to >= dateTimeReceipt) {
+                return shift.from;
+            }
+        }
+        //ищем просто по кассе и номеру
+        for(ShiftInfo shift : shiftList) {
+            if(shift.numberCashRegister.equals(numberCashRegister) && shift.numberZReport.equals(numberZReport)) {
+                return shift.from;
+            }
+        }
+        return null;
+    }
+
+    private class ShiftInfo {
+        Integer numberCashRegister;
+        String numberZReport;
+        Long from;
+        Long to;
+
+        public ShiftInfo(Integer numberCashRegister, String numberZReport, Long from, Long to) {
+            this.numberCashRegister = numberCashRegister;
+            this.numberZReport = numberZReport;
+            this.from = from;
+            this.to = to;
+        }
     }
 }
