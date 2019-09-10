@@ -6,7 +6,9 @@ import com.github.junrar.impl.FileVolumeManager;
 import com.github.junrar.rarfile.FileHeader;
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
-import lsfusion.base.*;
+import lsfusion.base.BaseUtils;
+import lsfusion.base.ExceptionUtils;
+import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -19,21 +21,19 @@ import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.property.oraction.PropertyInterface;
-import lsfusion.server.logics.property.data.SessionDataProperty;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.logics.property.oraction.PropertyInterface;
 import org.xBaseJ.xBaseJException;
 
 import java.io.File;
@@ -70,21 +70,19 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
             List<String> errors = new ArrayList<>();
 
-            DataSession session = context.getSession();
-
             LP<PropertyInterface> isImportType = (LP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportEmailImportType", findProperty("autoImportEmail[ImportType]").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportAccountImportType", findProperty("autoImportAccount[ImportType]").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", findProperty("autoImportCheckInvoiceExistence[ImportType]").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("completeIdItemAsEANImportType", findProperty("completeIdItemAsEAN[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportEmailImportType", findProperty("autoImportEmail[ImportType]").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportAccountImportType", findProperty("autoImportAccount[ImportType]").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", findProperty("autoImportCheckInvoiceExistence[ImportType]").getExpr(context.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("completeIdItemAsEANImportType", findProperty("completeIdItemAsEAN[ImportType]").getExpr(context.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImportEmail[ImportType]").getExpr(importTypeKey).getWhere());
-            ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
+            ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> entryValue = importTypeResult.getValue(i);
@@ -95,10 +93,10 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 String emails = (String) entryValue.get("autoImportEmailImportType").getValue();
                 boolean completeIdItemAsEAN = entryValue.get("completeIdItemAsEANImportType") instanceof DataObject;
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
-                String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject);
-                String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(session, importTypeObject);
+                String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject);
+                String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject);
                 
-                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
                 String fileExtension = settings.getFileExtension();
                 boolean multipleDocuments = settings.isMultipleDocuments();
 
@@ -111,18 +109,18 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap("email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
-                    emailQuery.addProperty("fromAddressEmail", findProperty("fromAddress[Email]").getExpr(session.getModifier(), emailExpr));
-                    emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceived[Email]").getExpr(session.getModifier(), emailExpr));
-                    emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr));
-                    emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr));
+                    emailQuery.addProperty("fromAddressEmail", findProperty("fromAddress[Email]").getExpr(context.getModifier(), emailExpr));
+                    emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceived[Email]").getExpr(context.getModifier(), emailExpr));
+                    emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
+                    emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
 
-                    emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
-                    emailQuery.and(findProperty("account[Email]").getExpr(session.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
-                    emailQuery.and(findProperty("notImported[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
-                    emailQuery.and(findProperty("file[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere());
-                    emailQuery.and(findProperty("skip[AttachmentEmail]").getExpr(session.getModifier(), attachmentEmailExpr).getWhere().not());
+                    emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
+                    emailQuery.and(findProperty("account[Email]").getExpr(context.getModifier(), emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
+                    emailQuery.and(findProperty("notImported[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr).getWhere());
+                    emailQuery.and(findProperty("file[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr).getWhere());
+                    emailQuery.and(findProperty("skip[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr).getWhere().not());
 
-                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(session);
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(context);
 
                     for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
                         ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
@@ -178,7 +176,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                         try {
 
-                                            boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(session) != null;
+                                            boolean ignoreInvoicesAfterDocumentsClosedDate = findProperty("ignoreInvoicesAfterDocumentsClosedDate[]").read(context) != null;
                                             int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType,
                                                     completeIdItemAsEAN, checkInvoiceExistence, ignoreInvoicesAfterDocumentsClosedDate);
 

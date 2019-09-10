@@ -42,14 +42,14 @@ public class FiscalShtrihPrintReceiptAction extends InternalAction {
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt[]").execute(context);
             } else {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context);
                 int password = pass == null ? 30000 : pass * 1000;
 
                 String cashierName = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);

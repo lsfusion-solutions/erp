@@ -19,11 +19,9 @@ public class FiscalShtrihZReportAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
-            DataSession session = context.getSession();
-
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context);
             int password = pass==null ? 30000 : pass * 1000;
             
             if (context.checkApply()) {
@@ -31,7 +29,7 @@ public class FiscalShtrihZReportAction extends InternalAction {
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            findAction("closeCurrentZReport[]").execute(session, context.stack);
+            findAction("closeCurrentZReport[]").execute(context);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }

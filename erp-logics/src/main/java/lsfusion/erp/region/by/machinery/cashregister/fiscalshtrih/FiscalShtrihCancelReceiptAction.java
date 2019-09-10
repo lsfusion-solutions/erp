@@ -27,11 +27,11 @@ public class FiscalShtrihCancelReceiptAction extends InternalAction {
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context);
                 int password = pass == null ? 30000 : pass * 1000;
 
                 String result = (String) context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(4, password, comPort, baudRate));

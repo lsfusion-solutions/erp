@@ -34,12 +34,10 @@ public class FiscalShtrihUpdateDataAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
-        DataSession session = context.getSession();
-
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
-            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context);
             int password = pass == null ? 30000 : pass * 1000;
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -53,7 +51,7 @@ public class FiscalShtrihUpdateDataAction extends InternalAction {
 
             operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(context);
             List<UpdateDataOperator> operatorList = new ArrayList<>();
             for (ImMap<Object, Object> operatorValues : operatorResult.valueIt()) {
                 Integer number = (Integer) operatorValues.get("operatorNumberGroupCashRegisterCustomUser");
@@ -64,7 +62,7 @@ public class FiscalShtrihUpdateDataAction extends InternalAction {
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<>();
-            ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(session);
+            ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(context);
             DataObject taxVATObject = ((ConcreteCustomClass) findClass("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
@@ -81,7 +79,7 @@ public class FiscalShtrihUpdateDataAction extends InternalAction {
             rangeQuery.and(findProperty("number[Range]").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
             Set<Integer> taxNumbers = new HashSet<>();
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session, MapFact.singletonOrder("numberRange", false));
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(context, MapFact.singletonOrder("numberRange", false));
             int i = 1;
             for (ImMap<Object, Object> rangeValues : rangeResult.valueIt()) {
                 Integer number = (Integer) rangeValues.get("numberRange");
