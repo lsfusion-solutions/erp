@@ -1,0 +1,164 @@
+MODULE RepricingSaleReturnInvoice;
+
+REQUIRE SaleReturnShipment, Repricing, RepricingSaleInvoice;
+PRIORITY SaleReturn;
+NAMESPACE Repricing;
+
+repricingSaleReturnStore = DATA Repricing (Invoice);
+repricingSaleReturnStore (InvoiceDetail d) = repricingSaleReturnStore(invoice(d));
+descriptionRepricingSaleReturnStore 'Переоценка' (Invoice i) = description(repricingSaleReturnStore(i)) CHARWIDTH 25;
+
+processedRepricingSaleReturnStore 'Обработан' = DATA BOOLEAN (Invoice);
+
+inSaleReturnStore = DATA LOCAL BOOLEAN (InvoiceDetail);
+pricingDateTime (InvoiceDetail detail) = OVERRIDE shipmentDateTime(detail), dateTime(detail);
+pricingDate (Invoice detail) = OVERRIDE shipmentDate(detail), date(detail);
+pricingTime (Invoice detail) = OVERRIDE shipmentTime(detail), time(detail);
+
+prevRetailPricingPriceB 'Цена учетная до' (InvoiceDetail detail) = prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), supplierStock(detail), pricingDateTime(detail));
+
+
+needToRepricingSaleReturnStoreEx = ABSTRACT BOOLEAN (Invoice);
+
+needToRepricingSaleReturnStore 'Фильтр' (Invoice i)=    
+    isPosted(i) AND
+    createShipment(i) AND 
+    NOT (repricingSaleReturnStore(i) OR processedRepricingSaleReturnStore(i));
+; 
+
+overNeedToRepricingSaleReturnStore 'Фильтр' (Invoice i) =  OVERRIDE needToRepricingSaleReturnStoreEx(i), needToRepricingSaleReturnStore(i);    
+
+
+needToRepricingSaleReturnStore 'Фильтр' (InvoiceDetail d)= 
+    needToRepricingSaleReturnStore(invoice(d)) AND quantity(d) AND isStockSku(d) AND 
+    prevRetailPricingPriceB(d) != shipmentPrice(d)
+; 
+
+statusRepricingSaleReturnStore 'Статус переоценки' (Invoice i) = CASE     
+    WHEN repricingSaleReturnStore(i) THEN 'Создан'
+    WHEN processedRepricingSaleReturnStore(i) THEN 'Обработан'
+    WHEN createRepricing(operation(i)) AND isPosted(i) AND createShipment(i) THEN 'Не создан'
+    ELSE 'Не требуется';
+
+statusRepricingSaleReturnStoreEx = ABSTRACT STRING[12](Invoice);
+
+overStatusRepricingSaleReturnStore 'Статус переоценки' (Invoice i) =  OVERRIDE statusRepricingSaleReturnStoreEx(i), statusRepricingSaleReturnStore(i);    
+
+backgroundStatusRepricingSaleReturnStore (Invoice i) = RGB(212,255,212) IF createRepricing(operation(i)) AND 
+                                                                                isPosted(i) AND createShipment(i) AND NOT (repricingSaleReturnStore(i) OR processedRepricingSaleReturnStore(i)) ;
+
+backgroundStatusRepricingSaleReturnStoreEx = ABSTRACT COLOR (Invoice);
+
+overBackgroundStatusRepricingSaleReturnStore (Invoice i) =  OVERRIDE backgroundStatusRepricingSaleReturnStoreEx(i), backgroundStatusRepricingSaleReturnStore(i);    
+
+
+needToRepricingSaleReturnStore 'Фильтр' (InvoiceDetail d, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
+    needToRepricingSaleReturnStore(d) AND 
+    supplierStock(d) == department AND         
+    shipmentDateTime(d) >= timeFrom AND
+    shipmentDateTime(d) <= timeTo 
+; 
+
+overRepricingSaleReturnStoreOver  ABSTRACT LIST ( UserRepricing, Invoice);
+
+createRepricingSaleReturnStoreOver 'Создать переоценку'(Invoice i)  { 
+    NEW r = UserRepricing {
+        departmentStore(r) <-  supplierStock(i);
+         operation(r) <- toRepricingOperationSaleStore();
+ 
+        skipChangeLedger(r) <- TRUE ;
+        isPosted(r) <- TRUE;
+        date(r) <-  pricingDate(i);
+        time(r) <- sumSeconds(pricingTime(i),1); 
+        beforeDate(r) <- date(r);     
+        overRepricingSaleReturnStoreOver(r,i);
+        
+        // 
+        FOR inSaleReturnStore(InvoiceDetail detail) AND invoice (detail)== i NEW rd = UserRepricingDetail DO {
+            userRepricing(rd) <- r;
+            sku(rd) <- sku(detail);
+            quantity(rd) <- quantity(detail);
+
+            curRetailPrice(rd) <- shipmentPrice(detail);
+            retailPrice(rd) <-  prevRetailPricingPriceB(detail);                          
+        }    
+        repricingSaleReturnStore(i) <- r ;       
+    }   
+} 
+
+createRepricingSaleReturnStore 'Создать переоценку'(Invoice i)  { 
+    IF repricingSaleReturnStore(i) THEN {
+        MESSAGE 'Документ переоценки был создан ранее';
+    } ELSE {
+        IF NOT processedRepricingSaleReturnStore(i) THEN NEWSESSION { 
+            inSaleReturnStore(InvoiceDetail d) <- NULL;           
+            inSaleReturnStore(InvoiceDetail d) <- needToRepricingSaleReturnStore(d) WHERE invoice(d) == i;
+                
+            IF [GROUP SUM 1 IF inSaleReturnStore(InvoiceDetail d) BY invoice(d)](i) THEN {
+                createRepricingSaleReturnStoreOver(i);
+                APPLY;
+                IF NOT canceled() THEN MESSAGE 'Документ переоценки создан' NOWAIT; 
+            } ELSE {
+                processedRepricingSaleReturnStore(i) <- TRUE;
+                APPLY;
+                IF NOT canceled() THEN MESSAGE 'Создание документа переоценки не требуется' NOWAIT; 
+            }
+            
+        } ELSE {
+            MESSAGE 'Документ был обработан ранее'; 
+        }    
+    }       
+} 
+showRepricingSaleReturnStore (Invoice i) = createRepricing(operation(i)) AND isPosted(i) AND createShipment(i) AND NOT (repricingSaleReturnStore(i) OR processedRepricingSaleReturnStore(i));
+
+showRepricingSaleReturnStoreEx = ABSTRACT BOOLEAN (Invoice);
+
+overShowRepricingSaleReturnStore (Invoice i) =  OVERRIDE showRepricingSaleReturnStoreEx(i), showRepricingSaleReturnStore(i);    
+
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY overStatusRepricingSaleReturnStore BACKGROUND overBackgroundStatusRepricingSaleReturnStore(i), descriptionRepricingSaleReturnStore
+    PROPERTIES (i) createRepricingSaleReturnStore SHOWIF overShowRepricingSaleReturnStore(i)
+;
+DESIGN invoices {
+    actionContainer {
+        NEW rep {
+            caption = 'Переоценка';
+            MOVE PROPERTY (createRepricingSaleReturnStore(i));
+        }    
+    }
+}
+
+
+filterToRepricingDateSaleReturnStore 'Фильтр' (Invoice d, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
+    overNeedToRepricingSaleReturnStore(d) AND
+    supplierStock(d) == department AND         
+    shipmentDateTime(d) >= timeFrom AND
+    shipmentDateTime(d) <= timeTo
+; 
+
+createRepricingSaleReturnStore 'Создать переоценку'(Stock department, DATETIME timeFrom, DATETIME timeTo)  { 
+
+    inSaleReturnStore(InvoiceDetail d) <- NULL;           
+    inSaleReturnStore(InvoiceDetail d) <- needToRepricingSaleReturnStore(d,department, timeFrom, timeTo);
+           
+    processedRepricingSaleReturnStore(Invoice i) <- TRUE WHERE filterToRepricingDateSaleReturnStore(i,department, timeFrom, timeTo) AND NOT [GROUP SUM 1 IF inSaleReturnStore(InvoiceDetail d) BY invoice(d)](i);
+            
+    FOR [GROUP SUM 1 IF inSaleReturnStore(InvoiceDetail d) BY invoice(d)](Invoice i) DO {
+        createRepricingSaleReturnStoreOver(i);
+    }    
+} 
+
+createRepricingSaleReturnStore 'Создать переоценку продажа (возврат)'()  { 
+	NEWSESSION {  
+        FOR DepartmentStore department IS DepartmentStore AND active(department) AND isCompany(department) DO {
+            createRepricingSaleReturnStore(department, toRepricingDateTimeSaleStore(), toRepricingDateTimeToSaleStore());                                     
+        } 	    
+	    APPLY;
+	}
+}
+
+EXTEND FORM options
+    PROPERTIES() createRepricingSaleReturnStore 
+    
+;
