@@ -41,7 +41,7 @@ public class FiscalPirit {
 
     public static SerialPort openPort(String comPort, Integer baudRate, boolean isUnix) {
         try {
-            SerialPort serialPort = new SerialPort((isUnix ? "tty" : "COM") + comPort);
+            SerialPort serialPort = new SerialPort((isUnix ? "/dev/tty" : "COM") + comPort);
             serialPort.openPort();
             serialPort.setParams(baudRate, 8, 1, 0);
             return serialPort;
@@ -173,11 +173,11 @@ public class FiscalPirit {
     //---------------------------------------------------------------------------
 
     private static byte checkConnectionCommand(SerialPort serialPort) {
-        return sendBytesToPort(serialPort, new byte[] {(byte) 0x05})[0];
+        return sendBytesToPort(serialPort, new byte[] {(byte) 0x05}, true)[0];
     }
 
     private static void advancePaperCommand(SerialPort serialPort) {
-        sendBytesToPort(serialPort, new byte[] {(byte) 0x0A});
+        sendBytesToPort(serialPort, new byte[] {(byte) 0x0A}, false);
     }
 
     private static PiritReply checkStatusFlagsCommand(SerialPort serialPort) {
@@ -260,7 +260,7 @@ public class FiscalPirit {
 
         String crc = getCRC(command.array());
         command.put(crc.getBytes()); //crc, 2 bytes
-        byte[] reply = sendBytesToPort(serialPort, command.array());
+        byte[] reply = sendBytesToPort(serialPort, command.array(), true);
         logger.info("Reply: " + Hex.toHexString(reply));
 
         PiritReply result = new PiritReply(Hex.decode(Arrays.copyOfRange(reply, 4, 6))[0], Arrays.copyOfRange(reply, 6, reply.length - 3));
@@ -272,15 +272,19 @@ public class FiscalPirit {
 
     }
 
-    private static byte[] sendBytesToPort(SerialPort serialPort, byte[] command) {
+    private static byte[] sendBytesToPort(SerialPort serialPort, byte[] command, boolean hasResponse) {
         try {
             final Future<byte[]> future = Executors.newSingleThreadExecutor().submit(() -> {
                 serialPort.writeBytes(command);
-                byte[] result;
-                while ((result = serialPort.readBytes()) == null) {
-                    Thread.sleep(100);
+                if(hasResponse) {
+                    byte[] result;
+                    while ((result = serialPort.readBytes()) == null) {
+                        Thread.sleep(100);
+                    }
+                    return result;
+                } else {
+                    return null;
                 }
-                return result;
             });
 
             byte[] result;
