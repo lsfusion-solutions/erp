@@ -115,7 +115,7 @@ public class StopListEquipmentServer {
                         String idStock = trim((String) stockEntry.get("idStock").getValue());
                         idStockSet.add(idStock);
                         if(stockMap == null)
-                            stockMap = getStockMap(session);
+                            stockMap = getStockMap(session, stopListObject);
                         if(stockMap.containsKey(idStock))
                             for (Map.Entry<String, Set<MachineryInfo>> entry : stockMap.get(idStock).entrySet()) {
                                 if (handlerMachineryMap.containsKey(entry.getKey()))
@@ -150,7 +150,7 @@ public class StopListEquipmentServer {
         return stopListInfoList;
     }
 
-    private static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private static Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session, DataObject stopListObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<String, Set<MachineryInfo>>> stockMap = new HashMap<>();
 
         KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
@@ -173,6 +173,7 @@ public class StopListEquipmentServer {
         machineryQuery.and(machineryLM.findProperty("idStock[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
         machineryQuery.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
         machineryQuery.and(machineryLM.findProperty("active[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(stopListLM.findProperty("overIn[GroupMachinery,StopList]").getExpr(groupMachineryExpr, stopListObject.getExpr()).getWhere());
         machineryQuery.and(equipmentLM.findProperty("equipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
         ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
