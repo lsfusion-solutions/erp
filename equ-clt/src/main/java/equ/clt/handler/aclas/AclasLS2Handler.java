@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -103,6 +104,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 bw.write(0x0a);
                 boolean isWeight = isWeight(item, 1);
                 String name1 = escape(trim(item.name, "", 40));
+                if(item.price == null || item.price.compareTo(BigDecimal.ZERO) == 0) {
+                    throw new RuntimeException("Zero price is not allowed");
+                }
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(",", ".");
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
