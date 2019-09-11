@@ -366,8 +366,8 @@ partitionSumBest = DATA NUMERIC[18,4] (Sku, SnapshotABC);  // сумма с на
 percSumOrder 'Накопленный процент (сумма)' = DATA NUMERIC[18,4] (Sku, SnapshotABC);
 statusSum 'Рейтинг (сумма)' = DATA ISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
 
-statusAll 'Рейтинг ABC' = DATA ISTRING[2] (Sku, SnapshotABC) CHARWIDTH 7;
-statusGlobal 'Рейтинг общий' = DATA ISTRING[3] (Sku, SnapshotABC) CHARWIDTH 7;
+statusAll 'Рейтинг ABC' = DATA ISTRING[3] (Sku, SnapshotABC) CHARWIDTH 7;
+statusGlobal 'Рейтинг общий' = DATA ISTRING[4] (Sku, SnapshotABC) CHARWIDTH 7;
 
 backgroundStatusMarkup(Sku sku, SnapshotABC s) = CASE 
     WHEN  statusMarkup(sku,s) == 'A' THEN RGB(204,255,204)
@@ -420,61 +420,109 @@ backgroundStatus 'Цвет' (SnapshotABC snapshot) =  CASE
                                           WHEN finishTime(snapshot) THEN RGB(212,255,212)
                                           WHEN snapshot IS SnapshotABC THEN RGB(255,200,216)
                                       ;
+//-- если три параметра                                      
+useThreeParams = ABSTRACT BOOLEAN (SnapshotABC);                                      
+percMarkupA = ABSTRACT NUMERIC[8,3](SnapshotABC);
+percMarkupB = ABSTRACT NUMERIC[8,3](SnapshotABC);
+percMarkupC = ABSTRACT NUMERIC[8,3](SnapshotABC);
 
+percSumA = ABSTRACT NUMERIC[8,3](SnapshotABC);
+percSumB = ABSTRACT NUMERIC[8,3](SnapshotABC);
+percSumC = ABSTRACT NUMERIC[8,3](SnapshotABC);
 
-takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   { 
+percMarkupAOver (SnapshotABC r) = IF useThreeParams(r) THEN percMarkupA(r) ELSE percA(r);
+percMarkupBOver (SnapshotABC r) = IF useThreeParams(r) THEN percMarkupB(r) ELSE percB(r);
+percMarkupCOver (SnapshotABC r) = IF useThreeParams(r) THEN percMarkupC(r) ELSE percC(r);
+
+percSumAOver (SnapshotABC r) = IF useThreeParams(r) THEN percSumA(r) ELSE percA(r);
+percSumBOver (SnapshotABC r) = IF useThreeParams(r) THEN percSumB(r) ELSE percB(r);
+percSumCOver (SnapshotABC r) = IF useThreeParams(r) THEN percSumC(r) ELSE percC(r);
+
+takeFromToOver  ABSTRACT LIST (SnapshotABC);
+takeFromToReturn  ABSTRACT LIST (SnapshotABC);
+resetProps (SnapshotABC snapshot){
+    markupSumSold(Sku sku, snapshot) <- NULL;
+    sumSold(Sku sku, snapshot) <- NULL;   
+    percMarkupSold(Sku sku, snapshot)<- NULL;   
+    
+    percInMarkupSold (Sku sku, snapshot) <- NULL;
+    indexMarkupBest(Sku sku, snapshot) <- NULL;
+    partitionMarkupBest(Sku sku, snapshot) <- NULL;
+    percMarkupOrder(Sku sku, snapshot) <- NULL; 
+    statusMarkup (Sku sku, snapshot) <- NULL;
+    
+    percInSumSold (Sku sku, snapshot) <- NULL;
+    indexSumBest(Sku sku, snapshot) <- NULL;
+    partitionSumBest(Sku sku, snapshot) <- NULL;
+    percSumOrder(Sku sku, snapshot) <- NULL; 
+    statusSum (Sku sku, snapshot) <- NULL; 
+    
+    averageSold(Sku sku, snapshot) <- NULL; 
+    dispersionSold(Sku sku, snapshot) <- NULL; 
+    percKoeffVar(Sku sku, snapshot) <- NULL;   
+    
+    statusAll(Sku sku, snapshot) <- NULL;   
+    statusGlobal(Sku sku, snapshot) <- NULL;  
+    statusQuantity(Sku sku, snapshot) <- NULL; 
+}
+
+stop = DATA LOCAL NESTED BOOLEAN (SnapshotABC);
+
+takeFromTo(SnapshotABC snapshot)   { 
+    stop(snapshot) <- NULL;
     
     IF currentUser() IS Employee AND (GROUP SUM 1 IF include(snapshot, Stock st) AND NOT accessCompany(currentUser(), st)) THEN {
         dataInclude(snapshot, Stock st) <- include(snapshot, st) AND accessCompany(currentUser(), st);
         allStockInclude(snapshot) <- NULL;
         dataInclude(snapshot, StockGroup g) <- NULL;
-    }
-    
+    }    
     apply();  
     startTime(snapshot) <- currentDateTime();  
-    
-    
+        
     IF NOT (countIncludeSku(snapshot) AND countIncludeStock(snapshot)) THEN {      
-        MESSAGE 'Не выбраны группы товаров или склады для отчета !';
-        RETURN;
+        MESSAGE 'Не выбраны группы товаров или склады для отчета !' NOWAIT ;
+        stop(snapshot) <- TRUE;
     }        
-    IF NOT percA(snapshot) OR NOT percB(snapshot) OR NOT percC(snapshot) THEN {
-        MESSAGE 'Не введены коэффициенты для групп A, B, С !';
-        RETURN;
-    }        
-    IF percA(snapshot)+percB(snapshot)+percC(snapshot) != 100 THEN {
-        MESSAGE 'Сумма процентов для групп A, B и C должна быть равна 100 !';
-        RETURN;
-    }        
+
+    IF NOT ((percSumAOver(snapshot)+percSumBOver(snapshot)+percSumCOver(snapshot) == 100) AND 
+            (percMarkupAOver(snapshot)+percMarkupBOver(snapshot)+percMarkupCOver(snapshot) == 100)) THEN {
+        MESSAGE 'Сумма процентов для групп A, B и C должна быть равна 100 !' NOWAIT ;
+        stop(snapshot) <- TRUE;  
+    }
+      
     IF NOT percX(snapshot) OR NOT percY(snapshot) THEN {
-        MESSAGE 'Не введены коэффициенты для групп X, Y !';
-        RETURN;
+        MESSAGE 'Не введены коэффициенты для групп X, Y !' NOWAIT ;
+        stop(snapshot) <- TRUE;
     }        
     IF percX(snapshot) > percY(snapshot) THEN {
-        MESSAGE 'Коэффициент для группы X должен быть меньше коэффициента для группы Y !';
-        RETURN;
+        MESSAGE 'Коэффициент для группы X должен быть меньше коэффициента для группы Y !' NOWAIT ;
+        stop(snapshot) <- TRUE;
     }        
     IF percX(snapshot)+percY(snapshot) >= 1 THEN {
-        MESSAGE 'Сумма коэффициентов для групп X и Y должна быть меньше 1 !';
+        MESSAGE 'Сумма коэффициентов для групп X и Y должна быть меньше 1 !' NOWAIT ;
+        stop(snapshot) <- TRUE;
+    } 
+
+    takeFromToReturn(snapshot);    
+    IF stop(snapshot) THEN {
         RETURN;
-    }        
+    }   
     
     // Количество продаж товара (для XYZ-отчета)
     LOCAL quantitySold = NUMERIC[16,5] (Sku, DATE);            
     quantitySold (Sku sku, DATE date) <- (GROUP
             SUM quantitySold(sku, Stock st, date) 
-            IF include(snapshot, st)) WHERE include(snapshot, sku) AND date >= dateFrom AND date <= dateTo;
+            IF include(snapshot, st)) WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
     
     // по товарам
     
-    markupSumSold(Sku sku, snapshot) <- NULL;
-    sumSold(Sku sku, snapshot) <- NULL;
+    resetProps(snapshot);
     
     markupSumSold (Sku sku, snapshot) <-OVERRIDE (GROUP
-            SUM markupSumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
+            SUM markupSumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
     
     sumSold (Sku sku, snapshot) <- OVERRIDE (GROUP
-            SUM sumSold(sku, Stock st, dateFrom, dateTo) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
+            SUM sumSold(sku, Stock st, fromDate(snapshot), toDate(snapshot)) IF include(snapshot, st)), 0.0 WHERE include(snapshot, sku);
     
     percMarkupSold(Sku sku, snapshot) <- OVERRIDE round2(markupSumSold(sku, snapshot)*100.00 / sumSold(sku, snapshot)), 0.0 WHERE include(snapshot, sku);
     
@@ -487,9 +535,9 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
         percMarkupOrder(Sku sku, snapshot) <- round4(partitionMarkupBest(sku, snapshot)*100.00 / markupSumSold(snapshot)) WHERE include(snapshot, sku);
         
         statusMarkup (Sku sku, snapshot) <- CASE 
-            WHEN  percMarkupOrder(sku, snapshot) <= percA(snapshot) THEN 'A'
-            WHEN  percMarkupOrder(sku, snapshot) <= percA(snapshot)+percB(snapshot) AND percMarkupOrder(sku, snapshot) > percA(snapshot) THEN 'B'
-            WHEN  percMarkupOrder(sku, snapshot) >  percA(snapshot)+percB(snapshot) THEN 'C' WHERE include(snapshot, sku)
+            WHEN  percMarkupOrder(sku, snapshot) <= percMarkupAOver(snapshot) THEN 'A'
+            WHEN  percMarkupOrder(sku, snapshot) <= percMarkupAOver(snapshot)+percMarkupBOver(snapshot) AND percMarkupOrder(sku, snapshot) > percMarkupAOver(snapshot) THEN 'B'
+            WHEN  percMarkupOrder(sku, snapshot) >  percMarkupAOver(snapshot)+percMarkupBOver(snapshot) THEN 'C' WHERE include(snapshot, sku)
         ;
         
         percInSumSold (Sku sku, snapshot) <- OVERRIDE round4(sumSold(sku, snapshot)*100.00 / sumSold(snapshot)), 0.0 WHERE include(snapshot, sku);
@@ -498,9 +546,9 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
         percSumOrder(Sku sku, snapshot) <- round4(partitionSumBest(sku, snapshot)*100.00 / sumSold(snapshot)) WHERE include(snapshot, sku);
         
         statusSum (Sku sku, snapshot) <- CASE 
-            WHEN  percSumOrder(sku, snapshot) <= percA(snapshot) THEN 'A'
-            WHEN  percSumOrder(sku, snapshot) <= percA(snapshot)+percB(snapshot) AND percSumOrder(sku, snapshot) > percA(snapshot) THEN 'B'
-            WHEN  percSumOrder(sku, snapshot) >  percA(snapshot)+percB(snapshot) THEN 'C' WHERE include(snapshot, sku)
+            WHEN  percSumOrder(sku, snapshot) <= percSumAOver(snapshot) THEN 'A'
+            WHEN  percSumOrder(sku, snapshot) <= percSumAOver(snapshot)+percSumBOver(snapshot) AND percSumOrder(sku, snapshot) > percSumAOver(snapshot) THEN 'B'
+            WHEN  percSumOrder(sku, snapshot) >  percSumAOver(snapshot)+percSumBOver(snapshot) THEN 'C' WHERE include(snapshot, sku)
         ;
     }
     
@@ -520,10 +568,10 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
                 markupSumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)), 0.0 WHERE include(snapshot, sku);
         
         statusMarkup (Sku sku, snapshot) <- CASE 
-            WHEN  percMarkupOrder(sku, snapshot) <= percA(snapshot) THEN 'A'
-            WHEN  percMarkupOrder(sku, snapshot) <= percA(snapshot)+percB(snapshot) AND percMarkupOrder(sku, snapshot) > percA(snapshot) THEN 'B'
-            WHEN  percMarkupOrder(sku, snapshot) >  percA(snapshot)+percB(snapshot) THEN 'C' WHERE include(snapshot, sku)
-        ;
+            WHEN  percMarkupOrder(sku, snapshot) <= percMarkupAOver(snapshot) THEN 'A'
+            WHEN  percMarkupOrder(sku, snapshot) <= percMarkupAOver(snapshot)+percMarkupBOver(snapshot) AND percMarkupOrder(sku, snapshot) > percMarkupAOver(snapshot) THEN 'B'
+            WHEN  percMarkupOrder(sku, snapshot) >  percMarkupAOver(snapshot)+percMarkupBOver(snapshot) THEN 'C' WHERE include(snapshot, sku)
+        ;        
         
         percInSumSold (Sku sku, snapshot) <- round4(sumSold(sku, snapshot)*100.00 /
                 sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
@@ -538,23 +586,18 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
                 sumSold(groupRoot(group(groupType(snapshot), sku), levelGroup(snapshot)), snapshot)) WHERE include(snapshot, sku);
         
         statusSum (Sku sku, snapshot) <- CASE 
-            WHEN  percSumOrder(sku, snapshot) <= percA(snapshot) THEN 'A'
-            WHEN  percSumOrder(sku, snapshot) <= percA(snapshot)+percB(snapshot) AND percSumOrder(sku, snapshot) > percA(snapshot) THEN 'B'
-            WHEN  percSumOrder(sku, snapshot) >  percA(snapshot)+percB(snapshot) THEN 'C' WHERE include(snapshot, sku)
-        ;
-        
-    }
+            WHEN  percSumOrder(sku, snapshot) <= percSumAOver(snapshot) THEN 'A'
+            WHEN  percSumOrder(sku, snapshot) <= percSumAOver(snapshot)+percSumBOver(snapshot) AND percSumOrder(sku, snapshot) > percSumAOver(snapshot) THEN 'B'
+            WHEN  percSumOrder(sku, snapshot) >  percSumAOver(snapshot)+percSumBOver(snapshot) THEN 'C' WHERE include(snapshot, sku)
+        ;        
+    }    
+                
     
-    // Рейтинг ABC (2 символа)
-    IF isMarkupSum(statusAllType(snapshot)) THEN {
-        statusAll(Sku sku, snapshot) <- CONCAT '', statusMarkup(sku, snapshot), statusSum(sku, snapshot) WHERE include(snapshot, sku); } 
-    ELSE {
-        statusAll(Sku sku, snapshot) <- CONCAT '', statusSum(sku, snapshot), statusMarkup(sku, snapshot) WHERE include(snapshot, sku); } 
     
     ///// XYZ
     //  Среднее кол-во продаж в день
     averageSold(Sku sku, snapshot) <- round3( (GROUP
-        SUM quantitySold (sku, Stock st, dateFrom, dateTo)  IF include(snapshot, st))
+        SUM quantitySold (sku, Stock st, fromDate(snapshot), toDate(snapshot))  IF include(snapshot, st))
         / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
 
     //  Дисперсия однодневных продаж 
@@ -571,13 +614,20 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
     // рейтинг XYZ
     statusQuantity(Sku sku, snapshot) <- CASE 
         WHEN  percKoeffVar(sku, snapshot) <= percX(snapshot) THEN 'X'
-         WHEN  percKoeffVar(sku, snapshot) <= percY(snapshot) AND percKoeffVar(sku, snapshot) > percX(snapshot) THEN 'Y'
-         WHEN  percKoeffVar(sku, snapshot) >  percY(snapshot) THEN 'Z' WHERE include(snapshot, sku)
+        WHEN  percKoeffVar(sku, snapshot) <= percY(snapshot) AND percKoeffVar(sku, snapshot) > percX(snapshot) THEN 'Y'
+        WHEN  percKoeffVar(sku, snapshot) >  percY(snapshot) THEN 'Z' WHERE include(snapshot, sku)
     ;
-    
-    // Общий рейтинг (3 символа)
-    statusGlobal(Sku sku, snapshot) <- CONCAT '', statusAll(sku, snapshot), statusQuantity(sku, snapshot) WHERE include(snapshot, sku);
-    
+    IF NOT useThreeParams(snapshot) THEN {
+        // Рейтинг ABC (2 символа) возможно 3
+        IF isMarkupSum(statusAllType(snapshot)) THEN {
+            statusAll(Sku sku, snapshot) <- CONCAT '', statusMarkup(sku, snapshot), statusSum(sku, snapshot) WHERE include(snapshot, sku); } 
+        ELSE {
+            statusAll(Sku sku, snapshot) <- CONCAT '', statusSum(sku, snapshot), statusMarkup(sku, snapshot) WHERE include(snapshot, sku); } 
+        // Общий рейтинг (3 символа) возможно 4
+        statusGlobal(Sku sku, snapshot) <- CONCAT '', statusAll(sku, snapshot), statusQuantity(sku, snapshot) WHERE include(snapshot, sku);
+    } ELSE {
+        takeFromToOver(snapshot);
+    }    
     /////
     
     finishTime(snapshot) <- currentDateTime();      
@@ -590,9 +640,9 @@ takeFromTo(SnapshotABC snapshot, DATE dateFrom, DATE dateTo)   {
 takeData 'Сформировать отчет' (SnapshotABC snapshot)  { 
     IF finishTime(snapshot) THEN {
         ASK 'Вы действительно хотите выполнить действие "Сформировать отчет?"' DO            
-            takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));
+            takeFromTo(snapshot);
     } ELSE {
-        takeFromTo(snapshot, fromDate(snapshot), toDate(snapshot));    
+        takeFromTo(snapshot);    
     }    
 }
 
@@ -676,7 +726,7 @@ createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE dat
 	                    fromDate(r) <- subtract(dateTo,countDays(type)-1);
 	                    toDate(r) <- dateTo;
 	                    operation(r) <- type;
-	                    takeFromTo(r, fromDate(r), toDate(r));                
+	                    takeFromTo(r);                
 	                }
     	            
 	            } ELSE {
@@ -688,7 +738,7 @@ createSnapshotString 'Создать отчет' (BPSTRING[100] string, DATE dat
 	                    dataInclude(r, StockGroup st) <- NULL;
 	                    dataInclude(r, stock) <- TRUE;
 	                    allStockInclude(r) <- NULL;
-	                    takeFromTo(r, fromDate(r), toDate(r));                      
+	                    takeFromTo(r);                      
 	                }
 	            }
 	
