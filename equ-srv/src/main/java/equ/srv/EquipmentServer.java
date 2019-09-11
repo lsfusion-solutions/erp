@@ -923,18 +923,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 try (DataSession outerSession = createSession()) {
 
+                    EquipmentServerOptions options = readEquipmentServerOptions(sidEquipmentServer, outerSession);
+
                     //временная опция для Табака
                     if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
                         Set<String> closedZReportSet = readClosedZReportSet(outerSession);
                         salesInfoList.removeIf(salesInfo -> closedZReportSet.contains(salesInfo.getIdZReport()));
                     }
 
-                    ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(outerSession, new DataObject(sidEquipmentServer));
-                    Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(outerSession, equipmentServerObject);
-                    if (maxThreads == null || maxThreads <= 1)
+                    if (options.maxThreads == null || options.maxThreads <= 1)
                         return importSalesInfoSingleThread(stack, sidEquipmentServer, directory, salesInfoList);
                     else {
-                        return importSalesInfoMultiThread(stack, sidEquipmentServer, directory, salesInfoList, maxThreads);
+                        return importSalesInfoMultiThread(stack, sidEquipmentServer, directory, salesInfoList, options);
                     }
                 }
             }
@@ -944,19 +944,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, final Integer maxThreads) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException {
+    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException {
         String result = null;
 
         try (DataSession session = createSession()) {
+            if (options.numberAtATime == null) {
+                options.numberAtATime = salesInfoList.size();
+            }
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-            Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
-            if (numberAtATime == null) numberAtATime = salesInfoList.size();
-            final Integer finalNumberAtATime = numberAtATime;
 
             final boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
             final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
 
-            ExecutorService executor = ExecutorFactory.createRMIThreadService(maxThreads, EquipmentServer.this);
+            ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
             List<Future<String>> futures = new ArrayList<>();
 
             final List<List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
@@ -965,7 +965,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             for(int i = 0; i < taskSize; i++) {
                 final int taskIndex = i;
                 Future<String> importResult = executor.submit((Callable) () ->
-                        runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), finalNumberAtATime, sidEquipmentServer, taskIndex, taskSize,
+                        runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), options.numberAtATime, sidEquipmentServer, taskIndex, taskSize,
                         directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
                 futures.add(importResult);
             }
@@ -1418,17 +1418,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         for (int start = 0; true;) {
 
             try (DataSession session = createSession()) {
+
+                EquipmentServerOptions options = readEquipmentServerOptions(sidEquipmentServer, session);
+                if (options.numberAtATime == null) {
+                    options.numberAtATime = salesInfoList.size();
+                }
+
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-                Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
-                if (numberAtATime == null)
-                    numberAtATime = salesInfoList.size();
 
                 boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
                 List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
 
                 Timestamp timeStart = getCurrentTimestamp();
 
-                int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+                int finish = (start + options.numberAtATime) < salesInfoList.size() ? (start + options.numberAtATime) : salesInfoList.size();
 
                 Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
                 if (lastNumberReceipt != null) {
@@ -2319,4 +2322,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return new ArrayList<>(groupedSalesInfo.values());
     }
 
+    private EquipmentServerOptions readEquipmentServerOptions(String sidEquipmentServer, DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+        Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(session, equipmentServerObject);
+        Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
+        return new EquipmentServerOptions(maxThreads, numberAtATime);
+    }
+
+    private class EquipmentServerOptions {
+        Integer maxThreads;
+        Integer numberAtATime;
+
+        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime) {
+            this.maxThreads = maxThreads;
+            this.numberAtATime = numberAtATime;
+        }
+    }
 }
