@@ -850,6 +850,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+                boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+                boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
+
 
                 UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
                 if (params.connectionString != null) {
@@ -883,6 +886,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             conn.commit();
                         }
 
+                        Map<Integer, Integer> overDepartNumberMap = new HashMap<>();
+                        for(MachineryInfo machinery : stopListInfo.handlerMachineryMap.get(getClass().getName())) {
+                            overDepartNumberMap.put(machinery.numberGroup, ((CashRegisterInfo) machinery).overDepartNumber != null ? ((CashRegisterInfo) machinery).overDepartNumber : ((CashRegisterInfo) machinery).numberGroup);
+                        }
+
                         processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_items");
                         ps = conn.prepareStatement(
                                 "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
@@ -891,8 +899,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             if (item.idItem != null) {
                                 for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                                    ps.setInt(1, nppGroupMachinery); //pricelist
-                                    ps.setString(2, trim(item.idItem, "", 40)); //item
+                                    ps.setInt(1, overDepartNumberMap.get(nppGroupMachinery)); //pricelist
+                                    ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                                     ps.setBigDecimal(3, BigDecimal.ZERO); //price
                                     ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
                                     ps.setInt(5, version); //version
