@@ -30,21 +30,21 @@ public class FiscalEpsonResetReceiptAction extends InternalAction {
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context.getSession());
-                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context.getSession());
+                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context);
+                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context);
 
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
-                Integer numberReceipt = (Integer) findProperty("documentNumber[Receipt]").read(context.getSession(), receiptObject);
-                BigDecimal totalSum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context.getSession(), receiptObject);
-                BigDecimal sumCash = (BigDecimal) findProperty("sumCashPayment[Receipt]").read(context.getSession(), receiptObject);
-                BigDecimal sumCard = (BigDecimal) findProperty("sumCardPayment[Receipt]").read(context.getSession(), receiptObject);
+                Integer numberReceipt = (Integer) findProperty("documentNumber[Receipt]").read(context, receiptObject);
+                BigDecimal totalSum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
+                BigDecimal sumCash = (BigDecimal) findProperty("sumCashPayment[Receipt]").read(context, receiptObject);
+                BigDecimal sumCard = (BigDecimal) findProperty("sumCardPayment[Receipt]").read(context, receiptObject);
                 ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
-                BigDecimal sumGiftCard = giftCardLM == null ? null : (BigDecimal) giftCardLM.findProperty("sumGiftCardPayment[Receipt]").read(context.getSession(), receiptObject);
+                BigDecimal sumGiftCard = giftCardLM == null ? null : (BigDecimal) giftCardLM.findProperty("sumGiftCardPayment[Receipt]").read(context, receiptObject);
 
                 String result = (String) context.requestUserInteraction(new FiscalEpsonResetReceiptClientAction(comPort, baudRate, cashier, numberReceipt, totalSum, sumCash, sumCard, sumGiftCard, cardType, giftCardType));
                 if (result == null) {

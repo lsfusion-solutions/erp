@@ -3,7 +3,6 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
-import jxl.read.biff.BiffException;
 import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.SetFact;
@@ -49,7 +48,6 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -81,8 +79,6 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         super.executeInternal(context);
         try {
 
-            DataSession session = context.getSession();
-
             DataObject userInvoiceObject = context.getDataKeyValue(userInvoiceInterface);
 
             ObjectValue importTypeObject = findProperty("importType[UserInvoice]").readClasses(context, userInvoiceObject);
@@ -103,9 +99,9 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
-                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(session, checkInvoiceExistence);
+                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context.getSession(), checkInvoiceExistence);
 
-                ImportDocumentSettings importSettings = readImportDocumentSettings(session, importTypeObject);
+                ImportDocumentSettings importSettings = readImportDocumentSettings(context.getSession(), importTypeObject);
                 String fileExtension = importSettings.getFileExtension();
                 
                 if (importColumns != null && fileExtension != null) {

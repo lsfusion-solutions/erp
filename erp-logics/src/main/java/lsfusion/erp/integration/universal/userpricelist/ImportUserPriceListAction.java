@@ -105,7 +105,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         }
     }
 
-    public boolean importData(ExecutionContext context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns,
+    public boolean importData(ExecutionContext<ClassPropertyInterface> context, DataObject userPriceListObject, ImportPriceListSettings settings, Map<DataObject, String[]> priceColumns,
                               Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, RawFileData file, boolean apply)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, UniversalImportException, SQLHandledException, JDBFException {
 
@@ -161,7 +161,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         return result; 
     }
 
-    private boolean importUserPriceListDetails(ExecutionContext context, List<UserPriceListDetail> userPriceListDetailList, ImportPriceListSettings settings, Set<DataObject> priceColumns, 
+    private boolean importUserPriceListDetails(ExecutionContext<ClassPropertyInterface> context, List<UserPriceListDetail> userPriceListDetailList, ImportPriceListSettings settings, Set<DataObject> priceColumns,
                                                Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns, DataObject userPriceListObject, boolean apply) 
                                                throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
@@ -586,14 +586,14 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         }
     }
 
-    private boolean importAdjustmentDetails(ExecutionContext context, List<UserPriceListDetail> dataAdjustment,
+    private boolean importAdjustmentDetails(ExecutionContext<ClassPropertyInterface> context, List<UserPriceListDetail> dataAdjustment,
                                             DataObject stockObject, String itemKeyType, boolean apply)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if (stockAdjustmentLM != null && dataAdjustment != null) {
 
-            stockAdjustmentLM.findAction("unpostAllUserAdjustment[]").execute(context.getSession(), context.stack);
-            stockAdjustmentLM.findAction("overImportAdjustment[]").execute(context.getSession(), context.stack);
+            stockAdjustmentLM.findAction("unpostAllUserAdjustment[]").execute(context);
+            stockAdjustmentLM.findAction("overImportAdjustment[]").execute(context);
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) stockAdjustmentLM.findClass("UserAdjustment"));
 
@@ -1001,7 +1001,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         return userPriceListDetailList;
     }
 
-    public List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -1048,7 +1048,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         return Arrays.asList(defaultColumns, customColumns);
     }
 
-    public Map<DataObject, String[]> readPriceImportColumns(ExecutionContext context, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public Map<DataObject, String[]> readPriceImportColumns(ExecutionContext<ClassPropertyInterface> context, ObjectValue importUserPriceListTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<DataObject, String[]> importColumns = new HashMap<>();
 
@@ -1075,7 +1075,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         return importColumns;
     }
 
-    public ImportPriceListSettings readImportPriceListSettings(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public ImportPriceListSettings readImportPriceListSettings(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String fileExtension = trim((String) findProperty("captionImportUserPriceListTypeFileExtension[ImportUserPriceListType]").read(context, importTypeObject));
         String quantityAdjustmentColumn = (String) findProperty("quantityAdjustment[ImportUserPriceListType]").read(context, importTypeObject);
 

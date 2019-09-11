@@ -19,8 +19,8 @@ public class FiscalEpsonElectronicJournalAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             
             if (context.checkApply()) {
                String result = (String)context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(3, comPort, baudRate));

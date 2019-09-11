@@ -46,16 +46,16 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
                 findAction("createCurrentReceipt[]").execute(context);
             } else {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
-                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context.getSession());
-                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context.getSession());
+                Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context);
+                Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context);
 
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
                 String comment = (String) findProperty("fiscalEpsonComment[Receipt]").read(context, receiptObject);

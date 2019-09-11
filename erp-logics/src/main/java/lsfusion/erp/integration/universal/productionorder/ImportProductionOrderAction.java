@@ -56,18 +56,16 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
         super.executeInternal(context);
         try {
 
-            DataSession session = context.getSession();
-
             DataObject orderObject = context.getDataKeyValue(orderInterface);
 
-            ObjectValue importTypeObject = findProperty("importType[Order]").readClasses(session, orderObject);
+            ObjectValue importTypeObject = findProperty("importType[Order]").readClasses(context, orderObject);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
-                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
                 if (importColumns != null && fileExtension != null) {

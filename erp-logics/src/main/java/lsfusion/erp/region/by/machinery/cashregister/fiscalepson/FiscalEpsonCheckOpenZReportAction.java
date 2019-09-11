@@ -30,10 +30,10 @@ public class FiscalEpsonCheckOpenZReportAction extends InternalAction {
 
             DataObject zReportObject = context.getDataKeyValue(zReportInterface);
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            boolean blockDesync = findProperty("blockDesync[]").read(context.getSession()) != null;
-            Long maxDesync = (Long) findProperty("maxDesync[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            boolean blockDesync = findProperty("blockDesync[]").read(context) != null;
+            Long maxDesync = (Long) findProperty("maxDesync[]").read(context);
             if(maxDesync == null)
                 maxDesync = 0L;
 

@@ -30,17 +30,17 @@ public class FiscalEpsonServiceInOutAction extends InternalAction {
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             
-            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context, cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context, cashOperationObject);
             String cashier = trim((String) findProperty("currentUserName[]").read(context));
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalEpsonServiceInOutClientAction(comPort, baudRate, cashier, sum));
                 if (result == null) {
-                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

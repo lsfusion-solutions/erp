@@ -6,16 +6,15 @@ import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.xBaseJ.xBaseJException;
 
 import java.io.IOException;
@@ -34,16 +33,14 @@ public class ImportProductionOrdersFileAction extends ImportDocumentAction {
         super.executeInternal(context);
         try {
 
-            DataSession session = context.getSession();
-
-            ObjectValue importTypeObject = findProperty("importTypeOrders[]").readClasses(session);
+            ObjectValue importTypeObject = findProperty("importTypeOrders[]").readClasses(context);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
-                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
                 if (importColumns != null && fileExtension != null) {
