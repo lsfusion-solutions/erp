@@ -96,7 +96,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject);
                 
-                ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
                 String fileExtension = settings.getFileExtension();
                 boolean multipleDocuments = settings.isMultipleDocuments();
 
