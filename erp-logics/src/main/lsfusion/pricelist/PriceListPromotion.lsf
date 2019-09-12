@@ -50,19 +50,19 @@ DESIGN options {
 lastPromotionPriceListDetailB (Sku sk, DATETIME dt) = 
     GROUP LAST PriceListDetail d
           ORDER fromDateTime(d, Stock st), d
-          WHERE fromDateTime(d, st) < dt
+          WHERE fromDateTime(d, st) < dt AND NOT exclude(d)
           BY sku(d, st) COMPLEX;
 
 promotionPriceListDetailA (Sku sk, Stock st, DATETIME dt) = 
     GROUP LAST PriceListDetail d
           ORDER fromDateTime(d, st), d
-          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt
+          WHERE fromDateTime(d, st) <= dt AND NOT toDateTime(d, st) < dt AND NOT exclude(d)
           BY sku(d, st) COMPLEX;
           
 promotionPriceListDetailA (Sku sk, Stock st, DATE dt) = 
   GROUP LAST PriceListDetail d
         ORDER fromDateTime(d, st), d
-        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt)
+        WHERE fromDateTime(d, st) < DATETIME(sum(dt, 1)) AND NOT toDateTime(d, st) < DATETIME(dt) AND NOT exclude(d)
         BY sku(d, st) COMPLEX;
 
 lastPromotionPriceListDetail (Sku sk, Stock st) = GROUP LAST PriceListDetail d
@@ -81,7 +81,7 @@ promotionPriceBeforeA 'Цена до акции' (Sku sku, Stock stock, DATETIME
 fromDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = fromDateTime(promotionPriceListDetailA(sk, st, dt));
 toDateTimePromotionA (Sku sk, Stock st, DATETIME dt) = toDateTime(promotionPriceListDetailA(sk, st, dt));
 
-colorPromotionA (Sku sk, Stock st, DATETIME dt) = color(operation(promotionPriceListDetailA(sk, st, dt))) IF NOT exclude(promotionPriceListDetailA(sk, st, dt));
+colorPromotionA (Sku sk, Stock st, DATETIME dt) = color(operation(promotionPriceListDetailA(sk, st, dt)));
 colorPromotionA (Sku sk, Stock st) = colorPromotionA(sk, st, currentDateTime());
 
 fromDatePromotionA (Sku sk, Stock st, DATETIME dt) = fromDate(promotionPriceListDetailA(sk, st, dt));
