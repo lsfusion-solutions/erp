@@ -29,13 +29,13 @@ public class FiscalVMKCancelReceiptAction extends InternalAction {
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (!skipReceipt) {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
-                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
-                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-                String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
+                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
+                String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 4));
                 if (result != null) {

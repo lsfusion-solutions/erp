@@ -31,17 +31,17 @@ public class FiscalVMKServiceInOutAction extends InternalAction {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
-            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
-            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-            String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
-            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
+            String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context, cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context, cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(isUnix, logPath, ip, comPort, baudRate, sum));
                 if (result == null){
-                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 }
                 else {
                     ServerLoggers.systemLogger.error("FiscalVMKServiceInOut Error: " + result);

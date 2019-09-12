@@ -55,8 +55,8 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error (Not Fiscal)");
             } else {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
-                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
-                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+                String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
+                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);

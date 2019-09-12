@@ -62,22 +62,20 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         super.executeInternal(context);
         try {
 
-            DataSession session = context.getSession();
-
             DataObject orderObject = context.getDataKeyValue(orderInterface);
 
-            ObjectValue importTypeObject = findProperty("importType[Sale.Order]").readClasses(session, orderObject);
+            ObjectValue importTypeObject = findProperty("importType[Sale.Order]").readClasses(context, orderObject);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(session, (DataObject) importTypeObject);
-                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue supplierStockObject = findProperty("autoImportSupplierStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue customerObject = findProperty("autoImportCustomer[ImportType]").readClasses(context, (DataObject) importTypeObject);
+                ObjectValue customerStockObject = findProperty("autoImportCustomerStock[ImportType]").readClasses(context, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
-                ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
                 if (importColumns != null && fileExtension != null) {

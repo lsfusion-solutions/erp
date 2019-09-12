@@ -21,14 +21,12 @@ public class FiscalVMKUpdateDataAction extends InternalAction {
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
-        DataSession session = context.getSession();
-
         try {
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
-            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
-            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
-            String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(session);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
+            String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(isUnix, logPath, ip, comPort, baudRate));

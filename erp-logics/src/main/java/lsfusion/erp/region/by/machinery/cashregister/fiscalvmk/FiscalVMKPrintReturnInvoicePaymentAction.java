@@ -34,8 +34,8 @@ public class FiscalVMKPrintReturnInvoicePaymentAction extends InternalAction {
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
-            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context.getSession());
-            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+            String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);

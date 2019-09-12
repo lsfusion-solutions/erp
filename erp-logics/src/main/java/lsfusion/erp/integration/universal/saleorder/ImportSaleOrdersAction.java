@@ -66,7 +66,7 @@ public class ImportSaleOrdersAction extends ImportDocumentAction {
                 ObjectValue customerStockObject = entryValue.get("autoImportCustomerStockImportType");
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(context, importTypeObject).get(0);
-                ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
+                ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
                 String fileExtension = settings.getFileExtension();
 
                 if (directory != null && fileExtension != null) {

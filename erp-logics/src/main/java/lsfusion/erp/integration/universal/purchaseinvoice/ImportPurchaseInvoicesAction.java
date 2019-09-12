@@ -44,7 +44,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
             String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject);
             boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(context, importTypeObject) != null;
 
-            ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
+            ImportDocumentSettings settings = readImportDocumentSettings(context, importTypeObject);
             String fileExtension = settings.getFileExtension();
             boolean multipleDocuments = settings.isMultipleDocuments();
             

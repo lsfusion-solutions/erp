@@ -125,20 +125,20 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         return stockMapping;
     }
 
-    public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> stockMapping = readStockMapping(session, importTypeObject);
-        String fileExtension = trim((String) findProperty("captionFileExtension[ImportType]").read(session, importTypeObject));
-        String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyType[ImportType]").read(session, importTypeObject));
-        boolean checkExistence = findProperty("checkExistencePrimaryKey[ImportType]").read(session, importTypeObject) != null;
-        String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyType[ImportType]").read(session, importTypeObject));
-        boolean keyIsDigit = findProperty("keyIsDigit[ImportType]").read(session, importTypeObject) != null;
-        Integer startRow = (Integer) findProperty("startRow[ImportType]").read(session, importTypeObject);
+    public ImportDocumentSettings readImportDocumentSettings(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, String> stockMapping = readStockMapping(context.getSession(), importTypeObject);
+        String fileExtension = trim((String) findProperty("captionFileExtension[ImportType]").read(context, importTypeObject));
+        String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyType[ImportType]").read(context, importTypeObject));
+        boolean checkExistence = findProperty("checkExistencePrimaryKey[ImportType]").read(context, importTypeObject) != null;
+        String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyType[ImportType]").read(context, importTypeObject));
+        boolean keyIsDigit = findProperty("keyIsDigit[ImportType]").read(context, importTypeObject) != null;
+        Integer startRow = (Integer) findProperty("startRow[ImportType]").read(context, importTypeObject);
         startRow = startRow == null ? 1 : startRow;
-        Boolean isPosted = (Boolean) findProperty("isPosted[ImportType]").read(session, importTypeObject);
-        String separator = formatSeparator((String) findProperty("separator[ImportType]").read(session, importTypeObject));
-        String propertyImportType = trim((String) findProperty("propertyImportTypeDetail[ImportType]").read(session, importTypeObject));
-        boolean multipleDocuments = findProperty("multipleDocuments[ImportType]").read(session, importTypeObject) != null;
-        String countryKeyType = parseKeyType((String) findProperty("nameCountryKeyType[ImportType]").read(session, importTypeObject));
+        Boolean isPosted = (Boolean) findProperty("isPosted[ImportType]").read(context, importTypeObject);
+        String separator = formatSeparator((String) findProperty("separator[ImportType]").read(context, importTypeObject));
+        String propertyImportType = trim((String) findProperty("propertyImportTypeDetail[ImportType]").read(context, importTypeObject));
+        boolean multipleDocuments = findProperty("multipleDocuments[ImportType]").read(context, importTypeObject) != null;
+        String countryKeyType = parseKeyType((String) findProperty("nameCountryKeyType[ImportType]").read(context, importTypeObject));
         return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType,
                 keyIsDigit, startRow, isPosted, separator, propertyImportType, multipleDocuments, countryKeyType);
     }

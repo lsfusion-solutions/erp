@@ -101,7 +101,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
                 Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context.getSession(), checkInvoiceExistence);
 
-                ImportDocumentSettings importSettings = readImportDocumentSettings(context.getSession(), importTypeObject);
+                ImportDocumentSettings importSettings = readImportDocumentSettings(context, importTypeObject);
                 String fileExtension = importSettings.getFileExtension();
                 
                 if (importColumns != null && fileExtension != null) {
