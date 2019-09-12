@@ -296,15 +296,17 @@ NAVIGATOR {
     }
 }
 
+replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace(message,'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
+
 textDispatch (Dispatch d) =
     IF communicationChannel(d) == CommunicationChannel.viber_sms THEN 
         TEXT(CONCAT '', '\{',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
                             '],',
                             '"channels": [\{',
                                 '"target": "' + nameNumberService(d) + '",',
-                                '"text": "' + replace(messageViber(d),'\n','\\n') + '",',
+                                //'"text": "' + replace((messageViber(d)),'\n','\\n') + '",',
                                 '"callback_url": "' + urlSMSLineCallback() + '",',
                                 '"options": \{',
                                     (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
@@ -314,9 +316,9 @@ textDispatch (Dispatch d) =
     ELSE 
         TEXT(CONCAT '', '\{',
                             '"target": "' + nameNumberService(d) + '",',
-                            '"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
+                            //'"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,(IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d))),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
                             '],',
                             '"callback_url": "' + urlSMSLineCallback() + '",',
                             '"options": \{',
