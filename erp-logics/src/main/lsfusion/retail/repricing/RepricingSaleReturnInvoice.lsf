@@ -115,6 +115,13 @@ showRepricingSaleReturnStoreEx = ABSTRACT BOOLEAN (Invoice);
 
 overShowRepricingSaleReturnStore (Invoice i) =  OVERRIDE showRepricingSaleReturnStoreEx(i), showRepricingSaleReturnStore(i);    
 
+disableUpdateShipmentPrice(UserInvoiceDetail d) += createRepricing(operation(d));
+
+WHEN LOCAL FORMS userInvoice (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(invoicePrice(d)))  AND createRepricing(operation(d)) DO {    
+    IF NOT CHANGED(shipmentPrice(d)) THEN {
+        shipmentPrice(d) <- invoicePrice(d);    
+    }
+}       
 
 EXTEND FORM invoices
     PROPERTIES (i) READONLY overStatusRepricingSaleReturnStore BACKGROUND overBackgroundStatusRepricingSaleReturnStore(i), descriptionRepricingSaleReturnStore
@@ -162,3 +169,9 @@ EXTEND FORM options
     PROPERTIES() createRepricingSaleReturnStore 
     
 ;
+
+DESIGN options {
+    repricingSaleStore {
+        MOVE PROPERTY (createRepricingSaleReturnStore()) AFTER PROPERTY (createRepricingSaleStore());
+    }
+}
