@@ -1374,7 +1374,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         //ищем по вхождению в интервал
         for(ShiftInfo shift : shiftList) {
             if(shift.numberCashRegister.equals(numberCashRegister) && shift.numberZReport.equals(numberZReport)
-                    && shift.from <= dateTimeReceipt && shift.to >= dateTimeReceipt) {
+                    && shift.from <= dateTimeReceipt && (shift.to == null || shift.to >= dateTimeReceipt)) {
                 return shift.from;
             }
         }
