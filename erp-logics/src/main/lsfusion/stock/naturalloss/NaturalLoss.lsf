@@ -263,6 +263,11 @@ quantityLoss(NaturalLossDetail naturalLossDetail) <- shippedQuantity(batch(natur
 
 @defineDocumentDetailPricePrefix (naturalLoss, , ' учетная ');
 @deriveDocumentDetailPriceAccountBatch (naturalLoss, sku, stock);
+@defineDocumentHeaderClosed(NaturalLoss);
+
+skipOpen = ABSTRACT BOOLEAN (NaturalLoss);
+showClose (NaturalLoss n) = isOpened(n) AND NOT skipClose(n);   
+showOpen (NaturalLoss n) = isClosed(n) AND NOT skipOpen(n);   
 
 subNaturalDetail = DATA SubNaturalLossGroupDetail(NaturalLossDetail) NONULL;
 nameSubNaturalDetail 'Период' (NaturalLossDetail naturalLossDetail) =
@@ -469,14 +474,27 @@ skipDelete = ABSTRACT BOOLEAN (NaturalLoss);
 showEdit (NaturalLoss n) = n IS NaturalLoss AND NOT skipEdit(n);
 showDelete (NaturalLoss n) = n IS NaturalLoss AND NOT skipDelete(n);
 
+filterNaturalLossDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (NaturalLoss n) = date(n) >= filterNaturalLossDateFrom() OR (n IS NaturalLoss AND NOT filterNaturalLossDateFrom());      
+
+filterNaturalLossDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (NaturalLoss n) = date(n) <= filterNaturalLossDateTo() OR (n IS NaturalLoss AND NOT filterNaturalLossDateTo());      
+
+idStock 'Код склада' (NaturalLoss n) = id(stock(n));
+
 FORM naturalLosses 'Ведомости естественной убыли'
+    PROPERTIES () filterNaturalLossDateFrom, filterNaturalLossDateTo
     OBJECTS s=NaturalLoss
-    PROPERTIES(s) READONLY isPosted,number, series, date, time,
-                           nameStock, dateFrom, dateTo,
+    PROPERTIES(s) READONLY isClosed, isPosted,number, series, date, time,
+                           idStock SHOWIF showIDs(), nameStock, dateFrom, dateTo,
                            quantityNaturalLossDetail, sum, note
+    PROPERTIES (s) close SHOWIF showClose(s), open SHOWIF showOpen(s)
     PROPERTIES(s) NEWSESSION NEW, EDIT SHOWIF showEdit(s), deletes=DELETE SHOWIF showDelete(s)
     PROPERTIES(s) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
-                                       postedNameUser, postedTime, postedHostnameComputer
+                                 postedNameUser, postedTime, postedHostnameComputer
+    FILTERS filterDateFrom(s), filterDateTo(s)
+    FILTERGROUP open FILTER 'Открыт' isOpened(s) 'F6' DEFAULT 
+    
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
                            nameBatch, quantityLoss,
@@ -488,6 +506,9 @@ FORM naturalLosses 'Ведомости естественной убыли'
 @extendFormFilterAccessStock(NaturalLoss, s, naturalLosses, stock, company);
 
 DESIGN naturalLosses {
+    GROUP () {
+        caption = 'Фильтры';
+    }
     NEW documentContainer BEFORE TOOLBARBOX {
         fill = 1;
         type = SPLITV;
