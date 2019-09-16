@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
+import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -147,7 +148,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                                     processTransactionLogger.info(logPrefix + "waiting for processing transactions");
                                     exportFlags(conn, tables);
-                                    exception = waitFlags(conn, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout);
+                                    exception = waitFlags(conn, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
                                     if(exception == null) {
                                         for(CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
                                             deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
@@ -506,6 +507,32 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
+    private void exportDCard(Connection conn, List<DiscountCard> discountCardList) throws SQLException {
+        String[] keys = new String[]{"DCARDID"};
+        String[] columns = new String[]{"DCARDID", "CLNTID", "DCARDCODE", "DCARDNAME", "ISPAYMENT", "DELFLAG", "LOCKED"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "DCARD", columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            for (DiscountCard discountCard : discountCardList) {
+                if (!Thread.currentThread().isInterrupted()) {
+                    setObject(ps, discountCard.idDiscountCard, 1, offset); //DCARDID
+                    setObject(ps, discountCard.idDiscountCard, 2, offset); //CLNTID
+                    setObject(ps, discountCard.idDiscountCard, 3, offset); //DCARDCODE
+                    setObject(ps, discountCard.nameDiscountCard, 4, offset); //DCARDNAME
+                    setObject(ps, false, 5, offset); //ISPAYMENT
+                    setObject(ps, "0", 6, offset); //DELFLAG
+                    setObject(ps, 0, 7, offset); //LOCKED
+
+                    setObject(ps, discountCard.idDiscountCard, 8, offset); //DCARDID
+
+                    ps.addBatch();
+                } else break;
+            }
+            ps.executeBatch();
+            conn.commit();
+        }
+    }
+
     private boolean isValidItem(CashRegisterItemInfo item) {
         return parseUOM(item.idUOM) != null && parseIdItem(item) != null;
     }
@@ -520,7 +547,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private Throwable waitFlags(Connection conn, String tables, List<CashRegisterItemInfo> usedDeleteBarcodeList, String deleteBarcodeKey, int timeout) throws InterruptedException {
+    private Throwable waitFlags(Connection conn, String tables, List<CashRegisterItemInfo> usedDeleteBarcodeList, String deleteBarcodeKey, int timeout, boolean skipDeleteBarcode) throws InterruptedException {
         int count = 0;
         int flags;
         while ((flags = checkFlags(conn, tables)) != 0) {
@@ -534,11 +561,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Thread.sleep(5000);
             }
         }
-        Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
-        for(CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
-            deleteBarcodeMap.remove(usedDeleteBarcode.idItem);
+        if(!skipDeleteBarcode) {
+            Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
+            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                deleteBarcodeMap.remove(usedDeleteBarcode.idItem);
+            }
+            deleteBarcodeConnectionStringMap.put(deleteBarcodeKey, deleteBarcodeMap);
         }
-        deleteBarcodeConnectionStringMap.put(deleteBarcodeKey, deleteBarcodeMap);
         return null;
     }
 
@@ -558,6 +587,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             try (Statement s = conn.createStatement()) {
                 s.execute("TRUNCATE TABLE " + table);
             }
+        }
+        conn.commit();
+    }
+
+    private void truncateTable(Connection conn, String name) throws SQLException {
+        try (Statement s = conn.createStatement()) {
+            s.execute("TRUNCATE TABLE " + name);
         }
         conn.commit();
     }
@@ -611,7 +647,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     conn.commit();
 
                     processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
-                    exportFlags(conn, "'ART'");
+                    exportFlags(conn, "'PACKPRC'");
 
                 } catch (Exception e) {
                     processStopListLogger.error(logPrefix, e);
@@ -641,6 +677,56 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             return false;
         }
         return true;
+    }
+
+    @Override
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) {
+        try {
+
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+
+            AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
+            Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+
+            for (String directory : getDirectorySet(requestExchange)) {
+
+                Throwable exception;
+
+                AstronConnectionString params = new AstronConnectionString(directory);
+                if (params.connectionString == null) {
+                    processTransactionLogger.error(logPrefix + "no connectionString found");
+                    exception = new RuntimeException("no connectionString found");
+                } else {
+
+                    try (Connection conn = getConnection(params.connectionString, params.user, params.password)) {
+                        String table = "'DCARD'";
+
+                        int flags = checkFlags(conn, table);
+                        if (flags > 0) {
+                            exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
+                        } else {
+                            truncateTable(conn, "DCARD");
+
+                            processTransactionLogger.info(logPrefix + "export table dcard");
+                            exportDCard(conn, discountCardList);
+
+                            processTransactionLogger.info(logPrefix + "waiting for processing transactions");
+                            exportFlags(conn, table);
+                            exception = waitFlags(conn, table, null, null, timeout, true);
+                        }
+                    } catch (Exception e) {
+                        processTransactionLogger.error(logPrefix, e);
+                        exception = e;
+                    }
+                }
+
+                if(exception != null) {
+                    throw new RuntimeException(exception);
+                }
+            }
+        } catch (ClassNotFoundException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override
