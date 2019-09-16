@@ -177,9 +177,14 @@ quantityOutput 'Кол-во спецификаций (произведенных
 recBruttoQuantityOutput 'Кол-во для произ-го' (BOM BOM, Order order, Sku sku) = GROUP SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
 recBruttoQuantityOutput 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM quantityOutput(BOM, order) * recBruttoQuantity(BOM, component, date(order));
 
-calcComponentConsumedQuantity (ComponentDetail d) = 
+calcComponentConsumedQuantityOver = ABSTRACT NUMERIC[16,5](ComponentDetail);
+calcComponentConsumedQuantity (ComponentDetail d) = OVERRIDE
+    calcComponentConsumedQuantityOver(d),
     round((recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
-calcSkuConsumedQuantity (ComponentDetail d) = 
+
+calcSkuConsumedQuantityOver = ABSTRACT NUMERIC[16,5](ComponentDetail);
+calcSkuConsumedQuantity (ComponentDetail d) = OVERRIDE
+    calcSkuConsumedQuantityOver(d),
     round((recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE multiplierSubstituteTo(bruttoSku(d), substituteSku(d)), 1.0), overQuantityRound(d));
     
 createOutputComponent 'Заполнить списание'(Order order)  { 
