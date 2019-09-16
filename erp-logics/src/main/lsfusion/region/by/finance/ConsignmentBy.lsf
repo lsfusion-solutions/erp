@@ -285,7 +285,7 @@ ownerTruckLegalEntity 'Владелец автомобиля' (Consignment consi
 
 overPayer(Consignment consignment) += ownerTruckLegalEntity(consignment);
 
-dataWaybill 'Путевой лист' (consignment) = ABSTRACT STRING[20] (Consignment) IN carConsignment;
+dataWaybill 'Путевой лист' (consignment) = ABSTRACT BPSTRING[30] (Consignment) IN carConsignment;
 
 waybill 'Путевой лист' (consignment) = ABSTRACT BPSTRING[30] (Consignment);
 
@@ -1070,21 +1070,29 @@ showPayer(Consignment consignment) = showTTN1(consignment) AND NOT hidePayerCons
 banSeries = ABSTRACT BOOLEAN (Consignment);
 toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
-META changeConsignment(property)
-    change###property(Consignment c)  { 
-        INPUT s = data###property(c) DO {
-            data###property(c) <- s;
-        }
+changeTrailer(Consignment c)  { 
+    INPUT s = trailer(c) DO {
+        dataTrailer(c) <- s;
     }
-END
+}
 
+changeWaybill(Consignment c)  { 
+    INPUT s = overWaybill(c) DO {
+        dataWaybill(c) <- s;
+    }
+}
 
-@changeConsignment(trailer);
-@changeConsignment(waybill);
+changeAddressSupplierStock(Consignment c)  { 
+    INPUT s = addressSupplierStock(c) DO {
+        dataAddressSupplierStock(c) <- s;
+    }
+}
 
-@changeConsignment(addressSupplierStock);
-@changeConsignment(addressCustomerStock);
-
+changeAddressCustomerStock(Consignment c)  { 
+    INPUT s = addressCustomerStock(c) DO {
+        dataAddressCustomerStock(c) <- s;
+    }
+}
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment PANEL
