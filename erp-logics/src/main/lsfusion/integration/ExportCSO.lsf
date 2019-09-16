@@ -1,12 +1,35 @@
 MODULE ExportCSO;
 
-REQUIRE Image, ExportCSOCustom;
+REQUIRE Image, ExportCSOCustom, Store, Range;
 
 
 //----------------------------- Экспорт в КСО -----------------------//
 
 //------------------//PI_SAP_ArticleHierarchyObject.xml
-dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' = DATA STRING[255] ();
+//dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' = DATA STRING[255] ();
+
+dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' = DATA STRING[255] (Store) CHARWIDTH 30;
+dataExchangeRegisterAddress 'Полный адрес отправки данных КСО' (DepartmentStore ds)= dataExchangeRegisterAddress(store(ds)) IF id(store(ds))==id(ds) CHARWIDTH 30;
+customGroupType = DATA CustomGroupType(Store);
+nameCustomGroupType 'Справочник КСО' (Store ds) = name(customGroupType(ds)) CHARWIDTH 30;
+customGroupType(DepartmentStore ds) = customGroupType(store(ds)) IF id(store(ds))==id(ds);
+
+CONSTRAINT customGroupType(Store st) AND NOT isCSO(customGroupType(st))
+    CHECKED BY customGroupType[Store] 
+    MESSAGE 'Для магазина олжен быть задан справочник КСО';
+
+EXTEND FORM store
+    PROPERTIES (s) dataExchangeRegisterAddress, nameCustomGroupType
+;
+DESIGN store{
+    headerExtraParams{
+        MOVE PROPERTY (dataExchangeRegisterAddress(s));
+        MOVE PROPERTY (nameCustomGroupType(s));        
+    }
+}
+EXTEND FORM stores
+    PROPERTIES (s) READONLYIF isReadonly() dataExchangeRegisterAddress, nameCustomGroupType
+;
 
 GROUP Header EXTID 's:Header';
 GROUP To EXTID '=http://schemas.microsoft.com/ws/2005/05/addressing/none:To': Header ;
@@ -18,9 +41,11 @@ GROUP items:Put;
 GROUP Message EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' :items;
 GROUP itemO EXTID 'Item';
 
-skipCSO = ABSTRACT BOOLEAN (Item);
-activeCSO (Item i) = active(i) AND NOT skipCSO(i);
-activeIndex (Item i, CustomGroupType type) = PARTITION SUM 1 IF customGroup(type, i) AND activeCSO(i) ORDER name(i),i BY type;
+
+inFilter = DATA LOCAL NESTED BOOLEAN (CustomGroupType);
+inFilter = DATA LOCAL NESTED BOOLEAN (Item);
+activeIndex (Item i, CustomGroupType type) = PARTITION SUM 1 IF customGroup(type, i) AND inFilter(i) ORDER name(i),i BY type;
+
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
      
     PROPERTIES IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -42,28 +67,36 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  =activeIndex(i,type) EXTID 'NumberInCatalogue' IN itemO
                     
     FILTERS customGroup(type, i), 
-            activeCSO(i),
-            isCSO(type) 
+            inFilter(i),
+            inFilter(type) 
 ;
 httpHeadersAHO(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchyObjects';
     
-articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (){
-    EXPORT ArticleHierarchyObject XML TO System.exportFile;     
-    LOCAL result = FILE();
-    LOCAL message = TEXT();
-    TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', 'Sending')));
-        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAHO PARAMS System.exportFile() TO result;  
-        message() <- 'ArticleHierarchyObject - отправлен';
-    } CATCH {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
-        fileToString(result(), 'UTF-8');
-        logToFile('CSO', (CONCAT '\n', 'ArticleHierarchyObject',resultString()));    
-        message() <- 'ArticleHierarchyObject - есть ошибки, обратитесь к администратору';        
-    }
-    IF message()  THEN {
-        MESSAGE message() NOWAIT;
+articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchyObject)' (DepartmentStore ds){
+    NEWSESSION {
+        inFilter(CustomGroupType t) <- NULL;
+        inFilter(Item i) <- NULL;
+            
+        inFilter(customGroupType(ds)) <- TRUE;
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        
+        EXPORT ArticleHierarchyObject XML TO System.exportFile;     
+        LOCAL result = FILE();
+        LOCAL message = TEXT();
+        TRY {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleHierarchyObject', 'Sending')));
+            EXTERNAL HTTP dataExchangeRegisterAddress(ds) HEADERS httpHeadersAHO PARAMS System.exportFile() TO result;  
+            message() <- CONCAT'', name(ds)+': ', 'ArticleHierarchyObject - отправлен';
+        } CATCH {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds),'ArticleHierarchyObject', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+            fileToString(result(), 'UTF-8');
+            logToFile('CSO', (CONCAT '\n', name(ds)+': ArticleHierarchyObject',resultString()));    
+            message() <-  CONCAT'', name(ds)+': ', 'ArticleHierarchyObject - есть ошибки, обратитесь к администратору';        
+        }
+        IF message()  THEN {
+            MESSAGE message() NOWAIT;
+        }
     }                
 }
 
@@ -100,29 +133,37 @@ FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envel
     PROPERTIES (ii,int) Description, LanguageId
     FILTERS iterate(int,1,countDescription(ii)), ii==i                    
     FILTERS customGroup(type, i), 
-            activeCSO(i),
-            isCSO(type)
+            inFilter(i),
+            inFilter(type) 
 ; 
 httpHeadersAM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleMessage';
     
-articleMessage 'Наименование товаров КСО (ArticleMessage)' (){
-    EXPORT ArticleMessage XML TO System.exportFile;
-    LOCAL result = FILE();
-    LOCAL message = TEXT();    
-    TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', 'Sending')));
-        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAM PARAMS System.exportFile() TO result; 
-        message() <- 'ArticleMessage - отправлен';
-    } CATCH { 
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
-        fileToString(result(), 'UTF-8');
-        logToFile('CSO', (CONCAT '\n', 'ArticleMessage',resultString()));    
-        message() <- 'ArticleMessage - есть ошибки, обратитесь к администратору';      
-    }
-    IF message()  THEN {
-        MESSAGE message() NOWAIT;
-    }                        
+articleMessage 'Наименование товаров КСО (ArticleMessage)' (DepartmentStore ds){
+    NEWSESSION {    
+        inFilter(CustomGroupType t) <- NULL;
+        inFilter(Item i) <- NULL;
+            
+        inFilter(customGroupType(ds)) <- TRUE;
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+    
+        EXPORT ArticleMessage XML TO System.exportFile;
+        LOCAL result = FILE();
+        LOCAL message = TEXT();    
+        TRY {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleMessage', 'Sending')));
+            EXTERNAL HTTP dataExchangeRegisterAddress(ds) HEADERS httpHeadersAM PARAMS System.exportFile() TO result; 
+            message() <- (CONCAT ': ', name(ds),'ArticleMessage - отправлен');
+        } CATCH { 
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ',  name(ds),'ArticleMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+            fileToString(result(), 'UTF-8');
+            logToFile('CSO', (CONCAT '\n',  name(ds)+': ArticleMessage',resultString()));    
+            message() <- (CONCAT ': ', name(ds),'ArticleMessage - есть ошибки, обратитесь к администратору');      
+        }
+        IF message()  THEN {
+            MESSAGE message() NOWAIT;
+        }  
+    }                      
 }
 
 //------------ //PI_SAP_ArticleDocumentMessage.xml
@@ -142,8 +183,8 @@ countImagesCSO 'Кол-во картинок в одном документе' =
 number = DATA LOCAL INTEGER ();
 isEnd = DATA LOCAL BOOLEAN ();
 
-index(Item i, CustomGroupType t) = PARTITION SUM 1 IF customGroup(t, i) AND activeCSO(i) AND isCSO(t) ORDER i,t;
-countIn() = GROUP SUM 1 IF customGroup(CustomGroupType t, Item i) AND activeCSO(i) AND isCSO(t);
+index(Item i, CustomGroupType t) = PARTITION SUM 1 IF customGroup(t, i) AND inFilter(i) ORDER i,t;
+countIn() = GROUP SUM 1 IF customGroup(CustomGroupType t, Item i) AND inFilter(i);
 
 FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'   
           
@@ -163,7 +204,8 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemI
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
     PROPERTIES  IN ArticleDocumentData    =localImage(i) EXTID 'Object'    
-    FILTERS index(i,type),
+    FILTERS inFilter(type),
+            index(i,type),
             (index(i,type) > ((number() - 1) * countImagesCSO())) OR NOT countImagesCSO(),
             (index(i,type) <= (number() * countImagesCSO())) OR NOT countImagesCSO()
 ; 
@@ -171,40 +213,48 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
 httpHeadersADM(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleDocumentMessage';
 
-articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (){
-    localImage(Item i) <- NULL;
-    FOR customGroup(CustomGroupType type, Item i) AND activeCSO(i) AND isCSO(type) AND image(i) DO {
-        localImage(i) <- image(i);
-        getFileSize(FILE(localImage(i)));
-        IF fileSize() > 15000 THEN {
-            resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/10000));
-            localImage(i) <- resizedImage();
-        }
-        convertImage(localImage(i), 'png');
-        localImage(i) <- convertedImage();
+articleDocumentMessage 'Изображения товаров КСО (ArticleDocumentMessage)' (DepartmentStore ds){
+    NEWSESSION {    
+        inFilter(CustomGroupType t) <- NULL;
+        inFilter(Item i) <- NULL;
+            
+        inFilter(customGroupType(ds)) <- TRUE;
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
         
-    }
-    timeStamp() <- [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime());
-    LOCAL countN = INTEGER ();
-    countN() <- OVERRIDE divideInteger(countIn(),countImagesCSO()) (+) (IF mod(countIn(),countImagesCSO()) > 0 THEN 1), 1;
-    FOR iterate(INTEGER n, 1, countN()) DO {
-        number() <- n;
-        isEnd() <- n == countN();
-        EXPORT ArticleDocumentMessage XML TO System.exportFile;
-        LOCAL result = FILE();
-        LOCAL message = TEXT();
-        TRY {
-            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', 'Sending')));
-            EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersADM PARAMS System.exportFile() TO result;
-            message() <- 'ArticleDocumentMessage - отправлен';
-        } CATCH {
-            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
-            fileToString(result(), 'UTF-8');
-            logToFile('CSO', (CONCAT '\n', 'ArticleDocumentMessage',resultString()));
-            message() <- 'ArticleDocumentMessage - есть ошибки, обратитесь к администратору';
+        localImage(Item i) <- NULL;
+        FOR inFilter(Item i) AND image(i) DO {
+            localImage(i) <- image(i);
+            getFileSize(FILE(localImage(i)));
+            IF fileSize() > 15000 THEN {
+                resizeImage(localImage(i), sqrt(DOUBLE(fileSize())/10000));
+                localImage(i) <- resizedImage();
+            }
+            convertImage(localImage(i), 'png');
+            localImage(i) <- convertedImage();
+            
         }
-        IF message()  THEN {
-            MESSAGE message() NOWAIT;
+        timeStamp() <- [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime());
+        LOCAL countN = INTEGER ();
+        countN() <- OVERRIDE divideInteger(countIn(),countImagesCSO()) (+) (IF mod(countIn(),countImagesCSO()) > 0 THEN 1), 1;
+        FOR iterate(INTEGER n, 1, countN()) DO {
+            number() <- n;
+            isEnd() <- n == countN();
+            EXPORT ArticleDocumentMessage XML TO System.exportFile;
+            LOCAL result = FILE();
+            LOCAL message = TEXT();
+            TRY {
+                logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleDocumentMessage', 'Sending')));
+                EXTERNAL HTTP dataExchangeRegisterAddress(ds) HEADERS httpHeadersADM PARAMS System.exportFile() TO result;
+                message() <- (CONCAT ': ', name(ds),'ArticleDocumentMessage - отправлен');
+            } CATCH {
+                logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleDocumentMessage', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+                fileToString(result(), 'UTF-8');
+                logToFile('CSO', (CONCAT '\n', name(ds)+': ArticleDocumentMessage',resultString()));
+                message() <- (CONCAT ': ', name(ds),'ArticleDocumentMessage - есть ошибки, обратитесь к администратору');
+            }
+            IF message()  THEN {
+                MESSAGE message() NOWAIT;
+            }
         }
     }
 }
@@ -237,7 +287,7 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     PROPERTIES IN ArticleHierarchyDescriptionData      = name(type) EXTID  'Description'
     PROPERTIES IN ArticleHierarchyDescriptionData      = 'RU' IF type IS CustomGroupType EXTID  'LanguageId' 
     PROPERTIES IN itemC                                =id(type) EXTID 'HierarchyId'                
-    FILTERS isCSO(type)
+    FILTERS inFilter(type)
     
     OBJECTS    i = CustomGroup EXTID 'ArticleHierarchyNode' IN Node          
 
@@ -261,44 +311,77 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
 httpHeadersAH(TEXT name) = CASE
     WHEN name == 'SOAPAction' THEN 'http://www.uvs.lt/PI_GP/I_PI_GP/PutArticleHierarchies';
     
-articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (){
-    localImage(CustomGroup g) <- NULL;
-    FOR isCSO(customGroupType(CustomGroup i)) AND image(i) DO {
-        convertImage(image(i), 'png');
-        localImage(i) <- convertedImage();        
-    }
+articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (DepartmentStore ds){
+    NEWSESSION {
+        localImage(CustomGroup g) <- NULL;
+        
+        inFilter(CustomGroupType t) <- NULL;
+        inFilter(Item i) <- NULL;    
+    
+        inFilter(customGroupType(ds)) <- TRUE; 
+        
+        FOR inFilter(customGroupType(CustomGroup i)) AND image(i) DO {
+            convertImage(image(i), 'png');
+            localImage(i) <- convertedImage();        
+        }
+    
+        EXPORT ArticleHierarchy XML TO System.exportFile;     
+        LOCAL result = FILE();
+        LOCAL message = TEXT();    
+        TRY {
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleHierarchy', 'Sending')));
+            EXTERNAL HTTP dataExchangeRegisterAddress(ds) HEADERS httpHeadersAH PARAMS System.exportFile() TO result;  
+            message() <- (CONCAT ': ', name(ds), 'ArticleHierarchy - отправлен'); 
+        } CATCH { 
+            logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', name(ds), 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
+            fileToString(result(), 'UTF-8');
+            logToFile('CSO', (CONCAT '\n', name(ds)+': ArticleHierarchy',resultString()));   
+            message() <- (CONCAT ': ', name(ds), 'ArticleHierarchy - есть ошибки, обратитесь к администратору');               
+        }
+        IF message()  THEN {
+            MESSAGE message() NOWAIT;
+        } 
+    }           
+}
 
-    EXPORT ArticleHierarchy XML TO System.exportFile;     
-    LOCAL result = FILE();
-    LOCAL message = TEXT();    
-    TRY {
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', 'Sending')));
-        EXTERNAL HTTP dataExchangeRegisterAddress() HEADERS httpHeadersAH PARAMS System.exportFile() TO result;  
-        message() <- 'ArticleHierarchy - отправлен'; 
-    } CATCH { 
-        logToFile('CSO',(CONCAT '\n\n', (CONCAT ' - ', 'ArticleHierarchy', messageCaughtException()), lsfStackTraceCaughtException(), javaStackTraceCaughtException()));
-        fileToString(result(), 'UTF-8');
-        logToFile('CSO', (CONCAT '\n', 'ArticleHierarchy',resultString()));   
-        message() <- 'ArticleHierarchy - есть ошибки, обратитесь к администратору';               
+exportCSO 'Выгрузить магазин' (DepartmentStore ds)  {
+    IF dataExchangeRegisterAddress(ds) AND customGroupType(ds) THEN {
+        articleHierarchyObject(ds);
+        articleMessage(ds);
+        articleDocumentMessage(ds);
+        articleHierarchy(ds);  
     }
-    IF message()  THEN {
-        MESSAGE message() NOWAIT;
-    }            
+}
+exportCSO 'Выгрузить' (CustomGroupType type)  {
+    FOR active(DepartmentStore ds) AND  customGroupType(ds) == type DO {
+        exportCSO(ds);  
+    }
+}
+//-- в планировщик
+exportCSO 'Выгрузить (планировщик)' ()  {
+    FOR isCSO(CustomGroupType type) DO {
+        exportCSO(type);  
+    }
 }
 
 EXTEND FORM integrationData 
-    PROPERTIES() dataExchangeRegisterAddress, countImagesCSO
-    PROPERTIES() articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
+    OBJECTS type = CustomGroupType 
+    PROPERTIES (type)  READONLY name, id, isCSO
+    PROPERTIES (type) TOOLBAR exportCSO
+    FILTERS isCSO(type)
+    
+    OBJECTS cs = DepartmentStore
+    PROPERTIES (cs) READONLY id, name, nameLegalEntity, dataExchangeRegisterAddress
+    PROPERTIES (cs) TOOLBAR exportCSO, articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
+    PROPERTIES exportCSO() PANEL DRAW cs
+    FILTERS customGroupType(cs)==type,
+            active(cs)
 ;
 
 DESIGN integrationData {
     kso {
-        MOVE PROPERTY (dataExchangeRegisterAddress());
-        MOVE PROPERTY (countImagesCSO());
-        MOVE PROPERTY (articleHierarchyObject());
-        MOVE PROPERTY (articleMessage());
-        MOVE PROPERTY (articleDocumentMessage());
-        MOVE PROPERTY (articleHierarchy());            
+        MOVE BOX(type);  
+        MOVE BOX(cs){ fill = 2;}
     }    
 }
 
