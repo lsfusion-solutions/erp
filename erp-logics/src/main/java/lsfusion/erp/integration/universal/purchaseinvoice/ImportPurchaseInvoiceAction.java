@@ -99,7 +99,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 String staticNameImportType = splittedFieldImportType == null ? null : splittedFieldImportType[splittedFieldImportType.length - 1];
                 
                 List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
-                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context.getSession(), checkInvoiceExistence);
+                Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context, checkInvoiceExistence);
 
                 ImportDocumentSettings importSettings = readImportDocumentSettings(context, importTypeObject);
                 String fileExtension = importSettings.getFileExtension();
@@ -176,7 +176,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
             xBaseJException, ScriptingErrorLog.SemanticErrorException {
         
         List<LinkedHashMap<String, ImportColumnDetail>> importColumns = readImportColumns(context, importTypeObject);
-        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context.getSession(), checkInvoiceExistence);
+        Set<String> purchaseInvoiceSet = getPurchaseInvoiceSet(context, checkInvoiceExistence);
 
         ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(context, (DataObject) importTypeObject);
         ObjectValue supplierObject = findProperty("autoImportSupplier[ImportType]").readClasses(context, (DataObject) importTypeObject);
@@ -847,7 +847,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         }
     }
 
-    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext context, DataObject userInvoiceObject,
+    protected List<List<PurchaseInvoiceDetail>> importUserInvoicesFromFile(ExecutionContext<ClassPropertyInterface> context, DataObject userInvoiceObject,
                                                                            Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                            Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN, boolean checkInvoiceExistence,
                                                                            RawFileData file, String fileExtension, ImportDocumentSettings importSettings,
@@ -902,7 +902,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return userInvoiceDetailsList;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext context, RawFileData importFile,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLS(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -953,7 +953,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().getOrDefault(value, value);
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
+                        fieldValues.put("idCustomer", readIdCustomer(context, value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1035,7 +1035,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext context, RawFileData importFile,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromCSV(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1081,7 +1081,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().getOrDefault(value, value);
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
+                        fieldValues.put("idCustomer", readIdCustomer(context, value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1204,7 +1204,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     case "idCustomerStock":
                         value = importSettings.getStockMapping().getOrDefault(value, value);
                         fieldValues.put("idCustomerStock", value);
-                        fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
+                        fieldValues.put("idCustomer", readIdCustomer(context, value));
                         break;
                     default:
                         fieldValues.put(field, value);
@@ -1343,7 +1343,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         case "idCustomerStock":
                             value = importSettings.getStockMapping().getOrDefault(value, value);
                             fieldValues.put("idCustomerStock", value);
-                            fieldValues.put("idCustomer", readIdCustomer(context.getSession(), value));
+                            fieldValues.put("idCustomer", readIdCustomer(context, value));
                             break;
                         default:
                             fieldValues.put(field, value);
@@ -1447,7 +1447,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
                 LP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");
 
-                List<Object> articles = getArticlesMap(context.getSession(), idArticleProp, sidProp);
+                List<Object> articles = getArticlesMap(context, idArticleProp, sidProp);
                 Set<String> articleSet = (Set<String>) articles.get(0);
                 Map<String, String> articlePropertyMap = (Map<String, String>) articles.get(1);
                 Map<String, Object[]> duplicateArticles = new HashMap<>();
@@ -1478,7 +1478,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return true;
     }
     
-    private List<Object> getArticlesMap(DataSession session, LP<?> idArticleProp, LP<?> sidProperty) throws SQLException, SQLHandledException {
+    private List<Object> getArticlesMap(ExecutionContext<ClassPropertyInterface> context, LP<?> idArticleProp, LP<?> sidProperty) throws SQLException, SQLHandledException {
         
         Set<String> articleSet = new HashSet<>();
         Map<String, String> articlePropertyMap = new HashMap<>();
@@ -1487,11 +1487,11 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         ImRevMap<Object, KeyExpr> articleKeys = MapFact.singletonRev("Article", articleExpr);
 
         QueryBuilder<Object, Object> articleQuery = new QueryBuilder<>(articleKeys);
-        articleQuery.addProperty("idArticle", idArticleProp.getExpr(session.getModifier(), articleExpr));
-        articleQuery.addProperty("sid", sidProperty.getExpr(session.getModifier(), articleExpr));
-        articleQuery.and(idArticleProp.getExpr(session.getModifier(), articleExpr).getWhere());
+        articleQuery.addProperty("idArticle", idArticleProp.getExpr(context.getModifier(), articleExpr));
+        articleQuery.addProperty("sid", sidProperty.getExpr(context.getModifier(), articleExpr));
+        articleQuery.and(idArticleProp.getExpr(context.getModifier(), articleExpr).getWhere());
         
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(session);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = articleQuery.execute(context);
 
         for (ImMap<Object, Object> entry : articleResult.values()) {
 
@@ -1504,7 +1504,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return Arrays.asList(articleSet, articlePropertyMap);
     }
 
-    protected Set<String> getPurchaseInvoiceSet(DataSession session, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Set<String> getPurchaseInvoiceSet(ExecutionContext<ClassPropertyInterface> context, boolean checkInvoiceExistence) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         if(!checkInvoiceExistence)
             return null;
@@ -1515,9 +1515,9 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("Purchase.Invoice", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-        query.addProperty("Purchase.idUserInvoice", findProperty("id[UserInvoice]").getExpr(session.getModifier(), key));
-        query.and(findProperty("id[UserInvoice]").getExpr(session.getModifier(), key).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        query.addProperty("Purchase.idUserInvoice", findProperty("id[UserInvoice]").getExpr(context.getModifier(), key));
+        query.and(findProperty("id[UserInvoice]").getExpr(context.getModifier(), key).getWhere());
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
@@ -1560,10 +1560,10 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
     }
     
-    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idCustomerStock));
-        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(session, (DataObject) customerStockObject));
-        return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(session, customerObject));
+    private String readIdCustomer(ExecutionContext<ClassPropertyInterface> context, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(context, new DataObject(idCustomerStock));
+        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, (DataObject) customerStockObject));
+        return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(context, customerObject));
     }
 }
 

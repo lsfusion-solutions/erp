@@ -102,7 +102,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         return Arrays.asList(defaultColumns, customColumns);
     }
 
-    protected Map<String, String> readStockMapping(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, String> readStockMapping(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Map<String, String> stockMapping = new HashMap<>();
 
@@ -110,11 +110,11 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("StockMappingEntry", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         
-        query.addProperty("idStockMappingEntry", findProperty("id[StockMappingEntry]").getExpr(session.getModifier(), key));
-        query.addProperty("idStockStockMappingEntry", findProperty("idStock[StockMappingEntry]").getExpr(session.getModifier(), key));
+        query.addProperty("idStockMappingEntry", findProperty("id[StockMappingEntry]").getExpr(context.getModifier(), key));
+        query.addProperty("idStockStockMappingEntry", findProperty("idStock[StockMappingEntry]").getExpr(context.getModifier(), key));
         query.and(findProperty("id[StockMappingEntry]").getExpr(key).getWhere());
         query.and(findProperty("importType[StockMappingEntry]").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
 
@@ -126,7 +126,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
     }
 
     public ImportDocumentSettings readImportDocumentSettings(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> stockMapping = readStockMapping(context.getSession(), importTypeObject);
+        Map<String, String> stockMapping = readStockMapping(context, importTypeObject);
         String fileExtension = trim((String) findProperty("captionFileExtension[ImportType]").read(context, importTypeObject));
         String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyType[ImportType]").read(context, importTypeObject));
         boolean checkExistence = findProperty("checkExistencePrimaryKey[ImportType]").read(context, importTypeObject) != null;

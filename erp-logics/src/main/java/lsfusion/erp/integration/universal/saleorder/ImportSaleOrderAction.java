@@ -115,7 +115,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
         this.saleManufacturingPriceLM = context.getBL().getModule("SaleManufacturingPrice");
 
-        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context.getSession(), (Long) orderObject.object,
+        List<List<SaleOrderDetail>> orderDetailsList = importOrdersFromFile(context, (Long) orderObject.object,
                 importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator(),
                 settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
@@ -332,7 +332,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return false;
     }
 
-    public List<List<SaleOrderDetail>> importOrdersFromFile(DataSession session, Long orderObject, Map<String, ImportColumnDetail> importColumns,
+    public List<List<SaleOrderDetail>> importOrdersFromFile(ExecutionContext context, Long orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
@@ -347,20 +347,20 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
         switch (fileExtension) {
             case "DBF":
-                orderDetailsList = importOrdersFromDBF(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromDBF(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "XLS":
-                orderDetailsList = importOrdersFromXLS(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromXLS(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "XLSX":
-                orderDetailsList = importOrdersFromXLSX(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromXLSX(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "CSV":
             case "TXT":
-                orderDetailsList = importOrdersFromCSV(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromCSV(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, orderObject);
                 break;
             default:
