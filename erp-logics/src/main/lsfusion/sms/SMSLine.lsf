@@ -165,7 +165,7 @@ CONSTRAINT action(Dispatch d) AND NOT caption(d)
     MESSAGE 'Не задан заголовок для кнопки';
 
 date 'Дата' = DATA DATE (Dispatch) NONULL;
-CONSTRAINT SETCHANGED(date(Dispatch d)) AND date(d) <= currentDate()
+CONSTRAINT SETCHANGED(date(Dispatch d)) AND date(d) < currentDate()
     MESSAGE 'Дата проведения не должна быть раньше текущей даты';
 timeFrom 'Время с' = DATA TIME (Dispatch) NONULL;
 timeTo 'Время по' = DATA TIME (Dispatch) NONULL;
@@ -296,7 +296,8 @@ NAVIGATOR {
     }
 }
 
-replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace(message,'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
+overReplaceKeys = ABSTRACT TEXT (DiscountCard, TEXT);
+replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace((OVERRIDE overReplaceKeys(d,message),message),'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
 
 textDispatch (Dispatch d) =
     IF communicationChannel(d) == CommunicationChannel.viber_sms THEN 
@@ -342,11 +343,14 @@ msisdn = DATA LOCAL STRING[100](INTEGER);
 state = DATA LOCAL STRING[100](INTEGER);
 name = DATA LOCAL STRING[255](INTEGER);
 date_time = DATA LOCAL DATETIME(INTEGER);
+code = DATA LOCAL STRING[100](INTEGER);
+message = DATA LOCAL STRING[255](INTEGER);
 
 FORM importMessages
     OBJECTS messages = INTEGER
     PROPERTIES(messages) external_id, msisdn
     PROPERTIES(messages) IN state state, name, date_time
+    PROPERTIES(messages) IN error code, message
 ;
 
 external_id = DATA LOCAL STRING[255]();
@@ -393,6 +397,8 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
             state(INTEGER i) <- NULL;
             name(INTEGER i) <- NULL;
             date_time(INTEGER i) <- NULL;
+            code(INTEGER i) <- NULL;
+            message(INTEGER i) <- NULL;
             
             IMPORT importMessages JSON FROM result();
             //не возвращает external_id ищем по msisdn
@@ -401,6 +407,13 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 //name(dd,dc) <- name(i);
                 //dateTime(dd,dc) <- date_time(i);
             //}
+            IF code(0) AND message(0) THEN {
+                FOR in(subscriberBase(d), DiscountCard c) DO {
+                    state(d,c) <- code(0);
+                    name(d,c) <- message(0);
+                    dateTime(d,c) <- currentDateTime();
+                }
+            }
             FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(subscriberBase(d),c) BY j](INTEGER i) DO {
                 state(d,dc) <- state(i);
                 name(d,dc) <- name(i);
