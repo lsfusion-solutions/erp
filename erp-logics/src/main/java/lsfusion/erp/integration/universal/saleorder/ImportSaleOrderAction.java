@@ -332,7 +332,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return false;
     }
 
-    public List<List<SaleOrderDetail>> importOrdersFromFile(ExecutionContext context, Long orderObject, Map<String, ImportColumnDetail> importColumns,
+    public List<List<SaleOrderDetail>> importOrdersFromFile(ExecutionContext<ClassPropertyInterface> context, Long orderObject, Map<String, ImportColumnDetail> importColumns,
                                                             RawFileData file, String fileExtension, Integer startRow, Boolean isPosted, String separator,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit)
             throws UniversalImportException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, BiffException, SQLHandledException {
@@ -347,20 +347,20 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
         switch (fileExtension) {
             case "DBF":
-                orderDetailsList = importOrdersFromDBF(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromDBF(context, file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "XLS":
-                orderDetailsList = importOrdersFromXLS(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromXLS(context, file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "XLSX":
-                orderDetailsList = importOrdersFromXLSX(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromXLSX(context, file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
                 break;
             case "CSV":
             case "TXT":
-                orderDetailsList = importOrdersFromCSV(context.getSession(), file, importColumns, stringFields, bigDecimalFields, dateFields,
+                orderDetailsList = importOrdersFromCSV(context, file, importColumns, stringFields, bigDecimalFields, dateFields,
                         primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, orderObject);
                 break;
             default:
@@ -371,7 +371,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return orderDetailsList;
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLS(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromXLS(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
@@ -404,7 +404,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        String idCustomer = readIdCustomer(session, value);
+                        String idCustomer = readIdCustomer(context, value);
                         fieldValues.put(field, value);
                         fieldValues.put("idCustomer", idCustomer);
                         break;
@@ -428,7 +428,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
             String primaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, context, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 primaryList.add(saleOrderDetail);
@@ -437,7 +437,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromCSV(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromCSV(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, String primaryKeyType, boolean checkExistence,
                                                             String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Long orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
@@ -471,7 +471,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        String idCustomer = readIdCustomer(session, value);
+                        String idCustomer = readIdCustomer(context, value);
                         fieldValues.put(field, value);
                         fieldValues.put("idCustomer", idCustomer);
                         break;
@@ -495,7 +495,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
             String primaryKeyColumnValue = getCSVFieldValue(valuesList, importColumns.get(primaryKeyColumn), count);
             String secondaryKeyColumnValue = getCSVFieldValue(valuesList, importColumns.get(secondaryKeyColumn), count);
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, context, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 secondaryList.add(saleOrderDetail);
@@ -505,7 +505,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromXLSX(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromXLSX(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                              List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                              String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                              Integer startRow, Boolean isPosted, Long orderObject)
@@ -535,7 +535,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                         fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                         break;
                     case "idCustomerStock":
-                        String idCustomer = readIdCustomer(session, value);
+                        String idCustomer = readIdCustomer(context, value);
                         fieldValues.put(field, value);
                         fieldValues.put("idCustomer", idCustomer);
                         break;
@@ -559,7 +559,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
             String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(primaryKeyColumn));
             String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, importColumns.get(secondaryKeyColumn));
-            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+            if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, context, primaryKeyType, checkExistence))
                 primaryList.add(saleOrderDetail);
             else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                 secondaryList.add(saleOrderDetail);
@@ -568,7 +568,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private List<List<SaleOrderDetail>> importOrdersFromDBF(DataSession session, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
+    private List<List<SaleOrderDetail>> importOrdersFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile, Map<String, ImportColumnDetail> importColumns,
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             String primaryKeyType, boolean checkExistence, String secondaryKeyType, boolean keyIsDigit,
                                                             Integer startRow, Boolean isPosted, Long orderObject)
@@ -613,7 +613,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
                             fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
                             break;
                         case "idCustomerStock":
-                            String idCustomer = readIdCustomer(session, value);
+                            String idCustomer = readIdCustomer(context, value);
                             fieldValues.put(field, value);
                             fieldValues.put("idCustomer", idCustomer);
                             break;
@@ -637,7 +637,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
                 String primaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(primaryKeyColumn), i, charset);
                 String secondaryKeyColumnValue = getDBFFieldValue(file, importColumns.get(secondaryKeyColumn), i, charset);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, session, primaryKeyType, checkExistence))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, keyIsDigit, context, primaryKeyType, checkExistence))
                     primaryList.add(saleOrderDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, keyIsDigit))
                     secondaryList.add(saleOrderDetail);
@@ -652,10 +652,10 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return Arrays.asList(primaryList, secondaryList);
     }
 
-    private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idCustomerStock));
-        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(session, (DataObject) customerStockObject));
-        return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(session, customerObject));
+    private String readIdCustomer(ExecutionContext<ClassPropertyInterface> context, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ObjectValue customerStockObject = idCustomerStock == null ? null : findProperty("stock[STRING[100]]").readClasses(context, new DataObject(idCustomerStock));
+        ObjectValue customerObject = ((customerStockObject == null || customerStockObject instanceof NullValue) ? null : findProperty("legalEntity[Stock]").readClasses(context, (DataObject) customerStockObject));
+        return (String) (customerObject == null ? null : findProperty("id[LegalEntity]").read(context, customerObject));
     }
 
     protected Boolean showField(List<SaleOrderDetail> data, String fieldName) {

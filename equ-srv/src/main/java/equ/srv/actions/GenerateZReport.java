@@ -38,7 +38,6 @@ public class GenerateZReport extends DefaultIntegrationAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
-        DataSession session = context.getSession();
         List<SalesInfo> salesInfoList = new ArrayList<>();
         try {
             ObjectValue priceListType = findProperty("priceListTypeGenerateZReport[]").readClasses(context);
@@ -68,7 +67,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 query.and(findProperty("idBarcode[Sku]").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 if(stockObject instanceof DataObject)
                     query.and(departmentStoreExpr.compare((DataObject) stockObject, Compare.EQUALS));
-                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
+                ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
 
                 List<ItemZReportInfo> itemZReportInfoList = new ArrayList<>();
                 List<DataObject> departmentStoreList = new ArrayList<>();
@@ -100,7 +99,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                     cashRegisterQuery.and(findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
                     cashRegisterQuery.and(findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(departmentStoreObject.getExpr(), Compare.EQUALS));
 
-                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(session);
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(context);
 
                     for (int i = 0; i < cashRegisterResult.size(); i++) {
                         DataObject cashRegisterObject = cashRegisterResult.getKey(i).getValue(0);
@@ -121,7 +120,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 discountCardQuery.and(findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 discountCardQuery.and(findProperty("firstNameContact[DiscountCard]").getExpr(discountCardExpr).getWhere());
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session);
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(context);
                 for(ImMap<Object, Object> entry : discountCardResult.values()) {
                     discountCardList.add((String) entry.get("seriesNumber"));
                 }

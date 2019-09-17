@@ -180,12 +180,12 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
     }
     
     protected boolean checkKeyColumnValue(String keyColumn, String keyColumnValue, boolean keyIsDigit,
-                                          DataSession session, String keyType, boolean checkExistence)
+                                          ExecutionContext<ClassPropertyInterface> context, String keyType, boolean checkExistence)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(keyColumn != null && keyColumn.equals("barcodeItem"))
             keyColumnValue = BarcodeUtils.appendCheckDigitToBarcode(keyColumnValue, 7);
         return keyColumn != null && keyColumnValue != null && !keyColumnValue.isEmpty() && (!keyIsDigit || keyColumnValue.matches("(\\d|\\-)+")) 
-                && (!checkExistence || getItemKeyGroupAggr(keyType).read(session, new DataObject(keyColumnValue)) != null);
+                && (!checkExistence || getItemKeyGroupAggr(keyType).read(context, new DataObject(keyColumnValue)) != null);
     }
 
     protected static String getSplittedPart(String value, String splitPattern, int index) {

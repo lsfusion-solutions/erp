@@ -1023,7 +1023,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                 String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(), importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
                     secondaryList.add(purchaseInvoiceDetail);
@@ -1150,7 +1150,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                 String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(),
+                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
                         importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1274,7 +1274,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
                 if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(),
-                        context.getSession(), importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                        context, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
                     primaryList.add(purchaseInvoiceDetail);
@@ -1413,7 +1413,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                     String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
                     String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
-                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context.getSession(),
+                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
                             importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                         primaryList.add(purchaseInvoiceDetail);
                     else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1438,7 +1438,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         return !checkInvoiceExistence || !invoiceSet.contains(idInvoice);
     }
 
-    private boolean checkArticles(ExecutionContext context, String propertyImportType, String staticNameImportType, 
+    private boolean checkArticles(ExecutionContext<ClassPropertyInterface> context, String propertyImportType, String staticNameImportType,
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
