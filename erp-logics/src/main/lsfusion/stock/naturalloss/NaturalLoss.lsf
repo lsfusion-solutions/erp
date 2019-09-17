@@ -480,23 +480,29 @@ filterDateFrom (NaturalLoss n) = date(n) >= filterNaturalLossDateFrom() OR (n IS
 filterNaturalLossDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (NaturalLoss n) = date(n) <= filterNaturalLossDateTo() OR (n IS NaturalLoss AND NOT filterNaturalLossDateTo());      
 
+filterNaturalLossDateFromPeriod 'Дата с' = DATA LOCAL DATE ();
+filterDateFromPeriod (NaturalLoss n) = dateTo(n) >= filterNaturalLossDateFromPeriod() OR (n IS NaturalLoss AND NOT filterNaturalLossDateFromPeriod());      
+
+filterNaturalLossDateToPeriod 'Дата по' = DATA LOCAL DATE ();
+filterDateToPeriod (NaturalLoss n) = dateFrom(n) <= filterNaturalLossDateToPeriod() OR (n IS NaturalLoss AND NOT filterNaturalLossDateToPeriod());      
+
 idStock 'Код склада' (NaturalLoss n) = id(stock(n));
 
 FORM naturalLosses 'Ведомости естественной убыли'
-    PROPERTIES () filterNaturalLossDateFrom, filterNaturalLossDateTo
+    PROPERTIES () filterNaturalLossDateFrom, filterNaturalLossDateTo, filterNaturalLossDateFromPeriod, filterNaturalLossDateToPeriod
     OBJECTS s=NaturalLoss
-    PROPERTIES(s) READONLY isClosed, isPosted,number, series, date, time,
+    PROPERTIES(s) READONLYIF isReadonly() isClosed, isPosted,number, series, date, time,
                            idStock SHOWIF showIDs(), nameStock, dateFrom, dateTo,
                            quantityNaturalLossDetail, sum, note
     PROPERTIES (s) close SHOWIF showClose(s), open SHOWIF showOpen(s)
     PROPERTIES(s) NEWSESSION NEW, EDIT SHOWIF showEdit(s), deletes=DELETE SHOWIF showDelete(s)
-    PROPERTIES(s) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+    PROPERTIES(s) READONLYIF isReadonly() PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
-    FILTERS filterDateFrom(s), filterDateTo(s)
+    FILTERS filterDateFrom(s), filterDateTo(s), filterDateFromPeriod(s), filterDateToPeriod(s)
     FILTERGROUP open FILTER 'Открыт' isOpened(s) 'F6' DEFAULT 
     
     OBJECTS d=NaturalLossDetail
-    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+    PROPERTIES(d) READONLYIF isReadonly() index, idBarcodeSku, nameSku, shortNameUOMSku,
                            nameBatch, quantityLoss,
                            nameSubNaturalLossGroup, code, nameSubNaturalDetail,
                            percent, quantity, price, sum, nameStock
@@ -504,10 +510,22 @@ FORM naturalLosses 'Ведомости естественной убыли'
     FILTERS in(s, d)
 ;
 @extendFormFilterAccessStock(NaturalLoss, s, naturalLosses, stock, company);
+@extendFormEditable(naturalLosses);
 
 DESIGN naturalLosses {
-    GROUP () {
-        caption = 'Фильтры';
+    PANEL {
+        NEW dates {
+            type = CONTAINERH;
+            caption = 'Дата документа';
+            MOVE PROPERTY (filterNaturalLossDateFrom());
+            MOVE PROPERTY (filterNaturalLossDateTo());
+        }
+        NEW datesPeriod {
+            type = CONTAINERH;
+            caption = 'Период действия';
+            MOVE PROPERTY (filterNaturalLossDateFromPeriod());
+            MOVE PROPERTY (filterNaturalLossDateToPeriod());
+        }
     }
     NEW documentContainer BEFORE TOOLBARBOX {
         fill = 1;
