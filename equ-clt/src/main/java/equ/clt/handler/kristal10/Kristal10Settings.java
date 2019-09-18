@@ -5,30 +5,96 @@ import java.util.*;
 
 public class Kristal10Settings implements Serializable{
 
+    //если true, то в sendTransaction для тега good создаётся подтег manufacturer
+    //<manufacturer id=item.idbrand><name>item.nameBrand</name></manufacturer>
     private Boolean brandIsManufacturer;
+
+    //если true, то в sendTransaction для тега good создаётся подтег country
+    //<country id=item.idSeason><name>item.nameSeason</name></country>
     private Boolean seasonIsCountry;
+
+    //если true, то в sendTransaction, sendStopListInfo и sendDeleteBarcodeInfo
+    //для тега good в атрибут marking-of-the-good пишется item.idItem, а не штрихкод
     private Boolean idItemInMarkingOfTheGood;
+
+    //если true, то в sendTransaction, sendStopListInfo и sendDeleteBarcodeInfo
+    //при формировании штрихкода не добавляется весовой префикс
     private Boolean skipWeightPrefix;
+
+    //если false, то в sendTransaction создаются plugin-property plu-number и composition
     private Boolean skipScalesInfo;
+
+    //если true, то в sendTransaction, sendStopListInfo и sendDeleteBarcodeInfo
+    //для тегов min-price-restriction, max-discount-restriction и для good добавляется shop-indices.
+    //В readSalesInfo также учитывается shop-indices
     private Boolean useShopIndices;
+
+    //если true, то в sendTransaction
+    //для тегов min-price-restriction shop-indices не создаётся даже при включённом useShopIndices
     private Boolean skipUseShopIndicesMinPrice;
+
+    //строка, которая добавляется в конец shopIndices
     private String weightShopIndices;
+
+    //если true, то в readSalesInfo при поиске группы оборудования не учитываем overDepartNumber
     private Boolean ignoreSalesDepartmentNumber;
+
+    //если true, то в sendTransaction
+    //для тегов min-price-restriction, max-discount-restriction в тег id используется не barcodeItem, а idItem
     private Boolean useIdItemInRestriction;
+
+    //если true, то в readCashDocumentInfo, readSalesInfo, readExtraCheckZReport
+    //игнорируем проверку, заблокирован ли файл, прежде чем начать его читать
     private Boolean ignoreFileLock;
+
+    //В readSalesInfo трансформирует UPC штрихкод
+    //если равен "13to12", длина ШК = 13 и ШК начинается с "0", то отрезает этот "0"
+    //если равен "12to13" и длина ШК = 12, добавляет в начало "0"
     private String transformUPCBarcode; //12to13 or 13to12
+
+    //если задан, то при чтении файлов реализации берёт максимум maxFilesCount файлов за цикл
     private Integer maxFilesCount;
+
+    //список групп через запятую, которым задаётся productType=ProductCiggyEntity
     private String tobaccoGroup;
+
+    //если true, то в readSalesInfo
+    //если длина ШК = 7 и ШК начинается на 2, отрезаем первые 2 символа.
+    //если длина ШК = 13 и ШК начинается на 22 и символы с 8 по 13 = 00000 и
+    //(кол-во не целое или кол-во совпадает с заданным в 7-12 символах ШК весом), то берём символы со 2 по 7.
     private Boolean ignoreSalesWeightPrefix;
+
+    //удаляем из папок success успешно принятые файлы старше заданного кол-ва дней
     private Integer cleanOldFilesDays;
+
+    //проценты по типам диксонтых карт, выгружаемые в sendDiscountCardList, вида 0->1, 3->2, 5->3, 10->4
     private String discountCardPercentType;
     private Map<Double, String> discountCardPercentTypeMap = new HashMap<>();
+
+    //директория выгрузки файла catalog-cards, по умолчанию выгружается в /products/source/
     private String discountCardDirectory;
+
+    //в sendTransaction, список префиксов штрихкодов
+    //если длина ШК > 7 и ШК не начинается ни с одного из указанных префиксов,
+    //то добавляем для штрихкода атрибут barcode-type=GTIN
     private String notGTINPrefixes;
     private List<String> notGTINPrefixesList = new ArrayList<>();
+
+    //в readSalesInfo, если отсутствует plugin-property gift.card.number, но штрихкод соответствует указанной маске,
+    //то формируем штрихкод как dateTimeReceipt/count,
+    //где count начинается с 1 и используется для избежания дублирования штрихкодов. По умолчанию (?!666)\d{3}
     private String giftCardRegexp;
+
+    //в readSalesInfo, sendTransaction, если true, то shopIndices = nppGroupMachinery, иначе - idDepartmentStore
     private Boolean useNumberGroupInShopIndices;
+
+    //в sendTransaction, если true и задана item.section, то атрибут number для тега department из price-entry
+    //берётся как первый элемент (до |) из списка section (через запятую).
+    //иначе - transaction.departmentNumberGroupCashRegister
     private Boolean useSectionAsDepartNumber;
+
+    //в sendTransaction,
+    //если задан, то сформированный файл catalog-goods дополнительно копируется по указанному sftp-пути
     private String sftpPath;
 
     public Kristal10Settings() {
