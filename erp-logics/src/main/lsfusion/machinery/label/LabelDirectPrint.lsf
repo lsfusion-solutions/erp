@@ -125,9 +125,13 @@ toDateDDMMYYYYUS = FORMULA STRING[10] 'to_char(($1),\'DD/MM/YYYY\')';
 
 needCustomPrint (LabelTransaction labelTrans) += TRUE IF textTemplate(labelType(labelTrans));
 
+skipComletBarcode 'Не дополнять 5-и значные штрихкоды' = DATA BOOLEAN (LabelType);
+
 prefixCompleteBarcode = ABSTRACT BPSTRING[2]();
 completedIdBarcode(LabelTransactionDetail ld) =  IF length(idBarcode(ld)) == 5 AND prefixCompleteBarcode() 
-    THEN completeBarcode(prefixCompleteBarcode() + idBarcode(ld) + '00000') 
+    THEN IF skipComletBarcode(labelType(ld)) 
+        THEN prefixCompleteBarcode() + idBarcode(ld)
+        ELSE completeBarcode(prefixCompleteBarcode() + idBarcode(ld) + '00000') 
     ELSE idBarcode(ld);
 
 lpad1Char 'Для 1 разряда' = DATA INTEGER (LabelType);
@@ -136,11 +140,12 @@ lpad3Char 'Для 3 разрядов' = DATA INTEGER (LabelType);
 lpad4Char 'Для 4 разрядов' = DATA INTEGER (LabelType);
 
 EXTEND FORM labelType
-    PROPERTIES (l) lpad1Char, lpad2Char, lpad3Char, lpad4Char
+    PROPERTIES (l) lpad1Char, lpad2Char, lpad3Char, lpad4Char, skipComletBarcode
 ;
 
 DESIGN labelType{
     itemtextCase{
+        MOVE PROPERTY (skipComletBarcode(l));
         NEW lpad{
             caption = 'Отступы слева для цены';
             MOVE PROPERTY (lpad1Char(l));
