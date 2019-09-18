@@ -28,6 +28,7 @@ public class Kristal10Settings implements Serializable{
     private List<String> notGTINPrefixesList = new ArrayList<>();
     private String giftCardRegexp;
     private Boolean useNumberGroupInShopIndices;
+    private Boolean useSectionAsDepartNumber;
 
     public Kristal10Settings() {
     }
@@ -219,5 +220,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseNumberGroupInShopIndices(Boolean useNumberGroupInShopIndices) {
         this.useNumberGroupInShopIndices = useNumberGroupInShopIndices;
+    }
+
+    public Boolean getUseSectionAsDepartNumber() {
+        return useSectionAsDepartNumber;
+    }
+
+    public void setUseSectionAsDepartNumber(Boolean useSectionAsDepartNumber) {
+        this.useSectionAsDepartNumber = useSectionAsDepartNumber;
     }
 }

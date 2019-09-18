@@ -80,6 +80,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
                 List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
                 boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+                boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -243,7 +244,14 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             //parent: priceEntry
                             Element department = new Element("department");
-                            setAttribute(department, "number", transaction.departmentNumberGroupCashRegister);
+
+                            Integer departNumber;
+                            if(useSectionAsDepartNumber && item.section != null) {
+                                departNumber = Integer.parseInt(item.section.split(",")[0].split("\\|")[0]);
+                            } else {
+                                departNumber = transaction.departmentNumberGroupCashRegister;
+                            }
+                            setAttribute(department, "number", departNumber);
 //                            addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
                             priceEntry.addContent(department);
 
