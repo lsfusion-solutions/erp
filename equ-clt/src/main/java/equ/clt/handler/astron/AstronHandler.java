@@ -72,6 +72,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
                 Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
                 Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<>() : astronSettings.getGroupMachineryMap();
+                boolean exportExtraTables = astronSettings != null && astronSettings.isExportExtraTables();
 
                 for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -138,8 +139,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     exportExBarcDeleteBarcode(conn, usedDeleteBarcodeList);
 
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
-                                    exportPackPrc(conn, transaction);
-                                    exportPackPrcDeleteBarcode(conn, transaction, usedDeleteBarcodeList);
+                                    exportPackPrc(conn, transaction, exportExtraTables);
+                                    exportPackPrcDeleteBarcode(conn, transaction, usedDeleteBarcodeList, exportExtraTables);
+
+                                    if(exportExtraTables) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table prclevel", transaction.id));
+                                        exportPrcLevel(conn, transaction);
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
+                                        exportSArea(conn, transaction);
+                                    }
 
                                     if(extGrpId != null) {
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
@@ -447,7 +455,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackPrc(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportPackPrc(Connection conn, TransactionCashRegisterInfo transaction, boolean exportExtraTables) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, "PACKPRC", columns, keys)) {
@@ -459,7 +467,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if (item.price != null) {
                         Integer packId = getPackId(item);
                         setObject(ps, packId, 1, offset); //PACKID
-                        setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
+                        setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2, offset); //PRCLEVELID
                         BigDecimal packPrice = item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
                         setObject(ps, packPrice, 3, offset); //PACKPRICE
                         setObject(ps, (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(item.price, 100) != null ? HandlerUtils.safeMultiply(item.price, 100) : HandlerUtils.safeMultiply(item.minPrice, 100) != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
@@ -467,7 +475,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         setObject(ps, "0", 6, offset); //DELFLAG
 
                         setObject(ps, packId, 7); //PACKID
-                        setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
+                        setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 8); //PRCLEVELID
 
                         ps.addBatch();
                     } else {
@@ -480,7 +488,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackPrcDeleteBarcode(Connection conn, TransactionCashRegisterInfo transaction, List<CashRegisterItemInfo> usedDeleteBarcodeList) throws SQLException {
+    private void exportPackPrcDeleteBarcode(Connection conn, TransactionCashRegisterInfo transaction, List<CashRegisterItemInfo> usedDeleteBarcodeList, boolean exportExtraTables) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, "PACKPRC", columns, keys)) {
@@ -490,18 +498,61 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer packId = getPackId(item);
                     setObject(ps, packId, 1, offset); //PACKID
-                    setObject(ps, transaction.nppGroupMachinery, 2, offset); //PRCLEVELID
+                    setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2, offset); //PRCLEVELID
                     setObject(ps, BigDecimal.ZERO, 3, offset); //PACKPRICE
                     setObject(ps, BigDecimal.ZERO, 4, offset); //PACKMINPRICE
                     setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
                     setObject(ps, "0", 6, offset); //DELFLAG
 
                     setObject(ps, packId, 7); //PACKID
-                    setObject(ps, transaction.nppGroupMachinery, 8); //PRCLEVELID
+                    setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 8); //PRCLEVELID
 
                     ps.addBatch();
                 } else break;
             }
+            ps.executeBatch();
+            conn.commit();
+        }
+    }
+
+    private void exportPrcLevel(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+        String[] keys = new String[]{"PRCLEVELID"};
+        String[] columns = new String[]{"PRCLEVELID", "PRCLEVELNAME", "PRCLEVELKEY", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "PRCLEVEL", columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 1, offset); //PRCLEVELID
+            setObject(ps, transaction.nameGroupMachinery, 2, offset); //PRCLEVELNAME
+            setObject(ps, 0, 3, offset); //PRCLEVELKEY
+            setObject(ps, "0", 4, offset); //DELFLAG
+
+            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5, offset); //PRCLEVELID
+
+            ps.addBatch();
+
+            ps.executeBatch();
+            conn.commit();
+        }
+    }
+
+    private void exportSArea(Connection conn, TransactionCashRegisterInfo transaction) throws SQLException {
+        String[] keys = new String[]{"SAREAID"};
+        String[] columns = new String[]{"SAREAID", "PRCLEVELID", "CASHPROFILEID", "FIRMID", "CURRENCYID", "SAREANAME", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, "SAREA", columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
+            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
+            setObject(ps, 1, 3, offset); //CASHPROFILEID
+            setObject(ps, 1, 4, offset); //FIRMID
+            setObject(ps, 933, 5, offset); //CURRENCYID
+            setObject(ps, transaction.nameGroupMachinery, 6, offset); //SAREANAME
+            setObject(ps, "0", 7, offset); //DELFLAG
+
+            setObject(ps, transaction.nppGroupMachinery, 8, offset); //SAREAID
+
+            ps.addBatch();
+
             ps.executeBatch();
             conn.commit();
         }
@@ -628,6 +679,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
+        boolean exportExtraTables = astronSettings != null && astronSettings.isExportExtraTables();
+
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString != null) {
@@ -638,7 +692,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                             if (item instanceof CashRegisterItemInfo) {
                                 ps.setObject(1, getPackId((CashRegisterItemInfo) item)); //PACKID
-                                ps.setObject(2, nppGroupMachinery); //PRCLEVELID
+                                ps.setObject(2, getPriceLevelId(nppGroupMachinery, exportExtraTables)); //PRCLEVELID
                                 ps.addBatch();
                             }
                         }
@@ -1070,6 +1124,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private String getDeleteBarcodeKey(String connectionString, Integer nppGroupMachinery) {
         return  connectionString + "/" + nppGroupMachinery;
+    }
+
+    private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables) {
+       return exportExtraTables ? (nppGroupMachinery * 1000 + 1) : nppGroupMachinery;
     }
 
     protected String getSalesNumField() {

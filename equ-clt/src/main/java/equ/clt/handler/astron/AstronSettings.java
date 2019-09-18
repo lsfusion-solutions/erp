@@ -9,6 +9,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class AstronSettings implements Serializable {
     private Integer timeout;
     public String groupMachineries = null;
+    private boolean exportExtraTables;
 
     public AstronSettings() {
     }
@@ -47,5 +48,14 @@ public class AstronSettings implements Serializable {
         } catch (Exception e) {
             return null;
         }
+    }
+
+
+    public boolean isExportExtraTables() {
+        return exportExtraTables;
+    }
+
+    public void setExportExtraTables(boolean exportExtraTables) {
+        this.exportExtraTables = exportExtraTables;
     }
 }
