@@ -263,6 +263,10 @@ FORM dialogAddLists 'Списки SKU'
     FILTERS list(d) == o
 ;
 
+DESIGN dialogAddLists {
+    size = (1200, 750);
+}
+
 addSkuLists 'Отметить списки SKU' () {
     DIALOG dialogAddLists DO {
         FOR [GROUP SUM 1 IF in(list(ListDetail d)) BY sku(d)](Sku sk) DO {
@@ -436,3 +440,17 @@ selectFromList 'Добавить из списка' (List l) {
 }
 
 EXTEND FORM list PROPERTIES selectFromList(l) DRAW d TOOLBAR;
+
+filterSkuList = DATA LOCAL List();
+nameFilterSkuList 'Список SKU' () = name(filterSkuList());
+
+EXTEND FORM currentBalanceSkuStock 
+    PROPERTIES nameFilterSkuList()
+    FILTERS in(filterSkuList(), s) OR NOT filterSkuList()
+;
+
+DESIGN currentBalanceSkuStock {
+    filter {
+        MOVE PROPERTY (nameFilterSkuList());
+    }
+}
