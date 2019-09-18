@@ -5,6 +5,8 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.file.RawFileData;
+import lsfusion.base.file.WriteUtils;
 import org.apache.log4j.Logger;
 import org.jdom.Attribute;
 import org.jdom.Document;
@@ -81,6 +83,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
                 boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
                 boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
+                String sftpPath = kristalSettings != null ? kristalSettings.getSftpPath() : null;
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -299,6 +302,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     usedDeleteBarcodeTransactionMap.put(transaction.id, usedDeleteBarcodes);
                     processTransactionLogger.info(String.format("Kristal10: created catalog-goods file (Transaction %s)", transaction.id));
                     File file = makeExportFile(exchangeDirectory, "catalog-goods");
+
+                    if(sftpPath != null) {
+                        WriteUtils.storeFileToSFTP(sftpPath, new RawFileData(file), "xml");
+                    }
+
                     XMLOutputter xmlOutput = new XMLOutputter();
                     xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
                     PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));

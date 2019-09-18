@@ -29,6 +29,7 @@ public class Kristal10Settings implements Serializable{
     private String giftCardRegexp;
     private Boolean useNumberGroupInShopIndices;
     private Boolean useSectionAsDepartNumber;
+    private String sftpPath;
 
     public Kristal10Settings() {
     }
@@ -228,5 +229,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseSectionAsDepartNumber(Boolean useSectionAsDepartNumber) {
         this.useSectionAsDepartNumber = useSectionAsDepartNumber;
+    }
+
+    public String getSftpPath() {
+        return sftpPath;
+    }
+
+    public void setSftpPath(String sftpPath) {
+        this.sftpPath = sftpPath;
     }
 }
