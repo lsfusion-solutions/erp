@@ -50,9 +50,11 @@ overCopyUser(UserContractSku from, UserContractSku to) +{
     accountBeneficiaries(to) <- accountBeneficiaries(from);
 }
 
+skipSetContract = ABSTRACT VALUE BOOLEAN (Payment);
+
 // заполнить договор при смене плательщика или бенефициара или даты платежа
 WHEN LOCAL FORMS payment (CHANGED(beneficiary(Payment payment)) OR CHANGED(payer(payment))
-            OR CHANGED(date(payment)) OR CHANGED(isReturn(payment))) AND NOT CHANGED(contract(payment))  NOINLINE DO {
+            OR CHANGED(date(payment)) OR CHANGED(isReturn(payment))) AND NOT CHANGED(contract(payment)) AND NOT skipSetContract(payment) NOINLINE DO {
     IF NOT isReturn(payment) THEN { 
         contract(payment) <- OVERRIDE defaultContractSkuSupplierCustomer(beneficiary(payment), payer(payment), date(payment)),
                                       singleContractSkuSupplierCustomer(beneficiary(payment), payer(payment), date(payment))
