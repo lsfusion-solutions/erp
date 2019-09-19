@@ -7,6 +7,7 @@ import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.jdom.Attribute;
 import org.jdom.Document;
@@ -89,6 +90,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
                 boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
                 String sftpPath = kristalSettings != null ? kristalSettings.getSftpPath() : null;
+                List<String> sftpDepartmentStoresList = kristalSettings != null ? kristalSettings.getSftpDepartmentStoresList() : null;
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -308,19 +310,30 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file (Transaction %s)", transaction.id));
                     File file = makeExportFile(exchangeDirectory, "catalog-goods");
 
-                    if(sftpPath != null) {
-                        try {
-                            WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(file), null);
-                        } catch (Exception e) {
-                            processTransactionLogger.error(getLogPrefix() + "sftp error", e);
+                    File tempFile = File.createTempFile("catalog-goods", "xml");
+                    try {
+                        XMLOutputter xmlOutput = new XMLOutputter();
+                        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+                        PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(tempFile), encoding));
+                        xmlOutput.output(doc, fw);
+                        fw.close();
+
+                        //copy to ftp
+                        if(sftpPath != null && sftpDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister)) {
+                            try {
+                                WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(tempFile), null);
+                            } catch (Exception e) {
+                                processTransactionLogger.error(getLogPrefix() + "sftp error", e);
+                            }
                         }
+
+                        //copy to exchange directory
+                        FileUtils.copyFile(tempFile, file);
+
+                    } finally {
+                        safeDelete(tempFile);
                     }
 
-                    XMLOutputter xmlOutput = new XMLOutputter();
-                    xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
-                    xmlOutput.output(doc, fw);
-                    fw.close();
                     processTransactionLogger.info(String.format(getLogPrefix() + "output catalog-goods file (Transaction %s)", transaction.id));
 
                     fileMap.put(file, transaction.id);
@@ -332,6 +345,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         }
         processTransactionLogger.info(String.format(getLogPrefix() + "starting to wait for deletion %s files", fileMap.size()));
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet, usedDeleteBarcodeTransactionMap);
+    }
+
+    protected void safeDelete(File file) {
+        if (file != null && file.exists() && !file.delete()) {
+            file.deleteOnExit();
+        }
     }
 
     private String removeZeroes(String value) {

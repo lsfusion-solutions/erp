@@ -95,7 +95,10 @@ public class Kristal10Settings implements Serializable{
 
     //в sendTransaction,
     //если задан, то сформированный файл catalog-goods дополнительно копируется по указанному sftp-пути
+    //только для магазинов, заданных в sftpDepartmentStores (через запятую)
     private String sftpPath;
+    private String sftpDepartmentStores;
+    private List<String> sftpDepartmentStoresList = new ArrayList<>();
 
     public Kristal10Settings() {
     }
@@ -303,5 +306,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setSftpPath(String sftpPath) {
         this.sftpPath = sftpPath;
+    }
+
+    public List<String> getSftpDepartmentStoresList() {
+        return sftpDepartmentStoresList;
+    }
+
+    public void setSftpDepartmentStores(String sftpDepartmentStores) {
+        this.sftpDepartmentStores = sftpDepartmentStores;
+        this.sftpDepartmentStoresList.addAll(Arrays.asList(sftpDepartmentStores.split(",\\s?")));
     }
 }
