@@ -951,9 +951,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (options.numberAtATime == null) {
                 options.numberAtATime = salesInfoList.size();
             }
-            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-
-            final boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+            
             final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
 
             ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
@@ -966,7 +964,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 final int taskIndex = i;
                 Future<String> importResult = executor.submit((Callable) () ->
                         runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), options.numberAtATime, sidEquipmentServer, taskIndex, taskSize,
-                        directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
+                        directory, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
                 futures.add(importResult);
             }
 
@@ -1426,7 +1424,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
 
-                boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
                 List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
 
                 Timestamp timeStart = getCurrentTimestamp();
@@ -1700,7 +1697,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
                 }
 
-                RowsData rowsData = getRowsData(session, data, timeId, 0, data.size(), ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                RowsData rowsData = getRowsData(session, data, timeId, 0, data.size(), options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
                 //sale 4
                 List<ImportField> saleImportFields = new ArrayList<>(commonZReportFields);
@@ -2326,16 +2323,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
         Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(session, equipmentServerObject);
         Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
-        return new EquipmentServerOptions(maxThreads, numberAtATime);
+        boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+        return new EquipmentServerOptions(maxThreads, numberAtATime, ignoreReceiptsAfterDocumentsClosedDate);
     }
 
     private class EquipmentServerOptions {
         Integer maxThreads;
         Integer numberAtATime;
+        boolean ignoreReceiptsAfterDocumentsClosedDate;
 
-        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime) {
+        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean ignoreReceiptsAfterDocumentsClosedDate) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
+            this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
         }
     }
 }
