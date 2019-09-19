@@ -27,5 +27,7 @@ fillNegativeBalanceProductDetail 'Добавить строки с отрица�
     FOR balanceB(Sku sk, productsStock(o), date(o)) < 0 AND isParent(sg, sk) DO NEW d = ProductDetail {
         order(d) <- o;
         sku(d) <- sk;
+        quantity(d) <- abs(balanceB(sk, productsStock(o), date(o)));
+        product(d) <- GROUP MAX Product p IF isActive(BOM(p)) AND in(BOM(p), productsStock(o)) AND sku(p) == sk;
     }
 }
