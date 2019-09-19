@@ -310,7 +310,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                     if(sftpPath != null) {
                         try {
-                            WriteUtils.storeFileToSFTP(sftpPath + "/catalog-goods.xml", new RawFileData(file), null);
+                            WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(file), null);
                         } catch (Exception e) {
                             processTransactionLogger.error(getLogPrefix() + "sftp error", e);
                         }
