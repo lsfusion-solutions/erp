@@ -1187,24 +1187,26 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         labelType(t) <- labelType;
         addedTransaction() <- t;
         
-        FOR select(Sku sku) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
-            labelTransaction(d) <- t;
-            sku(d) <- sku;
-
-            name(d) <- name(sku(d));
-            documentQuantity(d) <- currentBalance(sku, departmentStore); 
-
-            createAttribute(d);           
-            
-
-            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
-    
-            quantity(d) <- IF NOT countLabel(departmentStore) 
-                                                     THEN (IF include(labelType(d), sku(d)) 
-                                                        THEN INTEGER(documentQuantity(d))
-                                                         ELSE count(labelType(d), sku(d)))
-                                                     ELSE countLabel(departmentStore);     
+        FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+            FOR select(Sku sku) AND NOT exclude(labelType,sku) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) INLINE NEW d = LabelTransactionDetail DO {
+                labelTransaction(d) <- t;
+                sku(d) <- sku;
+        
+                name(d) <- name(sku(d));
+                documentQuantity(d) <- currentBalance(sku, departmentStore); 
+        
+                createAttribute(d);           
+                
+        
+                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
+        
+                quantity(d) <- IF NOT countLabel(departmentStore) 
+                                                         THEN (IF include(labelType(d), sku(d)) 
+                                                            THEN INTEGER(documentQuantity(d))
+                                                             ELSE count(labelType(d), sku(d)))
+                                                         ELSE countLabel(departmentStore);     
+            }
         }
         overCreate(t);
         IF change(departmentStore) THEN {

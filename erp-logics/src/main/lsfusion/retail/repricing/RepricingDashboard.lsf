@@ -79,30 +79,32 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                     date(t) <- toDate(dateTime);      
                     time(t) <- toTime(dateTime);
                     labelType(t) <- type;
-            
-                    FOR select(Sku sku) AND NOT exclude(type, sku) AND PriceListType pt == overPriceListType(t) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
-                        labelTransaction(d) <- t;
-                        sku(d) <- sku;
-            
-                        name(d) <- name(sku(d));
-                        documentQuantity(d) <- currentBalance(sku, departmentStore); 
-            
-                        createAttribute(d);                      
-               
-                        price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
+                    
+                    FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+                        FOR select(Sku sku) AND NOT exclude(type, sku) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) INLINE NEW d = LabelTransactionDetail DO {
+                            labelTransaction(d) <- t;
+                            sku(d) <- sku;
                 
-//                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
-//                                                                INTEGER(documentQuantityLabelTransactionDetail(d))
-//                                                             ELSE 
-//                                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));  
-                                                                                                                                                                                           
-                        quantity(d) <- IF NOT countLabel(departmentStore) 
-                                                                 THEN (IF include(labelType(d), sku(d)) 
-                                                                    THEN INTEGER(documentQuantity(d))
-                                                                     ELSE count(labelType(d), sku(d)))
-                                                                 ELSE countLabel(departmentStore);                                                                                                                                                                                              
-                                                                                                                                                                                           
+                            name(d) <- name(sku(d));
+                            documentQuantity(d) <- currentBalance(sku, departmentStore); 
+                
+                            createAttribute(d);                      
+                   
+                            price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
+                    
+        //                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
+        //                                                                INTEGER(documentQuantityLabelTransactionDetail(d))
+        //                                                             ELSE 
+        //                                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));  
+                                                                                                                                                                                               
+                            quantity(d) <- IF NOT countLabel(departmentStore) 
+                                                                     THEN (IF include(labelType(d), sku(d)) 
+                                                                        THEN INTEGER(documentQuantity(d))
+                                                                         ELSE count(labelType(d), sku(d)))
+                                                                     ELSE countLabel(departmentStore);                                                                                                                                                                                              
+                                                                                                                                                                                               
+                        }
                     }
                     overCreateRepricingLabel(t);
                     
