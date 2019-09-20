@@ -1,17 +1,23 @@
 MODULE LegalEntityRegion;
 
-REQUIRE LegalEntity, Stock;
+REQUIRE LegalEntity, Stock, Store;
 
 NAMESPACE LegalEntity;
 
 TABLE legalEntityRegion (LegalEntity, Region);
 
 email 'E-mail' = DATA STRING[800](LegalEntity, Region);
+email 'E-mail' = DATA STRING[800](LegalEntity, Store);
 
 EXTEND FORM legalEntity
     OBJECTS r = Region
     PROPERTIES name (r) READONLY, email(l,r)
     PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE 
+    
+    OBJECTS sr = Store
+    PROPERTIES (sr) READONLY id SHOWIF showIDs(), name, address
+    PROPERTIES (sr) email
+    ORDER name(sr)
 ;
 
 DESIGN legalEntity {
@@ -20,9 +26,13 @@ DESIGN legalEntity {
             caption = 'Регионы';
             MOVE BOX(r);
         }
+        NEW storeEmail {
+            caption = 'E-mail для ТО';
+            MOVE BOX (sr);
+        }
     }
 }
 
-regionalEmail (LegalEntity l, Stock s) = OVERRIDE email(l, region(s)), email(l, region(stockGroup(s)));
+regionalEmail (LegalEntity l, Stock s) = OVERRIDE email(l, store(s)), email(l, region(s)), email(l, region(stockGroup(s)));
 
 overRegionalEmail = OVERRIDE regionalEmail(LegalEntity l, Stock s), email(l) IF s IS Stock;
