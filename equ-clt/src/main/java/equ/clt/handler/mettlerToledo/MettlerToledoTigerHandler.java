@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -27,6 +28,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
 
     private static short pluID = 207;
     private static short extraTextID = 209;
+    private static short timeID = 238;
 
     @Override
     protected String getLogPrefix() {
@@ -58,23 +60,28 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private boolean clearPlu(TCPPort port) throws IOException {
-        sendCommand(port, getClearBytes(), pluID, (short) 8);
+        sendCommand(port, getClearBytes(), pluID, (short) 1, (short) 8);
         return receiveReply(port);
     }
 
     private boolean clearExtraText(TCPPort port) throws IOException {
-        sendCommand(port, getClearBytes(), extraTextID, (short) 8);
+        sendCommand(port, getClearBytes(), extraTextID, (short) 1, (short) 8);
+        return receiveReply(port);
+    }
+
+    private boolean synchronizeTime(TCPPort port) throws IOException {
+        sendCommand(port, getSynchronizeTimeBytes(), timeID, (short) 0, (short) 0);
         return receiveReply(port);
     }
 
     private boolean loadPLU(TCPPort port, ScalesItemInfo item) throws IOException {
-        sendCommand(port, getLoadPLUBytes(item), pluID, (short) 0);
+        sendCommand(port, getLoadPLUBytes(item), pluID, (short) 1, (short) 0);
         return receiveReply(port);
     }
 
     private boolean loadExtraText(TCPPort port, ScalesItemInfo item) throws IOException {
         if (item.description != null && !item.description.isEmpty()) {
-            sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 0);
+            sendCommand(port, getLoadExtraTextBytes(item), extraTextID, (short) 1, (short) 0);
             return receiveReply(port);
         } else return true;
     }
@@ -140,6 +147,23 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return bytes.array();
     }
 
+    private byte[] getSynchronizeTimeBytes() {
+        ByteBuffer bytes = ByteBuffer.allocate(6);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        LocalDateTime date = LocalDateTime.now();
+
+        bytes.put((byte) date.getDayOfMonth());
+        bytes.put((byte) date.getMonth().getValue());
+        bytes.put((byte) (date.getYear() - 2000));
+
+        bytes.put((byte) date.getHour());
+        bytes.put((byte) date.getMinute());
+        bytes.put((byte) date.getSecond());
+
+        return bytes.array();
+    }
+
     private byte[] getLoadExtraTextBytes(ScalesItemInfo item) {
         ByteBuffer bytes = ByteBuffer.allocate(202);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -170,7 +194,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         processTransactionLogger.error(errorText, t);
     }
 
-    private void sendCommand(TCPPort port, byte[] commandBytes, short commandId, short ctl) throws IOException {
+    private void sendCommand(TCPPort port, byte[] commandBytes, short commandId, short dpt, short ctl) throws IOException {
 
         short pageCount = 1;
         short pageLength = (short) commandBytes.length;
@@ -178,8 +202,6 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         short totalLength = (short) (pageLength * pageCount + 8);
 
         byte cmd = 0;
-
-        short dpt = 1;
 
         byte dev = 0;
 
@@ -222,6 +244,8 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
             TCPPort port = new TCPPort(scales.port, 3001);
             try {
                 port.open();
+
+                synchronizeTime(port);
 
                 int globalError = 0;
                 try {
