@@ -911,6 +911,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
+        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
 
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
@@ -1190,7 +1191,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
                                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                                 barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
-                                                discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName, null, false, cashRegister));
+                                                discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
+                                                useSectionAsDepartNumber ? departNumber : null, false, cashRegister));
                                     }
                                     count++;
                                 }

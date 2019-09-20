@@ -91,6 +91,7 @@ public class Kristal10Settings implements Serializable{
     //в sendTransaction, если true и задана item.section, то атрибут number для тега department из price-entry
     //берётся как первый элемент (до |) из списка section (через запятую).
     //иначе - transaction.departmentNumberGroupCashRegister
+    //в readSalesInfo, если true, departNumber передаётся как section
     private Boolean useSectionAsDepartNumber;
 
     //в sendTransaction,
