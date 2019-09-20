@@ -7,6 +7,7 @@ import equ.api.TransactionInfo;
 import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.NumField2;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.xBaseJ.DBF;
@@ -162,7 +163,11 @@ public class InventoryTechHandler extends TerminalHandler {
                     if (flagFile.exists()) {
 
                         File docFile = new File(directory + "/DOC.DBF");
+                        if(!docFile.exists())
+                            docFile = new File(directory + "/DOC.dbf");
                         File posFile = new File(directory + "/POS.DBF");
+                        if(!posFile.exists())
+                            posFile = new File(directory + "/POS.dbf");
 
                         if (!docFile.exists() || !posFile.exists())
                             sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
@@ -288,6 +293,11 @@ public class InventoryTechHandler extends TerminalHandler {
             File directory = new File(path);
             if (directory.exists()) {
                 File fileDBF = new File(path + "/GOODS.dbf");
+                File tempFileDPF = File.createTempFile("goods", ".dbf");
+                if (!transaction.snapshot && fileDBF.exists()) {
+                    FileUtils.copyFile(fileDBF, tempFileDPF);
+                }
+
                 File fileMDX = new File(path + "/GOODS.mdx");
                 File fileCDX = new File(path + "/GOODS.cdx");
                 if (transaction.snapshot) {
@@ -301,7 +311,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
                 try {
-                    dbfWriter = append ? new DBF(fileDBF.getAbsolutePath(), charset) : new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfWriter = append ? new DBF(tempFileDPF.getAbsolutePath(), charset) : new DBF(tempFileDPF.getAbsolutePath(), DBF.DBASEIV, true, charset);
 
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, NAME, QUAN, PRICE, PRICE2, GR_NAME, FLAGS, INBOX, IDSET});
@@ -346,6 +356,8 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
+                FileUtils.copyFile(tempFileDPF, fileDBF);
+                safeDelete(tempFileDPF);
             }
         }
     }
@@ -361,6 +373,11 @@ public class InventoryTechHandler extends TerminalHandler {
             File directory = new File(path);
             if (directory.exists()) {
                 File fileDBF = new File(path + "/BARCODE.dbf");
+                File tempFileDPF = File.createTempFile("barcode", ".dbf");
+                if (!transaction.snapshot && fileDBF.exists()) {
+                    FileUtils.copyFile(fileDBF, tempFileDPF);
+                }
+
                 File fileMDX = new File(path + "/BARCODE.mdx");
                 File fileCDX = new File(path + "/BARCODE.cdx");
                 if (transaction.snapshot) {
@@ -374,7 +391,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
                 try {
-                    dbfWriter = append ? new DBF(fileDBF.getAbsolutePath(), charset) : new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfWriter = append ? new DBF(tempFileDPF.getAbsolutePath(), charset) : new DBF(tempFileDPF.getAbsolutePath(), DBF.DBASEIV, true, charset);
 
                     if (!append)
                         dbfWriter.addField(new Field[]{ARTICUL, BARCODE, IDSET});
@@ -417,6 +434,8 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
+                FileUtils.copyFile(tempFileDPF, fileDBF);
+                safeDelete(tempFileDPF);
             }
         }
     }
@@ -439,6 +458,10 @@ public class InventoryTechHandler extends TerminalHandler {
             File directory = new File(path);
             if (directory.exists()) {
                 File fileDBF = new File(path + "/SPRAV.dbf");
+                File tempFileDPF = File.createTempFile("sprav", ".dbf");
+                if (!transaction.snapshot && fileDBF.exists()) {
+                    FileUtils.copyFile(fileDBF, tempFileDPF);
+                }
                 File fileMDX = new File(path + "/SPRAV.mdx");
                 File fileCDX = new File(path + "/SPRAV.cdx");
                 if (transaction.snapshot) {
@@ -452,7 +475,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
                 try {
-                    dbfWriter = append ? new DBF(fileDBF.getAbsolutePath(), charset) : new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfWriter = append ? new DBF(tempFileDPF.getAbsolutePath(), charset) : new DBF(tempFileDPF.getAbsolutePath(), DBF.DBASEIV, true, charset);
 
                     if (!append)
                         dbfWriter.addField(new Field[]{CODE, NAME, VIDSPR, COMMENT, IDTERM, MTERM, DISCOUNT, ROUND, FLAGS, IDSET});
@@ -497,6 +520,8 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
+                FileUtils.copyFile(tempFileDPF, fileDBF);
+                safeDelete(tempFileDPF);
             }
         }
     }
@@ -522,6 +547,10 @@ public class InventoryTechHandler extends TerminalHandler {
             File directory = new File(path);
             if (directory.exists()) {
                 File fileDBF = new File(path + "/SPRDOC.dbf");
+                File tempFileDPF = File.createTempFile("sprdoc", ".dbf");
+                if (!transaction.snapshot && fileDBF.exists()) {
+                    FileUtils.copyFile(fileDBF, tempFileDPF);
+                }
                 File fileMDX = new File(path + "/SPRDOC.mdx");
                 File fileCDX = new File(path + "/SPRDOC.cdx");
                 if (transaction.snapshot) {
@@ -535,7 +564,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
                 try {
-                    dbfWriter = append ? new DBF(fileDBF.getAbsolutePath(), charset) : new DBF(fileDBF.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                    dbfWriter = append ? new DBF(tempFileDPF.getAbsolutePath(), charset) : new DBF(tempFileDPF.getAbsolutePath(), DBF.DBASEIV, true, charset);
 
                     if (!append)
                         dbfWriter.addField(new Field[]{CODE, NAME, SPRT1, VIDSPR1, SPRT2, VIDSPR2, IDTERM, MTERM, DISCOUNT, COEF, ROUND, FLAGS, IDSET});
@@ -586,6 +615,8 @@ public class InventoryTechHandler extends TerminalHandler {
                     if(dbfWriter != null)
                         dbfWriter.close();
                 }
+                FileUtils.copyFile(tempFileDPF, fileDBF);
+                safeDelete(tempFileDPF);
             }
         }
     }
@@ -669,5 +700,11 @@ public class InventoryTechHandler extends TerminalHandler {
 
     protected String trim(String input, Integer length) {
         return input == null ? null : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
+    }
+
+    public static void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
     }
 }
