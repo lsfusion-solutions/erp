@@ -547,7 +547,7 @@ DESIGN options {
 
 WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
     recalculatePrices(detail);
-    retailPrice(detail) <- (GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail)))) WHERE NOT CHANGED(retailPrice(detail));
+    retailPrice(detail) <- (GROUP MAX prevPriceA(retailPriceListType(), sku(detail), Stock stock, toDateTime(fromDate(detail))) IF in(promotion(detail), stock)) WHERE NOT CHANGED(retailPrice(detail));
 }
 WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(price(detail))) AND price(detail) > 0.0 DO {
     supplierPromotionDiscount(detail) <- NUMERIC[8,3]((1.0 - promotionPrice(detail)/price(detail)) * 100.0);
