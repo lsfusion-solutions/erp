@@ -144,7 +144,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
                     BigDecimal value = new BigDecimal(Double.valueOf(exchangeNode.getChildText("Value").replace(",", ".")) / Double.valueOf(exchangeNode.getChildText("Nominal")));
 
                     exchangesList.add(new Exchange(shortNameCurrency, "RUB",
-                            new Date(DateUtils.parseDate(exchangeNode.getAttributeValue("Date"), new String[]{"dd.MM.yyyy"}).getTime()),
+                            new Date(DateUtils.parseDate(exchangeNode.getAttributeValue("Date"), "dd.MM.yyyy").getTime()),
                             value));
                 }
                 if (exchangesList.size() > 0)

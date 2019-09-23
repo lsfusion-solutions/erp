@@ -130,13 +130,13 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
                 String dateFromValue = new String(dbfFile.getField("DATE1").getBytes(), charset).trim();
                 String dateToValue = new String(dbfFile.getField("DATE2").getBytes(), charset).trim();
                 if(!dateFromValue.isEmpty() && !dateToValue.isEmpty()) {
-                    Date dateFrom = new Date(DateUtils.parseDate(dateFromValue, new String[]{"yyyyMMdd"}).getTime());
-                    Date dateTo = new Date(DateUtils.parseDate(dateToValue, new String[]{"yyyyMMdd"}).getTime());
+                    Date dateFrom = new Date(DateUtils.parseDate(dateFromValue, "yyyyMMdd").getTime());
+                    Date dateTo = new Date(DateUtils.parseDate(dateToValue, "yyyyMMdd").getTime());
                     if (type.equals(4)) {
                         if (codeCustomsGroup.length() == 10)
-                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
                         else
-                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
                     }
                 }
             }

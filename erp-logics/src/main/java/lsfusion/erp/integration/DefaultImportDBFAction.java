@@ -93,7 +93,7 @@ public class DefaultImportDBFAction extends DefaultImportAction {
     
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, java.sql.Date defaultValue) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
-        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
+        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, "yyyyMMdd", "dd.MM.yyyy").getTime());
     }
 
     protected Boolean getDBFBooleanFieldValue(DBF importFile, String fieldName, String charset, Boolean defaultValue) throws UnsupportedEncodingException {

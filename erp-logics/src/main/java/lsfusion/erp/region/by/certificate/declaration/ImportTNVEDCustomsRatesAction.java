@@ -190,8 +190,8 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
                 String codeCustomsGroup = new String(dbfFile.getField("KOD").getBytes(), "Cp866").trim();
                 BigDecimal stav_a = new BigDecimal(new String(dbfFile.getField("STAV_A").getBytes(), "Cp866").trim());
                 BigDecimal stav_s = new BigDecimal(new String(dbfFile.getField("STAV_S").getBytes(), "Cp866").trim());
-                Date dateFrom = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE1").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
-                Date dateTo = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE2").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
+                Date dateFrom = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE1").getBytes(), "Cp866").trim(), "yyyyMMdd").getTime());
+                Date dateTo = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE2").getBytes(), "Cp866").trim(), "yyyyMMdd").getTime());
 
                 switch (type) {
                     case 1:

@@ -69,7 +69,7 @@ public class DefaultIntegrationAction extends InternalAction {
                 //чит для отличия ddMMyyyy от yyyyMMdd
                 Integer intValue = Integer.parseInt(value.substring(4, 6));
                 if(intValue > 12)
-                return new Date(DateUtils.parseDate(value, new String[]{"ddMMyyyy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "ddMMyyyy").getTime());
             } catch(Exception e) {
                 return defaultValue;
             }            
@@ -80,24 +80,24 @@ public class DefaultIntegrationAction extends InternalAction {
         }
         switch (value.length()) {
             case 4:
-                return new Date(DateUtils.parseDate(value, new String[]{"MMyy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "MMyy").getTime());
             case 5:
-                return new Date(DateUtils.parseDate(value, new String[]{"MM.yy", "MM/yy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "MM.yy", "MM/yy").getTime());
             case 6:
-                return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "d.MM.yy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "MM,yy_", "d.MM.yy").getTime());
             case 7:
-                return new Date(DateUtils.parseDate(value, new String[]{"MM.yyyy", "MM-yyyy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "MM.yyyy", "MM-yyyy").getTime());
             case 8:
-                return new Date(DateUtils.parseDate(value, new String[]{"yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd-MM-yy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd-MM-yy").getTime());
             case 10:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy"}).getTime());
+                return new Date(DateUtils.parseDate(value, "dd.MM.yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "dd-MM-yyyy").getTime());
             case 16:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy HH:mm"}).getTime());
+                return new Date(DateUtils.parseDate(value, "dd.MM.yyyy HH:mm").getTime());
             case 19:
-                return new Date(DateUtils.parseDate(value, new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime());
+                return new Date(DateUtils.parseDate(value, "dd.MM.yyyy HH:mm:ss").getTime());
         }
-        return new Date(DateUtils.parseDate(value, new String[]{"MM,yy_", "d.MM.yy", "MM.yyyy", "MM-yyyy", "MMyy", "MM.yy",
-                "MM/yy", "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
+        return new Date(DateUtils.parseDate(value, "MM,yy_", "d.MM.yy", "MM.yyyy", "MM-yyyy", "MMyy", "MM.yy", "MM/yy",
+                "yyyyMMdd", "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss").getTime());
     }
 
     protected BigDecimal parseBigDecimal(String value) {
