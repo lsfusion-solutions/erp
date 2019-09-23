@@ -901,17 +901,16 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                                     Integer priceList = overDepartNumberMap.get(nppGroupMachinery);
                                     if(priceList != null) {
+                                        String idItem = getId(item, useBarcodeAsId, appendBarcode);
+                                        processStopListLogger.info(logPrefix + String.format("table pricelist_items, nppGroupMachinery %s, item %s", priceList, idItem));
                                         ps.setInt(1, priceList); //pricelist
-                                    } else {
-                                        processStopListLogger.info(logPrefix + nppGroupMachinery + " not found in overDepartNumberMap");
-                                        ps.setInt(1, nppGroupMachinery); //pricelist
+                                        ps.setString(2, idItem); //item
+                                        ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                                        ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
+                                        ps.setInt(5, version); //version
+                                        ps.setInt(6, 1); //deleted
+                                        ps.addBatch();
                                     }
-                                    ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                                    ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                                    ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
-                                    ps.setInt(5, version); //version
-                                    ps.setInt(6, 1); //deleted
-                                    ps.addBatch();
                                 }
                             }
                         }
