@@ -888,7 +888,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                         Map<Integer, Integer> overDepartNumberMap = new HashMap<>();
                         for(MachineryInfo machinery : stopListInfo.handlerMachineryMap.get(getClass().getName())) {
-                            overDepartNumberMap.put(machinery.numberGroup, ((CashRegisterInfo) machinery).overDepartNumber != null ? ((CashRegisterInfo) machinery).overDepartNumber : ((CashRegisterInfo) machinery).numberGroup);
+                            if(machinery.directory != null && machinery.directory.equals(directory)) {
+                                overDepartNumberMap.put(machinery.numberGroup, ((CashRegisterInfo) machinery).overDepartNumber != null ? ((CashRegisterInfo) machinery).overDepartNumber : ((CashRegisterInfo) machinery).numberGroup);
+                            }
                         }
 
                         processStopListLogger.info(logPrefix + "executing stopLists, table pricelist_items");
