@@ -1,0 +1,113 @@
+MODULE ScalesPLU;
+
+REQUIRE MachineryPriceTransaction, Scales, Store;
+
+NAMESPACE Scales;
+
+pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Sku);
+pluNumber (MachineryPriceTransaction t, Barcode b) += pluNumber(groupMachinery(t), sku(b));
+maxPluNumber 'Максимальное значение PLU' = DATA INTEGER (GroupScales);
+quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF passScales(Sku s) AND active(s) AND in(g,s) AND NOT pluNumber(g,s);
+
+countItemPLU (GroupScales g, INTEGER plu) = GROUP SUM 1 IF plu == pluNumber(g, Sku sku);
+CONSTRAINT countItemPLU(GroupMachinery gs, INTEGER plu) > 1
+    MESSAGE 'PLU уже используется в данной группе весов';
+
+CONSTRAINT (CHANGED(pluNumber(GroupScales g, Sku s)) OR CHANGED (maxPluNumber(g))) AND pluNumber(g,s) > maxPluNumber(g)
+    MESSAGE 'Номер PLU превышает максимальный';
+
+minIndex (GroupScales g) = GROUP MIN INTEGER index IF iterate(index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index);
+
+fillPLU 'Проставить PLU' (GroupScales g, Sku s) { 
+    IF NOT pluNumber(g,s) THEN NEWSESSION {
+        IF NOT maxPluNumber(g) THEN {
+            MESSAGE 'Не задано максимальное значение PLU' NOWAIT;
+            RETURN;
+        }
+        LOCAL i = INTEGER();
+        i() <- minIndex(g);
+        
+        IF i() THEN {
+            pluNumber(g,s) <- i();
+            APPLY;
+        } ELSE {
+            MESSAGE 'Счетчик PLU переполнен. Обратитесь к администартору или удалите неиспользуемые номера.' NOWAIT;
+        }
+    }
+};
+
+CONSTRAINT CHANGED(in(GroupScales g, Sku s)) AND pluNumber(g,s) AND NOT in(g,s)
+    MESSAGE 'Должна быть доступна группа для товара, у которго задан PLU';
+
+FORM printPLU 'PLU'
+    OBJECTS g = GroupScales PANEL
+    PROPERTIES(g) READONLY name
+    
+    OBJECTS s = Sku
+    PROPERTIES READONLY pluNumber(g,s), idBarcode(s), name(s)
+    FILTERS pluNumber(g,s)
+;
+
+printPLU 'Список PLU' (GroupScales g) {
+    PRINT printPLU OBJECTS g = g;
+} IMAGE 'print.png';
+
+
+FORM pluDashboard 'Задание PLU'
+    OBJECTS d = DepartmentStore PANEL
+    PROPERTIES(d) name SELECTOR
+    FILTERS accessCompany(currentUser(), d)
+    
+    OBJECTS g = GroupScales
+    PROPERTIES(g) READONLY npp, name
+    PROPERTIES(g) maxPluNumber, quantityNullPluNumber READONLY
+    PROPERTIES(g) printPLU TOOLBAR
+    FILTERS stock(g) == d
+    FILTERGROUP activeGroup FILTER 'Активные' active(g) DEFAULT
+    
+    OBJECTS s = Sku
+    PROPERTIES pluNumber(g,s)
+    PROPERTIES(s) READONLY idBarcode, name, active
+    PROPERTIES fillPLU(g,s) SHOWIF NOT pluNumber(g,s) TOOLBAR
+    FILTERS passScales(s) AND in(g,s)
+    FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT
+    FILTERGROUP nullPlu FILTER 'Без PLU' NOT pluNumber(g,s)
+;
+
+DESIGN pluDashboard {
+    OBJECTS {
+        type = CONTAINERV;
+        NEW filters {
+            MOVE PROPERTY(name(d)){caption='Магазин';}
+        }
+        NEW tables {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(g){fill=1;}
+            MOVE BOX(s){fill=1;}
+        }
+    }
+}
+
+fillPLU 'Проставить PLU (по фильтру)' (GroupScales g) {
+    IF NOT maxPluNumber(g) THEN {
+        MESSAGE 'Не задано максимальное значение PLU' NOWAIT;
+        RETURN;
+    } ELSE {
+        IF (GROUP SUM 1 IF [ FILTER pluDashboard.s](Sku s) AND s IS Sku AND NOT pluNumber(g,s)) > (GROUP SUM 1 IF iterate(INTEGER index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index)) THEN {
+            MESSAGE 'Счетчик PLU переполнен. Обратитесь к администартору или удалите неиспользуемые номера.' NOWAIT;
+        } ELSE FOR [ FILTER pluDashboard.s](Sku s) AND s IS Sku AND NOT pluNumber(g,s) DO {
+            pluNumber(g,s) <- minIndex(g);
+        }
+        APPLY;
+    }
+}
+EXTEND FORM pluDashboard
+    PROPERTIES fillPLU(g) TOOLBAR DRAW s
+;
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW pluDashboard;
+    }
+}
