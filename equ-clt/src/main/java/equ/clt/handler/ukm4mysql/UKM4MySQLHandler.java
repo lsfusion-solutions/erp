@@ -899,7 +899,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                             if (item.idItem != null) {
                                 for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                                    ps.setInt(1, overDepartNumberMap.get(nppGroupMachinery)); //pricelist
+                                    Integer priceList = overDepartNumberMap.get(nppGroupMachinery);
+                                    if(priceList != null) {
+                                        ps.setInt(1, priceList); //pricelist
+                                    } else {
+                                        processStopListLogger.info(logPrefix + nppGroupMachinery + " not found in overDepartNumberMap");
+                                        ps.setInt(1, nppGroupMachinery); //pricelist
+                                    }
                                     ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                                     ps.setBigDecimal(3, BigDecimal.ZERO); //price
                                     ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
@@ -1086,7 +1092,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     paymentEntry.sumCash = HandlerUtils.safeAdd(paymentEntry.sumCash, amount);
                 else if (paymentType == 1) {
                     paymentEntry.sumCard = HandlerUtils.safeAdd(paymentEntry.sumCard, amount);
-                } else if (paymentType == 2) {
+                } else { //paymentType == 2
                     BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
                     paymentEntry.sumGiftCardMap.put(giftCard, HandlerUtils.safeAdd(sumGiftCard, amount));
                 }
