@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.math.BigDecimal;
-import java.rmi.RemoteException;
 import java.sql.*;
 import java.sql.Date;
 import java.text.DecimalFormat;
@@ -109,9 +108,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     priceValue = df.format(price).replace(",", ".");
                 }
                 String mainBarcode = (String) terminalHandlerLM.findProperty("idMainBarcode[Barcode]").read(session, barcodeObject);
+                String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode]").read(session, barcodeObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", "", "", "", isWeight, mainBarcode, color);
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", fld3, "", "", isWeight, mainBarcode, color);
             } else return null;
 
         } catch (Exception e) {
