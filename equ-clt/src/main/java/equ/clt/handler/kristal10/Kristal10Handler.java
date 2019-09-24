@@ -128,6 +128,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     for (CashRegisterItemInfo item : transaction.itemsList) {
                         if (!Thread.currentThread().isInterrupted()) {
 
+                            JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+
                             String shopIndices = useNumberGroupInShopIndices ? String.valueOf(transaction.nppGroupMachinery) : transaction.idDepartmentStoreGroupCashRegister;
                             if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
                                 shopIndices += " " + weightShopIndices;
@@ -202,11 +204,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             addStringElement(good, "name", item.name);
 
-                            if (item.info != null) {
-                                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("kristal10");
-                                if (infoJSON != null) {
-                                    addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
-                                }
+                            if (infoJSON != null) {
+                                addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
                             }
 
                             //parent: good
@@ -245,6 +244,18 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             addStringElement(priceEntry, "begin-date", currentDate());
                             addStringElement(priceEntry, "number", "1");
                             good.addContent(priceEntry);
+
+
+                            Double secondPrice = infoJSON != null ? infoJSON.optDouble("secondPrice") : null;
+                            if (secondPrice != null) {
+                                //parent: good
+                                Element secondPriceEntry = new Element("price-entry");
+                                setAttribute(secondPriceEntry, "price", secondPrice);
+                                setAttribute(secondPriceEntry, "deleted", "false");
+                                addStringElement(secondPriceEntry, "begin-date", currentDate());
+                                addStringElement(secondPriceEntry, "number", "2");
+                                good.addContent(secondPriceEntry);
+                            }
 
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
                             if(vat != 10 && vat != 20) {
