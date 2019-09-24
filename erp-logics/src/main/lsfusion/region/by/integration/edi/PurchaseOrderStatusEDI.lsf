@@ -123,8 +123,13 @@ originalDate(UserOrder o) <- shipmentDate(o)
     
 backgroundShipmentDate(Order o) += RGB(255,128,128) IF originalDate(o) != shipmentDate(o);
 
-status(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) AND NOT isRejected(o) AND NOT isPosted(o) AND NOT isClosed(o)
-                                THEN 'С изменениями';
+//nameStatus(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) AND NOT isRejected(o) AND NOT isPosted(o) AND NOT isClosed(o)
+//                                THEN 'С изменениями';
+EXTEND CLASS StatusOrder {
+    change 'С изменениями'
+}
+status(Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) AND NOT isRejected(o) AND NOT isPosted(o) AND NOT isClosed(o) THEN StatusOrder.change;                                
+                                
 backgroundStatus(Purchase.Order o) += WHEN isConfirmed(o) THEN RGB(212,255,212);
 backgroundStatus(Purchase.Order o) += WHEN isEOrder(o AS UserOrder) AND isConfirmed(o) AND NOT quantityResponseEDI(o) == quantityOrderDetail(o) THEN RGB(255,255,128);
 

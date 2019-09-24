@@ -55,17 +55,41 @@ isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
 isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
 isRejected(UserOrder o) += isRejected(o);  
 
-status 'Статус заказа' = ABSTRACT CASE ISTRING[20] (Order);
-calcStatus 'Статус заказа' = CASE
-    WHEN isClosed(Order o) THEN 'Закрыт'
-    WHEN shippedOrderDetail(o) THEN 'Принят'
-    WHEN invoicedOrderDetail (o) THEN 'В приемке'
-    WHEN isPosted(o) THEN 'В работе'
-    WHEN isRejected(o) THEN 'Отменен'
-    WHEN isConfirmed(o) THEN 'Подтвержден'
-    WHEN isSent(o) THEN 'Отправлен'
-    WHEN o IS Order THEN 'Создан' 
+CLASS StatusOrder 'Статус'{
+    create 'Создан',
+    sent 'Отправлен',    
+    confirmed 'Подтвержден',
+    inWork 'В работе',
+    inAcceptance 'В приемке',    
+    accepted 'Принят',    
+    closed 'Закрыт',      
+    canceled 'Отменен'       
+}
+TABLE statusOrder(StatusOrder);
+name 'Наименование' (StatusOrder t) = staticCaption(t) IF t IS StatusOrder CHARWIDTH 15;  
+
+FORM statusOrder 'Статус заказа'
+    OBJECTS c = StatusOrder
+    PROPERTIES(c) READONLY name
+    LIST StatusOrder OBJECT c
 ;
+DESIGN statusOrder{
+    BOX {
+        size = (800, 600);
+    }
+}
+
+status= ABSTRACT CASE StatusOrder (Order) MATERIALIZED ;
+nameStatus 'Статус заказа' (Order o) = name(status(o));
+calcStatus 'Статус заказа' (Order o)= CASE
+    WHEN isClosed(o) THEN StatusOrder.closed
+    WHEN shippedOrderDetail(o) THEN StatusOrder.accepted
+    WHEN invoicedOrderDetail (o) THEN StatusOrder.inAcceptance
+    WHEN isPosted(o) THEN StatusOrder.inWork
+    WHEN isRejected(o) THEN StatusOrder.canceled
+    WHEN isConfirmed(o) THEN StatusOrder.confirmed
+    WHEN isSent(o) THEN StatusOrder.sent
+    WHEN o IS Order THEN StatusOrder.create;
 status(Order o) += WHEN o IS Order THEN calcStatus(o);
 
 backgroundStatus = ABSTRACT CASE COLOR (Order);
@@ -93,7 +117,7 @@ DESIGN userOrder {
 
 EXTEND FORM orders
     PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed, isRejected
-    PROPERTIES (o) READONLY  AFTER isPosted(o) status BACKGROUND backgroundStatus(o)
+    PROPERTIES (o) READONLY  AFTER isPosted(o) nameStatus BACKGROUND backgroundStatus(o)
     PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
 ;
 
