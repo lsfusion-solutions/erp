@@ -108,7 +108,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     priceValue = df.format(price).replace(",", ".");
                 }
                 String mainBarcode = (String) terminalHandlerLM.findProperty("idMainBarcode[Barcode]").read(session, barcodeObject);
-                String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode]").read(session, barcodeObject);
+                String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
                         quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", fld3, "", "", isWeight, mainBarcode, color);
@@ -255,7 +255,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if (currentPrice) {
                     barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                     if(stockObject instanceof DataObject && !allItems)
