@@ -251,13 +251,17 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             priceEntry.addContent(department);
 
                             Double secondPrice = infoJSON != null ? infoJSON.optDouble("secondPrice") : null;
-                            String secondPriceDate = infoJSON != null ? infoJSON.optString("secondDate", null) : null;
+                            String secondPriceBeginDate = infoJSON != null ? infoJSON.optString("secondBeginDate", null) : null;
+                            String secondPriceEndDate = infoJSON != null ? infoJSON.optString("secondEndDate", null) : null;
                             if (secondPrice != null) {
                                 //parent: good
                                 Element secondPriceEntry = new Element("price-entry");
                                 setAttribute(secondPriceEntry, "price", secondPrice);
                                 setAttribute(secondPriceEntry, "deleted", "false");
-                                addStringElement(secondPriceEntry, "begin-date", secondPriceDate != null ? secondPriceDate : currentDate());
+                                addStringElement(secondPriceEntry, "begin-date", secondPriceBeginDate != null ? secondPriceBeginDate : currentDate());
+                                if(secondPriceEndDate != null) {
+                                    addStringElement(secondPriceEntry, "end-date", secondPriceEndDate);
+                                }
                                 addStringElement(secondPriceEntry, "number", "2");
                                 good.addContent(secondPriceEntry);
 
