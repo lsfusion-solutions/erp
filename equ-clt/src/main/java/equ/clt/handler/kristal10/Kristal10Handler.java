@@ -245,6 +245,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             addStringElement(priceEntry, "number", "1");
                             good.addContent(priceEntry);
 
+                            //parent: priceEntry
+                            Element department = new Element("department");
+                            setAttribute(department, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
+                            priceEntry.addContent(department);
 
                             Double secondPrice = infoJSON != null ? infoJSON.optDouble("secondPrice") : null;
                             if (secondPrice != null) {
@@ -255,6 +259,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 addStringElement(secondPriceEntry, "begin-date", currentDate());
                                 addStringElement(secondPriceEntry, "number", "2");
                                 good.addContent(secondPriceEntry);
+
+                                //parent: priceEntry
+                                Element secondDepartment = new Element("department");
+                                setAttribute(secondDepartment, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
+                                secondPriceEntry.addContent(secondDepartment);
                             }
 
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
@@ -262,19 +271,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 vat = 20;
                             }
                             addStringElement(good, "vat", String.valueOf(vat));
-
-                            //parent: priceEntry
-                            Element department = new Element("department");
-
-                            Integer departNumber;
-                            if(useSectionAsDepartNumber && item.section != null) {
-                                departNumber = Integer.parseInt(item.section.split(",")[0].split("\\|")[0]);
-                            } else {
-                                departNumber = transaction.departmentNumberGroupCashRegister;
-                            }
-                            setAttribute(department, "number", departNumber);
-//                            addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
-                            priceEntry.addContent(department);
 
                             //parent: good
                             Element group = new Element("group");
@@ -389,6 +385,16 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         if (tobaccoGroup != null)
             Collections.addAll(tobaccoGroups, tobaccoGroup.split(","));
         return tobaccoGroups;
+    }
+
+    private Integer getDepartNumber(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useSectionAsDepartNumber) {
+        Integer departNumber;
+        if(useSectionAsDepartNumber && item.section != null) {
+            departNumber = Integer.parseInt(item.section.split(",")[0].split("\\|")[0]);
+        } else {
+            departNumber = transaction.departmentNumberGroupCashRegister;
+        }
+        return departNumber;
     }
 
     private Map<Long, SendTransactionBatch> waitForDeletion(Map<File, Long> filesMap, Map<Long, Exception> failedTransactionMap,
