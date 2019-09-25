@@ -217,6 +217,41 @@ DESIGN options {
     }
 }
 
+extId 'Код для импорта' = DATA STRING[100](Store) CHARWIDTH 10;
+extId 'Код для импорта' = DATA STRING[100](Stock) CHARWIDTH 10;
+storeExtId = GROUP AGGR Store s BY extId(s);
+stockExtId = GROUP AGGR Stock s BY extId(s);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() extId(s) AFTER id(s), extId(d);
+EXTEND FORM store PROPERTIES extId(s), extId(d) READONLY;
+EXTEND FORM departmentStores PROPERTIES READONLY extId(d);
+
+DESIGN store {
+    row2 {
+        MOVE PROPERTY (extId(s));
+    }
+}
+
+changeStoreId 'Изменить ID' () {
+    NEWSESSION {
+        LOCAL id = STRING[100] (INTEGER);
+        LOCAL new = STRING[100] (INTEGER);
+        
+        INPUT f = EXCELFILE  DO {
+            IMPORT XLS FROM f TO id = A, new = C;
+                
+            FOR Store s = store(id(INTEGER i)) DO {
+                extId(s) <- id(i);
+                id(s) <- new(i);
+            }
+            FOR store(DepartmentStore s) == store(id(INTEGER i)) DO {
+                id(s) <- new(i);
+            }
+        }
+        APPLY;
+    }
+}
+
 importStores 'Импорт магазинов' () {
     
     LOCAL file = FILE ();
@@ -244,22 +279,22 @@ importStores 'Импорт магазинов' () {
     
     IMPORT TABLE FROM file() TO id, name, idType;
     
-    FOR id(INTEGER i) AND NOT store(TEXT (id(i))) DO NEW s = Store {
-        id(s) <- ISTRING[100] (id(i));
+    FOR id(INTEGER i) AND NOT storeExtId(TEXT (id(i))) DO NEW s = Store {
+        extId(s) <- ISTRING[100] (id(i));
     }
     
-    FOR id(INTEGER i) AND NOT departmentStore(TEXT (id(i))) DO NEW s = DepartmentStore {
-        id(s) <- ISTRING[100] (id(i));
+    FOR id(INTEGER i) AND NOT stockExtId(TEXT (id(i))) DO NEW s = DepartmentStore {
+        extId(s) <- ISTRING[100] (id(i));
         store(s) <- store(TEXT (id(i)));
     }
     
-    FOR Store s = store(TEXT (id(INTEGER i))) DO {
+    FOR Store s = storeExtId(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
         storeType(s) <- storeType(TEXT (idType(i)));
         legalEntity(s) <- OVERRIDE legalEntity(TEXT (idType(i))), defaultCompany();
     }
     
-    FOR DepartmentStore s = departmentStore(TEXT (id(INTEGER i))) DO {
+    FOR DepartmentStore s = stockExtId(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
     }
     
@@ -556,7 +591,7 @@ importRange 'Импорт ассортиментных матриц' () {
         name(r) <- name(i);
         in(r, RangeLevel l) <- l == rangeLevel('1');
         inData(r, ItemGroup g) <- g == itemGroup('all');
-        dataLevel(r, Store s, DATE d) <- rangeLevel('1') WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](id(s)) AND d = 2019_01_01;
+        dataLevel(r, Store s, DATE d) <- rangeLevel('1') WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](extId(s)) AND d = 2019_01_01;
         
         IF NOT [GROUP SUM 1 BY range(RangeRev rr)](r) THEN NEW rr = RangeRev {
             range(rr) <- r;
@@ -599,7 +634,7 @@ importInit 'Импорт остатков' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ id(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_good, quantityF FROM Pub.art WHERE cod_shop = \''+ extId(customerStock()) +'\' AND NOT (quantityF = 0 AND last_cost_price = 0) WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, quantity;
     
@@ -612,7 +647,7 @@ importInit 'Импорт остатков' () {
     LOCAL priceID = NUMERIC[16,3](NUMERIC[13,0]);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ id(customerStock()) +'\' AND cod_level = 1 WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_good, retail_price FROM Pub.artprice WHERE cod_shop = \''+ extId(customerStock()) +'\' AND cod_level = 1 WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, price;
     
@@ -637,7 +672,7 @@ importInit 'Импорт остатков' () {
     
         EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT TOP 1 pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
-            + id(customerStock()) +'\' AND pr2.cod_good = \'' + s + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
+            + extId(customerStock()) +'\' AND pr2.cod_good = \'' + s + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
             
         IMPORT TABLE FROM file() TO date, id, number, cost, idSupplier, time;
         
@@ -765,7 +800,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         imported(p) <- TRUE;
         dataIn(p, StoreType g) <- TRUE IF g == stockGroup(TEXT (idStockGroup(i))) AND NOT idStocks(i) != '';
         
-        FOR Stock st = stock(getWord(idStocks(i), ',', INTEGER j)) AND iterate(j, 1, wordCount(idStocks(i), ',')) DO {
+        FOR Stock st = stockExtId(getWord(idStocks(i), ',', INTEGER j)) AND iterate(j, 1, wordCount(idStocks(i), ',')) DO {
             dataIn(p, st) <- TRUE;
         }
     }
@@ -829,7 +864,7 @@ dateFromOrder 'Дата с' = DATA DATE ();
 
 customerStockOrder = DATA Stock();
 nameCustomerStockOrder 'Склад' () = name(customerStockOrder());
-idCustomerStockOrder 'Склад' () = id(customerStockOrder());
+idCustomerStockOrder 'Склад' () = extId(customerStockOrder());
 
 importOrder 'Импорт заказов' () {
     
@@ -857,8 +892,8 @@ importOrder 'Импорт заказов' () {
         isPosted(o) <- closed(i);
         supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
         supplierStock(o) <- minStock(legalEntity(ISTRING[100] (idSupplier(i))));
-        customerStock(o) <- stock(ISTRING[100] (idCustomerStockOrder()));
-        customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStockOrder())));
+        customerStock(o) <- stockExtId(ISTRING[100] (idCustomerStockOrder()));
+        customer(o) <- legalEntity(stockExtId(ISTRING[100] (idCustomerStockOrder())));
         date(o) <- OVERRIDE date(i), date2(i);
         time(o) <- 00:00;
         shipmentDate(o) <- date2(i);
