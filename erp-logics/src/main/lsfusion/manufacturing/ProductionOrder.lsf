@@ -426,29 +426,32 @@ CONSTRAINT component(ComponentDetail d) AND componentsStock(d) AND countStocks(B
     CHECKED BY BOM[ComponentDetail]
     MESSAGE 'Для строки компонента в производственном заказе выбрана компонента, которая не действует для склада компонента.';
 
-createComponents 'Заполнить компоненты из спецификации'(Order order)  { 
-
-    FOR quantityProducts(BOM BOM, order) DO {
-
-        FOR BOM(Component component) == BOM DO {
-            NEW d=ComponentDetail {
-                order(d) <- order;
-                component(d) <- component;
-                bruttoQuantity(d) <- bruttoQuantity(component, date(order)) * quantityProducts(BOM,order);
-                BOMQuantity(d) <- bruttoQuantity(component, date(order)); 
-                
-                BOM(d) <- BOM; 
-                
-                IF material(component) IS Sku THEN {
-                    bruttoSku(d) <- material(component);
-                } ELSE {
-                    IF material(component) IS Product THEN {
-                        product(d) <- material(component);
-                        bruttoSku(d) <- sku[Product](material(component));
-                    }
+createComponents 'Заполнить компоненты из спецификации'(BOM BOM, Order order)  { 
+    FOR BOM(Component component) == BOM DO {
+        NEW d=ComponentDetail {
+            order(d) <- order;
+            component(d) <- component;
+            bruttoQuantity(d) <- bruttoQuantity(component, date(order)) * quantityProducts(BOM,order);
+            BOMQuantity(d) <- bruttoQuantity(component, date(order)); 
+            
+            BOM(d) <- BOM; 
+            
+            IF material(component) IS Sku THEN {
+                bruttoSku(d) <- material(component);
+            } ELSE {
+                IF material(component) IS Product THEN {
+                    product(d) <- material(component);
+                    bruttoSku(d) <- sku[Product](material(component));
                 }
             }
         }
+    }    
+}
+
+createComponents 'Заполнить компоненты из спецификации'(Order order)  { 
+
+    FOR quantityProducts(BOM BOM, order) DO {
+        createComponents(BOM, order);
     }
 
 } TOOLBAR;
@@ -533,15 +536,22 @@ recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component compone
 calcComponentBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 calcComponentBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 
-createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order)  { 
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(BOM BOM, Order order) { 
 
-    FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Component component) IF material(component) IS Sku ORDER BOM NEW d = ComponentDetail DO {
+    FOR NUMERIC[91,46] q == recBruttoQuantity(BOM, order, Component component) IF material(component) IS Sku ORDER BOM NEW d = ComponentDetail DO {
         order(d) <- order;
         BOM(d) <- BOM;
         bruttoSku(d) <- material(component);
         component(d) <- component;
         bruttoQuantity(d) <- q;
         BOMQuantity(d) <- recBOMQuantity(BOM, order, component);
+    }
+}
+
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order)  { 
+
+    FOR quantityProducts(BOM BOM, order) DO {
+        createForRecComponents(BOM,order);
     }
 } TOOLBAR;
 
