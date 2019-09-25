@@ -6,6 +6,14 @@ NAMESPACE PriceList;
 
 @Label.implementPriceTransactionDocument(PriceList);
 
+printLabel 'Использовать для печати ценников' = DATA BOOLEAN (DataPriceListType, Operation);
+
+EXTEND FORM operation
+    PROPERTIES(pt,o) printLabel DRAW pt AFTER changeBefore(pt,o)
+;
+
+printLabelPriceListType (Operation o) = GROUP MIN DataPriceListType t IF printLabel(t,o);
+
 
 FORM selectDepartmentStore 'Выбор отделов магазина для печати'
     OBJECTS p = PriceList PANEL 
@@ -21,7 +29,7 @@ createPriceListLabel 'Распечатать ценники'(PriceTransactionDoc
 	NEWSESSION {
 	    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
 	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND inPrint(labelType, sku, d);   
-	    
+	        localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
 	        createLabelTransaction(d);  
 	        priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
 	        
@@ -57,6 +65,7 @@ createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(Pr
             select(l, d) <- TRUE;
         }         
         FOR select(LabelType type, d) DO {
+            localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
             createSnapshotLabelTransactionDepartmentStore(d, type);   
             priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
         } 
@@ -75,6 +84,7 @@ createSelectedSkuStockSnapshotPriceList 'Перепечатать ценники
             select(l, d) <- TRUE;
         }  
         FOR select(LabelType type, d) DO {
+            localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
             createSnapshotLabelTransactionDepartmentStore(d, type);   
             priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
         } 

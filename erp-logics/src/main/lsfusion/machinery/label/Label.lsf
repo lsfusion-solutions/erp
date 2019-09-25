@@ -324,7 +324,7 @@ nameLabelType 'Тип ценника' (LabelTransaction transaction) = name(labe
            
 priceListType = DATA PriceListType (LabelTransaction);     
 namePriceListType 'Вид цен' (LabelTransaction labelTransaction) = name(priceListType(labelTransaction));         
-
+localPriceListType = DATA LOCAL PriceListType ();
 overPriceListType(LabelTransaction d) = OVERRIDE priceListType(d), priceListType(labelType(d)) MATERIALIZED;
 
 fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemplate(labelType(transaction));
@@ -1142,6 +1142,7 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
+        priceListType(t) <- localPriceListType() WHERE localPriceListType();
         
         FOR select(Sku sku, labelType, departmentStore) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
             
@@ -1186,6 +1187,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         addedTransaction() <- t;
+        priceListType(t) <- localPriceListType() WHERE localPriceListType();
         
         FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
             FOR select(Sku sku) AND NOT exclude(labelType,sku) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) INLINE NEW d = LabelTransactionDetail DO {
