@@ -1,7 +1,7 @@
 MODULE ImportGestori;
 
 REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode;
 
 @defineLogRotate(importGestori_init, 5, weekly);
 @defineLogRotate(importGestori, 5, weekly);
@@ -381,20 +381,25 @@ importItems 'Импорт товаров' () {
     }
     
     LOCAL idBarcode = STRING[15](INTEGER);
+    LOCAL type = INTEGER (INTEGER);
+    LOCAL level = INTEGER (INTEGER);
     LOCAL date = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, bar_cod, dt FROM Pub.barcod WHERE NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
+            EXEC 'SELECT cod_good, bar_cod, type_bar, cod_level, dt FROM Pub.barcod WHERE NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idItem, idBarcode, date;
+    IMPORT TABLE FROM file() TO idItem, idBarcode, type, level, date;
     
     FOR idBarcode(INTEGER i) AND NOT barcode(idBarcode(i)) DO NEW b = Barcode {
         id(b) <- idBarcode(i);
     }
     FOR Barcode b = barcode(idBarcode(INTEGER i)) AND Item s = item(TEXT (idItem(i))) DO {
         sku(b) <- s;
-        barcode(s) <- b;
         dataDate(b) <- date(i);
+        priceListType(b) <- priceListType('pt' + level(i)) IF level(i) > 1;  
+    }
+    FOR Barcode b = barcode(idBarcode(INTEGER i)) AND type(i) = 1 AND Item s = item(TEXT (idItem(i))) DO {
+        dataBarcode(s) <- b;
     }
     setNoCancelInTransaction();
     APPLY;

@@ -688,10 +688,12 @@ GROUP incrementMachineryPrice 'Инкрементная загрузка' : publ
 
 // ------------------------------- Определение цены, по которой загружать ------------------------------- //
 
-price 'Цена' (Barcode barcode, GroupMachinery groupMachinery) = priceA(priceListType(groupMachinery),
-                                                                                                  sku(barcode),
-                                                                                                  stock(groupMachinery),
-                                                                                                  currentDateTime());
+priceListType = ABSTRACT LedgerPriceListType (GroupMachinery, Barcode);
+
+price 'Цена' (Barcode b, GroupMachinery g) = priceA((OVERRIDE priceListType(g, b), priceListType(g)),
+                                                                     sku(b),
+                                                                     stock(g),
+                                                                     currentDateTime());
 
 createMachineryPriceTransactionAll = DATA LOCAL BOOLEAN(); // установка флага на полное удаление старых товаров из кассы
 createMachineryPriceTransactionSnapshot = DATA LOCAL BOOLEAN (); // загрузка не только изменившихся цен
