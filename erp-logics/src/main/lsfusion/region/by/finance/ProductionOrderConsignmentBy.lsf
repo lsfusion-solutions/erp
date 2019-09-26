@@ -79,64 +79,18 @@ dataDowntime (Order consignment) += downtime(consignment);
  
 raceQuantity (Order consignment) += raceQuantity (consignment);
 
-//@implementConsignmentHeaderData (Order){ // без OVERRIDE для dataArrivalTimeConsignment, dataDowntimeConsignment
-//    EXTEND CLASS Order : Consignment;
-//
-//    dataDateConsignment (consignment) += dateOrder(consignment);
-//    numberConsignment (consignment) += numberOrder(consignment);
-//    seriesConsignment (consignment) += seriesOrder(consignment);
-//
-//    payerConsignment (consignment) += payerOrder (consignment);
-//
-//    dataTruckConsignment (consignment) += dataTruckOrder (consignment);
-//    dataTrailerConsignment (consignment) += dataTrailerOrder (consignment);
-//    dataEmployeeConsignment (consignment) += dataEmployeeOrder (consignment);
-//    dataWaybillConsignment (consignment) += waybillOrder (consignment);
-//
-//    dataAddressSupplierStockConsignment (consignment) += dataAddressSupplierStockOrder (consignment);
-//    dataAddressCustomerStockConsignment (consignment) += dataAddressCustomerStockOrder (consignment);
-//
-//    readdressingConsignment (consignment) += readdressingOrder (consignment);
-//    
-//    countPagesConsignment (consignment) += countPagesOrder (consignment);
-//
-//    overShipmentBaseConsignment (consignment) += overShipmentBaseOrder (consignment);
-//
-//    issuanceAllowedConsignment (consignment) += issuanceAllowedOrder (consignment);
-//
-//    issuanceExecutedConsignment (consignment) += issuanceExecutedOrder (consignment);
-//
-//    dataForwarderConsignment (consignment) += dataForwarderOrder (consignment);
-//
-//    warrantConsignment (consignment) += warrantOrder (consignment);
-//    warrantHolderConsignment (consignment) += warrantHolderOrder (consignment);
-//
-//    goodsAcceptedConsignment (consignment) += goodsAcceptedOrder (consignment);
-//
-//    loadingExecuterConsignment (consignment) += loadingExecuterOrder (consignment);
-//    wayOfLoadingConsignment (consignment) += wayOfLoadingOrder (consignment);
-//
-//    unloadingExecuterConsignment (consignment) += unloadingExecuterOrder (consignment);
-//    wayOfUnloadingConsignment (consignment) += wayOfUnloadingOrder (consignment);
-//
-//    codeLoadingConsignment (consignment) += codeLoadingOrder (consignment);
-//
-//    dataArrivalTimeConsignment (consignment) += arrivalTimeOrder(consignment);
-//    dataDowntimeConsignment (consignment) += downtimeOrder(consignment);   
-//     
-//    raceQuantityConsignment (consignment) += raceQuantityOrder (consignment);
-//};
-
 EXTEND CLASS ProductDetail : ConsignmentDetail;
 
 index (ProductDetail d) += index (d);
 consignment (ProductDetail d) += order (d);
 dataSku[ConsignmentDetail] (ProductDetail d) += sku (d);  
-dataQuantity (ProductDetail d) += outputQuantity (d);
-skip[ConsignmentDetail](ProductDetail d) += (outputQuantity(d) == 0) OR (NOT outputQuantity(d));
+dataQuantityCustom = ABSTRACT NUMERIC[16,5](ProductDetail);
+dataQuantityOver (ProductDetail d) = (OVERRIDE dataQuantityCustom(d), outputQuantity (d));
+dataQuantity (ProductDetail d) += dataQuantityOver(d);
+skip[ConsignmentDetail](ProductDetail d) += (dataQuantityOver(d) == 0) OR (NOT dataQuantityOver(d));
 
-dataPackQuantity (ProductDetail d) += 1.0 IF outputQuantity (d);
-dataGrossWeight (ProductDetail d) += NUMERIC[16,5](outputQuantity (d)*overNetWeight(sku(d)));
+dataPackQuantity (ProductDetail d) += 1.0 IF dataQuantityOver (d);
+dataGrossWeight (ProductDetail d) += NUMERIC[16,5](dataQuantityOver (d)*overNetWeight(sku(d)));
 
 dataSupplier (Order consignment) += componentsLegalEntityStock(consignment);
 dataSupplierStock (Order consignment) += componentsStock(consignment);
@@ -150,12 +104,12 @@ dataCustomerStock (Order consignment) += productsStock(consignment);
 dataCurrency (Order consignment) += currencyProduct(consignment);
 
 dataPrice (ProductDetail detail) += WHEN detail IS ProductDetail THEN price(detail);
-
-dataSum (ProductDetail detail) += WHEN detail IS ProductDetail THEN outputProductsSum(detail);
+dataSumCustom = ABSTRACT NUMERIC[18,4](ProductDetail);
+dataSum (ProductDetail detail) += WHEN detail IS ProductDetail THEN (OVERRIDE dataSumCustom(detail), outputProductsSum(detail));
 dataVAT (ProductDetail detail) += WHEN detail IS ProductDetail THEN valueVAT(detail);
-
-dataSumVAT (ProductDetail detail) += WHEN detail IS ProductDetail THEN retVATSum(detail);
-dataSumInvoice (ProductDetail detail) += WHEN detail IS ProductDetail THEN outputProductsSum(detail);
+retVATSumCustom = ABSTRACT NUMERIC[18,4](ProductDetail);
+dataSumVAT (ProductDetail detail) += WHEN detail IS ProductDetail THEN (OVERRIDE retVATSumCustom(detail), retVATSum(detail));
+dataSumInvoice (ProductDetail detail) += WHEN detail IS ProductDetail THEN (OVERRIDE dataSumCustom(detail), outputProductsSum(detail));
 
 overShipmentBase(Order order) <- (CONCAT '', 'Заказ № ', seriesNumber(order)+' ', 'от '+toDateDDMMYYYY(date(order))) WHEN CHANGED(date(order)) OR CHANGED(seriesNumber(order));
 
