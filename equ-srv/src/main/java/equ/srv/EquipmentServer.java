@@ -563,6 +563,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
                         String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
+                        String info = (String) row.get("infoMPTBarcode");
 
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
@@ -573,7 +574,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, null, extraPercent,
+                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
                                 retailPrice, imagesCount));
                     }
 
@@ -951,7 +952,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (options.numberAtATime == null) {
                 options.numberAtATime = salesInfoList.size();
             }
-            
+
             final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
 
             ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
