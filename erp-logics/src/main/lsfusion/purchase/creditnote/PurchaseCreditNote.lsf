@@ -117,3 +117,59 @@ DESIGN userInvoice {
         REMOVE headerCreateCreditNote;
     }
 }
+
+filterCreditNoteDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (CreditNote c) = date(c) >= filterCreditNoteDateFrom() OR (c IS CreditNote AND NOT filterCreditNoteDateFrom());      
+
+filterCreditNoteDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (CreditNote c) = date(c) <= filterCreditNoteDateTo() OR (c IS CreditNote AND NOT filterCreditNoteDateTo());      
+
+filterCreditNoteOperation  = DATA LOCAL Operation ();
+nameFilterCreditNoteOperation 'Операция' = name(filterCreditNoteOperation()) CHARWIDTH 15;          
+filterOperation (CreditNote c) = operation(c) == filterCreditNoteOperation() OR (c IS CreditNote AND NOT filterCreditNoteOperation());  
+
+filterCreditNoteCustomer  = DATA LOCAL LegalEntity ();
+nameFilterCreditNoteCustomer 'Покупатель' = name(filterCreditNoteCustomer()) CHARWIDTH 15;          
+filterCustomer (CreditNote c) = customer(c) == filterCreditNoteCustomer() OR (c IS CreditNote AND NOT filterCreditNoteCustomer());    
+
+filterCreditNoteCustomerStock  = DATA LOCAL Stock ();
+nameFilterCreditNoteCustomerStock 'Склад покупателя' = name(filterCreditNoteCustomerStock()) CHARWIDTH 15;          
+filterCustomerStock (CreditNote c) = customerStock(c) == filterCreditNoteCustomerStock() OR (c IS CreditNote AND NOT filterCreditNoteCustomerStock());  
+
+filterCreditNoteSupplier = DATA LOCAL LegalEntity ();
+nameFilterCreditNoteSupplier 'Поставщик' = name(filterCreditNoteSupplier()) CHARWIDTH 15;          
+filterSupplier (CreditNote c) = supplier(c) == filterCreditNoteSupplier() OR (c IS CreditNote AND NOT filterCreditNoteSupplier());      
+
+filterCreditNoteSupplierStock  = DATA LOCAL Stock ();
+nameFilterCreditNoteSupplierStock 'Склад поставщика' = name(filterCreditNoteSupplierStock()) CHARWIDTH 15;          
+filterSupplierStock (CreditNote c) = supplierStock(c) == filterCreditNoteSupplierStock() OR (c IS CreditNote AND NOT filterCreditNoteSupplierStock());      
+
+EXTEND FORM creditNotes
+
+    PROPERTIES() filterCreditNoteDateFrom, filterCreditNoteDateTo, nameFilterCreditNoteOperation, 
+                 nameFilterCreditNoteSupplier, nameFilterCreditNoteSupplierStock, nameFilterCreditNoteCustomer, nameFilterCreditNoteCustomerStock
+                 
+    FILTERS filterDateFrom(c), 
+            filterDateTo(c),
+            filterSupplier(c),
+            filterSupplierStock(c),
+            filterCustomer(c),
+            filterCustomerStock(c)
+;
+
+DESIGN creditNotes {
+    BOX {
+        NEW topFilters FIRST {
+            caption = 'Фильтры';
+            type = CONTAINERH; 
+            alignment = STRETCH; 
+            MOVE PROPERTY(filterCreditNoteDateFrom());
+            MOVE PROPERTY(filterCreditNoteDateTo());
+            MOVE PROPERTY(nameFilterCreditNoteOperation());
+            MOVE PROPERTY(nameFilterCreditNoteSupplier());
+            MOVE PROPERTY(nameFilterCreditNoteSupplierStock());  
+            MOVE PROPERTY(nameFilterCreditNoteCustomer());
+            MOVE PROPERTY(nameFilterCreditNoteCustomerStock());     
+        }
+    }
+}
