@@ -192,6 +192,8 @@ FORM calcPriceListTypes 'Расчетный вид цены'
     LIST CalcPriceListType OBJECT p
 ;
 
+overCopy  ABSTRACT LIST (PriceListType,PriceListType);
+
 overCopy (CalcPriceListType priceListType) + { 
 	NEWSESSION {
 	    IF priceListType IS CalcPriceListType THEN {
@@ -207,7 +209,9 @@ overCopy (CalcPriceListType priceListType) + {
 	            
 	            dataMarkup(p, Group group) <- dataMarkup(priceListType, group) WHERE dataMarkup(priceListType, group);    
 	            dataRoundCondition(p, Group group) <- dataRoundCondition(priceListType, group) WHERE dataRoundCondition(priceListType, group);    
-	            dataMarkup(p, Sku sku) <- dataMarkup(priceListType, sku) WHERE dataMarkup(priceListType, sku);    
+	            dataMarkup(p, Sku sku) <- dataMarkup(priceListType, sku) WHERE dataMarkup(priceListType, sku);   
+	            
+	            overCopy(priceListType,p); 
 	            
 	            SHOW calcPriceListType OBJECTS c=p DOCKED; 
 	        }
