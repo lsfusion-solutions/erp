@@ -128,50 +128,8 @@ weightNumerator (Item item) = weightNumerator(itemGroup(item));
 
 overNumerator(Item item) += WHEN passScales(item) THEN weightNumerator(item);
 
-//DESIGN itemGroup {
-//    itemGroupHeader2 {
-//        MOVE PROPERTY(nameWeightNumerator(g));
-//    }
-//}
-
-//--
-@defineItemGroupValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
-
-dataExpired 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
-expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE dataExpired(item), expired(itemGroup(item)) IN itemBase MATERIALIZED ;
-
-
-expiredSku (Barcode barcode) = expired(sku(barcode));
-
-quantityChildWithExpired (ItemGroup itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-quantityParentWithExpired (ItemGroup itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
-
-showExpired 'Не грузить с истекшим ср. год-ти' (ItemGroup itemGroup) = TRUE IF (quantityChildWithExpired (itemGroup) (+) quantityParentWithExpired (itemGroup)) > 0 MATERIALIZED;
-
-backgroundShowExpired (ItemGroup itemGroup) =
-    IF dataExpired(itemGroup) THEN
-        RGB(0,0,0) IF itemGroup IS ItemGroup
-    ELSE
-        RGB(203,203,206) IF quantityChildWithExpired (itemGroup) != descendantNumber(itemGroup)
-                         AND NOT quantityParentWithExpired (itemGroup);
-                             
-setNullShowExpired 'Снять признак для всех потомков'(ItemGroup itemGroup)  { 
-    FOR isParent (ItemGroup childGroup, itemGroup) DO {
-        dataExpired(childGroup) <- NULL;
-    }
-} ASON CONTEXTMENU dataExpired[ItemGroup] CONFIRM;     
-
-
-EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpired BACKGROUND backgroundShowExpired(g) BEFORE deleteg;
-EXTEND FORM item PROPERTIES(i) expired;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expired;
-
-skipIn(GroupScales groupMachinery, Item sku) += WHEN groupMachinery IS GroupScales AND expired(sku) AND lastExpiryDate(sku, stock[GroupMachinery](groupMachinery)) < currentDate() THEN TRUE;
-
-
 //----------------------- Переход на новый основной классификатор ---------------------------//
 overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
     weightNumerator(ng) <- weightNumerator(itemGroup(g));
-    dataExpired(ng) <- prevExpired(itemGroup(g));
     userShowPassScales(ng) <- userShowPassScales(itemGroup(g));
 }
