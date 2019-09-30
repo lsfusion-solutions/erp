@@ -35,6 +35,7 @@ longNumber (DiscountCard d) = toLong(number(d));
 
 // Держатель
 legalEntity (discountCard) = DATA LegalEntity(DiscountCard) INDEXED;
+stringLegalEntity = ABSTRACT BOOLEAN (DiscountCard);
 
 overNameLegalEntity = ABSTRACT ISTRING[150] (DiscountCard);
 nameLegalEntity 'Держатель дисконтной карты' (DiscountCard dc) = OVERRIDE overNameLegalEntity(dc), name(legalEntity(dc)) IN id CHARWIDTH 30;
@@ -57,6 +58,60 @@ emailLegalEntity 'E-mail' (DiscountCard dc) = OVERRIDE overEmailLegalEntity(dc),
 overAddressLegalEntity = ABSTRACT ISTRING[150] (DiscountCard);
 addressLegalEntity 'Адрес' (DiscountCard dc) = OVERRIDE overAddressLegalEntity(dc), address(legalEntity(dc)) IN id CHARWIDTH 30;
 
+changeLegalEntity (DiscountCard d) {
+        DIALOG dialogLegalEntities OBJECTS l INPUT DO {
+            legalEntity(d) <- l;
+        }
+}
+changeNameLegalEntity (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overNameLegalEntity(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changeFirstNameContact (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overFirstNameContact(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changeLastNameContact (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overLastNameContact(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changeBirthdayContact (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overBirthdayContact(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changeEmailLegalEntity (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overEmailLegalEntity(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changePhoneLegalEntity (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overPhoneLegalEntity(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
+changeAddressLegalEntity (DiscountCard d) {
+    IF (stringLegalEntity(d)) THEN {
+        INPUT =overAddressLegalEntity(d) CHANGE;
+    } ELSE {
+        changeLegalEntity(d);
+    }
+}
 
 middleNameHttpServerContact = ABSTRACT ISTRING[100] (DiscountCard);
 numberSexHttpServerContact = ABSTRACT INTEGER (DiscountCard);
@@ -168,8 +223,10 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
 FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard PANEL
     PROPERTIES(d) id SHOWIF showIDs(), name, initialSum, percent, nameNumerator, number, series, date, dateTo,
-                  firstNameContact, lastNameContact, phoneLegalEntity, emailLegalEntity,          
-                  addressLegalEntity, birthdayContact, nameDiscountCardType
+                  firstNameContact ON CHANGE changeFirstNameContact(d), lastNameContact ON CHANGE changeLastNameContact(d), 
+                  phoneLegalEntity ON CHANGE changePhoneLegalEntity(d), emailLegalEntity ON CHANGE changeEmailLegalEntity(d),          
+                  addressLegalEntity ON CHANGE changeAddressLegalEntity(d), birthdayContact ON CHANGE changeBirthdayContact(d), 
+                  nameLegalEntity ON CHANGE changeNameLegalEntity(d), nameDiscountCardType
 
     EDIT DiscountCard OBJECT d
 ;
@@ -198,15 +255,18 @@ DESIGN discountCard {
                 }
                 NEW row3 {
                     caption = 'Держатель';
-                    type = COLUMNS;
-                    columns = 3;
-                    MOVE PROPERTY(firstNameContact(d));
-                    MOVE PROPERTY(lastNameContact(d));
-                    MOVE PROPERTY(phoneLegalEntity(d));
-                    MOVE PROPERTY(emailLegalEntity(d));
-                    MOVE PROPERTY(addressLegalEntity(d));
-                    MOVE PROPERTY(birthdayContact(d)) {
-                        pattern='dd.MM.yyyy';
+                    MOVE PROPERTY (nameLegalEntity(d)) { caption = 'Полное имя'; }
+                    NEW row3columns {
+                        type = COLUMNS;
+                        columns = 3;
+                        MOVE PROPERTY(firstNameContact(d));
+                        MOVE PROPERTY(lastNameContact(d));
+                        MOVE PROPERTY(phoneLegalEntity(d));
+                        MOVE PROPERTY(emailLegalEntity(d));
+                        MOVE PROPERTY(addressLegalEntity(d));
+                        MOVE PROPERTY(birthdayContact(d)) {
+                            pattern='dd.MM.yyyy';
+                        }
                     }
                 }
             }
@@ -232,10 +292,11 @@ FORM discountCardDialog 'Дисконтные карты'
 
 FORM discountCards 'Дисконтные карты'
     OBJECTS d=DiscountCard
-    PROPERTIES(d) READONLYIF isReadonly() number, series, id SHOWIF showIDs(), nameDiscountCardType, nameLegalEntity, 
-                           phoneLegalEntity, emailLegalEntity, addressLegalEntity, 
-                           firstNameContact, lastNameContact, birthdayContact, 
-                           date, dateTo, name, initialSum, percent
+    PROPERTIES(d) READONLYIF isReadonly() number, series, id SHOWIF showIDs(), nameDiscountCardType, nameLegalEntity ON CHANGE changeNameLegalEntity(d), 
+                  firstNameContact ON CHANGE changeFirstNameContact(d), lastNameContact ON CHANGE changeLastNameContact(d), 
+                  phoneLegalEntity ON CHANGE changePhoneLegalEntity(d), emailLegalEntity ON CHANGE changeEmailLegalEntity(d),          
+                  addressLegalEntity ON CHANGE changeAddressLegalEntity(d), birthdayContact ON CHANGE changeBirthdayContact(d), 
+                  date, dateTo, name, initialSum, percent
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE 
 
     ORDER number(d)
