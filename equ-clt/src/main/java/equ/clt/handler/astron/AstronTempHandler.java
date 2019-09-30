@@ -22,7 +22,7 @@ public class AstronTempHandler extends AstronHandler {
     }
 
     @Override
-    protected void createSalesIndex(Connection conn) {
+    protected void createSalesIndex(Connection conn, AstronConnectionString params) {
         //do nothing
     }
 
