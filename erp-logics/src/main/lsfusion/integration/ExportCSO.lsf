@@ -41,6 +41,61 @@ GROUP items:Put;
 GROUP Message EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' :items;
 GROUP itemO EXTID 'Item';
 
+CLASS SessionType 'SessionType'{
+    F 'Full',
+    P 'Partial',
+    D 'Delta'
+};
+TABLE sessionType(SessionType);
+name 'Наименование'(SessionType t) = staticCaption(t) IF t IS SessionType CHARWIDTH 5;
+shortName 'Наименование (сокр.)'(SessionType t) = CASE 
+    WHEN t == SessionType.F THEN 'F'
+    WHEN t == SessionType.P THEN 'P'
+    WHEN t == SessionType.D THEN 'D'        
+    CHARWIDTH 5;
+FORM sessionTypes 'SessionType'
+    OBJECTS c = SessionType
+    PROPERTIES(c) READONLY name, shortName
+    LIST SessionType OBJECT c
+;
+DESIGN sessionTypes{
+    BOX {
+        size = (800, 600);
+    }
+}
+
+//--
+CLASS ChangeType 'ChangeType'{
+    I 'Insert',
+    U 'Update',
+    D 'Delete'
+};
+TABLE changeType(ChangeType);
+name 'Наименование'(ChangeType t) = staticCaption(t) IF t IS ChangeType CHARWIDTH 5;
+shortName 'Наименование (сокр.)'(ChangeType t) = CASE 
+    WHEN t == ChangeType.I THEN 'I'
+    WHEN t == ChangeType.U THEN 'U'
+    WHEN t == ChangeType.D THEN 'D'        
+    CHARWIDTH 5;
+
+FORM changeTypes 'ChangeType'
+    OBJECTS c = ChangeType
+    PROPERTIES(c) READONLY name, shortName
+    LIST ChangeType OBJECT c
+;
+DESIGN changeTypes{
+    BOX {
+        size = (800, 600);
+    }
+}
+
+sessionType = DATA SessionType();
+nameSessionType 'SessionType' () = name(sessionType());
+shortNameSessionType 'SessionType' () = shortName(sessionType());
+
+changeType = DATA ChangeType();
+nameChangeType 'ChangeType' () = name(changeType());
+shortNameChangeType 'ChangeType' () = shortName(changeType());
 
 inFilter = DATA LOCAL NESTED BOOLEAN (CustomGroupType);
 inFilter = DATA LOCAL NESTED BOOLEAN (Item);
@@ -54,12 +109,12 @@ FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  IN head h3 = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN head h33 = 1 EXTID'SessionMessageNumber'
     PROPERTIES  IN head h4 = [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
-    PROPERTIES  IN head h5 = 'F' EXTID 'SessionType'                      
+    PROPERTIES  IN head h5 = shortNameSessionType() EXTID 'SessionType'                      
                            
     PROPERTIES IN items ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
  
     OBJECTS dd =(i = Item, type = CustomGroupType)   EXTID 'MessageItemOfArticleHierarchyObjectS7N_Sjo7W' IN items
-    PROPERTIES  = 'I' IF i IS Item EXTID 'ChangeType'  
+    PROPERTIES  = shortNameChangeType() IF i IS Item EXTID 'ChangeType'  
          
     PROPERTIES  =idBarcode(i) EXTID 'ArticleId' IN itemO
     PROPERTIES  =id(type) IF i IS Item EXTID 'HierarchyId' IN itemO
@@ -79,7 +134,7 @@ articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchy
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
         
         EXPORT ArticleHierarchyObject XML TO System.exportFile;     
         LOCAL result = FILE();
@@ -107,11 +162,11 @@ GROUP itemsL EXTID 'items' :PutL;
 GROUP itemL EXTID 'Item';
 GROUP ArticleText : itemL;
 
-Description = ABSTRACT CASE ISTRING[255](Item, INTEGER);
+Description 'Описание' = ABSTRACT CASE ISTRING[255](Item, INTEGER);
 Description (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN ISTRING[255](nameAttribute(i));
 countDescription (Item i)= GROUP MAX INTEGER  int IF Description(i, int);
 
-LanguageId = ABSTRACT CASE STRING[3](Item, INTEGER);
+LanguageId 'Язык' = ABSTRACT CASE STRING[3](Item, INTEGER);
 LanguageId (Item i, INTEGER  int) +=  WHEN  int == 1 AND i IS Item THEN 'RU';
 
 FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'       
@@ -121,12 +176,12 @@ FORM ArticleMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envel
     PROPERTIES  IN headL h3 = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN headL h33 = 1 EXTID'SessionMessageNumber'
     PROPERTIES  IN headL h4 = [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
-    PROPERTIES  IN headL h5 = 'F' EXTID 'SessionType'                      
+    PROPERTIES  IN headL h5 = shortNameSessionType() EXTID 'SessionType'                      
                            
     PROPERTIES IN itemsL ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'
     
     OBJECTS dd = (i = Item, type = CustomGroupType) EXTID 'MessageItemOfArticleMessageS7N_Sjo7W' IN itemsL
-    PROPERTIES   = 'I' IF i IS Item EXTID 'ChangeType'         
+    PROPERTIES   = shortNameChangeType() IF i IS Item EXTID 'ChangeType'         
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemL
     
     OBJECTS gg = (ii = Item, int=INTEGER) EXTID 'ArticleHierarchyDescriptionData' IN ArticleText
@@ -145,7 +200,7 @@ articleMessage 'Наименование товаров КСО (ArticleMessage)'
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
     
         EXPORT ArticleMessage XML TO System.exportFile;
         LOCAL result = FILE();
@@ -194,12 +249,12 @@ FORM ArticleDocumentMessage FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelop
     PROPERTIES  IN headI         h3 = (IF isEnd() THEN 'true' ELSE 'false') EXTID 'SessionEnd'
     PROPERTIES  IN headI         h33 = number() EXTID'SessionMessageNumber'
     PROPERTIES  IN headI         h4 = timeStamp() EXTID 'SessionTimeStamp'
-    PROPERTIES  IN headI         h5 = 'F' EXTID 'SessionType'                      
+    PROPERTIES  IN headI         h5 = shortNameSessionType() EXTID 'SessionType'                      
                            
     PROPERTIES IN itemsI ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
         
     OBJECTS dd = (i = Item, type = CustomGroupType) EXTID 'MessageItemOfArticleDocumentMessageS7N_Sjo7W' IN itemsI
-    PROPERTIES  = 'I' IF i IS Item EXTID 'ChangeType' 
+    PROPERTIES  = shortNameChangeType() IF i IS Item EXTID 'ChangeType' 
     
     PROPERTIES  i1=idBarcode(i) EXTID 'ArticleId' IN itemI
     PROPERTIES  IN ArticleDocumentData    =idBarcode(i) EXTID 'DokNr' 
@@ -219,7 +274,7 @@ articleDocumentMessage 'Изображения товаров КСО (ArticleDoc
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND passScales(i) AND split(i) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
         
         localImage(Item i) <- NULL;
         FOR inFilter(Item i) AND image(i) DO {
@@ -278,11 +333,11 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     PROPERTIES  IN headC  = TRUE EXTID 'SessionEnd'
     PROPERTIES  IN headC  = 1 EXTID'SessionMessageNumber'
     PROPERTIES  IN headC  = [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](currentDateTime()) EXTID 'SessionTimeStamp'
-    PROPERTIES  IN headC  = 'F' EXTID 'SessionType'    
+    PROPERTIES  IN headC  = shortNameSessionType() EXTID 'SessionType'    
 
     PROPERTIES IN itemsC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i' 
     OBJECTS type = CustomGroupType EXTID 'MessageItemOfArticleHierarchyS7N_Sjo7W' IN itemsC    
-    PROPERTIES                                         = 'I' IF type IS CustomGroupType EXTID 'ChangeType'  
+    PROPERTIES                                         = shortNameChangeType() IF type IS CustomGroupType EXTID 'ChangeType'  
     PROPERTIES IN itemC                                = 'P1' IF type IS CustomGroupType EXTID 'DistributionChannel'    
     PROPERTIES IN ArticleHierarchyDescriptionData      = name(type) EXTID  'Description'
     PROPERTIES IN ArticleHierarchyDescriptionData      = 'RU' IF type IS CustomGroupType EXTID  'LanguageId' 
@@ -345,11 +400,15 @@ articleHierarchy 'Иерархия групп КСО (ArticleHierarchy)' (Depart
 }
 
 exportCSO 'Выгрузить магазин' (DepartmentStore ds)  {
-    IF dataExchangeRegisterAddress(ds) AND customGroupType(ds) THEN {
-        articleHierarchyObject(ds);
-        articleMessage(ds);
-        articleDocumentMessage(ds);
-        articleHierarchy(ds);  
+    IF sessionType() AND changeType() THEN {    
+        IF dataExchangeRegisterAddress(ds) AND customGroupType(ds) THEN {
+            articleHierarchyObject(ds);
+            articleMessage(ds);
+            articleDocumentMessage(ds);
+            articleHierarchy(ds);  
+        }
+    } ELSE {
+        MESSAGE 'Не задано поле SessionType или ChangeType' NOWAIT;
     }
 }
 exportCSO 'Выгрузить' (CustomGroupType type)  {
@@ -364,7 +423,45 @@ exportCSO 'Выгрузить (планировщик)' ()  {
     }
 }
 
+FORM exportExcel 'Экспорт'
+    OBJECTS ds = DepartmentStore PANEL 
+    OBJECTS dd =(i = Item, type = CustomGroupType)
+    PROPERTIES SessionType =shortNameSessionType() IF i IS Item
+    PROPERTIES ChangeType = shortNameChangeType() IF i IS Item,
+               idBarcode(i), idType 'Код КСО' = id(type) IF i IS Item, 
+               idCustomGroup 'Код группы' = id(customGroup(type, i)),
+               nameCustomGroup 'Группа' = canonicalNameGroup(type, i),               
+               NumberInCatalogue 'Номер в каталоге' = activeIndex(i,type),
+               image 'Изображение' = TRUE IF image(i),
+               passScales(i),
+               split = split(i),
+               countRange 'В ассортименте' = TRUE IF countRange(i,ds,currentDate()),
+               active(i),
+               currentBalance(i,ds),
+               Description1 = Description(i,1), LanguageId1 =LanguageId(i,1),
+               Description2 = Description(i,2), LanguageId2 =LanguageId(i,2),                              
+               Description3 = Description(i,3), LanguageId3 =LanguageId(i,3)
+               
+    FILTERS customGroup(type, i), 
+            inFilter(i),
+            inFilter(type)               
+;
+exportExcel 'Печать (xls)'  (DepartmentStore ds) {
+    NEWSESSION {    
+        inFilter(CustomGroupType t) <- NULL;
+        inFilter(Item i) <- NULL;
+            
+        inFilter(customGroupType(ds)) <- TRUE;
+        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        PRINT exportExcel OBJECTS ds = ds XLSX ;
+        
+    }
+}
+
+
 EXTEND FORM integrationData 
+    PROPERTIES() nameSessionType,nameChangeType
+
     OBJECTS type = CustomGroupType 
     PROPERTIES (type)  READONLY name, id, isCSO
     PROPERTIES (type) TOOLBAR exportCSO
@@ -373,6 +470,7 @@ EXTEND FORM integrationData
     OBJECTS cs = DepartmentStore
     PROPERTIES (cs) READONLY id, name, nameLegalEntity, dataExchangeRegisterAddress
     PROPERTIES (cs) TOOLBAR exportCSO, articleHierarchyObject, articleMessage, articleDocumentMessage, articleHierarchy
+    PROPERTIES (cs) exportExcel TOOLBAR
     PROPERTIES exportCSO() PANEL DRAW cs
     FILTERS customGroupType(cs)==type,
             active(cs)
@@ -380,6 +478,12 @@ EXTEND FORM integrationData
 
 DESIGN integrationData {
     kso {
+        NEW boxPanel{
+            caption = 'Параметры';
+            type = CONTAINERH;
+            MOVE PROPERTY (nameSessionType());
+            MOVE PROPERTY (nameChangeType());            
+        }
         MOVE BOX(type);  
         MOVE BOX(cs){ fill = 2;}
     }    
