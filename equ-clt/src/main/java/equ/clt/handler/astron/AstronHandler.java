@@ -189,8 +189,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             String idGroup = parseGroup(itemGroup.extIdItemGroup);
                             if (idGroup != null && !idGroup.isEmpty()) {
                                 if(params.pgsql) {
+                                    String parentId = parseGroup(itemGroup.idParentItemGroup, true);
                                     setObject(ps, Integer.parseInt(idGroup), 1); //GRPID
-                                    setObject(ps, parseGroup(itemGroup.idParentItemGroup, true), 2); //PARENTGRPID
+                                    setObject(ps, parentId != null ? Integer.parseInt(parentId) : parentId, 2); //PARENTGRPID
                                     setObject(ps, trim(itemGroup.nameItemGroup, "", 50), 3); //GRPNAME
                                     setObject(ps, 0, 4); //DELFLAG
                                 } else {
