@@ -162,16 +162,21 @@ public class InventoryTechHandler extends TerminalHandler {
                     File flagFile = new File(directory + "/doc.upd");
                     if (flagFile.exists()) {
 
-                        File docFile = new File(directory + "/DOC.DBF");
-                        if(!docFile.exists())
-                            docFile = new File(directory + "/DOC.dbf");
-                        if(!docFile.exists())
-                            docFile = new File(directory + "/Doc.dbf");
-                        File posFile = new File(directory + "/POS.DBF");
-                        if(!posFile.exists())
-                            posFile = new File(directory + "/POS.dbf");
-                        if(!posFile.exists())
-                            posFile = new File(directory + "/Pos.dbf");
+                        String[] docFiles = {"DOC.DBF", "DOC.dbf", "Doc.DBF", "Doc.dbf", "doc.DBF", "doc.dbf"};
+                        File docFile = null;
+                        for(String name : docFiles) {
+                            docFile = new File(directory + "/" + name);
+                            if(docFile.exists())
+                                break;
+                        }
+
+                        String[] posFiles = {"POS.DBF", "POS.dbf", "Pos.DBF", "Pos.dbf", "pos.DBF", "pos.dbf"};
+                        File posFile = null;
+                        for(String name : posFiles) {
+                            posFile = new File(directory + "/" + name);
+                            if(posFile.exists())
+                                break;
+                        }
 
                         if (!docFile.exists() || !posFile.exists())
                             sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
