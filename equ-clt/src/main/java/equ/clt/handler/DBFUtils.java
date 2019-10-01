@@ -84,8 +84,14 @@ public class DBFUtils {
     }
 
     public static String getDBFFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
+        return getDBFFieldValue(importFile, fieldName, charset, true);
+    }
+
+    public static String getDBFFieldValue(DBF importFile, String fieldName, String charset, boolean trim) throws UnsupportedEncodingException {
         try {
-            String result = new String(importFile.getField(fieldName).getBytes(), charset).trim();
+            String result = new String(importFile.getField(fieldName).getBytes(), charset);
+            if(trim)
+                result = result.trim();
             return result.isEmpty() ? null : result;
         } catch (xBaseJException e) {
             return null;
