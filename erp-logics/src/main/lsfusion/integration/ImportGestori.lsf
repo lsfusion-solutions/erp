@@ -960,7 +960,7 @@ importPriceLists 'Импорт прайсов' () {
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT ch_pr2.dt_akt, ch_pr2.num_akt, ch_pr2.new_retail_price, ch_pr2.cod_level, ch_pr2.cod_good, ch_pr1.name_doc FROM Pub.ch_pr2 ' + 
-            'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr1.cod_shop = 206 AND cod_level IN (' + idOperations() + ') WITH (NOLOCK)' TO file;
+            'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level IN (' + idOperations() + ') WITH (NOLOCK)' TO file;
 
     IMPORT TABLE FROM file() TO date, id, price, level, idItem, note;
 
@@ -980,6 +980,7 @@ importPriceLists 'Импорт прайсов' () {
         note(p) <- ISTRING[500](note(i));
         allStocks(p) <- NULL;
         imported(p) <- TRUE;
+        dataIn(p, Stock st) <- TRUE WHERE st = customerStock();
     }
     
     LOCAL idDetail = ISTRING[100](INTEGER);
@@ -1001,7 +1002,7 @@ importPriceLists 'Импорт прайсов' () {
 EXTEND FORM integrationData PROPERTIES importPriceLists(), idOperations();
 DESIGN integrationData { 
     santaButtons { 
-        NEW importPriceLists {
+        NEW importPriceLists AFTER importInit {
             type = CONTAINERH;
             alignment = STRETCH;
             MOVE PROPERTY (importPriceLists());
