@@ -98,7 +98,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
 
                         Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
-                        String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA'" : "");
+                        String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") +
+                                (exportExtraTables ? ", 'PRCLEVEL', 'SAREA'" + (exportSAreaPrc ? ", 'SAREAPRC'" : "") : "");
 
                         int flags = checkFlags(conn, params, tables);
                         if (flags > 0) {
