@@ -958,11 +958,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         createSalesIndex(conn, params);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, sales.SALESTAG, sales.SALESBARC, " +
-                    "sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales." + getSalesNumField() + ", sales.SAREAID, " +
-                    "sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART " +
-                    "FROM SALES sales LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
+            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+                    "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
+                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
+                    "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
+                    "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
                     "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, " + getSalesNumField() + ", SALESTAG DESC";
             ResultSet rs = statement.executeQuery(query);
 
@@ -996,8 +997,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Time timeReceipt = new Time(salesTime);
 
                 Integer numberReceipt = rs.getInt("FRECNUM");
-                //пока только код кассира. Имена можно взять в таблице CASHIER, если её нам начнут выгружать
                 String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
+                String nameEmployee = rs.getString("CASHIERNAME");
                 Integer type = rs.getInt("SALESTYPE");
                 boolean isWeight = type == 0 || type == 2;
 
@@ -1018,7 +1019,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                         sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                         curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
-                                numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
+                                numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
                                 null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
                                 salesNum, null, null, cashRegister));
                         curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
