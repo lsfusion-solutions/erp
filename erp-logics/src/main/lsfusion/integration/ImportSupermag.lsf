@@ -781,7 +781,8 @@ importPriceListRetail 'Импорт розничных прайсов' (DATE df,
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\''
-         + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState > 0' TO file;
+         + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState > 0'+
+                ' AND NOT a.REASON IN (0,2,3)' TO file;
     
     logToFile('importSupermag', 'importPriceListRetail_1 + : ' + df + ' / ' + dt + ' = ' + GROUP SUM 1 IF imported(INTEGER i));
     
