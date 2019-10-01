@@ -1,6 +1,6 @@
 MODULE ExportCSO;
 
-REQUIRE Image, ExportCSOCustom, Store, Range;
+REQUIRE Image, ExportCSOCustom, Store, Range, StopList;
 
 
 //----------------------------- Экспорт в КСО -----------------------//
@@ -101,6 +101,9 @@ inFilter = DATA LOCAL NESTED BOOLEAN (CustomGroupType);
 inFilter = DATA LOCAL NESTED BOOLEAN (Item);
 activeIndex (Item i, CustomGroupType type) = PARTITION SUM 1 IF customGroup(type, i) AND inFilter(i) ORDER name(i),i BY type;
 
+filterCSO (DepartmentStore ds, Item i) = customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND 
+    (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0)) AND NOT inStopList(i, ds, currentDateTime());
+
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
      
     PROPERTIES  IN head ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -134,7 +137,7 @@ articleHierarchyObject 'Привязка товаров КСО (ArticleHierarchy
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- filterCSO(ds,i);
         
         EXPORT ArticleHierarchyObject XML TO System.exportFile;     
         LOCAL result = FILE();
@@ -200,7 +203,7 @@ articleMessage 'Наименование товаров КСО (ArticleMessage)'
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- filterCSO(ds,i);
     
         EXPORT ArticleMessage XML TO System.exportFile;
         LOCAL result = FILE();
@@ -274,7 +277,7 @@ articleDocumentMessage 'Изображения товаров КСО (ArticleDoc
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- filterCSO(ds,i);
         
         localImage(Item i) <- NULL;
         FOR inFilter(Item i) AND image(i) DO {
@@ -325,6 +328,14 @@ GROUP Node: itemC;
 GROUP NodeText;
 GROUP ArticleHierarchyDescriptionDataC EXTID 'ArticleHierarchyDescriptionData' :NodeText;
 
+Description 'Описание' = ABSTRACT CASE ISTRING[255](CustomGroup, INTEGER);
+Description (CustomGroup i, INTEGER  int) +=  WHEN  int == 1 AND i IS CustomGroup THEN ISTRING[255](name(i));
+countDescription (CustomGroup i)= GROUP MAX INTEGER  int IF Description(i, int);
+
+LanguageId 'Язык' = ABSTRACT CASE STRING[3](CustomGroup, INTEGER);
+LanguageId (CustomGroup i, INTEGER  int) +=  WHEN  int == 1 AND i IS CustomGroup THEN 'RU';
+
+
 FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'     
       
     PROPERTIES IN headC ATTR = 'http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:i'             
@@ -347,8 +358,13 @@ FORM ArticleHierarchy FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Env
     OBJECTS    i = CustomGroup EXTID 'ArticleHierarchyNode' IN Node          
 
     PROPERTIES                                        = id(i) EXTID 'NodeId'
-    PROPERTIES IN ArticleHierarchyDescriptionDataC    = name(i) EXTID 'Description'
-    PROPERTIES IN ArticleHierarchyDescriptionDataC    = 'RU' IF i IS CustomGroup EXTID 'LanguageId'     
+//    PROPERTIES IN ArticleHierarchyDescriptionDataC    = name(i) EXTID 'Description'
+//    PROPERTIES IN ArticleHierarchyDescriptionDataC    = 'RU' IF i IS CustomGroup EXTID 'LanguageId'         
+    OBJECTS gg = (ii = CustomGroup, int=INTEGER) EXTID 'ArticleHierarchyDescriptionData' IN NodeText
+                                                                            
+    PROPERTIES (ii,int) Description, LanguageId
+    FILTERS iterate(int,1,countDescription(ii)), ii==i   
+    
     PROPERTIES                                        = id(parent(i)) EXTID 'ParentId'
     PROPERTIES                                        = localImage(i) EXTID 'Picture'    
         
@@ -452,7 +468,7 @@ exportExcel 'Печать (xls)'  (DepartmentStore ds) {
         inFilter(Item i) <- NULL;
             
         inFilter(customGroupType(ds)) <- TRUE;
-        inFilter(Item i) <- TRUE WHERE customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0));
+        inFilter(Item i) <- filterCSO(ds,i);
         PRINT exportExcel OBJECTS ds = ds XLSX ;
         
     }
