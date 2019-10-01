@@ -682,7 +682,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
         String[] keys = new String[]{"SAREAID", "PRCLEVELID"};
         String[] columns = new String[]{"SAREAID", "PRCLEVELID", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREA", columns, keys)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREAPRC", columns, keys)) {
             if(params.pgsql) {
                 setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
                 setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2); //PRCLEVELID
