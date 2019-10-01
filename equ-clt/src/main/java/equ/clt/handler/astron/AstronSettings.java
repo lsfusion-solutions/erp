@@ -9,7 +9,13 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class AstronSettings implements Serializable {
     private Integer timeout;
     public String groupMachineries = null;
+
+    //если true, то выгружаем таблицы prclevel, sarea
     private boolean exportExtraTables;
+
+    //только для pgsql
+    //если true и exportExtraTables, то выгружаем таблицу sareaprc
+    private boolean exportSAreaPrc;
 
     public AstronSettings() {
     }
@@ -57,5 +63,13 @@ public class AstronSettings implements Serializable {
 
     public void setExportExtraTables(boolean exportExtraTables) {
         this.exportExtraTables = exportExtraTables;
+    }
+
+    public boolean isExportSAreaPrc() {
+        return exportSAreaPrc;
+    }
+
+    public void setExportSAreaPrc(boolean exportSAreaPrc) {
+        this.exportSAreaPrc = exportSAreaPrc;
     }
 }

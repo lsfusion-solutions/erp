@@ -71,6 +71,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
             Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<>() : astronSettings.getGroupMachineryMap();
             boolean exportExtraTables = astronSettings != null && astronSettings.isExportExtraTables();
+            boolean exportSAreaPrc = astronSettings != null && astronSettings.isExportSAreaPrc();
 
             for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -145,6 +146,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     exportPrcLevel(conn, params, transaction);
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
                                     exportSArea(conn, params, transaction);
+                                    if(exportSAreaPrc) {
+                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
+                                        exportSAreaPrc(conn, params, transaction);
+                                    }
                                 }
 
                                 if(extGrpId != null) {
@@ -665,6 +670,30 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, "0", 7, offset); //DELFLAG
 
                 setObject(ps, transaction.nppGroupMachinery, 8, offset); //SAREAID
+            }
+
+            ps.addBatch();
+
+            ps.executeBatch();
+            conn.commit();
+        }
+    }
+
+    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
+        String[] keys = new String[]{"SAREAID", "PRCLEVELID"};
+        String[] columns = new String[]{"SAREAID", "PRCLEVELID", "DELFLAG"};
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREA", columns, keys)) {
+            if(params.pgsql) {
+                setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
+                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2); //PRCLEVELID
+                setObject(ps, 0, 3); //DELFLAG
+            } else {
+                int offset = columns.length + keys.length;
+                setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
+                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
+                setObject(ps, "0", 3, offset); //DELFLAG
+
+                setObject(ps, transaction.nppGroupMachinery, 4, offset); //SAREAID
             }
 
             ps.addBatch();
