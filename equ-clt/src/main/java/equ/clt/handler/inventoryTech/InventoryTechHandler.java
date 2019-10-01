@@ -165,9 +165,13 @@ public class InventoryTechHandler extends TerminalHandler {
                         File docFile = new File(directory + "/DOC.DBF");
                         if(!docFile.exists())
                             docFile = new File(directory + "/DOC.dbf");
+                        if(!docFile.exists())
+                            docFile = new File(directory + "/Doc.dbf");
                         File posFile = new File(directory + "/POS.DBF");
                         if(!posFile.exists())
                             posFile = new File(directory + "/POS.dbf");
+                        if(!posFile.exists())
+                            posFile = new File(directory + "/Pos.dbf");
 
                         if (!docFile.exists() || !posFile.exists())
                             sendTerminalDocumentLogger.info("InventoryTech: doc.dbf or pos.dbf not found in " + directory);
@@ -258,7 +262,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                 String title = getDBFFieldValue(dbfFile, "TITLE", charset);
                 String dateTimeValue = getDBFFieldValue(dbfFile, "CRE_DTST", charset);
-                Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, new String[] {"yyyyMMddHHmmss"}).getTime());
+                Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, "yyyyMMddHHmmss").getTime());
                 String idTerminalHandbookType1 = getDBFFieldValue(dbfFile, "CSPR1", charset);
                 String idTerminalHandbookType2 = getDBFFieldValue(dbfFile, "CSPR2", charset);
                 BigDecimal quantityDocument = getDBFBigDecimalFieldValue(dbfFile, "QUANDOC", charset);
