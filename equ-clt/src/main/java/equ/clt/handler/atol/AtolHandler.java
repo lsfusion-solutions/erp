@@ -251,7 +251,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                 String[] entry = scanner.nextLine().split(";");
                                 String date = getStringValue(entry, 1);
                                 String time = getStringValue(entry, 2);
-                                Timestamp dateTime = new Timestamp(DateUtils.parseDate((date + " " + time), new String[] {"dd.MM.yyyy HH:mm:ss"}).getTime());
+                                Timestamp dateTime = new Timestamp(DateUtils.parseDate((date + " " + time), "dd.MM.yyyy HH:mm:ss").getTime());
                                 String entryType = getStringValue(entry, 3);
                                 boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
                                 String documentType = getStringValue(entry, 22);
@@ -527,10 +527,10 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     private Date getDateValue(String[] entry, int index) throws ParseException {
-        return entry.length >= (index + 1) ? new Date(DateUtils.parseDate(entry[index], new String[]{"dd.MM.yyyy"}).getTime()) : null;
+        return entry.length >= (index + 1) ? new Date(DateUtils.parseDate(entry[index], "dd.MM.yyyy").getTime()) : null;
     }
 
     private Time getTimeValue(String[] entry, int index) throws ParseException {
-        return entry.length >= (index + 1) ? new Time(DateUtils.parseDate(entry[index], new String[]{"HH:mm:ss"}).getTime()) : null;
+        return entry.length >= (index + 1) ? new Time(DateUtils.parseDate(entry[index], "HH:mm:ss").getTime()) : null;
     }
 }

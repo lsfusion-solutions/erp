@@ -311,7 +311,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     Date date = getDBFDateFieldValue(importSailFile, "DATE", defaultCharset);
                     String timeString = getDBFFieldValue(importSailFile, "TIME", defaultCharset);
                     timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
-                    Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
+                    Time time = new Time(DateUtils.parseDate(timeString, "HHmm").getTime());
                     String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
                     BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
                     BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
@@ -409,6 +409,6 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
     
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, Date defaultValue) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fieldName, charset, false, "");
-        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
+        return dateString.isEmpty() ? defaultValue : new Date(DateUtils.parseDate(dateString, "yyyyMMdd", "dd.MM.yyyy").getTime());
     }
 }

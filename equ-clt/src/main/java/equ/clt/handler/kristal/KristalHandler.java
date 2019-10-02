@@ -1016,7 +1016,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
                                 Date startDate = cashRegister == null ? null : cashRegister.startDate;
 
-                                long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
+                                long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss").getTime();
                                 Date dateReceipt = new Date(dateTimeReceipt);
                                 Time timeReceipt = new Time(dateTimeReceipt);
 
@@ -1099,7 +1099,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
                                     //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
-                                    long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
+                                    long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), "dd.MM.yyyy HH:mm:ss").getTime();
                                     Date dateReceipt = new Date(dateTimeReceipt);
                                     Time timeReceipt = new Time(dateTimeReceipt);
                                     String idEmployee = receiptElement.getAttributeValue("CASSIR");

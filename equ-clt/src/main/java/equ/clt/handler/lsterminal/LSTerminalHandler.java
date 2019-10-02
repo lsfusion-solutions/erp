@@ -214,7 +214,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                     for (List<Object> entry : dokData) {
 
                                         String dateTimeValue = (String) entry.get(0); //DV
-                                        Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, new String[]{"yyyy-MM-dd HH:mm:ss"}).getTime());
+                                        Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, "yyyy-MM-dd HH:mm:ss").getTime());
                                         Date date = dateTime == null ? null : new Date(dateTime.getTime());
                                         Time time = dateTime == null ? null : new Time(dateTime.getTime());
                                         String numberDocument = (String) entry.get(1); //NUM

@@ -561,7 +561,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                                             attempts++;
                                         }
                                         if (!result) {
-                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, item %s", scales.port, result, item.idItem));
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, item %s", scales.port, item.idItem));
                                             globalError++;
                                         }
                                     } else {
@@ -591,7 +591,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                                             attempts++;
                                         }
                                         if (!result) {
-                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, Result %s, plu %s", scales.port, result, item.idItem));
+                                            logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, plu %s", scales.port, item.idItem));
                                             globalError++;
                                         }
                                     } else {

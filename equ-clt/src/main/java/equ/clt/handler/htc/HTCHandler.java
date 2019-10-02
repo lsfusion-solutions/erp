@@ -722,7 +722,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
                                 Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
                                 if (dateReceipt != null) {
-                                    Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), new String[]{"HH:mm", "HH:mm:ss"}).getTime());
+                                    Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), "HH:mm", "HH:mm:ss").getTime());
 
                                     String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
                                     String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
@@ -849,8 +849,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         }
 
         for(Long failedRequest : failedRequests.keySet()) {
-            if(succeededRequests.contains(failedRequest))
-                succeededRequests.remove(failedRequest);
+            succeededRequests.remove(failedRequest);
         }
     }
 
@@ -865,7 +864,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
         String dateString = getDBFFieldValue(importFile, fieldName, charset);
-        return dateString == null || dateString.isEmpty() ? null : new Date(DateUtils.parseDate(dateString, new String[]{"yyyyMMdd", "dd.MM.yyyy"}).getTime());
+        return dateString == null || dateString.isEmpty() ? null : new Date(DateUtils.parseDate(dateString, "yyyyMMdd", "dd.MM.yyyy").getTime());
     }
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
