@@ -948,52 +948,50 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException {
         String result = null;
 
-        try (DataSession session = createSession()) {
-            if (options.numberAtATime == null) {
-                options.numberAtATime = salesInfoList.size();
-            }
-
-            final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
-
-            ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
-            List<Future<String>> futures = new ArrayList<>();
-
-            final List<List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
-
-            final int taskSize = groupedSalesInfo.size();
-            for(int i = 0; i < taskSize; i++) {
-                final int taskIndex = i;
-                Future<String> importResult = executor.submit((Callable) () ->
-                        runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), options.numberAtATime, sidEquipmentServer, taskIndex, taskSize,
-                        directory, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
-                futures.add(importResult);
-            }
-
-            executor.shutdown();
-
-            try {
-                for (Future<String> future : futures) {
-                    String futureResult = future.get();
-                    if (result == null && futureResult != null) {
-                        result = futureResult;
-                    }
-                }
-            } catch (InterruptedException e) {
-                for (Future<String> future : futures) {
-                    future.cancel(true);
-                }
-                throw Throwables.propagate(e);
-            }
-            return result;
+        if (options.numberAtATime == null) {
+            options.numberAtATime = salesInfoList.size();
         }
+
+        final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
+
+        ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
+        List<Future<String>> futures = new ArrayList<>();
+
+        final List<List<SalesInfo>> groupedSalesInfo = groupSalesInfoByNppGroupMachinery(salesInfoList);
+
+        final int taskSize = groupedSalesInfo.size();
+        for (int i = 0; i < taskSize; i++) {
+            final int taskIndex = i;
+            Future<String> importResult = executor.submit((Callable) () ->
+                    runMultithreadTask(stack, groupedSalesInfo.get(taskIndex), sidEquipmentServer, taskIndex, taskSize,
+                            directory, options, allowReceiptsAfterDocumentsClosedDateCashRegisterList));
+            futures.add(importResult);
+        }
+
+        executor.shutdown();
+
+        try {
+            for (Future<String> future : futures) {
+                String futureResult = future.get();
+                if (result == null && futureResult != null) {
+                    result = futureResult;
+                }
+            }
+        } catch (InterruptedException e) {
+            for (Future<String> future : futures) {
+                future.cancel(true);
+            }
+            throw Throwables.propagate(e);
+        }
+        return result;
     }
 
-    private String runMultithreadTask(ExecutionStack stack, List<SalesInfo> salesInfoList, Integer numberAtATime, String sidEquipmentServer,
-                                      int taskIndex, int taskSize, final String directory,
-                                      boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private String runMultithreadTask(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, int taskIndex, int taskSize, final String directory,
+                                      EquipmentServerOptions options, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
+            throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         int start = 0;
         while (start < salesInfoList.size()) {
-            int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+            int finish = (start + options.numberAtATime) < salesInfoList.size() ? (start + options.numberAtATime) : salesInfoList.size();
 
             Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
             if (lastNumberReceipt != null) {
@@ -1002,7 +1000,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             if (start < finish) {
-                String result = importSalesInfo(stack, sidEquipmentServer, salesInfoList, start, finish, salesInfoList.size() - finish, taskIndex, taskSize, directory, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                String result = importSalesInfo(stack, sidEquipmentServer, salesInfoList, start, finish, salesInfoList.size() - finish, taskIndex, taskSize, directory, options, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
                 if(result != null) {
                     return result;
                 }
@@ -1013,7 +1011,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private String importSalesInfo(ExecutionStack stack, String sidEquipmentServer, List<SalesInfo> salesInfoList, int start, int finish, int left,
-                                   int taskIndex, int taskSize, String directory, boolean ignoreReceiptsAfterDocumentsClosedDate, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
+                                   int taskIndex, int taskSize, String directory, EquipmentServerOptions options, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         try (DataSession session = createSession()) {
             logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
@@ -1022,7 +1020,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
-            boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
             Set<String> settingsSet = new HashSet<>();
             KeyExpr settingExpr = new KeyExpr("setting");
@@ -1255,8 +1252,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                     zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-            saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
-            saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
+            saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !options.overrideCashiers));
+            saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !options.overrideCashiers));
 
             ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
             saleKeys.add(receiptSaleDetailKey);
@@ -1379,7 +1376,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
             }
 
-            RowsData rowsData = getRowsData(session, salesInfoList, timeId, start, finish, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+            RowsData rowsData = getRowsData(session, salesInfoList, timeId, start, finish, options, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
             //sale 5
             new IntegrationService(session, new ImportTable(saleFields, rowsData.dataSale), saleKeys, saleProperties).synchronize(true);
@@ -1446,7 +1443,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
                 Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
-                boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
 
                 Set<String> settingsSet = new HashSet<>();
                 KeyExpr settingExpr = new KeyExpr("setting");
@@ -1575,8 +1571,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                         zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-                saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !overrideCashiers));
-                saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !overrideCashiers));
+                saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), !options.overrideCashiers));
+                saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), !options.overrideCashiers));
 
                 ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
                 saleKeys.add(receiptSaleDetailKey);
@@ -1698,7 +1694,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     giftCardProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
                 }
 
-                RowsData rowsData = getRowsData(session, data, timeId, 0, data.size(), options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
+                RowsData rowsData = getRowsData(session, data, timeId, 0, data.size(), options, allowReceiptsAfterDocumentsClosedDateCashRegisterList);
 
                 //sale 4
                 List<ImportField> saleImportFields = new ArrayList<>(commonZReportFields);
@@ -2196,7 +2192,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return result;
     }
 
-    private RowsData getRowsData(DataSession session, List<SalesInfo> data, Boolean timeId, int start, int finish, boolean ignoreReceiptsAfterDocumentsClosedDate,
+    private RowsData getRowsData(DataSession session, List<SalesInfo> data, Boolean timeId, int start, int finish, EquipmentServerOptions options,
                                  List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<List<Object>> dataSale = new ArrayList<>();
         List<List<Object>> dataReturn = new ArrayList<>();
@@ -2204,7 +2200,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         Map<Object, String> barcodeMap = new HashMap<>();
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
-            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
+            if (!overDocumentsClosedDate(sale, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
                 String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
                         (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
                 if (barcode == null && sale.itemObject != null) {
@@ -2325,18 +2321,21 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(session, equipmentServerObject);
         Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
         boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
-        return new EquipmentServerOptions(maxThreads, numberAtATime, ignoreReceiptsAfterDocumentsClosedDate);
+        boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
+        return new EquipmentServerOptions(maxThreads, numberAtATime, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers);
     }
 
     private class EquipmentServerOptions {
         Integer maxThreads;
         Integer numberAtATime;
         boolean ignoreReceiptsAfterDocumentsClosedDate;
+        boolean overrideCashiers;
 
-        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean ignoreReceiptsAfterDocumentsClosedDate) {
+        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean ignoreReceiptsAfterDocumentsClosedDate, boolean overrideCashiers) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
+            this.overrideCashiers = overrideCashiers;
         }
     }
 }
