@@ -576,23 +576,35 @@ bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail
        order(componentDetail) MATERIALIZED TABLE substituteSkuOrder;                                                                                                                                   
                                                                                                                                  
 // цены по товару
+costPriceListType = DATA LedgerPriceListType (Operation);
+nameCostPriceListType 'Вид цен (c/c) потребность' (Operation o)= name(costPriceListType(o)) IN documentPrm CHARWIDTH 5;
+
+costPriceListType = DATA LedgerPriceListType (Order) PREREAD;
+nameCostPriceListType 'Вид цен (c/c) потребность' (Order o)= name(costPriceListType(o)) IN documentPrm CHARWIDTH 5;
+
+
 dataBruttoPrice 'Цена' = DATA NUMERIC[16,4] (Sku, Order);
 cost 'Себестоимость' = DATA NUMERIC[16,4] (Sku, Order);
 
 WHEN LOCAL (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order)) OR CHANGED(dateTime(order)) OR SET(quantityComponentDetail(Sku sku, order)))
              AND quantityComponentDetail(sku, order) AND NOT CHANGED(dataBruttoPrice(sku, order)) AND PriceListType pt == priceListType(order) NOINLINE (pt) DO
-    dataBruttoPrice (sku, order) <- prevPriceB(pt,
-                                                                                    sku,
-                                                                                    componentsStock(order),
-                                                                                    dateTime(order));
+    dataBruttoPrice (sku, order) <- prevPriceB(pt,sku,componentsStock(order),dateTime(order));
 
 calcCost 'Себестоимость' (Sku sku, Stock stock) = [ GROUP SUM cost(Batch b) * prevCurrentBalance(b, stock) BY prevSkuCurrentBalance(b, stock)](sku) /
     (prevCurrentBalance(sku, stock) IF prevCurrentBalance(sku, stock) != 0);   
 
+calcCost 'Себестоимость' (Sku sku, Stock stock, Order order) = IF costPriceListType(order) 
+    THEN prevPriceB[LedgerPriceListType,Sku,Stock,DATETIME](costPriceListType(order),sku, stock,dateTime(order))
+    ELSE (calcCost(sku, stock) IF order IS Order);   
+
+
 WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(componentsStock(order)))
-             AND quantityComponentDetail(sku, order) AND NOT CHANGED(cost(sku, order)) DO
-    cost (sku, order) <- calcCost(sku, componentsStock(order));
-    
+             AND quantityComponentDetail(sku, order) AND NOT CHANGED(cost(sku, order)) AND NOT costPriceListType(order) DO
+    cost (sku, order) <-  NUMERIC[16,4](calcCost(sku, componentsStock(order)));
+
+WHEN LOCAL (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR ((CHANGED(componentsStock(order)) OR CHANGED(dateTime(order))) AND NOT isPosted(order)) OR CHANGED(costPriceListType(order)))    
+            AND quantityComponentDetail(sku, order) AND NOT CHANGED(cost(sku, order)) AND costPriceListType(order) DO
+    cost (sku, order) <-  NUMERIC[16,4](prevPriceB[LedgerPriceListType,Sku,Stock,DATETIME](costPriceListType(order),sku, componentsStock(order),dateTime(order)));   
 // --- Замена --- //
 substitute = DATA Sku (Sku, Order) TABLE substituteSkuOrder;
 nameSubstitute 'Замена' (Sku sku, Order order) = name(substitute(sku, order));
@@ -1026,7 +1038,7 @@ deleteComponents 'Очистить'(Order order)   {
 priceStock = DATA Stock(Order);
 namePriceStock 'Склад' = name(priceStock(Order order));
 
-calcCost 'Себестоимость' = calcCost(Sku sku, priceStock(Order order));
+calcCost 'Себестоимость' = calcCost(Sku sku, priceStock(Order order), order);
 
 CONSTRAINT  priceStock(Order o) AND NOT isCompany(priceStock(o)) CHECKED BY priceStock[Order]    
         MESSAGE 'Склад для цен не является складом компании';
@@ -1049,11 +1061,11 @@ DESIGN multiplier {
 fillSubstitutePriceFromTo 'Использовать цену'(Order order, Sku sku, Sku skuSubstitute)  { 
     IF multiplierSubstituteTo(sku, skuSubstitute) THEN {
         dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order));
-        cost(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order)));
+        cost(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order),order));
     } ELSE {
         DIALOG multiplier OBJECTS nu INPUT DO {
             dataBruttoPrice(sku, order) <- NUMERIC[16,4](nu*priceStock(skuSubstitute,order));
-            cost(sku, order) <- NUMERIC[16,4](nu*calcCost(skuSubstitute,priceStock(order)));
+            cost(sku, order) <- NUMERIC[16,4](nu*calcCost(skuSubstitute,priceStock(order),order));
         }
     }        
 } TOOLBAR;  
@@ -1092,7 +1104,7 @@ fillSubstitutePriceMaxFrom 'Исп. max цену'(Order order, Sku sku)  {
     sku() <- maxSubstituteSkuPrice(sku, order);
     
     dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();     
-    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order),order)) WHERE sku();   
 };  
 fillSubstitutePriceMinFrom 'Исп. min цену'(Order order, Sku sku)  { 
     LOCAL sku = Sku ();
@@ -1100,7 +1112,7 @@ fillSubstitutePriceMinFrom 'Исп. min цену'(Order order, Sku sku)  {
     sku() <- minSubstituteSkuPrice(sku, order);
 
     dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();      
-    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order),order)) WHERE sku();   
        
 };   
 
@@ -1127,7 +1139,7 @@ fillSubstitutePriceMaxBalanceFrom 'Исп. цену большего остат�
     sku() <- NULL;
     sku() <- maxSkuBalanceSubstitute (sku, order);
     dataBruttoPrice(sku, order) <- NUMERIC[16,4](priceStock(sku(),order)*multiplierSubstituteTo(sku, sku())) WHERE sku();     
-    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order),order)) WHERE sku();   
      
 }; 
 fillSubstitutePriceMaxBalance 'Исп. цену большего остатка'(Order order)  { 
@@ -1208,7 +1220,7 @@ FORM order 'Производственный заказ'
     PROPERTIES(s,o) READONLY bruttoNotSubstituteQuantity
     FILTERS bruttoQuantity(s,o)
 
-    PROPERTIES(o)  namePriceListType, VATComponent  BACKGROUND backgroundVAT(o)//, nameComponentsCalcPriceListTypeOrder
+    PROPERTIES(o)  namePriceListType, nameCostPriceListType, VATComponent  BACKGROUND backgroundVAT(o)//, nameComponentsCalcPriceListTypeOrder
 
     OBJECTS su = Substitute
     PROPERTIES(su) READONLY nameToSku, multiplier
@@ -1282,6 +1294,7 @@ DESIGN order {
                         type = CONTAINERH;
                         MOVE PROPERTY(namePriceListType(o));
                         MOVE PROPERTY(VATComponent(o));
+                        MOVE PROPERTY(nameCostPriceListType(o));
                     }
                     MOVE BOX(sk);  
                 }                
@@ -1427,7 +1440,8 @@ WHEN LOCAL FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), ord
     price (detail) <- calcPrice(pt, detail); 
 
 additionalCost = ABSTRACT NUMERIC[16,4](ComponentDetail);         
-calcCost = (OVERRIDE cost(batch(ComponentDetail detail)), cost(sku(detail), order(detail)));// (+) additionalCost(detail);    
+calcCost = (OVERRIDE cost(batch(ComponentDetail detail)), cost(sku(detail), order(detail))); 
+
 WHEN LOCAL FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
     cost (detail) <- calcCost(detail);           
        
@@ -1778,6 +1792,8 @@ operation (ComponentDetail d) = operation(order(d));
 nameOperation 'Операция' (ComponentDetail d)= name(operation (d));
 
 @deriveDocumentOperationProperty(Order, showBOMQuantity);
+
+@deriveDocumentOperationProperty(Order, costPriceListType);
 //-- Партия для строки компонента
 hideBatchComponent 'Не показывать партии' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
@@ -1927,7 +1943,7 @@ notRecalculateMarkup 'Не пересчитывать наценку' = DATA BOO
 notRecalculateMarkup(Order order) += notRecalculateMarkup(operation(order));
 
 EXTEND FORM operation
-     PROPERTIES(o) nameCalcPriceListType, nameProductsPriceListType, namePriceListType, notRecalculateMarkup
+     PROPERTIES(o) nameCalcPriceListType, nameProductsPriceListType, namePriceListType, notRecalculateMarkup, nameCostPriceListType
 
  ;
 DESIGN operation {
@@ -1935,6 +1951,7 @@ DESIGN operation {
         MOVE PROPERTY(nameCalcPriceListType(o));
         MOVE PROPERTY(nameProductsPriceListType(o));
         MOVE PROPERTY(namePriceListType(o));
+        MOVE PROPERTY(nameCostPriceListType(o));
         MOVE PROPERTY(notRecalculateMarkup(o));
     }
 }
