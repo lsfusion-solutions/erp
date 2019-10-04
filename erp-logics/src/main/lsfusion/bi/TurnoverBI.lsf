@@ -26,7 +26,6 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
             EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                                group1 = skuGroup2(sku(b)), group2 = skuGroup3(sku(b)), group3 = skuGroup4(sku(b)), group4 = skuGroup5(sku(b)), group5 = skuGroup6(sku(b)),
                                 manufacturer = manufacturer(sku(b)), country = country(sku(b)),
                                 price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
                                 balance = DOUBLE(balance(b, st)),
@@ -92,11 +91,11 @@ DESIGN turnoverReport {
 
 @createGroup(turnover, stock, 'По магазину', 1, 'stock', 'LOOKUP(stock,\'stock_name\')', 'Магазин', stockContainer);
 @createGroup(turnover, supplier, 'По поставщику', 2, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', supplierContainer);
-@createGroup(turnover, group1, 'По направлению', 3, 'group1', 'LOOKUP(group1,\'group_name\')', 'Направление', itemContainer);
-@createGroup(turnover, group2, 'По группе', 4, 'group2', 'LOOKUP(group2,\'group_name\')', 'Группа', itemContainer);
-@createGroup(turnover, group3, 'По подгруппе', 5, 'group3', 'LOOKUP(group3,\'group_name\')', 'Подгруппа', itemContainer);
-@createGroup(turnover, group4, 'По субгруппе', 6, 'group4', 'LOOKUP(group4,\'group_name\')', 'Субгруппа', itemContainer);
-@createGroup(turnover, group5, 'По виду', 21, 'group5', 'LOOKUP(group5,\'group_name\')', 'Вид', itemContainer);
+@createGroup(turnover, group1, 'По направлению', 3, 'LOOKUP(sku,\'sku_group1\')', 'LOOKUP(LOOKUP(sku,\'sku_group1\'),\'group_name\')', 'Направление', itemContainer);
+@createGroup(turnover, group2, 'По группе', 4, 'LOOKUP(sku,\'sku_group2\')', 'LOOKUP(LOOKUP(sku,\'sku_group2\'),\'group_name\')', 'Группа', itemContainer);
+@createGroup(turnover, group3, 'По подгруппе', 5, 'LOOKUP(sku,\'sku_group3\')', 'LOOKUP(LOOKUP(sku,\'sku_group3\'),\'group_name\')', 'Подгруппа', itemContainer);
+@createGroup(turnover, group4, 'По субгруппе', 6, 'LOOKUP(sku,\'sku_group4\')', 'LOOKUP(LOOKUP(sku,\'sku_group4\'),\'group_name\')', 'Субгруппа', itemContainer);
+@createGroup(turnover, group5, 'По виду', 21, 'LOOKUP(sku,\'sku_group5\')', 'LOOKUP(LOOKUP(sku,\'sku_group5\'),\'group_name\')', 'Вид', itemContainer);
 @createGroup(turnover, sku, 'По товару', 7, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', itemContainer);
 @createGroup(turnover, brand, 'По бренду', 8, 'LOOKUP(sku,\'sku_brand\')', 'LOOKUP(LOOKUP(sku,\'sku_brand\'),\'brand_name\')', 'Бренд', itemContainer);
 @createGroup(turnover, manufacturer, 'По производителю', 9, 'manufacturer', 'LOOKUP(manufacturer,\'manufacturer_name\')', 'Производитель', itemContainer);
@@ -528,11 +527,11 @@ changeIncludeBarcodes()  {
     }
 }
 
-filterGroups() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1() + ')',
-                                       ' group2 IN (' + nameIncludeSkuGroups2() + ')',
-                                       ' group3 IN (' + nameIncludeSkuGroups3() + ')',
-                                       ' group4 IN (' + nameIncludeSkuGroups4() + ')',
-                                       ' group5 IN (' + nameIncludeSkuGroups5() + ')';
+filterGroups() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameIncludeSkuGroups1() + ')',
+                                       ' LOOKUP(sku,\'sku_group2\') IN (' + nameIncludeSkuGroups2() + ')',
+                                       ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3() + ')',
+                                       ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4() + ')',
+                                       ' LOOKUP(sku,\'sku_group5\') IN (' + nameIncludeSkuGroups5() + ')';
 filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) +'\'') IF (include(s) OR (NOT (GROUP SUM 1 IF include(Stock stock)) AND limitAccess(currentUser()))) AND accessCompany(currentUser(),s),',') + ')','')
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
