@@ -9,7 +9,6 @@ import equ.api.scales.*;
 import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.ScalesSettings;
 import lsfusion.base.ExceptionUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -20,7 +19,6 @@ import java.util.*;
 
 public class ShtrihPrintHandler extends DefaultScalesHandler {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     private static String password = "0030";
 
     private FileSystemXmlApplicationContext springContext;

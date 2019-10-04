@@ -8,7 +8,6 @@ import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Hex;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -21,8 +20,6 @@ import java.util.List;
 
 public class DigiHandler extends MultithreadScalesHandler {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    
     protected static short cmdWrite = 0xF1;
     protected static short cmdCls = 0xF2;
     protected static short filePLU = 0x25;

@@ -9,7 +9,6 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.HandlerUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -20,9 +19,6 @@ import java.nio.ByteOrder;
 import java.util.*;
 
 public class CL5000JHandler extends DefaultScalesHandler {
-
-    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
     private FileSystemXmlApplicationContext springContext;
     private int descriptionLength;

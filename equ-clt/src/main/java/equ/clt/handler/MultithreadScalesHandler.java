@@ -6,7 +6,6 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import lsfusion.base.Pair;
-import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.util.*;
@@ -15,8 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
-
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {

@@ -14,7 +14,6 @@ import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import lsfusion.base.col.heavy.OrderedMap;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
@@ -41,7 +40,6 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
     //1615: кончилась память под состав. Очистить и записать заново
     //4470: memory is full
 
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected static final int[] encoders1 = new int[]{65, 192, 66, 193, 194, 69, 195, 197, 198, 199, 75, 200, 77, 72, 79, 201, 80, 67, 84, 202, 203, 88, 208, 209, 210, 211, 212, 213, 215, 216, 217, 218, 97, 224, 236, 225, 226, 101, 227, 229, 230, 231, 237, 232, 238, 239, 111, 233};
     protected static final int[] encoders2 = new int[]{112, 99, 253, 234, 235, 120, 240, 241, 242, 243, 244, 245, 247, 248, 249, 250};
 
