@@ -120,9 +120,25 @@ CLASS CommunicationChannel 'Канал' {
     viber_sms 'Viber + SMS'
 }
 
+TABLE communicationChannel (CommunicationChannel);
+numberService1 'Номера сервиса 1' = DATA NumberService (CommunicationChannel);
+nameNumberService1 'Номер сервиса 1' (CommunicationChannel c) = name(numberService1(c));
+numberService2 'Номера сервиса 2' = DATA NumberService (CommunicationChannel);
+nameNumberService2 'Номер сервиса 2' (CommunicationChannel c) = name(numberService2(c));
+
 FORM communicationChannel 'Канал'
-    OBJECTS c = CommunicationChannel
+    OBJECTS c = CommunicationChannel PANEL
     PROPERTIES(c) READONLY staticCaption
+    PROPERTIES(c) nameNumberService1, nameNumberService2
+    
+    EDIT CommunicationChannel OBJECT c
+;
+
+FORM communicationChannels 'Каналы'
+    OBJECTS c = CommunicationChannel
+    PROPERTIES(c) READONLY staticCaption, nameNumberService1, nameNumberService2
+    PROPERTIES(c) NEWSESSION NEW, EDIT 
+    
     LIST CommunicationChannel OBJECT c
 ;
 
@@ -133,10 +149,10 @@ TABLE dispatch (Dispatch);
 name 'Название' = DATA ISTRING[255] (Dispatch) NONULL;
 communicationChannel 'Канал' = DATA CommunicationChannel (Dispatch) NONULL;
 nameCommunicationChannel 'Канал' (Dispatch d) = staticCaption(communicationChannel(d));
-numberService 'Номер сервиса' = DATA NumberService (Dispatch) NONULL;
-nameNumberService 'Номер сервиса' (Dispatch d) = name(numberService(d));
-subscriberBase 'База абонентов' = DATA SubscriberBase (Dispatch) NONULL;
-nameSubscriberBase 'База абонентов' (Dispatch d) = name(subscriberBase(d));
+//numberService 'Номер сервиса' = DATA NumberService (Dispatch) NONULL;
+//nameNumberService 'Номер сервиса' (Dispatch d) = name(numberService(d));
+//subscriberBase 'База абонентов' = DATA SubscriberBase (Dispatch) NONULL;
+//nameSubscriberBase 'База абонентов' (Dispatch d) = name(subscriberBase(d));
 
 isViber (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber OR communicationChannel(d) == CommunicationChannel.viber_sms;
 isSMS (Dispatch d) = communicationChannel(d) == CommunicationChannel.sms;// OR communicationChannel(d) == CommunicationChannel.viber_sms;
@@ -178,11 +194,27 @@ CONSTRAINT SETCHANGED(timeTo(Dispatch d)) AND timeTo(d) > toTime(toDateTimeForma
 
 isSend 'Отправлено' = DATA BOOLEAN (Dispatch);
 
+TABLE dispatchDiscountCard (Dispatch, DiscountCard);
+
+in 'Вкл.' = DATA BOOLEAN (Dispatch, DiscountCard);
+
+fillFromSubscriberBase 'Заполнить по базе абонентов' (Dispatch d) {
+    DIALOG subscriberBases OBJECTS b INPUT DO {
+        in(d, DiscountCard c) <- in(b,c);
+    }
+} TOOLBAR;
+
 FORM dispatch 'Рассылка'
     OBJECTS d = Dispatch PANEL
-    PROPERTIES(d) isSend, name, nameCommunicationChannel, nameNumberService, nameSubscriberBase, date, timeFrom, timeTo
+    PROPERTIES(d) isSend, name, nameCommunicationChannel, date, timeFrom, timeTo
     PROPERTIES(d) SHOWIF isViber(d) messageViber, lifetime, image, caption, action
     PROPERTIES(d) SHOWIF isSMS(d) messageSMS
+    
+    OBJECTS c = DiscountCard
+    PROPERTIES(d,c) in
+    PROPERTIES(c) READONLY number, phoneLegalEntity, firstNameContact, lastNameContact, nameDiscountCardType, date
+    PROPERTIES(d) DRAW c fillFromSubscriberBase
+    FILTERGROUP include FILTER 'Включенные' in(d,c)
     
     EDIT Dispatch OBJECT d
 ;
@@ -195,9 +227,7 @@ DESIGN dispatch {
         NEW types {
             type = CONTAINERH;
             MOVE PROPERTY(nameCommunicationChannel(d));
-            MOVE PROPERTY(nameNumberService(d));
         }
-        MOVE PROPERTY(nameSubscriberBase(d));
         NEW date {
             type = CONTAINERH;
             caption = 'Дата проведения';
@@ -252,7 +282,7 @@ FORM dispatches 'Рассылки'
     PROPERTIES() nameCommunicationChannelFilter, dateFromFilter, dateToFilter
 
     OBJECTS d = Dispatch
-    PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, nameNumberService, nameSubscriberBase, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
+    PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
     FILTERS communicationChannel(d) == communicationChannelFilter() OR NOT communicationChannelFilter(),
@@ -262,7 +292,7 @@ FORM dispatches 'Рассылки'
     OBJECTS c = DiscountCard
     PROPERTIES(c) phoneLegalEntity
     PROPERTIES(d,c) state, name, dateTime
-    FILTERS in(subscriberBase(d),c)
+    FILTERS in(d,c)
     
     OBJECTS e = DispatchError
     PROPERTIES(e) READONLY code, message, dateTime
@@ -303,23 +333,23 @@ textDispatch (Dispatch d) =
     IF communicationChannel(d) == CommunicationChannel.viber_sms THEN 
         TEXT(CONCAT '', '\{',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
                             '],',
                             '"channels": [\{',
-                                '"target": "' + nameNumberService(d) + '",',
+                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
                                 //'"text": "' + replace((messageViber(d)),'\n','\\n') + '",',
                                 '"callback_url": "' + urlSMSLineCallback() + '",',
                                 '"options": \{',
                                     (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
                                 '\}',
-                            '\}]',
+                            '\},\{"target": "' + nameNumberService2(communicationChannel(d)) + '"\}]',
                          '\}')
     ELSE 
         TEXT(CONCAT '', '\{',
-                            '"target": "' + nameNumberService(d) + '",',
+                            '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
                             //'"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,(IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d))),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(subscriberBase(d),c),',' ORDER c),''),
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,(IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d))),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
                             '],',
                             '"callback_url": "' + urlSMSLineCallback() + '",',
                             '"options": \{',
@@ -408,13 +438,13 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 //dateTime(dd,dc) <- date_time(i);
             //}
             IF code(0) AND message(0) THEN {
-                FOR in(subscriberBase(d), DiscountCard c) DO {
+                FOR in(d, DiscountCard c) DO {
                     state(d,c) <- code(0);
                     name(d,c) <- message(0);
                     dateTime(d,c) <- currentDateTime();
                 }
             }
-            FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(subscriberBase(d),c) BY j](INTEGER i) DO {
+            FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(d,c) BY j](INTEGER i) DO {
                 state(d,dc) <- state(i);
                 name(d,dc) <- name(i);
                 dateTime(d,dc) <- date_time(i);
