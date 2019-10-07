@@ -1,7 +1,7 @@
 MODULE ImportGestori;
 
 REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode, Disparity;
 
 @defineLogRotate(importGestori_init, 5, weekly);
 @defineLogRotate(importGestori, 5, weekly);
@@ -667,75 +667,128 @@ importInit 'Импорт остатков' () {
     LOCAL cost = NUMERIC[16,3](INTEGER);
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL time = INTEGER (INTEGER);
-    LOCAL idDetail = ISTRING[100](INTEGER);
     LOCAL imported = BOOLEAN (Purchase.UserInvoiceDetail);
     
     FOR quantityID(NUMERIC[13,0] s) AND NOT sku(TEXT (s)) DO {
         logToFile('importGestori_init', 'Не найден товар! ' + CONCAT ', ', 'Код: ' + s, 'Кол-во: ' + quantityID(s), 'Цена: ' + priceID(s) + '\r\n');
     }
     
-    FOR quantityID(NUMERIC[13,0] s) AND sku(TEXT (s)) DO {
+    // Временное решение :
     
-        EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT TOP 1 pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
-            + extId(customerStock()) +'\' AND pr2.cod_good = \'' + s + '\' ORDER BY pr2.dt_nakl DESC WITH (NOLOCK)' TO file;
-            
-        IMPORT TABLE FROM file() TO date, id, number, cost, idSupplier, time;
+    // товары
+    LOCAL bItem = NUMERIC[13,0](INTEGER);
+    LOCAL bBarcode = STRING[15] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, bar_cod FROM Pub.barcod WHERE cod_level = 3 AND NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO bItem, bBarcode;
+
+    // импорт приходов
+    LOCAL iItem = NUMERIC[13,0](INTEGER);
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
+        + extId(customerStock()) +'\' WITH (NOLOCK)' TO file;
         
-        IF NOT Purchase.userInvoice(TEXT (id(0))) AND isSupplier(OVERRIDE legalEntity(TEXT (idSupplier(0))), legalEntity(customerStock())) THEN NEW i = Purchase.UserInvoice {
-            id(i) <- ISTRING[100](id(0));
-        }
-        FOR Purchase.UserInvoice i == Purchase.userInvoice(TEXT (id(0))) DO {       
-            supplier(i) <- OVERRIDE legalEntity(TEXT (idSupplier(0))), legalEntity(customerStock());
-            supplierStock(i) <- IF legalEntity(TEXT (idSupplier(0))) THEN minStock(legalEntity(TEXT (idSupplier(0)))) ELSE stock(TEXT (idSupplier(0)));
-            customer(i) <- legalEntity(customerStock());
-            customerStock(i) <- customerStock();
-            number(i) <- right(number(0), length(number(0)) - 2);
-            series(i) <- left(number(0), 2);
-            date(i) <- date(0);
-            time(i) <- sumSeconds(00:00, time(0));
-            isPosted(i) <- TRUE;
-            operation(i) <- Purchase.operation('initial');
-            createShipment(i) <- createShipment(Purchase.operation('initial')); 
-            createPricing(i) <- createPricing(Purchase.operation('initial')); 
-            isClosed(i) <- TRUE;
-        }
-        
-        IF NOT userInvoice('NN' + id(customerStock())) AND NOT number(0) THEN NEW i = UserInvoice {
-            id(i) <- 'NN' + id(customerStock());
-            number(i) <- id(customerStock());
-            series(i) <- 'NN';
-            customer(i) <- legalEntity(customerStock());
-            customerStock(i) <- customerStock();
-            date(i) <- 2019_01_01;
-            operation(i) <- Purchase.operation('initial');
-        }
-        
-        idDetail(INTEGER i) <- CONCAT '-', s, (OVERRIDE number(0), ('NN' + id(customerStock()))) WHERE i == 0;
-        
-        IF NOT Purchase.userInvoiceDetail(idDetail(0)) THEN NEW d = Purchase.UserInvoiceDetail {
-            id(d) <- idDetail(0);
-        } 
-        
-        FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) INLINE DO {
-            userInvoice(d) <- Purchase.userInvoice(OVERRIDE TEXT (id(0)), ('NN' + id(customerStock())));
-            sku(d) <- sku(TEXT (s));
-            quantity(d) <- quantityID(s);
-            shipmentQuantity(d) <- quantityID(s);
-            VAT(d) <- VAT(sku(TEXT (s))); 
-            retailVAT(d) <- VAT(sku(TEXT (s)));
-            price(d) <- NUMERIC[16,4](cost(0));
-            retailPrice(d) <- NUMERIC[16,4](priceID(s));
-            shipmentPrice(d) <- NUMERIC[16,4](priceID(s));
-            imported(d) <- TRUE;
-        }
+    IMPORT TABLE FROM file() TO iItem, date, id, number, cost, idSupplier, time;
+
+    LOCAL index = INTEGER (NUMERIC[13,0]);
+    index(NUMERIC[13,0] s) <- GROUP LAST INTEGER k ORDER date(k), k WHERE iItem(k) = s;
+    
+    quantityID(NUMERIC[13,0] s) <- NULL WHERE quantity(s) AND NOT sku(TEXT(s));
+
+    LOCAL idInvoice = STRING[100] (NUMERIC[13,0]);
+    idInvoice(NUMERIC[13,0] s) <- (OVERRIDE TEXT(id(index(s))), 'NN' + id(customerStock())) WHERE quantityID(s);
+    
+    LOCAL idDetail = STRING[100] (NUMERIC[13,0]);
+    idDetail(NUMERIC[13,0] s) <- (CONCAT '-', (s IF quantityID(s)), idInvoice(s)) WHERE quantityID(s);
+
+    FOR [GROUP SUM 1 BY idInvoice(NUMERIC[13,0] s)](ISTRING[100] id) AND NOT Purchase.userInvoice(id) DO NEW i = Purchase.UserInvoice {
+        id(i) <- id;
     }
+    
+    FOR NUMERIC[13,0] s = [GROUP MIN NUMERIC[13,0] is BY idInvoice(is)](STRING[100] id) AND Purchase.UserInvoice i = Purchase.userInvoice(id) DO {       
+        supplier(i) <- OVERRIDE legalEntity(TEXT (idSupplier(index(s)))), legalEntity(customerStock());
+        supplierStock(i) <- IF legalEntity(TEXT (idSupplier(index(s)))) THEN minStock(legalEntity(TEXT (idSupplier(index(s))))) ELSE stock(TEXT (idSupplier(index(s))));
+        customer(i) <- legalEntity(customerStock());
+        customerStock(i) <- customerStock();
+        number(i) <- right(number(index(s)), length(number(index(s))) - 2);
+        series(i) <- left(number(index(s)), 2);
+        date(i) <- OVERRIDE date(index(s)), 2019_01_01;
+        time(i) <- sumSeconds(00:00, time(index(s)));
+        isPosted(i) <- TRUE;
+        operation(i) <- Purchase.operation('initial');
+        createShipment(i) <- createShipment(Purchase.operation('initial')); 
+        createPricing(i) <- createPricing(Purchase.operation('initial')); 
+        isClosed(i) <- TRUE;
+    }
+
+    FOR idDetail(NUMERIC[10,3] s) AND NOT Purchase.userInvoiceDetail(idDetail(s)) DO NEW d = Purchase.UserInvoiceDetail {
+        id(d) <- idDetail(s);
+    } 
+        
+    FOR Purchase.UserInvoiceDetail d = Purchase.userInvoiceDetail(idDetail(NUMERIC[10,3] s)) AND Sku sku = sku(TEXT (s)) DO {
+        userInvoice(d) <- Purchase.userInvoice(idInvoice(s));
+        sku(d) <- sku;
+        quantity(d) <- quantityID(s);
+        shipmentQuantity(d) <- quantityID(s);
+        VAT(d) <- VAT(sku); 
+        retailVAT(d) <- VAT(sku);
+        price(d) <- NUMERIC[16,4](cost(index(s)));
+        retailPrice(d) <- NUMERIC[16,4](priceID(s));
+        shipmentPrice(d) <- NUMERIC[16,4](priceID(s));
+        imported(d) <- TRUE;
+    }
+        
+        // создаем товар с уценкой
+//        FOR STRING[15] barcode = [GROUP MAX bBarcode(INTEGER ii) BY bItem(ii)](s) DO {
+//            // прайсы
+//            LOCAL uprice = NUMERIC[16,3] (INTEGER);
+//            
+//            EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+//                EXEC 'SELECT TOP 1 ch_pr2.new_retail_price FROM Pub.ch_pr2 ' + 
+//                    'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr2.cod_good = \'' + s + '\' AND ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level = 3 ORDER BY ch_pr2.dt_akt DESC WITH (NOLOCK)' TO file;
+//        
+//            IMPORT TABLE FROM file() TO uprice;
+//            IF uprice(0) THEN {
+//                
+//                IF item(STRING[100](s)) AND NOT item(s + '_u') THEN NEW ni = Item {
+//                    copyDisparityData(item(STRING[100](s)), ni);
+//                    id(ni) <- s + '_u';
+//                    NEW b = Barcode {
+//                        sku(b) <- ni;
+//                        id(b) <- barcode;
+//                        dataDate(b) <- currentDate();
+//                    }
+//                }
+//            
+//                idDetail(INTEGER i) <- CONCAT '-', s, (OVERRIDE number(0), ('NN' + id(customerStock()))), '_u' WHERE i == 0;
+//                
+//                IF NOT Purchase.userInvoiceDetail(idDetail(0)) THEN NEW d = Purchase.UserInvoiceDetail {
+//                    id(d) <- idDetail(0);
+//                } 
+//                
+//                FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) AND Sku sku = sku(TEXT (s + '_u')) INLINE DO {
+//                    userInvoice(d) <- Purchase.userInvoice(OVERRIDE TEXT (id(0)), ('NN' + id(customerStock())));
+//                    sku(d) <- sku;
+//                    quantity(d) <- 0;
+//                    shipmentQuantity(d) <- 0;
+//                    VAT(d) <- VAT(sku); 
+//                    retailVAT(d) <- VAT(sku);
+//                    price(d) <- NUMERIC[16,4](cost(0));
+//                    retailPrice(d) <- NUMERIC[16,4](priceID(s));
+//                    shipmentPrice(d) <- NUMERIC[16,4](priceID(s));
+//                    imported(d) <- TRUE;
+//                }
+//            }
+//        } 
     
     FOR customerStock(Purchase.UserInvoiceDetail d) == customerStock() AND operation(d) == Purchase.operation('initial') AND NOT imported(d) DO {
         quantity(d) <- 0.0;
         shipmentQuantity(d) <- 0.0;
     }
     
+    setNoCancelInTransaction();
     APPLY;
 }
 
