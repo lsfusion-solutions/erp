@@ -117,7 +117,9 @@ FORM numberServices 'Номера сервиса'
 CLASS CommunicationChannel 'Канал' {
     sms 'SMS',
     viber 'Viber',
-    viber_sms 'Viber + SMS'
+    viber_t 'Viber (транзакц.)',
+    viber_sms 'Viber + SMS',
+    viber_t_sms 'Viber (транзакц.) + SMS'
 }
 
 TABLE communicationChannel (CommunicationChannel);
@@ -125,6 +127,13 @@ numberService1 'Номера сервиса 1' = DATA NumberService (Communicati
 nameNumberService1 'Номер сервиса 1' (CommunicationChannel c) = name(numberService1(c));
 numberService2 'Номера сервиса 2' = DATA NumberService (CommunicationChannel);
 nameNumberService2 'Номер сервиса 2' (CommunicationChannel c) = name(numberService2(c));
+
+url (CommunicationChannel c) = CASE
+    WHEN c == CommunicationChannel.sms THEN '/messages/bulk/sms'
+    WHEN c == CommunicationChannel.viber THEN '/messages/bulk/viber'
+    WHEN c == CommunicationChannel.viber_t THEN '/messages/bulk/viber'
+    WHEN c == CommunicationChannel.viber_sms THEN '/messages/multi/bulk/viber_sms'
+    WHEN c == CommunicationChannel.viber_t_sms THEN '/messages/multi/bulk/viber_sms';
 
 FORM communicationChannel 'Канал'
     OBJECTS c = CommunicationChannel PANEL
@@ -154,8 +163,10 @@ nameCommunicationChannel 'Канал' (Dispatch d) = staticCaption(communication
 //subscriberBase 'База абонентов' = DATA SubscriberBase (Dispatch) NONULL;
 //nameSubscriberBase 'База абонентов' (Dispatch d) = name(subscriberBase(d));
 
-isViber (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber OR communicationChannel(d) == CommunicationChannel.viber_sms;
-isSMS (Dispatch d) = communicationChannel(d) == CommunicationChannel.sms;// OR communicationChannel(d) == CommunicationChannel.viber_sms;
+isViber (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber OR communicationChannel(d) == CommunicationChannel.viber_sms
+    OR communicationChannel(d) == CommunicationChannel.viber_t OR communicationChannel(d) == CommunicationChannel.viber_t_sms;
+isSMS (Dispatch d) = communicationChannel(d) == CommunicationChannel.sms OR communicationChannel(d) == CommunicationChannel.viber_sms
+    OR communicationChannel(d) == CommunicationChannel.viber_t_sms;
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA STRING[1000] (Dispatch);
 CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
@@ -330,19 +341,44 @@ overReplaceKeys = ABSTRACT TEXT (DiscountCard, TEXT);
 replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace((OVERRIDE overReplaceKeys(d,message),message),'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
 
 textDispatch (Dispatch d) =
-    IF communicationChannel(d) == CommunicationChannel.viber_sms THEN 
+    IF communicationChannel(d) == CommunicationChannel.viber_sms OR communicationChannel(d) == CommunicationChannel.viber_t_sms THEN 
+//        TEXT(CONCAT '', '\{',
+//                            '"messages": [',
+//                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
+//                            '],',
+//                            '"channels": [\{',
+//                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
+//                                //'"text": "' + replace((messageViber(d)),'\n','\\n') + '",',
+//                                '"callback_url": "' + urlSMSLineCallback() + '",',
+//                                '"options": \{',
+//                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+//                                '\}',
+//                            '\},\{"target": "' + nameNumberService2(communicationChannel(d)) + '"\}]',
+//                         '\}')
         TEXT(CONCAT '', '\{',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
-                            '],',
-                            '"channels": [\{',
-                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
-                                //'"text": "' + replace((messageViber(d)),'\n','\\n') + '",',
-                                '"callback_url": "' + urlSMSLineCallback() + '",',
-                                '"options": \{',
-                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
-                                '\}',
-                            '\},\{"target": "' + nameNumberService2(communicationChannel(d)) + '"\}]',
+                                (OVERRIDE (GROUP CONCAT (CONCAT '',
+                                    '\{',
+                                        '"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",',
+                                        '"external_id": "' + LONG(d) + '_' + LONG(c) +'",',
+                                        '"channels": [',
+                                            '\{',
+                                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
+                                                '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",',
+                                                '"callback_url": "' + urlSMSLineCallback() + '",',
+                                                '"options": \{',
+                                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+                                                '\}',
+                                            '\},',
+                                            '\{',
+                                                '"target": "' + nameNumberService2(communicationChannel(d)) + '",',
+                                                '"text": "' + replace(replaceKeys(c,messageSMS(d)),'\n','\\n') + '",',
+                                                '"callback_url": "' + urlSMSLineCallback() + '"',
+                                            '\}',
+                                        ']',
+                                    '\}'
+                                ) IF in(d,c),',' ORDER c ),''),
+                            ']',
                          '\}')
     ELSE 
         TEXT(CONCAT '', '\{',
@@ -357,8 +393,6 @@ textDispatch (Dispatch d) =
                             '\}',
                          '\}');
 
-urlCommunicationChannel (Dispatch d) = IF communicationChannel(d) == CommunicationChannel.viber_sms THEN '/messages/multi/bulk/' + getWord(staticName(communicationChannel(d)),'.',2)
-                                                                                                                      ELSE '/messages/bulk/' + getWord(staticName(communicationChannel(d)),'.',2);
 GROUP error;
 code = DATA LOCAL STRING[100]();
 message = DATA LOCAL STRING[255]();
@@ -399,7 +433,7 @@ signature = DATA LOCAL NESTED TEXT();
 createSignature 'Создать подпись' (Dispatch d) {
     signature() <- NULL;
     LOCAL text = TEXT ();
-    text() <- replace(urlCommunicationChannel(d),'/','') + textDispatch(d);
+    text() <- replace(url(communicationChannel(d)),'/','') + textDispatch(d);
     signature() <- hashing(text(), TEXT(passwordAPISMSLine()), TEXT('sha256'), TEXT('hex'));
 }
 
@@ -417,9 +451,9 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
         LOCAL result = FILE();
         createSignature(d);
         
-        logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + urlCommunicationChannel(d) + '\n' + file());
+        logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
         TRY {
-            EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + urlCommunicationChannel(d) HEADERS httpHeaders PARAMS resultFile() TO result;
+            EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
             logToFile('SMSLine', result());
             
             external_id(INTEGER i) <- NULL;
