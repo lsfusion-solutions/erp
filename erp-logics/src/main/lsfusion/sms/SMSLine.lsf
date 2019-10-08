@@ -132,8 +132,8 @@ url (CommunicationChannel c) = CASE
     WHEN c == CommunicationChannel.sms THEN '/messages/bulk/sms'
     WHEN c == CommunicationChannel.viber THEN '/messages/bulk/viber'
     WHEN c == CommunicationChannel.viber_t THEN '/messages/bulk/viber'
-    WHEN c == CommunicationChannel.viber_sms THEN '/messages/multi/bulk/viber_sms'
-    WHEN c == CommunicationChannel.viber_t_sms THEN '/messages/multi/bulk/viber_sms';
+    WHEN c == CommunicationChannel.viber_sms THEN '/messages/multi/single/viber_sms'
+    WHEN c == CommunicationChannel.viber_t_sms THEN '/messages/multi/single/viber_sms';
 
 FORM communicationChannel 'Канал'
     OBJECTS c = CommunicationChannel PANEL
@@ -562,3 +562,73 @@ getStatus (FILE file) {
 //        MOVE BOX(dates);
 //    }
 //}
+
+CLASS DispatchTemplate 'Шаблон рассылки';
+TABLE dispatchTemplate (DispatchTemplate);
+
+@defineExternalizable(dispatchTemplate, STRING[100]);
+
+messageViber 'Текст сообщения Viber' = DATA TEXT (DispatchTemplate);
+CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
+    MESSAGE 'Сообщение для Viber не должно превышать 1000 символов';
+messageSMS 'Текст сообщения SMS' = DATA TEXT (DispatchTemplate);
+CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 71
+    MESSAGE 'Сообщение для SMS не должно превышать 71 символ';
+
+lifetime 'Срок жизни сообщения (сек)' = DATA INTEGER (DispatchTemplate);
+CONSTRAINT SETCHANGED(lifetime(DispatchTemplate d)) AND NOT (lifetime(d) >= 120 AND lifetime(d) <= 86400)
+    MESSAGE 'Срок жизни сообщения должен быть в диапазоне от 120 до 86400';
+image 'Изображение (URL)' = DATA STRING[255] (DispatchTemplate);
+
+caption 'Заголовок' = DATA STRING[20] (DispatchTemplate);
+action 'Ссылка (URL)' = DATA STRING[255] (DispatchTemplate);
+CONSTRAINT caption(DispatchTemplate d) AND NOT action(d)
+    MESSAGE 'Не задана ссылка (URL) для кнопки';
+CONSTRAINT action(DispatchTemplate d) AND NOT caption(d)
+    MESSAGE 'Не задан заголовок для кнопки';
+
+FORM dispatchTemplate 'Шаблон рассылки'
+    OBJECTS d = DispatchTemplate PANEL
+    PROPERTIES(d) id
+    PROPERTIES(d) messageViber, lifetime, image, caption, action
+    PROPERTIES(d) messageSMS
+    
+    EDIT DispatchTemplate OBJECT d
+;
+
+DESIGN dispatchTemplate {
+    GROUP(,d) {
+        type = CONTAINERV;
+        MOVE PROPERTY(id(d));
+        NEW viber {
+            type = CONTAINERV;
+            caption = 'Viber';
+            MOVE PROPERTY(messageViber(d));
+            MOVE PROPERTY(lifetime(d));
+            MOVE PROPERTY(image(d));
+            MOVE PROPERTY(caption(d));
+            MOVE PROPERTY(action(d));
+        }
+        NEW sms {
+            caption = 'SMS';
+            MOVE PROPERTY(messageSMS(d)) {
+                charWidth = 55;
+            };
+            fill = 1;
+        }
+    }
+}
+
+FORM dispatchTemplates 'Шаблоны рассылки'
+    OBJECTS d = DispatchTemplate
+    PROPERTIES(d) READONLY id, messageViber, lifetime, image, caption, action, messageSMS
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST DispatchTemplate OBJECT d
+;
+
+NAVIGATOR { 
+    smsLine {
+        NEW dispatchTemplates BEFORE dispatches;
+    }
+}
