@@ -673,17 +673,6 @@ importInit 'Импорт остатков' () {
         logToFile('importGestori_init', 'Не найден товар! ' + CONCAT ', ', 'Код: ' + s, 'Кол-во: ' + quantityID(s), 'Цена: ' + priceID(s) + '\r\n');
     }
     
-    // Временное решение :
-    
-    // товары
-    LOCAL bItem = NUMERIC[13,0](INTEGER);
-    LOCAL bBarcode = STRING[15] (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, bar_cod FROM Pub.barcod WHERE cod_level = 3 AND NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
-    
-    IMPORT TABLE FROM file() TO bItem, bBarcode;
-
     // импорт приходов
     LOCAL iItem = NUMERIC[13,0](INTEGER);
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
@@ -740,48 +729,64 @@ importInit 'Импорт остатков' () {
         imported(d) <- TRUE;
     }
         
-        // создаем товар с уценкой
-//        FOR STRING[15] barcode = [GROUP MAX bBarcode(INTEGER ii) BY bItem(ii)](s) DO {
-//            // прайсы
-//            LOCAL uprice = NUMERIC[16,3] (INTEGER);
-//            
-//            EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-//                EXEC 'SELECT TOP 1 ch_pr2.new_retail_price FROM Pub.ch_pr2 ' + 
-//                    'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr2.cod_good = \'' + s + '\' AND ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level = 3 ORDER BY ch_pr2.dt_akt DESC WITH (NOLOCK)' TO file;
-//        
-//            IMPORT TABLE FROM file() TO uprice;
-//            IF uprice(0) THEN {
-//                
-//                IF item(STRING[100](s)) AND NOT item(s + '_u') THEN NEW ni = Item {
-//                    copyDisparityData(item(STRING[100](s)), ni);
-//                    id(ni) <- s + '_u';
-//                    NEW b = Barcode {
-//                        sku(b) <- ni;
-//                        id(b) <- barcode;
-//                        dataDate(b) <- currentDate();
-//                    }
-//                }
-//            
-//                idDetail(INTEGER i) <- CONCAT '-', s, (OVERRIDE number(0), ('NN' + id(customerStock()))), '_u' WHERE i == 0;
-//                
-//                IF NOT Purchase.userInvoiceDetail(idDetail(0)) THEN NEW d = Purchase.UserInvoiceDetail {
-//                    id(d) <- idDetail(0);
-//                } 
-//                
-//                FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(0)) AND Sku sku = sku(TEXT (s + '_u')) INLINE DO {
-//                    userInvoice(d) <- Purchase.userInvoice(OVERRIDE TEXT (id(0)), ('NN' + id(customerStock())));
-//                    sku(d) <- sku;
-//                    quantity(d) <- 0;
-//                    shipmentQuantity(d) <- 0;
-//                    VAT(d) <- VAT(sku); 
-//                    retailVAT(d) <- VAT(sku);
-//                    price(d) <- NUMERIC[16,4](cost(0));
-//                    retailPrice(d) <- NUMERIC[16,4](priceID(s));
-//                    shipmentPrice(d) <- NUMERIC[16,4](priceID(s));
-//                    imported(d) <- TRUE;
-//                }
-//            }
-//        } 
+    // Временное решение :
+    // импорт товар с уценкой
+    
+    // товары
+    LOCAL bItem = NUMERIC[13,0](INTEGER);
+    LOCAL bBarcode = STRING[15] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT cod_good, bar_cod FROM Pub.barcod WHERE cod_level = 3 AND NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
+    
+    IMPORT TABLE FROM file() TO bItem, bBarcode;
+
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+        EXEC 'SELECT ch_pr2.cod_good, ch_pr2.new_retail_price, ch_pr2.dt_akt, ch_pr2.dt_akt FROM Pub.ch_pr2 ' + 
+            'LEFT JOIN Pub.ch_pr1 ON ch_pr2.num_akt = ch_pr1.num_akt WHERE ch_pr1.cod_shop = ' + extId(customerStock()) + ' AND cod_level = 3 WITH (NOLOCK)' TO file;
+    LOCAL ucode = NUMERIC[16,3] (INTEGER); 
+    LOCAL uprice = NUMERIC[16,3] (INTEGER);
+    LOCAL udate = DATE (INTEGER);
+    
+    IMPORT TABLE FROM file() TO ucode, uprice, udate;
+
+    LOCAL indexU = INTEGER (NUMERIC[13,0]);
+    indexU(NUMERIC[13,0] s) <- GROUP LAST INTEGER k ORDER udate(k), k WHERE ucode(k) = s;
+    
+    LOCAL barcode = STRING[15] (NUMERIC[13,0]);
+    barcode(NUMERIC[13,0] s) <- [GROUP MAX bBarcode(INTEGER ii) BY bItem(ii)](s) IF indexU(s) AND item(STRING[100](s));
+
+    skipGenerateBarcode() <- TRUE;
+    FOR STRING[15] barcode = barcode(NUMERIC[13,0] s) AND NOT item(s + '_u') NEW ni = Item DO {
+        copyDisparityData(item(STRING[100](s)), ni);
+        id(ni) <- s + '_u';
+        NEW b = Barcode {
+            sku(b) <- ni;
+            id(b) <- barcode;
+            dataDate(b) <- currentDate();
+        }
+    }
+    
+    LOCAL idDetailU = STRING[100] (NUMERIC[13,0]);
+    idDetailU(NUMERIC[13,0] s) <- (CONCAT '-', (s IF quantityID(s)), idInvoice(s), '_u') WHERE barcode(s);
+    
+    FOR idDetailU(NUMERIC[10,3] s) AND NOT Purchase.userInvoiceDetail(idDetailU(s)) DO NEW d = Purchase.UserInvoiceDetail {
+        id(d) <- idDetailU(s);
+    } 
+
+    FOR Purchase.UserInvoiceDetail d = Purchase.userInvoiceDetail(idDetailU(NUMERIC[10,3] s)) AND Sku sku = sku(TEXT (s) + '_u') DO {
+        userInvoice(d) <- Purchase.userInvoice(idInvoice(s));
+        sku(d) <- sku;
+        quantity(d) <- 0;
+        shipmentQuantity(d) <- 0;
+        VAT(d) <- VAT(sku); 
+        retailVAT(d) <- VAT(sku);
+        price(d) <- NUMERIC[16,4](cost(index(s)));
+        retailPrice(d) <- NUMERIC[16,4](uprice(indexU(s)));
+        shipmentPrice(d) <- NUMERIC[16,4](uprice(indexU(s)));
+        imported(d) <- TRUE;
+    }
+    // конец импорта товаров с уценкой
     
     FOR customerStock(Purchase.UserInvoiceDetail d) == customerStock() AND operation(d) == Purchase.operation('initial') AND NOT imported(d) DO {
         quantity(d) <- 0.0;

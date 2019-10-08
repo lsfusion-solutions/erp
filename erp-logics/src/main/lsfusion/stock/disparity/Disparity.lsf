@@ -414,6 +414,8 @@ nameSkuDisparityItem 'Уцененный товар' = name(disparityItem(Item i
 
 countItemDisparity (Item disparityItem) = GROUP SUM 1 IF disparityItem(Item item) == disparityItem; 
 
+skipGenerateBarcode = DATA LOCAL BOOLEAN () ;
+
 copyDisparityData (Item item, Item i)  { 
     disparityItem(i) <- item; 
     itemGroup(i) <- itemGroup(item);
@@ -433,7 +435,8 @@ copyDisparityData (Item item, Item i)  {
     passScales(i) <- passScales(item);
     inactive(i) <- inactive(item);
     
-    generateBarcode(i);       
+    IF NOT skipGenerateBarcode() THEN
+        generateBarcode(i);       
     
     customGroup[CustomGroupType,Item](CustomGroupType type, i) <- customGroup(type, item);
     
