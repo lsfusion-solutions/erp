@@ -638,7 +638,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, 0, 3, offset); //PRCLEVELKEY
                 setObject(ps, "0", 4, offset); //DELFLAG
 
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5, offset); //PRCLEVELID
+                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5); //PRCLEVELID
             }
 
             ps.addBatch();
@@ -670,7 +670,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, transaction.nameGroupMachinery, 6, offset); //SAREANAME
                 setObject(ps, "0", 7, offset); //DELFLAG
 
-                setObject(ps, transaction.nppGroupMachinery, 8, offset); //SAREAID
+                setObject(ps, transaction.nppGroupMachinery, 8); //SAREAID
             }
 
             ps.addBatch();
@@ -694,7 +694,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
                 setObject(ps, "0", 3, offset); //DELFLAG
 
-                setObject(ps, transaction.nppGroupMachinery, 4, offset); //SAREAID
+                setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
             }
 
             ps.addBatch();
