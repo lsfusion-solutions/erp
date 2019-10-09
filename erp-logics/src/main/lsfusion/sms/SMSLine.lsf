@@ -167,6 +167,8 @@ isViber (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber OR 
     OR communicationChannel(d) == CommunicationChannel.viber_t OR communicationChannel(d) == CommunicationChannel.viber_t_sms;
 isSMS (Dispatch d) = communicationChannel(d) == CommunicationChannel.sms OR communicationChannel(d) == CommunicationChannel.viber_sms
     OR communicationChannel(d) == CommunicationChannel.viber_t_sms;
+isMulti (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber_sms OR communicationChannel(d) == CommunicationChannel.viber_t_sms;
+
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA STRING[1000] (Dispatch);
 CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
@@ -341,7 +343,7 @@ overReplaceKeys = ABSTRACT TEXT (DiscountCard, TEXT);
 replaceKeys (DiscountCard d, TEXT message) = replace(replace(replace((OVERRIDE overReplaceKeys(d,message),message),'[number]',(OVERRIDE seriesNumber(d),'')),'[firstname]',(OVERRIDE firstNameContact(d),'')),'[lastname]',(OVERRIDE lastNameContact(d),''));
 
 textDispatch (Dispatch d) =
-    IF communicationChannel(d) == CommunicationChannel.viber_sms OR communicationChannel(d) == CommunicationChannel.viber_t_sms THEN 
+//    IF communicationChannel(d) == CommunicationChannel.viber_sms OR communicationChannel(d) == CommunicationChannel.viber_t_sms THEN 
 //        TEXT(CONCAT '', '\{',
 //                            '"messages": [',
 //                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
@@ -355,32 +357,32 @@ textDispatch (Dispatch d) =
 //                                '\}',
 //                            '\},\{"target": "' + nameNumberService2(communicationChannel(d)) + '"\}]',
 //                         '\}')
-        TEXT(CONCAT '', '\{',
-                            '"messages": [',
-                                (OVERRIDE (GROUP CONCAT (CONCAT '',
-                                    '\{',
-                                        '"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",',
-                                        '"external_id": "' + LONG(d) + '_' + LONG(c) +'",',
-                                        '"channels": [',
-                                            '\{',
-                                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
-                                                '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",',
-                                                '"callback_url": "' + urlSMSLineCallback() + '",',
-                                                '"options": \{',
-                                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
-                                                '\}',
-                                            '\},',
-                                            '\{',
-                                                '"target": "' + nameNumberService2(communicationChannel(d)) + '",',
-                                                '"text": "' + replace(replaceKeys(c,messageSMS(d)),'\n','\\n') + '",',
-                                                '"callback_url": "' + urlSMSLineCallback() + '"',
-                                            '\}',
-                                        ']',
-                                    '\}'
-                                ) IF in(d,c),',' ORDER c ),''),
-                            ']',
-                         '\}')
-    ELSE 
+//        TEXT(CONCAT '', '\{',
+//                            '"messages": [',
+//                                (OVERRIDE (GROUP CONCAT (CONCAT '',
+//                                    '\{',
+//                                        '"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",',
+//                                        '"external_id": "' + LONG(d) + '_' + LONG(c) +'",',
+//                                        '"channels": [',
+//                                            '\{',
+//                                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
+//                                                '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",',
+//                                                '"callback_url": "' + urlSMSLineCallback() + '",',
+//                                                '"options": \{',
+//                                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+//                                                '\}',
+//                                            '\},',
+//                                            '\{',
+//                                                '"target": "' + nameNumberService2(communicationChannel(d)) + '",',
+//                                                '"text": "' + replace(replaceKeys(c,messageSMS(d)),'\n','\\n') + '",',
+//                                                '"callback_url": "' + urlSMSLineCallback() + '"',
+//                                            '\}',
+//                                        ']',
+//                                    '\}'
+//                                ) IF in(d,c),',' ORDER c ),''),
+//                            ']',
+//                         '\}')
+//    ELSE 
         TEXT(CONCAT '', '\{',
                             '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
                             //'"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
@@ -392,6 +394,26 @@ textDispatch (Dispatch d) =
                                 (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
                             '\}',
                          '\}');
+
+textDispatch (Dispatch d, DiscountCard c) =
+    TEXT(CONCAT '', '\{',
+                        '"msisdn": "' + phoneLegalEntity(c) + '",',
+                        '"external_id": "' + LONG(d) + '_' + LONG(c) +'",',
+                        '"callback_url": "' + urlSMSLineCallback() + '",',
+                        '"channels": [',
+                            '\{',
+                                '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
+                                '"text": "' + replace(replaceKeys(c,messageViber(d)),'\n','\\n') + '",',
+                                '"options": \{',
+                                    (CONCAT ',', '"ttl": ' + lifetime(d), '"img": "' + image(d) + '"', '"caption": "' + caption(d) + '"', '"action": "' + action(d) + '"'),
+                                '\}',
+                            '\},',
+                            '\{',
+                                '"target": "' + nameNumberService2(communicationChannel(d)) + '",',
+                                '"text": "' + replace(replaceKeys(c,messageSMS(d)),'\n','\\n') + '"',
+                            '\}',
+                        ']',
+                    '\}');
 
 GROUP error;
 code = DATA LOCAL STRING[100]();
@@ -444,46 +466,74 @@ httpHeaders(TEXT name) = CASE
 sendDispatch 'Отправить рассылку' (Dispatch d) {
     IF NOT isSend(d) THEN {
         LOCAL file = TEXT();
-            
-        file() <- textDispatch(d);
-        stringToFile(file(),'UTF-8','json');
-        
         LOCAL result = FILE();
-        createSignature(d);
         
-        logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
         TRY {
-            EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
-            logToFile('SMSLine', result());
-            
-            external_id(INTEGER i) <- NULL;
-            msisdn(INTEGER i) <- NULL;
-            state(INTEGER i) <- NULL;
-            name(INTEGER i) <- NULL;
-            date_time(INTEGER i) <- NULL;
-            code(INTEGER i) <- NULL;
-            message(INTEGER i) <- NULL;
-            
-            IMPORT importMessages JSON FROM result();
-            //не возвращает external_id ищем по msisdn
-            //FOR TEXT(Dispatch dd) == getWord(external_id(INTEGER i),'_',1) AND TEXT(DiscountCard dc) == getWord(external_id(i),'_',2) DO {
-                //state(dd,dc) <- state(i);
-                //name(dd,dc) <- name(i);
-                //dateTime(dd,dc) <- date_time(i);
-            //}
-            IF code(0) AND message(0) THEN {
-                FOR in(d, DiscountCard c) DO {
-                    state(d,c) <- code(0);
-                    name(d,c) <- message(0);
-                    dateTime(d,c) <- currentDateTime();
+            IF isMulti(d) THEN {
+                FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
+                    file() <- textDispatch(d,c);
+                    stringToFile(file(),'UTF-8','json');
+                    createSignature(d);
+                    logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
+                    
+                    //EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
+                    logToFile('SMSLine', result());
+                    
+                    external_id(INTEGER i) <- NULL;
+                    msisdn(INTEGER i) <- NULL;
+                    state(INTEGER i) <- NULL;
+                    name(INTEGER i) <- NULL;
+                    date_time(INTEGER i) <- NULL;
+                    code(INTEGER i) <- NULL;
+                    message(INTEGER i) <- NULL;
+                    
+                    IMPORT importMessages JSON FROM result();
+                    
+                    IF code(0) AND message(0) THEN {
+                        state(d,c) <- code(0);
+                        name(d,c) <- message(0);
+                        dateTime(d,c) <- currentDateTime();
+                    }
+                    FOR DiscountCard dc == [GROUP MAX DiscountCard cc IF phoneLegalEntity(cc) == msisdn(INTEGER j) AND in(d,cc) BY j](INTEGER i) DO {
+                        state(d,dc) <- state(i);
+                        name(d,dc) <- name(i);
+                        dateTime(d,dc) <- date_time(i);
+                    }
                 }
+                isSend(d) <- TRUE;
+            } ELSE {
+                file() <- textDispatch(d);
+                stringToFile(file(),'UTF-8','json');
+                createSignature(d);
+                logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
+                
+                EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
+                logToFile('SMSLine', result());
+                
+                external_id(INTEGER i) <- NULL;
+                msisdn(INTEGER i) <- NULL;
+                state(INTEGER i) <- NULL;
+                name(INTEGER i) <- NULL;
+                date_time(INTEGER i) <- NULL;
+                code(INTEGER i) <- NULL;
+                message(INTEGER i) <- NULL;
+                
+                IMPORT importMessages JSON FROM result();
+                
+                IF code(0) AND message(0) THEN {
+                    FOR in(d, DiscountCard c) DO {
+                        state(d,c) <- code(0);
+                        name(d,c) <- message(0);
+                        dateTime(d,c) <- currentDateTime();
+                    }
+                }
+                FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(d,c) BY j](INTEGER i) DO {
+                    state(d,dc) <- state(i);
+                    name(d,dc) <- name(i);
+                    dateTime(d,dc) <- date_time(i);
+                }
+                isSend(d) <- TRUE;
             }
-            FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(d,c) BY j](INTEGER i) DO {
-                state(d,dc) <- state(i);
-                name(d,dc) <- name(i);
-                dateTime(d,dc) <- date_time(i);
-            }
-            isSend(d) <- TRUE;
         } CATCH {
             code() <- NULL;
             message() <- NULL;
@@ -498,7 +548,7 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 in(d,e) <- TRUE;
             }
         }
-        APPLY;
+        APPLY;  
     }
 }
 
