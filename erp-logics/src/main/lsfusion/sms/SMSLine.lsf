@@ -459,6 +459,13 @@ createSignature 'Создать подпись' (Dispatch d) {
     signature() <- hashing(text(), TEXT(passwordAPISMSLine()), TEXT('sha256'), TEXT('hex'));
 }
 
+createSignature 'Создать подпись' (Dispatch d, DiscountCard c) {
+    signature() <- NULL;
+    LOCAL text = TEXT ();
+    text() <- replace(url(communicationChannel(d)),'/','') + textDispatch(d,c);
+    signature() <- hashing(text(), TEXT(passwordAPISMSLine()), TEXT('sha256'), TEXT('hex'));
+}
+
 httpHeaders(TEXT name) = CASE
     WHEN name == 'Authorization-User' THEN TEXT(usernameSMSLine())
     WHEN name == 'Authorization' THEN TEXT('Bearer ' + signature());
@@ -473,7 +480,7 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                 FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
                     file() <- textDispatch(d,c);
                     stringToFile(file(),'UTF-8','json');
-                    createSignature(d);
+                    createSignature(d,c);
                     logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
                     
                     EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
