@@ -1,0 +1,176 @@
+MODULE ProductionOrderBatchPartition;
+
+REQUIRE ProductionOrder;
+
+NAMESPACE Production;
+
+
+subQuantity 'В заказ' = DATA NUMERIC[16,5](Order,Substitute);
+originalSubQuantity 'В заказ (исходный компонент)' (Order o, Substitute s) = subQuantity(o, s) / multiplier(s);
+originalSubQuantity (Sku s, Order o) = NUMERIC[16,5] ( GROUP SUM originalSubQuantity(o, Substitute sb) IF fromSku(sb) = s);
+
+subQuantity 'В заказ' (Order o, Sku from, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplier(su) >0.0 AND  fromSku(su)==from AND toSku(su)==to;
+subQuantity 'В заказ' (Order o, Sku to) = GROUP SUM subQuantity(o,Substitute su) IF multiplier(su) > 0.0 AND toSku(su)==to;
+EXTEND FORM order
+    PROPERTIES (o,su) subQuantity
+;
+
+quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Sku, BOM);
+
+quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Substitute, BOM);
+taken (Sku s, BOM b) = GROUP SUM quantity(Substitute r, b) IF fromSku(r) = s;  
+
+multiplier 'Коэффициент замены' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Sku);
+quantity 'Кол-во к списанию замены' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Sku);
+originalQuantity 'Кол-во к списанию в базовом компоненте' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Sku);
+
+toConsumePart 'Кол-во всего по товару' = DATA LOCAL NUMERIC[16,5] (Sku);
+
+toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Batch);
+
+toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch);
+takenBatch(Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt);
+
+lastDetail = GROUP LAST ComponentDetail d ORDER d BY order(d), bruttoSku(d), BOM(d), batch(d); 
+
+lack 'Не хватает' = DATA LOCAL NUMERIC[16,5] (Sku); 
+replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute);
+replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF toSku(sb) = s;  
+
+createBatchComponentDetail 'Рассчитать партии по FIFO' (Order o) {
+    // общая потребность по компонентам
+    quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
+    
+    // рассчитываем куда расписать количество, которого не хватает
+    lack (Sku s) <- bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalance(s, componentsStock(o));
+    lack (Sku s) <- NULL WHERE lack(s) <= 0.0;
+
+    LOCAL subBalance = NUMERIC[16,5] (Substitute);
+    LOCAL subDateTime = DATETIME (Substitute);
+    subBalance(Substitute s) <- prevCurrentBalance(toSku(s), componentsStock(o)) / multiplier(s) WHERE lack(fromSku(s));
+    subDateTime(Substitute s) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s));
+    
+    replaceSub (Substitute s) <- subQuantity(o, s);
+    FOR lack(Sku s) DO {
+        replaceSub (Substitute sb) <- PARTITION UNGROUP lack
+                                                LIMIT subBalance(sb) (-) replaceSub(toSku(sb))
+                                                ORDER subDateTime(sb), sb
+                                                BY fromSku(sb)
+            WHERE fromSku(sb) = s AND NOT replaceSub(sb);
+    }
+        
+    // расписываем замены по BOM'ам (many to many, поэтому без FOR не получится)
+    FOR replaceSub(Substitute s) DO {
+        quantity(s, BOM bm) <- PARTITION UNGROUP replaceSub
+                                                        LIMIT STRICT (quantity(fromSku(s), bm) (-) taken(fromSku(s), bm)) IF use(s, bm) 
+                                                        ORDER bm
+                                                        BY s;
+    }
+    
+    // запоминаем коэффициент
+    multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplier(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
+    
+    // считаем назад в единицах замен
+    quantity(Sku s, BOM b, Sku r) <- NUMERIC[16,5](GROUP SUM quantity(Substitute sb, b) * multiplier(sb) IF fromSku(sb) = s AND toSku(sb) = r);
+    
+    // все оставшееся пойдет по обычному товару
+    quantity(Sku s, BOM b, Sku r) <- quantity(s, b) (-) taken(s, b) WHERE r = s;
+    
+    // считаем общее количество по товару, который нужно списать
+    toConsumePart(Sku r) <- GROUP SUM quantity(Sku s, BOM b, r);
+    
+    // Расписываем партии по FIFO
+    FOR Stock st = componentsStock(o) DO {
+        LOCAL balance = NUMERIC[16,5] (Batch);
+        balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st));
+        
+        toConsume(Batch b) <- PARTITION UNGROUP toConsumePart
+                                    LIMIT STRICT balance(b)
+                                    ORDER dateTime(b), b 
+                                    BY sku(b);
+    }
+    
+    // Раскидываем партии по строкам заказа
+    FOR toConsume(Batch bt) DO {
+        toConsume(Sku s, BOM b, bt) <- PARTITION UNGROUP toConsume
+                                               LIMIT STRICT quantity(s, b, sku(bt)) (-) takenBatch(s, b)
+                                               ORDER s, b
+                                               BY bt;
+    }
+    
+    // Создаем строки по расписанным партиям
+    FOR toConsume(Sku s, BOM b, Batch bt) AND NOT lastDetail(o, s, b, bt) ORDER b, s, dateTime(bt), bt NEW d = ComponentDetail DO {
+        order(d) <- o;
+        bruttoSku(d) <- s;
+        BOM(d) <- b;
+        substituteSku(d) <- sku(bt) IF sku(bt) != s;
+        batch(d) <- bt;
+    }
+    
+    // Исходное количество
+    bruttoQuantity(ComponentDetail d) <- NUMERIC[16,5](toConsume(bruttoSku(d), BOM(d), batch(d)) / (OVERRIDE multiplier(bruttoSku(d), BOM(d), sku(batch(d))), 1.0)) WHERE order(d) = o;
+    
+    // Кол-во с учетом замены
+    substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
+    
+    DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d));
+}
+
+quantity 'Кол-во к списанию' (Sku s) = GROUP SUM quantity(s, BOM b); 
+quantity 'Кол-во к списанию' (Sku s, Sku r) = GROUP SUM quantity(s, BOM b, r); 
+
+EXTEND FORM order
+    OBJECTS bs = Sku
+    PROPERTIES(bs) READONLY name, quantity
+    PROPERTIES READONLY 'Остаток' = prevCurrentBalance(bs, componentsStock(o))
+    FILTERS quantity(bs) 
+    
+    OBJECTS sb = Substitute
+    PROPERTIES(sb) READONLY nameFromSku, nameToSku, multiplier, replaceSub
+    FILTERS fromSku(sb) = bs,
+            replaceSub(sb)
+    
+    OBJECTS br = Sku
+    PROPERTIES(br) READONLY name
+    PROPERTIES READONLY quantity(bs, br)    
+    PROPERTIES READONLY 'Остаток' = prevCurrentBalance(br, componentsStock(o))
+    PROPERTIES(br) READONLY toConsumePart
+    FILTERS quantity(bs, br)
+    
+    OBJECTS bom = BOM
+    PROPERTIES(bom) READONLY fullName
+    PROPERTIES READONLY quantity(bs, bom), quantity(bs, bom, br), multiplier(bs, bom, br), originalQuantity(bs, bom, br)
+    FILTERS quantity(bs, bom)
+    
+    OBJECTS bbt = Batch
+    PROPERTIES(bbt) READONLY name, toConsume
+    PROPERTIES READONLY 'Остаток' = prevCurrentBalance(bbt, componentsStock(o))
+    PROPERTIES READONLY toConsume(bs, bom, bbt)
+    FILTERS prevSkuCurrentBalance(bbt, componentsStock(o)) = br
+    
+    PROPERTIES(o) createBatchComponentDetail
+    
+    PROPERTIES(su) replaceSub
+;
+
+DESIGN order {
+    specificationBox {
+        NEW calcDetails {
+            caption = 'Расчет';
+            NEW calcDetailsRow1 {
+                fill = 1;
+                type = CONTAINERH;
+                MOVE BOX(bs);
+                MOVE BOX(sb);
+                MOVE BOX(br);
+            }
+            NEW calcDetailsRow2 {
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(bom);
+                MOVE BOX(bbt);
+            }
+            MOVE PROPERTY(createBatchComponentDetail(o));
+        }
+    }
+}
