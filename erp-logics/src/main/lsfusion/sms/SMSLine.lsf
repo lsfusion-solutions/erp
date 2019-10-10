@@ -155,9 +155,12 @@ FORM communicationChannels 'Каналы'
 CLASS Dispatch 'Рассылка';
 TABLE dispatch (Dispatch);
 
-name 'Название' = DATA ISTRING[255] (Dispatch) NONULL;
+createdTime 'Время создания' = DATA DATETIME (Dispatch);
+createdTime (Dispatch d) <- currentDateTime() WHEN SET(d IS Dispatch);
+
+name 'Название' = DATA ISTRING[255] (Dispatch) NONULL CHARWIDTH 30;
 communicationChannel 'Канал' = DATA CommunicationChannel (Dispatch) NONULL;
-nameCommunicationChannel 'Канал' (Dispatch d) = staticCaption(communicationChannel(d));
+nameCommunicationChannel 'Канал' (Dispatch d) = staticCaption(communicationChannel(d)) CHARWIDTH 10;
 //numberService 'Номер сервиса' = DATA NumberService (Dispatch) NONULL;
 //nameNumberService 'Номер сервиса' (Dispatch d) = name(numberService(d));
 //subscriberBase 'База абонентов' = DATA SubscriberBase (Dispatch) NONULL;
@@ -295,7 +298,7 @@ FORM dispatches 'Рассылки'
     PROPERTIES() nameCommunicationChannelFilter, dateFromFilter, dateToFilter
 
     OBJECTS d = Dispatch
-    PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
+    PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, createdTime, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
     FILTERS communicationChannel(d) == communicationChannelFilter() OR NOT communicationChannelFilter(),
@@ -316,6 +319,8 @@ FORM dispatches 'Рассылки'
 ;
 
 DESIGN dispatches {
+    PROPERTY(messageViber(d)) {valueHeight = 16;}
+    PROPERTY(messageSMS(d)) {valueHeight = 16;}
     GROUP() {
         type = CONTAINERH;
     }
@@ -387,7 +392,7 @@ textDispatch (Dispatch d) =
                             '"target": "' + nameNumberService1(communicationChannel(d)) + '",',
                             //'"text": "' + replace((IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d)),'\n','\\n') + '",',
                             '"messages": [',
-                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,(IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d))),'\n','\\n') + '",' + '"external_id": "' + LONG(d) + '_' + LONG(c) +'"\}') IF in(d,c),',' ORDER c),''),
+                                (OVERRIDE (GROUP CONCAT ('\{"msisdn": "' + phoneLegalEntity(DiscountCard c) + '",' + '"text": "' + replace(replaceKeys(c,(IF isSMS(d) THEN messageSMS(d) ELSE messageViber(d))),'\n','\\n') + '",' + '"external_id": "' + TEXT(d) + '_' + TEXT(c) +'"\}') IF in(d,c),',' ORDER c),''),
                             '],',
                             '"callback_url": "' + urlSMSLineCallback() + '",',
                             '"options": \{',
@@ -398,7 +403,7 @@ textDispatch (Dispatch d) =
 textDispatch (Dispatch d, DiscountCard c) =
     TEXT(CONCAT '', '\{',
                         '"msisdn": "' + phoneLegalEntity(c) + '",',
-                        '"external_id": "' + LONG(d) + '_' + LONG(c) +'",',
+                        '"external_id": "' + TEXT(d) + '_' + TEXT(c) +'",',
                         '"callback_url": "' + urlSMSLineCallback() + '",',
                         '"channels": [',
                             '\{',
@@ -578,7 +583,7 @@ getStatus (FILE file) {
     name() <- NULL;
     date_time() <- NULL;
     IMPORT importMessage JSON FROM file;
-    FOR TEXT(Dispatch dd) == getWord(external_id(),'_',1) AND TEXT(DiscountCard dc) == getWord(external_id(),'_',2) DO {
+    FOR Dispatch dd IS Dispatch AND TEXT(dd) == getWord(external_id(),'_',1) AND DiscountCard dc IS DiscountCard AND TEXT(dc) == getWord(external_id(),'_',2) DO {
         state(dd,dc) <- state();
         name(dd,dc) <- name();
         dateTime(dd,dc) <- date_time();
@@ -625,6 +630,8 @@ TABLE dispatchTemplate (DispatchTemplate);
 
 @defineExternalizable(dispatchTemplate, STRING[100]);
 
+useTransaction 'Использовать транзакционный канал' = DATA BOOLEAN (DispatchTemplate);
+
 messageViber 'Текст сообщения Viber' = DATA TEXT (DispatchTemplate);
 CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
     MESSAGE 'Сообщение для Viber не должно превышать 1000 символов';
@@ -646,7 +653,7 @@ CONSTRAINT action(DispatchTemplate d) AND NOT caption(d)
 
 FORM dispatchTemplate 'Шаблон рассылки'
     OBJECTS d = DispatchTemplate PANEL
-    PROPERTIES(d) id
+    PROPERTIES(d) id, useTransaction
     PROPERTIES(d) messageViber, lifetime, image, caption, action
     PROPERTIES(d) messageSMS
     
@@ -657,6 +664,7 @@ DESIGN dispatchTemplate {
     GROUP(,d) {
         type = CONTAINERV;
         MOVE PROPERTY(id(d));
+        MOVE PROPERTY(useTransaction(d));
         NEW viber {
             type = CONTAINERV;
             caption = 'Viber';
@@ -678,11 +686,15 @@ DESIGN dispatchTemplate {
 
 FORM dispatchTemplates 'Шаблоны рассылки'
     OBJECTS d = DispatchTemplate
-    PROPERTIES(d) READONLY id, messageViber, lifetime, image, caption, action, messageSMS
+    PROPERTIES(d) READONLY id, useTransaction, messageViber, lifetime, image, caption, action, messageSMS
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
     LIST DispatchTemplate OBJECT d
 ;
+DESIGN dispatchTemplates {
+    PROPERTY(messageViber(d)) {valueHeight = 16;}
+    PROPERTY(messageSMS(d)) {valueHeight = 16;}
+}
 
 NAVIGATOR { 
     smsLine {
