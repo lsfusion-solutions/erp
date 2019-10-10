@@ -8,26 +8,23 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.db.controller.manager.DBManager;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.physics.dev.integration.service.*;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -51,7 +48,7 @@ public class SendSalesEquipmentServer {
         zReportLM = BL.getModule("ZReport");
     }
 
-    public static List<CashRegisterInfo> readCashRegisterInfo(DBManager dbManager, EquipmentServer server, String sidEquipmentServer) throws SQLException {
+    public static List<CashRegisterInfo> readCashRegisterInfo(EquipmentServer server, String sidEquipmentServer) throws SQLException {
         List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
         if (cashRegisterLM != null) {
             try (DataSession session = server.createSession()) {
@@ -101,7 +98,7 @@ public class SendSalesEquipmentServer {
         return cashRegisterInfoList;
     }
 
-    public static Set<String> readCashDocumentSet(DBManager dbManager, EquipmentServer server) throws SQLException {
+    public static Set<String> readCashDocumentSet(EquipmentServer server) throws SQLException {
         Set<String> cashDocumentSet = new HashSet<>();
         if (cashOperationLM != null) {
             try (DataSession session = server.createSession()) {
@@ -123,7 +120,7 @@ public class SendSalesEquipmentServer {
         return cashDocumentSet;
     }
 
-    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) {
+    public static String sendCashDocumentInfo(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, List<CashDocument> cashDocumentList) {
         if (cashOperationLM != null && cashDocumentList != null) {
 
             try {
@@ -275,7 +272,7 @@ public class SendSalesEquipmentServer {
         } else return null;
     }
 
-    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
+    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = server.createSession()) {
@@ -315,7 +312,7 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager, EquipmentServer server) throws SQLException {
+    public static Map<String, BigDecimal> readZReportSumMap(EquipmentServer server) throws SQLException {
         Map<String, BigDecimal> zReportSumMap = new HashMap<>();
         if (zReportLM != null) {
             try (DataSession session = server.createSession()) {
@@ -343,7 +340,7 @@ public class SendSalesEquipmentServer {
         return zReportSumMap;
     }
 
-    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws SQLException {
+    public static void succeedExtraCheckZReport(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, List<String> idZReportList) throws SQLException {
         if (zReportLM != null) {
             try {
                 for (String idZReport : idZReportList) {
@@ -359,7 +356,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static void logRequestZReportSumCheck(DBManager dbManager, EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) {
+    public static void logRequestZReportSumCheck(EquipmentServer server, BusinessLogics BL, ExecutionStack stack, Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) {
         if (machineryPriceTransactionLM != null && cashRegisterLM != null && EquipmentServer.notNullNorEmpty(checkSumResult)) {
             try (DataSession session = server.createSession()) {
                 for (List<Object> entry : checkSumResult) {
@@ -379,7 +376,7 @@ public class SendSalesEquipmentServer {
         }
     }
 
-    public static Map<Integer, List<List<Object>>> readCashRegistersStock(DBManager dbManager, EquipmentServer server, String idStock) {
+    public static Map<Integer, List<List<Object>>> readCashRegistersStock(EquipmentServer server, String idStock) {
         Map<Integer, List<List<Object>>> cashRegisterList = new HashMap<>();
         if(equipmentCashRegisterLM != null)
             try (DataSession session = server.createSession()) {
@@ -418,7 +415,7 @@ public class SendSalesEquipmentServer {
         return cashRegisterList;
     }
 
-    public static List<Integer> readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(DBManager dbManager, EquipmentServer server) {
+    public static List<Integer> readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(EquipmentServer server) {
         List<Integer> cashRegisterList = new ArrayList<>();
         if (equipmentCashRegisterLM != null) {
             try (DataSession session = server.createSession()) {

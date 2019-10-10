@@ -12,27 +12,25 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.logics.classes.ConcreteClass;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.physics.exec.db.controller.manager.DBManager;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.ConcreteClass;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
-import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
@@ -62,7 +60,7 @@ public class StopListEquipmentServer {
         return (cashRegisterLM != null || scalesLM != null)  && stopListLM != null;
     }
 
-    public static List<StopListInfo> readStopListInfo(DBManager dbManager, EquipmentServer server) throws SQLException {
+    public static List<StopListInfo> readStopListInfo(EquipmentServer server) throws SQLException {
 
         List<StopListInfo> stopListInfoList = new ArrayList<>();
         Map<String, StopListInfo> stopListInfoMap = new HashMap<>();
@@ -270,7 +268,7 @@ public class StopListEquipmentServer {
 
 
 
-    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Exception e) {
+    public static void errorStopListReport(BusinessLogics BL, ExecutionStack stack, EquipmentServer server, String numberStopList, Exception e) {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
                 DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
@@ -289,7 +287,7 @@ public class StopListEquipmentServer {
         }
     }
 
-    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, DBManager dbManager, EquipmentServer server, String numberStopList, Set<String> idStockSet) {
+    public static void succeedStopList(BusinessLogics BL, ExecutionStack stack, EquipmentServer server, String numberStopList, Set<String> idStockSet) {
         if(stopListLM != null) {
             try (DataSession session = server.createSession()) {
                 DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));

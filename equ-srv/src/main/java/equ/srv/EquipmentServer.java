@@ -776,12 +776,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<DiscountCard> readDiscountCardList(RequestExchange requestExchange) {
-        return MachineryExchangeEquipmentServer.readDiscountCardList(getDbManager(), this, requestExchange);
+        return MachineryExchangeEquipmentServer.readDiscountCardList(this, requestExchange);
     }
 
     @Override
     public List<CashierInfo> readCashierInfoList() throws SQLException {
-        return MachineryExchangeEquipmentServer.readCashierInfoList(getDbManager(), this);
+        return MachineryExchangeEquipmentServer.readCashierInfoList(this);
     }
 
     @Override
@@ -791,7 +791,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<StopListInfo> readStopListInfo() throws SQLException {
-        return StopListEquipmentServer.readStopListInfo(getDbManager(), this);
+        return StopListEquipmentServer.readStopListInfo(this);
     }
 
     @Override
@@ -801,72 +801,72 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws SQLException {
-        return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(getDbManager(), this);
+        return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(this);
     }
 
     @Override
     public void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) {
-        DeleteBarcodeEquipmentServer.errorDeleteBarcodeReport(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, exception);
+        DeleteBarcodeEquipmentServer.errorDeleteBarcodeReport(getBusinessLogics(), this, getStack(), nppGroupMachinery, exception);
     }
 
     @Override
     public void finishDeleteBarcode(Integer nppGroupMachinery, boolean markSucceeded) {
-        DeleteBarcodeEquipmentServer.finishDeleteBarcode(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, markSucceeded);
+        DeleteBarcodeEquipmentServer.finishDeleteBarcode(getBusinessLogics(), this, getStack(), nppGroupMachinery, markSucceeded);
     }
 
     @Override
     public void succeedDeleteBarcode(Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
-        DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), this, getStack(), nppGroupMachinery, deleteBarcodeSet);
+        DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), this, getStack(), nppGroupMachinery, deleteBarcodeSet);
     }
 
     @Override
     public void errorStopListReport(String numberStopList, Exception e) {
-        StopListEquipmentServer.errorStopListReport(getBusinessLogics(), getStack(), getDbManager(), this, numberStopList, e);
+        StopListEquipmentServer.errorStopListReport(getBusinessLogics(), getStack(), this, numberStopList, e);
     }
 
     @Override
     public void succeedStopList(String numberStopList, Set<String> idStockSet) {
-        StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), getDbManager(), this, numberStopList, idStockSet);
+        StopListEquipmentServer.succeedStopList(getBusinessLogics(), getStack(), this, numberStopList, idStockSet);
     }
 
     @Override
     public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws SQLException {
-        return MachineryExchangeEquipmentServer.readTerminalOrderList(getDbManager(), this, requestExchange);
+        return MachineryExchangeEquipmentServer.readTerminalOrderList(this, requestExchange);
     }
 
     @Override
     public List<RequestExchange> readRequestExchange() throws SQLException {
-        return MachineryExchangeEquipmentServer.readRequestExchange(getDbManager(), this, getBusinessLogics(), getStack());
+        return MachineryExchangeEquipmentServer.readRequestExchange(this, getBusinessLogics(), getStack());
     }
 
     @Override
     public void finishRequestExchange(Set<Long> succeededRequestsSet) throws SQLException {
-        MachineryExchangeEquipmentServer.finishRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), succeededRequestsSet);
+        MachineryExchangeEquipmentServer.finishRequestExchange(this, getBusinessLogics(), getStack(), succeededRequestsSet);
     }
 
     @Override
     public void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws SQLException {
-        MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), failedRequestsMap);
+        MachineryExchangeEquipmentServer.errorRequestExchange(this, getBusinessLogics(), getStack(), failedRequestsMap);
     }
 
     @Override
     public void errorRequestExchange(Long requestExchange, Throwable t) throws SQLException {
-        MachineryExchangeEquipmentServer.errorRequestExchange(getDbManager(), this, getBusinessLogics(), getStack(), requestExchange, t);
+        MachineryExchangeEquipmentServer.errorRequestExchange(this, getBusinessLogics(), getStack(), requestExchange, t);
     }
 
     @Override
     public Map<String, BigDecimal> readZReportSumMap() throws SQLException {
-        return SendSalesEquipmentServer.readZReportSumMap(getDbManager(), this);
+        return SendSalesEquipmentServer.readZReportSumMap(this);
     }
     
     @Override
     public void succeedExtraCheckZReport(List<String> idZReportList) throws SQLException {
-        SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), getDbManager(), this, getStack(), idZReportList);
+        SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), this, getStack(), idZReportList);
     }
 
     @Override
     public List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws SQLException {
-        return SendSalesEquipmentServer.readCashRegisterInfo(getDbManager(), this, sidEquipmentServer);
+        return SendSalesEquipmentServer.readCashRegisterInfo(this, sidEquipmentServer);
     }
 
     @Override
@@ -876,32 +876,32 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws SQLException {
-        return TerminalDocumentEquipmentServer.readTerminalInfo(getDbManager(), this, sidEquipmentServer);
+        return TerminalDocumentEquipmentServer.readTerminalInfo(this, sidEquipmentServer);
     }
 
     @Override
     public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList) {
-        return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), getDbManager(), this, getStack(), terminalDocumentDetailList);
+        return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), this, getStack(), terminalDocumentDetailList);
     }
 
     @Override
     public List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws SQLException {
-        return MachineryExchangeEquipmentServer.readMachineryInfo(getDbManager(), this, sidEquipmentServer);
+        return MachineryExchangeEquipmentServer.readMachineryInfo(this, sidEquipmentServer);
     }
 
     @Override
     public Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) {
-        return SendSalesEquipmentServer.readRequestZReportSumMap(getBusinessLogics(), getDbManager(), this, getStack(), idStock, dateFrom, dateTo);
+        return SendSalesEquipmentServer.readRequestZReportSumMap(getBusinessLogics(), this, getStack(), idStock, dateFrom, dateTo);
     }
 
     @Override
     public void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) {
-        SendSalesEquipmentServer.logRequestZReportSumCheck(getDbManager(), this, getBusinessLogics(), getStack(), idRequestExchange, nppGroupMachinery, checkSumResult);
+        SendSalesEquipmentServer.logRequestZReportSumCheck(this, getBusinessLogics(), getStack(), idRequestExchange, nppGroupMachinery, checkSumResult);
     }
 
     @Override
     public Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) {
-        return SendSalesEquipmentServer.readCashRegistersStock(getDbManager(), this, idStock);
+        return SendSalesEquipmentServer.readCashRegistersStock(this, idStock);
     }
 
     @Override
@@ -952,7 +952,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             options.numberAtATime = salesInfoList.size();
         }
 
-        final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
+        final List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(this);
 
         ExecutorService executor = ExecutorFactory.createRMIThreadService(options.maxThreads, EquipmentServer.this);
         List<Future<String>> futures = new ArrayList<>();
@@ -1421,7 +1421,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
 
-                List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(getDbManager(), this);
+                List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(this);
 
                 Timestamp timeStart = getCurrentTimestamp();
 
@@ -1959,12 +1959,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public Set<String> readCashDocumentSet() throws SQLException {
-        return SendSalesEquipmentServer.readCashDocumentSet(getDbManager(), this);
+        return SendSalesEquipmentServer.readCashDocumentSet(this);
     }
 
     @Override
     public String sendCashDocumentInfo(List<CashDocument> cashDocumentList) {
-        return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), getDbManager(), this, getStack(), cashDocumentList);
+        return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), this, getStack(), cashDocumentList);
     }
 
     @Override
@@ -2164,12 +2164,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public boolean needUpdateProcessMonitor(String sidEquipmentServer) {
-        return ProcessMonitorEquipmentServer.needUpdateProcessMonitor(getDbManager(), this, sidEquipmentServer);
+        return ProcessMonitorEquipmentServer.needUpdateProcessMonitor(this, sidEquipmentServer);
     }
 
     @Override
     public void logProcesses(String sidEquipmentServer, String data) {
-        ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), getDbManager(), this, getStack(), sidEquipmentServer, data);
+        ProcessMonitorEquipmentServer.logProcesses(getBusinessLogics(), this, getStack(), sidEquipmentServer, data);
     }
 
     private Set<String> readClosedZReportSet(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
