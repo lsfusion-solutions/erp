@@ -1,0 +1,47 @@
+MODULE FiscalSento;
+
+REQUIRE POS;
+
+loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор Sento', 'Sento', NULL, NULL, TRUE, NULL, NULL ); };
+
+needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'Sento';
+onDesktopClientStarted() + { 
+	IF needDLL() THEN {
+        IF is64Java(currentComputer()) THEN
+            loadLibrary('lib/win64/sento.dll');
+        ELSE
+            loadLibrary('lib/win32/sento.dll');
+	}
+};
+
+isSento() = sidModelCurrentCashRegister() == 'Sento';
+
+fiscalSentoPrint 'Напечатать фискальный чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoPrintReceiptAction' (Receipt);
+postPrint(Receipt receipt) + {  IF isSento() THEN fiscalSentoPrint(receipt); }
+
+fiscalSentoReceiptTitle 'Заголовок чека Sento' = ABSTRACT TEXT ();
+fiscalSentoTop 'Дополнительный текст перед чеком Sento' = ABSTRACT TEXT (Receipt);
+fiscalSentoBottom 'Дополнительный текст после чека Sento' = ABSTRACT TEXT (Receipt);
+
+fiscalSentoPrintCopyReceipt 'Копия чека'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoPrintCopyReceiptAction' ();
+fiscalPrintCopyReceipt() + {  IF isSento() THEN fiscalSentoPrintCopyReceipt(); }
+
+fiscalSentoXReport 'X-отчёт'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoXReportAction' ();
+fiscalXReport() + {  IF isSento() THEN fiscalSentoXReport(); }
+
+fiscalSentoZReport 'Z-отчёт'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoZReportAction' ();
+fiscalZReport() + {  IF isSento() THEN fiscalSentoZReport(); }
+
+fiscalSentoReportTop 'Заголовок отчёта Sento' = ABSTRACT TEXT ();
+
+fiscalSentoUpdateData 'Загрузить информацию'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoUpdateDataAction' ();
+fiscalUpdateData() + {  IF isSento() THEN fiscalSentoUpdateData(); }
+
+fiscalSentoService 'Перемещение денег'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoServiceInOutAction' (CashOperation);
+fiscalService(CashOperation cashOperation) + {  IF isSento() THEN fiscalSentoService(cashOperation); }
+
+fiscalSentoDisplayText 'Вывести текст на дисплей'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoDisplayTextAction' (ReceiptDetail);
+fiscalDisplayText (ReceiptDetail receiptDetail) + {  IF isSento() THEN fiscalSentoDisplayText(receiptDetail); }
+
+fiscalSentoCancel 'Отменить чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoCancelReceiptAction' (Receipt);
+fiscalCancel(Receipt receipt) + {  IF isSento() THEN fiscalSentoCancel(receipt); }
