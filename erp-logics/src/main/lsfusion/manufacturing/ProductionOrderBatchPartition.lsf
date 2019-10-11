@@ -29,7 +29,8 @@ toConsumePart 'Кол-во всего по товару' = DATA LOCAL NUMERIC[16
 toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Batch);
 
 toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch);
-takenBatch(Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt);
+takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt);
+originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt) / (OVERRIDE multiplier(s, b, sku(bt)), 1.0);
 
 lastDetail = GROUP LAST ComponentDetail d ORDER d BY order(d), bruttoSku(d), BOM(d), batch(d); 
 
@@ -60,6 +61,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     }
         
     // расписываем замены по BOM'ам (many to many, поэтому без FOR не получится)
+    quantity(Substitute s, BOM bm) <- NULL;
     FOR replaceSub(Substitute s) DO {
         quantity(s, BOM bm) <- PARTITION UNGROUP replaceSub
                                                         LIMIT STRICT (quantity(fromSku(s), bm) (-) taken(fromSku(s), bm)) IF use(s, bm) 
@@ -91,6 +93,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     }
     
     // Раскидываем партии по строкам заказа
+    toConsume(Sku s, BOM b, Batch bt) <- NULL;
     FOR toConsume(Batch bt) DO {
         toConsume(Sku s, BOM b, bt) <- PARTITION UNGROUP toConsume
                                                LIMIT STRICT quantity(s, b, sku(bt)) (-) takenBatch(s, b)
@@ -114,6 +117,14 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     substituteQuantity(ComponentDetail d) <- toConsume(bruttoSku(d), BOM(d), batch(d)) WHERE order(d) = o AND bruttoSku(d) != sku(batch(d));
     
     DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d));
+    
+    // Добавляем компоненты, по которым нету ни одной партии
+    FOR NUMERIC[16,5] q = (quantity(Sku s, BOM b) (-) originalTakenBatch(s, b)) IF q > 0 NEW d = ComponentDetail DO {
+        order(d) <- o;
+        bruttoSku(d) <- s;
+        BOM(d) <- b;
+        bruttoQuantity(d) <- q;
+    }
 }
 
 quantity 'Кол-во к списанию' (Sku s) = GROUP SUM quantity(s, BOM b); 
@@ -139,7 +150,7 @@ EXTEND FORM order
     
     OBJECTS bom = BOM
     PROPERTIES(bom) READONLY fullName
-    PROPERTIES READONLY quantity(bs, bom), quantity(bs, bom, br), multiplier(bs, bom, br), originalQuantity(bs, bom, br)
+    PROPERTIES READONLY quantity(bs, bom), quantity(bs, bom, br), multiplier(bs, bom, br), originalQuantity(bs, bom, br), originalTakenBatch(bs, bom), takenBatch(br, bom)
     FILTERS quantity(bs, bom)
     
     OBJECTS bbt = Batch
