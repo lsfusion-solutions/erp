@@ -43,9 +43,9 @@ public class FiscalSento {
 
         void errorString(Integer error, byte[] buffer, Integer length);
 
-        boolean open(String comport, Integer baudrate);
+        boolean openPort(String comport, Integer baudrate);
 
-        void close();
+        void closePort();
 
         boolean openDay(double value);
 
@@ -121,8 +121,8 @@ public class FiscalSento {
     }
 
     private static void openPort(String comPort, Integer baudRate) {
-        logAction("open", comPort, baudRate);
-        if (!sentoDLL.sento.open(comPort, baudRate))
+        logAction("openPort", comPort, baudRate);
+        if (!sentoDLL.sento.openPort(comPort, baudRate))
             checkErrors();
     }
 
@@ -131,8 +131,8 @@ public class FiscalSento {
     }
 
     public static void closePort() {
-        logAction("close");
-        sentoDLL.sento.close();
+        logAction("closePort");
+        sentoDLL.sento.closePort();
     }
 
     public static void openRefundDocument(ReceiptItem item) {
