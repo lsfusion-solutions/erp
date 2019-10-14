@@ -309,29 +309,34 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys)) {
             int offset = columns.length + keys.length;
 
+            Set<Integer> usedUOM = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (!Thread.currentThread().isInterrupted()) {
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     Integer idUOM = parseUOM(item.idUOM);
-                    if(params.pgsql) {
-                        setObject(ps, idUOM, 1); //UNITID
-                        setObject(ps, item.shortNameUOM, 2); //UNITNAME
-                        setObject(ps, item.shortNameUOM, 3); //UNITFULLNAME
-                        setObject(ps, 0, 4); //DELFLAG
-                    } else {
-                        setObject(ps, idUOM, 1, offset); //UNITID
-                        setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
-                        setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
-                        setObject(ps, "0", 4, offset); //DELFLAG
+                    if(!usedUOM.contains(idUOM)) {
+                        usedUOM.add(idUOM);
+                        if (params.pgsql) {
+                            setObject(ps, idUOM, 1); //UNITID
+                            setObject(ps, item.shortNameUOM, 2); //UNITNAME
+                            setObject(ps, item.shortNameUOM, 3); //UNITFULLNAME
+                            setObject(ps, 0, 4); //DELFLAG
+                        } else {
+                            setObject(ps, idUOM, 1, offset); //UNITID
+                            setObject(ps, item.shortNameUOM, 2, offset); //UNITNAME
+                            setObject(ps, item.shortNameUOM, 3, offset); //UNITFULLNAME
+                            setObject(ps, "0", 4, offset); //DELFLAG
 
-                        setObject(ps, idUOM, 5); //UNITID
+                            setObject(ps, idUOM, 5); //UNITID
+                        }
+
+                        ps.addBatch();
                     }
 
-                    ps.addBatch();
-                    ps.executeBatch();
-                    conn.commit();
                 } else break;
             }
+            ps.executeBatch();
+            conn.commit();
         }
     }
 
