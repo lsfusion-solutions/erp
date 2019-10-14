@@ -320,8 +320,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
                 }
 
-                String[] barcodeNames = new String[]{"idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
-                LP[] barcodeProperties = equLM.findProperties("id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
+                String[] barcodeNames = new String[]{"valueBarcode", "idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
+                LP[] barcodeProperties = equLM.findProperties("value[Barcode]", "id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
                 for (int i = 0; i < barcodeProperties.length; i++) {
                     skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
                 }
@@ -447,9 +447,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
 
                     for (int i = 0, size = skuResult.size(); i < size; i++) {
-                        Long barcodeObject = (Long) skuResult.getKey(i).get("barcode");
                         ImMap<Object, Object> row = skuResult.getValue(i);
 
+                        Long barcodeObject = (Long) row.get("valueBarcode");
                         String barcode = getRowValue(row, "idBarcode");
                         String mainBarcode = getRowValue(row, "mainBarcode");
                         BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
