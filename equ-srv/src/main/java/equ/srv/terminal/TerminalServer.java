@@ -506,7 +506,7 @@ public class TerminalServer extends MonitorServer {
     private Timestamp parseTimestamp(String value) {
         Timestamp timestamp;
         try {
-            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, new String[]{"yyyy-MM-dd HH:mm:ss"}).getTime());
+            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, "yyyy-MM-dd HH:mm:ss").getTime());
         } catch (Exception e) {
             logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
@@ -517,7 +517,7 @@ public class TerminalServer extends MonitorServer {
     private Date parseDate(String value) {
         Date date;
         try {
-            date = value == null ? null : new Date(DateUtils.parseDate(value, new String[]{"yyyy-MM-dd"}).getTime());
+            date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd").getTime());
         } catch (Exception e) {
             logger.error("Parsing date failed: " + value, e);
             date = null;
