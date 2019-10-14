@@ -695,6 +695,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, "0", 3, offset); //DELFLAG
 
                 setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
+                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5); //PRCLEVELID
             }
 
             ps.addBatch();
