@@ -333,6 +333,10 @@ nameSupplier 'Поставщик' (Item i) = name(supplier(i)) IN itemBase;
 EXTEND FORM item PROPERTIES nameSupplier(i);
 EXTEND FORM items PROPERTIES READONLYIF isReadonly() nameSupplier(i);
 
+dateCreated = DATA LOCAL DATE (INTEGER);
+
+overImportItems ABSTRACT LIST ();
+
 importItems 'Импорт товаров' () {
     
     LOCAL nameSupplier = TEXT (INTEGER);
@@ -350,9 +354,9 @@ importItems 'Импорт товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_good, name, SUBSTR(name_e, 1, 60), price_name, name_cur, cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, parent_good FROM Pub.katalog WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_good, name, SUBSTR(name_e, 1, 60), price_name, name_cur, cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, CrDate FROM Pub.katalog WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idItem, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article;
+    IMPORT TABLE FROM file() TO idItem, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article, dateCreated;
     
     FOR idItem(INTEGER i) AND NOT item(TEXT (idItem(i))) DO NEW s = Item {
         id(s) <- STRING[100](idItem(i));
@@ -368,6 +372,8 @@ importItems 'Импорт товаров' () {
         description(s) <- article(i);
     }
     
+    overImportItems();
+
     LOCAL vat = INTEGER (INTEGER);
     LOCAL dt = DATE (INTEGER);
     
