@@ -201,6 +201,7 @@ lastTransaction (Barcode barcode, groupMachinery) =
           ORDER dateTimeIn(transaction, barcode), transaction
           WHERE NOT canceled(transaction) 
           BY groupIn(transaction, barcode) MATERIALIZED;
+prevLastTransaction (Barcode b, GroupMachinery g) = lastTransaction(b, g);
 
 lastTransaction (sku, stock) =
     GROUP LAST lastTransaction(Barcode b, GroupMachinery g)
@@ -214,15 +215,15 @@ lastFullTransaction (Barcode barcode, groupMachinery) =
           WHERE in(transaction, barcode) AND NOT canceled(transaction) 
           BY groupMachinery(transaction);
           
-prevLastTransaction (Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (barcode, groupMachinery));
+prevLastFullTransaction (Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (barcode, groupMachinery));
 
 transactionName 'Текущее наименование в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
     name(lastTransaction(barcode, groupMachinery), barcode);
-prevTransactionName(Barcode barcode, GroupMachinery groupMachinery) = name(prevLastTransaction(barcode, groupMachinery), barcode);
+prevTransactionName(Barcode barcode, GroupMachinery groupMachinery) = name(prevLastFullTransaction(barcode, groupMachinery), barcode);
 
 transactionPrice 'Текущая цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
     price(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
-prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastTransaction(barcode, groupMachinery),barcode);
+prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastFullTransaction(barcode, groupMachinery),barcode);
 
 transactionPrice 'Текущая цена в оборудовании' (Barcode barcode, stock) =
     GROUP LAST transactionPrice(barcode, GroupMachinery g)
@@ -660,7 +661,7 @@ snapshotGroupMachinery 'Ранее загруженные'(Stock stock)  {
 	
 	                LOCAL in = BOOLEAN (Barcode);
 	
-	                in(Barcode barcode) <- TRUE IF prevLastTransaction(barcode, groupMachinery);
+	                in(Barcode barcode) <- TRUE IF prevLastFullTransaction(barcode, groupMachinery);
 	
 	                // делаем разными запросами, чтобы было проще PostgreSQL
 	                in(Barcode barcode) <- active(barcode) WHERE in(barcode); // если активный штрихкод
@@ -915,7 +916,7 @@ DESIGN machineryPriceTransactions {
 
 META defineMachineryPriceTransactionAttributeBase(object, caption, nameProp)
     prevTransaction###object caption###' (тек.)' (Barcode barcode, GroupMachinery groupMachinery)  =
-        object(prevLastTransaction(barcode, groupMachinery), barcode);
+        object(prevLastFullTransaction(barcode, groupMachinery), barcode);
 
     snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +
         {  object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode); }
