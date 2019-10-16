@@ -273,6 +273,21 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 secondPriceEntry.addContent(secondDepartment);
                             }
 
+                            Double oldSecondPrice = infoJSON != null ? infoJSON.optDouble("oldSecondPrice") : null;
+                            if (oldSecondPrice != null && !oldSecondPrice.equals(secondPrice)) {
+                                //parent: good
+                                Element oldSecondPriceEntry = new Element("price-entry");
+                                setAttribute(oldSecondPriceEntry, "price", oldSecondPrice);
+                                setAttribute(oldSecondPriceEntry, "deleted", "true");
+                                addStringElement(oldSecondPriceEntry, "number", "2");
+                                good.addContent(oldSecondPriceEntry);
+
+                                //parent: priceEntry
+                                Element secondDepartment = new Element("department");
+                                setAttribute(secondDepartment, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
+                                oldSecondPriceEntry.addContent(secondDepartment);
+                            }
+
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
                             if(vat != 10 && vat != 20) {
                                 vat = 20;
