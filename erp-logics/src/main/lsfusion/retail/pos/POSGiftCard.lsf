@@ -50,14 +50,18 @@ addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) 
             IF isBan(giftCardSeriesNumber(barcodeInput())) THEN {
                 MESSAGE banMessage(giftCardSeriesNumber(barcodeInput()));
             } ELSE {
-                NEW pg = PaymentGiftCard {
-                    LOCAL giftCard = GiftCard();
-                    giftCard() <- giftCardSeriesNumber(barcodeInput());
-                    giftCard(pg) <- giftCard();
-                    receipt(pg) <- receipt;
-                    paymentType(pg) <- minGiftCardPaymentType();
-                    sum[Payment](pg) <- MIN NUMERIC[18,4](currentBalance(giftCard())), NUMERIC[18,4](price(giftCard())), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
-                }
+                IF [GROUP LAST giftCard(PaymentGiftCard pg) IF giftCardSeriesNumber(barcodeInput())==giftCard(pg) BY receipt(pg)](receipt) THEN {
+                    MESSAGE 'Сертификат уже отсканирован';
+                } ELSE {
+                    NEW pg = PaymentGiftCard {
+                        LOCAL giftCard = GiftCard();
+                        giftCard() <- giftCardSeriesNumber(barcodeInput());
+                        giftCard(pg) <- giftCard();
+                        receipt(pg) <- receipt;
+                        paymentType(pg) <- minGiftCardPaymentType();
+                        sum[Payment](pg) <- MIN NUMERIC[18,4](currentBalance(giftCard())), NUMERIC[18,4](price(giftCard())), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+                    }
+                }    
             }
         } ELSE
             MESSAGE 'Сертификат не найден, истек или использован';
