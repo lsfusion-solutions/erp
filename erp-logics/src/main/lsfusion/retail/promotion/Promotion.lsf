@@ -697,6 +697,11 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
             fromPriceBeforeDate(priceList) <- subtract(fromDate(p), 1);
             toDate(priceList) <- toDate(p);
             operation(priceList) <- (GROUP LAST PriceList.Operation o IF isPromotion(o));
+            IF NOT skipConstraintPriceBefore(operation(priceList)) THEN {
+                fromPriceBeforeTime(priceList) <- 00:00;
+                toPriceBeforeDate(priceList) <- sum(toDate(p), 1);
+                toPriceBeforeTime(priceList) <- 23:59;
+            }
             company(priceList) <- dataLegalEntity(operation(priceList));
             currency(priceList) <- defaultCurrency(operation(priceList));
             note(priceList) <- name(p);
