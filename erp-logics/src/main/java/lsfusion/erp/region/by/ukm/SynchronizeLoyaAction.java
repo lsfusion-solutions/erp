@@ -121,7 +121,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[]{"overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LP[] itemGroupProperties = findProperties("overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
+        LP[] itemGroupProperties = findProperties("overIdLoya[ItemGroup]", "name[ItemGroup]", "idParentLoya[ItemGroup]");
         for (int i = 0; i < itemGroupProperties.length; i++) {
             itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
         }

@@ -108,9 +108,13 @@ idLoya 'Идентификатор бренда (Loya)' = DATA INTEGER (Brand);
 in (Brand brand, LoyaItemGroup loyaItemGroup) = GROUP SUM 1 IF brand(Sku sku)==brand AND in(sku, loyaItemGroup);
 in (Brand brand) = GROUP SUM in(brand, LoyaItemGroup loyaItemGroup) IF active(loyaItemGroup);
 
+idLoya 'Код группы в Loya' = DATA STRING[100](ItemGroup);
+overIdLoya 'Код группы в Loya' (ItemGroup ig) = OVERRIDE idLoya(ig), overId(ig);
+idParentLoya (ItemGroup itemGroup) = overIdLoya(parent(itemGroup));
+
 idUOM 'Единица измерения' (Item item) = id(UOM(item)) IN itemBase;
 idLoyaBrand 'Бренд (Loya)' (Item item) = idLoya(brand(item)) IN itemBase;
-overIdSkuGroup 'Группа' (Sku sku)= overId(skuGroup(sku));
+overIdSkuGroup 'Группа' (Sku sku)= overIdLoya(skuGroup(sku));
 
 //операция
 isLoya 'Использовать группу товаров LOYA' = DATA BOOLEAN (PriceList.Operation);

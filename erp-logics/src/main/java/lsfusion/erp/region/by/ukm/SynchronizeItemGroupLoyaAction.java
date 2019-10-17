@@ -42,9 +42,9 @@ public class SynchronizeItemGroupLoyaAction extends SynchronizeLoyaAction {
                 Integer maxAwardBonus = (Integer) findProperty("maxAwardBonusLoya[]").read(context);
 
                 Map<String, Integer> discountLimits = getDiscountLimits(maxDiscount, maxAllowBonus, maxAwardBonus);
-                Long overId = parseGroup((String) findProperty("overId[ItemGroup]").read(context, itemGroupObject));
+                Long overId = parseGroup((String) findProperty("overIdLoya[ItemGroup]").read(context, itemGroupObject));
                 String name = trimToEmpty((String) findProperty("name[ItemGroup]").read(context, itemGroupObject));
-                Long idParent = parseGroup((String) findProperty("idParent[ItemGroup]").read(context, itemGroupObject));
+                Long idParent = parseGroup((String) findProperty("idParentLoya[ItemGroup]").read(context, itemGroupObject));
                 Category category = new Category(overId, name, overId == 0 ? null : idParent);
                 String result = uploadCategory(context, category, discountLimits, false);
                 if(authenticationFailed(result)) {
