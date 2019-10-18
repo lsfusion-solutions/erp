@@ -64,9 +64,8 @@ public class EncodeIdsAction extends InternalAction {
         query.addProperty("id", findProperty("encodingId[LONG]").getExpr(context.getModifier(), expr));
         query.and(findProperty("encodingId[LONG]").getExpr(context.getModifier(), expr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
-        long i = 0;
-        for (ImMap<Object, Object> entry : result.values()) {
-            ids.put(i++, encoder.encode((String) entry.get("id")));
+        for (int i = 0, size = result.size(); i < size; i++) {
+            ids.put((long) result.getKey(i).get("long"), encoder.encode((String) result.getValue(i).get("id")));
         }
         return MapFact.fromJavaMap(ids);
     }
