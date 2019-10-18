@@ -16,6 +16,7 @@ EXTEND FORM order
 ;
 
 quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Sku, BOM);
+product 'Полуфабрикат' = DATA LOCAL Product (Sku, BOM);
 
 quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Substitute, BOM);
 taken (Sku s, BOM b) = GROUP SUM quantity(Substitute r, b) IF fromSku(r) = s;  
@@ -41,6 +42,7 @@ replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF t
 createBatchComponentDetail 'Рассчитать партии по FIFO' (Order o) {
     // общая потребность по компонентам
     quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
+    product(Sku s, BOM b) <- GROUP MAX product(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     
     // рассчитываем куда расписать количество, которого не хватает
     lack (Sku s) <- bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalance(s, componentsStock(o));
@@ -105,6 +107,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     FOR toConsume(Sku s, BOM b, Batch bt) AND NOT lastDetail(o, s, b, bt) ORDER b, s, dateTime(bt), bt NEW d = ComponentDetail DO {
         order(d) <- o;
         bruttoSku(d) <- s;
+        product(d)<- product(s,b);
         BOM(d) <- b;
         substituteSku(d) <- sku(bt) IF sku(bt) != s;
         batch(d) <- bt;
@@ -122,6 +125,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     FOR NUMERIC[16,5] q = (quantity(Sku s, BOM b) (-) originalTakenBatch(s, b)) IF q > 0 NEW d = ComponentDetail DO {
         order(d) <- o;
         bruttoSku(d) <- s;
+        product(d)<- product(s,b);
         BOM(d) <- b;
         bruttoQuantity(d) <- q;
     }
@@ -185,3 +189,10 @@ DESIGN order {
         }
     }
 }
+
+ggg =  GROUP SUM 1 IF sku(ProductDetail pd)==sku(ComponentDetail cd) AND order(pd)==order(cd) BY pd;
+hhh =  GROUP SUM 1 IF sku(ProductDetail pd)==sku(ComponentDetail cd) AND order(pd)==order(cd) BY cd;
+EXTEND FORM order
+    FILTERGROUP gasge FILTER 'Изд. и компонент' (ggg(pd)) 'F6'
+    FILTERGROUP hsdfgh FILTER 'Изд. и компонент' (hhh(cd))'F6'   
+;
