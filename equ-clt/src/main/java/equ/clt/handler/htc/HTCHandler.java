@@ -35,10 +35,6 @@ import static equ.clt.handler.HandlerUtils.trim;
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     private FileSystemXmlApplicationContext springContext;
-
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     
     String charset = "cp866";
 
@@ -845,7 +841,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            sendSalesLogger.error("HTC: error while creating request files", e);
+            machineryExchangeLogger.error("HTC: error while creating request files", e);
         }
 
         for(Long failedRequest : failedRequests.keySet()) {

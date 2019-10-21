@@ -36,11 +36,6 @@ import static equ.clt.handler.HandlerUtils.*;
 
 public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
-
     private static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
 
     String encoding = "utf-8";
@@ -518,7 +513,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 String directory = directoryStockEntry.getKey();
                 Set<String> stockSet = directoryStockEntry.getValue();
 
-                sendSalesLogger.info(getLogPrefix() + "creating request files for directory : " + directory);
+                machineryExchangeLogger.info(getLogPrefix() + "creating request files for directory : " + directory);
                 String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                 String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 

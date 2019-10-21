@@ -22,11 +22,6 @@ import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
 
-    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    private final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
-
     private static String logPrefix = "ukm4 mysql: ";
 
     private FileSystemXmlApplicationContext springContext;
@@ -1258,7 +1253,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(requestExchange.dateTo);
                         cal.add(Calendar.DATE, 1);
-                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
                         Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, false);
@@ -1274,7 +1269,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         statement = conn.createStatement();
                         String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
                                 (cashIdWhere == null ? "" : cashIdWhere.toString());
-                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                         statement.execute(query);
                         succeededRequests.add(requestExchange.requestExchange);
                     }

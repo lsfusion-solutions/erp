@@ -24,9 +24,6 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
     private FileSystemXmlApplicationContext springContext;
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-
     private static String logPrefix = "BelCoopSoyuz SQL: ";
 
     public BelCoopSoyuzSQLHandler(FileSystemXmlApplicationContext springContext) {
@@ -209,7 +206,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 Class.forName("com.mysql.jdbc.Driver");
 
                 for (String directory : getDirectorySet(entry)) {
-                    sendSalesLogger.info(String.format(logPrefix + "connecting to %s", directory));
+                    machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", directory));
 
                     Locale defaultLocale = Locale.getDefault();
                     try (Connection conn = getConnection(directory)) {
@@ -217,13 +214,13 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(entry.dateTo);
                         cal.add(Calendar.DATE, 1);
-                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                        sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+                        machineryExchangeLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                         try (Statement statement = conn.createStatement()) {
                             String query = String.format("UPDATE cl1_bks.a9ck07 SET CEUNIFOL = REGEXP_REPLACE(CEUNIFOL, '(.{20}).*', '\\10') WHERE TEDOCINS >= TO_DATE('%s','yyyy-MM-dd') AND TEDOCINS <= TO_DATE('%s','yyyy-MM-dd')", dateFrom, dateTo);
-                            sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                            machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                             statement.execute(query);
                             succeededRequests.add(entry.requestExchange);
                         }

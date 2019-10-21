@@ -34,12 +34,6 @@ import static equ.clt.handler.HandlerUtils.getDate;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch> {
-
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
     
     static Logger requestExchangeLogger;
     static {
@@ -329,7 +323,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             String requestResult = null;
             for (String directory : getDirectorySet(entry)) {
 
-                sendSalesLogger.info("Kristal: creating request files for directory : " + directory);
+                machineryExchangeLogger.info("Kristal: creating request files for directory : " + directory);
 
                 String dateFrom = new SimpleDateFormat("yyyyMMdd").format(entry.dateFrom);
 
@@ -411,7 +405,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
 
-        sendSoftCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
+        softCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
 
@@ -420,13 +414,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         //return result;
 
         if(kristalSettings == null) {
-            sendSoftCheckLogger.error("No kristalSettings found");
+            softCheckLogger.error("No kristalSettings found");
         } else {
             for (String sqlHost : kristalSettings.sqlHost.values()) {
                 Connection conn = null;
                 try {
 
-                    sendSoftCheckLogger.info("Kristal: connection to " + sqlHost);
+                    softCheckLogger.info("Kristal: connection to " + sqlHost);
 
                     String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
                             sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
@@ -441,10 +435,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         count++;
                     }
 
-                    sendSoftCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
+                    softCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
 
                 } catch (SQLException e) {
-                    sendSoftCheckLogger.error("Kristal SoftCheck: ", e);
+                    softCheckLogger.error("Kristal SoftCheck: ", e);
                 } finally {
                     if (conn != null)
                         conn.close();

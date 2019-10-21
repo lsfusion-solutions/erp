@@ -42,9 +42,6 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
 
     private FileSystemXmlApplicationContext springContext;
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-
     String charset = "cp1251";
 
     private static String logPrefix = "BelCoopSoyuz: ";

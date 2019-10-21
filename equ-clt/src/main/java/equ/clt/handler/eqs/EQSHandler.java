@@ -28,11 +28,6 @@ import static equ.clt.handler.HandlerUtils.*;
 
 public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-
     private static String logPrefix = "EQS: ";
 
     private FileSystemXmlApplicationContext springContext;
@@ -600,20 +595,20 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
                     EQSConnectionString params = new EQSConnectionString(directory);
                     if (params.connectionString != null) {
-                        sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
+                        machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
                         Calendar cal = Calendar.getInstance();
                         cal.setTime(entry.dateTo);
                         cal.add(Calendar.DATE, 1);
-                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
+                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-                        sendSalesLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
+                        machineryExchangeLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                         statement = conn.createStatement();
                         String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo);
-                        sendSalesLogger.info(logPrefix + "RequestSalesInfo: " + query);
+                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                         statement.execute(query);
                         succeededRequests.add(entry.requestExchange);
                     }

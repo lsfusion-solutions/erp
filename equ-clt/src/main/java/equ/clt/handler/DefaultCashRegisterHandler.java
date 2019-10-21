@@ -2,6 +2,7 @@ package equ.clt.handler;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -11,6 +12,13 @@ import java.text.ParseException;
 import java.util.*;
 
 public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends CashRegisterHandler<S> {
+
+    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
+    protected final static Logger softCheckLogger = Logger.getLogger("SoftCheckLogger");
+    protected final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
 
     protected Set<CashRegisterInfo> getCashRegisterSet(RequestExchange requestExchange, boolean extra) {
         Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();

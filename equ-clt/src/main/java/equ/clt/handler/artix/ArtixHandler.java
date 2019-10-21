@@ -33,11 +33,6 @@ import static equ.clt.handler.HandlerUtils.*;
 
 public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
-    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger softCheckLogger = Logger.getLogger("SoftCheckLogger");
-
     private static String logPrefix = "Artix: ";
 
     String encoding = "utf-8";
@@ -557,7 +552,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 if (!usedDirectories.contains(directory)) {
                     usedDirectories.add(directory);
                     try {
-                        sendSalesLogger.info(logPrefix + "creating request file for directory: " + directory);
+                        machineryExchangeLogger.info(logPrefix + "creating request file for directory: " + directory);
                         if (new File(directory).exists() || new File(directory).mkdirs()) {
                             String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
                             String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
@@ -568,16 +563,16 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 String data = String.format("###\n%s-%s", dateFrom, dateTo);
                                 writer.write(data);
                                 writer.close();
-                                sendSalesLogger.info(logPrefix + "created request file for directory: " + directory);
+                                machineryExchangeLogger.info(logPrefix + "created request file for directory: " + directory);
                             } else {
-                                sendSalesLogger.error(logPrefix + "request file already exists: " + reqFile.getAbsolutePath());
+                                machineryExchangeLogger.error(logPrefix + "request file already exists: " + reqFile.getAbsolutePath());
                             }
                         } else {
-                            sendSalesLogger.error(logPrefix + "failed to create directory: " + directory);
+                            machineryExchangeLogger.error(logPrefix + "failed to create directory: " + directory);
                             failedRequests.put(entry.requestExchange, new RuntimeException("Failed to create directory " + directory));
                         }
                     } catch (Exception e) {
-                        sendSalesLogger.error("Exception while creating sale.req in directory " + directory, e);
+                        machineryExchangeLogger.error("Exception while creating sale.req in directory " + directory, e);
                         failedRequests.put(entry.requestExchange, new RuntimeException("Exception while creating sale.req in directory " + directory, e));
                     }
                 }

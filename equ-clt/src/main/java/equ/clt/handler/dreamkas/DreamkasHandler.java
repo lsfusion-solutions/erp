@@ -20,9 +20,6 @@ import java.util.*;
 
 public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBatch> {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-
     private static String logPrefix = "Dreamkas: ";
 
     private static List<String> pendingQueryList = new ArrayList<>();
@@ -162,7 +159,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws UnsupportedEncodingException {
         for (RequestExchange entry : requestExchangeList) {
-            sendSalesLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, entry.dateTo));
+            machineryExchangeLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, entry.dateTo));
             pendingQueryList.add(getReceiptsQuery(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, true)));
             succeededRequests.add(entry.requestExchange);
         }

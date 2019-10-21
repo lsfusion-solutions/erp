@@ -21,10 +21,6 @@ import java.util.*;
 
 public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-    protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
-
     public AtolHandler() {
     }
 
@@ -157,7 +153,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
             String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
 
-            sendSalesLogger.info("Atol: creating request files");
+            machineryExchangeLogger.info("Atol: creating request files");
             for (String directory : getDirectorySet(entry)) {
                 String exchangeDirectory = directory + "/IN";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
@@ -222,7 +218,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     @Override
     public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
-        sendSoftCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
+        softCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
         Map<String, Timestamp> result = new HashMap<>();
         for (String directory : directoryList) {
@@ -265,9 +261,9 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                     }
 
                     if (result.size() == 0)
-                        sendSoftCheckLogger.info("Atol: no soft checks found");
+                        softCheckLogger.info("Atol: no soft checks found");
                     else
-                        sendSoftCheckLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
+                        softCheckLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
             } catch (FileNotFoundException | ParseException e) {
                 throw Throwables.propagate(e);

@@ -28,10 +28,6 @@ import static equ.clt.handler.HandlerUtils.*;
 @SuppressWarnings("SqlDialectInspection")
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
-
     static Logger astronLogger;
     static {
         try {
@@ -1181,7 +1177,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         } catch (SQLException e) {
                             failedRequests.put(entry.requestExchange, e);
-                            sendSalesLogger.info(logPrefix, e);
+                            machineryExchangeLogger.info(logPrefix, e);
                         } finally {
                             if (statement != null) statement.close();
                         }
