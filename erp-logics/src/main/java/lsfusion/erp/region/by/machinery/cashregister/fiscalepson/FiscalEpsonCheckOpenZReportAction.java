@@ -44,7 +44,7 @@ public class FiscalEpsonCheckOpenZReportAction extends InternalAction {
                     int confirmResult = (int) context.requestUserInteraction(new ConfirmClientAction("Закрытие смены", message));
                     if (confirmResult == JOptionPane.YES_OPTION) {
                         result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(2, comPort, baudRate));
-                        if (result == null)
+                        if (!(result instanceof String))
                             context.apply();
                         else
                             throw new RuntimeException("Ошибка закрытия смены:" + result);
