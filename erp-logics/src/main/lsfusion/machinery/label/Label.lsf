@@ -390,6 +390,8 @@ discountPercent 'Процент экономии' (LabelTransactionDetail detail
 operation = ABSTRACT Operation.Operation (LabelTransactionDetail);
 nameOperation 'Операция' = name(operation(LabelTransactionDetail detail));
 discountSum 'Скидка' (LabelTransactionDetail d) = retailPrice(d) - price(d);
+currency(LabelTransactionDetail d) = currency(priceListType(d));
+nameCurrency 'Валюта' (LabelTransactionDetail d) = name(currency(d));
 
 fullNameLegalEntity 'Компания (полное наименование)' (LabelTransactionDetail d) = fullNameLegalEntity(labelTransaction(d));
 
@@ -412,7 +414,7 @@ FORM printLabelTransaction 'Печать ценников'
     
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) READONLY idBarcode, idSku, nameSku, nameBatch,
-                           quantity, name, price, 
+                           quantity, name, nameCurrency, price, 
                            retailPrice, discountSum, discountPercent, fullNameLegalEntity,
                            firstSort, secondSort
     FILTERS labelTransaction(d) == l,
@@ -480,7 +482,7 @@ FORM customLabelTransaction 'Печать ценников'
                    
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) BACKGROUND background(d) selected, idSku READONLY, idBarcode ON CHANGE changeBarcode(d), nameSku READONLY, nameBatch,
-                  nameOperation, quantity, name, price, retailPrice,
+                  nameOperation, quantity, name, nameCurrency, price, retailPrice,
                   discountSum, discountPercent, DELETE GRID
     FILTERS labelTransaction(d) == l
     
@@ -573,7 +575,7 @@ FORM labelTransactions 'Печать ценников'
     OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) select
     PROPERTIES(dt) READONLY BACKGROUND background(dt) idBarcode, idSku, nameSku, nameBatch,
-                            quantity, name, price, retailPrice, discountSum, discountPercent 
+                            quantity, name, nameCurrency, price, retailPrice, discountSum, discountPercent 
     FILTERS labelTransaction(dt) == l
     PROPERTIES printLabelTransactionDetails() TOOLBAR DRAW dt SHOWIF countSelectLabelTransactionDetails()
  // по определенной позиции и складу  
@@ -586,7 +588,7 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(dts) READONLY BACKGROUND background(dts) nameLabelType, description, date, time,
             createdNameUser, createdTime, createdHostnameComputer,
             idBarcode, idSku, nameSku, nameBatch,
-            quantity, name, price, retailPrice, discountSum, discountPercent
+            quantity, name, nameCurrency, price, retailPrice, discountSum, discountPercent
             
     PROPERTIES printLabelTransactionDetail(dts) TOOLBAR 
     ORDER date(dts) DESC, time(dts) DESC
