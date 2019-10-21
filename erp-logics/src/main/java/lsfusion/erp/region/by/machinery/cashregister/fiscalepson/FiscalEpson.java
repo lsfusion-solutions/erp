@@ -131,10 +131,12 @@ public class FiscalEpson {
         closeReceipt();
     }
 
-    public static void zReport() throws RuntimeException {
+    public static Integer zReport() throws RuntimeException {
         openDayIfClosed();
+        Integer zReportNumber = getReceiptInfo().sessionNumber;
         Dispatch.call(epsonDispatch, "PrintZReport");
         checkErrors(true);
+        return zReportNumber;
     }
 
     public static void electronicJournal() throws RuntimeException {

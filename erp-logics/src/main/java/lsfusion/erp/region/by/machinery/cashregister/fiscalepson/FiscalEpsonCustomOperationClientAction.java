@@ -34,8 +34,7 @@ public class FiscalEpsonCustomOperationClientAction implements ClientAction {
                     FiscalEpson.xReport();
                     break;
                 case 2:
-                    FiscalEpson.zReport();
-                    break;
+                    return FiscalEpson.zReport();
                 case 3:
                     FiscalEpson.electronicJournal();
                     break;
