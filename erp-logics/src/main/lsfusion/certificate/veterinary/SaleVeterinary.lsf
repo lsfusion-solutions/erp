@@ -1,0 +1,18 @@
+MODULE SaleVeterinary;
+
+REQUIRE Veterinary, SaleCertificate;
+
+NAMESPACE Sale;
+
+@defineDocumentCertificate(veterinary, invoice, i, 'Ветеринарное свидетельство');
+@defineDocumentCertificateConstraint(veterinary, invoice, 'ветеринарное свидетельство');
+@deriveDocumentSaleCertificate(veterinary, invoice, supplierStock, data);
+
+@defineDocumentCertificate(veterinary, shipment, s, 'Ветеринарное свидетельство');
+veterinary(InvoiceShipmentDetail detail) += veterinary(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataVeterinary(s) <- veterinary(i);
+}
+@defineDocumentCertificateConstraint(veterinary, shipment, 'ветеринарное свидетельство');
+@deriveDocumentSaleCertificate(veterinary, shipment, supplierStock, data);

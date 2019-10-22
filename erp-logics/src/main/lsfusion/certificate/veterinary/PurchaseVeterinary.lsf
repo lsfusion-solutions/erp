@@ -1,0 +1,82 @@
+MODULE PurchaseVeterinary;
+
+REQUIRE Veterinary, PurchaseCertificate;
+
+NAMESPACE Purchase;
+
+@defineDocumentCertificate(veterinary, invoice, i, 'Ветеринарное свидетельство');
+@deriveDocumentPurchaseCertificate(veterinary, invoice, customerStock, data);
+
+@defineDocumentCertificate(veterinary, shipment, s, 'Ветеринарное свидетельство');
+
+// Проставляем автоматически сертификат от строки инвойса
+WHEN CHANGED(veterinary(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(veterinary(d)) DO
+     dataVeterinary(d) <- veterinary(invoiceDetail(d)); 
+
+@deriveDocumentPurchaseCertificate(veterinary, shipment, customerStock, data);
+
+veterinary(InvoiceShipmentDetail detail) += veterinary(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataVeterinary(s) <- veterinary(i);
+}
+
+veterinary (ShipmentBatch batch) += veterinary(shipmentDetail(batch));
+
+//---------------------------------- накладные для сертификата --------------------------------------------------------//
+
+in 'Вкл.' (Veterinary veterinary, UserInvoice invoice) = veterinary(invoice)==veterinary;
+
+in 'Вкл.' (Veterinary veterinary, UserInvoiceDetail invoiceDetail) = dataVeterinary(invoiceDetail)==veterinary;
+
+invoices 'Накладные' (Veterinary veterinary) =
+    GROUP
+              CONCAT shortDescription(UserInvoice invoice) IF in (veterinary, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
+
+// ------------------------- Расширение формы сертификатов данными из инвойсов ----------------------------- //
+
+EXTEND FORM veterinary
+    PROPERTIES(c) READONLY invoices
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(id) READONLY seriesNumber, dateTime, idBarcodeSku, nameSku, quantity, price, homePrice, homeSum
+
+    FILTERS veterinary(id) == c
+;
+
+DESIGN veterinary {
+    documentParams{
+        MOVE PROPERTY(invoices(c));
+    }
+    pane {
+        MOVE BOX(id) {
+            fill = 1;
+        }
+    }
+}
+
+// ------------------------------------------ Выбор накладных непосредственно в форме сертификата -------------------------------------- //
+
+FORM veterinaryInvoices 'Накладные сертификации'
+    OBJECTS c=Veterinary PANEL
+    PROPERTIES(c) READONLY seriesNumber, dateTime, fromDate, toDate
+
+    OBJECTS i=UserInvoice
+    PROPERTIES(c, i)       in
+    PROPERTIES(i) READONLY number, series, date, time, nameSupplier, nameCustomer
+    FILTERS in(c, i) OR c IS Veterinary AND NOT veterinary(i)
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(c, id) in
+    PROPERTIES(id) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price
+    FILTERS userInvoice(id)==i
+;
+
+selectInvoices 'Выбрать накладные'(Veterinary veterinary)  { 
+    SHOW veterinaryInvoices OBJECTS c=veterinary ;
+} TOOLBAR;
+
+EXTEND FORM veterinary
+    PROPERTIES (c) selectInvoices DRAW id 
+;

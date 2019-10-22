@@ -1,0 +1,140 @@
+MODULE Veterinary;
+
+REQUIRE Certificate;
+
+CLASS Veterinary 'Ветеринарное свидетельство' : Certificate;
+TABLE veterinary(Veterinary);
+
+// ----------------- Даты / время ------------------ //
+
+@defineDocumentHeaderTimePrefix(Veterinary, ,' документа');
+@deriveDocumentHeaderTimePrefix(Veterinary, );
+date(Veterinary certificate) += date(certificate);
+time(Veterinary certificate) += time(certificate);
+
+fromDate 'Дата с' = DATA DATE (Veterinary) IN documentHeader;
+fromDate(Veterinary certificate) += fromDate(certificate);
+
+toDate 'Дата по' = DATA DATE (Veterinary) IN documentHeader;
+toDate(Veterinary certificate) += toDate(certificate);
+
+// ------ Номер ----------- //
+
+number 'Номер' = DATA ISTRING[100] (Veterinary) NONULL IN numbered CHARWIDTH 10;
+series 'Серия' = DATA BPSTRING[2] (Veterinary) IN numbered CHARWIDTH 3 NOFLEX; 
+
+seriesNumber 'Серия/Номер' (Veterinary o) = 
+    CONCAT '', series(o), number(o) 
+    CHARWIDTH 7 MATERIALIZED;
+
+series(Veterinary certificate) += series(certificate);
+number(Veterinary certificate) += number(certificate);
+
+veterinary = GROUP AGGR Veterinary s BY number (s);
+
+// Описание
+description 'Ветеринарное свидетельство' (Veterinary veterinary) = CONCAT ' ', seriesNumber(veterinary),
+                                                 'от ' + fromDate(veterinary), 'по ' + toDate(veterinary) CHARWIDTH 20;
+// История                                                 
+@defineDocumentHeaderCreated(Veterinary);                                                 
+
+
+@defineBatchCertificate(veterinary, Veterinary, 'Ветеринарное свидетельство');
+fromDateVeterinary 'Дата с' (Batch batch) = fromDate(veterinary(batch));
+toDateVeterinary 'Дата по' (Batch batch) = toDate(veterinary(batch));
+
+FORM veterinary 'Ветеринарное свидетельство'
+    OBJECTS c = Veterinary PANEL
+    PROPERTIES(c) number, series, date, time,
+                  fromDate, toDate               
+
+    EDIT Veterinary OBJECT c
+;
+
+DESIGN veterinary {
+    BOX {
+        NEW pane {
+            fill = 1;
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(c)) { charWidth = 70;};
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
+
+            }
+            NEW params {
+                NEW timeContainer{
+                    type = CONTAINERH;
+                    caption = 'Период действия';
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
+                }
+                NEW documentParams {
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Параметры документа';
+                }
+            }
+        }    
+        MOVE TOOLBARBOX;
+    }
+}
+
+overCopy  ABSTRACT LIST ( Veterinary, Veterinary);
+    
+copy 'Копировать'(Veterinary veterinary)  { 
+	NEWSESSION {
+	    NEW c = Veterinary {
+	        fromDate(c) <- fromDate(veterinary);
+	        toDate(c) <- toDate(veterinary);
+	
+	        overCopy(c, veterinary);
+	        
+	        SHOW veterinary OBJECTS c = c DOCKED;
+	    }
+	}
+} TOOLBAR;
+
+skipShowEdit = ABSTRACT BOOLEAN (Veterinary);
+showEdit = Veterinary c IS Veterinary AND NOT skipShowEdit(c);
+
+FORM veterinaries 'Ветеринарные свидетельства'
+    OBJECTS c = Veterinary
+    PROPERTIES(c) READONLY number, series, date, time, fromDate, toDate
+    PROPERTIES(c) copy
+
+    PROPERTIES (c) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) NEWSESSION NEW, EDIT SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) 
+    
+    LIST Veterinary OBJECT c
+;
+
+DESIGN veterinaries {
+    BOX {
+        size = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(c) { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE GROUP(created,c);
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    customsDocuments {
+        NEW veterinaries;
+    }
+}
