@@ -45,15 +45,20 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     }
 
     public Map<String, Set<String>> getDirectoryStockMap(RequestExchange requestExchange) {
+        return getDirectoryStockMap(requestExchange, false);
+    }
+
+    public Map<String, Set<String>> getDirectoryStockMap(RequestExchange requestExchange, boolean useNumberGroupInShopIndices) {
         Map<String, Set<String>> directoryStockMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : join(requestExchange.cashRegisterSet, requestExchange.extraCashRegisterSet)) {
             if (fitHandler(cashRegister) && cashRegister.directory != null) {
                 Set<String> stockSet = directoryStockMap.get(cashRegister.directory);
                 if (stockSet == null)
                     stockSet = new HashSet<>();
-                if (cashRegister.idDepartmentStore != null)
-                    stockSet.add(cashRegister.idDepartmentStore);
-                if(requestExchange.idStock != null)
+                String idStock = useNumberGroupInShopIndices ? String.valueOf(cashRegister.numberGroup) : cashRegister.idDepartmentStore;
+                if (idStock != null)
+                    stockSet.add(idStock);
+                if(!useNumberGroupInShopIndices && requestExchange.idStock != null)
                     stockSet.add(requestExchange.idStock);
                 directoryStockMap.put(cashRegister.directory, stockSet);
             }

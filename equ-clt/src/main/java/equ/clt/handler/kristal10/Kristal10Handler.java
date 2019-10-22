@@ -505,11 +505,14 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
 
-            for (Map.Entry<String, Set<String>> directoryStockEntry : getDirectoryStockMap(entry).entrySet()) {
+            for (Map.Entry<String, Set<String>> directoryStockEntry : getDirectoryStockMap(entry, useNumberGroupInShopIndices).entrySet()) {
                 String directory = directoryStockEntry.getKey();
                 Set<String> stockSet = directoryStockEntry.getValue();
 
