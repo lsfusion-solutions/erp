@@ -9,6 +9,7 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
@@ -147,6 +148,8 @@ public class LoyaAction extends InternalAction {
 
                 postRequest.addHeader("content-type", "application/json");
                 postRequest.setEntity(input);
+
+                ERPLoggers.importLogger.info("Loya login request: " + IOUtils.toString(postRequest.getEntity().getContent()));
 
                 HttpResponse response = new DefaultHttpClient().execute(postRequest);
 
