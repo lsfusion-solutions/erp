@@ -872,6 +872,8 @@ DESIGN selectLabelSkus{
     }
 }
 
+overCreateLabelTransaction ABSTRACT LIST (LabelTransaction);
+
 META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchProp, stockProp, prefix)
 
     createAttribute  ABSTRACT LIST ( ###detailProp##Detail, LabelTransactionDetail);    
@@ -884,6 +886,9 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 departmentStore(t) <- stockProp(document);
                 priceTransactionDocument(t) <- document;
                 labelType(t) <- labelType;
+                
+                overCreateLabelTransaction(t);
+                
                 LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
                 
                 FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
@@ -996,6 +1001,8 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 departmentStore(t) <- stockProp(document);
                 priceTransactionDocument(t) <- document;
                 labelType(t) <- type;
+
+                overCreateLabelTransaction(t);
     
                 FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
                     FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
@@ -1148,7 +1155,10 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
         addedTransaction() <- t;
         priceListType(t) <- localPriceListType() WHERE localPriceListType();
         
-        FOR select(Sku sku, labelType, departmentStore) AND NOT exclude(labelType,sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
+        inLabel (Sku sku) <- select(sku, labelType, departmentStore) AND NOT exclude(labelType,sku);
+        overCreateLabelTransaction(t);
+        
+        FOR inLabel(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
             
             labelTransaction(d) <- t;
             sku(d) <- sku;
@@ -1193,8 +1203,11 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         addedTransaction() <- t;
         priceListType(t) <- localPriceListType() WHERE localPriceListType();
         
+        inLabel (Sku sku) <- select(sku) AND NOT exclude(labelType,sku);
+        overCreateLabelTransaction(t);
+        
         FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
-            FOR select(Sku sku) AND NOT exclude(labelType,sku) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) INLINE NEW d = LabelTransactionDetail DO {
+            FOR inLabel(Sku sku) ORDER nameSkuGroup2(sku), nameSkuGroup3(sku), nameSkuGroup4(sku), name(sku) INLINE NEW d = LabelTransactionDetail DO {
                 labelTransaction(d) <- t;
                 sku(d) <- sku;
         

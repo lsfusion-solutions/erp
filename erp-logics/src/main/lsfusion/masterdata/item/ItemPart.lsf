@@ -1,0 +1,44 @@
+MODULE ItemPart;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+EXTEND CLASS SkuType {
+    skuTypeSet 'Комплект'
+}
+
+isSet 'Комплект' (Item i) = skuType(i) = SkuType.skuTypeSet;
+
+set 'Комплект' = DATA Item (Part) NONULL DELETE;
+idSet 'Код комплекта' (Part p) = id(set(p)); 
+
+CLASS Part 'Составная часть';
+TABLE part(Part);
+
+item 'Товар' = DATA Item (Part);
+idItem 'Код' (Part p) = id(item(p));
+idBarcodeItem 'Штрих-код' (Part p) = idBarcode(item(p)); 
+nameItem 'Наименование' (Part p) = name(item(p));
+
+countSet 'Кол-во комплектов' (Item i) = GROUP SUM 1 IF active(set(Part p)) AND item(p) = i MATERIALIZED;
+
+countPart 'Кол-во составляющих' (Item i) = GROUP SUM 1 IF set(Part p) = i MATERIALIZED;
+
+quantity 'Кол-во' = DATA NUMERIC[16,3] (Part);
+
+percent 'Процент цены' = DATA NUMERIC[16,2] (Part);
+
+skip 'Запрет использования' = DATA BOOLEAN (Part);
+
+EXTEND FORM item
+    OBJECTS ip = Part
+    PROPERTIES(ip) SHOWIF isSet(i) idItem, idBarcodeItem, nameItem, quantity, percent, skip, NEW, DELETE
+    FILTERS set(ip) = i
+;
+
+DESIGN item {
+    itemDetail {
+        MOVE BOX(ip) { caption = 'Состав'; }
+    }
+}

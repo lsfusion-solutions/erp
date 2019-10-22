@@ -1,0 +1,30 @@
+MODULE MachineryPriceTransactionPart;
+
+REQUIRE MachineryPriceTransaction, ItemPart;
+
+NAMESPACE Machinery;
+
+overCreateMachineryPriceTransaction(GroupMachinery g) +{
+    LOCAL sendPart = BOOLEAN (Sku);
+    sendPart (Sku s) <- TRUE WHERE GROUP SUM 1 IF send(Barcode b) AND countSet(sku(b)) AND sku(b) = s;
+    
+    LOCAL sendSet = BOOLEAN (Sku);
+    sendSet (Sku s) <- TRUE WHERE GROUP SUM 1 IF sendPart(item(Part p)) AND set(p) = s;
+    
+    send (Barcode b) <- TRUE WHERE sendSet(sku(b));
+    
+    price(Barcode b) <- (GROUP SUM price(barcode(item(Part p)), g) IF set(p) = sku(b)) WHERE sendSet(sku(b));
+    
+    send(Barcode b) <- NULL WHERE GROUP SUM 1 IF sendPart(item(Part p)) AND skip(p) AND item(p) = sku(b);
+}
+
+// Свойства для чтения комплектов при приеме реализации
+
+hasSet(Barcode b) = active(sku(b)) AND countPart(sku(b)) AND active(b);
+
+quantityPart(Barcode b, Part p) = quantity(p) IF sku(b) = set(p);
+
+percentPart(Barcode b, Part p) = percent(p) IF sku(b) = set(p);
+
+pricePart(Barcode b, Stock s, Part p) = transactionPrice(item(p), s) IF sku(b) = set(p);
+pricePart(Barcode b, INTEGER i, Part p) = pricePart(b, stock(groupMachineryNpp(i)), p); 
