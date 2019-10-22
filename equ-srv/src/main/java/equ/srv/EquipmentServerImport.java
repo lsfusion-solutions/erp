@@ -16,7 +16,7 @@ import java.util.*;
 
 public class EquipmentServerImport {
 
-    public static void importPaymentMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
@@ -55,7 +55,7 @@ public class EquipmentServerImport {
             List<List<Object>> dataPayment = new ArrayList<>();
             for (int i = start; i < finish; i++) {
                 SalesInfo sale = salesInfoList.get(i);
-                String idReceipt = sale.getIdReceipt(timeId);
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
                     dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
                 }
@@ -69,7 +69,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPayment(BusinessLogics BL, DataSession session, List<SalesInfo> data, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPayment(BusinessLogics BL, DataSession session, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null) {
 
@@ -107,7 +107,7 @@ public class EquipmentServerImport {
 
             List<List<Object>> dataPayment = new ArrayList<>();
             for (SalesInfo sale : data) {
-                String idReceipt = sale.getIdReceipt(timeId);
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
                     dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
                 }
@@ -121,7 +121,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 
@@ -174,7 +174,7 @@ public class EquipmentServerImport {
             Set<String> ids = new HashSet();
             for (int j = start; j < finish; j++) {
                 SalesInfo sale = salesInfoList.get(j);
-                String idReceipt = sale.getIdReceipt(timeId);
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
                     int i = 0;
                     for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
@@ -197,7 +197,7 @@ public class EquipmentServerImport {
         }
     }
 
-    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, Boolean timeId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static void importPaymentGiftCard(BusinessLogics BL, DataSession session, List<SalesInfo> data, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ScriptingLogicsModule giftCardLM = BL.getModule("GiftCard");
         if (giftCardLM != null) {
 
@@ -249,7 +249,7 @@ public class EquipmentServerImport {
             List<List<Object>> dataPaymentGiftCard = new ArrayList<>();
             Set<String> ids = new HashSet();
             for (SalesInfo sale : data) {
-                String idReceipt = sale.getIdReceipt(timeId);
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
                 if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
                     int i = 0;
                     for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {

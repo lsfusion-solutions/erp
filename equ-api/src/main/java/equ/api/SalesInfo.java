@@ -162,7 +162,7 @@ public class SalesInfo implements Serializable {
         this.sumGiftCardMap = sumGiftCardMap;
     }
 
-    //startDate - для обратной совместимости
+    //todo: delete unused methods (equ-api changes)
     public String getIdZReport() {
         return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + (dateZReport != null ? ("_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport)) : "");
     }

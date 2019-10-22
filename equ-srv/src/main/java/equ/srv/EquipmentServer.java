@@ -929,7 +929,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     //временная опция для Табака
                     if(cashRegisterLM.findProperty("disableSalesForClosedZReports[]").read(outerSession) != null) {
                         Set<String> closedZReportSet = readClosedZReportSet(outerSession);
-                        salesInfoList.removeIf(salesInfo -> closedZReportSet.contains(salesInfo.getIdZReport()));
+                        salesInfoList.removeIf(salesInfo -> closedZReportSet.contains(getIdZReport(salesInfo, options)));
                     }
 
                     if (options.maxThreads == null || options.maxThreads <= 1)
@@ -1387,9 +1387,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (giftCardLM != null)
                 new IntegrationService(session, new ImportTable(giftCardFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
 
-            EquipmentServerImport.importPaymentMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options.timeId);
+            EquipmentServerImport.importPaymentMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
 
-            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options.timeId);
+            EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
 
 
             session.setKeepLastAttemptCountMap(true);
@@ -1769,9 +1769,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     new IntegrationService(session, new ImportTable(giftCardImportFields, rowsData.dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                 }
 
-                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, options.timeId);
+                EquipmentServerImport.importPayment(getBusinessLogics(), session, data, options);
 
-                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, options.timeId);
+                EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, options);
 
 
                 session.setKeepLastAttemptCountMap(true);
@@ -2212,7 +2212,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     barcodeMap.put(sale.idItem, barcode);
                 }
 
-                String idReceipt = sale.getIdReceipt(options.timeId);
+                String idReceipt = getIdReceipt(sale, options);
                 Boolean skipReceipt = sale.skipReceipt ? true : null;
                 BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
                 BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
@@ -2220,11 +2220,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
                 if (sale.isGiftCard) {
                     //giftCard 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            sale.getIdReceiptDetail(options.timeId), sale.numberReceiptDetail, barcode,
+                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode,
                             sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
                     if (zReportSectionLM != null) {
                         row = new ArrayList<>(row);
@@ -2237,11 +2237,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     dataGiftCard.add(row);
                 } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                     //return 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            sale.getIdReceiptDetail(options.timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                             sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
                     if (discountCardLM != null) {
                         row = new ArrayList<>(row);
@@ -2258,11 +2258,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     dataReturn.add(row);
                 } else {
                     //sale 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(),
+                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
                             sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
                             idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
                             sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            sale.getIdReceiptDetail(options.timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                             sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                     if (discountCardLM != null) {
                         row = new ArrayList<>(row);
@@ -2313,29 +2313,60 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return new ArrayList<>(groupedSalesInfo.values());
     }
 
+    public static String getIdZReport(SalesInfo s, EquipmentServerOptions options) {
+        String idZReport = getIdZReport(s);
+        return options.encoder != null ? options.encoder.encode(idZReport) : idZReport;
+    }
+
+    public static String getIdReceipt(SalesInfo s, EquipmentServerOptions options) {
+        String idReceipt = getIdReceipt(s, options.timeId);
+        return options.encoder != null ? options.encoder.encode(idReceipt) : idReceipt;
+    }
+
+    public static String getIdReceiptDetail(SalesInfo s, EquipmentServerOptions options) {
+        String idReceiptDetail = getIdReceiptDetail(s, options.timeId);
+        return options.encoder != null ? options.encoder.encode(idReceiptDetail) : idReceiptDetail;
+    }
+
+    private static String getIdZReport(SalesInfo s) {
+        return s.nppGroupMachinery + "_" + s.nppMachinery + "_" + s.numberZReport + (s.dateZReport != null ? ("_" + new SimpleDateFormat("ddMMyyyy").format(s.dateZReport)) : "");
+    }
+
+    private static String getIdReceipt(SalesInfo s, boolean timeId) {
+        return getIdZReport(s) + "_" + s.numberReceipt + (timeId ? "_" + s.timeReceipt : "");
+    }
+
+    private static String getIdReceiptDetail(SalesInfo s, boolean timeId) {
+        return getIdReceipt(s, timeId) + "_" + s.numberReceiptDetail;
+    }
+
     private EquipmentServerOptions readEquipmentServerOptions(String sidEquipmentServer, DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
         Integer maxThreads = (Integer) equLM.findProperty("maxThreads[EquipmentServer]").read(session, equipmentServerObject);
         Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
-        Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
+        boolean timeId = equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers);
+        boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
+        IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, encoder);
     }
 
-    private class EquipmentServerOptions {
+    public class EquipmentServerOptions {
         Integer maxThreads;
         Integer numberAtATime;
-        Boolean timeId; //todo: change to boolean (equ-api changes)
+        boolean timeId;
         boolean ignoreReceiptsAfterDocumentsClosedDate;
         boolean overrideCashiers;
+        IdEncoder encoder;
 
-        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, Boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate, boolean overrideCashiers) {
+        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate, boolean overrideCashiers, IdEncoder encoder) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.timeId = timeId;
             this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
             this.overrideCashiers = overrideCashiers;
+            this.encoder = encoder;
         }
     }
 }
