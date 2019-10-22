@@ -27,9 +27,19 @@ public class IdEncoder {
     public String encode(String id) {
         id = encodeDateAndTime(id);
         return Arrays.stream(id.split("_"))
-                .map(Integer::valueOf)
+                .map(Integer::parseInt)
                 .map(IntBaseXEncoder::encode)
                 .collect(Collectors.joining());
+    }
+
+    public String encodeLessMemory(String id) {
+        String[] parts = encodeDateAndTime(id).split("_");
+
+        StringBuilder res = new StringBuilder();
+        for (String part : parts) {
+            res.append(IntBaseXEncoder.encode(Integer.parseInt(part)));
+        }
+        return res.toString();
     }
 
     public String decode(String s) {
@@ -39,6 +49,19 @@ public class IdEncoder {
                 .map(String::valueOf)
                 .collect(Collectors.joining("_"));
         return decodeDateAndTime(res);
+    }
+
+    public String decodeLessMemory(String s) {
+        String withUnderscores = insertUnderscores(s);
+        String[] parts = withUnderscores.split("_");
+        StringBuilder res = new StringBuilder();
+        for (String part : parts) {
+            if (res.length() > 0) {
+                res.append("_");
+            }
+            res.append(IntBaseXEncoder.decode(part));
+        }
+        return decodeDateAndTime(res.toString());
     }
 
     private static String insertUnderscores(String s) {
@@ -68,13 +91,13 @@ public class IdEncoder {
 
     // format: ddMMyyyy 
     private String encodeDate(String date) {
-        LocalDate localDate = LocalDate.of(Integer.valueOf(date.substring(4)), Integer.valueOf(date.substring(2,4)), Integer.valueOf(date.substring(0, 2)));
+        LocalDate localDate = LocalDate.of(Integer.parseInt(date.substring(4)), Integer.parseInt(date.substring(2,4)), Integer.parseInt(date.substring(0, 2)));
         return String.valueOf(localDate.toEpochDay() - daysShift);
     }
 
     // format: HH:mm:ss 
     private String encodeTime(String time) {
-        LocalTime localTime = LocalTime.of(Integer.valueOf(time.substring(0, 2)), Integer.valueOf(time.substring(3, 5)), Integer.valueOf(time.substring(6)));
+        LocalTime localTime = LocalTime.of(Integer.parseInt(time.substring(0, 2)), Integer.parseInt(time.substring(3, 5)), Integer.parseInt(time.substring(6)));
         return String.valueOf(localTime.toSecondOfDay());
     }
 
@@ -88,12 +111,12 @@ public class IdEncoder {
     }
 
     private String decodeDate(String date) {
-        LocalDate localDate = LocalDate.ofEpochDay(Long.valueOf(date) + daysShift);
+        LocalDate localDate = LocalDate.ofEpochDay(Long.parseLong(date) + daysShift);
         return localDate.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
     }
 
     private String decodeTime(String time) {
-        LocalTime localTime = LocalTime.ofSecondOfDay(Long.valueOf(time));
+        LocalTime localTime = LocalTime.ofSecondOfDay(Long.parseLong(time));
         return localTime.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
     }
 
