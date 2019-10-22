@@ -421,6 +421,7 @@ overCreatePayment ABSTRACT ( Receipt);
 returnPost = DATA LOCAL BOOLEAN();
 
 post 'Смешанная'(Receipt receipt)  { 
+    returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
@@ -465,6 +466,7 @@ post 'Смешанная'(Receipt receipt)  {
 } CHANGEKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt)  { 
+    returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
@@ -499,6 +501,7 @@ postCard 'Карточкой'(Receipt receipt)  {
 } CHANGEKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt)  { 
+    returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
@@ -592,8 +595,12 @@ DESIGN bonusPayment {
 }
 
 overPostBonus  ABSTRACT ( Receipt); 
-
-postBonus 'Бонусами'(Receipt receipt)  { 
+overPostBonusExtra  ABSTRACT ( Receipt); 
+postBonus 'Бонусами'(Receipt receipt) { 
+    returnPost()<- NULL;
+    overPostBonusExtra(receipt);
+    IF returnPost() THEN RETURN;
+        
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
         DIALOG bonusPayment OBJECTS d = discountCard(receipt), r = receipt DO {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
