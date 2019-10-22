@@ -2315,17 +2315,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     public static String getIdZReport(SalesInfo s, EquipmentServerOptions options) {
         String idZReport = getIdZReport(s);
-        return options.encoder != null ? options.encoder.encode(idZReport) : idZReport;
+        return options.encoder != null && !idZReport.startsWith("null") ? options.encoder.encodeLessMemory(idZReport) : idZReport;
     }
 
     public static String getIdReceipt(SalesInfo s, EquipmentServerOptions options) {
         String idReceipt = getIdReceipt(s, options.timeId);
-        return options.encoder != null ? options.encoder.encode(idReceipt) : idReceipt;
+        return options.encoder != null && !idReceipt.startsWith("null") ? options.encoder.encodeLessMemory(idReceipt) : idReceipt;
     }
 
     public static String getIdReceiptDetail(SalesInfo s, EquipmentServerOptions options) {
         String idReceiptDetail = getIdReceiptDetail(s, options.timeId);
-        return options.encoder != null ? options.encoder.encode(idReceiptDetail) : idReceiptDetail;
+        return options.encoder != null && !idReceiptDetail.startsWith("null") ? options.encoder.encodeLessMemory(idReceiptDetail) : idReceiptDetail;
     }
 
     private static String getIdZReport(SalesInfo s) {
