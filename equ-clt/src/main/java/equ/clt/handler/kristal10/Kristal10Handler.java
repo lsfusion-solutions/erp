@@ -1135,8 +1135,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 String departNumber = null;
                                 for (Object positionEntryNode : positionEntryList) {
 
+                                    String positionDepartNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
+
                                     if (departNumber == null)
-                                        departNumber = readStringXMLAttribute(positionEntryNode, "departNumber");
+                                        departNumber = positionDepartNumber;
 
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
@@ -1229,7 +1231,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                                 barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
-                                                useSectionAsDepartNumber ? departNumber : null, false, cashRegister));
+                                                useSectionAsDepartNumber ? positionDepartNumber : null, false, cashRegister));
                                     }
                                     count++;
                                 }
