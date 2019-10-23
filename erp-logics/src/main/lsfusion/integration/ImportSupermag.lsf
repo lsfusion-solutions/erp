@@ -2,7 +2,7 @@ MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
         PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, 
-        PurchaseScheduleOrder, PurchaseScheduleOrderSeparation;
+        PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, ItemPart;
 
 PRIORITY Purchase;
 
@@ -2031,3 +2031,34 @@ DESIGN integrationData {
 
 @defineLogRotate(checkBalance, 5, weekly);
 @defineLogRotate(importSupermag, 5, weekly);
+
+part (Item set, Item item) = GROUP MAX Part p BY set(p), item(p);
+
+importItemPart 'Импорт комплектов' () {
+
+    LOCAL idSet = ISTRING[50] (INTEGER);
+    LOCAL quantity = NUMERIC[16,3] (INTEGER);
+    LOCAL percent = NUMERIC[16,2] (INTEGER);
+
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
+        EXEC 'select ca.ComplexArticle,ca.Article,ca.Amount,ca.PricePercent from Supermag.SVComplexCompositeArt ca' TO file;
+        
+    IMPORT TABLE FROM file() TO idSet, idItem, quantity, percent;
+    
+    FOR [GROUP SUM 1 BY sku(idSet(INTEGER i)), sku(idItem(i))](Item set, Item item) AND NOT part(set, item) DO NEW p = Part {
+        set(p) <- set;
+        item(p) <- item;
+        skuType(set) <- SkuType.skuTypeSet;
+    }
+    
+    FOR Part p = part(sku(idSet(INTEGER i)), sku(idItem(i))) DO {
+        quantity(p) <- quantity(i);
+        percent(p) <- percent(i);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemPart();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemPart()); } }
