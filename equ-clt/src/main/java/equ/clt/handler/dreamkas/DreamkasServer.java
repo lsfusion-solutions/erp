@@ -276,7 +276,7 @@ public class DreamkasServer {
             java.sql.Date dateReceipt = java.sql.Date.valueOf(oHeader.cResult.substring(0, 10));    // Дата чека
             Time timeReceipt = Time.valueOf(oHeader.cResult.substring(11));                // Время чека
             Time timeZReport = Time.valueOf("00:00:00");                                   // Время Z отчета
-            oHeader.getPathValue("cashier.id");                                 // ID кассира
+            oHeader.getPathValue("cashier.tabNumber");                                 // ID кассира
             String idEmployee = oHeader.cResult;
             oHeader.getPathValue("cashier.name");                               // Имя кассира
             String firstNameContact = "";
@@ -324,7 +324,8 @@ public class DreamkasServer {
                 BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
                 salesInfoList.add(new SalesInfo(false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
-                        numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameContact, lastNameContact, sumCard, sumCash,
+                        numberReceipt, dateReceipt, timeReceipt, idEmployee, idEmployee != null ? firstNameContact : null,
+                        idEmployee != null ? lastNameContact : null, sumCard, sumCash,
                         null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
                         null, null, null, numberReceiptDetail, "", null, isCancel, null));
             }
