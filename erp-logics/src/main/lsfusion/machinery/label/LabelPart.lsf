@@ -5,9 +5,9 @@ REQUIRE Label, ItemPart;
 NAMESPACE Label;
 
 partPrice = DATA LOCAL NUMERIC[16,4] (Sku);
+sendSet = DATA LOCAL BOOLEAN (Sku); 
 
 overCreateLabelTransaction(LabelTransaction t) + {
-    LOCAL sendSet = BOOLEAN (Sku);
     sendSet (Sku s) <- TRUE WHERE GROUP SUM 1 IF inLabel(item(Part p)) AND active(set(p)) AND set(p) = s;
     
     inLabel(Sku s) <- TRUE WHERE sendSet(s);
@@ -16,6 +16,23 @@ overCreateLabelTransaction(LabelTransaction t) + {
         partPrice(Sku s) <- (GROUP SUM prevPriceA(pt, item(Part p), departmentStore(t), dateTime(t)) IF set(p) = s) WHERE sendSet(s);
 
     inLabel(Sku s) <- NULL WHERE GROUP SUM 1 IF sendSet(set(Part p)) AND skip(p) AND item(p) = s;
+}
+
+overCreateDocumentLabelTransaction(LabelTransaction t) + {
+    FOR sendSet(Sku s) AND
+        inPrint(labelType(t), s, departmentStore(t)) INLINE 
+        NEW d = LabelTransactionDetail DO {
+
+        labelTransaction(d) <- t;
+        sku(d) <- s;
+        name(d) <- name(s);
+        createAttribute(d);
+
+        quantity(d) <- count(labelType(t), sku(d));
+
+        price(d) <- partPrice(s);
+        retailPrice(d) <- overRetailPrice(d);
+    }
 }
 
 createAttribute(LabelTransactionDetail d) + {
