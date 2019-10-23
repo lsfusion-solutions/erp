@@ -14,16 +14,26 @@ idSupermag 'Код в супермаг (BORNIN)' = DATA STRING[100] (Stock); // 
 
 CLASS SupermagLog 'История' ;
 TABLE supermagLog (SupermagLog);
-
+id 'Код' = DATA STRING[100] (SupermagLog);
 dateTime 'Дата/время' = DATA DATETIME (SupermagLog);
 userLogin 'Логин пользователя' = DATA STRING[100] (SupermagLog) CHARWIDTH 15; 
 nameContact 'Имя пользователя' =  DATA STRING[100] (SupermagLog) IN id CHARWIDTH 15;
 stockDocumentLedger 'Дата/время' = DATA StockDocumentLedger (SupermagLog);
+dateTimeAnswer 'Дата/время ответа' = DATA DATETIME (SupermagLog);
+errorAnswerFile 'Ошибка файла' = DATA BOOLEAN (SupermagLog);
+errorAnswer 'Ошибка обработки' = DATA BOOLEAN (SupermagLog);
+textError 'Текст ошибки' = DATA TEXT (SupermagLog);
+
+supermagLog = GROUP MAX SupermagLog log BY ISTRING[100](id(log));
 
 lastSupermagLog (StockDocumentLedger l) = GROUP LAST SupermagLog d
           ORDER dateTime(d), d 
           BY stockDocumentLedger(d);
-lastDateTimeSupermagLog 'Последняя выгрузка' = dateTime(lastSupermagLog (StockDocumentLedger l));         
+lastDateTimeSupermagLog 'Последняя выгрузка' = dateTime(lastSupermagLog (StockDocumentLedger l));     
+dateTimeAnswerSupermagLog 'Дата/время ответа' = dateTimeAnswer(lastSupermagLog (StockDocumentLedger l));     
+errorAnswerFileSupermagLog 'Ошибка файла' = errorAnswerFile(lastSupermagLog (StockDocumentLedger l));     
+errorAnswerSupermagLog 'Ошибка обработки' = errorAnswer(lastSupermagLog (StockDocumentLedger l));   
+    
 exportDirectorySupermag 'Путь для экспорта файлов в супермаг' = DATA STRING[500] ();
 
 EXTEND FORM integrationData 
@@ -57,6 +67,8 @@ DESIGN integrationData {
 //        exportSupermag(l);
 //    }
 //} 
+
+isExport 'Загружен' (StockDocumentLedger d)= lastDateTimeSupermagLog(d) AND dateTimeAnswerSupermagLog(d) AND NOT (errorAnswerFileSupermagLog(d) OR errorAnswerSupermagLog(d));
 FORM exportSupermag 'Экспорт в супермаг' 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
@@ -65,7 +77,9 @@ FORM exportSupermag 'Экспорт в супермаг'
     PROPERTIES(ol) READONLY isClosed, isPosted, date, nameStock,
                    oObjName = objectClassName, description,
                    nameOperation, nameLegalEntity, nameLegalEntityStock, 
-                   sumItem, sumContainer, sum, lastDateTimeSupermagLog           
+                   sumItem, sumContainer, sum, lastDateTimeSupermagLog,
+                   dateTimeAnswerSupermagLog,errorAnswerFileSupermagLog,errorAnswerSupermagLog, isExport
+                   
     FILTERS active(ol),            
             date(ol) >= dFrom,
             date(ol) <= dTo
@@ -73,7 +87,7 @@ FORM exportSupermag 'Экспорт в супермаг'
     FILTERGROUP open FILTER 'Открыт' isOpened(ol) 'F6'   
     
     OBJECTS l = SupermagLog
-    PROPERTIES (l) READONLY dateTime, userLogin, nameContact   
+    PROPERTIES (l) READONLY id, dateTime, userLogin, nameContact, dateTimeAnswer, errorAnswerFile, errorAnswer, textError
     FILTERS stockDocumentLedger(l)==ol
 ;
 DESIGN exportSupermag {
@@ -84,7 +98,7 @@ DESIGN exportSupermag {
                 fill = 1;
                 type = SPLITH;
                 MOVE BOX(ol){
-                    fill = 3;
+                    fill = 2;
                 }
                 MOVE BOX(l);
             }
@@ -111,3 +125,91 @@ NAVIGATOR {
         NEW exportSupermag;
     }
 }
+
+GROUP POSTOBJECT;
+GROUP TOTALPACKAGE;
+
+id = DATA LOCAL STRING();
+ERROR = DATA LOCAL STRING(INTEGER);
+POSTOBJECTERROR = DATA LOCAL INTEGER(INTEGER);
+ERROR1 = DATA LOCAL STRING(INTEGER);
+TOTALPACKAGEERROR1 = DATA LOCAL INTEGER(INTEGER);
+name = DATA LOCAL STRING();
+packageType = DATA LOCAL STRING();
+
+FORM REPLY
+PROPERTIES() name ATTR, packageType ATTR
+PROPERTIES() IN POSTOBJECT id EXTID 'Id'
+
+OBJECTS ERROR = INTEGER IN POSTOBJECT
+PROPERTIES(ERROR) ERROR EXTID 'value'
+
+OBJECTS ERROR1 = INTEGER EXTID 'ERROR' IN TOTALPACKAGE
+PROPERTIES(ERROR1) ERROR1 EXTID 'value';
+
+//-- В планировщик
+exported = DATA LOCAL NESTED BOOLEAN (StockDocumentLedger);
+
+exportSupermag'Экспорт в супермаг' () {   
+    FOR exported(StockDocumentLedger d) DO {
+        exportSupermag(d);
+    }
+}
+exportSupermag (DATE dt) {
+    IF exportDirectorySupermag() THEN {        
+        exported(StockDocumentLedger d) <- NULL;   
+        exported(StockDocumentLedger d) <- TRUE WHERE active(d) AND date(d)==dt;   
+        exportSupermag(); 
+    } ELSE {
+        MESSAGE 'Не задан путь для экспорта файлов в супермаг' NOWAIT;
+    }
+
+}
+
+importAnswer 'Импорт ответов из супермаг'()  { 
+    IF   exportDirectorySupermag() THEN {  
+        LOCAL importName = ISTRING[100] (INTEGER ); 
+        
+        fileName(INTEGER i)<- NULL;    
+        listFiles('file://' + exportDirectorySupermag());
+        
+        fileName(INTEGER i)<- NULL WHERE fileName(i) AND NOT isISubstring(fileName(i),'.Reply');    
+        importName(INTEGER i)<- ISTRING[100](replace(replace(upper(fileName(i)),'.REPLY',''), '.XML','')) WHERE fileName(i) ;    
+            
+        FOR importName(INTEGER j) AND NOT fileIsDirectory(j) AND supermagLog(importName(j)) == SupermagLog log  DO NEWSESSION NESTED (fileName[INTEGER], importName[INTEGER]) {
+            dateTimeAnswer(log) <- NULL;
+            errorAnswerFile(log) <- NULL;
+            errorAnswer(log) <- NULL;
+            textError(log) <- NULL;
+            LOCAL importFile = XMLFILE (); 
+            
+            TRY {
+                READ 'file://' + exportDirectorySupermag() + '/' + fileName(j) TO importFile;
+                IMPORT REPLY XML FROM importFile();
+            } CATCH {
+                dateTimeAnswer(log)<- currentDateTime();
+                errorAnswerFile(log) <- TRUE;
+                logToFile('supermagAnswer', CONCAT '\n', 'file://' + fileName(j) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                APPLY;
+                RETURN;    
+            }
+            dateTimeAnswer(log)<- currentDateTime();
+            IF (GROUP SUM 1 IF ERROR(INTEGER ii)) OR (GROUP SUM 1 IF ERROR1(INTEGER ii)) THEN {            
+                errorAnswer(log)<- TRUE;                      
+                textError(log) <- CONCAT '\n', (GROUP CONCAT ERROR(INTEGER ii) IF ERROR(ii), '\n'), 
+                                                (GROUP CONCAT ERROR1(INTEGER ii) IF ERROR1(ii), '\n');  
+            } 
+            APPLY NESTED (fileName[INTEGER], importName[INTEGER]); 
+          
+            delete('file://' + exportDirectorySupermag() + '/' + fileName(j));
+            fileName(j) <- NULL;
+            importName(j) <- NULL;                
+            
+        }
+    } ELSE {
+        MESSAGE 'Не задан путь для выгрузки в супермаг' NOWAIT ;
+    }
+}
+EXTEND FORM exportSupermag
+    PROPERTIES () importAnswer TOOLBAR DRAW l
+;

@@ -21,8 +21,8 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Продажи по кассе' IF i IS RetailSales EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS RetailSales EXTID 'action'      
     
-    PROPERTIES = STRING[100]('CSCSLSF'+LONG(i)) EXTID 'Id'
-    PROPERTIES = STRING[100]('CSLSF'+LONG(i)) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100]('CSCSLSF'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('CSLSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'CS' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS
@@ -38,7 +38,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES i1 = (sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                       
                            
     OBJECTS d = ReceiptSaleSkuLedger   EXTID 'SMSPEC' IN CS
-    PROPERTIES = STRING[100]('CSLSF'+LONG(stockDocumentLedger(d))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('CSLSF'+STRING[30](LONG(stockDocumentLedger(d)))) EXTID 'DOCID'    
     PROPERTIES = 'CS' IF d IS ReceiptSaleSkuLedger EXTID 'DOCTYPE'      
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = id(sku(d)) EXTID 'ARTICLE'                          
@@ -54,7 +54,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
             inc(i)                                         
                                                                            
     OBJECTS dd = ReceiptSaleSkuLedger   EXTID 'SMSPECTAX' IN CS
-    PROPERTIES = STRING[100]('CSLSF'+LONG(stockDocumentLedger(dd))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('CSLSF'+STRING[30](LONG(stockDocumentLedger(dd)))) EXTID 'DOCID'    
     PROPERTIES = 'CS' IF dd IS ReceiptSaleSkuLedger EXTID 'DOCTYPE'      
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS ReceiptSaleSkuLedger  EXTID 'TAXID'        
@@ -75,8 +75,8 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Возвраты по кассе' IF i IS RetailSales EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS RetailSales EXTID 'action'      
 
-    PROPERTIES = STRING[100]('CRCRLSF'+LONG(i)) EXTID 'Id'
-    PROPERTIES = STRING[100]('CRLSF'+LONG(i)) EXTID 'ID' IN SMDOCUMENTS1
+    PROPERTIES = STRING[100]('CRCRLSF'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('CRLSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS1
     PROPERTIES = 'CR' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS1    
     PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS1    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS1
@@ -92,7 +92,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES i1 = -(GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
 
     OBJECTS d = ReceiptReturnSkuLedger   EXTID 'SMSPEC' IN CR
-    PROPERTIES = STRING[100]('CRLSF'+LONG(stockDocumentLedger(d))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('CRLSF'+STRING[30](LONG(stockDocumentLedger(d)))) EXTID 'DOCID'    
     PROPERTIES = 'CR' IF d IS ReceiptReturnSkuLedger EXTID 'DOCTYPE'      
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = id(sku(d)) EXTID 'ARTICLE'                                  
@@ -108,7 +108,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
             inc(i)                                         
 
     OBJECTS dd = ReceiptReturnSkuLedger   EXTID 'SMSPECTAX' IN CR
-    PROPERTIES = STRING[100]('CRLSF'+LONG(stockDocumentLedger(dd))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('CRLSF'+STRING[30](LONG(stockDocumentLedger(dd)))) EXTID 'DOCID'    
     PROPERTIES = 'CR' IF dd IS ReceiptReturnSkuLedger EXTID 'DOCTYPE'      
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS ReceiptReturnSkuLedger  EXTID 'TAXID'        
@@ -124,10 +124,11 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
     IF (GROUP SUM 1 IF inc(RetailSales ii)) THEN{        
         TRY{
             EXPORT exportZReportMag XML TO System.exportFile;
-            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CS_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
-            fileExists('file://' + exportDirectorySupermag() + '/' + 'CS_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml');  
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml');  
             IF fileExists()  THEN NEWSESSION NESTED LOCAL {
                 FOR inc(RetailSales ii)  DO NEW log = SupermagLog {
+                    id(log)<- 'CS_' +STRING[30](LONG(ii))+(OVERRIDE seriesNumber(ii), '')+'_'+ formulaDateT(dt());
                     dateTime(log) <- currentDateTime();
                     userLogin(log) <- login(currentUser()); 
                     nameContact(log) <- STRING[100](name(currentUser()));
@@ -137,10 +138,11 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
             }  
             IF (GROUP SUM 1 IF inc(stockDocumentLedger(ReceiptReturnSkuLedger h)) AND h IS ReceiptReturnSkuLedger)THEN {
                 EXPORT exportZReportReturnMag XML TO System.exportFile;
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CR_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
-                fileExists('file://' + exportDirectorySupermag() + '/' + 'CR_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml');   
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CR_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+                fileExists('file://' + exportDirectorySupermag() + '/' + 'CR_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml');   
                 IF fileExists()  THEN NEWSESSION NESTED LOCAL {
                     FOR inc(RetailSales ii)  DO NEW log = SupermagLog {
+                        id(log)<- 'CR_' +STRING[30](LONG(ii))+(OVERRIDE seriesNumber(ii), '')+'_'+ formulaDateT(dt());
                         dateTime(log) <- currentDateTime();
                         userLogin(log) <- login(currentUser()); 
                         nameContact(log) <- STRING[100](name(currentUser()));
@@ -150,8 +152,8 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
                 }                     
             }           
         } CATCH {
-            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'CSCR_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-            MESSAGE  'Ошибка при экспорте CSCR_' +LONG(i)+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;                         
+            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'CSCR_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте CSCR_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;                         
         } 
     }      
     inc(RetailSales ii) <- NULL;      

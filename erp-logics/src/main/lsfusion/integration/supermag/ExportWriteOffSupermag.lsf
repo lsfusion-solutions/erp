@@ -30,8 +30,8 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Расходная накладная' IF i IS WriteOff.WriteOff EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS WriteOff.WriteOff EXTID 'action'      
     
-    PROPERTIES = STRING[100]('WOLSF'+LONG(i)) EXTID 'Id'
-    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100]('WOLSF'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'WO' IF i IS WriteOff.WriteOff EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(stock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = id(legalEntity(stock(i))) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
@@ -50,7 +50,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
        
                            
     OBJECTS d = WriteOff.WriteOffDetail   EXTID 'SMSPEC' IN WO
-    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(d))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(writeOff(d)))) EXTID 'DOCID'    
     PROPERTIES = 'WO' IF d IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
@@ -66,14 +66,14 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
             inc(i)                                         
                                                                           
     //-- сама накладная
-    PROPERTIES = STRING[100]('LSF'+LONG(i)) EXTID 'ID' IN SMWAYBILLSOUT      
+    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMWAYBILLSOUT      
     PROPERTIES = 'WO' IF i IS WriteOff.WriteOff EXTID 'DOCTYPE' IN SMWAYBILLSOUT 
     PROPERTIES = (CONCAT ' ',number(i),series(i)) EXTID 'INVOICE' IN SMWAYBILLSOUT                               
     PROPERTIES = id(legalEntity(stock(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT        
     PROPERTIES = 0 IF i IS WriteOff.WriteOff EXTID 'PAYCASH' IN SMWAYBILLSOUT     
  
     OBJECTS dd = WriteOff.WriteOffDetail   EXTID 'SMSPECTAX' IN WO
-    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(dd))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(writeOff(dd)))) EXTID 'DOCID'    
     PROPERTIES = 'WO' IF dd IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS WriteOff.WriteOffDetail  EXTID 'TAXID'        
@@ -82,7 +82,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     FILTERS writeOff(dd)==i   
      
     OBJECTS a = WriteOff.WriteOffDetail   EXTID 'SMSPECBY' IN WO
-    PROPERTIES = STRING[100]('LSF'+LONG(writeOff(a))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(writeOff(a)))) EXTID 'DOCID'    
     PROPERTIES = 'WO' IF a IS WriteOff.WriteOffDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(a) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF a IS WriteOff.WriteOffDetail EXTID 'EXTRACHARGE'  
@@ -99,10 +99,11 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
     IF (GROUP SUM 1 IF inc(WriteOff ii)) THEN{    
         TRY{
             EXPORT exportWriteOffMag XML TO System.exportFile;
-            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
-            fileExists('file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
             IF fileExists()  THEN NEWSESSION NESTED LOCAL {
                 FOR inc(WriteOff ii)  DO NEW log = SupermagLog {
+                    id(log)<- 'WO_' +STRING[30](LONG(ii))+'_'+(OVERRIDE seriesNumber(ii), '')+'_'+ formulaDateT(dt());  
                     dateTime(log) <- currentDateTime();
                     userLogin(log) <- login(currentUser()); 
                     nameContact(log) <- STRING[100](name(currentUser()));
@@ -112,8 +113,8 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
             }             
                  
         } CATCH {
-            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-            MESSAGE  'Ошибка при экспорте WO_' +LONG(i)+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
+            logToFile('supermag', CONCAT '\n', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
         } 
     }   
     inc(WriteOff ii) <- NULL;
