@@ -1,6 +1,6 @@
 MODULE ExportCSO;
 
-REQUIRE Image, ExportCSOCustom, Store, Range, StopList;
+REQUIRE Image, ExportCSOCustom, Store, Range, StopList, Pricing;
 
 
 //----------------------------- Экспорт в КСО -----------------------//
@@ -101,7 +101,7 @@ inFilter = DATA LOCAL NESTED BOOLEAN (CustomGroupType);
 inFilter = DATA LOCAL NESTED BOOLEAN (Item);
 activeIndex (Item i, CustomGroupType type) = PARTITION SUM 1 IF customGroup(type, i) AND inFilter(i) ORDER name(i),i BY type;
 
-filterCSO (DepartmentStore ds, Item i) = customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND 
+filterCSO (DepartmentStore ds, Item i) = customGroup(customGroupType(ds), i) AND (passScales(i) OR split(i)) AND currentRetailPricingPrice(i,ds) AND
     (countRange(i,ds,currentDate()) OR (active(i) AND currentBalance(i,ds)>0.0)) AND NOT inStopList(i, ds, currentDateTime());
 
 FORM ArticleHierarchyObject FORMEXTID 's=http://schemas.xmlsoap.org/soap/envelope/:Envelope'  
