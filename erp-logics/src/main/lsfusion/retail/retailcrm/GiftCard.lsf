@@ -53,15 +53,11 @@ namePaymentType 'Тип платежа' = ABSTRACT ISTRING[110] (GiftCardLedger)
 currentBalance 'Текущий остаток' = GROUP SUM signedSum(GiftCardLedger ledger) BY giftCard(ledger);
 
 // без учета текущей даты/времени
-balanceB 'Остаток (до)' (GiftCard g, DATETIME dateTime) = currentBalance(g)
-                                                                          (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) >= dateTime
-                                                                                     BY giftCard(ledger)](g) CHARWIDTH 7;
+balanceB 'Остаток (до)'  = GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) < DATETIME dateTime BY giftCard(ledger), dateTime CHARWIDTH 7;
 prevBalanceB 'Остаток (до)' (GiftCard g, DATETIME dateTime) = PREV(balanceB(g, dateTime) IF dateTime IS DATETIME);
 
 // с учетом текущей даты/времени
-balanceA 'Остаток (после)' (GiftCard g, DATETIME dateTime) = currentBalance(g)
-                                                                         (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) > dateTime
-                                                                                    BY giftCard(ledger)](g) CHARWIDTH 7;
+balanceA 'Остаток (после)' = GROUP SUM signedSum(GiftCardLedger ledger) IF dateTime(ledger) <= DATETIME dateTime BY giftCard(ledger), dateTime CHARWIDTH 7;
 prevBalanceA 'Остаток (после)' (GiftCard g, DATETIME dateTime) = PREV(balanceA(g, dateTime) IF dateTime IS DATETIME);
 
 balanceB 'Остаток (до)' (GiftCardLedger l) = balanceB(giftCard(l),dateTime(l));
@@ -69,15 +65,11 @@ balanceA 'Остаток (после)' (GiftCardLedger l) = balanceA(giftCard(l)
 
 //--
 // без учета текущей даты/времени
-balanceB 'Остаток (до)' (GiftCard g, DATE date) = currentBalance(g)
-                                                                          (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) >= date
-                                                                                     BY giftCard(ledger)](g) CHARWIDTH 7;
+balanceB 'Остаток (до)' = GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) < DATE date BY giftCard(ledger), date CHARWIDTH 7;
 prevBalanceB 'Остаток (до)' (GiftCard g, DATE date) = PREV(balanceB(g, date) IF date IS DATE);
 
 // с учетом текущей даты/времени
-balanceA 'Остаток (после)' (GiftCard g, DATE date) = currentBalance(g)
-                                                                         (-) [ GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) > date
-                                                                                    BY giftCard(ledger)](g) CHARWIDTH 7;
+balanceA 'Остаток (после)'= GROUP SUM signedSum(GiftCardLedger ledger) IF date(ledger) <= DATE date BY giftCard(ledger), date CHARWIDTH 7;
 prevBalanceA 'Остаток (после)' (GiftCard g, DATE date) = PREV(balanceA(g, date) IF date IS DATE);
 
 
