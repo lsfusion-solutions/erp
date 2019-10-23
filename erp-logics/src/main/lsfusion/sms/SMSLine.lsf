@@ -8,6 +8,7 @@ urlSMSLine 'SMSLine URL' = DATA STRING[255]();
 urlSMSLineCallback 'URL для отправки статусов' = DATA STRING[255]();
 usernameSMSLine 'Пользователь' = DATA STRING[255]();
 passwordAPISMSLine 'Пароль для API' = DATA STRING[255]() ECHO;
+getID = FORMULA LONG '$1';
 
 EXTEND FORM integrationData
     PROPERTIES() urlSMSLine, urlSMSLineCallback, usernameSMSLine, passwordAPISMSLine
@@ -403,7 +404,7 @@ textDispatch (Dispatch d) =
 textDispatch (Dispatch d, DiscountCard c) =
     TEXT(CONCAT '', '\{',
                         '"msisdn": "' + phoneLegalEntity(c) + '",',
-                        '"external_id": "' + TEXT(d) + '_' + TEXT(c) +'",',
+                        '"external_id": "' + TEXT(getID(d)) + '_' + TEXT(getID(c)) +'",',
                         '"callback_url": "' + urlSMSLineCallback() + '",',
                         '"channels": [',
                             '\{',
@@ -583,7 +584,7 @@ getStatus (FILE file) {
     name() <- NULL;
     date_time() <- NULL;
     IMPORT importMessage JSON FROM file;
-    FOR Dispatch dd IS Dispatch AND TEXT(dd) == getWord(external_id(),'_',1) AND DiscountCard dc IS DiscountCard AND TEXT(dc) == getWord(external_id(),'_',2) DO {
+    FOR Dispatch dd IS Dispatch AND getID(dd) == LONG(getWord(external_id(),'_',1)) AND DiscountCard dc IS DiscountCard AND getID(dc) == LONG(getWord(external_id(),'_',2)) DO {
         state(dd,dc) <- state();
         name(dd,dc) <- name();
         dateTime(dd,dc) <- date_time();
