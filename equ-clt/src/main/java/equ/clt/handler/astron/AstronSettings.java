@@ -9,6 +9,9 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class AstronSettings implements Serializable {
     private Integer timeout;
     public String groupMachineries = null;
+    private String cashPayments;
+    private String cardPayments;
+    private String giftCardPayments;
 
     //если true, то выгружаем таблицы prclevel, sarea
     private boolean exportExtraTables;
@@ -71,5 +74,29 @@ public class AstronSettings implements Serializable {
 
     public void setExportSAreaPrc(boolean exportSAreaPrc) {
         this.exportSAreaPrc = exportSAreaPrc;
+    }
+
+    public String getCashPayments() {
+        return cashPayments;
+    }
+
+    public void setCashPayments(String cashPayments) {
+        this.cashPayments = cashPayments;
+    }
+
+    public String getCardPayments() {
+        return cardPayments;
+    }
+
+    public void setCardPayments(String cardPayments) {
+        this.cardPayments = cardPayments;
+    }
+
+    public String getGiftCardPayments() {
+        return giftCardPayments;
+    }
+
+    public void setGiftCardPayments(String giftCardPayments) {
+        this.giftCardPayments = giftCardPayments;
     }
 }

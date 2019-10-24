@@ -985,6 +985,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
 
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
+        Set<Integer> cashPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCashPayments());
+        Set<Integer> cardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCardPayments());
+        Set<Integer> giftCardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getGiftCardPayments());
+
         checkExtraColumns(conn, params);
         createFusionProcessedIndex(conn, params);
         createSalesIndex(conn, params);
@@ -1032,6 +1037,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                 String nameEmployee = rs.getString("CASHIERNAME");
                 Integer type = rs.getInt("SALESTYPE");
+                if(cashPayments.contains(type))
+                    type = 0;
+                else if(cardPayments.contains(type))
+                    type = 1;
+                else if(giftCardPayments.contains(type))
+                    type = 2;
                 boolean isWeight = type == 0 || type == 2;
 
                 Integer recordType = rs.getInt("SALESTAG");
@@ -1331,5 +1342,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     protected String getSalesRefundField() {
         return "SALESREFUND";
+    }
+
+    private Set<Integer> parsePayments(String payments) {
+        Set<Integer> paymentsSet = new HashSet<>();
+        try {
+            if (payments != null && !payments.isEmpty()) {
+                for (String payment : payments.split(",")) {
+                    paymentsSet.add(Integer.parseInt(payment.trim()));
+                }
+            }
+        } catch (Exception e) {
+            sendSalesLogger.error(logPrefix + "invalid payment settings: " + payments);
+        }
+        return paymentsSet;
     }
 }
