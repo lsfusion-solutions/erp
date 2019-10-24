@@ -13,12 +13,8 @@ public class AstronSettings implements Serializable {
     private String cardPayments;
     private String giftCardPayments;
 
-    //если true, то выгружаем таблицы prclevel, sarea
+    //если true, то выгружаем таблицы prclevel, sarea, sareaprc
     private boolean exportExtraTables;
-
-    //только для pgsql
-    //если true и exportExtraTables, то выгружаем таблицу sareaprc
-    private boolean exportSAreaPrc;
 
     public AstronSettings() {
     }
@@ -66,14 +62,6 @@ public class AstronSettings implements Serializable {
 
     public void setExportExtraTables(boolean exportExtraTables) {
         this.exportExtraTables = exportExtraTables;
-    }
-
-    public boolean isExportSAreaPrc() {
-        return exportSAreaPrc;
-    }
-
-    public void setExportSAreaPrc(boolean exportSAreaPrc) {
-        this.exportSAreaPrc = exportSAreaPrc;
     }
 
     public String getCashPayments() {

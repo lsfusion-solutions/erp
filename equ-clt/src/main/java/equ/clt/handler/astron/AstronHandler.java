@@ -67,7 +67,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Integer timeout = astronSettings == null || astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
             Map<Integer, Integer> groupMachineryMap = astronSettings == null ? new HashMap<>() : astronSettings.getGroupMachineryMap();
             boolean exportExtraTables = astronSettings != null && astronSettings.isExportExtraTables();
-            boolean exportSAreaPrc = astronSettings != null && astronSettings.isExportSAreaPrc();
 
             for (TransactionCashRegisterInfo transaction : transactionList) {
 
@@ -95,7 +94,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
                         String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") +
-                                (exportExtraTables ? ", 'PRCLEVEL', 'SAREA'" + (exportSAreaPrc ? ", 'SAREAPRC'" : "") : "");
+                                (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
                         int flags = checkFlags(conn, params, tables);
                         if (flags > 0) {
@@ -143,10 +142,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     exportPrcLevel(conn, params, transaction);
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
                                     exportSArea(conn, params, transaction);
-                                    if(exportSAreaPrc) {
-                                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
-                                        exportSAreaPrc(conn, params, transaction);
-                                    }
+                                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
+                                    exportSAreaPrc(conn, params, transaction);
                                 }
 
                                 if(extGrpId != null) {
