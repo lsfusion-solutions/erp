@@ -481,12 +481,61 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
         LOCAL file = TEXT();
         LOCAL result = FILE();
         
-        TRY {
             IF isMulti(d) THEN {
+                isSend(d) <- TRUE;
                 FOR in(d, DiscountCard c) AND phoneLegalEntity(c) DO {
-                    file() <- textDispatch(d,c);
+                    TRY {
+                        file() <- textDispatch(d,c);
+                        stringToFile(file(),'UTF-8','json');
+                        createSignature(d,c);
+                        logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
+                        
+                        EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
+                        logToFile('SMSLine', result());
+                        
+                        external_id(INTEGER i) <- NULL;
+                        msisdn(INTEGER i) <- NULL;
+                        state(INTEGER i) <- NULL;
+                        name(INTEGER i) <- NULL;
+                        date_time(INTEGER i) <- NULL;
+                        code(INTEGER i) <- NULL;
+                        message(INTEGER i) <- NULL;
+                        
+                        IMPORT importMessages JSON FROM result();
+                        
+                        IF code(0) AND message(0) THEN {
+                            state(d,c) <- code(0);
+                            name(d,c) <- message(0);
+                            dateTime(d,c) <- currentDateTime();
+                        }
+                        FOR DiscountCard dc == [GROUP MAX DiscountCard cc IF phoneLegalEntity(cc) == msisdn(INTEGER j) AND in(d,cc) BY j](INTEGER i) DO {
+                            state(d,dc) <- state(i);
+                            name(d,dc) <- name(i);
+                            dateTime(d,dc) <- date_time(i);
+                        }
+                    } CATCH {
+                        code() <- NULL;
+                        message() <- NULL;
+                        
+                        logToFile('SMSLine', messageCaughtException());
+                        logToFile('SMSLine', result());
+                        IMPORT importError JSON FROM result();
+                        IF code() THEN NEW e = DispatchError {
+                            state(d,c) <- code();
+                            name(d,c) <- message();
+                            dateTime(d,c) <- currentDateTime();
+                            code(e) <- code();
+                            message(e) <- message();
+                            dateTime(e) <- currentDateTime();
+                            in(d,e) <- TRUE;
+                        }
+                    }
+                }
+            } ELSE {
+                TRY {
+                    file() <- textDispatch(d);
                     stringToFile(file(),'UTF-8','json');
-                    createSignature(d,c);
+                    createSignature(d);
                     logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
                     
                     EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
@@ -503,64 +552,33 @@ sendDispatch 'Отправить рассылку' (Dispatch d) {
                     IMPORT importMessages JSON FROM result();
                     
                     IF code(0) AND message(0) THEN {
-                        state(d,c) <- code(0);
-                        name(d,c) <- message(0);
-                        dateTime(d,c) <- currentDateTime();
+                        FOR in(d, DiscountCard c) DO {
+                            state(d,c) <- code(0);
+                            name(d,c) <- message(0);
+                            dateTime(d,c) <- currentDateTime();
+                        }
                     }
-                    FOR DiscountCard dc == [GROUP MAX DiscountCard cc IF phoneLegalEntity(cc) == msisdn(INTEGER j) AND in(d,cc) BY j](INTEGER i) DO {
+                    FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(d,c) BY j](INTEGER i) DO {
                         state(d,dc) <- state(i);
                         name(d,dc) <- name(i);
                         dateTime(d,dc) <- date_time(i);
                     }
-                }
-                isSend(d) <- TRUE;
-            } ELSE {
-                file() <- textDispatch(d);
-                stringToFile(file(),'UTF-8','json');
-                createSignature(d);
-                logToFile('SMSLine', 'POST:' + 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) + '\n' + file());
-                
-                EXTERNAL HTTP POST 'https://' + urlSMSLine() + '/v3' + url(communicationChannel(d)) HEADERS httpHeaders PARAMS resultFile() TO result;
-                logToFile('SMSLine', result());
-                
-                external_id(INTEGER i) <- NULL;
-                msisdn(INTEGER i) <- NULL;
-                state(INTEGER i) <- NULL;
-                name(INTEGER i) <- NULL;
-                date_time(INTEGER i) <- NULL;
-                code(INTEGER i) <- NULL;
-                message(INTEGER i) <- NULL;
-                
-                IMPORT importMessages JSON FROM result();
-                
-                IF code(0) AND message(0) THEN {
-                    FOR in(d, DiscountCard c) DO {
-                        state(d,c) <- code(0);
-                        name(d,c) <- message(0);
-                        dateTime(d,c) <- currentDateTime();
+                    isSend(d) <- TRUE;
+                } CATCH {
+                    code() <- NULL;
+                    message() <- NULL;
+                    
+                    logToFile('SMSLine', messageCaughtException());
+                    logToFile('SMSLine', result());
+                    IMPORT importError JSON FROM result();
+                    IF code() THEN NEW e = DispatchError {
+                        code(e) <- code();
+                        message(e) <- message();
+                        dateTime(e) <- currentDateTime();
+                        in(d,e) <- TRUE;
                     }
                 }
-                FOR DiscountCard dc == [GROUP MAX DiscountCard c IF phoneLegalEntity(c) == msisdn(INTEGER j) AND in(d,c) BY j](INTEGER i) DO {
-                    state(d,dc) <- state(i);
-                    name(d,dc) <- name(i);
-                    dateTime(d,dc) <- date_time(i);
-                }
-                isSend(d) <- TRUE;
             }
-        } CATCH {
-            code() <- NULL;
-            message() <- NULL;
-            
-            logToFile('SMSLine', messageCaughtException());
-            logToFile('SMSLine', result());
-            IMPORT importError JSON FROM result();
-            IF code() THEN NEW e = DispatchError {
-                code(e) <- code();
-                message(e) <- message();
-                dateTime(e) <- currentDateTime();
-                in(d,e) <- TRUE;
-            }
-        }
         APPLY;  
     }
 }
