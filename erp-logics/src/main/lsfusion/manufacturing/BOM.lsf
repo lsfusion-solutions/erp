@@ -15,6 +15,7 @@ REQUIRE EmployeeStock,
 dataComponent 'Сырье' = DATA BOOLEAN (SkuGroup);
 countDataComponentSkuGroup () = GROUP SUM 1 IF dataComponent(SkuGroup g);
 
+dataComponent 'Сырье' = DATA BOOLEAN (Sku);
 levelParentComponent (SkuGroup skuGroup) = GROUP
                                                               MIN level(skuGroup, SkuGroup parent) IF dataComponent(parent) MATERIALIZED;    
 nearestParentComponent (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentComponent(skuGroup));
@@ -22,6 +23,9 @@ nearestComponent (SkuGroup skuGroup) = dataComponent( nearestParentComponent (sk
 component 'Сырье' (SkuGroup skuGroup) =
     OVERRIDE dataComponent(skuGroup), 
              nearestComponent (skuGroup) MATERIALIZED;    
+component 'Сырье' (Sku s) = OVERRIDE dataComponent(s), component(skuGroup(s)) MATERIALIZED;      
+countComponentSku () = GROUP SUM 1 IF component(Sku g); 
+    
 filterComponent (SkuGroup parent) = GROUP SUM 1 IF component(SkuGroup group) AND isParent(group, parent);
                
 quantityChildWithComponent (SkuGroup group) = GROUP SUM 1 IF dataComponent(SkuGroup childGroup) AND isParent(childGroup, group) MATERIALIZED;
@@ -36,6 +40,7 @@ backgroundComponent 'Цвет' (SkuGroup group) = CASE
 
 dataProduct 'Готовые изделия' = DATA BOOLEAN (SkuGroup);
 countDataProductSkuGroup () = GROUP SUM 1 IF dataProduct(SkuGroup g);
+dataProduct 'Готовые изделия' = DATA BOOLEAN (Sku);
 
 levelParentProduct (SkuGroup skuGroup) = GROUP
                                                               MIN level(skuGroup, SkuGroup parent) IF dataProduct(parent) MATERIALIZED;    
@@ -44,7 +49,8 @@ nearestProduct (SkuGroup skuGroup) = dataProduct( nearestParentProduct (skuGroup
 product 'Готовые изделия' (SkuGroup skuGroup) =
     OVERRIDE dataProduct(skuGroup), 
              nearestProduct (skuGroup) MATERIALIZED; 
-
+product 'Готовые изделия' (Sku s) = OVERRIDE dataProduct(s), product(skuGroup(s)) MATERIALIZED;      
+countProductSku () = GROUP SUM 1 IF product(Sku g); 
 filterProduct (SkuGroup parent) = GROUP SUM 1 IF product(SkuGroup group) AND isParent(group, parent);
 
 quantityChildWithProduct (SkuGroup group) = GROUP SUM 1 IF dataProduct(SkuGroup childGroup) AND isParent(childGroup, group) MATERIALIZED;
@@ -60,19 +66,33 @@ EXTEND FORM options
     PROPERTIES(sk) READONLY order, name
     PROPERTIES(sk) component BACKGROUND backgroundComponent(sk), product BACKGROUND backgroundProduct(sk)
     ORDER order(sk), name(sk)
-    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT 
+    
+    OBJECTS skk = Sku
+    PROPERTIES (skk) READONLY id, idBarcode, name, component CHANGEABLE, product CHANGEABLE 
+    FILTERGROUP inactivek FILTER 'Активные' active(skk) 'F5' DEFAULT 
+    FILTERGROUP component FILTER 'Сырье' component(skk) 
+    FILTERGROUP product FILTER 'Готовые изделия' product(skk)      
+    
+    FILTERS isParent(sk,skk), active(skk) 
 ;
 DESIGN options {
     pane {
         NEW manufacturing {
             caption = 'Производство';
-            MOVE BOX(TREE skuTree);
+            NEW manTop{
+                fill = 1;
+                type = SPLITH;
+                MOVE BOX(TREE skuTree);
+                MOVE BOX(skk){ fill = 2;}
+            }
+            
         }
     }
 }
 
-isComponentGroup 'Фильтр сырье (группа)' (Sku sku) = component(Stock.skuGroup(sku)) OR (sku IS Sku AND NOT countDataComponentSkuGroup ());
-isProductGroup 'Фильтр готовые изделия (группа)' (Sku sku) = product(Stock.skuGroup(sku))  OR (sku IS Sku AND NOT countDataProductSkuGroup ());
+isComponentGroup 'Фильтр сырье (группа)' (Sku sku) = component(sku) OR (sku IS Sku AND NOT countComponentSku());
+isProductGroup 'Фильтр готовые изделия (группа)' (Sku sku) = product(sku)  OR (sku IS Sku AND NOT countProductSku ());
 
 // ---------------- Материалы ------------------- //
 CLASS ABSTRACT Material 'Материал';
