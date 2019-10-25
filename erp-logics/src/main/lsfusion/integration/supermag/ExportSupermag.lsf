@@ -35,16 +35,18 @@ errorAnswerFileSupermagLog 'Ошибка файла' = errorAnswerFile(lastSuper
 errorAnswerSupermagLog 'Ошибка обработки' = errorAnswer(lastSupermagLog (StockDocumentLedger l));   
     
 exportDirectorySupermag 'Путь для экспорта файлов в супермаг' = DATA STRING[500] ();
+exportDirectorySupermagReturn 'Путь для ответов о состояни загрузки в супермаг' = DATA STRING[500] ();
 
 EXTEND FORM integrationData 
-    PROPERTIES() exportDirectorySupermag
+    PROPERTIES() exportDirectorySupermag, exportDirectorySupermagReturn
 ;
 
 DESIGN integrationData {
     pane {
         NEW supermag {
             caption = 'Супермаг документы';
-            MOVE PROPERTY (exportDirectorySupermag());        
+            MOVE PROPERTY (exportDirectorySupermag());  
+            MOVE PROPERTY (exportDirectorySupermagReturn());        
         }
     }
 }
@@ -167,11 +169,11 @@ exportSupermag (DATE dt) {
 }
 
 importAnswer 'Импорт ответов из супермаг'()  { 
-    IF   exportDirectorySupermag() THEN {  
+    IF   exportDirectorySupermagReturn() THEN {  
         LOCAL importName = ISTRING[100] (INTEGER ); 
         
         fileName(INTEGER i)<- NULL;    
-        listFiles('file://' + exportDirectorySupermag());
+        listFiles('file://' + exportDirectorySupermagReturn());
         
         fileName(INTEGER i)<- NULL WHERE fileName(i) AND NOT isISubstring(fileName(i),'.Reply');    
         importName(INTEGER i)<- ISTRING[100](replace(replace(upper(fileName(i)),'.REPLY',''), '.XML','')) WHERE fileName(i) ;    
@@ -184,7 +186,7 @@ importAnswer 'Импорт ответов из супермаг'()  {
             LOCAL importFile = XMLFILE (); 
             
             TRY {
-                READ 'file://' + exportDirectorySupermag() + '/' + fileName(j) TO importFile;
+                READ 'file://' + exportDirectorySupermagReturn() + '/' + fileName(j) TO importFile;
                 IMPORT REPLY XML FROM importFile();
             } CATCH {
                 dateTimeAnswer(log)<- currentDateTime();
@@ -201,7 +203,7 @@ importAnswer 'Импорт ответов из супермаг'()  {
             } 
             APPLY NESTED (fileName[INTEGER], importName[INTEGER]); 
           
-            delete('file://' + exportDirectorySupermag() + '/' + fileName(j));
+            delete('file://' + exportDirectorySupermagReturn() + '/' + fileName(j));
             fileName(j) <- NULL;
             importName(j) <- NULL;                
             
