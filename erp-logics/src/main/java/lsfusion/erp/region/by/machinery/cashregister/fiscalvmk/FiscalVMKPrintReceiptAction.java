@@ -39,10 +39,10 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
       
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
-            DataObject zReportObject = (DataObject) findProperty("zReport[Receipt]").readClasses(context, receiptObject);
 
             String fiscalVMKReceiptTop = (String) findProperty("fiscalVMKTop[Receipt]").read(context, receiptObject);
             String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKBottom[Receipt]").read(context, receiptObject);
+            String fiscalVMKExtraReceipt = (String) findProperty("fiscalVMKExtraReceipt[Receipt]").read(context, receiptObject);
             String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
 
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
@@ -179,7 +179,7 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(isUnix, logPath, ip, comPort, baudRate,
                             new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText,
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, fiscalVMKExtraReceipt, giftCardAsNotPayment, giftCardAsNotPaymentText,
                             giftCardDepartment, giftCardPaymentType, chargeDepartment, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);

@@ -15,6 +15,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBottom;
+    String extraReceipt;
     boolean giftCardAsNotPayment;
     String giftCardAsNotPaymentText;
     Integer giftCardDepartment;
@@ -25,13 +26,14 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     String machineryNumber;
 
     public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
-                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
-                                             String giftCardAsNotPaymentText, Integer giftCardDepartment, Integer giftCardPaymentType,
-                                             Integer chargeDepartment, String UNP, String regNumber, String machineryNumber) {
+                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, String extraReceipt,
+                                             boolean giftCardAsNotPayment, String giftCardAsNotPaymentText, Integer giftCardDepartment,
+                                             Integer giftCardPaymentType, Integer chargeDepartment, String UNP, String regNumber, String machineryNumber) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
+        this.extraReceipt = extraReceipt;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
         this.giftCardAsNotPaymentText = giftCardAsNotPaymentText;
         this.giftCardDepartment = giftCardDepartment;
@@ -200,6 +202,11 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
             if (!FiscalVMK.totalCash(receipt.sumCash))
                 return null;
 
+        }
+
+        if (extraReceipt != null) {
+            FiscalVMK.printMultilineFiscalText(extraReceipt);
+            FiscalVMK.printHeaderReceipt();
         }
 
         return receiptNumber;

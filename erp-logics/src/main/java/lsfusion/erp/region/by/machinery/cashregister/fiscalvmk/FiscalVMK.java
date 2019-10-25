@@ -63,6 +63,8 @@ public class FiscalVMK {
 
         Boolean vmk_prnch(byte[] message);
 
+        Boolean vmk_prnbeg();
+
         Boolean vmk_repeat();
 
         Boolean vmk_oplat(Integer type, Double sum, Integer flagByte);
@@ -218,6 +220,11 @@ public class FiscalVMK {
             e.printStackTrace(); 
             return false;
         }
+    }
+
+    public static boolean printHeaderReceipt() {
+        logAction("vmk_prnbeg");
+        return vmkDLL.vmk.vmk_prnbeg();
     }
 
     public static boolean repeatReceipt() {
