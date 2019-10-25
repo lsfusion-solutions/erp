@@ -92,6 +92,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     }
 
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
+        boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
+
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -113,7 +116,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 String packageType = isWeight ? "0" : "2";
                 String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
 
-                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, item.idBarcode, barcodePrefix, name1, price,
+                Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, price,
                         unitID, "7", freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
             }
 
