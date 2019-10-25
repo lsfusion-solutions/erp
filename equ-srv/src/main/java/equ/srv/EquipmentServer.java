@@ -45,6 +45,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -88,6 +89,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
     private ScriptingLogicsModule machineryPriceTransactionBalanceLM;
+    private ScriptingLogicsModule machineryPriceTransactionPartLM;
     private ScriptingLogicsModule machineryPriceTransactionPromotionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
@@ -154,6 +156,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
         machineryPriceTransactionBalanceLM = getBusinessLogics().getModule("MachineryPriceTransactionBalance");
+        machineryPriceTransactionPartLM = getBusinessLogics().getModule("MachineryPriceTransactionPart");
         machineryPriceTransactionPromotionLM = getBusinessLogics().getModule("MachineryPriceTransactionPromotion");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
@@ -933,7 +936,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     }
 
                     if (options.maxThreads == null || options.maxThreads <= 1)
-                        return importSalesInfoSingleThread(stack, sidEquipmentServer, directory, salesInfoList);
+                        return importSalesInfoSingleThread(stack, sidEquipmentServer, directory, salesInfoList, options);
                     else {
                         return importSalesInfoMultiThread(stack, sidEquipmentServer, directory, salesInfoList, options);
                     }
@@ -1409,14 +1412,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfoSingleThread(ExecutionStack stack, String sidEquipmentServer, String directory, List<SalesInfo> salesInfoList) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private String importSalesInfoSingleThread(ExecutionStack stack, String sidEquipmentServer, String directory, List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         for (int start = 0; true;) {
 
             try (DataSession session = createSession()) {
 
-                EquipmentServerOptions options = readEquipmentServerOptions(sidEquipmentServer, session);
-                if (options.numberAtATime == null) {
-                    options.numberAtATime = salesInfoList.size();
+                if(start > 0) {
+                    options = readEquipmentServerOptions(sidEquipmentServer, session);
+                    if (options.numberAtATime == null) {
+                        options.numberAtATime = salesInfoList.size();
+                    }
                 }
 
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
@@ -2189,6 +2194,98 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return result;
     }
 
+    private Map<String, DataObject> readPartedBarcodes(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, DataObject> result = new HashMap<>();
+        if(machineryPriceTransactionPartLM != null) {
+            KeyExpr barcodeExpr = new KeyExpr("Barcode");
+            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
+            QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
+
+            barcodeQuery.addProperty("id", machineryPriceTransactionPartLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("hasSet[Barcode]").getExpr(barcodeExpr).getWhere());
+
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> barcodeResult = barcodeQuery.executeClasses(session);
+            for (int i = 0; i < barcodeResult.size(); i++) {
+                DataObject barcodeObject = barcodeResult.getKey(i).get("barcode");
+                String idBarcode = (String) barcodeResult.getValue(i).get("id").getValue();
+                result.put(idBarcode, barcodeObject);
+            }
+        }
+        return result;
+    }
+
+    private List<BarcodePart> readBarcodeParts(DataSession session, DataObject barcodeObject, SalesInfo sale)
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<BarcodePart> result = new ArrayList<>();
+        if(machineryPriceTransactionPartLM != null) {
+            KeyExpr barcodeExpr = new KeyExpr("Barcode");
+            KeyExpr partExpr = new KeyExpr("Part");
+            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.toRevMap("barcode", barcodeExpr, "part", partExpr);
+            QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
+
+            barcodeQuery.addProperty("id", machineryPriceTransactionPartLM.findProperty("idBarcodePart[Barcode,Part]").getExpr(barcodeExpr, partExpr));
+            barcodeQuery.addProperty("quantity", machineryPriceTransactionPartLM.findProperty("quantityPart[Barcode,Part]").getExpr(barcodeExpr, partExpr));
+            barcodeQuery.addProperty("price", machineryPriceTransactionPartLM.findProperty("pricePart[Barcode,INTEGER,Part]").getExpr(barcodeExpr, new DataObject(sale.nppGroupMachinery).getExpr(), partExpr));
+            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("idBarcodePart[Barcode,Part]").getExpr(barcodeExpr, partExpr).getWhere());
+            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("quantityPart[Barcode,Part]").getExpr(barcodeExpr, partExpr).getWhere());
+            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("pricePart[Barcode,INTEGER,Part]").getExpr(barcodeExpr, new DataObject(sale.nppGroupMachinery).getExpr(), partExpr).getWhere());
+            barcodeQuery.and(barcodeExpr.compare(barcodeObject.getExpr(), Compare.EQUALS));
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
+            BigDecimal currentSum = BigDecimal.ZERO;
+            int i = 1;
+            for (ImMap<Object, Object> barcodeEntry : barcodeResult.valueIt()) {
+                String id = (String) barcodeEntry.get("id");
+                BigDecimal quantity = safeMultiply((BigDecimal) barcodeEntry.get("quantity"), sale.quantityReceiptDetail);
+                BigDecimal price = (BigDecimal) barcodeEntry.get("price");
+
+                BigDecimal sum = safeMultiply(quantity, price);
+                currentSum = safeAdd(currentSum, sum);
+
+                result.add(new BarcodePart(i++, id, quantity, price, sum));
+            }
+
+            //если сумма не совпала, докидываем разницу на первую часть
+            BigDecimal diff = safeSubtract(sale.sumReceiptDetail, currentSum);
+            if(!result.isEmpty() && diff != null && diff.compareTo(BigDecimal.ZERO) > 0) {
+                result.get(0).sum = safeAdd(result.get(0).sum, diff);
+            }
+
+            //распределяем сумму скидки по частям
+            BigDecimal currentDiscountSum = BigDecimal.ZERO;
+            for(BarcodePart barcodePart : result) {
+                BigDecimal discountSum = safeDivide(safeMultiply(sale.discountSumReceiptDetail, barcodePart.sum), sale.sumReceiptDetail, 2);
+                currentDiscountSum = safeAdd(currentDiscountSum, discountSum);
+                barcodePart.discountSum = discountSum;
+            }
+
+            //если сумма скидки не совпала, докидываем разницу на первую часть
+            BigDecimal discountDiff = safeSubtract(sale.discountSumReceiptDetail, currentDiscountSum);
+            if(!result.isEmpty() && discountDiff != null && discountDiff.compareTo(BigDecimal.ZERO) > 0) {
+                result.get(0).discountSum = safeAdd(result.get(0).discountSum, discountDiff);
+            }
+
+        }
+        return result;
+    }
+
+    private class BarcodePart {
+        int index;
+        String id;
+        BigDecimal quantity;
+        BigDecimal price;
+        BigDecimal sum;
+        BigDecimal discountSum;
+
+        public BarcodePart(int index, String id, BigDecimal quantity, BigDecimal price, BigDecimal sum) {
+            this.index = index;
+            this.id = id;
+            this.quantity = quantity;
+            this.price = price;
+            this.sum = sum;
+        }
+    }
+
     private RowsData getRowsData(DataSession session, List<SalesInfo> data, int start, int finish, EquipmentServerOptions options,
                                  List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<List<Object>> dataSale = new ArrayList<>();
@@ -2212,72 +2309,31 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     barcodeMap.put(sale.idItem, barcode);
                 }
 
-                String idReceipt = getIdReceipt(sale, options);
-                Boolean skipReceipt = sale.skipReceipt ? true : null;
-                BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
-                BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
-                BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
-                BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
-                if (sale.isGiftCard) {
-                    //giftCard 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
-                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
-                            idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
-                            sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode,
-                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null);
-                    if (zReportSectionLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(sale.idSection);
+                DataObject barcodeObject = options.barcodeParts.get(barcode);
+                if(barcodeObject != null) {
+
+                    for(BarcodePart barcodePart : readBarcodeParts(session, barcodeObject, sale)) {
+                        List<Object> row = getReceiptDetailRow(sale, barcodePart, barcode, options);
+                        if (sale.isGiftCard) {
+                            dataGiftCard.add(row);
+                        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+                            dataReturn.add(row);
+                        } else {
+                            dataSale.add(row);
+                        }
                     }
-                    if (zReportExternalLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(externalSum);
-                    }
-                    dataGiftCard.add(row);
-                } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                    //return 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
-                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
-                            idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
-                            sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                            sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
-                    if (discountCardLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(sale.seriesNumberDiscountCard);
-                    }
-                    if (zReportSectionLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(sale.idSection);
-                    }
-                    if (zReportExternalLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(externalSum);
-                    }
-                    dataReturn.add(row);
                 } else {
-                    //sale 3
-                    List<Object> row = Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
-                            sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
-                            idReceipt, sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, skipReceipt,
-                            sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                            getIdReceiptDetail(sale, options), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountPercentReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
-                    if (discountCardLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(sale.seriesNumberDiscountCard);
+                    List<Object> row = getReceiptDetailRow(sale, null, barcode, options);
+                    if (sale.isGiftCard) {
+                        dataGiftCard.add(row);
+                    } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+                        dataReturn.add(row);
+                    } else {
+                        dataSale.add(row);
                     }
-                    if (zReportSectionLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(sale.idSection);
-                    }
-                    if (zReportExternalLM != null) {
-                        row = new ArrayList<>(row);
-                        row.add(externalSum);
-                    }
-                    dataSale.add(row);
                 }
+
+
             }
         }
         return new RowsData(dataSale, dataReturn, dataGiftCard);
@@ -2293,6 +2349,61 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
         }
+    }
+
+    private List<Object> getReceiptDetailRow(SalesInfo sale, BarcodePart barcodePart, String barcode, EquipmentServerOptions options) {
+        BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
+        BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
+        BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
+        BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
+
+        String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
+        BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
+        BigDecimal price = barcodePart != null ? barcodePart.price : sale.priceReceiptDetail;
+        BigDecimal sum = barcodePart != null ? barcodePart.sum : sale.sumReceiptDetail;
+        BigDecimal discount = barcodePart != null ? barcodePart.discountSum : sale.discountSumReceiptDetail;
+
+        List<Object> row = new ArrayList<>(Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
+                sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
+                getIdReceipt(sale, options), sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, sale.skipReceipt ? true : null,
+                sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                idReceiptDetail, sale.numberReceiptDetail, barcodePart != null ? barcodePart.id : barcode));
+
+        if (sale.isGiftCard) {
+            //giftCard 3
+            row.addAll(Arrays.asList(sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null));
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+            //return 3
+            row.addAll(Arrays.asList(safeNegate(quantity), price, safeNegate(sum), discount, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail));
+            if (discountCardLM != null) {
+                row.add(sale.seriesNumberDiscountCard);
+            }
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        } else {
+            //sale 3
+            row.addAll(Arrays.asList(quantity, price, sum, sale.discountPercentReceiptDetail, discount, sale.discountSumReceipt));
+            if (discountCardLM != null) {
+                row.add(sale.seriesNumberDiscountCard);
+            }
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        }
+        return row;
     }
 
     private List<List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
@@ -2349,7 +2460,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean overrideCashiers = equLM.findProperty("overrideCashiers[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean useNewIds = equLM.findProperty("useNewIds[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
-        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, encoder);
+        Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
+        return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -2359,14 +2471,46 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean ignoreReceiptsAfterDocumentsClosedDate;
         boolean overrideCashiers;
         IdEncoder encoder;
+        Map<String, DataObject> barcodeParts;
 
-        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate, boolean overrideCashiers, IdEncoder encoder) {
+        public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
+                                      boolean overrideCashiers, IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
             this.timeId = timeId;
             this.ignoreReceiptsAfterDocumentsClosedDate = ignoreReceiptsAfterDocumentsClosedDate;
             this.overrideCashiers = overrideCashiers;
             this.encoder = encoder;
+            this.barcodeParts = barcodeParts;
         }
+    }
+
+    private BigDecimal safeNegate(BigDecimal operand) {
+        return operand == null ? null : operand.negate();
+    }
+
+    private BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    public static BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else
+            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    private BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
+            return null;
+        else return operand1.multiply(operand2);
+    }
+
+    private BigDecimal safeDivide(BigDecimal dividend, BigDecimal quotient, int scale) {
+        if (dividend == null || quotient == null || quotient.doubleValue() == 0)
+            return null;
+        return dividend.divide(quotient, scale, RoundingMode.HALF_UP);
     }
 }
