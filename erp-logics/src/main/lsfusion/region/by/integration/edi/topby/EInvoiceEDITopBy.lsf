@@ -19,6 +19,8 @@ GROUP blrwblShipper EXTID 'Shipper' : deliveryNote;
 blrwblSupplierGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blrwblReceiver EXTID 'Receiver' : deliveryNote;
 blrwblCustomerGLN = DATA LOCAL NESTED STRING[13]();
+GROUP blrwblShipFrom EXTID 'ShipFrom' : deliveryNote;
+blrwblSupplierStockGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blrwblShipTo EXTID 'ShipTo' : deliveryNote;
 blrwblCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
 GROUP despatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
@@ -43,6 +45,7 @@ FORM blrwbl
                                blrwblFunctionCode() EXTID 'FunctionCode'
     PROPERTIES IN blrwblShipper blrwblSupplierGLN() EXTID 'GLN'
     PROPERTIES IN blrwblReceiver blrwblCustomerGLN() EXTID 'GLN'
+    PROPERTIES IN blrwblShipFrom blrwblSupplierStockGLN() EXTID 'GLN'
     PROPERTIES IN blrwblShipTo blrwblCustomerStockGLN() EXTID 'GLN'
     
     OBJECTS i = INTEGER EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItemDeliveryNote
@@ -79,6 +82,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     deliveryNoteNumber(ei) <- blrwblDeliveryNoteNumber();
                     isCancel(ei) <- isCancel();
                     supplier(ei) <- legalEntityGLN(blrwblSupplierGLN());
+                    supplierStock(ei) <- stockGLN(blrwblSupplierStockGLN());
                     customer(ei) <- legalEntityGLN(blrwblCustomerGLN());
                     customerStock(ei) <- companyStockGLN(blrwblCustomerStockGLN());
                     XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
