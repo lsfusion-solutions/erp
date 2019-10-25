@@ -1,5 +1,7 @@
 package equ.clt.handler;
 
+import org.json.JSONObject;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
@@ -62,5 +64,17 @@ public class HandlerUtils {
     public static Date getDate(int year, int month, int day) {
         //month is zero-based
         return new Date(year - 1900, month - 1, day);
+    }
+
+    public static BigDecimal getJSONBigDecimal(String json, String objectKey, String valueKey) {
+        return getJSONBigDecimal(getJSONObject(json, objectKey), valueKey);
+    }
+
+    public static JSONObject getJSONObject(String json, String objectKey) {
+        return json != null ? new JSONObject(json).optJSONObject(objectKey) : null;
+    }
+
+    public static BigDecimal getJSONBigDecimal(JSONObject jsonObject, String valueKey) {
+        return jsonObject != null ? jsonObject.getBigDecimal(valueKey) : null;
     }
 }

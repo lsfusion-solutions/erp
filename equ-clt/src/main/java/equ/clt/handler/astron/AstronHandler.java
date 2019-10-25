@@ -134,16 +134,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList);
 
                                 processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
-                                exportPackPrc(conn, params, transaction, exportExtraTables);
+                                boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables);
                                 exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables);
 
                                 if(exportExtraTables) {
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table prclevel", transaction.id));
-                                    exportPrcLevel(conn, params, transaction);
+                                    exportPrcLevel(conn, params, transaction, hasSecondPrice);
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
                                     exportSArea(conn, params, transaction);
                                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
-                                    exportSAreaPrc(conn, params, transaction);
+                                    exportSAreaPrc(conn, params, transaction, hasSecondPrice);
                                 }
 
                                 if(extGrpId != null) {
@@ -540,7 +540,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPackPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean exportExtraTables) throws SQLException {
+    private boolean exportPackPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean exportExtraTables) throws SQLException {
+        boolean hasSecondPrice = false;
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
         String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
@@ -551,28 +552,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     CashRegisterItemInfo item = transaction.itemsList.get(i);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        if(params.pgsql) {
-                            setObject(ps, packId, 1); //PACKID
-                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2); //PRCLEVELID
-                            BigDecimal packPrice = item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
-                            setObject(ps, packPrice, 3); //PACKPRICE
-                            setObject(ps, (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(item.price, 100) != null ? HandlerUtils.safeMultiply(item.price, 100) : HandlerUtils.safeMultiply(item.minPrice, 100) != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO, 4); //PACKMINPRICE
-                            setObject(ps, 0, 5); //PACKBONUSMINPRICE
-                            setObject(ps, 0, 6); //DELFLAG
-                        } else {
-                            setObject(ps, packId, 1, offset); //PACKID
-                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 2, offset); //PRCLEVELID
-                            BigDecimal packPrice = item.price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(item.price, 100);
-                            setObject(ps, packPrice, 3, offset); //PACKPRICE
-                            setObject(ps, (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(item.price, 100) != null ? HandlerUtils.safeMultiply(item.price, 100) : HandlerUtils.safeMultiply(item.minPrice, 100) != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO, 4, offset); //PACKMINPRICE
-                            setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
-                            setObject(ps, "0", 6, offset); //DELFLAG
-
-                            setObject(ps, packId, 7); //PACKID
-                            setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables), 8); //PRCLEVELID
+                        addPackPrcRow(ps, params, transaction, item, packId, offset, exportExtraTables, item.price, false);
+                        BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
+                        if (exportExtraTables && secondPrice != null) {
+                            addPackPrcRow(ps, params, transaction, item, packId, offset, true, secondPrice, true);
+                            hasSecondPrice = true;
                         }
 
-                        ps.addBatch();
                     } else {
                         processTransactionLogger.error(logPrefix + String.format("transaction %s, table packprc, item %s without price", transaction.id, item.idItem));
                     }
@@ -581,6 +567,37 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
         }
+        return hasSecondPrice;
+    }
+
+    private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction,
+                               CashRegisterItemInfo item, Integer packId, int offset, boolean exportExtraTables,
+                               BigDecimal price, boolean secondPrice) throws SQLException {
+
+        Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, exportExtraTables, secondPrice);
+        BigDecimal packPrice = price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
+        BigDecimal packMinPrice = (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : HandlerUtils.safeMultiply(item.minPrice, 100) != null ? HandlerUtils.safeMultiply(item.minPrice, 100) : BigDecimal.ZERO;
+
+        if(params.pgsql) {
+            setObject(ps, packId, 1); //PACKID
+            setObject(ps, priceLevelId, 2); //PRCLEVELID
+            setObject(ps, packPrice, 3); //PACKPRICE
+            setObject(ps, packMinPrice, 4); //PACKMINPRICE
+            setObject(ps, 0, 5); //PACKBONUSMINPRICE
+            setObject(ps, 0, 6); //DELFLAG
+        } else {
+            setObject(ps, packId, 1, offset); //PACKID
+            setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
+            setObject(ps, packPrice, 3, offset); //PACKPRICE
+            setObject(ps, packMinPrice, 4, offset); //PACKMINPRICE
+            setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
+            setObject(ps, "0", 6, offset); //DELFLAG
+
+            setObject(ps, packId, 7); //PACKID
+            setObject(ps, priceLevelId, 8); //PRCLEVELID
+        }
+
+        ps.addBatch();
     }
 
     private void exportPackPrcDeleteBarcode(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, List<CashRegisterItemInfo> usedDeleteBarcodeList, boolean exportExtraTables) throws SQLException {
@@ -619,31 +636,39 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportPrcLevel(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice) throws SQLException {
         String[] keys = new String[]{"PRCLEVELID"};
         String[] columns = new String[]{"PRCLEVELID", "PRCLEVELNAME", "PRCLEVELKEY", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PRCLEVEL", columns, keys)) {
             int offset = columns.length + keys.length;
 
-            if(params.pgsql) {
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 1); //PRCLEVELID
-                setObject(ps, transaction.nameGroupMachinery, 2); //PRCLEVELNAME
-                setObject(ps, 0, 3); //PRCLEVELKEY
-                setObject(ps, 0, 4); //DELFLAG
-            } else {
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 1, offset); //PRCLEVELID
-                setObject(ps, transaction.nameGroupMachinery, 2, offset); //PRCLEVELNAME
-                setObject(ps, 0, 3, offset); //PRCLEVELKEY
-                setObject(ps, "0", 4, offset); //DELFLAG
-
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5); //PRCLEVELID
+            addPrcLevelRow(ps, params, transaction, offset, false);
+            if(hasSecondPrice) {
+                addPrcLevelRow(ps, params, transaction, offset, true);
             }
-
-            ps.addBatch();
 
             ps.executeBatch();
             conn.commit();
         }
+    }
+
+    private void addPrcLevelRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice) throws SQLException {
+        Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, true, secondPrice);
+        if(params.pgsql) {
+            setObject(ps, priceLevelId, 1); //PRCLEVELID
+            setObject(ps, transaction.nameGroupMachinery, 2); //PRCLEVELNAME
+            setObject(ps, 0, 3); //PRCLEVELKEY
+            setObject(ps, 0, 4); //DELFLAG
+        } else {
+            setObject(ps, priceLevelId, 1, offset); //PRCLEVELID
+            setObject(ps, transaction.nameGroupMachinery, 2, offset); //PRCLEVELNAME
+            setObject(ps, 0, 3, offset); //PRCLEVELKEY
+            setObject(ps, "0", 4, offset); //DELFLAG
+
+            setObject(ps, priceLevelId, 5); //PRCLEVELID
+        }
+
+        ps.addBatch();
     }
 
     private void exportSArea(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
@@ -678,29 +703,38 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
+    private void exportSAreaPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean hasSecondPrice) throws SQLException {
         String[] keys = new String[]{"SAREAID", "PRCLEVELID"};
         String[] columns = new String[]{"SAREAID", "PRCLEVELID", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "SAREAPRC", columns, keys)) {
-            if(params.pgsql) {
-                setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2); //PRCLEVELID
-                setObject(ps, 0, 3); //DELFLAG
-            } else {
-                int offset = columns.length + keys.length;
-                setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 2, offset); //PRCLEVELID
-                setObject(ps, "0", 3, offset); //DELFLAG
+            int offset = columns.length + keys.length;
 
-                setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
-                setObject(ps, getPriceLevelId(transaction.nppGroupMachinery, true), 5); //PRCLEVELID
+            addSAreaPrcRow(ps, params, transaction, offset, false);
+            if(hasSecondPrice) {
+                addSAreaPrcRow(ps, params, transaction, offset, true);
             }
-
-            ps.addBatch();
 
             ps.executeBatch();
             conn.commit();
         }
+    }
+
+    private void addSAreaPrcRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice) throws SQLException {
+        Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, true, secondPrice);
+        if(params.pgsql) {
+            setObject(ps, transaction.nppGroupMachinery, 1); //SAREAID
+            setObject(ps, priceLevelId, 2); //PRCLEVELID
+            setObject(ps, 0, 3); //DELFLAG
+        } else {
+            setObject(ps, transaction.nppGroupMachinery, 1, offset); //SAREAID
+            setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
+            setObject(ps, "0", 3, offset); //DELFLAG
+
+            setObject(ps, transaction.nppGroupMachinery, 4); //SAREAID
+            setObject(ps, priceLevelId, 5); //PRCLEVELID
+        }
+
+        ps.addBatch();
     }
 
     private void exportDCard(Connection conn, AstronConnectionString params, List<DiscountCard> discountCardList) throws SQLException {
@@ -1330,7 +1364,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
     private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables) {
-       return exportExtraTables ? (nppGroupMachinery * 1000 + 1) : nppGroupMachinery;
+       return getPriceLevelId(nppGroupMachinery, exportExtraTables, false);
+    }
+
+    private Integer getPriceLevelId(Integer nppGroupMachinery, boolean exportExtraTables, boolean secondPrice) {
+        return exportExtraTables ? (nppGroupMachinery * 1000 + (secondPrice ? 2 : 1)) : nppGroupMachinery;
     }
 
     protected String getSalesNumField() {
