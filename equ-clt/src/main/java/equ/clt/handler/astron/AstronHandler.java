@@ -553,6 +553,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if (item.price != null) {
                         Integer packId = getPackId(item);
                         addPackPrcRow(ps, params, transaction, item, packId, offset, exportExtraTables, item.price, false);
+                        //{"astron": {"secondPrice":"1.23"}}
                         BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
                         if (exportExtraTables && secondPrice != null) {
                             addPackPrcRow(ps, params, transaction, item, packId, offset, true, secondPrice, true);
