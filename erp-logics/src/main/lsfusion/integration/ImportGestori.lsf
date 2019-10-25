@@ -34,6 +34,33 @@ DESIGN integrationData {
     }
 }
 
+CLASS CorrespndenceLegalEntityId 'Соответствие кодов организаций';
+TABLE correspndenceLegalEntityId (CorrespndenceLegalEntityId);
+
+id 'Код' = DATA STRING[100](CorrespndenceLegalEntityId);
+newId 'Новый код' = DATA STRING[100](CorrespndenceLegalEntityId);
+
+correspndenceLegalEntityId = GROUP AGGR CorrespndenceLegalEntityId d BY id(d);
+newIdLegalEntity (STRING[100] id) = newId(correspndenceLegalEntityId(id));
+
+legalEntityNew(STRING[100] id) = OVERRIDE legalEntity(newIdLegalEntity(id)), legalEntity(id);
+
+FORM correspndenceLegalEntityId 'Таблица соответствий кодов огранизаций'
+    OBJECTS d = CorrespndenceLegalEntityId
+    PROPERTIES (d) id, newId, NEW, DELETE 
+;
+
+showCorrespndenceLegalEntityId 'Таблица соответствий кодов огранизаций' () {
+    NEWSESSION SHOW correspndenceLegalEntityId;
+}
+
+EXTEND FORM integrationData PROPERTIES () showCorrespndenceLegalEntityId;
+
+DESIGN integrationData {
+    santaParams {
+        MOVE PROPERTY (showCorrespndenceLegalEntityId());
+    }
+}
 
 id = DATA LOCAL INTEGER (INTEGER);
 idItem = DATA LOCAL NUMERIC[13,0](INTEGER);
@@ -143,7 +170,7 @@ importLegalEntities 'Импорт организаций' () {
     
     IMPORT TABLE FROM file() TO id, name, idGroup, unp, okpo, phone, fax, email, director, comment, intext, bankAddress, account, corrAccount, bic, note;
     
-    FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
+    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) DO NEW s = LegalEntity {
         id(s) <- ISTRING[100] (id(i));
         
         IF NOT intext(i) == 'I' THEN NEW w = Warehouse {
@@ -175,11 +202,11 @@ importLegalEntities 'Импорт организаций' () {
     
     FOR INTEGER i = [GROUP MIN INTEGER ii BY account(ii), id(ii)](STRING[50] number, INTEGER id) AND NOT accountID(number, TEXT (id)) DO NEW a = Bank.Account {
         number(a) <- number;
-        legalEntity(a) <- legalEntity(TEXT (id));
+        legalEntity(a) <- legalEntityNew(TEXT (id));
         bank(a) <- GROUP MAX Bank b IF oldMFO(b) == bic(i);
     }
     
-    FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
+    FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
         fullName(s) <- STRING[200](OVERRIDE getWord(comment(i), ';', 1) IF trim(getWord(comment(i), ';', 1)) != '', name(i));
         isCompany(s) <- intext(i) == 'B';
@@ -292,7 +319,7 @@ importStores 'Импорт магазинов' () {
     FOR Store s = storeExtId(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
         storeType(s) <- storeType(TEXT (idType(i)));
-        legalEntity(s) <- OVERRIDE legalEntity(TEXT (idType(i))), defaultCompany();
+        legalEntity(s) <- OVERRIDE legalEntityNew(TEXT (idType(i))), defaultCompany();
     }
     
     FOR DepartmentStore s = stockExtId(TEXT (id(INTEGER i))) DO {
@@ -366,7 +393,7 @@ importItems 'Импорт товаров' () {
         caption(s) <- name(i);
         UOM(s) <- UOM(TEXT (idUOM(i)));
         itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
-        supplier(s) <- legalEntity(TEXT (idLegalEntity(i)));
+        supplier(s) <- legalEntityNew(TEXT (idLegalEntity(i)));
         passScales(s) <- passScales(i);
         netWeight(s) <- OVERRIDE netWeight(i) IF netWeight(i) > 0, volume(i);
         description(s) <- article(i);
@@ -446,13 +473,13 @@ importContract 'Импорт договоров' () {
     
     IMPORT TABLE FROM file() TO id, number, dateFrom, dateTo, idLegalEntity, idCompany, comment, condition, idType, idDeliv, idPayVid, delay, idPayment, idContract;
     
-    FOR legalEntity(TEXT (idLegalEntity(INTEGER i))) AND NOT userContractSku(TEXT (id(i))) AND idContract(i) == 0 DO NEW c = UserContractSku {
+    FOR legalEntityNew(TEXT (idLegalEntity(INTEGER i))) AND NOT userContractSku(TEXT (id(i))) AND idContract(i) == 0 DO NEW c = UserContractSku {
         id(c) <- ISTRING[100](id(i));
     }
     
     FOR UserContractSku c == userContractSku(TEXT (id(INTEGER i))) AND idContract(i) == 0 DO {
-        supplier(c) <- legalEntity(TEXT (idLegalEntity(i)));
-        customer(c) <- legalEntity(TEXT (idCompany(i)));
+        supplier(c) <- legalEntityNew(TEXT (idLegalEntity(i)));
+        customer(c) <- legalEntityNew(TEXT (idCompany(i)));
         note(c) <- STRING[100](CONCAT '\n', comment(i), condition(i));
         currency(c) <- defaultCurrency();
         type(c) <- ContractSkuType.sale;
@@ -500,7 +527,7 @@ importContract 'Импорт договоров' () {
         }
     }
 
-    FOR legalEntity(TEXT (idLegalEntity(INTEGER i))) AND UserContractSku c = userContractSku(TEXT (id(i))) DO {
+    FOR legalEntityNew(TEXT (idLegalEntity(INTEGER i))) AND UserContractSku c = userContractSku(TEXT (id(i))) DO {
         paymentCondition(c) <- paymentCondition(paymentPeriod(delay(i), bank(i), type(i)));
     }
 
@@ -703,8 +730,8 @@ importInit 'Импорт остатков' () {
     }
     
     FOR NUMERIC[13,0] s = [GROUP MIN NUMERIC[13,0] is BY idInvoice(is)](STRING[100] id) AND Purchase.UserInvoice i = Purchase.userInvoice(id) DO {       
-        supplier(i) <- OVERRIDE legalEntity(TEXT (idSupplier(index(s)))), legalEntity(customerStock());
-        supplierStock(i) <- IF legalEntity(TEXT (idSupplier(index(s)))) THEN minStock(legalEntity(TEXT (idSupplier(index(s))))) ELSE stock(TEXT (idSupplier(index(s))));
+        supplier(i) <- OVERRIDE legalEntityNew(TEXT (idSupplier(index(s)))), legalEntity(customerStock());
+        supplierStock(i) <- IF legalEntityNew(TEXT (idSupplier(index(s)))) THEN minStock(legalEntityNew(TEXT (idSupplier(index(s))))) ELSE stock(TEXT (idSupplier(index(s))));
         customer(i) <- legalEntity(customerStock());
         customerStock(i) <- customerStock();
         number(i) <- right(number(index(s)), length(number(index(s))) - 2);
@@ -864,7 +891,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         fromDate(p) <- begin(i);
         fromTime(p) <- 00:00;
         toDate(p) <- end(i);
-        company(p) <- legalEntity(TEXT (idCompany(i)));
+        company(p) <- legalEntityNew(TEXT (idCompany(i)));
         note(p) <- note(i);
         allStocks(p) <- NULL;
         imported(p) <- TRUE;
@@ -957,8 +984,8 @@ importOrder 'Импорт заказов' () {
         number(o) <- ISTRING[28](id(i));
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- closed(i);
-        supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
-        supplierStock(o) <- minStock(legalEntity(ISTRING[100] (idSupplier(i))));
+        supplier(o) <- legalEntityNew(ISTRING[100] (idSupplier(i)));
+        supplierStock(o) <- minStock(legalEntityNew(ISTRING[100] (idSupplier(i))));
         customerStock(o) <- stockExtId(ISTRING[100] (idCustomerStockOrder()));
         customer(o) <- legalEntity(stockExtId(ISTRING[100] (idCustomerStockOrder())));
         date(o) <- OVERRIDE date(i), date2(i);
