@@ -416,7 +416,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
     IF isServer() THEN {
         TRY {
             IF loginTopBy() AND passwordTopBy() AND hostTopBy() AND portTopBy() THEN {
-                IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) AND useEDSServiceForCustomerTopBy() THEN {
+                IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) THEN {
                     LOCAL blrapnSubXML = FILE();
                     blrapnDateTime() <- currentDateTimeMillis();
                     blrapnMsgSender() <- glnCustomer(ei);
@@ -770,7 +770,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
 }
 
 signAndSendCustomerTopBy 'Подписать и отправить (покупатель)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceCustomerTopByAction' (EInvoice);
-signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedCustomer(e) THEN MESSAGE 'Накладная (покупатель) уже отправлена'; ELSE {IF useLSFInvoice() THEN signAndSendCustomerEInvoice(e,'TopBy'); ELSE signAndSendCustomerTopBy(e);}}
+signAndSendCustomer(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedCustomer(e) THEN MESSAGE 'Накладная (покупатель) уже отправлена'; ELSE {signAndSendCustomerEInvoice(e,'TopBy');}}
 
 signAndSendSupplierTopBy 'Подписать и отправить (поставщик)'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.SendEInvoiceSupplierTopByAction' (EInvoice);
-signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE {IF useLSFInvoice() THEN signAndSendSupplierEInvoice(e,'TopBy'); ELSE signAndSendSupplierTopBy(e);}}
+signAndSendSupplier(EInvoice e) + {  IF EDIProvider(supplier(e)) == EDIProvider.topBy THEN IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена'; ELSE {signAndSendSupplierEInvoice(e,'TopBy');}}

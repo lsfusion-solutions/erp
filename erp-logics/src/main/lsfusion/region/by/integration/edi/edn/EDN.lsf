@@ -27,7 +27,7 @@ receiveEDNAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.
 
 receiveEDN 'Получить сообщения' {
     checkIsServer();
-    IF isServer() THEN {IF useLSF() THEN receiveMessagesEDN(NULL); ELSE receiveEDNAction();};
+    IF isServer() THEN {receiveMessagesEDN(NULL); };
 }
 
 EXTEND FORM integrationData
@@ -68,8 +68,8 @@ sendPurchaseOrderEDN (EOrder o) {
 
 sendEDN 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEOrderEDNAction' (EOrder);
 
-send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {IF useLSF() THEN sendPurchaseOrderEDN(o); ELSE sendEDN(o);} }
-cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {IF useLSF() THEN sendPurchaseOrderEDN(o); ELSE sendEDN(o);} }
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {sendPurchaseOrderEDN(o); } }
+cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
 
 good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
 

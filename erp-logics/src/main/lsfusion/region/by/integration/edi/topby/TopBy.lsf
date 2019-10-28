@@ -10,8 +10,6 @@ EXTEND CLASS EDIProvider {
     topBy 'СТТ'
 }
 
-useLSF 'Использовать lsf' = DATA BOOLEAN ();
-useLSFInvoice 'Использовать lsf' = DATA BOOLEAN ();
 loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] ();
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] () ECHO;
 hostTopBy 'Хост' = DATA STRING[100] ();
@@ -170,7 +168,7 @@ receiveTopByAction 'Получить сообщения'  INTERNAL  'lsfusion.er
 
 receiveTopBy 'Получить сообщения' {
     checkIsServer();
-    IF isServer() THEN {IF useLSF() THEN receiveMessagesTopBy(NULL); ELSE receiveTopByAction();};
+    IF isServer() THEN {receiveMessagesTopBy(NULL); };
 }
 
 GROUP reference;
@@ -825,17 +823,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     }
 }
 
-useEDSServiceForCustomerTopBy 'Использовать EDSService для подписи покупателем' = DATA BOOLEAN ();
-
 receiveInvoiceTopByAction 'Получить сообщения по электронным накладным'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveInvoiceMessagesTopByAction' ();
 receiveInvoiceTopBy 'Получить сообщения по электронным накладным' () {
     checkIsServer();
-    IF isServer() THEN {IF useLSFInvoice() THEN receiveMessagesTopBy(TRUE); ELSE receiveInvoiceTopByAction();};  
+    IF isServer() THEN {receiveMessagesTopBy(TRUE); };  
 }
 
 EXTEND FORM integrationData
     PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
-                 useEDSServiceForCustomerTopBy, receiveInvoiceTopBy, useLSF, useLSFInvoice, confirmNotFoundOrders
+                 receiveInvoiceTopBy, confirmNotFoundOrders
 ;
     
 DESIGN integrationData {
@@ -860,13 +856,10 @@ DESIGN integrationData {
                     caption = 'Заказы';
                     MOVE PROPERTY (confirmNotFoundOrders());
                     MOVE PROPERTY(receiveTopBy());
-                    MOVE PROPERTY(useLSF());
                 }
                 NEW ivs {
-                    caption = 'Электронные накладные';          
-                    MOVE PROPERTY(useEDSServiceForCustomerTopBy());     
+                    caption = 'Электронные накладные';
                     MOVE PROPERTY(receiveInvoiceTopBy());
-                    MOVE PROPERTY(useLSFInvoice());
                 }
             }
         }
