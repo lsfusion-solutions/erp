@@ -115,7 +115,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         bytes.putInt(price != null ? price.intValue() : 0);
 
         //Налоговая ставка, 1 byte
-        bytes.put((byte) 0);
+        bytes.put((byte) 1);
 
         //Номер тары, 1 byte
         bytes.put((byte) 0);
