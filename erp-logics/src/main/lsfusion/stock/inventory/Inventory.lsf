@@ -905,10 +905,11 @@ overReplace(Sku od, Sku d) + {
         <- sumBalance(collationSheet, d) (+) sumBalance(collationSheet, od)
         WHERE (sumBalance(collationSheet, od) OR PREV(countPageInventoryDetail(collationSheet, od)));     
     
-    include(CollationSheet collationSheet, Batch batch)<-include(collationSheet, PREV(sku(batch))) WHERE PREV(sku(batch)) = od; 
+    include(CollationSheet collationSheet, Batch batch)<-PREV(include(collationSheet, PREV(sku(batch)))) WHERE PREV(sku(batch)) = od; 
     executeLocalEvents();
     
-    price(PageInventoryDetail pd) <- prevAccountPriceB(od, stock(pd), dateTime(pd)) WHERE PREV(sku(pd)) == od;
+    price(PageInventoryDetail pd) <- prevAccountPriceB(od, stock(pd), dateTime(pd)) WHERE PREV(sku(pd)) == od AND NOT batch(pd);
+    price(PageInventoryDetail pd) <- prevAccountPriceB(batch(pd), stock(pd), dateTime(pd)) WHERE PREV(sku(pd)) == od AND batch(pd);
 }                                                                                
 
 //-------------------------------------- Проведение по товарному отчету ----------------------------------------------------//
@@ -1703,7 +1704,8 @@ FORM inventory 'Инвентаризация'
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       pricePageInventoryDetail BACKGROUND differentPrice(cs, b),
                                                             priceBalance BACKGROUND differentPrice(cs, b)
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail, costSumBalance, costSumShortage
-    FILTERS                                                 include(cs, b),
+    PROPERTIES include(cs, b)
+    FILTERS                                                 //include(cs, b),
                                                             isParent(g, b)
     FILTERGROUP notEqualsPriceBatchFilters
             FILTER 'Партии с разными ценами' differentPrice(cs, b) 'F9'
