@@ -65,7 +65,9 @@ public class ScannerDaemonClientAction implements ClientAction {
         private String connect(int currentCom) {
             String result = null;
             try {
-                String portName = "COM" + currentCom;
+                String OS = System.getProperty("os.name").toLowerCase();
+                boolean isUnix = (OS.contains("nix") || OS.contains("nux") || OS.contains("aix"));
+                String portName = (isUnix ? "/dev/tty" : "COM") + currentCom;
 
                 SerialPortHandler.addSerialPort(dispatcher, portName, 9600, (event, serialPort) -> {
                     if (event.isRXCHAR()) {
