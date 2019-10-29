@@ -40,6 +40,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static lsfusion.base.BaseUtils.trim;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
@@ -108,10 +109,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     priceValue = df.format(price).replace(",", ".");
                 }
                 String mainBarcode = (String) terminalHandlerLM.findProperty("idMainBarcode[Barcode]").read(session, barcodeObject);
+
+                String idSkuBarcode = trimToEmpty((String) terminalHandlerLM.findProperty("idSku[Barcode]").read(session, barcodeObject));
+                String nameManufacturer = trimToEmpty((String) terminalHandlerLM.findProperty("nameManufacturer[Barcode]").read(session, barcodeObject));
+
                 String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", fld3, "", "", isWeight, mainBarcode, color);
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, "", "", isWeight, mainBarcode, color);
             } else return null;
 
         } catch (Exception e) {
