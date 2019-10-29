@@ -79,7 +79,28 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
     } ELSE {
         fillRecommendedQuantityStockCustom(userOrder);
     }
+} TOOLBAR CONFIRM;
 
+fillRecommendedQuantityStockDialog 'Заполнить рекомендуемым'(UserOrder userOrder)  { 
+    IF NOT useCustomRecommended(userOrder) THEN {
+        IF countUserOrderDetail(userOrder) THEN 
+            ASK 'Заказ уже содержит строки. Удалить их и заполнить заказ рекомендацией?' DO { 
+                DELETE UserOrderDetail detail WHERE userOrder(detail)=userOrder;
+                in(Sku sku) <- prevPriceA(
+                                          ledgerPriceListType(priceListType(userOrder, sku)),
+                                          sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
+                                      AND NOT limitRecommendedQuantity(sku, userOrder); 
+                FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) NEW d = UserOrderDetail DO {
+                        userOrder(d) <- userOrder;
+                        sku(d) <- sku;
+                        quantity (d) <- IF skipCeil(sku,userOrder) THEN r ELSE ceilRecommendedQuantity(sku, r);                
+                        overRecommendedQuantity(d,sku);
+                }
+                overFillRecommended(userOrder);    
+            }   
+    } ELSE {
+        fillRecommendedQuantityStockCustom(userOrder);
+    }
 } TOOLBAR CONFIRM;
                               
 EXTEND FORM userOrder
@@ -87,7 +108,7 @@ EXTEND FORM userOrder
 
     PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) quantitySold(ks, o), purchaseReserve(ks,st,o)
     PROPERTIES READONLY AFTER quantityCustomer(ks, o, st)
-        recommendedQuantity(ks, o) ON CONTEXTMENU fillRecommendedQuantityStock(o)
+        recommendedQuantity(ks, o) ON CONTEXTMENU fillRecommendedQuantityStockDialog(o)
 ;
 
 DESIGN userOrder {
