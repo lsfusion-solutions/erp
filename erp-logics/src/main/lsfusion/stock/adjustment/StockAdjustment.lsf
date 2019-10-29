@@ -16,7 +16,8 @@ REQUIRE System,
         OrderLedger,
         PriceListAccount,
         Barcode,
-        Item;
+        Item,
+        SkuList;
 
 NAMESPACE Stock;
 
@@ -133,18 +134,17 @@ DESIGN userAdjustment {
     BOX {
         size = (1024, 768);
         NEW mainTabbed {
-            fill = 1;
             type = TABBED;
+            fill = 1;
             NEW documentBox {
-                fill = 1;
                 type = CONTAINERV;
+                fill = 1;
                 caption = 'Изменение остатков';
                 NEW headerBox {
                     type = CONTAINERH;
         
                     NEW headerRow1 {
                         fill = 1;
-                        type = CONTAINERV;
         
                         MOVE GROUP(documentHeader,i) {
                             
@@ -164,10 +164,25 @@ DESIGN userAdjustment {
                             }                                                                                
                         }
         
-                        MOVE GROUP(documentPrm,i) {
-                            columns = 3;
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,i) {
+                                    columns = 2;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
                         }
-        
                     }
         
                     MOVE GROUP(documentSum,i) {
@@ -216,17 +231,6 @@ EXTEND FORM userAdjustment
         FILTER 'С отрицательным остатком ' currentBalance(b,sto)<0
         FILTER 'В документе ' quantity(b, i, st) 'F9'
 ;
-
-DESIGN userAdjustment {
-    BOX {
-        REMOVE mainTabbed;
-        MOVE headerBox;
-        MOVE specificationBox {
-            MOVE itemBox;
-        }
-        MOVE TOOLBARBOX;
-    }
-}
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 @defineDocumentInterfaceOperation (adjustment, Stock, );
@@ -888,3 +892,19 @@ showToShow (UserAdjustment i) = is(i) AND NOT showEdit(i);
 EXTEND FORM adjustments
     PROPERTIES show(i) SHOWIF showToShow(i) BEFORE editI
 ;
+
+@defineAddSkuLists(userAdjustment, userAdjustment, i);
+
+@defineNewSkuList(userAdjustment, userAdjustment, adjustments, i);
+
+DESIGN userAdjustment {
+    headerTabbedPane {
+        NEW add AFTER headerCreateDocuments {
+            caption = 'Подбор';
+            type = CONTAINERH;
+            alignment = START;
+            MOVE PROPERTY(addSkuLists(i));
+            MOVE PROPERTY(newSkuList(i));
+        }
+    }
+}

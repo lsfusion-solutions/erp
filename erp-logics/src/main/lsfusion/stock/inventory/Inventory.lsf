@@ -13,7 +13,8 @@ REQUIRE System,
         EmployeeStock,        
         StockDocumentSkuLedger,
         Utils,
-        Item;
+        Item,
+        SkuList;
 
 // -------------------------------- Комиссия для инвентаризации ----------------------------------//
 CLASS InventoryCommittee 'Комиссия для инвентаризации' : Committee;
@@ -1343,6 +1344,23 @@ createPage 'Создать страницу описи с остатками'  (
     }    
 };
 
+addSkuLists 'Создать страницу описи по спискам SKU' (ListInventory listInventory) {
+    DIALOG dialogAddLists DO {
+        NEW p = PageInventory {
+            listInventory(p) <- listInventory;
+            FOR in(list(ListDetail ld)) AND NOT [GROUP SUM 1 BY sku(PageInventoryDetail pd), pageInventory(pd)](sku(ld), p) AND 
+            (NUMERIC[16,5] cnt == balanceB(Sku sk, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND sk==sku(ld))
+            AND (isItem(sk) OR isContainer(sk)) ORDER name (sk) NEW d = PageInventoryDetail DO {
+                pageInventory(d) <- p;
+                sku(d) <- sk;
+                quantity(d) <- cnt;
+                price(d) <- prevAccountPriceA(sk, stock(listInventory), dateTime(inventory(listInventory)));
+            }        
+            in(List l) <- NULL;
+        }
+    }
+}
+
 isParentSkuGroup = (isParent(SkuGroup g, sku(PageInventoryDetail detail))) OR (g IS SkuGroup AND NOT sku(detail));
 
 FORM listInventory 'Опись'
@@ -1350,7 +1368,7 @@ FORM listInventory 'Опись'
     PROPERTIES (li) nameStock, nameInventory, name, note,
                     nameCommittee, nameChairmanCommittee, nameEmployee,
                     countPageInventory, countPageInventoryDetail, quantityPageInventoryDetail,
-                    sumPageInventoryDetail, createPage
+                    sumPageInventoryDetail, createPage, addSkuLists
     
     TREE skuTree g = SkuGroup PARENT parent
     PROPERTIES READONLY order(g), name(g)
@@ -1407,8 +1425,10 @@ DESIGN listInventory {
                         columns = 2;
                     }
                     NEW create {
+                        type = CONTAINERH;
                         caption = 'Создание';   
                         MOVE PROPERTY(createPage(li));
+                        MOVE PROPERTY(addSkuLists(li));
                     }
                 }
             }
