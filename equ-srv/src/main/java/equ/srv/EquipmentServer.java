@@ -2208,6 +2208,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             for (int i = 0; i < barcodeResult.size(); i++) {
                 DataObject barcodeObject = barcodeResult.getKey(i).get("barcode");
                 String idBarcode = (String) barcodeResult.getValue(i).get("id").getValue();
+                logger.info("Read parted barcode: " + idBarcode);
                 result.put(idBarcode, barcodeObject);
             }
         }
@@ -2242,6 +2243,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 BigDecimal sum = safeMultiply(quantity, price);
                 currentSum = safeAdd(currentSum, sum);
 
+                logger.info(String.format("BarcodePart: id %s, quantity %s, price %s, sum %s", id, quantity, price, sum));
                 result.add(new BarcodePart(i++, id, quantity, price, sum));
             }
 
@@ -2312,6 +2314,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 DataObject barcodeObject = options.barcodeParts.get(barcode);
                 if(barcodeObject != null) {
 
+                    logger.info("Read part info for barcode: " + barcode);
                     for(BarcodePart barcodePart : readBarcodeParts(session, barcodeObject, sale)) {
                         List<Object> row = getReceiptDetailRow(sale, barcodePart, barcode, options);
                         if (sale.isGiftCard) {
