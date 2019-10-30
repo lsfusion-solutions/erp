@@ -476,16 +476,35 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     shipmentVATSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d);        
     shipmentInvoiceSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d) (+) shipmentSum(d);   
    
-    creditQuantity 'Кол-во (с учетом акта)' (InvoiceDetail d) = quantity(d) (-) quantity(invoiceCreditNoteDetail(d));
-    creditSum 'Сумма (с учетом акта)' (InvoiceDetail d) = sum(d) (-) sum(invoiceCreditNoteDetail(d));
-    creditVATSum 'Сумма НДС (с учетом акта)' (InvoiceDetail d) = VATSum(d) (-) VATSum(invoiceCreditNoteDetail(d));
-    creditInvoiceSum 'Сумма с НДС (с учетом акта)' (InvoiceDetail d) = invoiceSum(d) (-) invoiceSum(invoiceCreditNoteDetail(d));
+    quantityCredit(InvoiceDetail d) = (quantity(d) (-) shipmentQuantity(d)) IF NOT isCharge(sku(d)); 
+    sumCredit (InvoiceDetail d) = NUMERIC[18,4](round((quantityCredit(d) *price(d)), currency(d)));                                                                                 
+    VATSumCredit (InvoiceDetail d) = NUMERIC[18,4](round((sumCredit(d) *valueVAT (d) / 100), currency(d)));                                                                                                                              
+    invoiceSumCredit (InvoiceDetail d) = VATSumCredit(d)(+) sumCredit(d);
+
+    quantityCredit(Invoice i) = GROUP SUM quantityCredit(InvoiceDetail d) IF invoice(d)==i;
+    sumCredit (Invoice i) =  GROUP SUM sumCredit(InvoiceDetail d) IF invoice(d)==i;                                                                        
+    VATSumCredit (Invoice i) =  GROUP SUM VATSumCredit(InvoiceDetail d) IF invoice(d)==i;                                                                                                                        
+    invoiceSumCredit (Invoice i) =  GROUP SUM invoiceSumCredit(InvoiceDetail d) IF invoice(d)==i;
+       
+//    creditQuantity 'Кол-во (с учетом акта)' (InvoiceDetail d) = quantity(d) (-) quantity(invoiceCreditNoteDetail(d));
+//    creditSum 'Сумма (с учетом акта)' (InvoiceDetail d) = sum(d) (-) sum(invoiceCreditNoteDetail(d));
+//    creditVATSum 'Сумма НДС (с учетом акта)' (InvoiceDetail d) = VATSum(d) (-) VATSum(invoiceCreditNoteDetail(d));
+//    creditInvoiceSum 'Сумма с НДС (с учетом акта)' (InvoiceDetail d) = invoiceSum(d) (-) invoiceSum(invoiceCreditNoteDetail(d));
+//    creditQuantityInvoiceDetail 'Кол-во (с учетом акта)' (Invoice i) = quantityInvoiceDetail(i) (-) quantityCreditNoteDetail(invoiceCreditNote(i));
+//    creditSumInvoiceDetail 'Сумма (с учетом акта)' (Invoice i) = sumInvoiceDetail(i) (-) sumCreditNoteDetail(invoiceCreditNote(i));
+//    creditVATSumInvoiceDetail 'Сумма НДС (с учетом акта)' (Invoice i) = VATSumInvoiceDetail(i) (-) VATSumCreditNoteDetail(invoiceCreditNote(i));
+//    creditInvoiceSumInvoiceDetail 'Сумма с НДС (с учетом акта)' (Invoice i) = invoiceSumInvoiceDetail(i) (-) invoiceSumCreditNoteDetail(invoiceCreditNote(i));
+    creditQuantity 'Кол-во (с учетом акта)' (InvoiceDetail d) = quantity(d) (-) (quantityCredit(d) IF createShipment(d));
+    creditSum 'Сумма (с учетом акта)' (InvoiceDetail d) = sum(d) (-) (sumCredit(d) IF createShipment(d));
+    creditVATSum 'Сумма НДС (с учетом акта)' (InvoiceDetail d) = VATSum(d) (-) (VATSumCredit(d) IF createShipment(d));
+    creditInvoiceSum 'Сумма с НДС (с учетом акта)' (InvoiceDetail d) = invoiceSum(d) (-) (invoiceSumCredit(d) IF createShipment(d));    
     
+    creditQuantityInvoiceDetail 'Кол-во (с учетом акта)' (Invoice i) = quantityInvoiceDetail(i) (-) (quantityCredit(i) IF createShipment(i));  
+    creditSumInvoiceDetail 'Сумма (с учетом акта)' (Invoice i) = sumInvoiceDetail(i) (-) (sumCredit(i) IF createShipment(i));  
+    creditVATSumInvoiceDetail 'Сумма НДС (с учетом акта)' (Invoice i) = VATSumInvoiceDetail(i) (-) (VATSumCredit(i) IF createShipment(i));  
+    creditInvoiceSumInvoiceDetail 'Сумма с НДС (с учетом акта)' (Invoice i) = invoiceSumInvoiceDetail(i) (-) (invoiceSumCredit(i) IF createShipment(i));  
     
-    creditQuantityInvoiceDetail 'Кол-во (с учетом акта)' (Invoice i) = quantityInvoiceDetail(i) (-) quantityCreditNoteDetail(invoiceCreditNote(i));
-    creditSumInvoiceDetail 'Сумма (с учетом акта)' (Invoice i) = sumInvoiceDetail(i) (-) sumCreditNoteDetail(invoiceCreditNote(i));
-    creditVATSumInvoiceDetail 'Сумма НДС (с учетом акта)' (Invoice i) = VATSumInvoiceDetail(i) (-) VATSumCreditNoteDetail(invoiceCreditNote(i));
-    creditInvoiceSumInvoiceDetail 'Сумма с НДС (с учетом акта)' (Invoice i) = invoiceSumInvoiceDetail(i) (-) invoiceSumCreditNoteDetail(invoiceCreditNote(i));
+
    
     showCreditSum 'Показывать в накладной '##sign##' суммы с учетом акта расхождения' = DATA BOOLEAN ();    
     backgroundCreditNote 'Цвет' (Invoice invoice) = RGB(255, 250, 205) IF invoice IS Invoice;
