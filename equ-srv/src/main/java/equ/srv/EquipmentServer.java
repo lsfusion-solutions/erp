@@ -2228,7 +2228,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             barcodeQuery.addProperty("price", machineryPriceTransactionPartLM.findProperty("pricePart[Barcode,INTEGER,Part]").getExpr(barcodeExpr, new DataObject(sale.nppGroupMachinery).getExpr(), partExpr));
             barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("idBarcodePart[Barcode,Part]").getExpr(barcodeExpr, partExpr).getWhere());
             barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("quantityPart[Barcode,Part]").getExpr(barcodeExpr, partExpr).getWhere());
-            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("pricePart[Barcode,INTEGER,Part]").getExpr(barcodeExpr, new DataObject(sale.nppGroupMachinery).getExpr(), partExpr).getWhere());
+//            barcodeQuery.and(machineryPriceTransactionPartLM.findProperty("pricePart[Barcode,INTEGER,Part]").getExpr(barcodeExpr, new DataObject(sale.nppGroupMachinery).getExpr(), partExpr).getWhere());
             barcodeQuery.and(barcodeExpr.compare(barcodeObject.getExpr(), Compare.EQUALS));
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
