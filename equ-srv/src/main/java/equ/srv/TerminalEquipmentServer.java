@@ -27,6 +27,7 @@ import java.awt.*;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.*;
 
@@ -99,8 +100,8 @@ public class TerminalEquipmentServer {
                     String posField1 = (String) entry.get("posField1");
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
-                    Date minDeviationDate = (Date) entry.get("minDeviationDate");
-                    Date maxDeviationDate = (Date) entry.get("maxDeviationDate");
+                    String minDeviationDate = formatDate((Date) entry.get("minDeviationDate"));
+                    String maxDeviationDate = formatDate((Date) entry.get("maxDeviationDate"));
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
                     if (terminalOrder != null)
@@ -115,6 +116,10 @@ public class TerminalEquipmentServer {
             }
         }
         return new ArrayList<>(terminalOrderMap.values());
+    }
+
+    private static String formatDate(Date date) {
+        return date != null ? new SimpleDateFormat("yyyy-MM-dd").format(date) : null;
     }
 
     private static String formatColor(Color color) {

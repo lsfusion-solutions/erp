@@ -6,14 +6,14 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 public class ServerTerminalOrder extends TerminalOrder {
-    public Date minDate1;
-    public Date maxDate1;
+    public String minDate1;
+    public String maxDate1;
 
     public ServerTerminalOrder(Date date, String number, String supplier, String barcode, String idItem, String name,
                                BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                                BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                                String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
-                               Date minDate1, Date maxDate1) {
+                               String minDate1, String maxDate1) {
         super(date, number, supplier, barcode, idItem, name, price, quantity, minQuantity, maxQuantity, minPrice, maxPrice, manufacturer,
                 weight, color, headField1, headField2, headField3, posField1, posField2, posField3);
         this.minDate1 = minDate1;

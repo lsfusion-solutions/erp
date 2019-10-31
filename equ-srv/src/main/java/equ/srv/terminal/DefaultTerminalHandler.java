@@ -357,8 +357,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " pos_field1   TEXT," +
                 " pos_field2   TEXT," +
                 " pos_field3   TEXT," +
-                " mindate1 DATE," +
-                " maxdate1 DATE," +
+                " mindate1 TEXT," +
+                " maxdate1 TEXT," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
