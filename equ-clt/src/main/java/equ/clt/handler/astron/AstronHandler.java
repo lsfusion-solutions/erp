@@ -1040,6 +1040,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             List<AstronRecord> curRecordList = new ArrayList<>();
             String currentUniqueReceiptId = null;
             BigDecimal prologSum = BigDecimal.ZERO;
+            String idDiscountCard = null;
 
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
@@ -1095,7 +1096,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                         curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
-                                null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, null,
+                                null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
                                 salesNum, null, null, cashRegister));
                         curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
@@ -1147,6 +1148,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         curSalesInfoList = new ArrayList<>();
                         curRecordList = new ArrayList<>();
                         prologSum = rs.getBigDecimal("SALESSUM");
+                        idDiscountCard = rs.getString("SALESBARC");
 
                         if (isReturn) { //чек возврата
                             String salesAttrs = rs.getString("SALESATTRS");
