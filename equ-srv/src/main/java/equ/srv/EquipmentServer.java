@@ -1419,9 +1419,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if(start > 0) {
                     options = readEquipmentServerOptions(sidEquipmentServer, session);
-                    if (options.numberAtATime == null) {
-                        options.numberAtATime = salesInfoList.size();
-                    }
+                }
+                if (options.numberAtATime == null) {
+                    options.numberAtATime = salesInfoList.size();
                 }
 
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
