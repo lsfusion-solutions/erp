@@ -60,15 +60,15 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         AclasSDK.release();
     }
 
-    private int clearData(ScalesInfo scales) throws IOException {
+    private int clearData(ScalesInfo scales, long sleep) throws IOException, InterruptedException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(clearFile), "cp1251"));
             bw.close();
 
-            int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile);
+            int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile, sleep);
             if(result == 0) {
-                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), noteFile);
+                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), noteFile, sleep);
             }
             //не работает, возвращает ошибку 1. Если реально понадобится очищать PLU, будем засылать файл с нулевыми ButtonValue
             //if(result == 0) {
@@ -80,21 +80,21 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
-        int result = loadPLU(scales, transaction);
+    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException, InterruptedException {
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
+        boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
+        long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
+        int result = loadPLU(scales, transaction, pluNumberAsPluId, sleep);
         if(result == 0) {
-            result = loadNote(scales, transaction);
+            result = loadNote(scales, transaction, sleep);
         }
         if(result == 0) {
-            result = loadHotKey(scales, transaction);
+            result = loadHotKey(scales, transaction, sleep);
         }
         return result;
     }
 
-    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-        boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
-
+    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -123,13 +123,13 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             bw.close();
 
-            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile);
+            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
         } finally {
             safeDelete(file);
         }
     }
 
-    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
+    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -143,13 +143,13 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             bw.close();
 
-            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile);
+            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile, sleep);
         } finally {
             safeDelete(file);
         }
     }
 
-    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException {
+    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -165,7 +165,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             bw.close();
 
-            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile);
+            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile, sleep);
         } finally {
             safeDelete(file);
         }
@@ -230,15 +230,18 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
         String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
-        return new AClasLS2SendTransactionTask(transaction, scales, libraryDir);
+        long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
+        return new AClasLS2SendTransactionTask(transaction, scales, libraryDir, sleep);
     }
 
     class AClasLS2SendTransactionTask extends SendTransactionTask {
         String libraryDir;
+        long sleep;
 
-        public AClasLS2SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, String libraryDir) {
+        public AClasLS2SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, String libraryDir, long sleep) {
             super(transaction, scales);
             this.libraryDir = libraryDir;
+            this.sleep = sleep;
         }
 
         @Override
@@ -249,7 +252,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 int result = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear) {
-                    result = clearData(scales);
+                    result = clearData(scales, sleep);
                     cleared = result == 0;
                 }
 
@@ -274,7 +277,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         public interface AclasSDKLibrary extends Library {
 
-            AclasSDKLibrary aclasSDK = (AclasSDKLibrary) Native.loadLibrary("aclassdk", AclasSDKLibrary.class, getOptions());
+            AclasSDKLibrary aclasSDK = Native.load("aclassdk", AclasSDKLibrary.class, getOptions());
 
             boolean AclasSDK_Initialize(Integer pointer);
 
@@ -298,12 +301,20 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             AclasSDKLibrary.aclasSDK.AclasSDK_Finalize();
         }
 
-        public static int clearData(String ip, String filePath, Integer dataType) throws UnsupportedEncodingException {
-            return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
+        public static int clearData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
+            int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
+            if(sleep > 0) {
+                Thread.sleep(sleep);
+            }
+            return result;
         }
 
-        public static int loadData(String ip, String filePath, Integer dataType) throws UnsupportedEncodingException {
-            return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
+        public static int loadData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
+            int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
+            if(sleep > 0) {
+                Thread.sleep(sleep);
+            }
+            return result;
         }
 
         private static byte[] getBytes(String value) throws UnsupportedEncodingException {
