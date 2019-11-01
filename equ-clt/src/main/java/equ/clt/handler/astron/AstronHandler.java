@@ -655,14 +655,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void addPrcLevelRow(PreparedStatement ps, AstronConnectionString params, TransactionCashRegisterInfo transaction, int offset, boolean secondPrice) throws SQLException {
         Integer priceLevelId = getPriceLevelId(transaction.nppGroupMachinery, true, secondPrice);
+        String priceLevelName = transaction.nameGroupMachinery + (secondPrice ? " №2" : "");
         if(params.pgsql) {
             setObject(ps, priceLevelId, 1); //PRCLEVELID
-            setObject(ps, transaction.nameGroupMachinery, 2); //PRCLEVELNAME
+            setObject(ps, priceLevelName, 2); //PRCLEVELNAME
             setObject(ps, 0, 3); //PRCLEVELKEY
             setObject(ps, 0, 4); //DELFLAG
         } else {
             setObject(ps, priceLevelId, 1, offset); //PRCLEVELID
-            setObject(ps, transaction.nameGroupMachinery, 2, offset); //PRCLEVELNAME
+            setObject(ps, priceLevelName, 2, offset); //PRCLEVELNAME
             setObject(ps, 0, 3, offset); //PRCLEVELKEY
             setObject(ps, "0", 4, offset); //DELFLAG
 
@@ -1028,7 +1029,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
-                    "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
+                    "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, sales.CLNTID, " +
                     "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
@@ -1148,7 +1149,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         curSalesInfoList = new ArrayList<>();
                         curRecordList = new ArrayList<>();
                         prologSum = rs.getBigDecimal("SALESSUM");
-                        idDiscountCard = rs.getString("SALESBARC");
+                        idDiscountCard = rs.getString("CLNTID");
 
                         if (isReturn) { //чек возврата
                             String salesAttrs = rs.getString("SALESATTRS");
