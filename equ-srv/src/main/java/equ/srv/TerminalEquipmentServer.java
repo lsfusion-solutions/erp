@@ -8,28 +8,29 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.data.time.DateTimeClass;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.ScriptingErrorLog;
-import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.BusinessLogics;
-import lsfusion.server.logics.action.session.DataSession;
-import lsfusion.server.logics.classes.data.time.DateTimeClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.property.classes.IsClassProperty;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.session.DataSession;
 
 import java.awt.*;
 import java.math.BigDecimal;
+import java.rmi.RemoteException;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.List;
 import java.util.*;
+import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -41,8 +42,8 @@ public class TerminalEquipmentServer {
         terminalOrderLM = BL.getModule("TerminalOrder");
     }
 
-    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws SQLException {
-        Map<String, ServerTerminalOrder> terminalOrderMap = new HashMap<>();
+    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws SQLException {
+        Map<String, TerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
             try {
@@ -58,14 +59,13 @@ public class TerminalEquipmentServer {
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
-                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3", "minDeviationDate", "maxDeviationDate"};
+                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
-                        "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
-                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]");
+                        "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
@@ -100,26 +100,20 @@ public class TerminalEquipmentServer {
                     String posField1 = (String) entry.get("posField1");
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
-                    String minDeviationDate = formatDate((Date) entry.get("minDeviationDate"));
-                    String maxDeviationDate = formatDate((Date) entry.get("maxDeviationDate"));
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
                     if (terminalOrder != null)
                         terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
                     else
-                        terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
+                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
-                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate));
+                                headField1, headField2, headField3, posField1, posField2, posField3));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
         return new ArrayList<>(terminalOrderMap.values());
-    }
-
-    private static String formatDate(Date date) {
-        return date != null ? new SimpleDateFormat("yyyy-MM-dd").format(date) : null;
     }
 
     private static String formatColor(Color color) {
