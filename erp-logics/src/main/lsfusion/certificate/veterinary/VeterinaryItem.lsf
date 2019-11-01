@@ -1,0 +1,62 @@
+MODULE VeterinaryItem;
+
+REQUIRE Veterinary, Item;
+
+NAMESPACE Veterinary;
+
+@defineItemGroupValue(needVeterinary, 'Обязательно ветеринарное свидетельство', BOOLEAN);
+
+dataNeedVeterinary 'Обязательно ветеринарное свидетельство' = DATA BOOLEAN (Item);
+needVeterinary 'Обязательно ветеринарное свидетельство' (Item item) = OVERRIDE dataNeedVeterinary(item), needVeterinary(itemGroup(item)) IN itemBase MATERIALIZED;
+
+FORM veterinarySettings 'Настройки ветеринарного свидетельства'
+    OBJECTS gt=GroupType PANEL
+    PROPERTIES(gt) SELECTOR name
+
+    TREE treeGroup g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)    
+    ORDER order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
+    PROPERTIES(g) BACKGROUND RGB(210,255,210) needVeterinary
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY name, idBarcode
+    ORDER name(s)
+    FILTERS isParent(g, s) OR s IS Sku AND NOT g
+    PROPERTIES(s) BACKGROUND RGB(210,255,210) needVeterinary
+    FILTERGROUP inactiveSku 
+        FILTER 'Активный' active(s) 'F5' DEFAULT
+;
+
+DESIGN veterinarySettings{
+    NEW treeContainer{
+        fill = 1;
+        type = SPLITH;
+        NEW leftContainer{
+            fill = 2;
+            MOVE BOX(gt){
+                GRID(gt);
+            }
+            MOVE BOX(TREE treeGroup) { 
+                caption = 'Группы товаров';
+//                GRID(TREE treeGroup){
+//                    headerHeight=60;
+//                }
+            }
+        }        
+        MOVE BOX(s){
+            fill=3;
+            GRID(s){
+                headerHeight=60;    
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    customsDocuments{
+        NEW veterinarySettings;
+    }
+}

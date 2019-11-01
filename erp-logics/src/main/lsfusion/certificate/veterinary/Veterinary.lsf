@@ -18,6 +18,11 @@ fromDate(Veterinary certificate) += fromDate(certificate);
 toDate 'Дата по' = DATA DATE (Veterinary) IN documentHeader;
 toDate(Veterinary certificate) += toDate(certificate);
 
+// Файл
+image 'Файл сертификата'  = DATA IMAGEFILE (Veterinary);
+saveImage 'Загрузить сертификат' (Veterinary compliance)  { INPUT =image(compliance) CHANGE; }
+openImage 'Просмотреть сертификат' (Veterinary compliance)  { open(image(compliance)); }
+
 // ------ Номер ----------- //
 
 number 'Номер' = DATA ISTRING[100] (Veterinary) NONULL IN numbered CHARWIDTH 10;
@@ -46,7 +51,7 @@ toDateVeterinary 'Дата по' (Batch batch) = toDate(veterinary(batch));
 FORM veterinary 'Ветеринарное свидетельство'
     OBJECTS c = Veterinary PANEL
     PROPERTIES(c) number, series, date, time,
-                  fromDate, toDate               
+                  fromDate, toDate, saveImage, openImage               
 
     EDIT Veterinary OBJECT c
 ;
@@ -77,6 +82,12 @@ DESIGN veterinary {
                     caption = 'Параметры документа';
                 }
             }
+            NEW fileContainer{
+                type = CONTAINERH;
+                caption = 'Файл сертификата';
+                MOVE PROPERTY(openImage(c));
+                MOVE PROPERTY(saveImage(c));
+            }            
         }    
         MOVE TOOLBARBOX;
     }
