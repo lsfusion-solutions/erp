@@ -32,10 +32,14 @@ blrwblLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
 blrwblQuantityDespatched = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 blrwblExpiryDate = DATA LOCAL NESTED DATE(INTEGER);
 blrwblValueVAT = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
+blrwblAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
 blrwblLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
 blrwblLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+lineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
+blrwblFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
+blrwblFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrwbl
     PROPERTIES IN messageHeader blrwblDocumentNumber() EXTID 'MessageID'
@@ -56,10 +60,15 @@ FORM blrwbl
                   blrwblQuantityDespatched EXTID 'QuantityDespatched',
                   blrwblExpiryDate EXTID 'BestBeforeDate',
                   blrwblValueVAT EXTID 'TaxRate',
+                  blrwblAdditionalInformation EXTID 'AdditionalInformation',
                   blrwblLineItemPrice EXTID 'LineItemPrice',
                   blrwblLineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges',
                   blrwblLineItemAmount EXTID 'LineItemAmount',
                   blrwblLineItemAmountCharges EXTID 'LineItemAmountCharges'
+    OBJECTS f = INTEGER EXTID 'LineItemExtraField'
+    PROPERTIES(f) blrwblFieldName EXTID 'FieldName',
+                  blrwblFieldValue EXTID 'FieldValue'
+    FILTERS lineItemLineItemExtraField(f) == i
 ;
 
 @openXML(EInvoice,e,eInvoices);
@@ -95,10 +104,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         quantityDespatched(ed) <- blrwblQuantityDespatched(l);
                         expiryDate(ed) <- blrwblExpiryDate(l);
                         valueVAT(ed) <- blrwblValueVAT(l);
+                        additionalInformation(ed) <- blrwblAdditionalInformation(l);
                         lineItemPrice(ed) <- blrwblLineItemPrice(l);
                         lineItemAmountWithoutCharges(ed) <- blrwblLineItemAmountWithoutCharges(l);
                         lineItemAmount(ed) <- blrwblLineItemAmount(l);
                         lineItemAmountCharges(ed) <- blrwblLineItemAmountCharges(l);
+                        lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblFieldName(INTEGER f), blrwblFieldValue(f)) IF lineItemLineItemExtraField(f) == l, ', ';
                     }
                 }
                 APPLY NESTED LOCAL;
@@ -437,7 +448,8 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                     LOCAL blrwbrSubXML = FILE();
                     IF NOT isCancel(ei) THEN {
                         LOCAL error = TEXT();
-                        error() <- '';                        
+                        error() <- '';
+                        IF NOT length(addressCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта разгрузки (Адрес склада получателя)\'\n';
                         IF NOT length(contactCustomerStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не задано \'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя\'\n';
                         
                         IF error() == '' THEN {
@@ -456,10 +468,10 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                     
                     LOCAL blrapnEncoded = TEXT();
                     LOCAL blrwbrEncoded = TEXT();
-                    IF aliasEDSServiceCustomer(ei) AND passwordEDSServiceCustomer(ei) THEN {
+                    IF aliasEDSServiceCustomer(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(ei)) THEN {
                         LOCAL blrapn = FILE();
                         fileToString(blrapnSubXML());
-                        EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO blrapn;
+                        EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(ei)) XML TO blrapn;
                         LOCAL innerXML = TEXT();
                         innerXML() <- resultString();
                         fileToString(blrapn());
@@ -478,7 +490,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] provider) {
                         IF blrwbrSubXML() THEN {
                             LOCAL blrwbr = FILE();
                             fileToString(blrwbrSubXML());
-                            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO blrwbr;
+                            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(ei)) XML TO blrwbr;
                             innerXML() <- resultString();
                             fileToString(blrwbr());
                             stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
@@ -697,10 +709,10 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                             TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbl-' + toChar(blrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS'); 
                         }
-                        IF aliasEDSServiceSupplier(ei) AND passwordEDSServiceSupplier(ei) THEN {
+                        IF aliasEDSServiceSupplier(ei) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) THEN {
                             LOCAL xml = FILE();
                             fileToString(contentSubXML());
-                            EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(ei),password = passwordEDSServiceSupplier(ei) XML TO xml;
+                            EXPORT getEDS OBJECTS alias = aliasEDSServiceSupplier(ei),password = (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(ei)) XML TO xml;
                             LOCAL innerXML = TEXT();
                             innerXML() <- resultString();
                             fileToString(xml());

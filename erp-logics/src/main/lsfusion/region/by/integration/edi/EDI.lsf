@@ -109,6 +109,23 @@ aliasEDSService 'Alias EDSService' = DATA STRING[100] (LegalEntity);
 passwordEDSService 'Пароль EDSService' = DATA STRING[100] (LegalEntity) ECHO;
 aliasEDSService 'Alias EDSService' = DATA STRING[100] (DepartmentStore);
 passwordEDSService 'Пароль EDSService' = DATA STRING[100] (DepartmentStore) ECHO;
+
+askPasswordEDSService 'Запрашивать пароль EDSService' = DATA BOOLEAN ();
+passwordEDSService 'Пароль EDSService' = DATA LOCAL NESTED STRING[100] () ECHO;
+FORM passwordEDSService 'Пароль EDSService'
+    PROPERTIES passwordEDSService()
+    EVENTS
+    ON INIT {
+        passwordEDSService() <- NULL;
+    },
+    ON OK BEFORE {
+        IF NOT passwordEDSService() THEN {
+            MESSAGE 'Необходимо задать пароль' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+    }
+;
+
 EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider, banCancel, hourToSend;
 DESIGN legalEntity {
     column2{
@@ -478,7 +495,10 @@ EXTEND FORM computers PROPERTIES(c) READONLY certificateEDI, passwordEDI, signer
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 
 signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
-signAndSendSupplierEDI 'Подписать и отправить (поставщик)'()  { 
+signAndSendSupplierEDI 'Подписать и отправить (поставщик)'()  {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
     FOR in(EInvoice i) DO { 
         IF EDIProvider(supplier(i)) THEN
             signAndSendSupplier(i);
@@ -492,6 +512,9 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
 
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST ( EInvoice);
 signAndSendCustomerEDI 'Подписать и отправить (покупатель)'()  { 
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
     FOR in(EInvoice i) DO { 
         IF EDIProvider(supplier(i)) THEN
             signAndSendCustomer(i);
@@ -523,6 +546,7 @@ lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (
 lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
 lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
 lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
+lineItemExtraFields 'Дополнительная информация' = DATA STRING (EInvoiceDetail);
 
 totalAmountWithoutCharges 'Общая сумма без НДС' (eInvoice) = GROUP SUM lineItemAmountWithoutCharges(EInvoiceDetail d) BY eInvoice(d);
 totalAmountCharges 'Общая сумма НДС' (eInvoice) = GROUP SUM lineItemAmountCharges(EInvoiceDetail d) BY eInvoice(d);
@@ -533,12 +557,20 @@ totalGrossWeight 'Всего масса груза в тоннах' (eInvoice) =
 totalDespatchUnitQuantity 'Всего грузовых мест' (eInvoice) = GROUP SUM despatchUnitQuantityDespatched(EInvoiceDetail d) BY eInvoice(d);
 totalAmountExcise 'Всего сумма акциза' (eInvoice) = GROUP SUM lineItemAmountExcise(EInvoiceDetail d) BY eInvoice(d);
 
-FORM dialogEInvoice 'Выбор электронной накладной'
+FORM dialogEInvoiceSupplier 'Выбор электронной накладной'
     OBJECTS i = EInvoice
     PROPERTIES(i) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
     
     LIST EInvoice OBJECT i
 ;
+@extendFormFilterAccessStock(dialogEInvoiceSupplier, i, dialogEInvoiceSupplier, supplierStock, Company);
+FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
+    OBJECTS i = EInvoice
+    PROPERTIES(i) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    
+    LIST EInvoice OBJECT i
+;
+@extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
 
 //-----------------------------------------Сообщение по накладной EDI-----------------------------------------//
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
@@ -588,7 +620,7 @@ FORM eInvoices 'Электронные накладные EDI'
     OBJECTS d = EInvoiceDetail
     PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
      lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
-     grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise
+     grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields
 
     PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendCustomerEDI
 
@@ -634,7 +666,7 @@ FORM eInvoice 'Электронная накладная EDI'
     
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, 
-                    lineItemAmount, lineItemAmountCharges, grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched
+                    lineItemAmount, lineItemAmountCharges, grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, lineItemExtraFields
      FILTERS eInvoice(ed) == e
 ;
 

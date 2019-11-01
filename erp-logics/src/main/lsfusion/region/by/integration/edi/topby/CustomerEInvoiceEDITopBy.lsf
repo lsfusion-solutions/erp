@@ -265,10 +265,10 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
                             TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
-                        IF aliasEDSServiceCustomer(c) AND passwordEDSServiceCustomer(c) THEN {
+                        IF aliasEDSServiceCustomer(c) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(c)) THEN {
                             LOCAL xml = FILE();
                             fileToString(contentSubXML());
-                            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(c),password = passwordEDSServiceCustomer(c) XML TO xml;
+                            EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(c),password = (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(c)) XML TO xml;
                             LOCAL innerXML = TEXT();
                             innerXML() <- resultString();
                             fileToString(xml());
