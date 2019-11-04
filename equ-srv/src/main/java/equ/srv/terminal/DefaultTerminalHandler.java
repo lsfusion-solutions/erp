@@ -170,7 +170,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
-                boolean useExtraFields = terminalHandlerLM.findProperty("useExtraFields[]").read(session, userObject) != null;
+                boolean useExtraFields = terminalHandlerLM.findProperty("useExtraFields[]").read(session) != null;
 
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
