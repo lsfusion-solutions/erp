@@ -3,6 +3,7 @@ package equ.srv.terminal;
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
 import equ.srv.EquipmentLoggers;
+import equ.srv.ServerTerminalOrder;
 import equ.srv.TerminalEquipmentServer;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.file.RawFileData;
@@ -169,13 +170,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
+                boolean useExtraFields = terminalHandlerLM.findProperty("useExtraFields[]").read(session, userObject) != null;
+
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
 
-                List<TerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject);
+                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject);
                 Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
@@ -187,11 +190,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 Class.forName("org.sqlite.JDBC");
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
-                createGoodsTable(connection);
-                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap);
+                createGoodsTable(connection, useExtraFields);
+                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap, useExtraFields);
 
-                createOrderTable(connection);
-                updateOrderTable(connection, orderList, prefix);
+                createOrderTable(connection, useExtraFields);
+                updateOrderTable(connection, orderList, prefix, useExtraFields);
 
                 createAssortTable(connection);
                 updateAssortTable(connection, assortmentList, prefix);
@@ -261,6 +264,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
                 if (currentPrice) {
                     barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                     if(stockObject instanceof DataObject && !allItems)
@@ -294,8 +298,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String mainBarcode = trim((String) entry.get("mainBarcode"));
                     String extInfo = trim((String) entry.get("extInfo"));
                     String fld3 = trim((String) entry.get("fld3"));
+                    boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
 
-                    result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight, mainBarcode, extInfo, fld3));
+                    result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode,
+                            nameManufacturer, isWeight, mainBarcode, extInfo, fld3, needManufacturingDate));
 
                 }
             }
@@ -333,9 +339,33 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
-    private void createOrderTable(Connection connection) throws SQLException {
+    private void createOrderTable(Connection connection, boolean useExtraFields) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = "CREATE TABLE zayavki " +
+        String sql = useExtraFields ?
+
+                "CREATE TABLE zayavki " +
+                "(dv     TEXT," +
+                " num   TEXT," +
+                " post  TEXT," +
+                " barcode   TEXT," +
+                " quant   REAL," +
+                " price    REAL," +
+                " minquant    REAL," +
+                " maxquant    REAL," +
+                " minprice    REAL," +
+                " maxprice    REAL," +
+                " color TEXT," +
+                " field1   TEXT," +
+                " field2   TEXT," +
+                " field3   TEXT," +
+                " pos_field1   TEXT," +
+                " pos_field2   TEXT," +
+                " pos_field3   TEXT," +
+                " mindate1 TEXT," +
+                " maxdate1 TEXT," +
+                "PRIMARY KEY (num, barcode))" :
+
+                "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
@@ -359,14 +389,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String prefix) throws SQLException {
+    private void updateOrderTable(Connection connection, List<ServerTerminalOrder> terminalOrderList, String prefix, boolean useExtraFields) throws SQLException {
         if (!terminalOrderList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = useExtraFields ?
+                        "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" :
+                        "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
-                for (TerminalOrder order : terminalOrderList) {
+                for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
                         String supplier = order.supplier == null ? "" : (prefix + formatValue(order.supplier));
                         statement.setObject(1, formatValue(order.date));
@@ -386,6 +418,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(15,formatValue(order.posField1));
                         statement.setObject(16,formatValue(order.posField2));
                         statement.setObject(17,formatValue(order.posField3));
+                        if(useExtraFields) {
+                            statement.setObject(18, formatValue(order.minDate1));
+                            statement.setObject(19, formatValue(order.maxDate1));
+                        }
                         statement.addBatch();
                     }
                 }
@@ -399,9 +435,28 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
-    private void createGoodsTable(Connection connection) throws SQLException {
+    private void createGoodsTable(Connection connection, boolean useExtraFields) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = "CREATE TABLE goods " +
+        String sql = useExtraFields ?
+
+                "CREATE TABLE goods " +
+                "(barcode TEXT PRIMARY KEY," +
+                " naim    TEXT," +
+                " price   REAL," +
+                " quant   REAL," +
+                " fld1    TEXT," +
+                " fld2    TEXT," +
+                " fld3    TEXT," +
+                " fld4    TEXT," +
+                " fld5    TEXT," +
+                " image   TEXT," +
+                " weight  TEXT," +
+                " main_barcode TEXT," +
+                " color TEXT," +
+                " ticket_data TEXT," +
+                " flags INTEGER)" :
+
+                "CREATE TABLE goods " +
                 "(barcode TEXT PRIMARY KEY," +
                 " naim    TEXT," +
                 " price   REAL," +
@@ -420,12 +475,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<TerminalOrder> orderList, Map<String, List<String>> extraBarcodeMap) throws SQLException {
+    private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList,
+                                  Map<String, List<String>> extraBarcodeMap, boolean useExtraFields) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?);";
+                String sql = useExtraFields ?
+                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?, ?);" :
+                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -440,6 +498,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(8, formatValue(barcode.isWeight)); //weight
                         statement.setObject(9, formatValue(barcode.mainBarcode)); //main_barcode
                         statement.setObject(10, formatValue(barcode.extInfo)); //ticket_data
+                        if(useExtraFields) {
+                            statement.setObject(11, barcode.needManufacturingDate ? 1 : 0); //flags
+                        }
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -861,9 +922,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String mainBarcode;
         String extInfo;
         String fld3;
+        boolean needManufacturingDate;
 
         public TerminalBarcode(String idBarcode, String nameSkuBarcode, BigDecimal price, BigDecimal quantityBarcodeStock,
-                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String extInfo, String fld3) {
+                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String extInfo,
+                               String fld3, boolean needManufacturingDate) {
             this.idBarcode = idBarcode;
             this.nameSkuBarcode = nameSkuBarcode;
             this.price = price;
@@ -874,6 +937,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.mainBarcode = mainBarcode;
             this.extInfo = extInfo;
             this.fld3 = fld3;
+            this.needManufacturingDate = needManufacturingDate;
         }
     }
 
