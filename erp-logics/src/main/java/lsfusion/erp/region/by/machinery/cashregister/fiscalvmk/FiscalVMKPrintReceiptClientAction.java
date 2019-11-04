@@ -205,7 +205,8 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         }
 
         if (extraReceipt != null) {
-            FiscalVMK.printMultilineFiscalText(extraReceipt);
+            if(!FiscalVMK.printMultilineFiscalText2(extraReceipt))
+                return null;
             FiscalVMK.printHeaderReceipt();
         }
 

@@ -204,6 +204,22 @@ public class FiscalVMK {
         return true;
     }
 
+    //более правильный метод, но для обратной совместимости оставим оба
+    public static boolean printMultilineFiscalText2(String msg) {
+        if (msg != null && !msg.isEmpty()) {
+            for(String line : msg.split("\n", -1)) {
+                int start = 0;
+                while (start < line.length()) {
+                    int end = Math.min(start + 24, line.length());
+                    if (!printFiscalText(line.substring(start, end)))
+                        return false;
+                    start = end;
+                }
+            }
+        }
+        return true;
+    }
+
     public static boolean printFiscalText(String msg) {
         try {
         if(msg != null && !msg.isEmpty()) {
