@@ -4,15 +4,15 @@ NAMESPACE Stock;
 
 dateAccountDelta 'Дата с (отклонение от фактического)' = ABSTRACT DATE (Stock) MATERIALIZED;
 
-calcAccountDelta(Sku s, Stock st) = (GROUP SUM quantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+calcAccountDelta(Sku s, Stock st) = (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
     AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
 accountDelta(Sku s, Stock st) += calcAccountDelta(s,st);    
 
-accountDelta (Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM quantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+accountDelta (Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
     AND skip(stockDocumentLedger(l)) AND date(l) >= df AND date(l)<=dt AND sku(l)==s AND stock(l)==st);   
     
 accountDeltaB(Sku s, Stock st, DATETIME dateTime) +=  accountDelta(s, st)(-) 
-                                                (GROUP SUM quantity (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
+                                                (GROUP SUM -signedQuantity (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
                                                 AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);
                                                                                  
 EXTEND FORM currentBalanceSkuStock
