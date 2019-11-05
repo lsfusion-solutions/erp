@@ -362,7 +362,7 @@ public class LSTerminalHandler extends TerminalHandler {
                         statement.setObject(4, formatValue(tdt.analytics1));
                         statement.setObject(5, formatValue(tdt.analytics2));
                         statement.setObject(6, "");
-                        statement.setObject(7, formatValue(tdt.flag == null ? "1" : tdt.flag));
+                        statement.setObject(7, formatValue(tdt.flag == null ? "0" : tdt.flag));
                         statement.addBatch();
                     }
                 }
