@@ -26,7 +26,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
             EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                 stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
                                 sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                                manufacturer = manufacturer(sku(b)), country = country(sku(b)),
+                                manufacturer = manufacturer(sku(b)),
                                 price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
                                 balance = DOUBLE(balance(b, st)),
                                 quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
@@ -105,7 +105,7 @@ DESIGN turnoverReport {
 @createGroup(turnover, supplierStock, 'По складу поставщика', 13, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer);
 @createGroup(turnover, UOM, 'По единице измерения', 14, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer);
 
-@createGroup(turnover, country, 'По стране', 15, 'country', 'LOOKUP(country,\'country_name\')', 'Страна', itemContainer);
+@createGroup(turnover, country, 'По стране', 15, 'LOOKUP(sku,\'sku_country\')', 'LOOKUP(LOOKUP(sku,\'sku_country\'),\'country_name\')', 'Страна', itemContainer);
 
 nameGroupsTurnover = CONCAT ', ', (OVERRIDE exprGroup1Turnover(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2Turnover(), '\'\'') + ' AS nameGroup2',
@@ -385,7 +385,7 @@ changeIncludeManufacturers()  {
     }
 }
 
-//------- Производители -------
+//------- Страны -------
 include 'Вкл' = DATA LOCAL BOOLEAN (Country);
 
 deleteIncludeCountries 'Сбросить отмеченные'()  { 
@@ -536,7 +536,7 @@ filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) 
                     + (OVERRIDE ' AND supplier IN (' + (GROUP CONCAT TEXT('\''+ TEXT(LegalEntity le) +'\'') IF include(le),',') + ')','')
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_brand\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Brand b) +'\'') IF include(b),',') + ')','')
                     + (OVERRIDE ' AND manufacturer IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Manufacturer b) +'\'') IF include(b),',') + ')','')
-                    + (OVERRIDE ' AND country IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF include(c),',') + ')','')
+                    + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF include(c),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
                     + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
 values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
