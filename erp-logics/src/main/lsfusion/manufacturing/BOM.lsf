@@ -62,7 +62,7 @@ backgroundProduct 'Цвет' (SkuGroup group) = CASE
     WHEN quantityChildWithProduct(group) != descendantNumber(group) AND NOT quantityParentWithProduct(group) THEN RGB(203,203,203);    
 
 EXTEND FORM options 
-    TREE skuTree sk = SkuGroup PARENT parent
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES(sk) READONLY order, name
     PROPERTIES(sk) component BACKGROUND backgroundComponent(sk), product BACKGROUND backgroundProduct(sk)
     ORDER order(sk), name(sk)
@@ -119,7 +119,7 @@ isParent (SkuGroup skuGroup, Material material) = isParent(skuGroup(material), s
 
 FORM materials 'Материалы'
 
-    TREE skuTree sg = SkuGroup PARENT parent
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
     ORDER order(sg), skuGroupName
@@ -543,7 +543,7 @@ FORM BOM 'Спецификация'
     PROPERTIES(b) DRAW c deleteComponent
     FILTERS       BOM(c) == b
     
-    TREE stockTree sg = StockGroup PARENT parent
+    TREE stockTree sg = StockGroup PARENT parent(sg)
     PROPERTIES    name(sg) READONLY, in(b,sg) BACKGROUND backgroundIn(b,sg)
     ORDER      name(sg)
     
@@ -931,7 +931,7 @@ FORM manufacturingCommittee 'Комиссия производство'
     OBJECTS c=ManufacturingCommittee PANEL
     PROPERTIES(c)      name
 
-    TREE stockTree sg = StockGroup PARENT parent
+    TREE stockTree sg = StockGroup PARENT parent(sg)
     PROPERTIES READONLY sgTreeName = name(sg)
 
     OBJECTS ts=Stock
@@ -1128,7 +1128,7 @@ EXTEND FORM BOM
 
     PROPERTIES nameComponentsStock(b)
 
-    TREE skuTree g = SkuGroup PARENT parent
+    TREE skuTree g = SkuGroup PARENT parent(g)
     PROPERTIES READONLY order(g), name(g)
     ORDER name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
