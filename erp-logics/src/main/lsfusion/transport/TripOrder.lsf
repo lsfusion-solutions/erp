@@ -77,12 +77,15 @@ printOrders 'Печать заказов' (Trip trip)  {
     PRINT ordersTrip OBJECTS t = trip ;
 } TOOLBAR;
 
+backgroundTripOrder 'Цвет' = ABSTRACT CASE COLOR(Order);
+backgroundTripStock 'Цвет' = ABSTRACT CASE COLOR(Trip,Stock);
+
 EXTEND FORM trip
     PROPERTIES (t) READONLY grossWeightOrdered
 
     OBJECTS o=Order
     PROPERTIES(t, o) in
-    PROPERTIES(o) READONLY number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
+    PROPERTIES(o) READONLY BACKGROUND backgroundTripOrder(o) number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
     PROPERTIES(o) NEWSESSION EDIT
     PROPERTIES printOrders(t) DRAW o 
 
@@ -102,7 +105,7 @@ EXTEND FORM trip
     FILTERS order(od)==o
 
     OBJECTS st=Stock
-    PROPERTIES(st) READONLY name, address, nameLegalEntity
+    PROPERTIES(st) READONLY BACKGROUND backgroundTripStock(t,st) name, address, nameLegalEntity
     PROPERTIES(t, st) grossWeightTo
     PROPERTIES(st, t) number, isFirst
     PROPERTIES (t) showPoints DRAW st
