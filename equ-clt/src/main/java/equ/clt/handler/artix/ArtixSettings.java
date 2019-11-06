@@ -17,6 +17,9 @@ public class ArtixSettings implements Serializable{
     private boolean notDeleteEmptyFiles;
     private int priorityDirectoriesCount;
     private boolean disableSoftCheck;
+    private String cashPayments;
+    private String cardPayments;
+    private String giftCardPayments;
 
     public ArtixSettings() {
     }
@@ -123,5 +126,29 @@ public class ArtixSettings implements Serializable{
 
     public void setDisableSoftCheck(boolean disableSoftCheck) {
         this.disableSoftCheck = disableSoftCheck;
+    }
+
+    public String getCashPayments() {
+        return cashPayments;
+    }
+
+    public void setCashPayments(String cashPayments) {
+        this.cashPayments = cashPayments;
+    }
+
+    public String getCardPayments() {
+        return cardPayments;
+    }
+
+    public void setCardPayments(String cardPayments) {
+        this.cardPayments = cardPayments;
+    }
+
+    public String getGiftCardPayments() {
+        return giftCardPayments;
+    }
+
+    public void setGiftCardPayments(String giftCardPayments) {
+        this.giftCardPayments = giftCardPayments;
     }
 }

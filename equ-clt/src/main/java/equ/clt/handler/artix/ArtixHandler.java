@@ -945,6 +945,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         boolean bonusesInDiscountPositions = artixSettings != null && artixSettings.isBonusesInDiscountPositions();
         boolean giftCardPriceInCertificatePositions = artixSettings != null && artixSettings.isGiftCardPriceInCertificatePositions();
         boolean notDeleteEmptyFiles = artixSettings != null && artixSettings.isNotDeleteEmptyFiles();
+        Set<Integer> cashPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCashPayments());
+        Set<Integer> cardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCardPayments());
+        Set<Integer> giftCardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getGiftCardPayments());
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1082,6 +1085,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             Integer operationCode = moneyPosition.getInt("opCode");
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
+
+                                                if (cashPayments.contains(paymentType)) //нал
+                                                    paymentType = 1;
+                                                else if (cardPayments.contains(paymentType)) //безнал
+                                                    paymentType = 4;
+                                                else if (giftCardPayments.contains(paymentType)) //сертификат
+                                                    paymentType = 6;
+
                                                 sum = (sum != null && !isSale) ? sum.negate() : sum;
                                                 switch (paymentType) {
                                                     case 4:
@@ -1380,6 +1391,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             }
         }
         return null;
+    }
+
+    private Set<Integer> parsePayments(String payments) {
+        Set<Integer> paymentsSet = new HashSet<>();
+        try {
+            if (payments != null && !payments.isEmpty()) {
+                for (String payment : payments.split(",")) {
+                    paymentsSet.add(Integer.parseInt(payment.trim()));
+                }
+            }
+        } catch (Exception e) {
+            sendSalesLogger.error(logPrefix + "invalid payment settings: " + payments);
+        }
+        return paymentsSet;
     }
 
     private class ShiftInfo {
