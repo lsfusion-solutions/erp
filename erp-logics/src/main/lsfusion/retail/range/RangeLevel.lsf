@@ -98,14 +98,16 @@ countSku 'Кол-во товаров' (RangeRev r) = GROUP SUM 1 IF level(r, Sku
 notCheckDepthRange 'Не проверять глубину матрицы при изменении значения глубины' = DATA BOOLEAN ();
 notCheckDepth 'Не проверять глубину матрицы' = DATA BOOLEAN ();
 notCheckDepthLoc 'Не проверять глубину матрицы' = DATA LOCAL BOOLEAN ();
+useCountRecSku 'Использовать накопительное кол-во товаров при проверке глубины матрицы' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES () notCheckDepthRange, notCheckDepth
+    PROPERTIES () notCheckDepthRange, notCheckDepth, useCountRecSku
 ;
 DESIGN options {
     range {
         MOVE PROPERTY (notCheckDepthRange());
         MOVE PROPERTY (notCheckDepth());
+        MOVE PROPERTY (useCountRecSku());
     }
 }  
 
@@ -127,12 +129,12 @@ countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
-CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (notCheckDepth() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < (OVERRIDE countRecSku(v,l) IF useCountRecSku(), countSku(v,l)) AND NOT (notCheckDepth() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 //CONSTRAINT CHANGED(countSku(RangeRev v, RangeLevel l)) AND depth(range(v), l) < countSku(v,l) AND NOT (PREV(countSku(v,l)) >= countSku(v,l) )
 //    MESSAGE 'Превышено максимально количество товаров по матрице для уровня';
 
-CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < countSku(v,l) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
+CONSTRAINT CHANGED(depth(range(RangeRev v), RangeLevel l)) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v), l) < (OVERRIDE countRecSku(v,l) IF useCountRecSku(), countSku(v,l)) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
 
 countSkus 'Кол-во наименований (всего)' (RangeRev v, supplier, LedgerPriceListType pt, Stock d) = GROUP SUM 1 IF level(v, Sku sku)
