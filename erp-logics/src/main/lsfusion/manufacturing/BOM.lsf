@@ -1222,4 +1222,39 @@ overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
         dataComponent(ng) <- component(itemGroup(g));
         dataProduct(ng) <- product(itemGroup(g));
     }
+} 
+  
+filterBOMStock  = DATA LOCAL Stock ();
+nameFilterBOMStock 'Склад' = name(filterBOMStock()) CHARWIDTH 15;          
+filterProductsStock (BOM i) = (GROUP SUM 1 IF in(i,filterBOMStock())) OR (i IS BOM AND NOT filterBOMStock());      
+
+filterBOMCustomUser  = DATA LOCAL CustomUser ();
+nameFilterBOMCustomUser 'Создан пользователем' = name[Contact](filterBOMCustomUser()) CHARWIDTH 15;          
+filterCustomUser (BOM i) = createdUser(i) == filterBOMCustomUser() OR (i IS BOM AND NOT filterBOMCustomUser());  
+
+filterBOMComputer = DATA LOCAL Computer ();
+nameFilterBOMComputer 'Создан на компьютере' = hostname(filterBOMComputer()) CHARWIDTH 15;          
+filterComputer (BOM i) = createdComputer(i) == filterBOMComputer() OR (i IS BOM AND NOT filterBOMComputer());
+
+CONSTRAINT filterBOMStock() AND NOT isCompany(filterBOMStock())
+    CHECKED BY filterBOMStock[] MESSAGE 'Склад в фильтре для спецификаций не является складом компании';
+    
+EXTEND FORM BOMs
+    PROPERTIES () nameFilterBOMStock, nameFilterBOMCustomUser, nameFilterBOMComputer
+    FILTERS filterProductsStock(b), filterCustomUser(b),  filterComputer(b)
+;
+DESIGN BOMs{
+    bom {
+        NEW topBom BEFORE documentDetail{
+            fill = 1;
+            NEW filterBOM{
+                caption = 'Фильтры';
+                type = CONTAINERH;
+                MOVE PROPERTY (nameFilterBOMStock());
+                MOVE PROPERTY (nameFilterBOMCustomUser());
+                MOVE PROPERTY (nameFilterBOMComputer());               
+            }         
+            MOVE BOX(b); 
+        }
+    }                 
 }

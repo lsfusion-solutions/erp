@@ -77,6 +77,8 @@ pricingOperation (Order o) <- pricingOperation(operation(o))
     WHEN CHANGED(operation(o));
 
 backgroundRetail 'Цвет' (Order order) = RGB(224, 255, 255) IF order IS Order;
+backgroundRetail 'Цвет' = ABSTRACT CASE COLOR(ProductDetail);
+backgroundRetail(ProductDetail d) += WHEN d IS ProductDetail THEN backgroundRetail(order(d));
 
 @defineDocumentHeaderPricingCommittee(order, componentsStock, );
 
@@ -147,7 +149,7 @@ retailSum(OrderOutputDetail outputDetail) += outputProductsSum(productDetail(out
 EXTEND FORM order
     PROPERTIES(o)  BACKGROUND backgroundRetail(o) createPricing, namePricingOperation SHOWIF createPricing(o),
                    namePricingCommittee SHOWIF createPricing(o)
-    PROPERTIES(pd) BACKGROUND backgroundRetail(o) SHOWIF createPricing(o) READONLY BEFORE outputProductsSum(pd)
+    PROPERTIES(pd) BACKGROUND backgroundRetail(pd) SHOWIF createPricing(o) READONLY BEFORE outputProductsSum(pd)
                    componentsSum, overMarkup, overMarkupSum, overVATSum
 ;
 DESIGN order {
@@ -163,7 +165,7 @@ DESIGN order {
 }
 
 EXTEND FORM orders
-    PROPERTIES(pd) BACKGROUND backgroundRetail(o) SHOWIF createPricing(o) READONLY BEFORE outputProductsSum(pd)
+    PROPERTIES(pd) BACKGROUND backgroundRetail(pd) SHOWIF createPricing(o) READONLY BEFORE outputProductsSum(pd)
                    componentsSum, overMarkup, overMarkupSum, overVATSum
 ;
 

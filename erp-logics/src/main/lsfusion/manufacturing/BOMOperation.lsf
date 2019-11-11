@@ -30,3 +30,18 @@ CONSTRAINT equalsBOMNettoNetWeight(operation(BOM b)) AND overNettoNetWeightProdu
     MESSAGE 'Вес нетто компонентов не равен весу нетто изделий в спецификации';
     
 EXTEND FORM BOMs FILTERS in(currentUser(), operation(b));
+
+filterBOMOperation = DATA LOCAL Operation ();
+nameFilterBOMOperation 'Операция' = name(filterBOMOperation()) CHARWIDTH 15;          
+filterOperation (BOM i) = operation(i) == filterBOMOperation() OR (i IS BOM AND NOT filterBOMOperation());
+
+    
+EXTEND FORM BOMs
+    PROPERTIES () nameFilterBOMOperation
+    FILTERS filterOperation(b), filterCustomUser(b),  filterComputer(b)
+;
+DESIGN BOMs{
+    filterBOM{
+        MOVE PROPERTY (nameFilterBOMOperation ()) BEFORE PROPERTY (nameFilterBOMStock());
+    }                              
+}

@@ -39,6 +39,8 @@ lack 'Не хватает' = DATA LOCAL NUMERIC[16,5] (Sku);
 replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute);
 replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF toSku(sb) = s;  
 
+createBatchComponentDetailOver  ABSTRACT LIST (Order);
+
 createBatchComponentDetail 'Рассчитать партии по FIFO' (Order o) {
     // общая потребность по компонентам
     quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
@@ -129,6 +131,8 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
         BOM(d) <- b;
         bruttoQuantity(d) <- q;
     }
+    
+    createBatchComponentDetailOver(o);
 }
 
 quantity 'Кол-во к списанию' (Sku s) = GROUP SUM quantity(s, BOM b); 
@@ -189,10 +193,3 @@ DESIGN order {
         }
     }
 }
-
-ggg =  GROUP SUM 1 IF sku(ProductDetail pd)==sku(ComponentDetail cd) AND order(pd)==order(cd) BY pd;
-hhh =  GROUP SUM 1 IF sku(ProductDetail pd)==sku(ComponentDetail cd) AND order(pd)==order(cd) BY cd;
-EXTEND FORM order
-    FILTERGROUP gasge FILTER 'Изд. и компонент' (ggg(pd)) 'F6'
-    FILTERGROUP hsdfgh FILTER 'Изд. и компонент' (hhh(cd))'F6'   
-;
