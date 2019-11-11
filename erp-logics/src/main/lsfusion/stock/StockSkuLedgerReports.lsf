@@ -91,8 +91,12 @@ END
 @setNameGroup(2);
 @setNameGroup(3);
 
-fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  {  
-    inSkuLedger(SkuLedger sl) <- inBackSheet(stock(sl)) AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND isPosted(sl) AND ((inSession(operation(sl)) AND NOT isReturn(sl)) OR (inReturn(operation(sl)) AND isReturn(sl)));
+fillReportGroupOperationFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt)  {
+    IF (GROUP SUM 1 IF inBackSheet(Stock st)) = 1 THEN {
+        FOR Stock st = (GROUP MAX Stock sst IF inBackSheet(sst)) NOINLINE DO 
+            inSkuLedger(SkuLedger sl) <- stock(sl) = st AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND isPosted(sl) AND ((inSession(operation(sl)) AND NOT isReturn(sl)) OR (inReturn(operation(sl)) AND isReturn(sl)));
+    } ELSE
+        inSkuLedger(SkuLedger sl) <- inBackSheet(stock(sl)) AND date(sl) >= df AND date(sl) <= dt AND include(gt, sku(sl)) AND isPosted(sl) AND ((inSession(operation(sl)) AND NOT isReturn(sl)) OR (inReturn(operation(sl)) AND isReturn(sl)));
     
     barcodeSku(SkuLedger sl) <- (OVERRIDE idBarcodeSku(sl), 'Не задано') IF sl IS SkuLedger AND gSku() WHERE inSkuLedger(sl);
     
