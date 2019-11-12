@@ -362,10 +362,6 @@ supplier = DATA LegalEntity(Item);
 supplier(Item i) += supplier(i);
 nameSupplier 'Поставщик' (Item i) = name(supplier(i)) IN itemBase;
 
-supplier = DATA LegalEntity(Ware);
-supplier(Ware i) += supplier(i);
-nameSupplier 'Поставщик' (Ware i) = name(supplier(i));
-
 EXTEND FORM item PROPERTIES nameSupplier(i);
 EXTEND FORM items PROPERTIES READONLYIF isReadonly() nameSupplier(i);
 
@@ -375,9 +371,6 @@ EXTEND FORM wares PROPERTIES READONLYIF isReadonly() nameSupplier(w);
 dateCreated = DATA LOCAL DATE (INTEGER);
 
 overImportItems ABSTRACT LIST ();
-
-ware 'Посуда' = DATA LOCAL BOOLEAN ();
-skuGroup = GROUP MAX SkuGroup g BY id(g);
 
 importItems 'Импорт товаров' () {
     
@@ -397,34 +390,17 @@ importItems 'Импорт товаров' () {
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_good, name, SUBSTR(name_e, 1, 60), price_name, name_cur, cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, CrDate FROM Pub.katalog WHERE '
-             + (OVERRIDE 'NOT ' IF NOT ware(), '') + 'cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
+             + 'NOT cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idSku, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article, dateCreated;
+    IMPORT TABLE FROM file() TO idItem, name, nameSupplier, nameLabel, nameCashbox, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article, dateCreated;
     
-    IF ware() AND NOT wareGroup('all') THEN NEW g = WareGroup {
-        id(g) <- 'all';
-        name(g) <- 'Все';
+    FOR idItem(INTEGER i) AND NOT item(TEXT (idItem(i))) DO NEW s = Item {
+        id(s) <- STRING[100](idItem(i));
     }
     
-    FOR idSku(INTEGER i) AND NOT sku(TEXT (idSku(i))) DO {
-        IF NOT ware() THEN NEW s = Item {
-            id(s) <- STRING[100](idSku(i));
-        }
-        ELSE NEW s = Ware {
-             id(s) <- STRING[100](idSku(i));
-         }
-    }
-    
-    FOR Sku s = sku(TEXT (idSku(INTEGER i))) DO {
-        IF NOT ware() THEN {
-            caption(s) <- name(i);
-            itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
-        }
-        ELSE {
-            name(s) <- name(i);
-            dataIn(s, ItemGroup g) <- g == itemGroup('all');
-            wareGroup(s) <- wareGroup('all') IF ware();
-        }
+    FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
+        caption(s) <- name(i);
+        itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
         UOM(s) <- UOM(TEXT (idUOM(i)));
         supplier(s) <- legalEntityNew(TEXT (idLegalEntity(i)));
         passScales(s) <- passScales(i);
@@ -439,12 +415,11 @@ importItems 'Импорт товаров' () {
     LOCAL dt = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT a.cod_good, a.dt, a.nds FROM Pub."arh-nds" AS a JOIN Pub.katalog AS k ON a.cod_good = k.cod_good WHERE '
-            + (OVERRIDE 'NOT ' IF NOT ware(), '') + 'k.cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
+            EXEC 'SELECT a.cod_good, a.dt, a.nds FROM Pub."arh-nds" AS a JOIN Pub.katalog AS k ON a.cod_good = k.cod_good WHERE NOT k.cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
     
-    IMPORT TABLE FROM file() TO idSku, dt, vat;
+    IMPORT TABLE FROM file() TO idItem, dt, vat;
     
-    FOR INTEGER ii = [GROUP LAST INTEGER i IF imported(i) ORDER dt(i), i BY sku(TEXT (idSku(i)))](Sku s) DO {
+    FOR INTEGER ii = [GROUP LAST INTEGER i IF imported(i) ORDER dt(i), i BY item(TEXT (idItem(i)))](Item s) DO {
         VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(ii)*10 AND c == defaultCountry());
     }
     
@@ -453,56 +428,34 @@ importItems 'Импорт товаров' () {
     LOCAL level = INTEGER (INTEGER);
     LOCAL date = DATE (INTEGER);
     
-    IF NOT ware() THEN {
-        EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-                EXEC 'SELECT b.cod_good, b.bar_cod, b.type_bar, b.cod_level, b.dt FROM Pub.barcod as b JOIN Pub.katalog AS k ON b.cod_good = k.cod_good WHERE '
-                + (OVERRIDE 'NOT ' IF NOT ware(), '') + 'k.cod_sgr = \'990101\' AND NOT b.cod_good = b.bar_cod WITH (NOLOCK)' TO file;
-        
-        IMPORT TABLE FROM file() TO idSku, idBarcode, type, level, date;
-        
-        FOR idBarcode(INTEGER i) AND NOT barcode(idBarcode(i), 2010_01_01) DO NEW b = Barcode {
-            id(b) <- idBarcode(i);
-        }
-        FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND Sku s = sku(TEXT (idSku(i))) DO {
-            sku(b) <- s;
-            dataDate(b) <- 2010_01_01; //date(i); Так нужно, чтобы не затирало штрих-коды созданные уценкой
-            priceListType(b) <- priceListType('pt' + level(i)) IF level(i) > 1;  
-        }
-        FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND type(i) = 1 AND Sku s = sku(TEXT (idSku(i))) DO {
-            dataBarcode(s) <- b;
-        }
-    }
-    ELSE {
-        EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT a.cod_goodK AS id1, b.cod_goodK AS id2 FROM Pub.calc2 AS a JOIN Pub.calc2 AS b ON a.num_akt = b.num_akt AND a.dt_akt = b.dt_akt WHERE NOT a.cod_goodK = b.cod_goodK AND ' 
-            + 'a.dt_akt = (SELECT MAX(c.dt_akt) FROM Pub.calc2 AS c WHERE c.cod_goodK = a.cod_goodK) WITH (NOLOCK)' TO file;
-            
-        IMPORT TABLE FROM file() TO idItem, idSku;
-        
-        FOR Item s = item(TEXT (idItem(INTEGER i))) AND Ware w = ware(TEXT (idSku(i))) DO {
-            ware(s) <- w;
-        }
-    }
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+            EXEC 'SELECT b.cod_good, b.bar_cod, b.type_bar, b.cod_level, b.dt FROM Pub.barcod as b JOIN Pub.katalog AS k ON b.cod_good = k.cod_good WHERE ' 
+        + 'NOT k.cod_sgr = \'990101\' AND NOT b.cod_good = b.bar_cod WITH (NOLOCK)' TO file;
     
+    IMPORT TABLE FROM file() TO idItem, idBarcode, type, level, date;
+    
+    FOR idBarcode(INTEGER i) AND NOT barcode(idBarcode(i), 2010_01_01) DO NEW b = Barcode {
+        id(b) <- idBarcode(i);
+    }
+    FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND Item s = item(TEXT (idItem(i))) DO {
+        sku(b) <- s;
+        dataDate(b) <- 2010_01_01; //date(i); Так нужно, чтобы не затирало штрих-коды созданные уценкой
+        priceListType(b) <- priceListType('pt' + level(i)) IF level(i) > 1;  
+    }
+    FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND type(i) = 1 AND Item s = item(TEXT (idItem(i))) DO {
+        dataBarcode(s) <- b;
+    }
+
     setNoCancelInTransaction();
     APPLY;
 }
 
-importWare 'Импорт посуды' () {
-    NEWSESSION {
-        ware() <- TRUE;
-        importItems();
-        ware() <- NULL;
-    }
-}
-
-EXTEND FORM integrationData PROPERTIES () importItems, importWare;
+EXTEND FORM integrationData PROPERTIES () importItems;
 DESIGN integrationData { 
     santaButtons { 
         NEW importItems {
             type = CONTAINERH;
             MOVE PROPERTY (importItems());
-            MOVE PROPERTY (importWare()); 
         }
     } 
 }
