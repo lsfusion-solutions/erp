@@ -27,19 +27,26 @@ nameFilterDepartmentStore 'Магазин' = name(filterDepartmentStore());
 filterSku = DATA LOCAL Sku();
 nameFilterSku 'Товар' = name(filterSku());
 
+skipShowFilterDates = ABSTRACT BOOLEAN ();
+filterDateFrom 'Дата с' = DATA LOCAL NESTED DATE () PREREAD; 
+filterDateTo 'Дата по' = DATA LOCAL NESTED DATE () PREREAD;
+
 FORM receiptDetailReport 'Регистр строк чека'
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
-    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)       
-     
+    PROPERTIES () SHOWIF NOT skipShowFilterDates() filterDateFrom, filterDateTo
     PROPERTIES() nameFilterDepartmentStore, nameFilterSku
     
     OBJECTS rd = ReceiptDetail
     PROPERTIES(rd) READONLY nameDepartmentStore, numberZReport, numberReceipt, numberCashRegister, nameEmployee, dateZReport, date, time,  
                             id, number, nameSku, idBarcode, signedQuantity, price, signedSum, signedDiscountSum, show CHANGEABLE
     ORDER date(rd)
-    FILTERS date(rd) >= dFrom AND date(rd)<= dTo,
+    FILTERS NOT date(rd) < filterDateFrom() AND NOT date(rd) > filterDateTo(),
             departmentStore(rd) == filterDepartmentStore() OR (NOT filterDepartmentStore() AND NOT filterDepartmentStoreReceiptDetail()),            
             sku(rd) == filterSku() OR (NOT filterSku() AND NOT filterSkuReceiptDetail())
+    EVENTS 
+        ON INIT {
+            filterDateFrom() <- currentDate();
+            filterDateTo() <- currentDate();
+        }
 ;
 
 @extendFormFilterAccessStock(receipt, rd, receiptDetailReport, departmentStore, company);
@@ -48,8 +55,8 @@ DESIGN receiptDetailReport {
     NEW dates {
         type = CONTAINERH;
         caption = 'Период';
-        MOVE PROPERTY(valFrom){caption = 'Дата с';}
-        MOVE PROPERTY(valTo){caption = 'Дата по';}
+        MOVE PROPERTY(filterDateFrom());
+        MOVE PROPERTY(filterDateTo());
     }
     NEW top{
         type = CONTAINERH;       
