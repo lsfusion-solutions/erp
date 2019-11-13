@@ -541,6 +541,13 @@ lineItemAmountExcise 'Сумма акциза' = DATA NUMERIC[12,5] (EInvoiceDet
 quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);
 expiryDate 'Годен до' = DATA DATE (EInvoiceDetail);
 valueVAT 'НДС, %' = DATA NUMERIC[16,2] (EInvoiceDetail);
+extraValueVAT 'НДС, %' = DATA NUMERIC[16,4] (EInvoiceDetail);
+overValueVAT 'НДС, %' (EInvoiceDetail ed) = OVERRIDE extraValueVAT(ed), valueVAT(ed);
+changeValueVAT(EInvoiceDetail ed)  { 
+    INPUT n = NUMERIC[16,2] DO
+        valueVAT(ed) <- n;
+}
+
 
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EInvoiceDetail);
 lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
@@ -589,7 +596,7 @@ currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER priority(m), dateTime(m
 statusDescription 'Статус отправки EDI'(EInvoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 backgroundStatusDescription (EInvoice o) = RGB(255,238,238) IF currentOrderMessage(o) AND NOT good(currentOrderMessage(o));
 
-backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
+backgroundVAT 'Цвет' (EInvoiceDetail d) = IF sku(lineItemBuyerID(d)) AND NOT overValueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
                                                    THEN RGB(255,0,0);
 background = ABSTRACT CASE COLOR (EInvoice);
 
@@ -618,7 +625,7 @@ FORM eInvoices 'Электронные накладные EDI'
         FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) 'F11'
     
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
+    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, overValueVAT BACKGROUND backgroundVAT(d),
      lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
      grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields
 
@@ -665,7 +672,7 @@ FORM eInvoice 'Электронная накладная EDI'
                 dateTimeCreated, contractDate, contractId, sealIDReceiver, transportContact, waybillId, deliveryContact, transportID, trailerID, contactCustomerStock, currency 
     
     OBJECTS ed = EInvoiceDetail
-    PROPERTIES (ed) lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, valueVAT, lineItemPrice, lineItemAmountWithoutCharges, 
+    PROPERTIES (ed) lineItemID, lineItemBuyerID, lineItemName, quantityDespatched, expiryDate, overValueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemAmountWithoutCharges, 
                     lineItemAmount, lineItemAmountCharges, grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, lineItemExtraFields
      FILTERS eInvoice(ed) == e
 ;
