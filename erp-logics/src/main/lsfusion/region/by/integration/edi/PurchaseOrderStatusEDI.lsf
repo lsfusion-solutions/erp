@@ -6,7 +6,6 @@ PRIORITY Purchase;
 
 NAMESPACE EDI;
 
-
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);
 
 skuWithoutPrice 'Товары без цены' (Order o) = GROUP CONCAT idSku(OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) BY order(d);
@@ -85,8 +84,6 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
 }
 
 orderConfirmation(UserOrder o) += isEOrder(o);
-
-quantityResponseEDI = GROUP SUM quantityResponseEDI(Purchase.OrderDetail d) BY order(d) MATERIALIZED;
 
 notEqualPriceEDI = ABSTRACT CASE OVERRIDE BOOLEAN (Purchase.OrderDetail);
 notEqualPriceEDI(OrderDetail d) += WHEN d IS Purchase.OrderDetail AND NOT priceResponseEDI(d) == price(d) THEN TRUE ;
