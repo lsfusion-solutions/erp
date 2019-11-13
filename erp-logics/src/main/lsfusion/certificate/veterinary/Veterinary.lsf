@@ -20,8 +20,31 @@ toDate(Veterinary certificate) += toDate(certificate);
 
 // Файл
 image 'Файл сертификата'  = DATA IMAGEFILE (Veterinary);
-saveImage 'Загрузить сертификат' (Veterinary compliance)  { INPUT =image(compliance) CHANGE; }
-openImage 'Просмотреть сертификат' (Veterinary compliance)  { open(image(compliance)); }
+saveImage 'Загрузить сертификат' (Veterinary veterinary)  { INPUT =image(veterinary) CHANGE; }
+openImage 'Просмотреть сертификат' (Veterinary veterinary)  { open(image(veterinary)); }
+
+CLASS ExtraPageVeterinaryDetail 'Дополнительная страница сертификата';
+TABLE extraPageVeterinaryDetail (ExtraPageVeterinaryDetail);
+
+veterinary = DATA Veterinary (ExtraPageVeterinaryDetail);
+
+image 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageVeterinaryDetail);
+saveImage 'Загрузить сертификат' (ExtraPageVeterinaryDetail extraPageVeterinaryDetail)  { INPUT =image(extraPageVeterinaryDetail) CHANGE; }
+openImage 'Просмотреть сертификат' (ExtraPageVeterinaryDetail extraPageVeterinaryDetail)  { open(image(extraPageVeterinaryDetail)); }
+
+@defineDocumentDetailIndex(veterinary, ExtraPageVeterinaryDetail);
+
+extraPageVeterinaryDetail (index, veterinary) = GROUP AGGR ExtraPageVeterinaryDetail extraPageVeterinaryDetail WHERE extraPageVeterinaryDetail IS ExtraPageVeterinaryDetail BY index (extraPageVeterinaryDetail), veterinary(extraPageVeterinaryDetail);
+
+@defineDocumentDetailNote(ExtraPageVeterinaryDetail);
+
+addExtraPageDetail 'Добавить'(Veterinary veterinary)  { 
+    NEW d = ExtraPageVeterinaryDetail {
+        veterinary(d) <- veterinary;
+        saveImage(d);
+        apply();
+    }    
+} IMAGE 'add.png';
 
 // ------ Номер ----------- //
 
@@ -51,7 +74,13 @@ toDateVeterinary 'Дата по' (Batch batch) = toDate(veterinary(batch));
 FORM veterinary 'Ветеринарное свидетельство'
     OBJECTS c = Veterinary PANEL
     PROPERTIES(c) number, series, date, time,
-                  fromDate, toDate, saveImage, openImage               
+                  fromDate, toDate, saveImage, openImage       
+                  
+    OBJECTS d = ExtraPageVeterinaryDetail
+    PROPERTIES(d) index, note
+    PROPERTIES(c) addExtraPageDetail DRAW d TOOLBAR
+    PROPERTIES(d) NEWSESSION TOOLBAR openImage, saveImage, DELETE 
+    FILTERS veterinary(d) == c                              
 
     EDIT Veterinary OBJECT c
 ;
@@ -84,10 +113,24 @@ DESIGN veterinary {
             }
             NEW fileContainer{
                 type = CONTAINERH;
-                caption = 'Файл сертификата';
+                caption = 'Файл свидетельства';
                 MOVE PROPERTY(openImage(c));
                 MOVE PROPERTY(saveImage(c));
-            }            
+            }    
+            NEW tabContainer{
+                fill = 1;
+                type = TABBED;
+                NEW firstTab{
+                    caption = 'Дополнительная информация';
+                    fill = 1;
+                }
+                MOVE BOX(d){
+                    caption = 'Дополнительные страницы свидетельства';
+                    PROPERTY(index(d)){
+                        caption = 'Номер файла';
+                    }
+                }
+            }                    
         }    
         MOVE TOOLBARBOX;
     }
