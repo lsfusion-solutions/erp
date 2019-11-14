@@ -64,9 +64,9 @@ stockReserveDays 'Страховой запас (дн.)' (Stock stock, Sku sku) 
     dataStockReserveDays(stock, sku),
     nearestStockReserveDays(stock, skuGroup(sku));
 
-fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date, DATE dFrom, DATE dTo)  { 
-    FOR stockReserveDays(stock, Sku sku) AND averageSold(sku,stock,dFrom,dTo) DO {
-        dataStockReserve(stock, sku, date) <- averageSold(sku,stock,dFrom,dTo)*stockReserveDays(stock,sku);
+fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date)  { 
+    FOR stockReserveDays(stock, Sku sku) AND averageSold(sku,stock) DO {
+        dataStockReserve(stock, sku, date) <- averageSold(sku,stock)*stockReserveDays(stock,sku);
     }
 } TOOLBAR CONFIRM;
 
@@ -113,7 +113,7 @@ FORM stockReserve 'Страховые запасы'
     OBJECTS s = Sku
     PROPERTIES READONLY name(s), id(s) SHOWIF showIDs(), idBarcode(s), shortNameUOM(s)
     PROPERTIES overStockReserve(st,s,dt), stockReserveDays(st,s), quantitySold(s,st,dFrom,dTo) READONLY, averageSold(s,st,dFrom,dTo) READONLY
-    PROPERTIES fillReserveFromTo(st,dt,dFrom,dTo) DRAW s
+    PROPERTIES fillReserveFromTo(st,dt) DRAW s
     ORDER          name(s)
     FILTERS           isParent(sk, s),
                       filterPriceListType(s,st,dt,t)
