@@ -1,0 +1,12 @@
+MODULE PurchseCreditNoteExtraPack;
+
+REQUIRE PurchaseCreditNote, PurchaseInvoiceExtraPack;
+
+NAMESPACE Purchase;
+
+isExtraPack 'Поставка в других единицах' (InvoiceCreditNoteDetail detail) = isExtraPack(invoiceDetail(detail));
+
+overShortNameUOMSku(InvoiceCreditNoteDetail detail) += shortNameUOMPack(supplier(detail), sku(detail)) IF isExtraPack(invoiceDetail(detail));
+overQuantity(InvoiceCreditNoteDetail detail) += NUMERIC[16,5](caseToShip(detail)/amountPack(invoiceDetail(detail))) IF isExtraPack(invoiceDetail(detail));
+overShipmentQuantity(InvoiceCreditNoteDetail detail) += NUMERIC[16,5](shipped(invoiceDetail(detail))/amountPack(invoiceDetail(detail))) IF isExtraPack(invoiceDetail(detail));
+overDocumentQuantity(InvoiceCreditNoteDetail detail) += packQuantity(invoiceDetail(detail)) IF isExtraPack(invoiceDetail(detail));

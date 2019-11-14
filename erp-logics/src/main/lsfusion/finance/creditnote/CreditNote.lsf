@@ -430,13 +430,15 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, toShip, 'Кол-во');   //                ????????   может надо сделать через минус
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, caseToShip, 'Кол-во'); 
     
-    quantity(InvoiceCreditNoteDetail creditNoteDetail) += caseToShip(creditNoteDetail);
+    overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCreditNoteDetail);
+    
+    quantity(InvoiceCreditNoteDetail creditNoteDetail) += OVERRIDE overQuantity(creditNoteDetail), caseToShip(creditNoteDetail);
 
     @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, price, 'Цена');
 
     price(InvoiceCreditNoteDetail creditNoteDetail) += price(creditNoteDetail);
 
-    sum 'Сумма' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[18,4](round((caseToShip(invoiceCreditNoteDetail) *
+    sum 'Сумма' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[18,4](round((quantity(invoiceCreditNoteDetail) *
         price(invoiceCreditNoteDetail)), currency(invoiceCreditNoteDetail)));
 
     sum(InvoiceCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail);
@@ -462,13 +464,15 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     edit(InvoiceCreditNote c) + {  edit(invoice(c)); }
     edit(InvoiceCreditNoteDetail d) + {  edit(invoiceDetail(d)); }
     
-    documentQuantity (InvoiceCreditNoteDetail d) += quantity(invoiceDetail(d)); 
+    overDocumentQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCreditNoteDetail);
+    documentQuantity (InvoiceCreditNoteDetail d) += OVERRIDE overDocumentQuantity(d), quantity(invoiceDetail(d)); 
     documentSum (InvoiceCreditNoteDetail d) += sum(invoiceDetail(d)); 
     documentVATSum (InvoiceCreditNoteDetail d) += VATSum(invoiceDetail(d));        
     documentInvoiceSum (InvoiceCreditNoteDetail d) += invoiceSum(invoiceDetail(d)); 
     
-    shipmentQuantity (InvoiceCreditNoteDetail d) += shipped(invoiceDetail(d)); 
-    shipmentSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipped(invoiceDetail(d)) *
+    overShipmentQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCreditNoteDetail);
+    shipmentQuantity (InvoiceCreditNoteDetail d) += OVERRIDE overShipmentQuantity(d), shipped(invoiceDetail(d)); 
+    shipmentSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round(((OVERRIDE overShipmentQuantity(d), shipped(invoiceDetail(d))) *
                                      price(d)), currency(d)));
     shipmentSum (InvoiceCreditNoteDetail d) += shipmentSum(d);
     shipmentVATSum (InvoiceCreditNoteDetail d) = NUMERIC[18,4](round((shipmentSum(d) *
