@@ -289,6 +289,8 @@ EXTEND FORM extraChargeParams
     EVENTS ON INIT seekDefaultOperatioParams()     
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
+
+overCreateExtraCharge ABSTRACT LIST(UserInvoice);  
     
 createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice)  { 
 	NEWSESSION {   
@@ -301,6 +303,8 @@ createExtraChargeUser 'Накладная (закупка) доп. услуги'
 	            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE homeCurrency(invoice) IF isHomeCurrency(invoice), currency(invoice)) != currency(i);
 	            dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
 	            rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
+	            
+	            overCreateExtraCharge(i);
 	            
 	            NEW d = UserInvoiceDetail {
 	                userInvoice(d) <- i;   
