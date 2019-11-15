@@ -1,0 +1,82 @@
+MODULE PurchaseQualityCertificate;
+
+REQUIRE QualityCertificate, PurchaseCertificate;
+
+NAMESPACE Purchase;
+
+@defineDocumentCertificate(qualityCertificate, invoice, i, 'Сертификат качества');
+@deriveDocumentPurchaseCertificate(qualityCertificate, invoice, customerStock, data);
+
+@defineDocumentCertificate(qualityCertificate, shipment, s, 'Сертификат качества');
+
+// Проставляем автоматически сертификат от строки инвойса
+WHEN CHANGED(qualityCertificate(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(qualityCertificate(d)) DO
+     dataQualityCertificate(d) <- qualityCertificate(invoiceDetail(d)); 
+
+@deriveDocumentPurchaseCertificate(qualityCertificate, shipment, customerStock, data);
+
+qualityCertificate(InvoiceShipmentDetail detail) += qualityCertificate(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + { 
+    dataQualityCertificate(s) <- qualityCertificate(i);
+}
+
+qualityCertificate (ShipmentBatch batch) += qualityCertificate(shipmentDetail(batch));
+
+//---------------------------------- накладные для сертификата --------------------------------------------------------//
+
+in 'Вкл.' (QualityCertificate qualityCertificate, UserInvoice invoice) = qualityCertificate(invoice)==qualityCertificate;
+
+in 'Вкл.' (QualityCertificate qualityCertificate, UserInvoiceDetail invoiceDetail) = dataQualityCertificate(invoiceDetail)==qualityCertificate;
+
+invoices 'Накладные' (QualityCertificate qualityCertificate) =
+    GROUP
+              CONCAT shortDescription(UserInvoice invoice) IF in (qualityCertificate, invoice), ',' ORDER invoice MATERIALIZED CHARWIDTH 40;
+
+// ------------------------- Расширение формы сертификатов данными из инвойсов ----------------------------- //
+
+EXTEND FORM qualityCertificate
+    PROPERTIES(c) READONLY invoices
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(id) READONLY seriesNumber, dateTime, idBarcodeSku, nameSku, quantity, price, homePrice, homeSum
+
+    FILTERS qualityCertificate(id) == c
+;
+
+DESIGN qualityCertificate {
+    documentParams{
+        MOVE PROPERTY(invoices(c));
+    }
+    tabContainer {
+        MOVE BOX(id) {
+            fill = 1;
+        }
+    }
+}
+
+// ------------------------------------------ Выбор накладных непосредственно в форме сертификата -------------------------------------- //
+
+FORM qualityCertificateInvoices 'Накладные сертификации'
+    OBJECTS c=QualityCertificate PANEL
+    PROPERTIES(c) READONLY seriesNumber, dateTime, fromDate, toDate
+
+    OBJECTS i=UserInvoice
+    PROPERTIES(c, i)       in
+    PROPERTIES(i) READONLY number, series, date, time, nameSupplier, nameCustomer
+    FILTERS in(c, i) OR c IS QualityCertificate AND NOT qualityCertificate(i)
+
+    OBJECTS id=UserInvoiceDetail
+    PROPERTIES(c, id) in
+    PROPERTIES(id) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, quantity, price
+    FILTERS userInvoice(id)==i
+;
+
+selectInvoices 'Выбрать накладные'(QualityCertificate qualityCertificate)  { 
+    SHOW qualityCertificateInvoices OBJECTS c=qualityCertificate ;
+} TOOLBAR;
+
+EXTEND FORM qualityCertificate
+    PROPERTIES (c) selectInvoices DRAW id 
+;
