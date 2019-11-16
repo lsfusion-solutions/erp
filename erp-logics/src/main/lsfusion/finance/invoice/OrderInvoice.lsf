@@ -112,11 +112,11 @@ META defineOrderInvoice(sign, stockProp)
     descriptionOrder 'Заказ' (UserInvoiceDetail userInvoiceDetail) = description(orderDetail(userInvoiceDetail)) IN order;
 
     quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(orderDetail(invoiceDetail)), invoice(invoiceDetail);
-    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail);
+    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail) MATERIALIZED;
     orders 'Заказы'(Invoice invoice)  = GROUP
-                                             CONCAT STRING[255](description(Order order)) IF quantityInvoiceDetail(order, invoice) , ', '
+                                             CONCAT STRING[255](description(Order order)) IF countInvoiceDetail(order, invoice) , ', '
                                              ORDER order
-                                             IN order CHARWIDTH 30 MATERIALIZED;
+                                             IN order CHARWIDTH 30;
                                              
     invoices 'Накладные'(Order order)  = GROUP
                                              CONCAT STRING[255](description(Invoice invoice)) IF countInvoiceDetail(order, invoice) , ', '
