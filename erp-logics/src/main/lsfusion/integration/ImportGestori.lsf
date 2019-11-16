@@ -754,7 +754,7 @@ importInit 'Импорт остатков' () {
     
     FOR NUMERIC[13,0] s = [GROUP MIN NUMERIC[13,0] is BY idInvoice(is)](STRING[100] id) AND Purchase.UserInvoice i = Purchase.userInvoice(id) DO {       
         supplier(i) <- OVERRIDE legalEntityNew(TEXT (idSupplier(index(s)))), legalEntity(customerStock());
-        supplierStock(i) <- IF legalEntityNew(TEXT (idSupplier(index(s)))) THEN minStock(legalEntityNew(TEXT (idSupplier(index(s))))) ELSE stock(TEXT (idSupplier(index(s))));
+        supplierStock(i) <- OVERRIDE stock(TEXT (idSupplier(index(s)))), minStock(legalEntityNew(TEXT (idSupplier(index(s)))));
         customer(i) <- legalEntity(customerStock());
         customerStock(i) <- customerStock();
         number(i) <- STRING[28](right(number(index(s)), length(number(index(s))) - 2));
@@ -768,11 +768,13 @@ importInit 'Импорт остатков' () {
         isClosed(i) <- TRUE;
     }
 
-    FOR idDetail(NUMERIC[10,3] s) AND NOT Purchase.userInvoiceDetail(idDetail(s)) DO NEW d = Purchase.UserInvoiceDetail {
+    FOR idDetail(NUMERIC[13,0] s) AND NOT Purchase.userInvoiceDetail(idDetail(s)) 
+        AND NOT (quantityID(s) == 0 AND date(index(s)) < subtract(currentDate(), 404)) DO NEW d = Purchase.UserInvoiceDetail {
+        
         id(d) <- idDetail(s);
     } 
         
-    FOR Purchase.UserInvoiceDetail d = Purchase.userInvoiceDetail(idDetail(NUMERIC[10,3] s)) AND Sku sku = sku(TEXT (s)) DO {
+    FOR Purchase.UserInvoiceDetail d = Purchase.userInvoiceDetail(idDetail(NUMERIC[13,0] s)) AND Sku sku = sku(TEXT (s)) DO {
         userInvoice(d) <- Purchase.userInvoice(idInvoice(s));
         sku(d) <- sku;
         quantity(d) <- quantityID(s);
@@ -826,7 +828,9 @@ importInit 'Импорт остатков' () {
     LOCAL idDetailU = STRING[100] (NUMERIC[13,0]);
     idDetailU(NUMERIC[13,0] s) <- (CONCAT '-', (s IF quantityID(s)), idInvoice(s), '_u') WHERE barcode(s);
     
-    FOR idDetailU(NUMERIC[10,3] s) AND NOT Purchase.userInvoiceDetail(idDetailU(s)) DO NEW d = Purchase.UserInvoiceDetail {
+    FOR idDetailU(NUMERIC[10,3] s) AND NOT Purchase.userInvoiceDetail(idDetailU(s))
+        AND NOT (quantityID(s) == 0 AND date(index(s)) < subtract(currentDate(), 404)) DO NEW d = Purchase.UserInvoiceDetail {
+        
         id(d) <- idDetailU(s);
     } 
 
@@ -1008,7 +1012,7 @@ importOrder 'Импорт заказов' () {
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- closed(i);
         supplier(o) <- legalEntityNew(ISTRING[100] (idSupplier(i)));
-        supplierStock(o) <- minStock(legalEntityNew(ISTRING[100] (idSupplier(i))));
+        supplierStock(o) <- OVERRIDE stock(TEXT (idSupplier(i))), minStock(legalEntityNew(ISTRING[100] (idSupplier(i))));
         customerStock(o) <- stockExtId(ISTRING[100] (idCustomerStockOrder()));
         customer(o) <- legalEntity(stockExtId(ISTRING[100] (idCustomerStockOrder())));
         date(o) <- OVERRIDE date(i), date2(i);
