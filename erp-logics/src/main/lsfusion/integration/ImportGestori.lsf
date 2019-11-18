@@ -889,7 +889,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL note = ISTRING[255] (INTEGER);
     LOCAL closed = ISTRING[1] (INTEGER);
     LOCAL paymentDelay = INTEGER (INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceList);
+    LOCAL NESTED imported = BOOLEAN (UserPriceList);
     
     logToFile('importGestori', 'importPriceList_Docs_Select_started');
     
@@ -926,6 +926,8 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         dataIn(p, Stock st) <- TRUE IF isWordInCSV(extId(st), idStocks(i));
     }
     
+    APPLY;
+    
     LOCAL index = INTEGER (INTEGER);
     LOCAL price = NUMERIC[16,3](INTEGER);
     LOCAL idPriceList = INTEGER (INTEGER);
@@ -946,8 +948,10 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL idDetail = ISTRING[100](INTEGER);
     idDetail(INTEGER i) <- CONCAT '-', idItem(i), index(i) WHERE imported(i); 
     
-    FOR userPriceList(TEXT (idPriceList(INTEGER i))) AND NOT userPriceListDetail(idDetail(i), userPriceList(TEXT (idPriceList(i)))) DO NEW d = UserPriceListDetail {
-        id(d) <- idDetail(i);
+    FOR userPriceList(TEXT (idPriceList(INTEGER i))) AND i == [GROUP MIN INTEGER r BY idDetail(r)](ISTRING[100] id) 
+        AND NOT userPriceListDetail(idDetail(i), userPriceList(TEXT (idPriceList(i)))) DO NEW d = UserPriceListDetail {
+        
+        id(d) <- id;
         userPriceList(d) <- userPriceList(TEXT (idPriceList(i)));
     }
     
@@ -958,16 +962,14 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         imported(d) <- TRUE;
     }
 
+    APPLY;
+    
     logToFile('importGestori', 'importPriceList_Delete_started');
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND id(operation(p)) == 'supplier' AND NOT imported(p);
-    DELETE UserPriceListDetail d WHERE toDate(d) >= dateFromS() AND id(operation(d)) == 'supplier' AND NOT imported(d);
-    
-    logToFile('importGestori', 'importPriceList_Apply_started');
     
     APPLY;
 
-    logToFile('importGestori', 'importPriceList_Apply_complete');
 }
 
 EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
