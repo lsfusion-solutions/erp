@@ -294,9 +294,10 @@ communicationChannelFilter = DATA LOCAL NESTED CommunicationChannel ();
 nameCommunicationChannelFilter 'Канал' () = staticCaption(communicationChannelFilter());
 dateFromFilter 'Дата с' () = DATA LOCAL NESTED DATE ();
 dateToFilter 'Дата по' () = DATA  LOCAL NESTED DATE ();
+phoneFilter 'Телефон' = DATA LOCAL NESTED STRING[100] ();
 
 FORM dispatches 'Рассылки'
-    PROPERTIES() nameCommunicationChannelFilter, dateFromFilter, dateToFilter
+    PROPERTIES() nameCommunicationChannelFilter, dateFromFilter, dateToFilter, phoneFilter
 
     OBJECTS d = Dispatch
     PROPERTIES(d) READONLY isSend, name, nameCommunicationChannel, createdTime, date, timeFrom, timeTo, lifetime, messageViber, messageSMS
@@ -304,7 +305,8 @@ FORM dispatches 'Рассылки'
     
     FILTERS communicationChannel(d) == communicationChannelFilter() OR NOT communicationChannelFilter(),
             date(d) >= dateFromFilter() OR NOT dateFromFilter(),
-            date(d) <= dateToFilter() OR NOT dateToFilter()
+            date(d) <= dateToFilter() OR NOT dateToFilter(),
+            (GROUP SUM 1 IF in(d, DiscountCard cc) AND phoneLegalEntity(cc) == phoneFilter()) OR NOT phoneFilter()
     
     OBJECTS c = DiscountCard
     PROPERTIES(c) phoneLegalEntity
