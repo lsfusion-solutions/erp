@@ -201,7 +201,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     shipmentDOW 'День недели поставки' = DATA DOW (ScheduleOrderTime) NONULL;
     shipmentNameDOW 'День недели поставки' (ScheduleOrderTime d) = staticCaption(shipmentDOW(d)) IN id;
 
-    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)), 
+    shipmentWeeks 'Кол-во недель до поставки' = DATA INTEGER (ScheduleOrderTime);
+    shipmentTime 'Кол-во дней до поставки' (ScheduleOrderTime d) = OVERRIDE distanceDOWDOW(orderDOW(d), shipmentDOW(d)) (+) ((OVERRIDE shipmentWeeks(d),0)*7), 
                                                                         0 IF d IS ScheduleOrderTime;
 
     INDEX scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);
@@ -536,7 +537,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s, m) inScheduleOrder SHOWIF toShowMonths(s)
 
         OBJECTS d=ScheduleOrderTime GRID
-        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentTime, timeToOrder, NEW, DELETE GRID
+        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentWeeks, shipmentTime, timeToOrder, NEW, DELETE GRID
         FILTERS scheduleOrder(d) == s
         
         TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
