@@ -889,7 +889,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL note = ISTRING[255] (INTEGER);
     LOCAL closed = ISTRING[1] (INTEGER);
     LOCAL paymentDelay = INTEGER (INTEGER);
-    LOCAL NESTED imported = BOOLEAN (UserPriceList);
+    LOCAL imported = BOOLEAN (UserPriceList);
     
     logToFile('importGestori', 'importPriceList_Docs_Select_started');
     
@@ -926,7 +926,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         dataIn(p, Stock st) <- TRUE IF isWordInCSV(extId(st), idStocks(i));
     }
     
-    APPLY;
+    APPLY NESTED LOCAL;
     
     LOCAL index = INTEGER (INTEGER);
     LOCAL price = NUMERIC[16,3](INTEGER);
@@ -948,11 +948,11 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL idDetail = ISTRING[100](INTEGER);
     idDetail(INTEGER i) <- CONCAT '-', idItem(i), index(i) WHERE imported(i); 
     
-    FOR userPriceList(TEXT (idPriceList(INTEGER i))) AND i == [GROUP MIN INTEGER r BY idDetail(r)](ISTRING[100] id) 
-        AND NOT userPriceListDetail(idDetail(i), userPriceList(TEXT (idPriceList(i)))) DO NEW d = UserPriceListDetail {
+    FOR [GROUP SUM 1 BY idDetail(INTEGER r), STRING (idPriceList(r))](ISTRING[100] id, ISTRING[100] idP) AND userPriceList(idP)  
+        AND NOT userPriceListDetail(id, userPriceList(idP)) DO NEW d = UserPriceListDetail {
         
         id(d) <- id;
-        userPriceList(d) <- userPriceList(TEXT (idPriceList(i)));
+        userPriceList(d) <- userPriceList(idP);
     }
     
     FOR UserPriceListDetail d = userPriceListDetail(idDetail(INTEGER i), userPriceList(TEXT (idPriceList(i)))) DO {
@@ -962,7 +962,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
         imported(d) <- TRUE;
     }
 
-    APPLY;
+    APPLY NESTED LOCAL;
     
     logToFile('importGestori', 'importPriceList_Delete_started');
     
