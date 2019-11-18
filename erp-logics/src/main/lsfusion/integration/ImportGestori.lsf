@@ -415,12 +415,12 @@ importItems 'Импорт товаров' () {
     LOCAL dt = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT a.cod_good, a.dt, a.nds FROM Pub."arh-nds" AS a JOIN Pub.katalog AS k ON a.cod_good = k.cod_good WHERE NOT k.cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
+            EXEC 'SELECT a.cod_good, a.dt, n."size" FROM Pub."arh-nds" AS a JOIN Pub.katalog AS k ON a.cod_good = k.cod_good JOIN Pub.nds AS n ON a.nds = n.nds WHERE NOT k.cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, dt, vat;
     
     FOR INTEGER ii = [GROUP LAST INTEGER i IF imported(i) ORDER dt(i), i BY item(TEXT (idItem(i)))](Item s) DO {
-        VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(ii)*10 AND c == defaultCountry());
+        VAT(s, Country c) <- (GROUP MAX Tax.Range r IF valueCurrentRate(r) == vat(ii) AND c == defaultCountry());
     }
     
     LOCAL idBarcode = STRING[15](INTEGER);
