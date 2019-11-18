@@ -5,22 +5,22 @@ REQUIRE MachineryPriceTransaction, Scales, Store;
 NAMESPACE Scales;
 
 dataPluNumber = ABSTRACT INTEGER (GroupScales, Sku);
-pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Sku);
-pluNumber (MachineryPriceTransaction t, Barcode b) += OVERRIDE pluNumber(groupMachinery(t), sku(b)), dataPluNumber(groupMachinery(t), sku(b));
+pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Barcode);
+pluNumber (MachineryPriceTransaction t, Barcode b) += OVERRIDE pluNumber(groupMachinery(t), b), dataPluNumber(groupMachinery(t), sku(b));
 maxPluNumber 'Максимальное значение PLU' = DATA INTEGER (GroupScales);
-quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF passScales(Sku s) AND active(s) AND in(g,s) AND NOT pluNumber(g,s);
+quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF passScales(sku(Barcode b)) AND active(sku(b)) AND in(g, sku(b)) AND NOT pluNumber(g,b);
 
-countItemPLU (GroupScales g, INTEGER plu) = GROUP SUM 1 IF plu == pluNumber(g, Sku sku);
+countItemPLU (GroupScales g, INTEGER plu) = GROUP SUM 1 IF plu == pluNumber(g, Barcode b);
 CONSTRAINT countItemPLU(GroupMachinery gs, INTEGER plu) > 1
     MESSAGE 'PLU уже используется в данной группе весов';
 
-CONSTRAINT (CHANGED(pluNumber(GroupScales g, Sku s)) OR CHANGED (maxPluNumber(g))) AND pluNumber(g,s) > maxPluNumber(g)
+CONSTRAINT (CHANGED(pluNumber(GroupScales g, Barcode b)) OR CHANGED (maxPluNumber(g))) AND pluNumber(g,b) > maxPluNumber(g)
     MESSAGE 'Номер PLU превышает максимальный';
 
 minIndex (GroupScales g) = GROUP MIN INTEGER index IF iterate(index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index);
 
-fillPLU 'Проставить PLU' (GroupScales g, Sku s) { 
-    IF NOT pluNumber(g,s) THEN NEWSESSION {
+fillPLU 'Проставить PLU' (GroupScales g, Barcode b) { 
+    IF NOT pluNumber(g,b) THEN NEWSESSION {
         IF NOT maxPluNumber(g) THEN {
             MESSAGE 'Не задано максимальное значение PLU' NOWAIT;
             RETURN;
@@ -29,7 +29,7 @@ fillPLU 'Проставить PLU' (GroupScales g, Sku s) {
         i() <- minIndex(g);
         
         IF i() THEN {
-            pluNumber(g,s) <- i();
+            pluNumber(g,b) <- i();
             APPLY;
         } ELSE {
             MESSAGE 'Счетчик PLU переполнен. Обратитесь к администартору или удалите неиспользуемые номера.' NOWAIT;
@@ -37,15 +37,15 @@ fillPLU 'Проставить PLU' (GroupScales g, Sku s) {
     }
 };
 
-CONSTRAINT CHANGED(in(GroupScales g, Sku s)) AND pluNumber(g,s) AND NOT in(g,s)
+CONSTRAINT CHANGED(in(GroupScales g, sku(Barcode b))) AND pluNumber(g,b) AND NOT in(g,sku(b))
     MESSAGE 'Должна быть доступна группа для товара, у которго задан PLU';
 
 FORM printPLU 'PLU'
     OBJECTS g = GroupScales PANEL
     PROPERTIES(g) READONLY name
     
-    OBJECTS s = Sku
-    PROPERTIES READONLY pluNumber(g,s), idBarcode(s), name(s)
+    OBJECTS s = Barcode
+    PROPERTIES READONLY pluNumber(g,s), id(s), nameSku(s)
     FILTERS pluNumber(g,s)
 ;
 
@@ -66,15 +66,15 @@ FORM pluDashboard 'Задание PLU'
     FILTERS stock(g) == d
     FILTERGROUP activeGroup FILTER 'Активные' active(g) DEFAULT
     
-    OBJECTS s = Sku
-    PROPERTIES pluNumber(g,s)
-    PROPERTIES(s) READONLY idBarcode, name, active
-    PROPERTIES fillPLU(g,s) SHOWIF NOT pluNumber(g,s) TOOLBAR
-    FILTERS passScales(s) AND in(g,s)
-    FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT
-    FILTERGROUP nullPlu FILTER 'Без PLU' NOT pluNumber(g,s)
-    FILTERGROUP filter FILTER 'С ценой' prevPriceA(priceListType(g),s,stock(g),currentDateTime()) DEFAULT
-                       FILTER 'С остатком' currentBalance(s,stock(g))
+    OBJECTS b = Barcode
+    PROPERTIES pluNumber(g,b)
+    PROPERTIES(b) READONLY id, nameSku, active
+    PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
+    FILTERS passScales(b) AND length(id(b)) < 6  AND in(g,sku(b))
+    FILTERGROUP activeSku FILTER 'Активные' active(sku(b)) DEFAULT
+    FILTERGROUP nullPlu FILTER 'Без PLU' NOT pluNumber(g,b)
+    FILTERGROUP filter FILTER 'С ценой' prevPriceA(priceListType(g),sku(b),stock(g),currentDateTime()) DEFAULT
+                       FILTER 'С остатком' currentBalance(sku(b),stock(g))
 ;
 
 DESIGN pluDashboard {
@@ -87,7 +87,7 @@ DESIGN pluDashboard {
             type = SPLITH;
             fill = 1;
             MOVE BOX(g){fill=1;}
-            MOVE BOX(s){fill=1;}
+            MOVE BOX(b){fill=1;}
         }
     }
 }
@@ -97,16 +97,16 @@ fillPLU 'Проставить PLU (по фильтру)' (GroupScales g) {
         MESSAGE 'Не задано максимальное значение PLU' NOWAIT;
         RETURN;
     } ELSE {
-        IF (GROUP SUM 1 IF [ FILTER pluDashboard.s](Sku s) AND s IS Sku AND NOT pluNumber(g,s)) > (GROUP SUM 1 IF iterate(INTEGER index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index)) THEN {
+        IF (GROUP SUM 1 IF [ FILTER pluDashboard.b](Barcode b) AND b IS Barcode AND NOT pluNumber(g,b)) > (GROUP SUM 1 IF iterate(INTEGER index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index)) THEN {
             MESSAGE 'Счетчик PLU переполнен. Обратитесь к администартору или удалите неиспользуемые номера.' NOWAIT;
-        } ELSE FOR [ FILTER pluDashboard.s](Sku s) AND s IS Sku AND NOT pluNumber(g,s) DO {
-            pluNumber(g,s) <- minIndex(g);
+        } ELSE FOR [ FILTER pluDashboard.b](Barcode b) AND b IS Barcode AND NOT pluNumber(g,b) DO {
+            pluNumber(g,b) <- minIndex(g);
         }
         APPLY;
     }
 }
 EXTEND FORM pluDashboard
-    PROPERTIES fillPLU(g) TOOLBAR DRAW s
+    PROPERTIES fillPLU(g) TOOLBAR DRAW b
 ;
 
 NAVIGATOR {
