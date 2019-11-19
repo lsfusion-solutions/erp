@@ -22,7 +22,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF i IS RetailSales EXTID 'action'      
     
     PROPERTIES = STRING[100]('CSCSLSF'+STRING[30](LONG(i))) EXTID 'Id'
-    PROPERTIES = STRING[100]('CSLSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100](LONG(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'CS' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS
@@ -76,7 +76,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF i IS RetailSales EXTID 'action'      
 
     PROPERTIES = STRING[100]('CRCRLSF'+STRING[30](LONG(i))) EXTID 'Id'
-    PROPERTIES = STRING[100]('CRLSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS1
+    PROPERTIES = STRING[100](LONG(i)) EXTID 'ID' IN SMDOCUMENTS1
     PROPERTIES = 'CR' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS1    
     PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS1    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS1
@@ -116,6 +116,11 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = -sumVAT[SaleLedger](dd) EXTID 'TAXSUM'            
     FILTERS stockDocumentLedger(dd)==i   
 ; 
+
+numberExport 'Номер (CM)' (ZReport r) = STRING[100](LONG(retailSales(departmentStore(r),date(r)))) CHARWIDTH 12;
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY numberExport
+;
 exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
     inc(RetailSales ii) <- NULL;
     inc(i) <- TRUE IF isPosted(i) AND idSupermag(departmentStore(i));

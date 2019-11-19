@@ -39,7 +39,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF i IS PurchaseReturn.Invoice EXTID 'action'      
     
     PROPERTIES = STRING[100]('WOLSF'+STRING[30](LONG(i))) EXTID 'Id'
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100](STRING[100](seriesNumber(i))) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'WO' IF i IS PurchaseReturn.Invoice EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = id(supplier(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
@@ -121,7 +121,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = 'WO' IF a IS PurchaseReturn.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(a) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF a IS PurchaseReturn.InvoiceDetail EXTID 'EXTRACHARGE'  
-    PROPERTIES = manufacturingPrice(a) EXTID 'MANUFACTURERSPRICE' 
+    PROPERTIES = (OVERRIDE manufacturingPrice(a), price(a)) EXTID 'MANUFACTURERSPRICE' 
     PROPERTIES = retailPrice(a) EXTID 'RETAILPRICE'       
     PROPERTIES = 0 IF a IS PurchaseReturn.InvoiceDetail EXTID 'STATEREGULATION'                           
     FILTERS invoice(a)==i   
@@ -141,7 +141,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = id(supplier(ii))  EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
     PROPERTIES = id(supplier(ii))  EXTID 'FINAGENT' IN SMFINOBLIGATION      
     PROPERTIES = 0 IF ii IS PurchaseReturn.Invoice  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
-    PROPERTIES = IF isPosted(ii) THEN 1 ELSE 0  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
+    PROPERTIES = 0 IF ii IS PurchaseReturn.Invoice  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
     PROPERTIES = IF bankingDays(paymentCondition(ii)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
     PROPERTIES = id(customer(ii))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
     PROPERTIES = 0 IF ii IS PurchaseReturn.Invoice  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              

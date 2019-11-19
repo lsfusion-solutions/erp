@@ -41,7 +41,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Приходная накладная' IF i IS Purchase.Invoice EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS Purchase.Invoice EXTID 'action'      
     PROPERTIES = STRING[100]('WILSF'+STRING[30](LONG(i))) EXTID 'Id'
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'WI' IF i IS Purchase.Invoice EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = id(supplier(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
@@ -119,7 +119,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = 'WI' IF a IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(a) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF a IS Purchase.InvoiceDetail EXTID 'EXTRACHARGE'  
-    PROPERTIES = manufacturingPrice(a) EXTID 'MANUFACTURERSPRICE' 
+    PROPERTIES = (OVERRIDE manufacturingPrice(a), price(a)) EXTID 'MANUFACTURERSPRICE' 
     PROPERTIES = retailPrice(a) EXTID 'RETAILPRICE'       
     PROPERTIES = 0 IF a IS Purchase.InvoiceDetail EXTID 'STATEREGULATION'                           
     FILTERS invoice(a)==i   
@@ -139,7 +139,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = id(supplier(ii))  EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
     PROPERTIES = id(supplier(ii))  EXTID 'FINAGENT' IN SMFINOBLIGATION      
     PROPERTIES = 0 IF ii IS Purchase.Invoice  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
-    PROPERTIES = IF isPosted(ii) THEN 1 ELSE 0  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
+    PROPERTIES = 0 IF ii IS Purchase.Invoice  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
     PROPERTIES = IF bankingDays(paymentCondition(ii)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
     PROPERTIES = id(customer(ii))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
     PROPERTIES = (OVERRIDE countDays(lastPaymentPeriod(paymentCondition(ii))), 0)  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              
