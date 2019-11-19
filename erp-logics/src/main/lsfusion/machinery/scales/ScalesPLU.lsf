@@ -53,6 +53,7 @@ printPLU 'Список PLU' (GroupScales g) {
     PRINT printPLU OBJECTS g = g;
 } IMAGE 'print.png';
 
+activeSku'Активный'(Barcode b) = active(sku(b));
 
 FORM pluDashboard 'Задание PLU'
     OBJECTS d = DepartmentStore PANEL
@@ -68,10 +69,10 @@ FORM pluDashboard 'Задание PLU'
     
     OBJECTS b = Barcode
     PROPERTIES pluNumber(g,b)
-    PROPERTIES(b) READONLY id, nameSku, active
+    PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
     PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
-    FILTERS passScales(b) AND length(id(b)) < 6  AND in(g,sku(b))
-    FILTERGROUP activeSku FILTER 'Активные' active(sku(b)) DEFAULT
+    FILTERS passScales(b) AND length(id(b)) < 6 AND active(b) AND in(g,sku(b))
+    FILTERGROUP activeSku FILTER 'Активные' activeSku(b) DEFAULT
     FILTERGROUP nullPlu FILTER 'Без PLU' NOT pluNumber(g,b)
     FILTERGROUP filter FILTER 'С ценой' prevPriceA(priceListType(g),sku(b),stock(g),currentDateTime()) DEFAULT
                        FILTER 'С остатком' currentBalance(sku(b),stock(g))
