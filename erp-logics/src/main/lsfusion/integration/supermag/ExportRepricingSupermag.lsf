@@ -1,0 +1,117 @@
+MODULE ExportRepricingSupermag;
+REQUIRE Repricing, ExportSupermag;
+
+NAMESPACE Repricing;
+
+GROUP AC;
+GROUP SMDOCUMENTS : AC;
+GROUP SMCOMMONBASES : AC;
+GROUP SMDOCPROPS : AC;
+
+
+inc = DATA LOCAL BOOLEAN (Repricing);
+
+FORM exportRepricingMag FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = Repricing EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Акт переоценки' IF i IS Repricing EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF i IS Repricing EXTID 'action'      
+    PROPERTIES = STRING[100]('ACAC'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = 'AC' IF i IS Repricing EXTID 'DOCTYPE' IN SMDOCUMENTS    
+    PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS        
+    //PROPERTIES = id(supplier(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
+    PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS  
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS
+    PROPERTIES = 0 IF i IS Repricing EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS      
+    PROPERTIES = 1 IF i IS Repricing EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
+    PROPERTIES = 0 IF i IS Repricing EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
+    PROPERTIES = 3 IF i IS Repricing EXTID 'DOCSTATE' IN SMDOCUMENTS           
+    PROPERTIES = 1 IF i IS Repricing  EXTID 'ISROUBLES' IN SMDOCUMENTS  
+    PROPERTIES = id(departmentStore(i)) EXTID 'LOCATION' IN SMDOCUMENTS      
+    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = 0 IF i IS Repricing  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
+    PROPERTIES = retailSumRepricingDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
+    PROPERTIES i1 = retailSumRepricingDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS      
+                           
+    OBJECTS d = RepricingDetail   EXTID 'SMSPEC' IN AC
+    PROPERTIES = STRING[100](seriesNumber(d)) EXTID 'DOCID'    
+    PROPERTIES = 'AC' IF d IS RepricingDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(d) EXTID 'SPECITEM'        
+    PROPERTIES = idSku(d) EXTID 'ARTICLE'            
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = retailPrice (d) EXTID 'ITEMPRICE'     
+    PROPERTIES d2 = retailPrice (d) EXTID 'ITEMPRICECUR'                
+    PROPERTIES d4 = retailPrice (d) EXTID 'ITEMPRICENOTAX'   
+    PROPERTIES = quantity (d) EXTID 'QUANTITY'  
+    PROPERTIES = retailSum (d) EXTID 'TOTALPRICE'   
+    PROPERTIES d3= retailSum (d) EXTID 'TOTALPRICECUR'                
+    PROPERTIES d5 = retailSum (d) EXTID 'TOTALPRICENOTAX'         
+    FILTERS repricing(d)==i,
+            inc(i)
+                     
+    OBJECTS dd = RepricingDetail   EXTID 'SMSPECACTS' IN AC
+    PROPERTIES = STRING[100](seriesNumber(dd)) EXTID 'DOCID'    
+    PROPERTIES = 'AC' IF dd IS RepricingDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(dd) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF dd IS RepricingDetail  EXTID 'FLAGS'   
+    PROPERTIES = curRetailPrice(dd)  EXTID 'OLDPRICE'        
+    PROPERTIES = quantity(dd)  EXTID 'REVALOPERQUANTITY'   
+    PROPERTIES = diffRetailSum(dd) EXTID 'REVALSUM'            
+    FILTERS repricing(dd)==i                     
+
+    
+    OBJECTS ddd = RepricingDetail   EXTID 'SMSPECTAX' IN AC
+    PROPERTIES = STRING[100](seriesNumber(ddd)) EXTID 'DOCID'    
+    PROPERTIES = 'AC' IF ddd IS RepricingDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(ddd) EXTID 'SPECITEM'        
+    PROPERTIES = 0 IF ddd IS RepricingDetail  EXTID 'TAXID'        
+    PROPERTIES = valueVAT(ddd) EXTID 'TAXRATE'    
+    PROPERTIES = 0 IF ddd IS RepricingDetail  EXTID 'TAXSUM'             
+    FILTERS repricing(ddd)==i      
+; 
+
+exportRepricingMag 'Экспорт в супермаг' (Repricing i) {
+    inc(Repricing ii) <- NULL;
+    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND isPosted(i) AND idSupermag(departmentStore(i));    
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    IF (GROUP SUM 1 IF inc(Repricing ii)) THEN{
+        TRY{
+            EXPORT exportRepricingMag XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'AC_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'AC_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+            IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                FOR inc(Repricing ii)  DO NEW log = SupermagLog {
+                    id(log)<- 'AC_' +STRING[30](LONG(ii))+'_'+(OVERRIDE seriesNumber(ii), '')+'_'+ formulaDateT(dt());
+                    dateTime[SupermagLog](log) <- currentDateTime();
+                    userLogin(log) <- login(currentUser()); 
+                    nameContact(log) <- STRING[100](name(currentUser()));
+                    stockDocumentLedger(log)<- ii;
+                }     
+                APPLY NESTED LOCAL;
+            }        
+                 
+        } CATCH {
+            logToFile('supermag', CONCAT '\n', 'Акт переоценки', 'file://' + exportDirectorySupermag() + '/' + 'AC_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Акт переоценки. Ошибка при экспорте AC_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
+        }
+    }
+    inc(Repricing ii) <- NULL;    
+}
+exportSupermag(Repricing s) +{
+    exportRepricingMag(s);
+}
+
+EXTEND FORM repricings
+    PROPERTIES (p) exportRepricingMag TOOLBAR 
+;
+DESIGN repricings {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportRepricingMag(p));
+        }        
+    }
+}

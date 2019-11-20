@@ -59,7 +59,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES i1 = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS      
                            
     OBJECTS d = Purchase.InvoiceDetail   EXTID 'SMSPEC' IN WI
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(invoice(d)))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100](seriesNumber(d)) EXTID 'DOCID'    
     PROPERTIES = 'WI' IF d IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = idSku(d) EXTID 'ARTICLE'        
@@ -76,14 +76,14 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
                         
     //-- основание
     OBJECTS o = Order EXTID 'SMCOMMONBASES' IN WI 
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) IF o IS Order EXTID 'ID'    
+    PROPERTIES = STRING[100](seriesNumber(i)) IF o IS Order EXTID 'ID'    
     PROPERTIES = 'WI' IF o IS Order EXTID 'DOCTYPE' 
     PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(o))) EXTID 'BASEID' 
+    PROPERTIES = STRING[100](seriesNumber(o)) EXTID 'BASEID' 
     FILTERS include(o,i)           
             
     //-- сама накладная
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) EXTID 'ID' IN SMWAYBILLSIN      
+    PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMWAYBILLSIN      
     PROPERTIES = 'WI' IF i IS Purchase.Invoice EXTID 'DOCTYPE' IN SMWAYBILLSIN 
     PROPERTIES = 0 IF i IS Purchase.Invoice EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
     PROPERTIES = id(customer(i)) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
@@ -93,13 +93,13 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = exportTime(dateTime(i))  EXTID 'SUPPLIERDOCCREATE' IN SMWAYBILLSIN
     
     //-- акт расхождения
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(i))) IF invoiceCreditNote(i) EXTID 'DOCID' IN SMDOCPROPS      
+    PROPERTIES = STRING[100](seriesNumber(i)) IF invoiceCreditNote(i) EXTID 'DOCID' IN SMDOCPROPS      
     PROPERTIES = 'WI' IF invoiceCreditNote(i) EXTID 'DOCTYPE' IN SMDOCPROPS 
     PROPERTIES = 'CustomLabels.акт' IF invoiceCreditNote(i) EXTID 'PARAMNAME' IN SMDOCPROPS   
     PROPERTIES = seriesNumber(i) IF  invoiceCreditNote(i) EXTID 'PARAMVALUE' IN SMDOCPROPS              
  
     OBJECTS dd = Purchase.InvoiceDetail   EXTID 'SMSPECTAX' IN WI
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(invoice(dd)))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100](seriesNumber(dd)) EXTID 'DOCID'    
     PROPERTIES = 'WI' IF dd IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS Purchase.InvoiceDetail  EXTID 'TAXID'        
@@ -108,14 +108,14 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     FILTERS invoice(dd)==i
     
     OBJECTS ddd = Purchase.InvoiceDetail   EXTID 'SLSPECQMISMATCH' IN WI
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(invoice(ddd)))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100](seriesNumber(ddd)) EXTID 'DOCID'    
     PROPERTIES = 'WI' IF ddd IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(ddd) EXTID 'SPECITEM'        
     PROPERTIES = quantity(ddd) EXTID 'QUANTBYDOC'                  
     FILTERS invoice(ddd)==i  
     
     OBJECTS a = Purchase.InvoiceDetail   EXTID 'SMSPECBY' IN WI
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(invoice(a)))) EXTID 'DOCID'    
+    PROPERTIES = STRING[100](seriesNumber(a)) EXTID 'DOCID'    
     PROPERTIES = 'WI' IF a IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(a) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF a IS Purchase.InvoiceDetail EXTID 'EXTRACHARGE'  
@@ -129,7 +129,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF ii IS Purchase.Invoice EXTID 'action'  
         
     PROPERTIES = STRING[100]('FILSF'+STRING[30](LONG(ii))+'\tWI') EXTID 'Id'
-    PROPERTIES = STRING[100]('LSF'+STRING[30](LONG(ii))) EXTID 'DOCID' IN SMFINOBLIGATION   
+    PROPERTIES = STRING[100](seriesNumber(ii)) EXTID 'DOCID' IN SMFINOBLIGATION   
     PROPERTIES = 'WI' IF ii IS Purchase.Invoice  EXTID 'DOCTYPE' IN SMFINOBLIGATION    
     PROPERTIES = creditInvoiceSumInvoiceDetail(ii) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
     PROPERTIES = invoiceSumInvoiceDetail(ii)  EXTID 'BASESUM' IN SMFINOBLIGATION   
