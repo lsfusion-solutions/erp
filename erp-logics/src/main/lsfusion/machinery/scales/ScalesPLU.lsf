@@ -40,6 +40,8 @@ fillPLU 'Проставить PLU' (GroupScales g, Barcode b) {
 CONSTRAINT CHANGED(in(GroupScales g, sku(Barcode b))) AND pluNumber(g,b) AND NOT in(g,sku(b))
     MESSAGE 'Должна быть доступна группа для товара, у которго задан PLU';
 
+inPrint = DATA LOCAL BOOLEAN(Barcode);
+
 FORM printPLU 'PLU'
     OBJECTS g = GroupScales PANEL
     PROPERTIES(g) READONLY name
@@ -47,11 +49,8 @@ FORM printPLU 'PLU'
     OBJECTS s = Barcode
     PROPERTIES READONLY pluNumber(g,s), id(s), nameSku(s)
     FILTERS pluNumber(g,s)
+    FILTERS inPrint(s)
 ;
-
-printPLU 'Список PLU' (GroupScales g) {
-    PRINT printPLU OBJECTS g = g;
-} IMAGE 'print.png';
 
 activeSku'Активный'(Barcode b) = active(sku(b));
 
@@ -63,17 +62,23 @@ FORM pluDashboard 'Задание PLU'
     OBJECTS g = GroupScales
     PROPERTIES(g) READONLY npp, name
     PROPERTIES(g) maxPluNumber, quantityNullPluNumber READONLY
-    PROPERTIES(g) printPLU TOOLBAR
     FILTERS stock(g) == d
     FILTERGROUP activeGroup FILTER 'Активные' active(g) DEFAULT
+    
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), name(sk)
+    ORDER order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) DEFAULT
     
     OBJECTS b = Barcode
     PROPERTIES pluNumber(g,b)
     PROPERTIES(b) READONLY id, nameSku, idSku, activeSku
     PROPERTIES fillPLU(g,b) SHOWIF NOT pluNumber(g,b) TOOLBAR
     FILTERS passScales(b) AND length(id(b)) < 6 AND active(b) AND in(g,sku(b))
+    FILTERS isParent(sk,sku(b))
     FILTERGROUP activeSku FILTER 'Активные' activeSku(b) DEFAULT
-    FILTERGROUP nullPlu FILTER 'Без PLU' NOT pluNumber(g,b)
+    FILTERGROUP plu FILTER 'Без PLU' NOT pluNumber(g,b)
+                    FILTER 'С PLU' pluNumber(g,b)
     FILTERGROUP filter FILTER 'С ценой' prevPriceA(priceListType(g),sku(b),stock(g),currentDateTime()) DEFAULT
                        FILTER 'С остатком' currentBalance(sku(b),stock(g))
 ;
@@ -87,11 +92,25 @@ DESIGN pluDashboard {
         NEW tables {
             type = SPLITH;
             fill = 1;
-            MOVE BOX(g){fill=1;}
-            MOVE BOX(b){fill=1;}
+            NEW left {
+                type = SPLITV;
+                fill = 1;
+                MOVE BOX(g){fill=1;}
+                MOVE BOX (TREE skuTree){fill=2;}
+            }
+            MOVE BOX(b){fill=2;}
         }
     }
 }
+
+printPLU 'Список PLU' (GroupScales g) {
+    inPrint(Barcode b) <- [ FILTER pluDashboard.b](b);
+    PRINT printPLU OBJECTS g = g;
+} IMAGE 'print.png';
+printPLUXLS 'Список PLU(xls)' (GroupScales g) {
+    inPrint(Barcode b) <- [ FILTER pluDashboard.b](b);
+    PRINT printPLU OBJECTS g = g XLSX;
+} IMAGE 'print.png';
 
 fillPLU 'Проставить PLU (по фильтру)' (GroupScales g) {
     IF NOT maxPluNumber(g) THEN {
@@ -107,6 +126,7 @@ fillPLU 'Проставить PLU (по фильтру)' (GroupScales g) {
     }
 }
 EXTEND FORM pluDashboard
+    PROPERTIES(g) TOOLBAR printPLU, printPLUXLS
     PROPERTIES fillPLU(g) TOOLBAR DRAW b
 ;
 
