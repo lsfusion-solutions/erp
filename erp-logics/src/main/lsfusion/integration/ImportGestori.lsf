@@ -725,6 +725,7 @@ importInit 'Импорт остатков' () {
     LOCAL time = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (Purchase.UserInvoiceDetail);
     LOCAL expiryDate = DATE (INTEGER);
+    LOCAL manufactureDate = DATE (INTEGER);
     
     FOR quantityID(NUMERIC[13,0] s) AND NOT sku(TEXT (s)) DO {
         logToFile('importGestori_init', 'Не найден товар! ' + CONCAT ', ', 'Код: ' + s, 'Кол-во: ' + quantityID(s), 'Цена: ' + priceID(s) + '\r\n');
@@ -733,10 +734,10 @@ importInit 'Импорт остатков' () {
     // импорт приходов
     LOCAL iItem = NUMERIC[13,0](INTEGER);
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime, pr2.sal_date FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
+        EXEC 'SELECT pr2.cod_good, pr2.dt_nakl, pr2.num_nakl, SUBSTR(pr1.num_doc, 1, 50) , pr2.cost_price, pr1.cod_firm, pr1.ModTime, pr2.sal_date, pr2.made_date FROM Pub.pr2 LEFT JOIN Pub.pr1 ON pr2.num_nakl = pr1.num_nakl WHERE pr2.cod_shop = \''
         + extId(customerStock()) +'\' WITH (NOLOCK)' TO file;
         
-    IMPORT TABLE FROM file() TO iItem, date, id, number, cost, idSupplier, time, expiryDate;
+    IMPORT TABLE FROM file() TO iItem, date, id, number, cost, idSupplier, time, expiryDate, manufactureDate;
 
     LOCAL index = INTEGER (NUMERIC[13,0]);
     index(NUMERIC[13,0] s) <- GROUP LAST INTEGER k ORDER date(k), k WHERE iItem(k) = s;
@@ -786,6 +787,7 @@ importInit 'Импорт остатков' () {
         retailPrice(d) <- NUMERIC[16,4](priceID(s));
         shipmentPrice(d) <- NUMERIC[16,4](priceID(s));
         expiryDate(d) <- expiryDate(index(s));
+        manufactureDate (d) <- manufactureDate(index(s));
         imported(d) <- TRUE;
     }
         
