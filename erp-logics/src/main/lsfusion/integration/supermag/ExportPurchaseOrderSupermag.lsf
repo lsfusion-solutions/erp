@@ -19,14 +19,6 @@ errorAnswerFileSupermagLog 'Ошибка файла' = errorAnswerFile(lastSuper
 errorAnswerSupermagLog 'Ошибка обработки' = errorAnswer(lastSupermagLogOrder (Order l));   
 isExport 'Загружен' (Order d)= lastDateTimeSupermagLog(d) AND dateTimeAnswerSupermagLog(d) AND NOT (errorAnswerFileSupermagLog(d) OR errorAnswerSupermagLog(d));
 
-
-////-- предполагаем, что дата оплаты для накладной только одна
-//lastInvoiceContractLedger 'Дата оплаты' = GROUP LAST Purchase.InvoiceContractLedger l
-//                            ORDER date(l),l
-//                            BY inContractLedger(l);// MATERIALIZED;
-//lastPaymentPeriod = GROUP MAX PaymentPeriod p BY paymentCondition(p);                            
-//
-//maxOrder (Order i) = GROUP MAX Order o IF include(o, i);
 inc = DATA LOCAL BOOLEAN (Purchase.Order);
 
 FORM exportOrderMag FORMEXTID 'PACKAGE'  
@@ -35,7 +27,7 @@ FORM exportOrderMag FORMEXTID 'PACKAGE'
     OBJECTS i = Purchase.Order EXTID 'POSTOBJECT'
     PROPERTIES ATTR = 'Складское требование' IF i IS Purchase.Order EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS Purchase.Order EXTID 'action'      
-    PROPERTIES = STRING[100]('SOSO'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('SO'+seriesNumber(i)) EXTID 'Id'
     PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'SO' IF i IS Purchase.Order EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
@@ -68,15 +60,14 @@ FORM exportOrderMag FORMEXTID 'PACKAGE'
     PROPERTIES = sum (d) EXTID 'TOTALPRICENOTAX'         
     FILTERS order(d)==i,
             inc(i)        
-            
-    //-- сама накладная
+                
     PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMSTOREORDERS      
     PROPERTIES = 'SO' IF i IS Purchase.Order EXTID 'DOCTYPE' IN SMSTOREORDERS 
     PROPERTIES = id(supplierStock(i)) EXTID 'LOCATION' IN SMSTOREORDERS                        
 
 ; 
 
-exportSupermagOrder 'Экспорт в супермаг' (Purchase.Order i) {
+exportOrderMag 'Экспорт в супермаг' (Purchase.Order i) {
     inc(Purchase.Order ii) <- NULL;
     inc(i) <- TRUE WHERE toSupermagOrder(i) AND isPosted(i) AND idSupermag(customerStock(i));    
     LOCAL NESTED dt = DATETIME();
@@ -106,13 +97,13 @@ exportSupermagOrder 'Экспорт в супермаг' (Purchase.Order i) {
 }
 
 EXTEND FORM Purchase.orders
-    PROPERTIES (o) exportSupermagOrder TOOLBAR 
+    PROPERTIES (o) exportOrderMag TOOLBAR 
 ;
 DESIGN Purchase.orders {
     actionContainer{
         NEW mag {
             caption = 'Супермаг';
-            MOVE PROPERTY (exportSupermagOrder(o));
+            MOVE PROPERTY (exportOrderMag(o));
         }        
     }
 }
@@ -170,14 +161,14 @@ DESIGN exportSupermag {
 exportSupermagOrderFilter 'Экспорт в супермаг (фильтр)'() {
     IF exportDirectorySupermag() THEN {
         FOR [ FILTER exportSupermag.o](Order l) DO {
-            exportSupermagOrder(l);
+            exportOrderMag(l);
         }
     } ELSE {
         MESSAGE 'Не задан путь для экспорта файлов в супермаг';
     }
 }
 EXTEND FORM exportSupermag
-    PROPERTIES (o) exportSupermagOrder TOOLBAR 
+    PROPERTIES (o) exportOrderMag TOOLBAR 
     PROPERTIES () exportSupermagOrderFilter TOOLBAR DRAW o
     PROPERTIES importAnswerOrder = importAnswer() TOOLBAR DRAW ll
 ;

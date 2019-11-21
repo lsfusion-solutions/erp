@@ -33,8 +33,8 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Расходная накладная' IF i IS Sale.Invoice EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS Sale.Invoice EXTID 'action'      
     
-    PROPERTIES = STRING[100]('WOLSF'+STRING[30](LONG(i))) EXTID 'Id'
-    PROPERTIES = STRING[100](STRING[100](seriesNumber(i))) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = STRING[100]('WO'+seriesNumber(i)) EXTID 'Id'
+    PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'WO' IF i IS Sale.Invoice EXTID 'DOCTYPE' IN SMDOCUMENTS    
     PROPERTIES = idSupermag(supplierStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = id(customer(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
@@ -120,7 +120,7 @@ GROUP IW;
 GROUP SMDOCUMENTS1 EXTID 'SMDOCUMENTS': IW;
 GROUP SMWAYBILLSIN1 EXTID 'SMWAYBILLSIN' : IW;
 GROUP SMDOCPROPS1 EXTID 'SMDOCPROPS' : IW;
-//GROUP SMCOMMONBASES1 EXTID 'SMCOMMONBASES': IW;
+GROUP SMINTERNALWAYBILLS : IW;
 
 creditInvoicePrice(Sale.InvoiceDetail d) = round4(creditInvoiceSum(d)/creditQuantity(d));
 
@@ -131,11 +131,11 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'Накладная на перемещение' IF i IS Sale.Invoice EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS Sale.Invoice EXTID 'action'      
     
-    PROPERTIES = STRING[100]('IWLSF'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('IW'+seriesNumber(i)) EXTID 'Id'
     PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS1
     PROPERTIES = 'IW' IF i IS Sale.Invoice EXTID 'DOCTYPE' IN SMDOCUMENTS1    
     PROPERTIES = idSupermag(supplierStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS1    
-    PROPERTIES = id(customer(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS1  
+    //PROPERTIES = id(customer(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS1  
     PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS1  
     PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS1
     PROPERTIES = 0 IF i IS Sale.Invoice EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS1  
@@ -151,7 +151,7 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
     PROPERTIES i1 = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
                            
     OBJECTS d = Sale.InvoiceDetail   EXTID 'SMSPEC' IN IW
-    PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'DOCID'    
+    PROPERTIES = STRING[100](seriesNumber(d)) EXTID 'DOCID'    
     PROPERTIES = 'IW' IF d IS Sale.InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = idSku(d) EXTID 'ARTICLE' 
@@ -167,7 +167,11 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
     PROPERTIES d3= creditInvoiceSum (d) EXTID 'TOTALPRICECUR'                
     PROPERTIES = creditSum (d) EXTID 'TOTALPRICENOTAX'         
     FILTERS invoice(d)==i,
-            inc(i)                                         
+            inc(i)    
+                                                 
+    PROPERTIES = STRING[100](seriesNumber(i)) IF i IS Sale.Invoice EXTID 'ID' IN SMINTERNALWAYBILLS
+    PROPERTIES = 'IW' IF i IS Sale.Invoice EXTID 'DOCTYPE' IN SMINTERNALWAYBILLS
+    PROPERTIES = id(customer(i)) EXTID 'OURSELFCLIENT'  IN SMINTERNALWAYBILLS                  
                                                          
     //-- основание   
     OBJECTS o = Order EXTID 'SMCOMMONBASES' IN IW 

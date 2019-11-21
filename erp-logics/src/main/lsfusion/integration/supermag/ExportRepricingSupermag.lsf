@@ -7,7 +7,7 @@ GROUP AC;
 GROUP SMDOCUMENTS : AC;
 GROUP SMCOMMONBASES : AC;
 GROUP SMDOCPROPS : AC;
-
+GROUP SMACTS : AC;
 
 inc = DATA LOCAL BOOLEAN (Repricing);
 
@@ -17,10 +17,10 @@ FORM exportRepricingMag FORMEXTID 'PACKAGE'
     OBJECTS i = Repricing EXTID 'POSTOBJECT'
     PROPERTIES ATTR = 'Акт переоценки' IF i IS Repricing EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF i IS Repricing EXTID 'action'      
-    PROPERTIES = STRING[100]('ACAC'+STRING[30](LONG(i))) EXTID 'Id'
+    PROPERTIES = STRING[100]('AC'+seriesNumber(i)) EXTID 'Id'
     PROPERTIES = STRING[100](seriesNumber(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'AC' IF i IS Repricing EXTID 'DOCTYPE' IN SMDOCUMENTS    
-    PROPERTIES = idSupermag(customerStock(i)) EXTID 'BORNIN' IN SMDOCUMENTS        
+    PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS        
     //PROPERTIES = id(supplier(i)) EXTID 'CLIENTINDEX' IN SMDOCUMENTS  
     PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS  
     PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS
@@ -50,7 +50,19 @@ FORM exportRepricingMag FORMEXTID 'PACKAGE'
     PROPERTIES d5 = retailSum (d) EXTID 'TOTALPRICENOTAX'         
     FILTERS repricing(d)==i,
             inc(i)
-                     
+             
+    PROPERTIES = STRING[100](seriesNumber(i))  EXTID 'ID' IN SMACTS    
+    PROPERTIES = 'AC' IF i IS Repricing EXTID 'DOCTYPE'  IN SMACTS    
+    PROPERTIES = 0 IF i IS Repricing EXTID 'CHARGEFULLPRICE'  IN SMACTS                       
+    PROPERTIES = exportTime(dateTime(i)) EXTID 'EXECDATE'  IN SMACTS    
+    PROPERTIES = 0 IF i IS Repricing EXTID 'EXECIF'  IN SMACTS        
+    PROPERTIES = exportTime(dateTime(i)) EXTID 'EXECTIME'  IN SMACTS        
+    PROPERTIES = 0 IF i IS Repricing EXTID 'LABELSPRINTED'  IN SMACTS      
+    PROPERTIES = 47 IF i IS Repricing EXTID 'PRICETYPE'  IN SMACTS    
+    PROPERTIES = 1 IF i IS Repricing EXTID 'REASON'  IN SMACTS    
+    PROPERTIES = 0 IF i IS Repricing EXTID 'SUMMERTIME'   IN SMACTS     
+    PROPERTIES = 0 IF i IS Repricing EXTID 'UTCOFFSET'   IN SMACTS              
+                              
     OBJECTS dd = RepricingDetail   EXTID 'SMSPECACTS' IN AC
     PROPERTIES = STRING[100](seriesNumber(dd)) EXTID 'DOCID'    
     PROPERTIES = 'AC' IF dd IS RepricingDetail EXTID 'DOCTYPE'      
