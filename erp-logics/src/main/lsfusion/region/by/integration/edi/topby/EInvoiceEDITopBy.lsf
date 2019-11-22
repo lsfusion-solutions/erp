@@ -37,6 +37,7 @@ GROUP despatchAdviceLogisticUnitLineItem EXTID 'DespatchAdviceLogisticUnitLineIt
 blrwblLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
 blrwblLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
 blrwblLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
+blrwblLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
 blrwblLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
 blrwblGrossWeightValue = DATA LOCAL NESTED NUMERIC[12,6](INTEGER);
 blrwblQuantityDespatched = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
@@ -75,6 +76,7 @@ FORM blrwbl
     PROPERTIES(i) blrwblLineItemNumber EXTID 'LineItemNumber',
                   blrwblLineItemID EXTID 'LineItemID',
                   blrwblLineItemBuyerID EXTID 'LineItemBuyerID',
+                  blrwblLineItemSupplierID EXTID 'LineItemSupplierID',
                   blrwblLineItemName EXTID 'LineItemName',
                   blrwblGrossWeightValue EXTID 'GrossWeightValue',
                   blrwblQuantityDespatched EXTID 'QuantityDespatched',
@@ -124,11 +126,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     transportID(ei) <- blrwblTransportID();
                     trailerID(ei) <- blrwblTrailerID();
                     XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                    FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) DO NEW ed = EInvoiceDetail {
+                    FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
                         eInvoice(ed) <- ei;
                         id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);
                         lineItemID(ed) <- blrwblLineItemID(l);
                         lineItemBuyerID(ed) <- blrwblLineItemBuyerID(l);
+                        lineItemSupplierID(ed) <- blrwblLineItemSupplierID(l);
                         lineItemName(ed) <- blrwblLineItemName(l);
                         grossWeightValue(ed) <- blrwblGrossWeightValue(l);
                         quantityDespatched(ed) <- blrwblQuantityDespatched(l);
@@ -678,6 +681,7 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
     PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
                       lineItemID(d) EXTID 'LineItemID',
                       lineItemBuyerID(d) EXTID 'LineItemBuyerID',
+                      lineItemSupplierID(d) EXTID 'LineItemSupplierID',
                       lineItemName(d) EXTID 'LineItemName',
                       grossWeightValue(d) EXTID 'GrossWeightValue',
                       quantityDespatched(d) EXTID 'QuantityDespatched',

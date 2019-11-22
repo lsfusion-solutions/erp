@@ -20,6 +20,7 @@ GROUP actDifLineItem EXTID 'ActDifLineItem';
 blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
 blradfLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
 blradfLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
 blradfLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
 blradfQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
 blradfQuantityReceived = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
@@ -42,6 +43,7 @@ FORM blradf
     PROPERTIES(i) blradfLineItemNumber EXTID 'LineItemNumber',
                   blradfLineItemID EXTID 'LineItemID',
                   blradfLineItemBuyerID EXTID 'LineItemBuyerID',
+                  blradfLineItemSupplierID EXTID 'LineItemSupplierID',
                   blradfLineItemName EXTID 'LineItemName',
                   blradfQuantityOrdered EXTID 'QuantityOrdered',
                   blradfQuantityReceived EXTID 'QuantityReceived',
@@ -76,10 +78,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     customer(ec) <- legalEntityGLN(blradfCustomerGLN());
                     customerStock(ec) <- companyStockGLN(blradfCustomerStockGLN());
                     XMLPath(ec) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                    FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) DO NEW ed = ECreditNoteDetail {
+                    FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) OR blradfLineItemSupplierID(l) DO NEW ed = ECreditNoteDetail {
                         id(ed) <- id(ec) + '/' + blradfLineItemNumber(l);
                         lineItemID(ed) <- blradfLineItemID(l);
                         lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
+                        lineItemSupplierID(ed) <- blradfLineItemSupplierID(l);
                         lineItemName(ed) <- blradfLineItemName(l);
                         quantityOrdered(ed) <- blradfQuantityOrdered(l);
                         quantityReceived(ed) <- blradfQuantityReceived(l);
@@ -214,6 +217,7 @@ FORM exportBlradf FORMEXTID 'BLRADF'
     PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
                       lineItemID(d) EXTID 'LineItemID',
                       lineItemBuyerID(d) EXTID 'LineItemBuyerID',
+                      lineItemSupplierID(d) EXTID 'LineItemSupplierID',
                       lineItemName(d) EXTID 'LineItemName',
                       lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
                       lineItemPrice(d) EXTID 'LineItemPrice',
