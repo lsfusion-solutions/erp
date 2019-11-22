@@ -896,17 +896,18 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     LOCAL closed = ISTRING[1] (INTEGER);
     LOCAL paymentDelay = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
+    LOCAL contractType = INTEGER (INTEGER);
     
     logToFile('importGestori', 'importPriceList_Docs_Select_started');
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
+        EXEC 'SELECT ct_spec, NumSpec, DateSpec, DateEnd, spec1.ct_num, Contract.main_ct_num, spec1.cod_firm, spec1.cod_ob, SUBSTR(seq_shop,1,100), primech, StsDoc, Contract.TypeCt FROM Pub.spec1, Pub.Contract WHERE spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\''
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
     logToFile('importGestori', 'importPriceList_Docs_Select_complete');
     
-    IMPORT TABLE FROM file() TO id, number, begin, end, idContract, idMainContract, idCompany, idStockGroup, idStocks, note, closed;
+    IMPORT TABLE FROM file() TO id, number, begin, end, idContract, idMainContract, idCompany, idStockGroup, idStocks, note, closed, contractType;
 
     logToFile('importGestori', 'importPriceList_Docs_Import_complete:' + GROUP SUM 1 IF imported(INTEGER i));
     
@@ -916,7 +917,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     FOR UserPriceList p == userPriceList(TEXT (id(INTEGER i))) DO {
         
-        operation(p) <- PriceList.operation('supplier');
+        operation(p) <- IF contractType(i) = 3 THEN PriceList.operation('supplierPromotion') ELSE PriceList.operation('supplier'); 
         number(p) <- ISTRING[28] (number(i));
         date(p) <- begin(i);
         time(p) <- 00:00;
@@ -963,7 +964,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     
     FOR UserPriceListDetail d = userPriceListDetail(idDetail(INTEGER i), userPriceList(TEXT (idPriceList(i)))) DO {
         sku(d) <- item(TEXT (idItem(i)));
-        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t = (IF contractType(i) = 3 THEN dataPriceListType('supplierPromotion') ELSE dataPriceListType('supplier'));
         dataIndex(d) <- index(i);
         imported(d) <- TRUE;
     }
