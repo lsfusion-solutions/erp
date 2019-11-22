@@ -23,11 +23,11 @@ DESIGN departmentStore {
     }
 }
 
-fillNegativeBalanceProductDetail 'Заполнить изделия по остаткам' (Order o, SkuGroup sg) {
-    FOR balanceB(Sku sk, productsStock(o), date(o)) < 0 AND isParent(sg, sk) DO NEW d = ProductDetail {
+fillNegativeBalanceProductDetail 'Заполнить изделия по остаткам' (Order o, SkuGroup sg) { // на конец рабочего дня
+    FOR balanceA(Sku sk, productsStock(o), date(o)) < 0 AND isParent(sg, sk) DO NEW d = ProductDetail {
         order(d) <- o;
         sku(d) <- sk;
-        quantity(d) <- abs(balanceB(sk, productsStock(o), date(o)));
+        quantity(d) <- abs(balanceA(sk, productsStock(o), date(o)));
         product(d) <- GROUP MAX Product p IF isActive(BOM(p)) AND in(BOM(p), productsStock(o)) AND sku(p) == sk;
     }
 }
