@@ -1348,13 +1348,12 @@ addSkuLists 'Создать страницу описи по спискам SKU'
     DIALOG dialogAddLists DO {
         NEW p = PageInventory {
             listInventory(p) <- listInventory;
-            FOR in(list(ListDetail ld)) AND NOT [GROUP SUM 1 BY sku(PageInventoryDetail pd), pageInventory(pd)](sku(ld), p) AND 
-            (NUMERIC[16,5] cnt == balanceB(Sku sk, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND sk==sku(ld))
-            AND (isItem(sk) OR isContainer(sk)) ORDER name (sk) NEW d = PageInventoryDetail DO {
+            FOR in(list(ListDetail ld)) AND NOT [GROUP SUM 1 BY sku(PageInventoryDetail pd), pageInventory(pd)](sku(ld), p) 
+            AND (isItem(sku(ld)) OR isContainer(sku(ld))) ORDER name (sku(ld)) NEW d = PageInventoryDetail DO {
                 pageInventory(d) <- p;
-                sku(d) <- sk;
-                quantity(d) <- cnt;
-                price(d) <- prevAccountPriceA(sk, stock(listInventory), dateTime(inventory(listInventory)));
+                sku(d) <- sku(ld);
+                quantity(d) <- balanceB(sku(ld), stock(listInventory), dateTime(inventory(listInventory)));
+                price(d) <- prevAccountPriceA(sku(ld), stock(listInventory), dateTime(inventory(listInventory)));
             }        
             in(List l) <- NULL;
         }
