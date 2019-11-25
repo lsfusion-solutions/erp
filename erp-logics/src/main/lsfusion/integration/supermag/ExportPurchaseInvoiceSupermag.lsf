@@ -106,6 +106,17 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = valueVAT(dd) EXTID 'TAXRATE'
     PROPERTIES = creditVATSum(dd) EXTID 'TAXSUM'            
     FILTERS invoice(dd)==i
+
+
+    OBJECTS da = Purchase.InvoiceDetail   EXTID 'SLSPECPACKS' IN WI
+    PROPERTIES = STRING[100](seriesNumber(da)) EXTID 'DOCID'    
+    PROPERTIES = 'WI' IF da IS Purchase.InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(da) EXTID 'SPECITEM'        
+    PROPERTIES = -1 IF da IS Purchase.InvoiceDetail  EXTID 'PACKNUM'        
+    PROPERTIES = 0 IF da IS Purchase.InvoiceDetail  EXTID 'NPACKS'       
+    PROPERTIES = 0 IF da IS Purchase.InvoiceDetail EXTID 'PACKSIZE'     
+    PROPERTIES = exportTime(toDateTime(expiryDate(da))) EXTID 'VALIDDATE'                
+    FILTERS invoice(da)==i      
     
     OBJECTS ddd = Purchase.InvoiceDetail   EXTID 'SLSPECQMISMATCH' IN WI
     PROPERTIES = STRING[100](seriesNumber(ddd)) EXTID 'DOCID'    
