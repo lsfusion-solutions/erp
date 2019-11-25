@@ -1192,6 +1192,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             for (String directory : getDirectorySet(entry)) {
                 AstronConnectionString params = new AstronConnectionString(directory);
                 if (params.connectionString != null) {
+                    machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     try (Connection conn = getConnection(params)) {
 
                         checkExtraColumns(conn, params);
@@ -1216,6 +1217,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 String query = params.pgsql ?
                                         "UPDATE sales SET fusion_processed = 0 WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
                                         "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
+                                machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                                 statement.executeUpdate(query);
                                 conn.commit();
                             }
