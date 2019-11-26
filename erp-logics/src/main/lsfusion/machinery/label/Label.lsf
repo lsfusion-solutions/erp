@@ -399,6 +399,7 @@ priceLabelTransactionDetail 'Текущая цена на ценниках' (sku
     GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE amount(dataBarcode(ledger)), 1.0)
           ORDER createdTime(ledger), ledger
           BY sku(ledger), departmentStore(ledger) MATERIALIZED TABLE extraSkuStock;
+prevPriceLabelTransactionDetail'Текущая цена на ценниках'(Sku sk, Stock st) = PREV(priceLabelTransactionDetail(sk, st));
 
 firstSort = ABSTRACT VALUE STRING[100] (LabelTransactionDetail);
 secondSort = ABSTRACT VALUE STRING[100] (LabelTransactionDetail);
@@ -582,7 +583,7 @@ FORM labelTransactions 'Печать ценников'
     OBJECTS s = Sku
     PROPERTIES(s)    READONLY idBarcode, name, id
     FILTERGROUP price
-        FILTER 'Ранее загруженные' priceLabelTransactionDetail(s, d) 'F8' DEFAULT
+        FILTER 'Ранее загруженные' prevPriceLabelTransactionDetail(s, d) 'F8' DEFAULT
    
     OBJECTS dts = LabelTransactionDetail
     PROPERTIES(dts) READONLY BACKGROUND background(dts) nameLabelType, description, date, time,
@@ -899,7 +900,7 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                         NEW d = LabelTransactionDetail DO {
         
                         IF notChangePrintPrice(t) THEN {
-                            lastPriceLabel(d) <- NUMERIC[16,4](priceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
+                            lastPriceLabel(d) <- NUMERIC[16,4](prevPriceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
                         }
                         labelTransaction(d) <- t;
                         skuProp(d) <- skuProp(dd);
@@ -1376,7 +1377,7 @@ printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатат�
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
 
 needLabelTransactionDepartmentStore (PriceListType type, Sku sku, Stock stock) = 
-    prevPriceA(type, sku, stock, currentDateTime()) AND NOT prevPriceA(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetail(sku, stock); 
+    prevPriceA(type, sku, stock, currentDateTime()) AND NOT prevPriceA(type,  sku, stock, currentDateTime()) == prevPriceLabelTransactionDetail(sku, stock); 
 
 createAllLabelTransaction 'Все товары'(DepartmentStore stock)  { 
     select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 

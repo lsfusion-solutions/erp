@@ -16,7 +16,7 @@ FORM priceLabelTransactionDetails 'Цена на ценниках'
     FILTERS sku(d) == s,
             departmentStore(d) == st
 ;
-showPriceLabelTransactionDetail 'Показать изменение цены' (Sku sku, Stock stock)  { SHOW priceLabelTransactionDetails OBJECTS s = sku, st = stock; }  ASON CONTEXTMENU priceLabelTransactionDetail[Sku,DepartmentStore];
+showPriceLabelTransactionDetail 'Показать изменение цены' (Sku sku, Stock stock)  { SHOW priceLabelTransactionDetails OBJECTS s = sku, st = stock; }  ASON CONTEXTMENU prevPriceLabelTransactionDetail[Sku,DepartmentStore];
 
 FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании' 
     
@@ -74,17 +74,17 @@ FORM updatePriceDashboard 'Обновление розничных цен'
     PROPERTIES(sk) select
     PROPERTIES(sk) BACKGROUND backgroundUpdate(sk,d) READONLY idBarcode, id, name ON CONTEXTMENU showMovementSku(sk, d) ON CONTEXTMENU showMovementPriceSku(sk, d), shortNameUOM
     PROPERTIES(sk, d) READONLY currentBalance, updateDescription, updateFromDateTime, updatePrice, 
-                      priceLabelTransactionDetail,  transactionPrice BACKGROUND backgroundLastTransaction(sk, d)
+                      prevPriceLabelTransactionDetail,  transactionPrice BACKGROUND backgroundLastTransaction(sk, d)
     PROPERTIES(d) DRAW sk printSelectedSkuLabelTransaction, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocument
     FILTERS isParent(sg, sk),
             isItem(sk)
     ORDER name(sk)
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
     FILTERGROUP diffPrice
-        FILTER 'Ценники' updatePrice(sk, d) AND NOT updatePrice(sk, d) == priceLabelTransactionDetail(sk, d) 'F11' 
+        FILTER 'Ценники' updatePrice(sk, d) AND NOT updatePrice(sk, d) == prevPriceLabelTransactionDetail(sk, d) 'F11' 
         FILTER 'Оборудование' updatePrice(sk, d) AND barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d) 'F10'
         FILTER 'Ценники и оборуд.' updatePrice(sk, d) 
-                                                            AND (NOT (updatePrice(sk, d) == priceLabelTransactionDetail(sk, d)) OR 
+                                                            AND (NOT (updatePrice(sk, d) == prevPriceLabelTransactionDetail(sk, d)) OR 
                                                                  (barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d))) 'F9' DEFAULT 
                                                                  
     FILTERGROUP error
