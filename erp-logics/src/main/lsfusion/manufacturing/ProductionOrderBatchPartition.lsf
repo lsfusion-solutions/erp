@@ -17,7 +17,7 @@ EXTEND FORM order
 
 quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Sku, BOM);
 product 'Полуфабрикат' = DATA LOCAL Product (Sku, BOM);
-
+component 'Полуфабрикат' = DATA LOCAL Component (Sku, BOM);
 quantity 'Кол-во к списанию' = DATA LOCAL NUMERIC[16,5] (Substitute, BOM);
 taken (Sku s, BOM b) = GROUP SUM quantity(Substitute r, b) IF fromSku(r) = s;  
 
@@ -45,7 +45,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     // общая потребность по компонентам
     quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     product(Sku s, BOM b) <- GROUP MAX product(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
-    
+    component(Sku s, BOM b) <- GROUP MAX component(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     // рассчитываем куда расписать количество, которого не хватает
     lack (Sku s) <- bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalance(s, componentsStock(o));
     lack (Sku s) <- NULL WHERE lack(s) <= 0.0;
@@ -109,6 +109,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     FOR toConsume(Sku s, BOM b, Batch bt) AND NOT lastDetail(o, s, b, bt) ORDER b, s, dateTime(bt), bt NEW d = ComponentDetail DO {
         order(d) <- o;
         bruttoSku(d) <- s;
+        component(d)<- component(s,b);
         product(d)<- product(s,b);
         BOM(d) <- b;
         substituteSku(d) <- sku(bt) IF sku(bt) != s;
@@ -127,6 +128,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     FOR NUMERIC[16,5] q = (quantity(Sku s, BOM b) (-) originalTakenBatch(s, b)) IF q > 0 NEW d = ComponentDetail DO {
         order(d) <- o;
         bruttoSku(d) <- s;
+        component(d)<- component(s,b);
         product(d)<- product(s,b);
         BOM(d) <- b;
         bruttoQuantity(d) <- q;
