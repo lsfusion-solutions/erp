@@ -8,6 +8,7 @@ import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.BaseUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.EnhancedPatternLayout;
@@ -1149,7 +1150,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         curSalesInfoList = new ArrayList<>();
                         curRecordList = new ArrayList<>();
                         prologSum = rs.getBigDecimal("SALESSUM");
-                        idDiscountCard = rs.getString("SALESBARC");
+                        idDiscountCard = BaseUtils.trimToNull(rs.getString("SALESBARC"));
 
                         if (isReturn) { //чек возврата
                             String salesAttrs = rs.getString("SALESATTRS");
