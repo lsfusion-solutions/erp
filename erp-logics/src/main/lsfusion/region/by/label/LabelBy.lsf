@@ -73,12 +73,16 @@ baseRetailPriceRub 'Рубли (за б.е. до)' (LabelTransactionDetail d) = 
 baseRetailPriceKop 'Копейки (за б.е. до)' (Sku d, NUMERIC[16,4] retailPrice) = OVERRIDE round0((baseRetailPrice(d, retailPrice) (-) baseRetailPriceRub(d, retailPrice)) * 100.0), 0.00 IF baseRetailPrice(d, retailPrice);
 baseRetailPriceKop 'Копейки (за б.е. до)' (LabelTransactionDetail d) = baseRetailPriceKop(sku(d), retailPrice(d));
 baseRetailPriceKopText 'Копейки (за б.е. до)' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER(baseRetailPriceKop(sku(d), retailPrice(d)))) , 2, '0') ;
+                                                                                                          
+discountSumRub 'Рубли (сумма скидки)' (LabelTransactionDetail d) = trunc(discountSum(d));
+discountSumKop 'Копейки (сумма скидки)' (LabelTransactionDetail d) =  OVERRIDE round0((discountSum(d) (-) discountSumRub(d)) * 100.0), 0.00 IF discountSum(d);
+discountSumKopText 'Копейки (сумма скидки)' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER(discountSumKop(d))), 2, '0') ;
 
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText;
-EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText;
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText, discountSumRub, discountSumKopText;
+EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText, discountSumRub, discountSumKopText;
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText
-    PROPERTIES(dts) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText
+    PROPERTIES(dt) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText, discountSumRub, discountSumKopText
+    PROPERTIES(dts) READONLY basePrice, basePriceName, basePriceRub, basePriceKop, basePriceKopText, baseRetailPrice, baseRetailPriceRub, baseRetailPriceKop, baseRetailPriceKopText, discountSumRub, discountSumKopText
 ;
 
 //----------------------- Переход на новый основной классификатор ---------------------------//
