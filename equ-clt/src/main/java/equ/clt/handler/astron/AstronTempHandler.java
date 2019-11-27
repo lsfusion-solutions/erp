@@ -17,6 +17,11 @@ public class AstronTempHandler extends AstronHandler {
     }
 
     @Override
+    public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
+        return "astron-tmp";
+    }
+
+    @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
         return new HashMap<>();
     }
