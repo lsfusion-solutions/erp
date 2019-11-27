@@ -85,9 +85,10 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException, InterruptedException {
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
         String logDir = aclasLS2Settings != null ? aclasLS2Settings.getLogDir() : null;
+        boolean commaDecimalSeparator = aclasLS2Settings != null && aclasLS2Settings.isCommaDecimalSeparator();
         boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
         long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
-        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, sleep);
+        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
         if(result == 0) {
             result = loadNote(scales, transaction, logDir, sleep);
         }
@@ -97,7 +98,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return result;
     }
 
-    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
+    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -113,7 +114,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 if(item.price == null || item.price.compareTo(BigDecimal.ZERO) == 0) {
                     throw new RuntimeException("Zero price is not allowed");
                 }
-                String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(",", ".");
+                String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100);
+                price = commaDecimalSeparator ? price.replace(".", ",") : price.replace(",", ".");
                 String unitID = isWeight ? "4" : "10";
                 String freshnessDate = item.hoursExpiry != null ? String.valueOf(item.hoursExpiry) : "0";
                 String packageType = isWeight ? "0" : "2";

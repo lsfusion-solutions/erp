@@ -4,6 +4,7 @@ public class AclasLS2Settings {
     private String libraryDir;
     private String logDir;
     private boolean pluNumberAsPluId;
+    private boolean commaDecimalSeparator;
     private long sleepBetweenLibraryCalls;
 
     public String getLibraryDir() {
@@ -28,6 +29,14 @@ public class AclasLS2Settings {
 
     public void setPluNumberAsPluId(boolean pluNumberAsPluId) {
         this.pluNumberAsPluId = pluNumberAsPluId;
+    }
+
+    public boolean isCommaDecimalSeparator() {
+        return commaDecimalSeparator;
+    }
+
+    public void setCommaDecimalSeparator(boolean commaDecimalSeparator) {
+        this.commaDecimalSeparator = commaDecimalSeparator;
     }
 
     public long getSleepBetweenLibraryCalls() {
