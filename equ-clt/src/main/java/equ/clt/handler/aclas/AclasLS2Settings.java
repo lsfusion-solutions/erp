@@ -2,6 +2,7 @@ package equ.clt.handler.aclas;
 
 public class AclasLS2Settings {
     private String libraryDir;
+    private String logDir;
     private boolean pluNumberAsPluId;
     private long sleepBetweenLibraryCalls;
 
@@ -11,6 +12,14 @@ public class AclasLS2Settings {
 
     public void setLibraryDir(String libraryDir) {
         this.libraryDir = libraryDir;
+    }
+
+    public String getLogDir() {
+        return logDir;
+    }
+
+    public void setLogDir(String logDir) {
+        this.logDir = logDir;
     }
 
     public boolean isPluNumberAsPluId() {

@@ -10,9 +10,11 @@ import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
+import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -82,19 +84,20 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException, InterruptedException {
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
+        String logDir = aclasLS2Settings != null ? aclasLS2Settings.getLogDir() : null;
         boolean pluNumberAsPluId = aclasLS2Settings != null && aclasLS2Settings.isPluNumberAsPluId();
         long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
-        int result = loadPLU(scales, transaction, pluNumberAsPluId, sleep);
+        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, sleep);
         if(result == 0) {
-            result = loadNote(scales, transaction, sleep);
+            result = loadNote(scales, transaction, logDir, sleep);
         }
         if(result == 0) {
-            result = loadHotKey(scales, transaction, sleep);
+            result = loadHotKey(scales, transaction, logDir, sleep);
         }
         return result;
     }
 
-    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
+    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -125,11 +128,12 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
         } finally {
+            logFile(logDir, file, "plu");
             safeDelete(file);
         }
     }
 
-    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, long sleep) throws IOException, InterruptedException {
+    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -145,11 +149,12 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile, sleep);
         } finally {
+            logFile(logDir, file, "note");
             safeDelete(file);
         }
     }
 
-    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, long sleep) throws IOException, InterruptedException {
+    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -167,9 +172,19 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile, sleep);
         } finally {
+            logFile(logDir, file, "hotkey");
             safeDelete(file);
         }
     }
+
+    private void logFile(String logDir, File file, String prefix) throws IOException {
+        if (logDir != null) {
+            if (new File(logDir).exists() || new File(logDir).mkdirs()) {
+                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Calendar.getInstance().getTime())));
+            }
+        }
+    }
+
 
     private String escape(String value) {
         return value.replace("\t", "{$09}").replace("\n", "{$0A}").replace("\r", "{$0D}");
