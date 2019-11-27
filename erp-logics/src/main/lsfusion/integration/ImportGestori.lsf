@@ -980,12 +980,12 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
     logToFile('importGestori', 'importPriceList_Spec_Select_started');
 
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec FROM Pub.spec2, Pub.spec1, Pub.Contract WHERE spec1.ct_spec = spec2.ct_spec AND spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\'' 
+            EXEC 'SELECT cod_good, NumPos, PriceDoc, spec2.ct_spec, Contract.TypeCt FROM Pub.spec2, Pub.spec1, Pub.Contract WHERE spec1.ct_spec = spec2.ct_spec AND spec1.ct_num = Contract.ct_num AND (spec1.DateEnd >= TO_DATE(\'' 
             + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR spec1.DateEnd IS NULL) AND (Contract.DateAct >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\') OR Contract.DateAct IS NULL) AND spec1.stsdoc = \'$\' WITH (NOLOCK)' TO file;
 
     logToFile('importGestori', 'importPriceList_Spec_Select_complete');
     
-    IMPORT TABLE FROM file() TO idItem, index, price, idPriceList;
+    IMPORT TABLE FROM file() TO idItem, index, price, idPriceList, contractType;
 
     logToFile('importGestori', 'importPriceList_Spec_Import_complete:' + GROUP SUM 1 IF imported(INTEGER i));
     
