@@ -628,43 +628,6 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
 DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemAttribute()); } }
 
-importDisparityItem 'Импорт уценочных товаров' () {
-    LOCAL bItem = NUMERIC[13,0](INTEGER);
-    LOCAL bBarcode = STRING[15] (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-            EXEC 'SELECT cod_good, bar_cod FROM Pub.barcod WHERE cod_level = 3 AND NOT cod_good = bar_cod WITH (NOLOCK)' TO file;
-    
-    IMPORT TABLE FROM file() TO bItem, bBarcode;
-
-    LOCAL ucode = NUMERIC[16,3] (INTEGER); 
-    LOCAL uprice = NUMERIC[16,3] (INTEGER);
-    LOCAL udate = DATE (INTEGER);
-    
-    IMPORT TABLE FROM file() TO ucode, uprice, udate;
-
-    LOCAL indexU = INTEGER (NUMERIC[13,0]);
-    indexU(NUMERIC[13,0] s) <- GROUP LAST INTEGER k ORDER udate(k), k WHERE ucode(k) = s;
-    
-    LOCAL barcode = STRING[15] (NUMERIC[13,0]);
-    barcode(NUMERIC[13,0] s) <- [GROUP MAX bBarcode(INTEGER ii) BY bItem(ii)](s) IF indexU(s) AND item(STRING[100](s));
-
-    skipGenerateBarcode() <- TRUE;
-    FOR STRING[15] barcode = barcode(NUMERIC[13,0] s) AND NOT item(STRING[100](s + '_u')) NEW ni = Item DO {
-        copyDisparityData(item(STRING[100](s)), ni);
-        id(ni) <- STRING[100](s + '_u');
-        NEW b = Barcode {
-            sku(b) <- ni;
-            id(b) <- barcode;
-            dataDate(b) <- currentDate();
-        }
-    }
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importDisparityItem();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importDisparityItem()); } }
-
 id 'Номер' = DATA ISTRING[100](Range.Range);
 range = GROUP MAX Range.Range r BY id(r);
 
