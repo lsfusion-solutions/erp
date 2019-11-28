@@ -90,7 +90,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
         int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
         if(result == 0) {
-            result = loadNote(scales, transaction, logDir, sleep);
+            result = loadNote(scales, transaction, logDir, pluNumberAsPluId, sleep);
         }
         if(result == 0) {
             result = loadHotKey(scales, transaction, logDir, sleep);
@@ -135,7 +135,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
+    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
@@ -144,7 +144,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             for (ScalesItemInfo item : transaction.itemsList) {
                 bw.write(0x0d);
                 bw.write(0x0a);
-                bw.write(StringUtils.join(Arrays.asList(item.idBarcode, escape(trim(item.description, "", 1000))).iterator(), "\t"));
+                Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
+                bw.write(StringUtils.join(Arrays.asList(id, escape(trim(item.description, "", 1000))).iterator(), "\t"));
             }
 
             bw.close();
@@ -182,7 +183,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private void logFile(String logDir, File file, String prefix) throws IOException {
         if (logDir != null) {
             if (new File(logDir).exists() || new File(logDir).mkdirs()) {
-                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Calendar.getInstance().getTime())));
+                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Calendar.getInstance().getTime()) + ".txt"));
             }
         }
     }
