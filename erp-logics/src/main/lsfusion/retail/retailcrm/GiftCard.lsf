@@ -421,7 +421,12 @@ EXTEND FORM zReports
     PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment    
 ;
 
-addGiftCardpayment 'Добавить ПС' (Receipt r)  { NEW p = PaymentGiftCard receipt(p) <- r; } 
+addGiftCardpayment 'Добавить ПС' (Receipt r)  { 
+    NEW p = PaymentGiftCard {
+        receipt(p) <- r; 
+        paymentType(p)<-(GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansGiftCard);
+    }
+} 
 
 EXTEND FORM zReport
     PROPERTIES (b)  addGiftCardpayment TOOLBAR DRAW p
