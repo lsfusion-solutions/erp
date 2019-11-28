@@ -107,8 +107,9 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         String idBarcode = item.idBarcode;
         bytes.put(fillLeadingZeroes(idBarcode, 13).getBytes());
 
-        //Описание артикула, 28 bytes
-        byte[] nameBytes = fillTrailingSpaces(item.name, getDescriptionLength()).getBytes(Charset.forName("cp866"));
+        //Описание артикула, 28/60 bytes
+        String name = item.name != null ? item.name.replace(",", "") : null;
+        byte[] nameBytes = fillTrailingSpaces(name, getDescriptionLength()).getBytes(Charset.forName("cp866"));
         bytes.put(nameBytes);
 
         //Не используется, 1 byte
