@@ -769,6 +769,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ImportField extraField3TerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("extraField3[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(extraField3TerminalDocumentDetailField, terminalHandlerLM.findProperty("extraField3[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(extraField3TerminalDocumentDetailField);
+
+                    ImportField parentDocumentTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("parentDocument[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(parentDocumentTerminalDocumentDetailField, terminalHandlerLM.findProperty("parentDocument[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(parentDocumentTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
