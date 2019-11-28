@@ -170,8 +170,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
-                boolean useExtraFields = terminalHandlerLM.findProperty("useExtraFields[]").read(session) != null;
-
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
@@ -190,11 +188,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 Class.forName("org.sqlite.JDBC");
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
-                createGoodsTable(connection, useExtraFields);
-                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap, useExtraFields);
+                createGoodsTable(connection);
+                updateGoodsTable(connection, barcodeList, orderList, extraBarcodeMap);
 
-                createOrderTable(connection, useExtraFields);
-                updateOrderTable(connection, orderList, prefix, useExtraFields);
+                createOrderTable(connection);
+                updateOrderTable(connection, orderList, prefix);
 
                 createAssortTable(connection);
                 updateAssortTable(connection, assortmentList, prefix);
@@ -339,11 +337,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
-    private void createOrderTable(Connection connection, boolean useExtraFields) throws SQLException {
+    private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = useExtraFields ?
-
-                "CREATE TABLE zayavki " +
+        String sql = "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
@@ -363,40 +359,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " pos_field3   TEXT," +
                 " mindate1 TEXT," +
                 " maxdate1 TEXT," +
-                "PRIMARY KEY (num, barcode))" :
-
-                "CREATE TABLE zayavki " +
-                "(dv     TEXT," +
-                " num   TEXT," +
-                " post  TEXT," +
-                " barcode   TEXT," +
-                " quant   REAL," +
-                " price    REAL," +
-                " minquant    REAL," +
-                " maxquant    REAL," +
-                " minprice    REAL," +
-                " maxprice    REAL," +
-                " color TEXT," +
-                " field1   TEXT," +
-                " field2   TEXT," +
-                " field3   TEXT," +
-                " pos_field1   TEXT," +
-                " pos_field2   TEXT," +
-                " pos_field3   TEXT," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<ServerTerminalOrder> terminalOrderList, String prefix, boolean useExtraFields) throws SQLException {
+    private void updateOrderTable(Connection connection, List<ServerTerminalOrder> terminalOrderList, String prefix) throws SQLException {
         if (!terminalOrderList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = useExtraFields ?
-                        "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);" :
-                        "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -418,10 +392,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(15,formatValue(order.posField1));
                         statement.setObject(16,formatValue(order.posField2));
                         statement.setObject(17,formatValue(order.posField3));
-                        if(useExtraFields) {
-                            statement.setObject(18, formatValue(order.minDate1));
-                            statement.setObject(19, formatValue(order.maxDate1));
-                        }
+                        statement.setObject(18, formatValue(order.minDate1));
+                        statement.setObject(19, formatValue(order.maxDate1));
                         statement.addBatch();
                     }
                 }
@@ -435,11 +407,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
-    private void createGoodsTable(Connection connection, boolean useExtraFields) throws SQLException {
+    private void createGoodsTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = useExtraFields ?
-
-                "CREATE TABLE goods " +
+        String sql = "CREATE TABLE goods " +
                 "(barcode TEXT PRIMARY KEY," +
                 " naim    TEXT," +
                 " price   REAL," +
@@ -454,36 +424,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " main_barcode TEXT," +
                 " color TEXT," +
                 " ticket_data TEXT," +
-                " flags INTEGER)" :
-
-                "CREATE TABLE goods " +
-                "(barcode TEXT PRIMARY KEY," +
-                " naim    TEXT," +
-                " price   REAL," +
-                " quant   REAL," +
-                " fld1    TEXT," +
-                " fld2    TEXT," +
-                " fld3    TEXT," +
-                " fld4    TEXT," +
-                " fld5    TEXT," +
-                " image   TEXT," +
-                " weight  TEXT," +
-                " main_barcode TEXT," +
-                " color TEXT," +
-                " ticket_data TEXT)";
+                " flags INTEGER)";
         statement.executeUpdate(sql);
         statement.close();
     }
 
     private void updateGoodsTable(Connection connection, List<TerminalBarcode> barcodeList, List<ServerTerminalOrder> orderList,
-                                  Map<String, List<String>> extraBarcodeMap, boolean useExtraFields) throws SQLException {
+                                  Map<String, List<String>> extraBarcodeMap) throws SQLException {
         if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = useExtraFields ?
-                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?, ?);" :
-                        "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -498,9 +450,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(8, formatValue(barcode.isWeight)); //weight
                         statement.setObject(9, formatValue(barcode.mainBarcode)); //main_barcode
                         statement.setObject(10, formatValue(barcode.extInfo)); //ticket_data
-                        if(useExtraFields) {
-                            statement.setObject(11, barcode.needManufacturingDate ? 1 : 0); //flags
-                        }
+                        statement.setObject(11, barcode.needManufacturingDate ? 1 : 0); //flags
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
