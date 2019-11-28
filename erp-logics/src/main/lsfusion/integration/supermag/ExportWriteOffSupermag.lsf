@@ -22,6 +22,8 @@ GROUP SMWAYBILLSOUT : WO;
 GROUP SMDOCPROPS : WO;
 
 inc = DATA LOCAL BOOLEAN (WriteOff);
+curRate(WriteOff.WriteOff i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS WriteOff.WriteOff));
+curRate(WriteOff.WriteOffDetail d) = curRate(WriteOff.writeOff(d));
 
 FORM exportWriteOffMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
@@ -38,7 +40,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     PROPERTIES = note(i) EXTID 'COMMENTARY' IN SMDOCUMENTS  
     PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS
     PROPERTIES = 0 IF i IS WriteOff.WriteOff EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
-    PROPERTIES = 1 IF i IS WriteOff.WriteOff EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
+    PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
     PROPERTIES = 1 IF i IS WriteOff.WriteOff EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
     PROPERTIES = 3 IF i IS WriteOff.WriteOff EXTID 'DOCSTATE' IN SMDOCUMENTS       
     PROPERTIES = 1 IF i IS WriteOff.WriteOff  EXTID 'ISROUBLES' IN SMDOCUMENTS  
@@ -46,7 +48,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 4 IF i IS WriteOff.WriteOff  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
     PROPERTIES = sumWriteOffDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
-    PROPERTIES i1 = sumWriteOffDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                
+    PROPERTIES i1 = NUMERIC[18,4](sumWriteOffDetail(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                
        
                            
     OBJECTS d = WriteOff.WriteOffDetail   EXTID 'SMSPEC' IN WO
@@ -55,13 +57,13 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     PROPERTIES = index(d) EXTID 'SPECITEM'        
     PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
     PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
-    PROPERTIES = price (d) EXTID 'ITEMPRICE'     
-    PROPERTIES d2 = price (d) EXTID 'ITEMPRICECUR'                
-    PROPERTIES d4 = price (d) EXTID 'ITEMPRICENOTAX'   
-    PROPERTIES = quantity (d) EXTID 'QUANTITY'  
-    PROPERTIES = sum (d) EXTID 'TOTALPRICE'   
-    PROPERTIES d3= sum (d) EXTID 'TOTALPRICECUR'                
-    PROPERTIES d5= sum (d) EXTID 'TOTALPRICENOTAX'         
+    PROPERTIES = price(d) EXTID 'ITEMPRICE'     
+    PROPERTIES d2 = NUMERIC[18,4](price(d)/curRate(d)) EXTID 'ITEMPRICECUR'                
+    PROPERTIES d4 = price(d) EXTID 'ITEMPRICENOTAX'   
+    PROPERTIES = quantity(d) EXTID 'QUANTITY'  
+    PROPERTIES = sum(d) EXTID 'TOTALPRICE'   
+    PROPERTIES d3= NUMERIC[18,4](sum(d)/curRate(d)) EXTID 'TOTALPRICECUR'                
+    PROPERTIES d5= sum(d) EXTID 'TOTALPRICENOTAX'         
     FILTERS writeOff(d)==i,
             inc(i)                                         
                                                                           
