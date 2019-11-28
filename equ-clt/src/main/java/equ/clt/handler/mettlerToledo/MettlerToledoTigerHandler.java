@@ -35,6 +35,10 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         return "MettlerToledo Tiger: ";
     }
 
+    protected int getDescriptionLength() {
+        return 28; //single line
+    }
+
     private boolean receiveReply(TCPPort port) throws IOException {
         byte[] result = new byte[500];
 
@@ -91,7 +95,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
     }
 
     private byte[] getLoadPLUBytes(ScalesItemInfo item) {
-        ByteBuffer bytes = ByteBuffer.allocate(68);
+        ByteBuffer bytes = ByteBuffer.allocate(40 + getDescriptionLength());
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
         int pluNumber = getPluNumber(item);
@@ -104,7 +108,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         bytes.put(fillLeadingZeroes(idBarcode, 13).getBytes());
 
         //Описание артикула, 28 bytes
-        byte[] nameBytes = fillTrailingSpaces(item.name, 28).getBytes(Charset.forName("cp866"));
+        byte[] nameBytes = fillTrailingSpaces(item.name, getDescriptionLength()).getBytes(Charset.forName("cp866"));
         bytes.put(nameBytes);
 
         //Не используется, 1 byte
