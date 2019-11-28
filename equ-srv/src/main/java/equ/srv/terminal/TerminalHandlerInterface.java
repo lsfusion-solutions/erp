@@ -1,11 +1,12 @@
 package equ.srv.terminal;
 
 import lsfusion.base.file.RawFileData;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 
-import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -22,6 +23,8 @@ public interface TerminalHandlerInterface {
     RawFileData readBase(DataSession session, DataObject userObject) throws SQLException;
 
     String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin);
+
+    String checkOrder(DataSession session, ExecutionStack stack, DataObject user, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException;
 
     String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminal, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument);
 

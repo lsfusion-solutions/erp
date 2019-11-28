@@ -2,13 +2,15 @@ package equ.srv.terminal;
 
 import equ.srv.EquipmentLoggers;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.manager.MonitorServer;
-import lsfusion.server.physics.exec.db.controller.manager.DBManager;
+import lsfusion.server.base.controller.thread.ExecutorFactory;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 
@@ -18,7 +20,6 @@ import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -68,6 +69,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte GET_ITEM_HTML = 7;
     public static final byte GET_ALL_BASE = 8;
     public static final byte SAVE_PALLET = 9;
+    public static final byte CHECK_ORDER = 10;//0x0A
 
     private static final Logger logger = EquipmentLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = EquipmentLoggers.priceCheckerLogger;
@@ -393,7 +395,7 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("received pallet");
                             String[] params = readParams(inFromClient);
-                            if (params != null && params.length >= 3) {
+                            if (params.length >= 3) {
                                 sessionId = params[0];
                                 String numberPallet = params[1];
                                 String nameBin = params[2];
@@ -414,6 +416,34 @@ public class TerminalServer extends MonitorServer {
                             }
                         } catch (Exception e) {
                             logger.error("SavePallet Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
+                    case CHECK_ORDER:
+                        try {
+                            logger.info("checkOrder");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 2) {
+                                sessionId = params[0];
+                                String numberOrder = params[1];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    result = checkOrder(userInfo.user, numberOrder);
+                                    if (result == null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("CheckOrder Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -456,6 +486,7 @@ public class TerminalServer extends MonitorServer {
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
                         case SAVE_PALLET:
+                        case CHECK_ORDER:
                             if (result != null) {
                                 write(outToClient, result);
                             }
@@ -582,7 +613,7 @@ public class TerminalServer extends MonitorServer {
         return result.split(escStr, -1);
     }
 
-    public String login(String login, String password, String idTerminal) throws RemoteException, SQLException {
+    public String login(String login, String password, String idTerminal) throws SQLException {
         DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
         if (userObject != null) {
             String sessionId = String.valueOf((login + password + idTerminal).hashCode());
@@ -592,25 +623,31 @@ public class TerminalServer extends MonitorServer {
         return null;
     }
 
-    protected Object readItem(DataObject user, String barcode, String bin) throws RemoteException, SQLException {
+    protected Object readItem(DataObject user, String barcode, String bin) throws SQLException {
         return terminalHandlerInterface.readItem(createSession(), user, barcode, bin);
     }
 
-    protected String readItemHtml(String barcode, String idStock) throws RemoteException, SQLException {
+    protected String readItemHtml(String barcode, String idStock) throws SQLException {
         return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
-    protected RawFileData readBase(DataObject userObject) throws RemoteException, SQLException {
+    protected RawFileData readBase(DataObject userObject) throws SQLException {
         return terminalHandlerInterface.readBase(createSession(), userObject);
     }
 
-    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws RemoteException, SQLException {
+    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
         try (DataSession session = createSession()) {
             return terminalHandlerInterface.savePallet(session, getStack(), user, numberPallet, nameBin);
         }
     }
 
-    protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, String idTerminal, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
+    protected String checkOrder(DataObject user, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.checkOrder(session, getStack(), user, numberOrder);
+        }
+    }
+
+    protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, String idTerminal, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws SQLException {
         try (DataSession session = createSession()) {
             return terminalHandlerInterface.importTerminalDocument(session, getStack(), userObject, idTerminal, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
         }
@@ -626,10 +663,10 @@ public class TerminalServer extends MonitorServer {
         outToClient.flush();
     }
 
-    private void writeChars(DataOutputStream outToClient, String s) throws IOException {
+    /*private void writeChars(DataOutputStream outToClient, String s) throws IOException {
         outToClient.writeChars(s);
         outToClient.flush();
-    }
+    }*/
 
     private void write(DataOutputStream outToClient, byte[] bytes) throws IOException {
         outToClient.write(bytes);

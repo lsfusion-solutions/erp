@@ -240,6 +240,17 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return null;
     }
 
+    @Override
+    public String checkOrder(DataSession session, ExecutionStack stack, DataObject user, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String result = null;
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        if(terminalHandlerLM != null) {
+            terminalHandlerLM.findAction("checkOrder[STRING]").execute(session, stack);
+            result = (String) terminalHandlerLM.findProperty("checkOrderResult").read(session);
+        }
+        return result;
+    }
+
     private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
