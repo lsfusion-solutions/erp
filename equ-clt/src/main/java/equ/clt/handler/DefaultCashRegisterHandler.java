@@ -66,6 +66,18 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         return directoryStockMap;
     }
 
+    public Map<String, Set<CashRegisterInfo>> getDirectoryCashRegisterMap(RequestExchange requestExchange) {
+        Map<String, Set<CashRegisterInfo>> directoryCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo cashRegister : join(requestExchange.cashRegisterSet, requestExchange.extraCashRegisterSet)) {
+            if (fitHandler(cashRegister) && cashRegister.directory != null) {
+                Set<CashRegisterInfo> stockSet = directoryCashRegisterMap.getOrDefault(cashRegister.directory, new HashSet<>());
+                stockSet.add(cashRegister);
+                directoryCashRegisterMap.put(cashRegister.directory, stockSet);
+            }
+        }
+        return directoryCashRegisterMap;
+    }
+
     Set<CashRegisterInfo> join(Set<CashRegisterInfo> set1, Set<CashRegisterInfo> set2) {
         Set<CashRegisterInfo> result = new HashSet<>(set1);
         result.addAll(set2);

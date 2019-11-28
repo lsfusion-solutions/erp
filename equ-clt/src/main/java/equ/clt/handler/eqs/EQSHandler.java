@@ -10,7 +10,6 @@ import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
@@ -23,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static equ.clt.handler.HandlerUtils.*;
 
@@ -591,9 +591,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             try {
                 Class.forName("com.mysql.jdbc.Driver");
 
-                for (String directory : getDirectorySet(entry)) {
-
-                    EQSConnectionString params = new EQSConnectionString(directory);
+                for (Map.Entry<String, Set<CashRegisterInfo>> directoryCashRegisterEntry : getDirectoryCashRegisterMap(entry).entrySet()) {
+                    EQSConnectionString params = new EQSConnectionString(directoryCashRegisterEntry.getKey());
                     if (params.connectionString != null) {
                         machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
@@ -607,7 +606,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         machineryExchangeLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                         statement = conn.createStatement();
-                        String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s'", dateFrom, dateTo);
+                        String ecr = directoryCashRegisterEntry.getValue().stream().map(cashRegisterInfo -> String.valueOf(cashRegisterInfo.number)).collect(Collectors.joining(","));
+                        String query = String.format("UPDATE history SET new = 1 WHERE date >= '%s' AND date <='%s' AND ecr IN (%s)", dateFrom, dateTo, ecr);
                         machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                         statement.execute(query);
                         succeededRequests.add(entry.requestExchange);
