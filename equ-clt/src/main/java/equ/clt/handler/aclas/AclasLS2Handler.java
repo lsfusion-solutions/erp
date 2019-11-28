@@ -19,7 +19,7 @@ import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.trim;
-import static org.apache.commons.lang.StringUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
 
