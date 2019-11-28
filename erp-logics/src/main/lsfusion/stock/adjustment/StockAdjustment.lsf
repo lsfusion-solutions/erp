@@ -644,6 +644,14 @@ resetSelectedGroups  'Сбросить отмеченные'()  {
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
+dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+
+inSession 'Отм.' (Sku sku) = OVERRIDE
+    dataInSession(sku),
+    inSession(skuGroup(sku));
+
+countInSessionSkus  = GROUP SUM 1 IF dataInSession(Sku s);
+
 toAdjustment (s,Stock st,DATETIME dt) = GROUP SUM 1 IF 
     balanceB(Batch b,st,dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1)
         BY sku(b);
@@ -669,22 +677,33 @@ FORM selectParamsAdjustment 'Параметры пересорта'
     PROPERTIES SELECTOR name(o)
     
     TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES inSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     ORDER order(sk), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT  
     
-    PROPERTIES inSession(sk)         
+    OBJECTS sku = Sku
+    PROPERTIES inSession(sku)
+    PROPERTIES(sku) READONLY id SHOWIF showIDs(), name, idBarcode
+    ORDER name(sku)
+    FILTERGROUP inactiveSku FILTER 'Активный' active(sku) 'F6' DEFAULT
+    FILTERS isParent(sk,sku) OR (sku IS Sku AND NOT sk)
 ;
 DESIGN selectParamsAdjustment {
     BOX {
-        size = (800, 600); 
+        size = (1024, 768);
         NEW top {
             type = CONTAINERH;
             MOVE BOX(st);
             MOVE BOX(o); 
             MOVE BOX(dt) {caption ='Дата/время документа';}
         }
-        MOVE BOX(TREE skuTree);
+        NEW grids {
+            type = SPLITH;
+            fill = 1;
+            MOVE BOX(TREE skuTree);
+            MOVE BOX(sku);
+        }
     }
     MOVE TOOLBARBOX;
 }
@@ -744,14 +763,14 @@ DESIGN options {
 createDialogBatchUserAdjustment 'Пересорт по партиям'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[BPSTRING[100]], chosenDateTime[BPSTRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL, st INPUT, dt INPUT, o INPUT DO
-	        IF countInSessionSkuGroups() THEN       
+	        IF countInSessionSkus() THEN       
 	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
 	                date(adjustment) <- DATE(dt);
 	                time(adjustment) <- TIME(dt);          
 	                operation(adjustment) <- o;          
 	                inAdjustment(Sku sku) <- NULL;
-	                inAdjustment(Sku sku) <- inSession(skuGroup(sku));
+	                inAdjustment(Sku sku) <- inSession(sku);
 	                
 	                createBatchUserAdjustmentDetail(adjustment);
 	                SHOW userAdjustment OBJECTS i = adjustment DOCKED NOCANCEL;          
@@ -842,7 +861,7 @@ createSumUserAdjustment (UserAdjustment adjustment)  {
 createDialogSumUserAdjustment 'Корректировка суммы ТО'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[BPSTRING[100]], chosenDateTime[BPSTRING[100]]
 	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL, st INPUT, dt INPUT, o INPUT DO       
-	        IF countInSessionSkuGroups() THEN 
+	        IF countInSessionSkus() THEN 
 	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
 	                date(adjustment) <- DATE(dt);
@@ -850,7 +869,7 @@ createDialogSumUserAdjustment 'Корректировка суммы ТО'()  {
 	                operation(adjustment) <- o;          
 	                
 	                inAdjustment(Sku sku) <- NULL;
-	                inAdjustment(Sku sku) <- inSession(skuGroup(sku));
+	                inAdjustment(Sku sku) <- inSession(sku);
 	                
 	                createSumUserAdjustment(adjustment);
 	                SHOW userAdjustment OBJECTS i = adjustment DOCKED NOCANCEL;          
