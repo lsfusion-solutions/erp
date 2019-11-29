@@ -109,10 +109,11 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
 END 
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
+    skipCalc###prefixA##Markup = ABSTRACT BOOLEAN (###detail);
     calc###prefixD###markup(###detail detail)  = NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
         prefixA###price(detail),
         prefixB###price(detail),
-        value###prefixD##VAT(detail)));
+        value###prefixD##VAT(detail))) IF NOT skipCalc###prefixA##Markup(detail);
 
     change###prefixA##Price(###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
@@ -123,11 +124,11 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, p
 END
 
 META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
-
+    skipCalc###prefixA##Price = ABSTRACT BOOLEAN (###detail);
     calc###prefixA##Price(###detail detail)  = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
         prefixB###price(detail),
         prefixD###markup(detail),
-        value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail));
+        value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail)) IF NOT skipCalc###prefixA##Price(detail);
 
     change###prefixD##Markup(###detail detail)  { 
         INPUT n = NUMERIC[8,3] DO {

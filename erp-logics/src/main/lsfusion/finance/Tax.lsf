@@ -434,7 +434,8 @@ END
 
 // ------------ derive
 META deriveDocumentDetailVATDataSumCustom(detail, currencyProp)
-    VATSum (###detail detail)  <- round((sum(detail) * calcValueVAT (detail) / 100), currencyProp(detail))
+    overCalcVATSum = ABSTRACT NUMERIC[18,4] (###detail);
+    VATSum (###detail detail)  <- OVERRIDE overCalcVATSum(detail), round((sum(detail) * calcValueVAT (detail) / 100), currencyProp(detail))
                     WHEN DO CHANGED(sum(detail)) OR CHANGED (valueVAT (detail)) OR CHANGED (currencyProp (detail));
 END
 META deriveDocumentDetailVATDataSum(object, currencyProp)
@@ -445,7 +446,8 @@ META deriveDocumentDetailVATDataSum(object)
 END
 
 META deriveDocumentDetailVATPrefixSumCustom(detail, prefix)
-    prefix##Sum (###detail detail) <- sum(detail) (+) VATSum(detail)
+    overCalc###prefix##Sum = ABSTRACT NUMERIC[18,4] (###detail);
+    prefix##Sum (###detail detail) <- OVERRIDE overCalc###prefix##Sum(detail), (sum(detail) (+) VATSum(detail))
         WHEN CHANGED(sum(detail)) OR CHANGED(VATSum(detail));
 END
 META deriveDocumentDetailVATPrefixSum(object, prefix)
@@ -505,10 +507,11 @@ END
 
 // Изменение цены с НДС
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
+    skipChangeInvoicePrice = ABSTRACT BOOLEAN (###detail);
     changeInvoicePrice (###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             invoicePrice (detail) <- n;
-            price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail)));
+            price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail))) WHERE NOT skipChangeInvoicePrice(detail);
         }
     }
 END

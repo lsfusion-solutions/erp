@@ -4,8 +4,11 @@ REQUIRE PricingSum, PricingManufacturingPrice, PricingSumInvoice, Ware, Purchase
 
 nameStore 'Магазин' = name(store(departmentStore(Pricing p)));
 
-manMarkup 'Оптовая надбавка' = round2([(X-Y)*100/Y](
-    price(PricingDetail d),
+overManufacturingMarkup = ABSTRACT NUMERIC[8,3](PricingDetail); 
+
+manMarkup 'Оптовая надбавка' (PricingDetail d)= OVERRIDE overManufacturingMarkup(d), 
+    round2([(X-Y)*100/Y](
+    price(d),
     (manufacturingPrice(d) IF manufacturingPrice(d)!=0.0)));
 
 EXTEND FORM pricings
