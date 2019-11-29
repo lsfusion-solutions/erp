@@ -289,6 +289,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
 
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
@@ -305,12 +306,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                     String isWeight = entry.get("passScales") != null ? "1" : "0";
                     String mainBarcode = trim((String) entry.get("mainBarcode"));
+                    String color = formatColor((Color) entry.get("color"));
                     String extInfo = trim((String) entry.get("extInfo"));
                     String fld3 = trim((String) entry.get("fld3"));
                     boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
 
                     result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, extInfo, fld3, needManufacturingDate));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, needManufacturingDate));
 
                 }
             }
@@ -446,7 +448,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, '', ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -460,8 +462,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(7, formatValue(barcode.fld3)); //fld3
                         statement.setObject(8, formatValue(barcode.isWeight)); //weight
                         statement.setObject(9, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(10, formatValue(barcode.extInfo)); //ticket_data
-                        statement.setObject(11, barcode.needManufacturingDate ? 1 : 0); //flags
+                        statement.setObject(10, formatValue(barcode.color)); //color
+                        statement.setObject(11, formatValue(barcode.extInfo)); //ticket_data
+                        statement.setObject(12, barcode.needManufacturingDate ? 1 : 0); //flags
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -481,7 +484,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(7, ""); //fld3
                                     statement.setObject(8, formatValue(order.weight)); //weight
                                     statement.setObject(9, formatValue(order.barcode)); //main_barcode
-                                    statement.setObject(10, ""); //ticket_data
+                                    statement.setObject(10, ""); //color
+                                    statement.setObject(11, ""); //ticket_data
                                     statement.addBatch();
                                 }
                             }
@@ -496,7 +500,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(7, ""); //fld3
                                 statement.setObject(8, formatValue(order.weight)); //weight
                                 statement.setObject(9, formatValue(order.barcode)); //main_barcode
-                                statement.setObject(10, ""); //ticket_data
+                                statement.setObject(10, ""); //color
+                                statement.setObject(11, ""); //ticket_data
                                 statement.addBatch();
                             }
                         }
@@ -885,13 +890,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String nameManufacturer;
         String isWeight;
         String mainBarcode;
+        String color;
         String extInfo;
         String fld3;
         boolean needManufacturingDate;
 
         public TerminalBarcode(String idBarcode, String nameSkuBarcode, BigDecimal price, BigDecimal quantityBarcodeStock,
-                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String extInfo,
-                               String fld3, boolean needManufacturingDate) {
+                               String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color,
+                               String extInfo, String fld3, boolean needManufacturingDate) {
             this.idBarcode = idBarcode;
             this.nameSkuBarcode = nameSkuBarcode;
             this.price = price;
@@ -900,6 +906,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.nameManufacturer = nameManufacturer;
             this.isWeight = isWeight;
             this.mainBarcode = mainBarcode;
+            this.color = color;
             this.extInfo = extInfo;
             this.fld3 = fld3;
             this.needManufacturingDate = needManufacturingDate;
