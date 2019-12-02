@@ -493,9 +493,11 @@ META defineAddDetailDialogTerminal (object, skuProp, stockProp)
     @defineAddDetailDialogTerminalInner (object, ###object, skuProp, stockProp);
 END
 
+processed = DATA LOCAL BOOLEAN(TerminalDocument);
+
 META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
-    overAddDialogTerminal##class  ABSTRACT ( class, TerminalDocument);
+    overAddDialogTerminal##class  ABSTRACT LIST ( class, TerminalDocument);
     overAddDetailDialogTerminal##class##Detail  ABSTRACT LIST ( class##Detail, TerminalDocumentDetail);
 
     addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object)  { 
@@ -541,7 +543,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
                     } 
                 }    
                 ELSE {   
-                    FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW o = class##Detail DO {
+                    FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NOT processed(td) ORDER number(tdd) NEW o = class##Detail DO {
                         object(o) <- object;
                         skuProp(o) <- sku(tdd);
                         quantity(o) <- quantity(tdd);
