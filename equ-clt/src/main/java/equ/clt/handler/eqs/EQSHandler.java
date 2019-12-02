@@ -483,6 +483,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                         nameCashier, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection);
+                                salesInfo.cashRegisterInfo = cashRegister;
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                                 //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
                                 List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);
