@@ -11,6 +11,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.server.language.property.LP;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
@@ -85,12 +86,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if(terminalHandlerLM != null) {
                 boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, barcodeObject);
-                if(nameSkuBarcode == null)
+                ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, user);
+                String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session, barcodeObject, stockObject);
+                if(overNameSku == null)
                     return null;
                 String isWeight = terminalHandlerLM.findProperty("passScales[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                ObjectValue stockObject = user == null ? NullValue.instance : terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, user);
                 BigDecimal price = null;
                 BigDecimal quantity = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
@@ -116,7 +117,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
-                return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
+                return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
                         quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, "", "", isWeight, mainBarcode, color);
             } else return null;
 
@@ -134,12 +135,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
-                String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)));
-                if(nameSkuBarcode == null)
+                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
+                String overNameSku = (String) terminalHandlerLM.findProperty("overNameSku[Barcode,Stock]").read(session,
+                        terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode)), stockObject);
+                if(overNameSku == null)
                     return null;
 
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
-                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(idStock));
                 BigDecimal price = null;
                 BigDecimal oldPrice = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
@@ -150,9 +152,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 return action ?
                         String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
-                                nameSkuBarcode, String.valueOf(price.doubleValue()), String.valueOf(oldPrice.doubleValue() - price.doubleValue()))
+                                overNameSku, String.valueOf(price.doubleValue()), String.valueOf(oldPrice.doubleValue() - price.doubleValue()))
                         : String.format("<html><body><div align=center><font size=+4><b>%s</b><br><br><br>Цена: <b>%s</b></font></div></body></html>",
-                        nameSkuBarcode, price == null ? "0" : String.valueOf(price.doubleValue()));
+                        overNameSku, price == null ? "0" : String.valueOf(price.doubleValue()));
             } else return null;
 
         } catch (Exception e) {
@@ -267,7 +269,6 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
                 barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("nameSkuBarcode", terminalHandlerLM.findProperty("nameSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
@@ -289,14 +290,20 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
 
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+
+                String[] barcodeStockNames = new String[]{"overNameSku", "color"};
+                LP[] barcodeStockProperties = terminalHandlerLM.findProperties("overNameSku[Barcode,Stock]", "color[Barcode,Stock]");
+                for (int i = 0; i < barcodeStockNames.length; i++) {
+                    barcodeQuery.addProperty(barcodeStockNames[i], barcodeStockProperties[i].getExpr(barcodeExpr, stockObject.getExpr()));
+                }
+
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
                 for (ImMap<Object, Object> entry : barcodeResult.values()) {
 
                     String idBarcode = trim((String) entry.get("idBarcode"));
-                    String nameSkuBarcode = trim((String) entry.get("nameSkuBarcode"));
+                    String overNameSku = trim((String) entry.get("overNameSku"));
                     BigDecimal price = (BigDecimal) entry.get("price");
                     BigDecimal quantityBarcodeStock = currentQuantity ? (BigDecimal) entry.get("quantity") : BigDecimal.ONE;
                     if (quantityBarcodeStock == null)
@@ -311,7 +318,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String fld3 = trim((String) entry.get("fld3"));
                     boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
 
-                    result.add(new TerminalBarcode(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode,
+                    result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, needManufacturingDate));
 
                 }
@@ -454,7 +461,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
                         statement.setObject(1, formatValue(barcode.idBarcode)); //idBarcode
-                        statement.setObject(2, formatValue(barcode.nameSkuBarcode)); //name
+                        statement.setObject(2, formatValue(barcode.nameSku)); //name
                         statement.setObject(3, formatValue(barcode.price)); //price
                         statement.setObject(4, formatValue(barcode.quantityBarcodeStock)); //quantity
                         statement.setObject(5, formatValue(barcode.idSkuBarcode)); //idItem, fld1
@@ -883,7 +890,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
     private class TerminalBarcode {
         String idBarcode;
-        String nameSkuBarcode;
+        String nameSku;
         BigDecimal price;
         BigDecimal quantityBarcodeStock;
         String idSkuBarcode;
@@ -895,11 +902,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String fld3;
         boolean needManufacturingDate;
 
-        public TerminalBarcode(String idBarcode, String nameSkuBarcode, BigDecimal price, BigDecimal quantityBarcodeStock,
+        public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color,
                                String extInfo, String fld3, boolean needManufacturingDate) {
             this.idBarcode = idBarcode;
-            this.nameSkuBarcode = nameSkuBarcode;
+            this.nameSku = nameSku;
             this.price = price;
             this.quantityBarcodeStock = quantityBarcodeStock;
             this.idSkuBarcode = idSkuBarcode;
