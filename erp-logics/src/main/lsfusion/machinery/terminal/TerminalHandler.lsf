@@ -23,9 +23,17 @@ maxNpp () = GROUP MAX npp(Terminal t) IF t IS Terminal;
 defaultGroupTerminal() = GROUP MIN GroupTerminal gt IF gt IS GroupTerminal AND NOT stock(gt);
 
 manufacturer = ABSTRACT LegalEntity (Item);
-nameManufacturer (Barcode barcode) = name(manufacturer(skuBarcode(id(barcode))));
+nameManufacturer (Barcode barcode) = name(manufacturer(sku(barcode)));
+
+terminalName = ABSTRACT ISTRING[255](Barcode, Stock);
+overSkuName (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b) IF s IS Stock;
 
 color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
+color(Barcode b, Stock s) = color(sku(b), s);
+
+extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
+fld3 = ABSTRACT TEXT (Barcode, Stock);
+
 
 EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser, nameStockLastUser;
 EXTEND FORM groupsTerminal
@@ -53,10 +61,6 @@ dataPriceListTypeTerminal = DATA LedgerPriceListType();
 defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
 priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
-color(Barcode b, Stock s) = color(sku(b), s);
-
-extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
-fld3 = ABSTRACT TEXT (Barcode, Stock);
 
 checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
@@ -92,7 +96,7 @@ CLASS TerminalFlags {
     FLG_VOP_IN_ASSORT 'Включает контроль наличия товара в ассортименте поставщика',//  4  // 16
     FLG_VOP_ZEROQUANT_DEFAULT 'При вводе документа нулевое количество по умолчанию',// 5  // 32
     FLG_VOP_NEWGOODS 'Разрешить ввод нового товара',//   6  // 64
-    FLG_VOP_NPPDEFAULT 'Фокус по умолчанию на ввод порядкового номера. Траектория сканирования',//   7  // 128
+    FLG_VOP_NPPDEFAULT 'Фокус по умолчанию на ввод порядкового номера(WinCE). Траектория сканирования (Android)',//   7  // 128
     FLG_VOP_ONLINE 'ON-LINE запрос товара',//    8  // 256
     FLG_VOP_OL_INTERNAL_GOODS 'Подтверждение ввода нового товара',// 9  // 512
     FLG_VOP_QUANT_CONTROL 'Контроль количества при вводе',//   10  // 1024
