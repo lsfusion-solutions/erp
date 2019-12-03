@@ -275,7 +275,7 @@ public class TerminalServer extends MonitorServer {
                             List<String[]> params = readDocumentParams(inFromClient);
                             if (params != null && params.size() >= 1) {
                                 String[] document = params.get(0);
-                                if (document.length < 8) {
+                                if (document.length < 8) {//todo: пока parentDocument не считаем обязательным
                                     errorCode = WRONG_PARAMETER_COUNT;
                                     errorText = WRONG_PARAMETER_COUNT_TEXT;
                                 } else {
@@ -295,6 +295,7 @@ public class TerminalServer extends MonitorServer {
                                         String ana2 = formatValue(document[5]);
                                         //String ana3 = document[6];
                                         String comment = formatValue(document[7]);
+                                        String parentDocument = document.length <= 8 ? null : formatValue(document[8]);
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
@@ -313,12 +314,11 @@ public class TerminalServer extends MonitorServer {
                                                 String extraField1DocumentDetail = line.length <= 8 ? null : formatValue(line[8]);
                                                 String extraField2DocumentDetail = line.length <= 9 ? null : formatValue(line[9]);
                                                 String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
-                                                String parentDocumentDocumentDetail = line.length <= 11 ? null : formatValue(line[11]);
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
                                                         parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
-                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocumentDocumentDetail));
+                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument));
                                             }
                                         }
                                         logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
