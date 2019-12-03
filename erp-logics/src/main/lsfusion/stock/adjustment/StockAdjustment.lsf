@@ -650,7 +650,7 @@ inSession 'Отм.' (Sku sku) = OVERRIDE
     dataInSession(sku),
     inSession(skuGroup(sku));
 
-countInSessionSkus  = GROUP SUM 1 IF dataInSession(Sku s);
+countInSessionSkus  = GROUP SUM 1 IF inSession(Sku s);
 
 toAdjustment (s,Stock st,DATETIME dt) = GROUP SUM 1 IF 
     balanceB(Batch b,st,dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1)
@@ -762,7 +762,7 @@ DESIGN options {
 
 createDialogBatchUserAdjustment 'Пересорт по партиям'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[BPSTRING[100]], chosenDateTime[BPSTRING[100]]
-	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL, st INPUT, dt INPUT, o INPUT DO
+	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL, st INPUT, dt INPUT, o INPUT NOMANAGESESSION DO
 	        IF countInSessionSkus() THEN       
 	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
@@ -860,7 +860,7 @@ createSumUserAdjustment (UserAdjustment adjustment)  {
 
 createDialogSumUserAdjustment 'Корректировка суммы ТО'()  { 
 	NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[BPSTRING[100]], chosenDateTime[BPSTRING[100]]
-	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL, st INPUT, dt INPUT, o INPUT DO       
+	    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL, st INPUT, dt INPUT, o INPUT NOMANAGESESSION DO       
 	        IF countInSessionSkus() THEN 
 	            NEW adjustment = UserAdjustment {  
 	                stock(adjustment) <- st;            
