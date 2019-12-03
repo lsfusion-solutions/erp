@@ -763,6 +763,7 @@ stock(UserRepricingDetail detail) = departmentStore(detail);
 
 @defineDocumentSkuStockPriceListTypeSystemLedger(userRepricing, ); 
 
+stock(UserRepricing o) = departmentStore(o);
 @extendFormDocumentSkuStock(userRepricing, userRepricing, p, legalEntityStock, );
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(userRepricing, );
@@ -804,19 +805,9 @@ DESIGN options {
 CONSTRAINT isPosted(UserRepricing i) AND NOT isStockRepricings() AND NOT  departmentStore(i) 
     MESSAGE 'Для акта переоценки должен быть задан склад'; 
 
-// Проведение по товарному отчету
-@implementStockDocumentLedgerInc(Repricing, departmentStore);
-type(Repricing l) += 'Переоценка' IF l IS Repricing;
-sumItem (Repricing ledger) += sumItemRepricingDetail(ledger);
-sumContainer (Repricing ledger) += sumContainerRepricingDetail(ledger);
-
-operation[StockDocumentLedger] (Repricing ledger) += operation(ledger);
-close[StockDocumentLedger](Repricing l) + {  close(l); }
-
 // Проведение по регистру
 @implementSkuLedger(repricingDetail, sku, departmentStore);
-sum[InSkuLedger] (RepricingDetail ledger) += diffRetailSum(ledger);
-stockDocumentLedger(RepricingDetail ledger) += repricing(ledger); 
+sum[InSkuLedger] (RepricingDetail ledger) += diffRetailSum(ledger); 
 
 batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 

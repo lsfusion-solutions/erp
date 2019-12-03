@@ -1,0 +1,16 @@
+MODULE RepricingStockDocumentLedger;
+
+REQUIRE StockDocument, Repricing;
+
+NAMESPACE Repricing;
+
+// Проведение по товарному отчету
+@implementStockDocumentLedgerInc(Repricing, departmentStore);
+type(Repricing l) += 'Переоценка' IF l IS Repricing;
+sumItem (Repricing ledger) += sumItemRepricingDetail(ledger);
+sumContainer (Repricing ledger) += sumContainerRepricingDetail(ledger);
+
+operation[StockDocumentLedger] (Repricing ledger) += operation(ledger);
+close[StockDocumentLedger](Repricing l) + {  close(l); }
+
+stockDocumentLedger(RepricingDetail ledger) += repricing(ledger);
