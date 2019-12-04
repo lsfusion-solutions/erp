@@ -296,6 +296,8 @@ public class TerminalServer extends MonitorServer {
                                         //String ana3 = document[6];
                                         String comment = formatValue(document[7]);
                                         String parentDocument = document.length <= 8 ? null : formatValue(document[8]);
+                                        if(parentDocument != null)
+                                            parentDocument = parentDocument.replace("'", "");
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
