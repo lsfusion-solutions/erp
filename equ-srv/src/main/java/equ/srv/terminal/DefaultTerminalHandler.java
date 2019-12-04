@@ -247,8 +247,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String result = null;
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
-            terminalHandlerLM.findAction("checkOrder[STRING]").execute(session, stack);
-            result = (String) terminalHandlerLM.findProperty("checkOrderResult").read(session);
+            terminalHandlerLM.findAction("checkOrder[STRING]").execute(session, stack, new DataObject(numberOrder));
+            result = (String) terminalHandlerLM.findProperty("checkOrderResult[]").read(session);
         }
         return result;
     }
