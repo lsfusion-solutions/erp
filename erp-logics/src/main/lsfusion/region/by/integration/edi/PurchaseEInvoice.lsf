@@ -27,12 +27,24 @@ nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 filterDate 'Дата' = DATA LOCAL DATE ();
 filterDate (EInvoice i) = DATE(dateTime(i)) == filterDate() OR NOT filterDate();      
 
+filterSupplier = DATA LOCAL LegalEntity ();
+filterSupplier (EInvoice i) = supplier(i)= filterSupplier() OR (i IS EInvoice AND NOT filterSupplier()) OR NOT supplier(i);
+
+filterCustomer = DATA LOCAL LegalEntity ();
+filterCustomer (EInvoice i) = customer(i)= filterCustomer() OR (i IS EInvoice AND NOT filterCustomer()) OR NOT customer(i);
+
+filterStock = DATA LOCAL Stock ();
+filterStock (EInvoice i) = customerStock(i)= filterStock() OR (i IS EInvoice AND NOT filterStock()) OR NOT customerStock(i);
+
 FORM selectEInvoice 'Накладные EDI'
     PROPERTIES filterDate()
     
     OBJECTS ei = EInvoice
     PROPERTIES(ei) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer
-    FILTERS filterDate(ei),
+    FILTERS filterDate(ei), 
+            filterSupplier(ei),
+            filterCustomer(ei),
+            filterStock(ei),
             NOT invoice(ei)            
 ;
 
@@ -79,6 +91,9 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
     }
     
     filterDate() <- date(i);
+    filterSupplier() <- supplier(i);
+    filterCustomer() <- customer(i);    
+    filterStock() <- customerStock(i);
     
     DIALOG selectEInvoice OBJECTS ei INPUT DO {
         IF ei THEN
