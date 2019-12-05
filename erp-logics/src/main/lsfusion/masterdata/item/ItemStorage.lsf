@@ -41,12 +41,30 @@ captionDaysCustom(INTEGER h) = CASE
 captionDays(INTEGER h) = IF divItem(h,100) >0 
     THEN captionDaysCustom(mod(h,100))
     ELSE captionDaysCustom(h);
+
+captionMonthsCustom(INTEGER h) = CASE 
+    WHEN (mod(h,10) >= 1 AND mod(h,10) <= 4) AND (divItem(h,10)==1) THEN 'месяцев'
+    WHEN mod(h,10) == 1 THEN 'месяц'
+    WHEN mod(h,10) >=2 AND mod(h,10) <=4 THEN 'месяца'
+    WHEN (mod(h,10) >=5 AND mod(h,10) <=9) OR mod(h,10) == 0 THEN 'месяцев'
+    ELSE 'месяцев'
+;
+captionMonths(INTEGER h) = IF divItem(h,100) >0 
+    THEN captionMonthsCustom(mod(h,100))
+    ELSE captionMonthsCustom(h);
+
+overChangeExpiryMonth(Item i, INTEGER  int) + {
+    IF int IS INTEGER  AND changeExpiryText() THEN {
+        expiryText(i) <-  ISTRING[100](ISTRING[100](int)+' '+captionMonths(int));   
+    }
+}
     
 overChangeExpiryDays(Item i, INTEGER  int) + {
     IF int IS INTEGER  AND changeExpiryText() THEN {
         expiryText(i) <-  ISTRING[100](ISTRING[100](int)+' '+captionDays(int));   
     }
 }
+
 overChangeHoursExpiryPack(Item i, INTEGER  int) + {
     IF int IS INTEGER  AND changeExpiryText() THEN {
         expiryText(i) <-  ISTRING[100](ISTRING[100](int)+' '+captionHour(int));   

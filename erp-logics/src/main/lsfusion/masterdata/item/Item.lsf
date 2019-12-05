@@ -1638,6 +1638,14 @@ expiryMonth(Item i) += expiryMonth(i);
 
 hoursExpiryPack 'Срок годности в часах' = DATA INTEGER (Item) IN itemExpiry;
 
+overChangeExpiryMonth  ABSTRACT LIST (Item, INTEGER );    
+changeExpiryMonth (Item i) {
+    INPUT int = INTEGER DO {
+        expiryMonth(i) <-  int;
+        overChangeExpiryMonth(i,int);           
+    } 
+}
+
 overChangeExpiryDays  ABSTRACT LIST (Item, INTEGER );    
 changeExpiryDays (Item i) {
     INPUT int = INTEGER DO {
@@ -1645,6 +1653,7 @@ changeExpiryDays (Item i) {
         overChangeExpiryDays(i,int);           
     } 
 }
+
 overChangeHoursExpiryPack  ABSTRACT LIST (Item, INTEGER );    
 changeHoursExpiryPack (Item i) {
     INPUT int = INTEGER DO {
@@ -1659,7 +1668,7 @@ expiry 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
 
 EXTEND FORM itemGroup PROPERTIES(g) userShowExpiry;
 EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showExpiry BACKGROUND backgroundShowExpiry(g);
-EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) hoursExpiryPack ON CHANGE changeHoursExpiryPack(i), expiryDays ON CHANGE changeExpiryDays(i), expiryMonth;
+EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) hoursExpiryPack ON CHANGE changeHoursExpiryPack(i), expiryDays ON CHANGE changeExpiryDays(i), expiryMonth ON CHANGE changeExpiryMonth(i);
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) hoursExpiryPack, expiryDays, expiryMonth;
 DESIGN item {
     itemPrimaryColumn2 {
