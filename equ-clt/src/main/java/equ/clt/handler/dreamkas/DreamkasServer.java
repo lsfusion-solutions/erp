@@ -323,7 +323,7 @@ public class DreamkasServer {
                 if (isReturn) quantityReceiptDetail = quantityReceiptDetail.negate();
                 BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
-                salesInfoList.add(new SalesInfo(false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
+                salesInfoList.add(DreamkasHandler.getSalesInfo(false, false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
                         numberReceipt, dateReceipt, timeReceipt, idEmployee, idEmployee != null ? firstNameContact : null,
                         idEmployee != null ? lastNameContact : null, sumCard, sumCash,
                         null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,

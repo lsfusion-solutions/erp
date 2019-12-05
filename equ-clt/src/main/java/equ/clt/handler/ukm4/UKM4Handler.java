@@ -325,12 +325,12 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{HandlerUtils.safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
                             HandlerUtils.safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
-                    salesInfoList.add(new SalesInfo(false, numberGroup, Integer.parseInt(numberCashRegister), zNumber,
-                            date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
+                    salesInfoList.add(getSalesInfo(numberGroup, Integer.parseInt(numberCashRegister), zNumber,
+                            date, time, receiptNumber, date, time, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
                             null, null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                             priceReceiptDetail,
                             operation % 2 == 1 ? sumReceiptDetail : sumReceiptDetail.negate(),
-                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null, cashRegister));
+                            discountSumReceiptDetail, null, discountCardNumber, numberReceiptDetail, null, null, null, cashRegister));
                 }
                 for (SalesInfo salesInfo : salesInfoList) {
                     salesInfo.sumCash = receiptNumberSumReceipt.get(salesInfo.numberReceipt)[0];

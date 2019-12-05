@@ -478,12 +478,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             } else {
                                 String idCashier = rs.getString("operator"); //operator, id кассира
                                 String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
-                                SalesInfo salesInfo = new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
+                                SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                         dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idCashier,
                                         nameCashier, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
-                                        position, null, idSection);
-                                salesInfo.cashRegisterInfo = cashRegister;
+                                        position, null, idSection, false, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                                 //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
                                 List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);

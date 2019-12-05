@@ -6,8 +6,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.Map;
 
 public class SalesInfo implements Serializable {
@@ -44,86 +42,18 @@ public class SalesInfo implements Serializable {
     public String filename;
     public String idSection;
     public boolean skipReceipt;
+    public Map<String, Object> receiptDetailExtraFields;
     public CashRegisterInfo cashRegisterInfo;
-
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection) {
-        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, GiftCard>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
-                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection);
-        setSumGiftCardMap(sumGiftCard);
-    }
 
     public SalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection) {
-        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, null, barcodeItem, idItem, itemObject,
-                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection);
-        setSumGiftCardMap(sumGiftCard);
-        this.isReturnGiftCard = isReturnGiftCard;
-    }
-
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection, CashRegisterInfo cashRegisterInfo) {
-        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, null, barcodeItem, idItem, itemObject,
-                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, cashRegisterInfo);
-        setSumGiftCardMap(sumGiftCard);
-    }
-
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection) {
-        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail,
-                quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard,
-                numberReceiptDetail, filename, idSection, false, null);
-    }
-
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
                      String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
                      String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection) {
-        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail,
-                quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard,
-                numberReceiptDetail, filename, idSection, false, null);
-    }
-
-    //Artix, Kristal10, UKM4MySQL
-    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                     String idSection, boolean skipReceipt, CashRegisterInfo cashRegisterInfo) {
+                     String idSection, boolean skipReceipt, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         this.isGiftCard = isGiftCard;
+        this.isReturnGiftCard = isReturnGiftCard;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
         this.numberZReport = numberZReport;
@@ -153,25 +83,7 @@ public class SalesInfo implements Serializable {
         this.filename = filename;
         this.idSection = idSection;
         this.skipReceipt = skipReceipt;
+        this.receiptDetailExtraFields = receiptDetailExtraFields;
         this.cashRegisterInfo = cashRegisterInfo;
-    }
-
-    private void setSumGiftCardMap(BigDecimal sumGiftCard) {
-        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-        sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-        this.sumGiftCardMap = sumGiftCardMap;
-    }
-
-    //todo: delete unused methods (equ-api changes)
-    public String getIdZReport() {
-        return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + (dateZReport != null ? ("_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport)) : "");
-    }
-    
-    public String getIdReceipt(Boolean timeId) {
-        return getIdZReport() + "_" + numberReceipt + (timeId != null && timeId.equals(Boolean.TRUE) ? "_" + timeReceipt : "");
-    }
-
-    public String getIdReceiptDetail(Boolean timeId) {
-        return getIdReceipt(timeId) + "_" + numberReceiptDetail;
     }
 }

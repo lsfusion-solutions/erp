@@ -449,10 +449,11 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             String barcodeItem = getStringValue(entry, 18);
 
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport,
-                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, null,
+                                currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport,
+                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null,
                                         null, null, barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
-                                        sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(), null, cashRegister));
+                                        sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(),
+                                        null, null, cashRegister));
                         } else if (isCancelDocument) {
                             cancelReceiptSet.add(numberReceipt);
                         } else {

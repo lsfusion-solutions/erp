@@ -8,17 +8,16 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -169,11 +168,11 @@ public class GenerateZReport extends DefaultIntegrationAction {
                                         BigDecimal discountSumReceiptDetail = r.nextDouble() > 0.8 ? safeDivide(safeMultiply(sumReceiptDetail, r.nextInt(10)), 100, 2) : BigDecimal.ZERO;
                                         discountSum = safeAdd(discountSum, discountSumReceiptDetail);
                                         sumReceiptDetail = safeSubtract(sumReceiptDetail, discountSumReceiptDetail);
-                                        receiptSalesInfoList.add(new SalesInfo(false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
+                                        receiptSalesInfoList.add(new SalesInfo(false, false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
                                                 numberZReport, date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO,
-                                                BigDecimal.ZERO, BigDecimal.ZERO, item.barcode, null, null, null, quantityReceiptDetail,
-                                                item.price, sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail,
-                                                null, null, null));
+                                                BigDecimal.ZERO, null, item.barcode, null, null, null, quantityReceiptDetail,
+                                                item.price, sumReceiptDetail, null, discountSumReceiptDetail, null, null, numberReceiptDetail,
+                                                null, null, false, null, null));
                                         item.count = safeSubtract(item.count, quantityReceiptDetail);
                                     }
                                 }

@@ -13,6 +13,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.remote.RmiManager;
@@ -33,11 +34,14 @@ import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.data.StringClass;
+import lsfusion.server.logics.classes.data.file.JSONClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.InitializingBean;
 
 import java.io.ByteArrayOutputStream;
@@ -1394,6 +1398,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, start, finish, options);
 
+            processReceiptDetailExtraFields(session, stack, rowsData);
 
             session.setKeepLastAttemptCountMap(true);
             String result = session.applyMessage(getBusinessLogics(), stack);
@@ -1778,6 +1783,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, options);
 
+                processReceiptDetailExtraFields(session, stack, rowsData);
 
                 session.setKeepLastAttemptCountMap(true);
                 String result = session.applyMessage(getBusinessLogics(), stack);
@@ -2294,6 +2300,25 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataReturn = new ArrayList<>();
         List<List<Object>> dataGiftCard = new ArrayList<>();
         Map<Object, String> barcodeMap = new HashMap<>();
+
+        JSONObject receiptDetailExtraFields = new JSONObject();
+        for (int i = start; i < finish; i++) {
+            SalesInfo sale = data.get(i);
+            if(sale.receiptDetailExtraFields != null) {
+                for(Map.Entry<String, Object> receiptDetailExtraField : sale.receiptDetailExtraFields.entrySet()) {
+                    JSONArray dataArray = receiptDetailExtraFields.optJSONArray(receiptDetailExtraField.getKey());
+                    if(dataArray == null) {
+                        dataArray = new JSONArray();
+                    }
+                    JSONObject fieldReceiptDetail = new JSONObject();
+                    fieldReceiptDetail.put(getIdReceiptDetail(sale, options), receiptDetailExtraField.getValue());
+                    dataArray.put(fieldReceiptDetail);
+
+                    receiptDetailExtraFields.put(receiptDetailExtraField.getKey(), dataArray);
+                }
+            }
+        }
+
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
             if (!overDocumentsClosedDate(sale, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
@@ -2339,18 +2364,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             }
         }
-        return new RowsData(dataSale, dataReturn, dataGiftCard);
+        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptDetailExtraFields);
     }
 
     private class RowsData {
         List<List<Object>> dataSale;
         List<List<Object>> dataReturn;
         List<List<Object>> dataGiftCard;
+        JSONObject receiptDetailExtraFields;
 
-        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard) {
+        public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard, JSONObject receiptDetailExtraFields) {
             this.dataSale = dataSale;
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
+            this.receiptDetailExtraFields = receiptDetailExtraFields;
         }
     }
 
@@ -2425,6 +2452,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             start++;
         }
         return new ArrayList<>(groupedSalesInfo.values());
+    }
+
+    private void processReceiptDetailExtraFields(DataSession session, ExecutionStack stack, RowsData rowsData) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(cashRegisterLM != null && rowsData.receiptDetailExtraFields != null) {
+            cashRegisterLM.findAction("processReceiptDetailExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptDetailExtraFields.toString()));
+        }
     }
 
     public static String getIdZReport(SalesInfo s, EquipmentServerOptions options) {

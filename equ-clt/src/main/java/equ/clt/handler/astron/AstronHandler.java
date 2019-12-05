@@ -1031,7 +1031,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.SRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESTYPE, " +
-                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
+                    "sales." + getSalesNumField() + ", sales.SAREAID, sales." + getSalesRefundField() + ", sales.PRCLEVELID, " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
@@ -1071,6 +1072,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer numberReceipt = rs.getInt("FRECNUM");
                 String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                 String nameEmployee = rs.getString("CASHIERNAME");
+                String priceLevelId = rs.getString("PRCLEVELID");
+
                 Integer type = rs.getInt("SALESTYPE");
                 if(cashPayments.contains(type))
                     type = 0;
@@ -1096,10 +1099,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                         totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                         sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-                        curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
-                                numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
+                        curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
+                                numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
                                 null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
-                                salesNum, null, null, cashRegister));
+                                salesNum, null, null, null, cashRegister));
                         curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                         prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                         break;
