@@ -2311,7 +2311,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         dataArray = new JSONArray();
                     }
                     JSONObject fieldReceiptDetail = new JSONObject();
-                    fieldReceiptDetail.put(getIdReceiptDetail(sale, options), receiptDetailExtraField.getValue());
+                    fieldReceiptDetail.put("id", getIdReceiptDetail(sale, options));
+                    fieldReceiptDetail.put("value", receiptDetailExtraField.getValue());
                     dataArray.put(fieldReceiptDetail);
 
                     receiptDetailExtraFields.put(receiptDetailExtraField.getKey(), dataArray);
