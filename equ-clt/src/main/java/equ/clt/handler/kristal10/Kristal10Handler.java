@@ -8,7 +8,6 @@ import equ.clt.handler.HandlerUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
 import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -281,6 +280,18 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 Element secondDepartment = new Element("department");
                                 setAttribute(secondDepartment, "number", getDepartNumber(transaction, item, useSectionAsDepartNumber));
                                 oldSecondPriceEntry.addContent(secondDepartment);
+                            }
+
+                            int zone = infoJSON != null ? infoJSON.optInt("zone") : 0;
+                            int countZone = infoJSON != null ? infoJSON.optInt("countZone") : 0;
+                            if(zone != 0 && countZone != 0) {
+                                for(int i = 1; i <= countZone; i++) {
+                                    if (i == zone) {
+                                        addPriceEntryElement(good, price, false, currentDate(), null, "1", i);
+                                    } else {
+                                        addPriceEntryElement(good, 1, true, null, null, "1", i);
+                                    }
+                                }
                             }
 
                             int vat = item.vat == null || item.vat.intValue() == 0 ? 20 : item.vat.intValue();
@@ -815,6 +826,24 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 }
             }
         }
+    }
+
+    private void addPriceEntryElement(Element parent, Object price, boolean deleted, String beginDate, String endDate, String number, Object departmentNumber) {
+        Element priceEntry = new Element("price-entry");
+        setAttribute(priceEntry, "price", price);
+        setAttribute(priceEntry, "deleted", deleted);
+        addStringElement(priceEntry, "begin-date", beginDate);
+        addStringElement(priceEntry, "end-date", endDate);
+        addStringElement(priceEntry, "number", number);
+
+        if(departmentNumber != null) {
+            //parent: priceEntry
+            Element department = new Element("department");
+            setAttribute(department, "number", departmentNumber);
+            priceEntry.addContent(department);
+        }
+
+        parent.addContent(priceEntry);
     }
 
     @Override
