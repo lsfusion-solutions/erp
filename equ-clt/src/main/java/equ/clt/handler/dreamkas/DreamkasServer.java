@@ -6,6 +6,8 @@ import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static equ.clt.handler.HandlerUtils.getJSONObject;
 import static java.math.BigDecimal.ROUND_DOWN;
 
 public class DreamkasServer {
@@ -398,6 +401,17 @@ public class DreamkasServer {
                 addKeyValue("{", "deviceId", dItem.number.toString(), "", "*");
                 addKeyValue(",", "value", getPrice(item.price), "}", "*");
             }
+            JSONObject info = getJSONObject(item.info, "dreamkas");
+            if(info != null) {
+                JSONArray extraPrices = info.optJSONArray("extraPrices");
+                if (extraPrices != null) {
+                    for (int i = 0; i < extraPrices.length(); i++) {
+                        if (nPos > 1) cResult += ",";
+                        cResult += extraPrices.getJSONObject(i).toString();
+                    }
+                }
+            }
+
             addKeyValue("]", "", "", "", "");
             // конец блока на отд. кассы
             addKeyValue(",", "meta", "", "{}", "");                // Дополнительные сведения о товаре
