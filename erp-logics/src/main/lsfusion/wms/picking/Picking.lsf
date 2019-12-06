@@ -375,12 +375,12 @@ EXTEND FORM pickings
 
 //------------------------- Определение стадий комплектации--------------------//
 
-countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder);
+countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder) MATERIALIZED;
 
 quantityPickingDetail 'Кол-во в комплектациях' = GROUP SUM quantity(PickingDetail d) IF NOT notCount(picking(d)) BY sku(d),pickingOrder(d);
-countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder);
+countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder) MATERIALIZED;
 
-calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) MATERIALIZED;
+calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder);
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);
 
 packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantity(Picking picking) BY pickingOrder(picking);
