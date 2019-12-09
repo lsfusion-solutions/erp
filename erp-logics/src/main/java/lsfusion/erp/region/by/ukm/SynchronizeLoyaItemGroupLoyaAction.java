@@ -59,10 +59,9 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
                     context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
 
             } else
-                context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+                showError(context, settings.error, failCaption, settings.error);
         } catch (Exception e) {
-            ERPLoggers.importLogger.error(failCaption, e);
-            context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            showError(context, e.getMessage(), failCaption, failCaption, e);
         }
     }
 
@@ -116,7 +115,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         return new SynchronizeData(goodGroup, itemsList, deleteItemGroup);
     }
 
-    private boolean uploadItemGroup(ExecutionContext context, GoodGroup goodGroup, boolean deleteItemGroup, DataObject itemGroupLoyaObject)
+    private boolean uploadItemGroup(ExecutionContext<ClassPropertyInterface> context, GoodGroup goodGroup, boolean deleteItemGroup, DataObject itemGroupLoyaObject)
             throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean succeeded = true;
         if (deleteItemGroup) {
@@ -130,7 +129,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    private String uploadItemGroup(ExecutionContext context, GoodGroup goodGroup, DataObject itemGroupObject)
+    private String uploadItemGroup(ExecutionContext<ClassPropertyInterface> context, GoodGroup goodGroup, DataObject itemGroupObject)
             throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ERPLoggers.importLogger.info("Loya: synchronizing goodGroup " + goodGroup.id + " started");
         JSONObject requestBody = new JSONObject();
@@ -152,7 +151,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         }
     }
 
-    private boolean existsItemGroup(ExecutionContext context, Long idItemGroup) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean existsItemGroup(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -161,7 +160,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         return executeRequestWithRelogin(context, getRequest).succeeded;
     }
 
-    private String modifyItemGroup(ExecutionContext context, Long idItemGroup, DataObject itemGroupObject, JSONObject requestBody)
+    private String modifyItemGroup(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup, DataObject itemGroupObject, JSONObject requestBody)
             throws IOException, JSONException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         String result = null;
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
@@ -178,12 +177,12 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
             }
         } else {
             result = response.message;
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Modify ItemGroup Error"));
+            showError(context, result, "Loya: Modify ItemGroup Error", String.format("Modify ItemGroup Error: %s", result));
         }
         return result;
     }
 
-    private Object createItemGroup(ExecutionContext context, DataObject itemGroupObject, String url, JSONObject requestBody)
+    private Object createItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, String url, JSONObject requestBody)
             throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
         String requestURL = url + "goodgroup";
         if(settings.logRequests) {
@@ -193,19 +192,20 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         LoyaResponse response = executeRequestWithRelogin(context, putRequest, requestBody);
         if (response.succeeded)
             setIdLoyaItemGroup(context, itemGroupObject, new JSONObject(response.message).getLong("id"));
-        else
-            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Create ItemGroup Error"));
+        else {
+            showError(context, response.message, "Loya: Create ItemGroup Error", String.format("Loya: Create ItemGroup Error: %s", response.message));
+        }
         return response.succeeded ? new JSONObject(response.message).getLong("id") : response.message;
     }
 
-    private void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void setIdLoyaItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("id[LoyaItemGroup]").change(id, newContext, itemGroupObject);
             newContext.apply();
         }
     }
 
-    private String deleteItemGroup(ExecutionContext context, DataObject itemGroupObject, Long idItemGroup) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, JSONException {
+    private String deleteItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, Long idItemGroup) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, JSONException {
         String result = null;
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         String requestBody = "[" + idItemGroup + "]";
@@ -223,12 +223,12 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
             }
         } else {
             result = response.message;
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Delete ItemGroup Error"));
+            showError(context, result, "Loya: Delete ItemGroup Error", String.format("Loya: Create ItemGroup Error: %s", result));
         }
         return result;
     }
 
-    private boolean uploadItemItemGroups(ExecutionContext context, Long idItemGroup, List<GoodGroupLink> itemsList) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean uploadItemItemGroups(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup, List<GoodGroupLink> itemsList) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         boolean succeeded = true;
         ERPLoggers.importLogger.info("Loya: synchronizing goodGroupLinks");
         String deleteList = "";
@@ -268,8 +268,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
             LoyaResponse response = executeRequestWithRelogin(context, postRequest, requestBody);
             if (!response.succeeded) {
                 String error = String.format("Loya: delete GoodGroupLinks (%s) error", deleteList);
-                ERPLoggers.importLogger.error(error + ": " + response.message);
-                context.delayUserInteraction(new MessageClientAction(error, failCaption));
+                showError(context, error, failCaption, error + ": " + response.message);
                 succeeded = false;
             }
         }
@@ -296,7 +295,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    private String createGoodGroupLink(ExecutionContext context, Long idItemGroup, GoodGroupLink goodGroupLink) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String createGoodGroupLink(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup, GoodGroupLink goodGroupLink) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String result = null;
         String requestURL = settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/upload";
         HttpPost postRequest = new HttpPost(requestURL);
@@ -309,8 +308,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         if (!response.succeeded) {
             result = response.message;
             String error = String.format("Loya: create GoodGroupLink Error: group %s, item %s, %s", idItemGroup, goodGroupLink.sku, result);
-            ERPLoggers.importLogger.error(error);
-            context.delayUserInteraction(new MessageClientAction(error, "Loya: create GoodGroupLink Error"));
+            showError(context, error, "Loya: create GoodGroupLink Error", error);
         }
         return result;
     }
@@ -321,6 +319,19 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         limitsMap.put("maxAllowBonus", maxAllowBonus);
         limitsMap.put("maxAwardBonus", maxAwardBonus);
         return limitsMap;
+    }
+
+    private void showError(ExecutionContext<ClassPropertyInterface> context, String message, String caption, String log) {
+        showError(context, message, caption, log, null);
+    }
+
+    private void showError(ExecutionContext<ClassPropertyInterface> context, String message, String caption, String log, Exception e) {
+        if(e != null) {
+            ERPLoggers.importLogger.error(log, e);
+        } else {
+            ERPLoggers.importLogger.error(log);
+        }
+        context.delayUserInteraction(new MessageClientAction(message, caption));
     }
 
     private class SynchronizeData {
