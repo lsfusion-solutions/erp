@@ -364,30 +364,34 @@ writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразн
     }
     apply();
 }
+writeOutContractLedgerFIFOApplyDateCustom 'Расписать по FIFO с даты' (ContractSku c, DATE  d)  { 
+    APPLY SINGLE {
+        LOCAL changed = BOOLEAN (OutContractLedger);
+
+        changed(OutContractLedger l) <- TRUE IF (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND date(l)>=d);            
+
+        changed(OutContractLedger l) <- TRUE WHERE (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND (GROUP SUM 1 IF cost(l, InContractLedger il) AND isPosted(il) AND date(il)>=d));
+
+        cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol);
+
+        LOCAL ordered = INTEGER (OutContractLedger);
+        ordered(OutContractLedger ledger) <- PARTITION SUM 1 IF changed(ledger) ORDER dateTime(ledger), ledger BY contract(ledger);
+
+        FOR iterate(INTEGER i, 1, (GROUP MAX ordered(OutContractLedger ledger))) DO {
+            LOCAL it = BOOLEAN (OutContractLedger);
+            it(OutContractLedger ledger) <- ordered(ledger) == i AND isReturn(ledger); // чтобы определились классы
+            IF (GROUP SUM 1 IF it(OutContractLedger ledger)) THEN
+                cost(OutContractLedger ol, InContractLedger il) <- -negativeSumInLIFO(ol, il) WHERE it(ol) AND negativeSumInLIFO(ol, il);
+
+            it(OutContractLedger ledger) <- ordered(ledger) == i AND NOT isReturn(ledger); // чтобы определились классы
+            cost(OutContractLedger ol, InContractLedger il) <- sumInFIFO(ol, il) WHERE it(ol) AND sumInFIFO(ol, il);
+        }
+    }               
+}
+
 writeOutContractLedgerFIFOApplyDate 'Расписать по FIFO с даты' (ContractSku c)  { 
     DIALOG dialogDate OBJECTS d INPUT DO {
-        APPLY SINGLE {
-            LOCAL changed = BOOLEAN (OutContractLedger);
-
-            changed(OutContractLedger l) <- TRUE IF (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND date(l)>=d);            
-
-            changed(OutContractLedger l) <- TRUE WHERE (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND (GROUP SUM 1 IF cost(l, InContractLedger il) AND isPosted(il) AND date(il)>=d));
-
-            cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol);
-
-            LOCAL ordered = INTEGER (OutContractLedger);
-            ordered(OutContractLedger ledger) <- PARTITION SUM 1 IF changed(ledger) ORDER dateTime(ledger), ledger BY contract(ledger);
-
-            FOR iterate(INTEGER i, 1, (GROUP MAX ordered(OutContractLedger ledger))) DO {
-                LOCAL it = BOOLEAN (OutContractLedger);
-                it(OutContractLedger ledger) <- ordered(ledger) == i AND isReturn(ledger); // чтобы определились классы
-                IF (GROUP SUM 1 IF it(OutContractLedger ledger)) THEN
-                    cost(OutContractLedger ol, InContractLedger il) <- -negativeSumInLIFO(ol, il) WHERE it(ol) AND negativeSumInLIFO(ol, il);
-
-                it(OutContractLedger ledger) <- ordered(ledger) == i AND NOT isReturn(ledger); // чтобы определились классы
-                cost(OutContractLedger ol, InContractLedger il) <- sumInFIFO(ol, il) WHERE it(ol) AND sumInFIFO(ol, il);
-            }
-        }           
+        writeOutContractLedgerFIFOApplyDateCustom(c,d);           
     }
 }
 
