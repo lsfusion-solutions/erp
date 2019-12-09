@@ -114,14 +114,13 @@ extraCreateServiceStatusDetail  (DATE dFrom, DATE dTo) + {
             IF percService(d) AND dataPercService(c) THEN {
                 IF percService(d) >= dataPercService(c) THEN {                    
                     serviceStatus(d) <- CASE 
-                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.fine AND NOT isPay(prevServiceStatusDetail(contractSku(d),sumMonth (dFrom, -1))) AND NOT useExclude(d) THEN ServiceStatus.stopping                                     
+                            WHEN prev(c) ==ServiceStatus.fine AND NOT isPay(lastServiceStatusDetail(c)) AND NOT useExclude(d) THEN ServiceStatus.stopping                                     
                             ELSE ServiceStatus.good;
                     
                 } ELSE {
                     serviceStatus(d) <- CASE 
-                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.fine AND NOT useExclude(d) THEN ServiceStatus.stopping
-//                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) ==ServiceStatus.finePay AND NOT useExclude(d) THEN ServiceStatus.stopping
-                            WHEN prevStatus(contractSku(d),sumMonth (dFrom, -1)) == ServiceStatus.warning AND NOT useExclude(d) THEN ServiceStatus.fine
+                            WHEN prev(c) ==ServiceStatus.fine AND NOT useExclude(d) THEN ServiceStatus.stopping
+                            WHEN prev(c) == ServiceStatus.warning AND NOT useExclude(d) THEN ServiceStatus.fine
                             ELSE ServiceStatus.warning
                             ;  
                 }                 
