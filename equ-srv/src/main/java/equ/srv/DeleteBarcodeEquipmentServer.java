@@ -21,6 +21,7 @@ import lsfusion.server.logics.*;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -126,6 +127,7 @@ class DeleteBarcodeEquipmentServer {
 
     static void succeedDeleteBarcode(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, Integer nppGroupMachinery, Set<String> deleteBarcodeSet) {
         try (DataSession session = server.createSession()) {
+            ServerLoggers.importLogger.info("succeedDeleteBarcode for nppGroupMachinery " + nppGroupMachinery);
             for (String barcode : deleteBarcodeSet) {
                 deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, STRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
             }
