@@ -87,7 +87,7 @@ public class DreamkasServer {
         // Может быть одиночная ошибка (webStatus!=200) или группа ошибок (webStatus=200) - разные структуры Json
         // Если webStatus > 2xx, то ответ может содержаться в разных структурах Json, поэтому не парсируем
         if (!(webStatus == 200))
-            return errBox("Товары не переданы на сервер", getErrorWeb(webStatus), cResult, true);
+            return errBox("Товары не переданы на сервер", getErrorWeb(webStatus), cResult + "\nRequest: " + request, true);
         JsonReadProcess oJs = new JsonReadProcess();
         if (!oJs.load(cResult))
             return errBox("Ошибка парсинга ответа от WEB", oJs.eMessage, cResult, true);
@@ -118,7 +118,7 @@ public class DreamkasServer {
         if (cResult.length() == 0)
             return errBox("Пакет для PATCH не содержит данных. Товары не переданы на сервер.", lastMsg, prevCResult, true);
         if (!webExec("PATCH", "products", "[" + cResult + "]"))
-            return errBox(eMessage, "Товары не переданы на сервер", cResult, true); // Ошибки WEB
+            return errBox(eMessage, "Товары не переданы на сервер", cResult + "\nRequest: " + request, true); // Ошибки WEB
         if (webStatus == 204) return true;
         return errBox(getErrorWeb(webStatus), "Товары не были переданы на сервер", cResult + "\nRequest: " + request, true);
     }
