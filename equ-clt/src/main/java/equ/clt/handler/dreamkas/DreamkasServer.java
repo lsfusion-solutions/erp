@@ -81,8 +81,9 @@ public class DreamkasServer {
         }
         if (cResult.length() == 0)
             return errBox("POST: Отправляемый пакет не содержит данных", "", "", false);
-        if (!webExec("POST", "products", "[" + cResult + "]"))
-            return errBox("Товары не были переданы на сервер", eMessage, "", false); // Ошибки WEB
+        String request = "[" + cResult + "]";
+        if (!webExec("POST", "products", request))
+            return errBox("Товары не были переданы на сервер", eMessage, request, false); // Ошибки WEB
         // Может быть одиночная ошибка (webStatus!=200) или группа ошибок (webStatus=200) - разные структуры Json
         // Если webStatus > 2xx, то ответ может содержаться в разных структурах Json, поэтому не парсируем
         if (!(webStatus == 200))
