@@ -120,7 +120,7 @@ public class DreamkasServer {
         if (!webExec("PATCH", "products", "[" + cResult + "]"))
             return errBox(eMessage, "Товары не переданы на сервер", cResult, true); // Ошибки WEB
         if (webStatus == 204) return true;
-        return errBox(getErrorWeb(webStatus), "Товары не были переданы на сервер", cResult, true);
+        return errBox(getErrorWeb(webStatus), "Товары не были переданы на сервер", cResult + "\nRequest: " + request, true);
     }
 
     //  --- Основной метод чтения реализации
