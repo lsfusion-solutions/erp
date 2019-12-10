@@ -983,7 +983,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null) {
+            if (c.directory != null && !c.disableSales) {
                 String idDepartmentStore = useNumberGroupInShopIndices ? String.valueOf(c.numberGroup) : c.idDepartmentStore;
                 String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
