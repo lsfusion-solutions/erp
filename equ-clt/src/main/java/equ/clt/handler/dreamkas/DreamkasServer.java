@@ -407,7 +407,7 @@ public class DreamkasServer {
                 JSONArray extraPrices = info.optJSONArray("extraPrices");
                 if (extraPrices != null) {
                     for (int i = 0; i < extraPrices.length(); i++) {
-                        if (nPos > 1) cResult += ",";
+                        if (nPos >= 1) cResult += ",";
                         cResult += extraPrices.getJSONObject(i).toString();
                     }
                 }
