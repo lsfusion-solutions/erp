@@ -4,7 +4,7 @@ REQUIRE PurchaseInvoiceCharge;
 
 NAMESPACE Purchase;
 
-TABLE invoiceUserInvoice (Invoice, UserInvoice);
+TABLE invoiceInvoice (Invoice, Invoice);
 inExtraCharge 'Вкл.' = ABSTRACT BOOLEAN (Invoice, InvoiceDetail);
 inExtraCharge 'Вкл.' = DATA BOOLEAN (Invoice, UserInvoice);
 
@@ -14,7 +14,7 @@ inExtraCharge 'Вкл.' (Invoice invoice, UserInvoiceDetail detail) =
     OVERRIDE inDataExtraCharge(invoice, detail), inExtraCharge(invoice, userInvoice(detail));
 inExtraCharge(Invoice invoice, UserInvoiceDetail detail) += inExtraCharge(invoice, detail);
 
-inExtraCharge (Invoice charge, invoice) = GROUP SUM 1 IF inExtraCharge(charge, InvoiceDetail d) BY invoice(d);
+inExtraCharge (Invoice charge, invoice) = GROUP SUM 1 IF inExtraCharge(charge, InvoiceDetail d) BY invoice(d) MATERIALIZED ;
 nameSuppliers 'Поставщики' (Invoice charge) =GROUP 
     CONCAT  nameSupplier(Invoice invoice) IF inExtraCharge(charge, invoice), '; ' ORDER invoice CHARWIDTH 20;
 seriesNumberSuppliers 'Накладные' (Invoice charge) =GROUP 
