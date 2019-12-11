@@ -43,6 +43,19 @@ loyaItemGroup(UserPriceList p) += loyaItemGroup(p);
 
 isData 'Ручной' = DATA BOOLEAN (LoyaItemGroup);
 
+checkDatesLoyaItemGroupPriceList 'Проверять сроки действия прайсов и групп товаров LOYA' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES checkDatesLoyaItemGroupPriceList()
+;
+DESIGN options {
+    price {
+        MOVE PROPERTY(checkDatesLoyaItemGroupPriceList());
+    }
+}
+CONSTRAINT (CHANGED(isPosted(PriceList l)) OR CHANGED(loyaItemGroup(l)) OR CHANGED(fromDate(l)) OR CHANGED(toDate(l))) AND isPosted(l) AND loyaItemGroup(l) AND NOT isData(loyaItemGroup(l))
+    AND checkDatesLoyaItemGroupPriceList() AND (NOT DATE(fromDateTime(loyaItemGroup(l))) == fromDate(l) OR NOT DATE(toDateTime(loyaItemGroup(l))) == toDate(l))
+    MESSAGE 'Проверьте сроки действия групп товаров LOYA. Они должны совпадать с действием прайса!';
+
 TABLE itemLoyaItemGroup (Item, LoyaItemGroup);
 
 dataIn 'Вкл.' = DATA BOOLEAN (Item, LoyaItemGroup);
