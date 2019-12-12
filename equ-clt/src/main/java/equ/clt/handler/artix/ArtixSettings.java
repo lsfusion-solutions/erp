@@ -20,6 +20,7 @@ public class ArtixSettings implements Serializable{
     private String cashPayments;
     private String cardPayments;
     private String giftCardPayments;
+    private Integer timeout;
 
     public ArtixSettings() {
     }
@@ -150,5 +151,13 @@ public class ArtixSettings implements Serializable{
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
     }
 }

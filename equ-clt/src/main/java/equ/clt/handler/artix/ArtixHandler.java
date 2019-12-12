@@ -8,7 +8,6 @@ import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -61,6 +60,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         boolean appendBarcode = artixSettings != null && artixSettings.isAppendBarcode();
         boolean isExportSoftCheckItem = artixSettings != null && artixSettings.isExportSoftCheckItem();
+        Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -224,7 +224,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s (Transaction %s)", flagFile.getAbsolutePath(), transaction.id));
                         processTransactionLogger.info(String.format(logPrefix + "created pos file (Transaction %s)", transaction.id));
 
-                        waitForDeletion(file, flagFile);
+                        waitForDeletion(file, flagFile, timeout);
                         result.put(transaction.id, new SendTransactionBatch(null));
                     }
                 } catch (Exception e) {
@@ -527,12 +527,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return rootObject.toString();
     }
 
-    private void waitForDeletion(File file, File flagFile) {
+    private void waitForDeletion(File file, File flagFile, int timeout) {
         int count = 0;
         while (!Thread.currentThread().isInterrupted() && (file.exists() || flagFile.exists())) {
             try {
                 count++;
-                if (count >= 180)
+                if (count >= timeout)
                     throw new RuntimeException(String.format(logPrefix + "file %s has been created but not processed by server", file.getAbsolutePath()));
                 else
                     Thread.sleep(1000);
@@ -818,6 +818,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                 ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
                 String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
                 boolean exportClients = artixSettings != null && artixSettings.isExportClients();
+                Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
                 if(globalExchangeDirectory != null) {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
@@ -859,7 +860,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
 
                         machineryExchangeLogger.info(logPrefix + "waiting for deletion of discountCards file " + file.getAbsolutePath());
-                        waitForDeletion(file, flagFile);
+                        waitForDeletion(file, flagFile, timeout);
                     }
                 } else {
                     machineryExchangeLogger.error(logPrefix + "globalExchangeDirectory not found, sendDiscountCard skipped");
@@ -896,6 +897,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         machineryExchangeLogger.info(logPrefix + "Send CashierInfoList");
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
+        Integer timeout = artixSettings == null || artixSettings.getTimeout() == null ? 180 : artixSettings.getTimeout();
         String globalExchangeDirectory = artixSettings != null ? artixSettings.getGlobalExchangeDirectory() : null;
         if (globalExchangeDirectory != null) {
             File directory = new File(globalExchangeDirectory);
@@ -922,7 +924,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
 
                     machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
-                    waitForDeletion(file, flagFile);
+                    waitForDeletion(file, flagFile, timeout);
 
                 } catch (JSONException e) {
                     throw Throwables.propagate(e);
