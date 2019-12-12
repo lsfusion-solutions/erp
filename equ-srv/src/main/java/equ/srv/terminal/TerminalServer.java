@@ -551,7 +551,7 @@ public class TerminalServer extends MonitorServer {
     private Date parseDate(String value) {
         Date date;
         try {
-            date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd").getTime());
+            date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss").getTime());
         } catch (Exception e) {
             logger.error("Parsing date failed: " + value, e);
             date = null;
