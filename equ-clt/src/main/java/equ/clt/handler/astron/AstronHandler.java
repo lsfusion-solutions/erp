@@ -1023,6 +1023,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Set<Integer> cashPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCashPayments());
         Set<Integer> cardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCardPayments());
         Set<Integer> giftCardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getGiftCardPayments());
+        boolean ignoreSalesInfoWithoutCashRegister = astronSettings != null && astronSettings.isIgnoreSalesInfoWithoutCashRegister();
 
         checkExtraColumns(conn, params);
         createFusionProcessedIndex(conn, params);
@@ -1063,20 +1064,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer sessionId = rs.getInt("SESSID");
                 String numberZReport = String.valueOf(sessionId);
 
-                long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
-                Date dateZReport = new Date(sessStart);
-                Time timeZReport = new Time(sessStart);
-
-                long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
-                Date dateReceipt = new Date(salesTime);
-                Time timeReceipt = new Time(salesTime);
-
                 Integer numberReceipt = rs.getInt("FRECNUM");
 
                 String uniqueReceiptDetailId = getUniqueReceiptDetailId(sAreaId, nppCashRegister, sessionId, numberReceipt, salesNum);
                 //некоторые записи просто дублируются, такие игнорируем
-                if (!uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
+                if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
                     uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
+
+                    long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
+                    Date dateZReport = new Date(sessStart);
+                    Time timeZReport = new Time(sessStart);
+
+                    long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
+                    Date dateReceipt = new Date(salesTime);
+                    Time timeReceipt = new Time(salesTime);
 
                     String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                     String nameEmployee = rs.getString("CASHIERNAME");

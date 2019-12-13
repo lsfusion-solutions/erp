@@ -12,6 +12,7 @@ public class AstronSettings implements Serializable {
     private String cashPayments;
     private String cardPayments;
     private String giftCardPayments;
+    private boolean ignoreSalesInfoWithoutCashRegister;
 
     //если true, то выгружаем таблицы prclevel, sarea, sareaprc
     private boolean exportExtraTables;
@@ -86,5 +87,13 @@ public class AstronSettings implements Serializable {
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public boolean isIgnoreSalesInfoWithoutCashRegister() {
+        return ignoreSalesInfoWithoutCashRegister;
+    }
+
+    public void setIgnoreSalesInfoWithoutCashRegister(boolean ignoreSalesInfoWithoutCashRegister) {
+        this.ignoreSalesInfoWithoutCashRegister = ignoreSalesInfoWithoutCashRegister;
     }
 }
