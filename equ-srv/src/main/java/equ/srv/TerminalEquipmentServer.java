@@ -58,14 +58,15 @@ public class TerminalEquipmentServer {
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
-                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3", "minDeviationDate", "maxDeviationDate"};
+                        "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
+                        "minDeviationDate", "maxDeviationDate", "vop"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
-                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]");
+                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
@@ -102,6 +103,7 @@ public class TerminalEquipmentServer {
                     String posField3 = (String) entry.get("posField3");
                     String minDeviationDate = formatDate((Date) entry.get("minDeviationDate"));
                     String maxDeviationDate = formatDate((Date) entry.get("maxDeviationDate"));
+                    String vop = (String) entry.get("vop");
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
                     if (terminalOrder != null)
@@ -109,7 +111,7 @@ public class TerminalEquipmentServer {
                     else
                         terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
-                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate));
+                                headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);

@@ -379,6 +379,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " pos_field3   TEXT," +
                 " mindate1 TEXT," +
                 " maxdate1 TEXT," +
+                " vop TEXT," +
                 "PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
@@ -390,7 +391,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -414,6 +415,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(17,formatValue(order.posField3));
                         statement.setObject(18, formatValue(order.minDate1));
                         statement.setObject(19, formatValue(order.maxDate1));
+                        statement.setObject(20, formatValue(order.vop));
                         statement.addBatch();
                     }
                 }
