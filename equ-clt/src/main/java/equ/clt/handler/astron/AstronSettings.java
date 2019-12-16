@@ -7,15 +7,31 @@ import java.util.Map;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class AstronSettings implements Serializable {
+
+    //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 300 секунд
     private Integer timeout;
+
+    //отображение nppGroupMachiney на extGrpId (x -> y)
     public String groupMachineries = null;
+
+    //номера платежей наличными через запятую, по умолчанию - 0
     private String cashPayments;
+
+    //номера платежей карточкой через запятую, по умолчанию - 1
     private String cardPayments;
+
+    //номера платежей подарочными сертификатами через запятую, по умолчанию - 2
     private String giftCardPayments;
+
+    //если true, то игнорируем продажи, для которых не найдена касса
     private boolean ignoreSalesInfoWithoutCashRegister;
 
     //если true, то выгружаем таблицы prclevel, sarea, sareaprc
     private boolean exportExtraTables;
+
+    //если задано и больше 0, выгружаем транзакции блоками по transactionsAtATime за раз,
+    //иначе - по одной
+    private Integer transactionsAtATime;
 
     public AstronSettings() {
     }
@@ -95,5 +111,13 @@ public class AstronSettings implements Serializable {
 
     public void setIgnoreSalesInfoWithoutCashRegister(boolean ignoreSalesInfoWithoutCashRegister) {
         this.ignoreSalesInfoWithoutCashRegister = ignoreSalesInfoWithoutCashRegister;
+    }
+
+    public Integer getTransactionsAtATime() {
+        return transactionsAtATime != null && transactionsAtATime > 1 ? transactionsAtATime : 1;
+    }
+
+    public void setTransactionsAtATime(Integer transactionsAtATime) {
+        this.transactionsAtATime = transactionsAtATime;
     }
 }
