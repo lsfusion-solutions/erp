@@ -71,16 +71,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             boolean exportExtraTables = astronSettings.isExportExtraTables();
             Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
 
-            if(transactionsAtATime > 1) {
+            Map<String, List<TransactionCashRegisterInfo>> directoryTransactionMap = new HashMap<>();
+            for (TransactionCashRegisterInfo transaction : transactionList) {
+                directoryTransactionMap.computeIfAbsent(getDirectory(transaction), t -> new ArrayList<>()).add(transaction);
+            }
 
-                Map<String, List<TransactionCashRegisterInfo>> directoryTransactionMap = new HashMap<>();
-                for (TransactionCashRegisterInfo transaction : transactionList) {
-                    directoryTransactionMap.computeIfAbsent(getDirectory(transaction), t -> new ArrayList<>()).add(transaction);
-                }
+            if(transactionsAtATime > 1) {
 
                 for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
                     int transactionCount = 1;
-                    int totalCount = transactionList.size();
+                    int totalCount = directoryTransactionEntry.getValue().size();
                     Throwable exception = null;
                     Map<Long, SendTransactionBatch> currentSendTransactionBatchMap = new HashMap<>();
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
@@ -103,7 +103,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             currentSendTransactionBatchMap = new HashMap<>();
                             transactionCount = 1;
                             totalCount -= transactionsAtATime;
-                            exception = null;
                         } else {
                             transactionCount++;
                         }
@@ -111,10 +110,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 }
 
             } else {
-                for (TransactionCashRegisterInfo transaction : transactionList) {
-                    Set<String> deleteBarcodeSet = new HashSet<>();
-                    Throwable exception = exportTransaction(transaction, true, true, getDirectory(transaction), exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout);
-                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
+                for(Map.Entry<String, List<TransactionCashRegisterInfo>> directoryTransactionEntry : directoryTransactionMap.entrySet()) {
+                    Exception exception = null;
+                    for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
+                        Set<String> deleteBarcodeSet = new HashSet<>();
+                        if (exception == null) {
+                            exception = exportTransaction(transaction, true, true, directoryTransactionEntry.getKey(), exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout);
+                        }
+                        sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
+                    }
                 }
             }
         }
@@ -148,9 +152,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
                 if(firstTransaction) {
-                    int flags = checkFlags(conn, params, tables);
-                    if (flags > 0) {
-                        throw new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
+                    Exception waitFlagsResult = waitFlags(conn, params, tables, null, null, timeout, true);
+                    if (waitFlagsResult != null) {
+                        throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
                     }
                     truncateTables(conn, extGrpId);
                 }
