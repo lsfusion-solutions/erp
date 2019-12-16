@@ -117,8 +117,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
+                String ticket_data = (String) terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").read(session, barcodeObject, stockObject);
+                int flags = terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").read(session, barcodeObject) != null ? 1 : 0;
                 return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, "", "", isWeight, mainBarcode, color);
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, "", "", isWeight,
+                        mainBarcode, color, ticket_data, flags);
             } else return null;
 
         } catch (Exception e) {
