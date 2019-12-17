@@ -478,7 +478,7 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case GET_ITEM_INFO:
                             if (itemInfo != null) {
-                                for (int i = 0; i < 14; i++) {
+                                for (int i = 0; i < 12; i++) {
                                     if (itemInfo.size() > i) {
                                         write(outToClient, itemInfo.get(i));
                                     }
