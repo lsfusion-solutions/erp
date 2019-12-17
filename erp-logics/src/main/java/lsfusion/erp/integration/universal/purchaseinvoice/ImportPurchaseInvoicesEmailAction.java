@@ -344,17 +344,21 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     else {
                         String fileName = ze.getName();
                         outputFile = new File(outputDirectory.getPath() + "/" + fileName);
-                        FileOutputStream outputStream = new FileOutputStream(outputFile);
-                        int len;
-                        while ((len = inputStream.read(buffer)) > 0) {
-                            outputStream.write(buffer, 0, len);
+                        File parentDir = outputFile.getParentFile();
+                        if(parentDir.exists() || parentDir.mkdirs()) {
+                            dirList.add(parentDir);
+                            FileOutputStream outputStream = new FileOutputStream(outputFile);
+                            int len;
+                            while ((len = inputStream.read(buffer)) > 0) {
+                                outputStream.write(buffer, 0, len);
+                            }
+                            outputStream.close();
+                            String outExtension = BaseUtils.getFileExtension(outputFile);
+                            if (extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
+                                result.add(Pair.create(fileName, new RawFileData(outputFile)));
+                            if(!outputFile.delete())
+                                outputFile.deleteOnExit();
                         }
-                        outputStream.close();
-                        String outExtension = BaseUtils.getFileExtension(outputFile);
-                        if (outExtension != null && extensionFilter.toLowerCase().equals(outExtension.toLowerCase()))
-                            result.add(Pair.create(fileName, new RawFileData(outputFile)));
-                        if(!outputFile.delete())
-                            outputFile.deleteOnExit();
                     }
                     ze = inputStream.getNextEntry();
                 }
