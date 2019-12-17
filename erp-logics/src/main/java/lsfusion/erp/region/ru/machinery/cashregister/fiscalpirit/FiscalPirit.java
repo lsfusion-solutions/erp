@@ -229,7 +229,7 @@ public class FiscalPirit {
     }
 
     private static void totalCommand(SerialPort serialPort, BigDecimal sum, String type) {
-        sendCommand(serialPort, "47", "Оплата", joinData(type, formatBigDecimal(sum)), true);
+        sendCommand(serialPort, "47", "Оплата", joinData(type, formatBigDecimal(sum.abs())), true);
     }
 
     private static void inOutDocumentCommand(SerialPort serialPort, BigDecimal sum) {
