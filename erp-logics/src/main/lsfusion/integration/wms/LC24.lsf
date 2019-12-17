@@ -1,0 +1,701 @@
+MODULE LC24;
+
+REQUIRE Warehouse, Item, LegalEntityBy, SalePack, EDI, PurchaseInvoice, PurchaseShipment, PurchaseInvoiceCustody,
+        SaleInvoice, SaleShipment;
+
+NAMESPACE Integration;
+
+DESIGN  integrationData {
+    pane {
+        NEW wms {
+            caption = 'WMS';
+            fill = 1;
+        }
+    }
+}
+
+GROUP wms;
+
+isLC24 'Склад логистического оператора (ЛЦ24)' = DATA BOOLEAN (Warehouse);
+
+EXTEND FORM warehouse 
+    PROPERTIES (w) isLC24
+;
+
+connectionStringLC24 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
+inPathLC24 'Путь для выгрузки (с /)' = DATA STRING[100]();
+outPathLC24 'Путь для импорта (с /)' = DATA STRING[100]();
+processedPathLC24 'Путь для обработанных док-тов (file:// или ftp://)' = DATA STRING[100]();
+dataTmpDirLC24 = DATA STRING[250]();
+tmpDirLC24 'Каталог для временных файлов' () = OVERRIDE dataTmpDirLC24(), '/tmp/';
+
+EXTEND FORM integrationData 
+    PROPERTIES() connectionStringLC24, inPathLC24, outPathLC24, processedPathLC24, tmpDirLC24
+;
+DESIGN  integrationData {
+    wms {
+        NEW LC24 {
+            caption = 'ЛЦ24';
+            fill = 1;
+            NEW LC24Panel {
+                MOVE PROPERTY (connectionStringLC24());
+                MOVE PROPERTY (inPathLC24());
+                MOVE PROPERTY (outPathLC24());
+                MOVE PROPERTY (processedPathLC24());
+                MOVE PROPERTY (tmpDirLC24());            
+            }
+            NEW importLC24 {
+                type = CONTAINERH;
+                caption = 'Импорт';
+            }
+        }
+    }
+}
+
+nameStatusLC24 (INTEGER i) = CASE WHEN i == 0 THEN '0 - Выгружен'
+                                   WHEN i == 1 THEN '1 - Ошибка'
+                                   WHEN i == 2 THEN '2 - Загружен с ошибками'
+                                   WHEN i == 3 THEN '3 - Отменен'
+                                   ELSE STRING[10](i);
+
+nowTextLC24() =  [FORMULA TEXT 'to_char(now(),($1))']('YYYYMMDDHH24MISSMS');
+
+//товары
+status 'Статус выгрузки ЛЦ24' = DATA INTEGER (Sku);
+dateStatus 'Время статуса выгрузки ЛЦ24' = DATA DATETIME (Sku) IN wms;
+nameStatus 'Статус выгрузки ЛЦ24' (Item i) = nameStatusLC24(status(i)) IN wms;
+statusNote 'Причина отклонения' = DATA STRING[500](Sku) IN wms CHARWIDTH 30;
+
+loadedLC24 'Время выгрузки' = DATA DATETIME (Sku) IN wms;
+
+EXTEND FORM item 
+    PROPERTIES (i) READONLY loadedLC24, nameStatus, dateStatus, statusNote SHOWIF (status(i) = 1);
+
+DESIGN item {
+    itemDetail{
+        NEW wms {
+            caption = 'WMS';
+            type = COLUMNS;
+            columns = 4;
+            MOVE GROUP(wms,i);
+        }
+    }
+
+}
+EXTEND FORM items 
+    PROPERTIES (i) READONLY GRID loadedLC24, nameStatus, dateStatus, statusNote 
+;
+
+overExportItemsLC24 ABSTRACT ();
+overExportItemsLC24 = DATA LOCAL BOOLEAN ();
+
+exportItemsLC24 'Выгрузить товары в wms ЛЦ24' ()  {     
+    overExportItemsLC24();
+    IF NOT overExportItemsLC24() THEN {
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = '',
+            c02 = id(Item i),
+            c03 = nameAttribute(i),
+            c04 = STRING[50](nameAttribute(i)),
+            c05 = idSkuGroup3(i),
+            c06 = nameSkuGroup3(i),
+            c07 = (OVERRIDE idSkuGroup4(i), nameSkuGroup3(i)),
+            c08 = (OVERRIDE nameSkuGroup4(i), nameSkuGroup3(i)),
+            c09 = '',
+            c10 = '',
+            c11 = (OVERRIDE INTEGER (Sale.amountPack(i)), 1),
+            c12 = '',
+            c13 = '',
+            c14 = UNP(GROUP MIN LegalEntity l IF isCompany(l)),
+            c15 = '',
+            c16 = '',
+            c17 = '',
+            c18 = '',
+            c19 = '',
+            c20 = '',
+            c21 = '',
+            c22 = '',
+            c23 = '',
+            c24 = '',
+            c25 = '',
+            c26 = '',
+            c27 = '',
+            c28 = '',
+            c29 = '',
+            c30 = '',
+            c31 = '',
+            c32 = '',
+            c33 = '',
+            c34 = '',
+            c35 = '',
+            c36 = '',
+            c37 = '',
+            c38 = '',
+            c39 = '1',
+            c40 = '',
+            c41 = ''
+            WHERE in(i);
+    }   
+    WRITE exportFile() TO connectionStringLC24() + inPathLC24() + 'goods_main_' + nowTextLC24();
+    in(Item it) <- NULL;
+}
+
+//штрихкоды
+status 'Статус выгрузки ЛЦ24' = DATA INTEGER (Barcode);
+nameStatus 'Статус выгрузки ЛЦ24' (Barcode i) = nameStatusLC24(status(i)) IN wms;
+statusNote 'Причина отклонения' = DATA STRING[500](Barcode) IN wms CHARWIDTH 30;
+
+in = DATA LOCAL BOOLEAN (Barcode);
+
+overExportBarcodesLC24 ABSTRACT (STRING[250]);
+overExportBarcodesLC24 = DATA LOCAL BOOLEAN ();
+
+exportBarcodesLC24 'Выгрузить штрихкоды в wms ЛЦ24' () {
+    LOCAL fileName = STRING[250]();
+    fileName() <- 'shk_main_' + nowTextLC24();
+    overExportBarcodesLC24(fileName());
+    IF NOT overExportBarcodesLC24() THEN {
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = idSku(Barcode b),
+            c02 = '',
+            c03 = '',
+            c04 = id(b)
+            WHERE in(b) AND length(id(b)) > 5;
+        
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName();
+        
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = id(Item it),
+            c02 = '',
+            c03 = '',
+            c04 = GTIN(it)
+            WHERE in(it) AND GTIN(it);
+        
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName() APPEND;
+    }
+    move('file://' + tmpDirLC24() + fileName() + '.csv', connectionStringLC24() + inPathLC24() + fileName()+ '.csv');
+    in(Barcode b) <- NULL;
+}
+
+exportBarcodesLC24 'Выгрузить штрихкод в wms ЛЦ24' (Barcode i)  { 
+	NEWSESSION NESTED LOCAL {
+	    in(i) <- TRUE ;
+	    exportBarcodesLC24();
+	}
+}
+
+EXTEND FORM item 
+    PROPERTIES (b) READONLY nameStatus, statusNote, exportBarcodesLC24;
+
+exportItemsLC24 'Выгрузить отмеченные товары в wms ЛЦ24' (Item i)  { 
+	NEWSESSION NESTED LOCAL {
+	    in(i) <- TRUE WHERE NOT countInItem();
+        in(Barcode b) <- in[Item](sku(b));
+	    
+        exportBarcodesLC24();
+	    exportItemsLC24();
+	}
+}
+
+EXTEND FORM items
+    PROPERTIES  exportItemsLC24(i) ;
+    
+DESIGN items{
+    actionsImport {
+        MOVE PROPERTY (exportItemsLC24(i));
+    }
+}
+
+//контрагенты
+overExportStocksLC24 ABSTRACT ();
+overExportStocksLC24 = DATA LOCAL BOOLEAN ();
+
+exportStocksLC24 'Выгрузить склады в wms ЛЦ24' ()  {
+    overExportStocksLC24();
+    IF NOT overExportStocksLC24() THEN {
+    EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+        c01 = nameLegalEntity(Stock s),
+        c02 = fullNameLegalEntity(s),
+        c03 = UNP(legalEntity(s)),
+        c04 = '',
+        c05 = IF isCustomer(s) THEN '1' ELSE '0',
+        c06 = IF isSupplier(s) THEN '1' ELSE '0',
+        c07 = IF country(legalEntity(s)) = defaultCountry() THEN '0' ELSE '1',
+        c08 = '',
+        c09 = '',
+        c10 = UNP(GROUP MIN LegalEntity l IF isCompany(l)),
+        c11 = address(legalEntity(s)),
+        c12 = numberAccount(legalEntity(s)),
+        c13 = MFOBank(legalEntity(s)),
+        c14 = address(s),
+        c15 = '',
+        c16 = id(s)
+        WHERE Stock.in(s);
+    }
+    WRITE exportFile() TO connectionStringLC24() + inPathLC24() + 'trade_main_' + nowTextLC24();
+} TOOLBAR;
+
+exportStocksLC24 'Выгрузить склады в wms ЛЦ24' (Stock s)  { 
+	NEWSESSION NESTED LOCAL {
+	    Stock.in(s) <- TRUE WHERE NOT countInStock();
+	    exportStocksLC24();
+	    Stock.in(Stock st) <- NULL;
+	}
+}
+
+status 'Статус выгрузки ЛЦ24' = DATA INTEGER (Stock);
+nameStatus 'Статус выгрузки ЛЦ24' (Stock i) = nameStatusLC24(status(i)) IN wms;
+statusNote 'Причина отклонения' = DATA STRING[500](Stock) IN wms CHARWIDTH 30;
+
+EXTEND FORM integrationData
+    OBJECTS stl = Stock
+    PROPERTIES (stl) READONLY id, name, nameStockGroup, nameLegalEntity, isCompany, isSupplier, isCustomer, nameStatus, statusNote
+    PROPERTIES (stl) Stock.in BEFORE id(stl), exportStocksLC24
+;
+DESIGN integrationData {
+    LC24 {
+        MOVE BOX (stl);
+    }
+}
+
+//накладная закупка
+isLC24Purchase(Purchase.Invoice invoice) = isLC24(customerStock(invoice));
+
+overExportPurchaseLC24 ABSTRACT (Purchase.Invoice, STRING[250]);
+overExportPurchaseLC24 = DATA LOCAL BOOLEAN ();
+
+exportPurchaseLC24 'Выгрузить в ЛЦ24' (Purchase.Invoice i) {
+    LOCAL fileName = STRING[250]();
+    fileName() <- 'arrival_data_' + seriesNumber(i) + '_' + nowTextLC24();
+    overExportPurchaseLC24(i, fileName());
+    IF NOT overExportPurchaseLC24() THEN {
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = seriesNumber(i),
+            c02 = toChar(dateTime(i), 'YYYYMMDDHH24MISS'),
+            c03 = toChar(shipmentDateTime(i), 'YYYYMMDDHH24MISS'),
+            c04 = '0', //0 – приход нового товара;
+            c05 = id(supplierStock(i)),
+            c06 = '',
+            c07 = '',
+            c08 = '',
+            c09 = '0',
+            c10 = '0',
+            c11 = '',
+            c12 = custodyContract(customerStock(i)), 
+            c13 = toChar(custodyContractDate(customerStock(i)), 'YYYYMMDD');
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName();
+        
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = idSku(Purchase.InvoiceDetail d),
+            c02 = '1',
+            c03 = quantity(d),
+            c04 = '', 
+            c05 = '0', 
+            c06 = '-',
+            c07 = '',
+            c08 = '',
+            c09 = '',
+            c10 = '',
+            c11 = ''
+            WHERE invoice(d) = i;
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName() APPEND;
+    }
+    move('file://' + tmpDirLC24() + fileName() + '.csv', connectionStringLC24() + inPathLC24() + fileName() + '.csv');
+    MESSAGE 'Файл ' + fileName() + '.csv выгружен' NOWAIT;
+}
+
+status 'Статус выгрузки ЛЦ24' = DATA INTEGER (Purchase.Invoice) IN wms;
+dateStatus 'Время статуса выгрузки ЛЦ24' = DATA DATETIME (Purchase.Invoice) IN wms;
+nameStatus 'Статус выгрузки ЛЦ24' (Purchase.Invoice i) = nameStatusLC24(status(i)) IN wms CHARWIDTH 40;
+statusNote 'Причина отклонения' = DATA STRING[500](Purchase.Invoice) IN wms;
+
+showStatus(Purchase.Invoice i) = isLC24Purchase(i) AND status(i) > 0;
+
+EXTEND FORM Purchase.invoices 
+    PROPERTIES(i) SHOWIF isLC24Purchase(i) exportPurchaseLC24
+    PROPERTIES (i) SHOWIF isLC24Purchase(i) READONLY PANEL nameStatus, dateStatus, statusNote SHOWIF showStatus(i)
+;
+
+DESIGN Purchase.invoices {
+    actionContainer {
+        NEW WMS {
+            caption = 'WMS';
+            MOVE PROPERTY (exportPurchaseLC24(i));
+            MOVE PROPERTY (nameStatus(i));
+            MOVE PROPERTY (dateStatus(i));
+            MOVE PROPERTY (statusNote(i));
+        }
+    }    
+}
+
+//заказ продажа
+isLC24Sale(Sale.Order order) = isLC24(customerStock(order)) OR isLC24(supplierStock(order));
+
+overExportSaleLC24 ABSTRACT (Sale.Order, STRING[250]);
+overExportSaleLC24 = DATA LOCAL BOOLEAN ();
+
+exportSaleLC24 'Выгрузить в ЛЦ24' (Sale.Order o) {
+    LOCAL fileName = STRING[250]();
+    fileName() <- 'dispatch_data_' + seriesNumber(o) + '_'+ nowTextLC24();
+    overExportSaleLC24(o, fileName());
+    IF NOT overExportSaleLC24() THEN {
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = '0', //0 – отгрузка товара;
+            c02 = seriesNumber(o),
+            c03 = '',
+            c04 = toChar(dateTime(o), 'YYYYMMDDHH24MISS'),
+            c05 = toChar(shipmentDateTime(o), 'YYYYMMDDHH24MISS'),
+            c06 = id(customerStock(o)),
+            c07 = '0',
+            c08 = '2',
+            c09 = '0',
+            c10 = '',
+            c11 = custodyContract(supplierStock(o)), 
+            c12 = toChar(custodyContractDate(supplierStock(o)), 'YYYYMMDD'),
+            c13 = seriesNumberContractSku(o);
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName();
+        
+        EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
+            c01 = idSku(Sale.OrderDetail d),
+            c02 = '1',
+            c03 = quantity(d),
+            c04 = price(d)
+            WHERE order(d) = o;   
+        WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName() APPEND;
+    }
+    move('file://' + tmpDirLC24() + fileName() + '.csv' , connectionStringLC24() + inPathLC24() + fileName()+ '.csv');
+    MESSAGE 'Файл ' + fileName() + '.csv выгружен' NOWAIT;
+}
+
+status 'Статус выгрузки ЛЦ24' = DATA INTEGER (Sale.Order) IN wms;
+dateStatus 'Время статуса выгрузки ЛЦ24' = DATA DATETIME (Sale.Order) IN wms;
+nameStatus 'Статус выгрузки ЛЦ24' (Sale.Order o) = nameStatusLC24(status(o)) IN wms CHARWIDTH 40;
+statusNote 'Причина отклонения' = DATA STRING[500](Sale.Order) IN wms;
+
+showStatus(Sale.Order o) = isLC24Sale(o) AND status(o) > 0;
+
+EXTEND FORM Sale.orders 
+    PROPERTIES(o) SHOWIF isLC24Sale(o) exportSaleLC24
+    PROPERTIES(o) SHOWIF isLC24Sale(o) READONLY PANEL nameStatus, dateStatus, statusNote SHOWIF showStatus(o)
+;
+
+DESIGN Sale.orders {
+    actionContainer {
+        NEW WMS {
+            caption = 'WMS';
+            MOVE PROPERTY (exportSaleLC24(o));
+            MOVE PROPERTY (nameStatus(o));
+            MOVE PROPERTY (dateStatus(o));
+            MOVE PROPERTY (statusNote(o));
+        }
+    }    
+}
+
+
+////статусы
+overImportStatusLC24 ABSTRACT (STRING[250]);
+overImportStatusLC24 = DATA LOCAL BOOLEAN (STRING[50]);
+importStatusLC24 'Импортировать статусы' ()  { 
+    LOCAL file = RAWFILE ();
+    
+    LOCAL id = STRING[100](INTEGER);
+    LOCAL status = INTEGER (INTEGER);
+    LOCAL type = INTEGER (INTEGER );
+    LOCAL statusNote = STRING[300](INTEGER);
+    LOCAL date = STRING[100] (INTEGER);
+    
+    listFiles(connectionStringLC24() + outPathLC24(), 'CP1251', NULL);
+
+    FOR STRING[250] fileName = fileName(INTEGER j) AND NOT fileIsDirectory(j) AND right(fileName, 3) = 'csv' DO {
+        overImportStatusLC24(STRING[50] str) <- NULL;
+        overImportStatusLC24(fileName);
+        IF isSubstring(fileName, 'goods_status') AND NOT overImportStatusLC24('goods_status') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, status, statusNote;
+            
+            FOR id(Item it) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
+                status(it) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
+                statusNote(it) <- STRING[500](GROUP CONCAT statusNote(INTEGER r) IF id(r) = id, ', ' ORDER r);
+                dateStatus(it) <- currentDateTime();
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+        
+        IF isSubstring(fileName, 'shk_status') AND NOT overImportStatusLC24('shk_status') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id = D, status = E, statusNote = F;
+            
+            FOR id(Barcode b) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
+                status(b) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
+                statusNote(b) <- STRING[500](GROUP CONCAT statusNote(INTEGER r) IF id(r) = id, ', ' ORDER r);
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+        
+        IF isSubstring(fileName, 'trade_status') AND NOT overImportStatusLC24('trade_status') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id = A, status = C, statusNote = D;
+            
+            FOR id(Stock st) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
+                status(st) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
+                statusNote(st) <- STRING[500](GROUP CONCAT statusNote(INTEGER r) IF id(r) = id, ', ' ORDER r);
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+        
+        IF isSubstring(fileName, 'arrival_status') AND NOT overImportStatusLC24('arrival_status') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, date, type, status = D, statusNote = E;
+            
+            FOR seriesNumber(Purchase.Invoice i) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id AND type(r) == 0 AND date(i) == DATE(toDateFormat(date(r),'YYYYMMDDHH24MISS'))) DO {
+                status(i) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
+                statusNote(i) <- STRING[500](GROUP CONCAT statusNote(INTEGER r) IF id(r) = id, ', ' ORDER r);
+                dateStatus(i) <- currentDateTime();
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+        
+        IF isSubstring(fileName, 'dispatch_status') AND NOT overImportStatusLC24('dispatch_status') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, date, type, status, statusNote;
+            
+            FOR seriesNumber(Sale.Order o) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id AND type(r) == 0 AND date(o) == DATE(toDateFormat(date(r),'YYYYMMDDHH24MISS'))) DO {
+                status(o) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
+                statusNote(o) <- STRING[500](GROUP CONCAT statusNote(INTEGER r) IF id(r) = id, ', ' ORDER r);
+                dateStatus(o) <- currentDateTime();
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES importStatusLC24();
+    
+DESIGN  integrationData {
+    LC24 {
+        MOVE PROPERTY (importStatusLC24()) FIRST;
+    }
+}
+
+// состояния
+countDatesImportConditionLC24 'За сколько дней импортировать накладные' = DATA INTEGER ();
+overImportConditionLC24 ABSTRACT (STRING[250]);
+overImportConditionLC24 = DATA LOCAL BOOLEAN (STRING[50]);
+importConditionLC24 'Импортировать состояния (накладные)' ()  {               
+    LOCAL file = RAWFILE();
+
+    LOCAL H1 = STRING[100](INTEGER); //Номер документа
+    LOCAL H2 = STRING[100](INTEGER); //Дата документа
+    LOCAL H3 = STRING[100](INTEGER); //Фактическая дата отгрузки (отбора)
+    LOCAL H4 = STRING[100](INTEGER); //Номер бумажного документа
+    LOCAL H5 = STRING[100](INTEGER); //Дата бумажного документа
+    LOCAL H6 = INTEGER(INTEGER); //Вид расхода
+    LOCAL H7 = STRING[100](INTEGER); //Номер документа ЛЦ
+    LOCAL H8 = STRING[100](INTEGER); //Дата документа ЛЦ
+    LOCAL H9 = NUMERIC[18,4](INTEGER); //Сумма по документу
+    LOCAL H10 = STRING[100](INTEGER); //Номер бумажного документа снятия с ответ.хранения (Водитель)
+    LOCAL H11 = STRING[100](INTEGER); //Дата бумажного документа снятия с ответ.хранения (Автомобиль)
+    LOCAL H12 = STRING[100](INTEGER); //(Путевой лист)
+
+    LOCAL P1 = STRING[100](INTEGER); //Код товара
+    LOCAL P2 = STRING[100](INTEGER); //Номер партии
+    LOCAL P3 = INTEGER(INTEGER); //Код единицы измерения
+    LOCAL P4 = INTEGER(INTEGER); //Статус отгрузки (отбора)
+    LOCAL P5 = NUMERIC[16,5](INTEGER); //Количество
+    LOCAL P6 = STRING[100](INTEGER); //Дата изготовления
+    LOCAL P7 = NUMERIC[16,4](INTEGER); //Цена
+    LOCAL P8 = STRING[255](INTEGER); //Комментарий
+    LOCAL P9 = INTEGER(INTEGER); //Номер позиции
+    LOCAL P10 = NUMERIC[10,5](INTEGER); //Ставка НДС
+    LOCAL P11 = NUMERIC[18,4](INTEGER); //Сумма НДС
+    LOCAL P12 = NUMERIC[18,4](INTEGER); //Сумма
+    LOCAL P13 = INTEGER(INTEGER); //Состояние товара
+    LOCAL P14 = INTEGER(INTEGER); //Количество Мест
+    
+    LOCAL HA1 = STRING[100](INTEGER); //Номер документа
+    LOCAL HA2 = STRING[100](INTEGER); //Дата документа
+    LOCAL HA3 = STRING[100](INTEGER); //Фактическая дата прихода
+    LOCAL HA4 = STRING[100](INTEGER); //Номер бумажного документа
+    LOCAL HA5 = STRING[100](INTEGER); //Дата бумажного документа
+    LOCAL HA6 = INTEGER(INTEGER); //Вид прихода
+    LOCAL HA7 = STRING[100](INTEGER); //Номер документа ЛЦ
+    LOCAL HA8 = STRING[100](INTEGER); //Дата документа ЛЦ
+    LOCAL HA9 = STRING[100](INTEGER); //Код контрагента
+    LOCAL HA10 = STRING[255](INTEGER); //Адрес контрагента
+    LOCAL HA11 = STRING[100](INTEGER); //Номер бумажного документа первого поставщика
+    LOCAL HA12 = STRING[100](INTEGER); //Дата бумажного документа первого поставщика 
+    
+    LOCAL PA1 = STRING[100](INTEGER); //Код товара
+    LOCAL PA2 = STRING[100](INTEGER); //Номер партии
+    LOCAL PA3 = INTEGER(INTEGER); //Код единицы измерения
+    LOCAL PA4 = NUMERIC[16,5](INTEGER); //Заказанное количество
+    LOCAL PA5 = NUMERIC[16,5](INTEGER); //Принятое количество
+    LOCAL PA6 = NUMERIC[16,5](INTEGER); //Количество по документу
+    LOCAL PA7 = NUMERIC[16,5](INTEGER); //Количество брак
+    LOCAL PA8 = NUMERIC[16,4](INTEGER); //Цена
+    LOCAL PA9 = INTEGER(INTEGER); //Состояние товара
+    LOCAL PA10 = INTEGER(INTEGER); //Номер позиции
+    LOCAL PA11 = STRING[100](INTEGER); //Дата изготовления
+    LOCAL PA12 = NUMERIC[18,4](INTEGER); //Сумма
+    LOCAL PA13 = NUMERIC[18,4](INTEGER); //СуммаНДС
+    LOCAL PA14 = NUMERIC[10,5](INTEGER); //СтавкаНДС
+    LOCAL PA15 = NUMERIC[18,4](INTEGER); //СуммаСНДС
+    
+    listFiles(connectionStringLC24() + outPathLC24(), 'CP1251', NULL);
+
+    FOR STRING[250] fileName = fileName(INTEGER j) AND NOT fileIsDirectory(j) AND right(fileName, 3) = 'csv' ORDER getWord(fileName, '_', wordCount(fileName, '_')) DO {
+        overImportConditionLC24(STRING[50] str) <- NULL;
+        overImportConditionLC24(fileName);
+        
+//-- Отгрузка
+        IF isSubstring(fileName, 'dispatch_selected') AND NOT overImportConditionLC24('dispatch_selected') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H6, H7, H8, H10, H11, H12;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P14;
+            
+            IF imported(0) AND (H1(0) OR H2(0)) AND NOT DATE(toDateFormat(H6(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) THEN {
+                LOCAL inv = Sale.UserInvoice();
+                LOCAL ord = Sale.UserOrder();
+                
+                IF NOT isClosed(Sale.userInvoice(STRING[100](CONCAT '_',H1(0), H2(0)))) THEN {
+                
+                    FOR Sale.UserInvoice i = Sale.userInvoice(STRING[100](CONCAT '_',H1(0), H2(0))) DO {
+                        isPosted(i) <- NULL;
+                        DELETE  Sale.UserInvoiceDetail d WHERE userInvoice(d) = i;
+                        inv() <- i;
+                    }
+                    ord() <- [GROUP MAX Sale.Order o BY seriesNumber(o)](H1(0));
+                    
+                    IF NOT Sale.userInvoice(STRING[100](CONCAT '_',H1(0), H2(0))) THEN NEW i = Sale.UserInvoice {
+                        inv() <- i;
+                        
+                        id(i) <- STRING[100](CONCAT '_',H1(0), H2(0));
+                        supplier(i) <- supplier(ord());
+                        supplierStock(i) <- supplierStock(ord());
+                        customer(i) <- customer(ord());
+                        customerStock(i) <- customerStock(ord());
+                        operation(i) <- operation(ord());
+                        contractSku(i) <- contractSku(ord());
+                        shipmentDate(i) <- shipmentDate(ord());
+                        shipmentTime(i) <- shipmentTime(ord());
+                        number(i) <- IF length(H7(0)) == 9 THEN STRING[28](right(H7(0),7)) ELSE STRING[28](H7(0));
+                        series(i) <- BPSTRING[2](upper((left(H7(0),2)))) IF length(H7(0)) == 9;
+                        date(i) <- DATE(toDateFormat(H8(0),'YYYYMMDD')); 
+                        include(Sale.Order o,i) <- TRUE WHERE o == ord();
+                        dataNameDriver(i) <- H10(0);
+                        dataNameTruck(i) <- H11(0);
+                        dataWaybill(i) <- H12(0);
+                    }
+                                        
+                    FOR imported(INTEGER r) AND r > 0 ORDER P9(r) NEW d = Sale.UserInvoiceDetail DO {
+                        Sale.userInvoice(d) <- inv();
+                        id(d) <- STRING[100](CONCAT '_',H1(0), H2(0), P9(r));
+                        sku(d) <- sku(P1(r));
+                        batch(d) <- batch(P2(r));
+                        quantity(d) <- P5(r) IF P4(r) == 1;
+                        manufactureDate(d) <- toDateFormat(P6(r),'YYYYMMDD');
+                        price(d) <- P7(r);
+                        note(d) <- STRING[100](P8(r));
+                        dataIndex(d) <- P9(r);
+                        dataPackQuantity(d) <- P14(r);
+                        connectOrder(d);             
+                        IF orderDetail(d) THEN {
+                             VAT(d) <- VAT(orderDetail(d));    
+                             valueVAT(d) <- valueVAT(orderDetail(d));   
+                        }
+                    }
+                    executeLocalEvents('Sale.userInvoice');
+                    
+                    APPLY NESTED LOCAL;
+                    isPosted(Sale.UserInvoice i) <- TRUE WHERE i = inv();
+                }
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            delete(connectionStringLC24() + outPathLC24() + fileName);
+            APPLY;
+        }
+        
+        IF isSubstring(fileName, 'dispatch_result') AND NOT overImportConditionLC24('dispatch_result') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9, H10, H11;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13;
+            
+            LOCAL NESTED ok = BOOLEAN ();
+            
+            FOR imported(0) AND Sale.UserInvoice i = Sale.userInvoice(STRING[100](CONCAT '_',H1(0), H2(0))) AND NOT isClosed(i) AND NOT DATE(toDateFormat(H5(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) DO {
+                
+                shipmentDate(i) <- DATE(toDateTimeFormat(H3(0),'YYYYMMDDHH24MISS'));
+                shipmentTime(i) <- TIME(toDateTimeFormat(H3(0),'YYYYMMDDHH24MISS'));
+                number(i) <- IF length(H4(0)) == 9 THEN STRING[28](right(H4(0),7)) ELSE STRING[28](H4(0));
+                series(i) <- BPSTRING[2](upper((left(H4(0),2)))) IF length(H4(0)) == 9;
+                date(i) <- DATE(toDateFormat(H5(0),'YYYYMMDD')); 
+                createShipment(i) <- TRUE;
+                ok() <- TRUE;
+                
+                FOR imported(INTEGER r) AND r > 0 AND Sale.UserInvoiceDetail d = Sale.userInvoiceDetail(STRING[100](CONCAT '_',H1(0), H2(0), P9(r))) AND userInvoice(d) == i DO {
+                    shipmentQuantity(d) <- P5(r) IF P4(r) == 1;
+                    note(d) <- P8(r);
+                    valueVAT(d) <- P10(r);
+                }
+                executeLocalEvents('Sale.userInvoice');
+            } ELSE IF Sale.userInvoice(STRING[100](CONCAT '_',H1(0), H2(0))) THEN ok() <- TRUE;
+            
+            APPLY;
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            IF ok() AND NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+        
+//-- Поступление        
+        IF isSubstring(fileName, 'arrival_result') AND NOT overImportConditionLC24('arrival_result') THEN NEWSESSION {
+            READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO HA1, HA2, HA3, HA4, HA5, HA6, HA7, HA8, HA9, HA10, HA11, HA12;
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8, PA9, PA10, PA11, PA12, PA13, PA14, PA15;
+            
+            LOCAL inv = Purchase.UserInvoice();
+            LOCAL ord = Purchase.UserOrder();
+            LOCAL isDet = BOOLEAN ();
+            
+            inv() <- [GROUP MAX Purchase.UserInvoice i BY seriesNumber(i)](H1(0));
+            IF NOT DATE(toDateFormat(HA12(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) THEN {
+                IF HA6(0) == 0 AND inv() THEN {
+                    IF NOT isClosed(inv()) THEN {
+                        shipmentDate(inv()) <- DATE(toDateTimeFormat(HA3(0),'YYYYMMDDHH24MISS'));
+                        shipmentTime(inv()) <- TIME(toDateTimeFormat(HA3(0),'YYYYMMDDHH24MISS'));
+                        createShipment(inv()) <- TRUE;
+                        FOR imported(INTEGER r) AND r > 0 AND index(Purchase.UserInvoiceDetail d) = PA9(r) AND userInvoice(d) == inv() DO {
+                            shipmentQuantity(d) <- PA5(r);
+                            idBatch(d) <- PA2(r);
+                            manufactureDate(d) <- toDateFormat(PA11(r),'YYYYMMDD');
+                        }
+                        executeLocalEvents('Purchase.userInvoice');
+                    }
+                }
+            }
+            IF processedPathLC24() THEN WRITE file() TO processedPathLC24() + fileName;
+            APPLY;
+            IF NOT canceled() THEN delete(connectionStringLC24() + outPathLC24() + fileName);
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES importConditionLC24(), countDatesImportConditionLC24();
+    
+DESIGN  integrationData {
+    importLC24 {
+        MOVE PROPERTY (importStatusLC24());     
+        MOVE PROPERTY (importConditionLC24());
+        MOVE PROPERTY (countDatesImportConditionLC24());
+    }
+}
