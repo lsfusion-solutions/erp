@@ -11,13 +11,15 @@ import java.util.List;
 public abstract class ExportMySQLAction extends ExportSQLAction {
 
     public ExportMySQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                             List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
-        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert);
+                             List<String> keyColumns, String connectionStringProperty, boolean truncate,
+                             boolean noInsert, Integer batchSize) {
+        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert, batchSize);
     }
 
     public ExportMySQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
-        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert);
+                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate,
+                             boolean noInsert, Integer batchSize) {
+        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert, batchSize);
     }
 
     @Override

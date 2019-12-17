@@ -29,14 +29,17 @@ abstract class ExportSQLAction extends InternalAction {
     String connectionStringProperty;
     boolean truncate;
     boolean noInsert;
+    Integer batchSize;
 
     public ExportSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                           List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
-        this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert);
+                           List<String> keyColumns, String connectionStringProperty, boolean truncate,
+                           boolean noInsert, Integer batchSize) {
+        this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert, batchSize);
     }
 
     public ExportSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                           List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
+                           List<String> keyColumns, String connectionStringProperty, String table, boolean truncate,
+                           boolean noInsert, Integer batchSize) {
         super(LM);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;
@@ -45,6 +48,7 @@ abstract class ExportSQLAction extends InternalAction {
         this.table = table;
         this.truncate = truncate;
         this.noInsert = noInsert;
+        this.batchSize = batchSize;
     }
 
     public abstract void init() throws ClassNotFoundException;
@@ -141,7 +145,9 @@ abstract class ExportSQLAction extends InternalAction {
                     } else {
                         ps = conn.prepareStatement(getUpdateStatement(set, wheres, columns, params));
 
+                        int count = 0;
                         for (int k = 0; k < rows.size(); k++) {
+                            count++;
                             List<Object> row = rows.get(k);
                             Map<String, Object> keysRow = keysRows.get(k);
                             int i;
@@ -155,6 +161,10 @@ abstract class ExportSQLAction extends InternalAction {
                                 setObject(ps, i + j + 1, keysRow.get(keyColumns.get(j)));
                             }
                             ps.addBatch();
+                            if(batchSize != null && batchSize > 0 && count == batchSize) {
+                                ps.executeBatch();
+                                count = 0;
+                            }
                         }
                     }
                     ERPLoggers.importLogger.info("ExportSQL: execute batch");

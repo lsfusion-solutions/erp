@@ -12,12 +12,25 @@ public abstract class ExportMSSQLAction extends ExportSQLAction {
 
     public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                              List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
-        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, truncate, noInsert);
+        this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, truncate, noInsert, null);
     }
 
     public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
-        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert);
+                             List<String> keyColumns, String connectionStringProperty, boolean truncate,
+                             boolean noInsert, Integer batchSize) {
+        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, truncate, noInsert, batchSize);
+    }
+
+    public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate,
+                             boolean noInsert) {
+        this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert, null);
+    }
+
+    public ExportMSSQLAction(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                             List<String> keyColumns, String connectionStringProperty, String table, boolean truncate,
+                             boolean noInsert, Integer batchSize) {
+        super(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, table, truncate, noInsert, batchSize);
     }
 
     @Override
