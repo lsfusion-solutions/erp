@@ -140,7 +140,63 @@ DESIGN userInvoice {
 EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricing[UserInvoice](i) BACKGROUND backgroundRetail(i) READONLY nameRetailPriceListType BEFORE retailMarkup(d);
 
 // расчет надбавок и цены при изменении priceListType
-@deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, retailStock, userInvoice, pricing);
+//вынесено из метакода из-за порядка событий в Santa
+skipChangePrice = ABSTRACT CASE BOOLEAN (UserInvoiceDetail);
+
+WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
+    (CHANGED(retailPriceListType(UserInvoiceDetail detail)) OR
+     CHANGED(pricingPrice(detail)) OR
+     CHANGED(sku(detail)) OR
+     CHANGED(retailStock(detail)) OR
+    (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail)) OR
+     CHANGED(valueRetailVAT(detail)))
+    AND sku(detail) AND CalcPriceListType priceListType == retailPriceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))
+    AND NOT CHANGED(retailPrice(detail)) AND NOT skipChangePrice(detail)
+    AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
+        retailMarkup(detail) <- markup(priceListType, sku(detail))
+                                                     WHERE retailPriceListType(detail) == priceListType;
+        retailPrice(detail) <- round([ X*(Y+100)*(Z+100)/10000](
+                                                                pricingPrice(detail),
+                                                                retailMarkup(detail),
+                                                                valueRetailVAT(detail)), roundCondition)
+                                                     WHERE retailPriceListType(detail) == priceListType;
+    }
+    
+WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
+    (CHANGED(retailPriceListType(UserInvoiceDetail detail)) OR
+     CHANGED(pricingPrice(detail)) OR
+     CHANGED(sku(detail)) OR
+     CHANGED(retailStock(detail)) OR
+    (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail)) OR
+     CHANGED(batch(detail)) OR
+     CHANGED(valueRetailVAT(detail)))
+    AND NOT CHANGED(retailPrice(detail)) AND NOT skipChangePrice(detail)
+    AND sku(detail) AND PriceListType priceListType == retailPriceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
+
+        retailPrice(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), retailStock(detail), pricingDateTime(detail))
+                                                  ELSE prevPriceA(priceListType, sku(detail), retailStock(detail), pricingDateTime(detail))
+                                                     WHERE retailPriceListType(detail) == priceListType;
+                                                     
+        retailMarkup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                           retailPrice(detail),
+                                                           pricingPrice(detail),
+                                                           valueRetailVAT(detail))
+                                                     WHERE retailPriceListType(detail) == priceListType;
+    }
+skipMarkup = ABSTRACT CASE BOOLEAN (UserInvoiceDetail);
+recalculateRetailMarkup (UserInvoiceDetail detail)  { 
+    retailMarkup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPrice(detail),
+                                                       pricingPrice(detail),
+                                                       valueRetailVAT(detail));
+}
+WHEN LOCAL
+    (CHANGED(pricingPrice(UserInvoiceDetail detail)) OR
+     CHANGED(valueRetailVAT(detail)))
+    AND NOT retailPriceListType(detail) AND NOT skipMarkup(detail) INLINE DO {
+        recalculateRetailMarkup(detail);
+}
+
 @recalculateDocumentDetailBatchOnSessionPriceListType (UserInvoiceDetail, retail, pricing, retailStock, userInvoice, pricing, '', pd);
 
 recalculateRetailPriceAndType 'Пересчитать вид цен и розничную цену' ()  { 
