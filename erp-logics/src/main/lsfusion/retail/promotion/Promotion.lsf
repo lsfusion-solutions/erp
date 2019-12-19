@@ -684,6 +684,9 @@ DESIGN options {
     }
 }
 
+overCreatePriceList  ABSTRACT LIST (Promotion, UserPriceList);
+overCreatePriceListDetail  ABSTRACT LIST (PromotionDetail, UserPriceListDetail);
+
 createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)  { 
     IF NOT stocks(p) THEN {
         MESSAGE 'Не выбран ни один склад. Прайсы не созданы';
@@ -713,11 +716,15 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
             in(priceList, DataPriceListType type) <- change(type, operation(priceList));
             show(priceList, DataPriceListType type) <- show(type, operation(priceList));
             
+            overCreatePriceList(p,priceList);
+            
             FOR promotion(PromotionDetail pd) == p NEW detail = UserPriceListDetail DO {
                 priceList(detail) <- priceList;
                 sku(detail) <- sku(pd);
                 price(detail, DataPriceListType type) <- proposedPromotionPrice(pd) WHERE in(priceList, type);
                 priceBefore(detail) <- retailPrice(pd);
+                
+                overCreatePriceListDetail(pd,detail);
             }
             promotion(priceList) <- p;
         }
@@ -738,10 +745,14 @@ createPriceList 'Создать прайсы' (Promotion p, BOOLEAN skipCompany)
                 in(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 show(priceList, DataPriceListType type) <- TRUE WHERE type == defaultPriceListType();
                 
+                overCreatePriceList(p,priceList);
+                
                 FOR promotion(PromotionDetail pd) == p AND countStocks(pd,company) AND NOT price(pd) = promotionPrice(pd) NEW detail = UserPriceListDetail DO {
                     priceList(detail) <- priceList;
                     sku(detail) <- sku(pd);
                     price(detail, DataPriceListType type) <- promotionPrice(pd) WHERE in(priceList, type);
+                    
+                    overCreatePriceListDetail(pd,detail);
                 }
                 promotion(priceList) <- p;
             }
