@@ -113,7 +113,8 @@ abstract class ExportSQLAction extends InternalAction {
                     String params = "";
                     for (String columnName : columnNames) {
                         columns += (columns.isEmpty() ? "" : ",") + columnName;
-                        set += (set.isEmpty() ? "" : ",") + columnName + "=?";
+                        if(!keyColumns.contains(columnName))
+                            set += (set.isEmpty() ? "" : ",") + columnName + "=?";
                         params += (params.isEmpty() ? "" : ",") + "?";
                     }
                     String wheres = "";
@@ -170,7 +171,7 @@ abstract class ExportSQLAction extends InternalAction {
                     ERPLoggers.importLogger.info("ExportSQL: execute batch");
                     ps.executeBatch();
                     ERPLoggers.importLogger.info("ExportSQL: commit");
-                    conn.commit();
+                    //conn.commit();
                     ERPLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
