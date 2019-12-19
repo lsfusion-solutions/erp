@@ -89,15 +89,17 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                 outToClient = new DataOutputStream(socket.getOutputStream());
                 String barcode = inFromClient.readLine();
 
-                if (barcode != null) {
+                //getHostAddress is slow operation, so we use map
+                InetAddress inetAddress = socket.getInetAddress();
+                String ip = ipMap.get(inetAddress);
+                if (ip == null) {
+                    ip = inetAddress.getHostAddress();
+                    ipMap.put(inetAddress, ip);
+                }
 
-                    //getHostAddress is slow operation, so we use map
-                    InetAddress inetAddress = socket.getInetAddress();
-                    String ip = ipMap.get(inetAddress);
-                    if (ip == null) {
-                        ip = inetAddress.getHostAddress();
-                        ipMap.put(inetAddress, ip);
-                    }
+                priceCheckerLogger.info(String.format(getEventName() + " connection from ip %s, barcode %s", ip, barcode));
+
+                if (barcode != null) {
                     barcode = barcode.length() > 2 ? barcode.substring(2) : barcode;
                     byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);

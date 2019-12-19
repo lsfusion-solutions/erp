@@ -87,14 +87,17 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 outToClient = new DataOutputStream(socket.getOutputStream());
                 String barcode = inFromClient.readLine();
 
+                //getHostAddress is slow operation, so we use map
+                InetAddress inetAddress = socket.getInetAddress();
+                String ip = ipMap.get(inetAddress);
+                if(ip == null) {
+                    ip = inetAddress.getHostAddress();
+                    ipMap.put(inetAddress, ip);
+                }
+
+                priceCheckerLogger.info(String.format(getEventName() + " connection from ip %s, barcode %s", ip, barcode));
+
                 if(barcode != null) {
-                    //getHostAddress is slow operation, so we use map
-                    InetAddress inetAddress = socket.getInetAddress();
-                    String ip = ipMap.get(inetAddress);
-                    if(ip == null) {
-                        ip = inetAddress.getHostAddress();
-                        ipMap.put(inetAddress, ip);
-                    }
                     barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(barcode, ip);
                     outToClient.write(message);
