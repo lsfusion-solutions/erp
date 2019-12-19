@@ -139,6 +139,9 @@ rangeRev 'Версия' = GROUP LAST RangeRev rev
                                        ORDER date(rev), rev
                                        WHERE date(rev) <= (DATE date AS DATE)
                                        BY range(rev), date COMPLEX;
+
+rangeRev (Range r) = GROUP LAST RangeRev rev ORDER date(rev), rev BY range(rev) MATERIALIZED;
+isLast (RangeRev v) = rangeRev(range(v)) = v MATERIALIZED;
                            
 filterSupplier = DATA LOCAL LegalEntity();
 nameFilterSupplier 'Поставщик' = name(filterSupplier());
@@ -191,8 +194,8 @@ dateLastOrderBatch 'Дата последнего прихода'= toDate(dateTi
 
 nameSupplierLastBatch 'Последний поставщик' (Sku sku,Store store) = nameSupplier(lastOrderBatch(sku,store)) CHARWIDTH 15;
 
-dateLastRangeRev 'Дата последней версии' (Range r) = GROUP LAST date(RangeRev v) ORDER date(v) BY range(v);
-dateRevision 'Дата пересмотра' (Range r) = sum(dateLastRangeRev(r), daysToRevision(r));
+dateRangeRev 'Дата последней версии' (Range r) = date(rangeRev(r));
+dateRevision 'Дата пересмотра' (Range r) = sum(dateRangeRev(r), daysToRevision(r));
 
 EXTEND FORM ranges 
     PROPERTIES READONLY dateRevision(r)
