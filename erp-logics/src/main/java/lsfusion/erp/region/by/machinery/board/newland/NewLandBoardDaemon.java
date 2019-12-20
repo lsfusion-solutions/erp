@@ -106,8 +106,8 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 Thread.sleep(1000);
                 return null;
             } catch (SocketTimeoutException ignored) {
-            } catch (Exception e) {
-                priceCheckerLogger.error(getEventName() + " error: ", e);
+            } catch (Throwable t) {
+                priceCheckerLogger.error(getEventName() + " error: ", t);
             } finally {
                 try {
                     if (outToClient != null)

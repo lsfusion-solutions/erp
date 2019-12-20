@@ -94,8 +94,8 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
                         executorService.submit(getCallable(socket));
                     } catch (IOException e) {
                         priceCheckerLogger.error("BoardDaemon Error: ", e);
-                    } catch (Exception e) {
-                        ServerLoggers.systemLogger.error("BoardDaemon Error: ", e);
+                    } catch (Throwable t) {
+                        ServerLoggers.systemLogger.error("BoardDaemon Error: ", t);
                     }
                 }
         }
