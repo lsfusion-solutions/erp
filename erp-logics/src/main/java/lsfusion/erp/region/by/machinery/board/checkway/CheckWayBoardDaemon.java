@@ -44,13 +44,13 @@ public class CheckWayBoardDaemon extends BoardDaemon {
     }
 
     @Override
-    protected void onStarted(LifecycleEvent event) {
+    public void setupDaemon() {
         startLogger.info("Starting " + getEventName() + " Daemon");
         try (DataSession session = createSession()) {
             String host = (String) LM.findProperty("hostCheckWayBoard[]").read(session);
             Integer port = (Integer) LM.findProperty("portCheckWayBoard[]").read(session);
             setupDaemon(dbManager, host, port != null ? port : 9102);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException | IOException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
         }
     }

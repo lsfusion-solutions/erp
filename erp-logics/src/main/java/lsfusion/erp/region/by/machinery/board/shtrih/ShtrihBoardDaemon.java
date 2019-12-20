@@ -44,7 +44,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
     }
 
     @Override
-    protected void onStarted(LifecycleEvent event) {
+    public void setupDaemon() {
         if (LM == null) {
             startLogger.info("Starting " + getEventName() + " Daemon : ShtrihBoard module not found");
         } else {
@@ -53,7 +53,7 @@ public class ShtrihBoardDaemon extends BoardDaemon {
                 String host = (String) LM.findProperty("hostShtrihBoard[]").read(session);
                 Integer port = (Integer) LM.findProperty("portShtrihBoard[]").read(session);
                 setupDaemon(dbManager, host, port != null ? port : 2004);
-            } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException | IOException e) {
                 throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
             }
         }
