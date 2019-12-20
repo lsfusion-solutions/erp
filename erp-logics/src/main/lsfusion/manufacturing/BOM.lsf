@@ -114,6 +114,7 @@ copy 'Копировать'  ABSTRACT LIST ( Material) CHANGEKEY 'F5' TOOLBAR;
 
 sku (material) = ABSTRACT Sku (Material) MATERIALIZED;
 
+active (Material m) =active(sku(m));
 skuGroup (Material material) = Stock.skuGroup(sku(material)) MATERIALIZED;
 isParent (SkuGroup skuGroup, Material material) = isParent(skuGroup(material), skuGroup);
 
@@ -131,7 +132,7 @@ FORM materials 'Материалы'
     PROPERTIES(m) EDIT NEWSESSION, copy
     FILTERS isParent(sg, m)
     ORDER name(m)
-
+    FILTERGROUP inactiveM FILTER 'Активные' active(m) 'F5' DEFAULT
     LIST Material OBJECT m
 ;
 
@@ -438,7 +439,8 @@ overCurBruttoNetWeightyComponent 'Вес брутто комп. (всего) с 
 //    MESSAGE 'Вес нетто изделия не равен весу нетто компонентов в спецификации';   
                            
 //------------------------------- Формы -------------------------------------//
-background 'Цвет' (Component component) = RGB(255,255,229) IF material(component) IS Product;
+background 'Цвет'  = ABSTRACT CASE COLOR (Component);
+background (Component component) += WHEN material(component) IS Product THEN RGB(255,255,229);
 
 TABLE stockBOM (Stock, BOM);
 TABLE stockGroupBOM (StockGroup, BOM);
