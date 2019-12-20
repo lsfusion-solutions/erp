@@ -81,12 +81,22 @@ EXTEND FORM sumStockDocumentLedger
     FILTERGROUP incorrectOutSum FILTER 'Неправильная сумма по регистру' NOT sum(ol) == -sumSkuLedger(ol) 'F7'
 ;
 
-accountDelta 'Отклонение от фактического'  = ABSTRACT NUMERIC[16,5](Sku, Stock);    
-accountDelta 'Отклонение от фактического' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATE, DATE);
-accountDeltaB 'Отклонение от фактического (до)' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATETIME);
+accountDeltaQuantity 'Отклонение от фактического, количество'  = ABSTRACT NUMERIC[16,5](Sku, Stock);    
+accountDeltaQuantity 'Отклонение от фактического, количество' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATE, DATE);
+accountDeltaBQuantity 'Отклонение от фактического (до), количество' = ABSTRACT NUMERIC[16,5](Sku, Stock, DATETIME);
 
-accountBalance 'Бухгалтерский остаток' (Sku s,Stock st) =  currentBalance(s,st) (+) accountDelta(s,st);
-prevAccountBalance 'Бухгалтерский остаток' (Sku s,Stock st) = PREV(accountBalance(s,st));
+accountDeltaSum 'Отклонение от фактического, сумма'  = ABSTRACT NUMERIC[18,4](Sku, Stock);    
+accountDeltaSum 'Отклонение от фактического, сумма' = ABSTRACT NUMERIC[18,4](Sku, Stock, DATE, DATE);
+accountDeltaBSum 'Отклонение от фактического (до), сумма' = ABSTRACT NUMERIC[18,4](Sku, Stock, DATETIME);
 
-accountBalanceB 'Бухгалтерский остаток (до)' (Sku s,Stock st, DATETIME  dt) =  balanceB(s,st,dt) (+) accountDeltaB(s,st,dt);
-prevAccountBalanceB 'Бухгалтерский остаток (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(accountBalanceB(sku, stock, dateTime) IF dateTime IS DATETIME);
+accountBalanceQuantity 'Бухгалтерский остаток, количество' (Sku s,Stock st) =  currentBalance(s,st) (+) accountDeltaQuantity(s,st);
+prevAccountBalanceQuantity 'Бухгалтерский остаток, количество' (Sku s,Stock st) = PREV(accountBalanceQuantity(s,st));
+
+accountBalanceSum 'Бухгалтерский остаток, сумма' (Sku s,Stock st) =  currentSum(s,st) (+) accountDeltaSum(s,st);
+prevAccountBalanceSum 'Бухгалтерский остаток, сумма' (Sku s,Stock st) = PREV(accountBalanceSum(s,st));
+
+accountBalanceBQuantity 'Бухгалтерский остаток (до), количество' (Sku s,Stock st, DATETIME  dt) =  balanceB(s,st,dt) (+) accountDeltaBQuantity(s,st,dt);
+prevAccountBalanceBQuantity 'Бухгалтерский остаток (до), количество' (Sku sku, Stock stock, DATETIME dateTime) = PREV(accountBalanceBQuantity(sku, stock, dateTime) IF dateTime IS DATETIME);
+
+accountBalanceBSum 'Суммовой бухгалтерский остаток (до), сумма' (Sku s,Stock st, DATETIME  dt) =  sumB(s,st,dt) (+) accountDeltaBSum(s,st,dt);
+prevAccountBalanceBSum 'Суммовое бухгалтерский остаток (до), сумма' (Sku sku, Stock stock, DATETIME dateTime) = PREV(accountBalanceBSum(sku, stock, dateTime) IF dateTime IS DATETIME);

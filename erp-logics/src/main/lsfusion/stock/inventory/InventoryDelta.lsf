@@ -22,17 +22,20 @@ DESIGN operation {
 }
 
 
-accountDelta 'Отклонение от фактического' = DATA NUMERIC[16,5](Sku,CollationSheet);
+accountDeltaQuantity 'Отклонение от фактического, количество' = DATA NUMERIC[16,5](Sku,CollationSheet);
+accountDeltaSum 'Отклонение от фактического, сумма' = DATA NUMERIC[18,4](Sku,CollationSheet);
 
 EXTEND FORM inventory
-    PROPERTIES (i,cs) READONLY accountDelta SHOWIF showAccountDelta(operation(in))
+    PROPERTIES (i,cs) READONLY accountDeltaQuantity, accountDeltaSum  SHOWIF showAccountDelta(operation(in))
 ;
 
 overRecalculateBalance(Inventory in) + {    
     FOR inventory(CollationSheet cs) == in  DO { 
-        accountDelta(Sku s,cs) <- NULL;       
+        accountDeltaQuantity(Sku s,cs) <- NULL;    
+        accountDeltaSum(Sku s,cs) <- NULL;    
         IF showAccountDelta(operation(in)) AND NOT isBatch(cs) AND NOT isPartly(in) THEN {
-            accountDelta(Sku s,cs) <- accountDelta(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDelta(s,stock(cs),prevDate(cs),date(in));          
+            accountDeltaQuantity(Sku s,cs) <- accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in));          
+            accountDeltaSum(Sku s,cs) <- accountDeltaSum(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaSum(s,stock(cs),prevDate(cs),date(in));          
         }                                 
     }    
 }
