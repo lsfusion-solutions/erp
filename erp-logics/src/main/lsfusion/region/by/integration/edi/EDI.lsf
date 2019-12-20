@@ -409,9 +409,15 @@ blrwbl = DATA STRING[14] (EInvoice);
 blrwblDate = DATA DATETIME (EInvoice);
 eInvoiceBlrwbl (number) = GROUP MAX EInvoice e BY blrwbl(e);
 
+dataReportId 'Номер акта' = DATA STRING[70] (EInvoice);
 reportId 'Номер акта' = DATA STRING[70] (EInvoice);
+overReportId 'Номер акта' (EInvoice e) = OVERRIDE dataReportId(e), reportId(e);
+dataReportDate 'Дата составления акта' = DATA DATE (EInvoice);
 reportDate 'Дата составления акта' = DATA DATE (EInvoice);
+overReportDate 'Дата составления акта' (EInvoice e) = OVERRIDE dataReportDate(e), reportDate(e);
+dataReportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 reportName 'Вид  акта' = DATA STRING[512] (EInvoice);
+overReportName 'Вид  акта' (EInvoice e) = OVERRIDE dataReportName(e), reportName(e);
 
 deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[28] (EInvoice) IN id;
 eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
@@ -618,7 +624,7 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(e) READONLYIF isReadonly() exportedSupplier, importedCustomer, exportedCustomer, importedSupplier, importedSupplierCancel, isCancel
     PROPERTIES(e) READONLY dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
                            nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
-    PROPERTIES(e) contactCustomerStock, reportId, reportDate, reportName
+    PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
         FILTER 'Не импортированы (покупатель)' NOT importedCustomer(e) 'F9'
