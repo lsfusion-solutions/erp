@@ -103,6 +103,10 @@ public class TerminalServer extends MonitorServer {
 
     @Override
     protected void onStarted(LifecycleEvent event) {
+        setupDaemon();
+    }
+
+    public void setupDaemon() {
         if (getDbManager().isServer()) {
             assert terminalHandlerInterface != null;
 
@@ -147,6 +151,11 @@ public class TerminalServer extends MonitorServer {
     private Thread listenThread;
     public void listenToPort(String host, Integer port) {
         try {
+            if (listenServerSocket != null)
+                listenServerSocket.close();
+            if(listenExecutorService != null)
+                listenExecutorService.shutdownNow();
+
             listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
             listenExecutorService = ExecutorFactory.createMonitorThreadService(100, this);
 
@@ -167,7 +176,7 @@ public class TerminalServer extends MonitorServer {
 
     public void startListenThread() {
         listenThread = new Thread(() -> {
-            while (!stopped) {
+            while (!stopped && !listenServerSocket.isClosed()) {
                 try {
                     Socket socket = listenServerSocket.accept();
                     socket.setSoTimeout(30000);
