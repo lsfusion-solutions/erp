@@ -4,22 +4,55 @@ import java.io.Serializable;
 
 public class ArtixSettings implements Serializable{
 
+    //Директория, в которую выгружаются файлы pos.aif, pos.flz (sendDiscountCardList, sendCashierInfoList).
+    //Если не задана, указанные методы не работают
     private String globalExchangeDirectory;
+
+    //Если true, то при отправке обрезаем контрольный символ штрихкода, при получении добавляем
     private boolean appendBarcode;
+
+    //Если задано, при приёме реализации обнаруживаем продажу сертификатов путём сравнения штрихкода с regexp
     private String giftCardRegexp;
+
+    //Если не задано, успешно принятые файлы реализации копируются в подпапку success
     private boolean disableCopyToSuccess;
+
+    //Если true, включается метод readCashDocuments
     private boolean readCashDocuments;
+
+    //Если true, в sendDiscountCardList выгружаются записи client
     private boolean exportClients;
+
+    //Если true, в sendTransaction выгружается искуственный товар для мягких чеков
     private boolean exportSoftCheckItem;
+
+    //Максимальное количество считываемых файлов реализации. Если не задано, берутся все найденные файлы
     private Integer maxFilesCount;
-    private boolean bonusesInDiscountPositions; //появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
-    private boolean giftCardPriceInCertificatePositions; //берём цену сертификата из certificatePositions (введено для Ostrov)
+
+    //Если true, появляется оплата "бонусами", надо считать сумму и % скидки вручную (введено для Fancy)
+    private boolean bonusesInDiscountPositions;
+
+    //Если true, цена сертификата берётся из certificatePositions (введено для Ostrov)
+    private boolean giftCardPriceInCertificatePositions;
+
+    //Если true, прочитанные непустые файлы без реализации и cashierTime не удаляются
     private boolean notDeleteEmptyFiles;
+
+    //Если задано, считаем указанное количество первых папок, пришедших с сервера, приоритетными, файлы из них берём
+    //в первую очередь. На сервере папки сортируются по priority 'Приоритет' = DATA INTEGER (GroupCashRegister); )
     private int priorityDirectoriesCount;
+
+    //Если true, отключается работа с мягкими чеками
     private boolean disableSoftCheck;
+
+    //Коды признака оплаты наличными через запятую. По умолчанию используется код 1
     private String cashPayments;
+    //Коды признака оплаты картой через запятую. По умолчанию используется код 4
     private String cardPayments;
+    //Коды признака оплаты подарочным сертификатом через запятую. По умолчанию используется код 6
     private String giftCardPayments;
+
+    //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 180 секунд
     private Integer timeout;
 
     public ArtixSettings() {
