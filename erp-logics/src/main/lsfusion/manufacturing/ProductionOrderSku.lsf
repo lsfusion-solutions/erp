@@ -31,3 +31,11 @@ fillNegativeBalanceProductDetail 'Заполнить изделия по ост�
         product(d) <- GROUP MAX Product p IF isActive(BOM(p)) AND in(BOM(p), productsStock(o)) AND sku(p) == sk;
     }
 }
+fillNegativeBalanceProductDetail 'Заполнить изделия по остаткам' (Order o, SkuGroup sg, DATE dt) { // на конец рабочего дня
+    FOR NUMERIC[16,5] q == (balanceA(Sku sk, productsStock(o), dt) (-) balanceB(sk, productsStock(o), dt)) AND q < 0 AND isParent(sg, sk) DO NEW d = ProductDetail {
+        order(d) <- o;
+        sku(d) <- sk;
+        quantity(d) <- abs(q);
+        product(d) <- GROUP MAX Product p IF isActive(BOM(p)) AND in(BOM(p), productsStock(o)) AND sku(p) == sk;
+    }
+}
