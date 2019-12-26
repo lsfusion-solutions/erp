@@ -68,7 +68,7 @@ public class MettlerToledoBPlusHandler extends MultithreadScalesHandler {
                 String pluNumber = item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
                 String price = String.valueOf((double) safeMultiply(item.price, 100).intValue() / 100).replace(".", ",");
                 String daysExpiry = item.daysExpiry != null ? String.valueOf(item.daysExpiry) : "";
-                String description = item.description != null ? item.description.replace("\n", "") : "";
+                String description = item.description != null ? item.description.replace("\n", "").replace(";", ",") : "";
 
                 bw.write(StringUtils.join(Arrays.asList(pluNumber, item.idBarcode, item.name, price, item.idUOM, item.idBarcode, daysExpiry, description).iterator(), ";"));
             }
