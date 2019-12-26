@@ -35,10 +35,10 @@ public class DigiSM5300Handler extends DigiHandler {
                 return null; //has no limits
             }
 
-            @Override
+            /*@Override
             protected String getPluNumberForPluRecord(ScalesItemInfo item) {
                 return item.idBarcode;
-            }
+            }*/
 
             protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
                 return super.clearFiles(socket, localErrors)
@@ -58,17 +58,18 @@ public class DigiSM5300Handler extends DigiHandler {
                     numberGroup = numberGroup == 0 ? 1 : numberGroup < 10 ? numberGroup : (numberGroup + 20);
                     String nameGroup = infoJSON.optString("nameGroup", "Group " + numberGroup);
                     String nameItem = infoJSON.optString("nameItem", item.name);
+                    Integer overPluNumber = infoJSON.optInt("overPluNumber", item.pluNumber);
 
-                    processTransactionLogger.info(String.format(getLogPrefix() + "Sending key assignment %s to scales %s", item.pluNumber, scales.port));
-                    int reply = sendRecord(socket, cmdWrite, fileKeyAssignment, makeKeyAssignmentRecord(item, numberGroup, nameGroup, nameItem, false));
+                    processTransactionLogger.info(String.format(getLogPrefix() + "Sending key assignment %s to scales %s", overPluNumber, scales.port));
+                    int reply = sendRecord(socket, cmdWrite, fileKeyAssignment, makeKeyAssignmentRecord(item, numberGroup, nameGroup, nameItem, overPluNumber, false));
                     if (reply == 0) {
-                        processTransactionLogger.info(String.format(getLogPrefix() + "Sending df %s to scales %s", item.pluNumber, scales.port));
-                        reply = sendRecord(socket, cmdWrite, fileDF, makeDFRecord(item));
+                        processTransactionLogger.info(String.format(getLogPrefix() + "Sending df %s to scales %s", overPluNumber, scales.port));
+                        reply = sendRecord(socket, cmdWrite, fileDF, makeDFRecord(item, overPluNumber));
                     }
                     if (reply == 0 && !usedGroups.contains(numberGroup)) {
                         usedGroups.add(numberGroup);
                         processTransactionLogger.info(String.format(getLogPrefix() + "Sending group assignment %s to scales %s", numberGroup, scales.port));
-                        reply = sendRecord(socket, cmdWrite, fileKeyAssignment, makeKeyAssignmentRecord(item, numberGroup, nameGroup, nameItem, true));
+                        reply = sendRecord(socket, cmdWrite, fileKeyAssignment, makeKeyAssignmentRecord(item, numberGroup, nameGroup, nameItem, overPluNumber, true));
                     }
                     if (reply != 0) {
                         logError(localErrors, String.format(getLogPrefix() + "Send key assignment %s to scales %s failed. Error: %s", plu, scales.port, reply));
@@ -79,20 +80,20 @@ public class DigiSM5300Handler extends DigiHandler {
                 }
             }
 
-            private byte[] makeKeyAssignmentRecord(ScalesItemInfo item, Integer numberGroup, String nameGroup, String nameItem, boolean isGroup) throws UnsupportedEncodingException {
+            private byte[] makeKeyAssignmentRecord(ScalesItemInfo item, Integer numberGroup, String nameGroup, String nameItem, Integer overPluNumber, boolean isGroup) throws UnsupportedEncodingException {
                 int length = 55;
                 ByteBuffer bytes = ByteBuffer.allocate(length);
                 bytes.order(ByteOrder.LITTLE_ENDIAN);
 
                 //PRESET NUMBER, 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(isGroup ? (10000 + numberGroup) : ((numberGroup - 1) * 1000 + item.pluNumber), 8)));
+                bytes.put(getHexBytes(fillLeadingZeroes(isGroup ? (10000 + numberGroup) : ((numberGroup - 1) * 1000 + overPluNumber), 8)));
 
                 //PRESET RECORD SIZE
                 bytes.put((byte) (length >>> 8));
                 bytes.put((byte) length);
 
                 //PRESET KEY SWITCH, 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(isGroup ? numberGroup : item.idBarcode, 8)));
+                bytes.put(getHexBytes(fillLeadingZeroes(isGroup ? numberGroup : getPluNumberForPluRecord(item)/*item.idBarcode*/, 8)));
 
                 //PRESET STATUS, 1 byte
                 bytes.put((byte) (isGroup ? 32 : 0));
@@ -109,20 +110,20 @@ public class DigiSM5300Handler extends DigiHandler {
                 return bytes.array();
             }
 
-            private byte[] makeDFRecord(ScalesItemInfo item) {
+            private byte[] makeDFRecord(ScalesItemInfo item, Integer overPluNumber) {
                 int length = 10;
                 ByteBuffer bytes = ByteBuffer.allocate(length);
                 bytes.order(ByteOrder.LITTLE_ENDIAN);
 
                 //CONTAINER  NO., 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(item.pluNumber, 8)));
+                bytes.put(getHexBytes(fillLeadingZeroes(overPluNumber, 8)));
 
                 //CONTAINER REC. SIZE
                 bytes.put((byte) (length >>> 8));
                 bytes.put((byte) length);
 
                 //PLU CODE, 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 8)));
+                bytes.put(getHexBytes(fillLeadingZeroes(getPluNumberForPluRecord(item)/*item.idBarcode*/, 8)));
 
                 return bytes.array();
             }
