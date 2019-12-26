@@ -116,7 +116,7 @@ public class DigiSM5300Handler extends DigiHandler {
                 bytes.order(ByteOrder.LITTLE_ENDIAN);
 
                 //CONTAINER  NO., 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(overPluNumber, 8)));
+                bytes.put(getHexBytes(fillLeadingZeroes(item.pluNumber, 8)));
 
                 //CONTAINER REC. SIZE
                 bytes.put((byte) (length >>> 8));
