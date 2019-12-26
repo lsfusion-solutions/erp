@@ -58,13 +58,21 @@ CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))
     AND inputSku(detail) AND sku(detail) 
     AND NOT (disparityItem(inputSku(detail))==sku(detail))
     CHECKED BY inputSku[DisparityDetail] MESSAGE 'Выбран не уцененный товар';   
-    
+
+childItem = GROUP MAX Item i IF active(i) BY disparityItem(i);
+countActiveItemDisparity (Item disparityItem) = GROUP SUM 1 IF disparityItem(Item item) == disparityItem AND active(item);
+
+WHEN LOCAL FORMS disparity SETCHANGED (sku(DisparityDetail d)) AND NOT CHANGED(inputSku(d)) AND useDisparityItemDisparity(operation(d))
+    AND childItem(sku(d)) AND countActiveItemDisparity(sku(d)) == 1 DO {
+    inputSku(d) <- childItem(sku(d));
+}
+
 EXTEND FORM operation
     PROPERTIES (o) useDisparityItemDisparity 
 ;
 
 DESIGN operation {
-    propertyContainer {
+    paramsContainer {
         MOVE PROPERTY(useDisparityItemDisparity(o));
     }
 }
