@@ -4,11 +4,13 @@ REQUIRE SaleInternetOrderInvoice, SaleReturnShipment;
 
 NAMESPACE SaleReturn;
 
+internetOrderDetail = ABSTRACT InternetOrderDetail (InvoiceDetail);
 internetOrderDetail = DATA InternetOrderDetail (UserInvoiceDetail);
+internetOrderDetail(UserInvoiceDetail detail) += internetOrderDetail(detail);
 userInvoiceDetailReturn = GROUP MAX UserInvoiceDetail d BY internetOrderDetail(d);
 
-relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d)), userInvoice(d);
-countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(UserInvoiceDetail d));
+relation = GROUP SUM 1 BY deliveryReport(internetOrderDetail(InvoiceDetail d)), invoice(d);
+countDeliveryReport = GROUP SUM 1 BY deliveryReport(internetOrderDetail(InvoiceDetail d));
 notDeliveryReport (DeliveryReport r)= returnQuantityInternetOrderDetail(r) AND NOT countDeliveryReport(r) ;
 
 overCreateReturnInvoice  ABSTRACT LIST ( UserInvoiceDetail);
