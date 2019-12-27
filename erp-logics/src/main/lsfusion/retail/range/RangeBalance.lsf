@@ -253,7 +253,9 @@ fillSku 'Заполнить данные'(RangeDocument d) {
             averageSumSold(Sku sk, ChainStores c, d) <- sumSold(sk,c) / daysOnStock(sk,c);
         }
         
-        daysOnRange(Sku sk, DepartmentStore ds, d) <- GROUP SUM 1 IF countRange(sk,ds,DATE date) IF iterate(date,df,dt) AND include(d,ds) AND include(d,sk);
+        FOR iterate(DATE date,df,dt) DO {
+            daysOnRange(Sku sk, DepartmentStore ds, d) <- daysOnRange(sk,ds,d) (+) 1 WHERE countRange(sk,ds,date) AND include(d,ds) AND include(d,sk);
+        }
         
         averageQuantitySold(Sku sk, DepartmentStore ds, d) <- quantitySold(sk,ds,d) / daysOnStock(sk,ds,d);
         averageMarkupSumSold(Sku sk, DepartmentStore ds, d) <- markupSumSold(sk,ds,d) / daysOnStock(sk,ds,d);
