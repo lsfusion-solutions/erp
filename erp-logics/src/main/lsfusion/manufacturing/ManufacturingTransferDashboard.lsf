@@ -129,6 +129,8 @@ DESIGN options {
         MOVE PROPERTY (calcFromSupplierPriceCatering());
     }
 }
+createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.Invoice, Purchase.UserInvoice);
+
 createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si)  { 
 	NEWSESSION {
 	    FOR invoice(Sale.InvoiceDetail sd)==si DO {
@@ -160,7 +162,8 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	            currency(pi) <- currency(si);
 	            operation(pi) <- cateringPurchaseOperation();
 	            showCatering(pi) <- TRUE;
-	    
+	            createManufacturingPurchaseSaleOver(si,pi);
+	            
 	            FOR invoice(Sale.InvoiceDetail sd) == si NEW pd = UserInvoiceDetail DO {
 	    
 	                userInvoice(pd) <- pi;

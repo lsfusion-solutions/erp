@@ -295,7 +295,8 @@ isCommission (PurchaseInvoice invoice) += isCommission(invoice(invoice));
 sku(PurchaseInvoiceDetail invoiceDetail) +=  sku(invoiceDetail);
 
 @defineDocumentAggregationDetailBatch(invoice, purchaseInvoice);
-batch(PurchaseInvoiceDetail invoiceDetail) += batch(invoiceDetail);
+overSkipBatch = ABSTRACT VALUE BOOLEAN (PurchaseInvoiceDetail);
+batch(PurchaseInvoiceDetail invoiceDetail) += batch(invoiceDetail) IF NOT overSkipBatch(invoiceDetail);
 
 quantity(PurchaseInvoiceDetail invoiceDetail) += quantity(invoiceDetail(invoiceDetail));
 priceListType(PurchaseInvoiceDetail invoiceDetail) += priceListType(invoiceDetail(invoiceDetail));
@@ -408,7 +409,7 @@ moveUserInvoice 'Накладная (закупка)'(Invoice invoice)   {
 	    }
 	}
 } TOOLBAR;
-
+//overSkipBatch(PurchaseInvoiceDetail d) += notUseBatchPurchaseInvoice(operation(invoiceDetail(d)));
 EXTEND FORM invoices
     PROPERTIES(i) moveUserInvoice
 ;
