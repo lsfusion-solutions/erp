@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static equ.clt.handler.HandlerUtils.*;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @SuppressWarnings("SqlDialectInspection")
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
@@ -1154,7 +1155,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     switch (recordType) {
                         case 0: {//товарная позиция
                             numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
-                            String idBarcode = rs.getString("SALESBARC");
+                            String idBarcode = trimToNull(rs.getString("SALESBARC"));
                             String idItem = String.valueOf(rs.getInt("SALESCODE"));
                             BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
                             BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
@@ -1211,7 +1212,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             curSalesInfoList = new ArrayList<>();
                             curRecordList = new ArrayList<>();
                             prologSum = rs.getBigDecimal("SALESSUM");
-                            idDiscountCard = BaseUtils.trimToNull(rs.getString("SALESBARC"));
+                            idDiscountCard = trimToNull(rs.getString("SALESBARC"));
 
                             if (isReturn) { //чек возврата
                                 String salesAttrs = rs.getString("SALESATTRS");
