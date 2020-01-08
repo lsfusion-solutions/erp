@@ -597,7 +597,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
+    public HTCSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
 
         HTCSettings htcSettings = springContext.containsBean("htcSettings") ? (HTCSettings) springContext.getBean("htcSettings") : null;
         boolean makeBackup = htcSettings == null || htcSettings.isMakeBackup();
@@ -879,8 +879,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         try {
             int checkSum = 0;
             for (int i = 0; i <= 10; i = i + 2) {
-                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+                checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+                checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
             }
             checkSum %= 10;
             if (checkSum != 0)
