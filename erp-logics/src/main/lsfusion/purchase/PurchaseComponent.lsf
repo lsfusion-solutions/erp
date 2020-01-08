@@ -64,6 +64,8 @@ shipmentComponentSum 'Сумма (компонент) (учетная)' = ABSTRA
 shipmentComponentSum 'Сумма (компонент) (учетная)' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9 TABLE shipmentUserComponent;
 shipmentComponentSum (UserInvoiceDetail d) += shipmentComponentSum(d);
 
+shipmentComponentSumUserInvoiceDetail 'Сумма (компонент) (учетная)' = GROUP SUM shipmentComponentSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
+
 //@deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, shipmentComponent, currency, shipmentComponentQuantity, homePriceRound){
 //    calcShipmentComponentSum = ABSTRACT VALUE NUMERIC[18,4] (UserInvoiceDetail);
 //    calcShipmentComponentSum(UserInvoiceDetail userInvoiceDetail) += NUMERIC[18,4](Utils.round(shipmentComponentQuantity(userInvoiceDetail) * shipmentComponentPrice(userInvoiceDetail), homePriceRound(userInvoiceDetail))); 
@@ -131,13 +133,13 @@ changeComponentSku(UserInvoiceDetail d)  {
 CONSTRAINT componentSku(UserInvoiceDetail d) AND NOT isComponentGroup(componentSku(d))
     CHECKED BY componentSku[UserInvoiceDetail] MESSAGE 'Выбран SKU, который не является компонентом';
 
+@defineOperationProperty(createComponent, 'Перевод ТМЦ', createContainer);    
 
 META defineComponentShipment(sign, stockProp, filter, NS)
     createComponent 'Создать перевод ТМЦ' = ABSTRACT BOOLEAN(Invoice);
     createComponent 'Создать перевод ТМЦ' = DATA BOOLEAN(UserInvoice) IN documentPrm;
     createComponent(UserInvoice invoice) += createComponent(invoice);
-    
-    @defineOperationProperty(createComponent, 'Перевод ТМЦ', createContainer);    
+        
     @deriveDocumentOperationProperty(UserInvoice, createComponent);
      
     CLASS ComponentShipment 'Поставка на основе накладной'###sign : Shipment;
@@ -227,6 +229,7 @@ backgroundComponent = RGB (204,204,153) IF TRUE;
 EXTEND FORM userInvoice
     PROPERTIES  createComponent(i) BACKGROUND backgroundComponent()
     PROPERTIES BACKGROUND backgroundComponent() SHOWIF createComponent(i) sDate = shipmentDate(i), sTime = shipmentTime(i)
+    PROPERTIES BACKGROUND backgroundShipped(i) SHOWIF createComponent(i) shipmentComponentSumUserInvoiceDetail(i)
     OBJECTS dcd = UserInvoiceDetail
     PROPERTIES (dcd) READONLY index, idBarcodeSku, idSku, shortNameUOMSku,nameSku, quantity, price
     PROPERTIES(dcd) BACKGROUND backgroundComponent() componentIdBarcodeSku ON CHANGE changeComponentSku(dcd), 
@@ -251,18 +254,18 @@ DESIGN userInvoice {
                 type = CONTAINERV;
                 caption = 'Перевод ТМЦ';
                 showIf = createComponent(i);
-//                NEW headerCreatePricing {                    
-//                    type = COLUMNS;
-//                    columns = 4;                   
-//                    
-//                }
                 MOVE BOX(dcd);
             }
         }  
+        PROPERTY(shipmentComponentSumUserInvoiceDetail(i)) { charWidth = 13;}      
 }
 
-
-    
+EXTEND FORM invoices
+    PROPERTIES(d) SHOWIF createComponent(i) BACKGROUND backgroundComponent() componentIdBarcodeSku, 
+                    componentIdSku  , componentNameSku , 
+                    coeffComponent, componentQuantity, componentPrice, componentSum
+    PROPERTIES(d) SHOWIF createComponent(i) BACKGROUND backgroundShipped(i) shipmentComponentQuantity, shipmentComponentPrice, shipmentComponentSum
+;   
     
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
@@ -293,3 +296,17 @@ show[PriceListLedger] (ComponentShipmentDetail ledger) + { show(ledger);};
 
 in (ComponentShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN componentPrice(invoiceDetail(ledger)) AND sku(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
 price (ComponentShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN componentPrice(invoiceDetail(ledger)) AND sku(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN componentPrice(invoiceDetail(ledger));
+
+skipCreateComponent 'Не проверять Перевод ТМЦ' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () skipCreateComponent
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (skipCreateComponent());
+    }
+}
+
+CONSTRAINT (CHANGED (isPosted(UserInvoiceDetail d)) OR  CHANGED(createComponent(userInvoice(d)))) AND isPosted(d) AND createComponent(userInvoice(d)) AND isStock(sku(d))
+    AND NOT (componentSku(d) AND coeffComponent(d)) AND NOT skipCreateComponent()
+        MESSAGE 'Для документа "Перевод ТМЦ" должен быть задан компонент и коэффициент';

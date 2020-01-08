@@ -1,0 +1,209 @@
+MODULE PurchaseReturnComponent;
+
+REQUIRE PurchaseReturnShipment, PurchaseComponent;
+PRIORITY Purchase;
+NAMESPACE PurchaseReturn;
+
+//--------------------- Перевод ТМЦ в компоненты ------------------//
+
+
+TABLE shipmentUserComponent (UserInvoiceDetail);
+TABLE shipmentComponent (InvoiceDetail);
+
+componentSku = ABSTRACT Sku (InvoiceDetail);
+componentSku = DATA Sku (UserInvoiceDetail) INDEXED TABLE shipmentUserComponent;
+componentSku(UserInvoiceDetail d) += componentSku(d);
+
+componentBatch = ABSTRACT Batch(InvoiceDetail);
+componentBatch = DATA Batch (UserInvoiceDetail) INDEXED TABLE shipmentUserComponent;
+componentBatch(UserInvoiceDetail d) += componentBatch(d);
+nameComponentBatch 'Партия' (UserInvoiceDetail invoiceDetail) = name(componentBatch(invoiceDetail)) CHARWIDTH 20;
+nameComponentBatch 'Партия' (InvoiceDetail invoiceDetail) = name(componentBatch(invoiceDetail)) CHARWIDTH 20;
+
+CONSTRAINT sku(componentBatch(UserInvoiceDetail userInvoiceDetail)) != componentSku(userInvoiceDetail) CHECKED BY componentBatch[UserInvoiceDetail]
+    MESSAGE 'Товар партии строки должен соответствовать SKU строки';
+
+CONSTRAINT componentBatch(UserInvoiceDetail userInvoiceDetail) AND NOT componentSku(userInvoiceDetail) CHECKED BY componentBatch[UserInvoiceDetail]
+    MESSAGE 'Для строки задана партия, но не задан товар';
+    
+overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {       
+    componentBatch(d) <- componentBatch(detail);
+}  
+overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {       
+    componentBatch(d) <- componentBatch(detail);
+}
+
+componentIdSku 'Код (компонент)' (UserInvoiceDetail userInvoiceDetail) = id(componentSku(userInvoiceDetail));
+componentNameSku 'Наименование (компонент)' (UserInvoiceDetail userInvoiceDetail) = name(componentSku(userInvoiceDetail)) IN id  CHARWIDTH 40;
+componentShortNameUOMSku 'Ед. изм. (компонент)' = shortNameUOM(componentSku(UserInvoiceDetail userInvoiceDetail)) IN id;
+componentIdBarcodeSku 'Штрихкод (компонент)' (UserInvoiceDetail userInvoiceDetail) = idBarcode(componentSku(userInvoiceDetail)) IN id;
+componentNameCountrySku 'Страна (компонент)' (UserInvoiceDetail userInvoiceDetail) = nameCountry(componentSku(userInvoiceDetail));
+replace(Sku s, Sku d) + { componentSku(UserInvoiceDetail userInvoiceDetail) <- d WHERE componentSku(userInvoiceDetail) == s;}
+shortNameUOMComponentSku 'Ед. изм. (компонент)' = shortNameUOM(componentSku(UserInvoiceDetail userInvoiceDetail));
+    
+coeffComponent 'Коэфф. (компонент)' = ABSTRACT NUMERIC[10,5](InvoiceDetail);
+coeffComponent 'Коэфф. (компонент)' = DATA NUMERIC[10,5](UserInvoiceDetail) TABLE shipmentUserComponent;
+coeffComponent (UserInvoiceDetail d) += coeffComponent(d);
+
+componentPrice 'Цена (компонент)' = DATA NUMERIC[16,4](UserInvoiceDetail) TABLE shipmentUserComponent;
+componentPrice (UserInvoiceDetail d) <- IF roundConditionComponent() THEN NUMERIC[16,4](round((price(d) / coeffComponent(d)),roundConditionComponent()))
+                                                                    ELSE NUMERIC[16,4](price(d) / coeffComponent(d))
+                WHEN DO CHANGED(price(d)) OR CHANGED (coeffComponent(d));
+                    
+componentSum 'Сумма (компонент)' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE shipmentUserComponent;
+componentQuantity '{document.quantity.of} (компонент)' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7 TABLE shipmentUserComponent;
+componentQuantity (UserInvoiceDetail d) <- NUMERIC[16,5](quantity(d) * coeffComponent(d))
+                WHEN DO CHANGED(quantity(d)) OR CHANGED (coeffComponent(d));
+
+@deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, component, currency, componentQuantity, priceRound);
+shipmentComponentPrice 'Цена (компонент) (учетная)' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7;
+shipmentComponentPrice 'Цена (компонент) (учетная)' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7 TABLE shipmentUserComponent;
+shipmentComponentPrice(UserInvoiceDetail d) += shipmentComponentPrice(d);
+
+shipmentComponentQuantity 'Количество (компонент) (поставлено)' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7;
+shipmentComponentQuantity 'Количество (компонент) (поставлено)' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7 TABLE shipmentUserComponent;
+shipmentComponentQuantity(UserInvoiceDetail d) += shipmentComponentQuantity(d);
+
+shipmentComponentSum 'Сумма (компонент) (учетная)' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9;
+shipmentComponentSum 'Сумма (компонент) (учетная)' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9 TABLE shipmentUserComponent;
+shipmentComponentSum (UserInvoiceDetail d) += shipmentComponentSum(d);
+shipmentComponentSumUserInvoiceDetail 'Сумма (компонент) (учетная)' = GROUP SUM shipmentComponentSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
+
+calcShipmentComponentSum = ABSTRACT VALUE NUMERIC[18,4] (UserInvoiceDetail);
+calcShipmentComponentSum(UserInvoiceDetail userInvoiceDetail) += NUMERIC[18,4](Utils.round(componentQuantity(userInvoiceDetail) * shipmentComponentPrice(userInvoiceDetail), homePriceRound(userInvoiceDetail))); 
+shipmentComponentSum (UserInvoiceDetail userInvoiceDetail) <- calcShipmentComponentSum(userInvoiceDetail)
+                WHEN DO CHANGED(componentQuantity(userInvoiceDetail)) OR CHANGED (shipmentComponentPrice(userInvoiceDetail)) OR CHANGED(currency(userInvoiceDetail));
+                
+
+FORM skusTransferNew 'Sku'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    FILTERGROUP component FILTER 'Сырье' filterComponent(sg) 'shift F5' DEFAULT
+    ORDER order(sg), skuGroupName
+     
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    PROPERTIES() addSku DRAW s
+    PROPERTIES(s) EDIT NEWSESSION, copy
+    FILTERS isParent(sg, s),
+            name(s)
+    ORDER name(s)
+
+;
+
+DESIGN skusTransferNew {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            fill = 1;
+            type = SPLITH;
+
+            MOVE BOX(TREE skuTree);
+
+            MOVE BOX(s) {
+                fill = 4;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+changeComponentSku(UserInvoiceDetail d)  { 
+    DIALOG skusTransferNew OBJECTS s = componentSku(d) CHANGE;
+}
+CONSTRAINT componentSku(UserInvoiceDetail d) AND NOT isComponentGroup(componentSku(d))
+    CHECKED BY componentSku[UserInvoiceDetail] MESSAGE 'Выбран SKU, который не является компонентом';
+
+@defineComponentShipment(' (закупка компонент)', customerStock, company, PurchaseReturn);
+operation(ComponentShipment shipment) += operation(invoice(shipment));
+backgroundComponent = RGB (204,204,153) IF TRUE;
+
+EXTEND FORM userInvoice
+    PROPERTIES  createComponent(i) BACKGROUND backgroundComponent()
+    PROPERTIES BACKGROUND backgroundComponent() SHOWIF createComponent(i) sDate = shipmentDate(i), sTime = shipmentTime(i)
+    PROPERTIES BACKGROUND backgroundShipped(i) SHOWIF createComponent(i) shipmentComponentSumUserInvoiceDetail(i)
+        
+    OBJECTS dcd = UserInvoiceDetail
+    PROPERTIES (dcd) READONLY index, idBarcodeSku, idSku, shortNameUOMSku,nameSku, quantity, price
+    PROPERTIES(dcd) BACKGROUND backgroundComponent() componentIdBarcodeSku ON CHANGE changeComponentSku(dcd), 
+                    componentIdSku  ON CHANGE changeComponentSku(dcd), componentNameSku ON CHANGE changeComponentSku(dcd), 
+                    nameComponentBatch, coeffComponent, componentQuantity, componentPrice, componentSum
+    PROPERTIES(dcd) BACKGROUND backgroundShipped(i) shipmentComponentQuantity, shipmentComponentPrice, shipmentComponentSum
+    //PROPERTIES (i) fillComponentParams DRAW dcd
+    FILTERS userInvoice(dcd)==i
+;
+DESIGN userInvoice {
+        headerCreateDocuments {
+            NEW createHeaderComponent {
+                caption = 'Перевод ТМЦ';
+                MOVE PROPERTY(createComponent(i));
+                MOVE PROPERTY(sDate);
+                MOVE PROPERTY(sTime);                
+            }
+        }
+        specificationBox {
+            NEW component {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Перевод ТМЦ';
+                showIf = createComponent(i);
+                MOVE BOX(dcd);
+            }
+        }  
+        PROPERTY(shipmentComponentSumUserInvoiceDetail(i)) { charWidth = 13;}          
+}
+
+
+EXTEND FORM invoices
+    PROPERTIES(d) SHOWIF createComponent(i) BACKGROUND backgroundComponent() componentIdBarcodeSku, 
+                    componentIdSku  , componentNameSku , 
+                    coeffComponent, componentQuantity, componentPrice, componentSum
+    PROPERTIES(d) SHOWIF createComponent(i) BACKGROUND backgroundShipped(i) shipmentComponentQuantity, shipmentComponentPrice, shipmentComponentSum
+;       
+    
+// ------------------------------- Расчет учетной цены для поставки ------------------------ //
+    
+skipChangedShipmentComponentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
+shipmentComponentQuantity(UserInvoiceDetail detail) <- componentQuantity(detail) IF createComponent(detail)
+    WHEN (CHANGED(componentQuantity(detail)) OR CHANGED(createComponent(detail))) AND NOT skipChangedShipmentComponentQuantity(detail);
+    
+skipFillBatch (InvoiceDetail d) += WHEN createComponent(invoice(d))  THEN TRUE;
+
+fillComponentParams 'Заполнить компоненты по приходу' (UserInvoice i) {
+    FOR userInvoice(UserInvoiceDetail d)==i DO {
+        componentSku(d) <- componentSku[Purchase.InvoiceDetail](invoiceDetail(d));    
+        coeffComponent(d) <- coeffComponent[Purchase.InvoiceDetail](invoiceDetail(d));
+        componentBatch(d) <- shipmentBatch(componentShipmentDetail(invoiceDetail(d)));
+    }
+} TOOLBAR;
+
+WHEN LOCAL FORMS userInvoice (CHANGED(invoiceDetail(UserInvoiceDetail d)) OR CHANGED(createComponent(userInvoice(d)))) DO {
+    componentSku(d) <- componentSku[Purchase.InvoiceDetail](invoiceDetail(d)) IF createComponent(userInvoice(d));    
+    coeffComponent(d) <- coeffComponent[Purchase.InvoiceDetail](invoiceDetail(d)) IF createComponent(userInvoice(d));
+    componentBatch(d) <- shipmentBatch(componentShipmentDetail(invoiceDetail(d))) IF createComponent(userInvoice(d));
+
+}
+
+// Цены учетные
+WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail d)) OR
+            (CHANGED(dateTime(d)) AND NOT isPosted(d)) OR
+            SETCHANGED(componentBatch(d))) AND componentBatch(d) AND NOT CHANGED(shipmentComponentPrice(d)) DO
+    shipmentComponentPrice(d) <- (OVERRIDE prevAccountPriceB(componentBatch(d), customerStock(d), dateTime(d)),
+                                  shipmentComponentPrice[Purchase.InvoiceDetail](invoiceDetail(d))) IF createComponent(userInvoice(d));
+
+
+CONSTRAINT (CHANGED (isPosted(UserInvoiceDetail d)) OR  CHANGED(createComponent(userInvoice(d)))) AND isPosted(d) AND createComponent(userInvoice(d)) AND isStock(sku(d))
+    AND NOT (componentSku(d) AND coeffComponent(d) AND componentBatch(d)) AND NOT skipCreateComponent()
+        MESSAGE 'Для документа "Перевод ТМЦ" должна быть задана партия (компонент), компонент и коэффициент';
+    
+EXTEND FORM userInvoice
+    PROPERTIES (i) fillComponentParams DRAW dcd
+;
+
+disableShowBatch(Invoice i) += createComponent(i);
