@@ -41,9 +41,11 @@ changeWastageCold(Component c)  {
         bruttoQuantity(c) <- round(NUMERIC[16,5](nettoQuantity(c)/(1 - (OVERRIDE n/100.0 IF c IS Component))),roundBrutto()); 
     }
 }
+skipShowColdHeat = ABSTRACT BOOLEAN (BOM);
+showColdHeat (BOM b) = b IS BOM AND NOT skipShowColdHeat(b);
 
 EXTEND FORM BOM
-    PROPERTIES (c) AFTER wastage(c) wastageCold ON CHANGE changeWastageCold(c), wastageHeat ON CHANGE changeWastageHeat(c)
+    PROPERTIES (c) SHOWIF showColdHeat(b) AFTER wastage(c) wastageCold ON CHANGE changeWastageCold(c), wastageHeat ON CHANGE changeWastageHeat(c)
 ;
 overCopy( Component to, Component from) +{
     wastageHeat(to) <- wastageHeat(from);
