@@ -171,7 +171,7 @@ abstract class ExportSQLAction extends InternalAction {
                     ERPLoggers.importLogger.info("ExportSQL: execute batch");
                     ps.executeBatch();
                     ERPLoggers.importLogger.info("ExportSQL: commit");
-                    //conn.commit();
+                    conn.commit();
                     ERPLoggers.importLogger.info("ExportSQL: finished");
                 }
             }
