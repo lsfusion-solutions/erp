@@ -113,7 +113,7 @@ abstract class ExportSQLAction extends InternalAction {
                     String params = "";
                     for (String columnName : columnNames) {
                         columns += (columns.isEmpty() ? "" : ",") + columnName;
-                        if(!keyColumns.contains(columnName))
+                        if(!noInsert || !keyColumns.contains(columnName))
                             set += (set.isEmpty() ? "" : ",") + columnName + "=?";
                         params += (params.isEmpty() ? "" : ",") + "?";
                     }
@@ -152,14 +152,19 @@ abstract class ExportSQLAction extends InternalAction {
                             List<Object> row = rows.get(k);
                             Map<String, Object> keysRow = keysRows.get(k);
                             int i;
+                            int diff = 0;
                             for (i = 0; i < paramLength; i++) {
-                                Object value = row.get(i);
-                                setObject(ps, i + 1, value);
-                                if (!noInsert)
-                                    setObject(ps, i + paramLength + keyColumns.size() + 1, value);
+                                if(!noInsert || !keyColumns.contains(columnNames.get(i))) {
+                                    Object value = row.get(i);
+                                    setObject(ps, i - diff + 1, value);
+                                    if (!noInsert)
+                                        setObject(ps, i - diff + paramLength + keyColumns.size() + 1, value);
+                                } else {
+                                    diff++;
+                                }
                             }
                             for (int j = 0; j < keyColumns.size(); j++) {
-                                setObject(ps, i + j + 1, keysRow.get(keyColumns.get(j)));
+                                setObject(ps, i - diff + j + 1, keysRow.get(keyColumns.get(j)));
                             }
                             ps.addBatch();
                             if(batchSize != null && batchSize > 0 && count == batchSize) {
