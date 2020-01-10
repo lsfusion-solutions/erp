@@ -1,0 +1,257 @@
+MODULE Segmentation;
+
+REQUIRE Store, SaleLedger, Utils, Sku, PriceList, Item;
+
+//////////////////////Отчет ////////////////////////////
+CLASS Segmentation 'Ценовое сегментирование';
+
+@defineDocumentHeaderTime(Segmentation);
+@defineDocumentHeaderNote(Segmentation);
+@defineDocumentHeaderCreated(Segmentation);
+@deriveDocumentHeaderTimePrefix(Segmentation, );
+
+description '{document.description.object}' (Segmentation o) =
+        STRING[200](CONCAT ' ', 'Ценовое сегментирование', '{document.desription.of} ' + date(o)) CHARWIDTH 30;
+
+startTime 'Время начала формирования' = DATA DATETIME (Segmentation) IN created;
+finishTime 'Время окончания формирования' = DATA DATETIME (Segmentation) IN created;
+
+graduationFrom 'от %' = DATA NUMERIC[6,0] (PriceSegment, Segmentation);
+graduationTo 'до %' = DATA NUMERIC[6,0] (PriceSegment, Segmentation);
+
+groupType 'Тип классификатора SKU' = DATA GroupType (Segmentation);
+
+nameGroupType 'Тип классификатора SKU' (Segmentation s) = name(groupType(s)) CHARWIDTH 10;
+
+levelGroup 'Уровень групп товаров' = DATA LONG (Segmentation);
+     
+dataInclude 'Вкл' = DATA BOOLEAN (Segmentation, SkuGroup);
+
+levelParentInclude (Segmentation segmentation, SkuGroup skuGroup) = GROUP
+                                                              MIN level(skuGroup, SkuGroup parent) IF dataInclude(segmentation, parent) MATERIALIZED;    
+nearestParentInclude (Segmentation segmentation, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(segmentation, skuGroup));
+nearestInclude (Segmentation segmentation, SkuGroup skuGroup) = dataInclude(segmentation, nearestParentInclude (segmentation, skuGroup));
+
+include 'Вкл' (Segmentation segmentation, SkuGroup skuGroup) =
+    (OVERRIDE dataInclude(segmentation, skuGroup), 
+             nearestInclude (segmentation, skuGroup)) AND groupType(skuGroup) = groupType(segmentation) MATERIALIZED;    
+                      
+include 'Вкл' (Segmentation segmentation, Sku sku) = include(segmentation, skuGroup(sku));  
+                    
+countIncludeSku 'Вкл' (Segmentation segmentation) = GROUP SUM 1 IF include(segmentation, Sku sku);                    
+
+nameIncludeSkuGroups 'Группы товаров (все)' (Segmentation document)= 
+    GROUP 
+    CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', ' 
+    ORDER skuGroup
+    CHARWIDTH 20;   
+
+deleteIncludeSkuGroups 'Сбросить отмеченные'(Segmentation r)  { 
+    dataInclude(r,SkuGroup g) <- NULL;
+};
+
+//------------------------------ Sku -------------------------------//
+priceIncludeVAT 'ЦО с НДС' = DATA NUMERIC[16,4] (Sku, Segmentation);
+priceIncludeVAT2 'ЦО с НДС' = DATA NUMERIC[16,4] (Sku, Segmentation);
+
+priceForUnitWeight 'Цена за 1 кг' (Sku sku, Segmentation ps) = NUMERIC[16,2](priceIncludeVAT(sku, ps) / netWeight(sku) IF netWeight(sku));       
+
+supplierName 'Поставщик' = DATA STRING (Sku, Segmentation);
+//------------------------------ Итоги по группе товаров указанного уровня -------------------------------//
+averagePrice 'Средняя цена' = DATA NUMERIC[18,2] (Group, Segmentation);
+
+averagePrice 'Средняя цена' (Sku sku, Segmentation pr) = GROUP LAST averagePrice[Group, Segmentation](Group group, pr) IF isParent(group, sku);
+
+percentage 'Отклонение %' = DATA NUMERIC[6,0] (Sku, Segmentation);
+
+priceSegment 'Сегмент' (Sku sku, Segmentation segmentation) = GROUP LAST PriceSegment priceSegment 
+    IF percentage(sku, segmentation) >= graduationFrom(priceSegment, segmentation) AND NOT percentage(sku, segmentation) >= graduationTo(priceSegment, segmentation);     
+
+namePriceSegment 'Сегмент' (Sku sku, Segmentation segmentation) = name(priceSegment(sku, segmentation));
+
+backgroundSegment(Sku sku, Segmentation pr) = RGB(255, 255, 255);
+//   CASE 
+//    WHEN  percentage(sku, pr) > percD(pr) THEN RGB(204, 255, 204)
+//    WHEN  percentage(sku, pr) > percC(pr) THEN RGB(204, 255, 204)
+//    WHEN  percentage(sku, pr) > percB(pr) THEN RGB(255, 250, 205)
+//    WHEN  percentage(sku, pr) > percA(pr) THEN RGB(255, 238, 238)
+//    ;  
+
+//------------------------------- ACTION -------------------------------//   
+status 'Статус отчета' (Segmentation segmentation) = CASE
+                                          WHEN finishTime(segmentation) THEN 'Сформирован'
+                                          WHEN segmentation IS Segmentation THEN 'Не сформирован'
+                                          CHARWIDTH 10
+                                      ;
+backgroundStatus 'Цвет' (Segmentation segmentation) =  CASE                                             
+                                          WHEN finishTime(segmentation) THEN RGB(212,255,212)
+                                          WHEN segmentation IS Segmentation THEN RGB(255,200,216)
+                                      ;
+                                     
+takeFromToOver  ABSTRACT LIST (Segmentation);
+takeFromToReturn  ABSTRACT LIST (Segmentation);
+
+priceWithoutVAT 'ЦО без НДС' (Sku sku, Segmentation segmentation) = round2( priceIncludeVAT(sku,  segmentation) / (1 + valueVAT(sku)/100) );
+
+priceIncludeVATDelta(Sku sku, Segmentation segmentation) = priceIncludeVAT(sku, segmentation) - priceIncludeVAT2(sku, segmentation); 
+
+stop = DATA LOCAL NESTED BOOLEAN (Segmentation);
+
+saveToSku 'Записать сегменты в SKU' (Segmentation segmentation)   {
+    priceSegment(Sku sku) <- priceSegment(sku, segmentation) WHERE include(segmentation,sku);    
+}
+
+takeData 'Сформировать отчет' (Segmentation segmentation)   { 
+    stop(segmentation) <- NULL;
+    startTime(segmentation) <- currentDateTime();  
+        
+    IF NOT (countIncludeSku(segmentation)) THEN {      
+        MESSAGE 'Не выбраны группы товаров для отчета !' NOWAIT ;
+        stop(segmentation) <- TRUE;
+    }        
+
+    priceIncludeVAT(Sku sku, segmentation) <- NULL;
+    percentage(Sku sku, segmentation) <- NULL;
+    supplierName(Sku sku,  segmentation) <- NULL;
+    
+    APPLY;
+    IF canceled() THEN RETURN;
+    
+    LOCAL priceDetail = PriceListDetail (Sku, Segmentation);   
+    priceDetail(Sku sku,  segmentation) <- GROUP LAST  PriceListDetail priceDetail 
+    IF include(segmentation, sku) AND sku(priceDetail) = sku AND isPosted(priceDetail) AND fromDate(priceDetail) <= date(segmentation) AND NOT toDate(priceDetail) < date(segmentation) ORDER price(priceDetail,dataPriceListType('supplier') ), priceDetail ; 
+       
+    priceIncludeVAT(Sku sku,  segmentation) <- price(priceDetail(sku, segmentation), dataPriceListType('supplier'));
+    supplierName(Sku sku,  segmentation) <- nameCompany(priceDetail(sku, segmentation));   
+    
+    LOCAL sumPriceSku = NUMERIC[18,4] (Group, Segmentation);
+    LOCAL quantSku = NUMERIC[18,4] (Group, Segmentation);
+    
+    sumPriceSku (Group group, segmentation) <- GROUP SUM priceIncludeVAT(Sku sk, segmentation) IF groupRoot(group(groupType(segmentation), sk), levelGroup(segmentation)) = group;
+  
+    quantSku (Group group, segmentation) <- GROUP SUM 1 IF priceIncludeVAT(Sku sk, segmentation) IF groupRoot(group(groupType(segmentation), sk), levelGroup(segmentation)) = group;
+    
+    averagePrice (Group group, segmentation) <- NUMERIC[18,2](sumPriceSku (group, segmentation) / quantSku (group, segmentation) IF quantSku (group, segmentation));     
+    
+    percentage(Sku sku,  segmentation) <- NUMERIC[6,0](priceIncludeVAT(sku, segmentation) / averagePrice(sku, segmentation) * 100) ;   
+    
+    finishTime(segmentation) <- currentDateTime();          
+};
+
+FORM segmentation 'Ценовая сегментация'                                   
+    OBJECTS r = Segmentation PANEL
+    PROPERTIES (r) date, time,
+                   note,  
+                   nameGroupType, levelGroup                  
+          
+    OBJECTS ps = PriceSegment
+    PROPERTIES name(ps), graduationFrom(ps, r), graduationTo(ps, r)     
+    ORDER graduationFrom(ps, r)
+          
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY name(sk), averagePrice(sk, r)
+    PROPERTIES include(r,sk)
+    ORDER name(sk)
+    FILTERS groupType(sk)==groupType(r)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk) 'F5' DEFAULT   
+    PROPERTIES deleteIncludeSkuGroups(r) TOOLBAR      
+   
+    OBJECTS s=Sku
+    FILTERS isParent(sk, s)
+    FILTERS priceForUnitWeight(s,r)
+    PROPERTIES READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), netWeight(s), supplierName(s,r) 
+    PROPERTIES READONLY priceWithoutVAT(s,r), valueVAT(s), priceIncludeVAT(s,r), priceForUnitWeight(s,r), percentage(s,r) BACKGROUND backgroundSegment(s,r), namePriceSegment(s,r) BACKGROUND backgroundSegment(s,r)
+ //   PROPERTIES READONLY priceIncludeVAT2(s,r), priceIncludeVATDelta(s,r)  
+    EDIT Segmentation OBJECT r
+    PROPERTIES(r) takeData, saveToSku    
+;
+
+
+DESIGN segmentation {
+    BOX {
+//        size = (1024, 768);
+        NEW top {
+            //fill =1;
+            type = CONTAINERH;
+            NEW col1 {
+                MOVE BOX(r) {
+                    type = CONTAINERH;
+                    MOVE GROUP(documentHeader,r);
+                };
+                NEW paramContainer {
+                    NEW row1 {
+                        type = CONTAINERH; 
+                        caption = 'Параметры';
+                        MOVE PROPERTY(nameGroupType(r));
+                        MOVE PROPERTY(levelGroup(r));
+                    }
+                    MOVE GROUP(documentPrm,r);                                      
+                }
+            }    
+            NEW col2 {    
+                fill = 1;
+                size = (200, 100);
+                MOVE BOX(ps);
+                MOVE PROPERTY(graduationFrom(ps, r));
+                MOVE PROPERTY(graduationTo(ps, r));
+                REMOVE TOOLBARBOX(ps);
+            }
+            NEW col3 {
+                MOVE PROPERTY (takeData(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 24';  }
+                MOVE PROPERTY (saveToSku(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 24';  }           
+            }
+        }    
+        NEW resultContainer {    
+                fill = 5;
+                NEW select{              
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE BOX(TREE skuTree) { 
+                        fill = 1; 
+                        caption = 'Выбор групп'; 
+                        TOOLBARBOX(TREE skuTree) {
+                            MOVE PROPERTY (deleteIncludeSkuGroups(r));
+                        }
+                    }   
+                    MOVE BOX(s) {
+                        fill = 3;
+                        caption = 'Товары';
+                        PROPERTY(priceWithoutVAT(s,r)) { pattern = '#0.00'; }
+                        PROPERTY(priceIncludeVAT(s,r)) { pattern = '#0.00'; }
+                        PROPERTY(priceForUnitWeight(s,r)) { pattern = '#0.00'; }                        
+                        PROPERTY(percentage(s,r)) { pattern = '#0'; }
+                    }
+                }                   
+        }         
+        MOVE TOOLBARBOX;
+    }
+}
+
+FORM segmentations 'Ценовая сегментация'
+    OBJECTS r = Segmentation LAST 
+    PROPERTIES (r) READONLY date, time,
+                   status BACKGROUND backgroundStatus(r), 
+                   startTime, finishTime, note,  nameIncludeSkuGroups,
+                   nameGroupType, levelGroup
+                   
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE   
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer   
+                         
+    LIST Segmentation OBJECT r
+;
+
+DESIGN segmentations {
+    BOX {
+        size = (1024, 768);
+        MOVE BOX(r);
+        MOVE GROUP(created,r); 
+        MOVE TOOLBARBOX;
+    }    
+} 
+
+NAVIGATOR {
+    priceListReport {
+        NEW segmentations;
+    }
+}
+
