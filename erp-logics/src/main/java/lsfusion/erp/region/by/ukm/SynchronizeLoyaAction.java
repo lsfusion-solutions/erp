@@ -86,7 +86,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         }
     }
 
-    private List<Brand> readBrands(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Brand> readBrands(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Brand> result = new ArrayList<>();
 
         KeyExpr brandExpr = new KeyExpr("Brand");
@@ -112,7 +112,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private List<Category> readCategories(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Category> readCategories(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Category> result = new ArrayList<>();
         Map<Long, Category> itemGroupMap = new HashMap<>();
 
@@ -296,7 +296,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private boolean uploadItemGroups(ExecutionContext context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
+    private boolean uploadItemGroups(ExecutionContext<ClassPropertyInterface> context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap, Map<DataObject, GoodGroup> itemGroupsMap,
                                      Map<DataObject, Long> deleteItemGroupsMap) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean succeeded = true;
         for (Map.Entry<DataObject, GoodGroup> entry : itemGroupsMap.entrySet()) {
@@ -316,10 +316,10 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    private String uploadItemGroup(ExecutionContext context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap,
+    private String uploadItemGroup(ExecutionContext<ClassPropertyInterface> context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap,
                                     GoodGroup goodGroup, DataObject itemGroupObject)
             throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        ERPLoggers.importLogger.info("Loya: synchronizing goodGroup " + goodGroup.id + " started");
+        ERPLoggers.importLogger.info(String.format("Loya: synchronizing goodGroup %s (%s) started", goodGroup.id, goodGroup.name));
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
         if(!goodGroup.forceNew) {
@@ -346,7 +346,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         }
     }
 
-    private boolean existsItemGroup(ExecutionContext context, Long idItemGroup) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean existsItemGroup(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -355,7 +355,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return executeRequestWithRelogin(context, getRequest).succeeded;
     }
 
-    private String modifyItemGroup(ExecutionContext context, Long idItemGroup, DataObject itemGroupObject, JSONObject requestBody)
+    private String modifyItemGroup(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup, DataObject itemGroupObject, JSONObject requestBody)
             throws IOException, JSONException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         String result = null;
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
@@ -377,7 +377,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private Object createItemGroup(ExecutionContext context, DataObject itemGroupObject, String url, JSONObject requestBody)
+    private Object createItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, String url, JSONObject requestBody)
             throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
         String requestURL = url + "goodgroup";
         if(settings.logRequests) {
@@ -392,14 +392,14 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? new JSONObject(response.message).getLong("id") : response.message;
     }
 
-    private void setIdLoyaItemGroup(ExecutionContext context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void setIdLoyaItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, Long id) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("id[LoyaItemGroup]").change(id, newContext, itemGroupObject);
             newContext.apply();
         }
     }
 
-    private String deleteItemGroup(ExecutionContext context, DataObject itemGroupObject, Long idItemGroup) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, JSONException {
+    private String deleteItemGroup(ExecutionContext<ClassPropertyInterface> context, DataObject itemGroupObject, Long idItemGroup) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, JSONException {
         String result = null;
         String requestURL = settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup;
         String requestBody = "[" + idItemGroup + "]";
@@ -422,7 +422,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private boolean uploadBrands(ExecutionContext context, List<Brand> brandsList) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadBrands(ExecutionContext<ClassPropertyInterface> context, List<Brand> brandsList) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Brand brand : brandsList) {
             if (uploadBrand(context, brand, true) != null) {
@@ -432,7 +432,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    protected String uploadBrand(ExecutionContext context, Brand brand, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String uploadBrand(ExecutionContext<ClassPropertyInterface> context, Brand brand, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         ERPLoggers.importLogger.info("Loya: synchronizing brand " + brand.name + " started");
 
@@ -455,7 +455,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private boolean existsBrand(ExecutionContext context, Integer idBrand) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean existsBrand(ExecutionContext<ClassPropertyInterface> context, Integer idBrand) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "brand/" + idBrand;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -464,7 +464,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return executeRequestWithRelogin(context, getRequest).succeeded;
     }
 
-    private String modifyBrand(ExecutionContext context, Integer idBrand, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String modifyBrand(ExecutionContext<ClassPropertyInterface> context, Integer idBrand, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "brand/" + idBrand;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -474,7 +474,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private String createBrand(ExecutionContext context, DataObject brandObject, String url, JSONObject requestBody)
+    private String createBrand(ExecutionContext<ClassPropertyInterface> context, DataObject brandObject, String url, JSONObject requestBody)
             throws IOException, JSONException, SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
         String result = null;
         String requestURL = url + "brand";
@@ -492,14 +492,14 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private void setIdLoyaBrand(ExecutionContext context, DataObject brandObject, Integer idLoyaBrand) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void setIdLoyaBrand(ExecutionContext<ClassPropertyInterface> context, DataObject brandObject, Integer idLoyaBrand) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("idLoya[Brand]").change(idLoyaBrand, newContext, brandObject);
             newContext.apply();
         }
     }
 
-    private boolean uploadCategories(ExecutionContext context, List<Category> categoriesList, Map<String, Integer> discountLimits) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadCategories(ExecutionContext<ClassPropertyInterface> context, List<Category> categoriesList, Map<String, Integer> discountLimits) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Category category : categoriesList) {
             if (uploadCategory(context, category, discountLimits, true) != null) {
@@ -509,7 +509,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    protected String uploadCategory(ExecutionContext context, Category category, Map<String, Integer> discountLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    protected String uploadCategory(ExecutionContext<ClassPropertyInterface> context, Category category, Map<String, Integer> discountLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
 
         ERPLoggers.importLogger.info("Loya: synchronizing category " + category.overId + " started");
         JSONObject requestBody = new JSONObject();
@@ -534,7 +534,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private boolean existsCategory(ExecutionContext context, Long idCategory) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean existsCategory(ExecutionContext<ClassPropertyInterface> context, Long idCategory) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + idCategory;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -543,7 +543,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return executeRequestWithRelogin(context, getRequest).succeeded;
     }
 
-    private String modifyCategory(ExecutionContext context, Long categoryId, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String modifyCategory(ExecutionContext<ClassPropertyInterface> context, Long categoryId, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -553,7 +553,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private String createCategory(ExecutionContext context, String url, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String createCategory(ExecutionContext<ClassPropertyInterface> context, String url, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = url + "category";
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -563,7 +563,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private boolean uploadItems(ExecutionContext context, List<Item> itemsList, Map<String, Integer> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private boolean uploadItems(ExecutionContext<ClassPropertyInterface> context, List<Item> itemsList, Map<String, Integer> discountLimits, Map<String, List<MinPriceLimit>> minPriceLimitsMap) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         boolean succeeded = true;
         for (Item item : itemsList) {
             List<MinPriceLimit> minPriceLimits = minPriceLimitsMap != null ? minPriceLimitsMap.get(item.id) : null;
@@ -573,7 +573,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    protected String uploadItem(ExecutionContext context, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String uploadItem(ExecutionContext<ClassPropertyInterface> context, Item item, Map<String, Integer> discountLimits, List<MinPriceLimit> minPriceLimits, boolean messageErrors) throws JSONException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ERPLoggers.importLogger.info("Loya: synchronizing good " + item.id + " started");
         JSONObject requestBody = new JSONObject();
         requestBody.put("partnerId", settings.partnerId);
@@ -614,7 +614,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    private boolean existsItem(ExecutionContext context, String idItem) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean existsItem(ExecutionContext<ClassPropertyInterface> context, String idItem) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -623,7 +623,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return executeRequestWithRelogin(context, getRequest).succeeded;
     }
 
-    private String modifyItem(ExecutionContext context, String idItem, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String modifyItem(ExecutionContext<ClassPropertyInterface> context, String idItem, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = settings.url + "good/" + settings.partnerId + "/" + idItem;
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -633,7 +633,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private String createItem(ExecutionContext context, String url, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String createItem(ExecutionContext<ClassPropertyInterface> context, String url, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String requestURL = url + "good";
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
@@ -643,7 +643,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return response.succeeded ? null : response.message;
     }
 
-    private boolean uploadItemItemGroups(ExecutionContext context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean uploadItemItemGroups(ExecutionContext<ClassPropertyInterface> context, Map<Long, List<GoodGroupLink>> itemItemGroupsMap) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         boolean succeeded = true;
         ERPLoggers.importLogger.info("Loya: synchronizing goodGroupLinks");
         for (Map.Entry<Long, List<GoodGroupLink>> entry : itemItemGroupsMap.entrySet()) {
@@ -716,7 +716,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    private String createGoodGroupLink(ExecutionContext context, Long idItemGroup, GoodGroupLink goodGroupLink) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private String createGoodGroupLink(ExecutionContext<ClassPropertyInterface> context, Long idItemGroup, GoodGroupLink goodGroupLink) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         String result = null;
         String requestURL = settings.url + "goodgrouplink/" + settings.partnerId + "/" + idItemGroup + "/upload";
         HttpPost postRequest = new HttpPost(requestURL);
@@ -735,7 +735,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         return result;
     }
 
-    protected Map<String, Integer> getDiscountLimits(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected Map<String, Integer> getDiscountLimits(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         return getDiscountLimits(
                 (Integer) findProperty("maxDiscountLoya[]").read(context),
                 (Integer) findProperty("maxAllowBonusLoya[]").read(context),
