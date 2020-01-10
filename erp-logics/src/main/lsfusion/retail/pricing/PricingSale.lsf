@@ -24,11 +24,11 @@ WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
     supplierPrice (detail)  <- round2(IF batch(detail) 
-                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                    THEN prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                                    batch(detail),
                                                                                                    supplierStock(detail),
                                                                                                    dateTime(detail))
-                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                    ELSE prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                                  sku(detail),
                                                                                                  supplierStock(detail),
                                                                                                  dateTime(detail)));
@@ -39,11 +39,11 @@ WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND NOT CHANGED(retailPrice (detail)) AND NOT disableUpdateRetailPrice(detail) DO {
     retailPrice (detail)  <- (IF batch(detail)
-                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                THEN prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                                batch(detail),
                                                                                                supplierStock(detail),
                                                                                                dateTime(detail))
-                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                ELSE prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                              sku(detail),
                                                                                              supplierStock(detail),
                                                                                              dateTime(detail))) (-) extraRetailPrice(detail);
