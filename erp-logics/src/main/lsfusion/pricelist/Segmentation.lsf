@@ -1,6 +1,12 @@
 MODULE Segmentation;
 
-REQUIRE Store, SaleLedger, Utils, Sku, PriceList, Item;
+REQUIRE Store, SaleLedger, Utils, Sku, PriceList, Item, LabelBy;
+
+NAVIGATOR {
+    priceListMasterData{
+        NEW priceSegments;
+    }
+}
 
 //////////////////////Отчет ////////////////////////////
 CLASS Segmentation 'Ценовое сегментирование';
@@ -52,9 +58,18 @@ deleteIncludeSkuGroups 'Сбросить отмеченные'(Segmentation r)  
 
 //------------------------------ Sku -------------------------------//
 priceIncludeVAT 'ЦО с НДС' = DATA NUMERIC[16,4] (Sku, Segmentation);
-priceIncludeVAT2 'ЦО с НДС' = DATA NUMERIC[16,4] (Sku, Segmentation);
 
-priceForUnitWeight 'Цена за 1 кг' (Sku sku, Segmentation ps) = NUMERIC[16,2](priceIncludeVAT(sku, ps) / netWeight(sku) IF netWeight(sku));       
+baseCoef 'Коэф.' (Sku sku) = CASE 
+                            WHEN labelBaseCoeff(sku) THEN labelBaseCoeff(sku)
+                            WHEN volume(sku) THEN volume(sku)
+                            ELSE netWeight(sku);
+                            
+basePriceName 'Ед.изм.' (Sku d) = (CASE 
+                            WHEN labelBaseName(d) THEN labelBaseName(d)
+                            WHEN volume(d) THEN '1л'
+                            ELSE '1кг') CHARWIDTH 5;                                                      
+                            
+basePrice 'Цена за базовую единицу' (Sku sku, Segmentation ps) = round2(priceIncludeVAT(sku, ps) / baseCoef(sku));                                                                                                                                                                                                                                                                                      
 
 supplierName 'Поставщик' = DATA STRING (Sku, Segmentation);
 //------------------------------ Итоги по группе товаров указанного уровня -------------------------------//
@@ -69,13 +84,7 @@ priceSegment 'Сегмент' (Sku sku, Segmentation segmentation) = GROUP LAST 
 
 namePriceSegment 'Сегмент' (Sku sku, Segmentation segmentation) = name(priceSegment(sku, segmentation));
 
-backgroundSegment(Sku sku, Segmentation pr) = RGB(255, 255, 255);
-//   CASE 
-//    WHEN  percentage(sku, pr) > percD(pr) THEN RGB(204, 255, 204)
-//    WHEN  percentage(sku, pr) > percC(pr) THEN RGB(204, 255, 204)
-//    WHEN  percentage(sku, pr) > percB(pr) THEN RGB(255, 250, 205)
-//    WHEN  percentage(sku, pr) > percA(pr) THEN RGB(255, 238, 238)
-//    ;  
+backgroundSegment(Sku sku, Segmentation segmentation) = background(priceSegment(sku, segmentation));
 
 //------------------------------- ACTION -------------------------------//   
 status 'Статус отчета' (Segmentation segmentation) = CASE
@@ -92,8 +101,6 @@ takeFromToOver  ABSTRACT LIST (Segmentation);
 takeFromToReturn  ABSTRACT LIST (Segmentation);
 
 priceWithoutVAT 'ЦО без НДС' (Sku sku, Segmentation segmentation) = round2( priceIncludeVAT(sku,  segmentation) / (1 + valueVAT(sku)/100) );
-
-priceIncludeVATDelta(Sku sku, Segmentation segmentation) = priceIncludeVAT(sku, segmentation) - priceIncludeVAT2(sku, segmentation); 
 
 stop = DATA LOCAL NESTED BOOLEAN (Segmentation);
 
@@ -127,13 +134,13 @@ takeData 'Сформировать отчет' (Segmentation segmentation)   {
     LOCAL sumPriceSku = NUMERIC[18,4] (Group, Segmentation);
     LOCAL quantSku = NUMERIC[18,4] (Group, Segmentation);
     
-    sumPriceSku (Group group, segmentation) <- GROUP SUM priceIncludeVAT(Sku sk, segmentation) IF groupRoot(group(groupType(segmentation), sk), levelGroup(segmentation)) = group;
+    sumPriceSku (Group group, segmentation) <- GROUP SUM basePrice(Sku sk, segmentation) IF groupRoot(group(groupType(segmentation), sk), levelGroup(segmentation)) = group;
   
     quantSku (Group group, segmentation) <- GROUP SUM 1 IF priceIncludeVAT(Sku sk, segmentation) IF groupRoot(group(groupType(segmentation), sk), levelGroup(segmentation)) = group;
     
     averagePrice (Group group, segmentation) <- NUMERIC[18,2](sumPriceSku (group, segmentation) / quantSku (group, segmentation) IF quantSku (group, segmentation));     
     
-    percentage(Sku sku,  segmentation) <- NUMERIC[6,0](priceIncludeVAT(sku, segmentation) / averagePrice(sku, segmentation) * 100) ;   
+    percentage(Sku sku,  segmentation) <- NUMERIC[6,0](basePrice(sku, segmentation) / averagePrice(sku, segmentation) * 100) ;   
     
     finishTime(segmentation) <- currentDateTime();          
 };
@@ -145,7 +152,7 @@ FORM segmentation 'Ценовая сегментация'
                    nameGroupType, levelGroup                  
           
     OBJECTS ps = PriceSegment
-    PROPERTIES name(ps), graduationFrom(ps, r), graduationTo(ps, r)     
+    PROPERTIES name(ps), graduationFrom(ps, r), graduationTo(ps, r)    
     ORDER graduationFrom(ps, r)
           
     TREE skuTree sk = SkuGroup PARENT parent(sk)
@@ -158,10 +165,9 @@ FORM segmentation 'Ценовая сегментация'
    
     OBJECTS s=Sku
     FILTERS isParent(sk, s)
-    FILTERS priceForUnitWeight(s,r)
-    PROPERTIES READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), netWeight(s), supplierName(s,r) 
-    PROPERTIES READONLY priceWithoutVAT(s,r), valueVAT(s), priceIncludeVAT(s,r), priceForUnitWeight(s,r), percentage(s,r) BACKGROUND backgroundSegment(s,r), namePriceSegment(s,r) BACKGROUND backgroundSegment(s,r)
- //   PROPERTIES READONLY priceIncludeVAT2(s,r), priceIncludeVATDelta(s,r)  
+    FILTERS basePrice(s,r)
+    PROPERTIES READONLY name(s), idBarcode(s), id(s) SHOWIF showIDs(), baseCoef(s), basePriceName(s), supplierName(s,r) 
+    PROPERTIES READONLY priceWithoutVAT(s,r), valueVAT(s), priceIncludeVAT(s,r), basePrice(s,r), percentage(s,r) BACKGROUND backgroundSegment(s,r), namePriceSegment(s,r) BACKGROUND backgroundSegment(s,r)
     EDIT Segmentation OBJECT r
     PROPERTIES(r) takeData, saveToSku    
 ;
@@ -218,7 +224,7 @@ DESIGN segmentation {
                         caption = 'Товары';
                         PROPERTY(priceWithoutVAT(s,r)) { pattern = '#0.00'; }
                         PROPERTY(priceIncludeVAT(s,r)) { pattern = '#0.00'; }
-                        PROPERTY(priceForUnitWeight(s,r)) { pattern = '#0.00'; }                        
+                        PROPERTY(basePrice(s,r)) { pattern = '#0.00'; }                        
                         PROPERTY(percentage(s,r)) { pattern = '#0'; }
                     }
                 }                   
