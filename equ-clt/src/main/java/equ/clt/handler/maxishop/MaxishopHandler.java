@@ -1,7 +1,6 @@
 package equ.clt.handler.maxishop;
 
 import equ.api.ItemInfo;
-import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -134,7 +133,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public MaxishopSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<Integer, CashRegisterInfo> cashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if (cashRegister.directory != null) {
