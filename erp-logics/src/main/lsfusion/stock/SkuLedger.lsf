@@ -363,15 +363,14 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     prevCurrentBalance 'Текущий остаток'###caption (Batch batch, Stock stock) = PREV(currentBalance(batch, stock));
     prevCurrentBalance 'Текущий остаток'###caption(Batch batch)  = GROUP SUM prevCurrentBalance(batch, Stock stock);    
 
-    countBatch 'Кол-во партий' (sku, Stock stock) = GROUP SUM 1  IF currentBalance(Batch batch, stock)
-                                                                 BY sku(batch);
-    defaultBatch 'Партия по умолчанию' (sku, Stock stock)= GROUP MIN Batch batch IF currentBalance(batch, stock)
-                                                                        BY sku(batch);
+    countBatch 'Кол-во партий' (sku, Stock stock) = GROUP SUM 1  BY skuCurrentBalance (Batch batch, stock);
+    
+    defaultBatch 'Партия по умолчанию' (sku, Stock stock)= GROUP MIN Batch batch BY skuCurrentBalance(batch, stock);
     
     countPositiveBatch 'Кол-во партий' (sku, Stock stock) = GROUP SUM 1  IF currentBalance(Batch batch, stock) >0
-                                                                 BY sku(batch);
+                                                                 BY skuCurrentBalance(batch, stock);
     defaultPositiveBatch 'Партия по умолчанию' (sku, Stock stock)= GROUP MIN Batch batch IF currentBalance(batch, stock) >0
-                                                                        BY sku(batch);
+                                                                        BY skuCurrentBalance(batch, stock);
 
     TABLE extraBatchStock(Batch, Stock);
     countLedger 'Кол-во движений'###caption (Batch batch, stock) =
