@@ -6,7 +6,6 @@ import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.Pair;
-import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -970,7 +969,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
+    public UKM4MySQLSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         UKM4MySQLSalesBatch salesBatch = null;
 
@@ -1148,84 +1147,82 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             ResultSet rs = statement.executeQuery(query);
 
             Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, giftCardList);
-            if (paymentMap != null) {
-                while (rs.next()) {
+            while (rs.next()) {
 
-                    //Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //i.store
-                    //Integer nppMachinery = rs.getInt(2); //i.cash_number
+                //Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //i.store
+                //Integer nppMachinery = rs.getInt(2); //i.cash_number
 
-                    Integer cash_id = rs.getInt(3); //i.cash_id
-                    CashRegisterInfo cashRegister = machineryMap.get(cash_id);
-                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                Integer cash_id = rs.getInt(3); //i.cash_id
+                CashRegisterInfo cashRegister = machineryMap.get(cash_id);
+                Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                    //Integer id = rs.getInt(4); //i.id
-                    Integer idReceipt = rs.getInt(5); //i.receipt_header
-                    String idBarcode = useBarcodeAsId ? rs.getString(7) : rs.getString(6); //i.item : i.var
-                    idBarcode = appendBarcode ? appendCheckDigitToBarcode(idBarcode, 5) : idBarcode;
-                    if (idBarcode != null && weightCode != null && (idBarcode.length() == 13 || idBarcode.length() == 7) && idBarcode.startsWith(weightCode))
-                        idBarcode = idBarcode.substring(2, 7);
-                    String idItem = useBarcodeAsId && appendBarcode ? appendCheckDigitToBarcode(rs.getString(7), 5) : rs.getString(7); //i.item
-                    BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
-                    BigDecimal price = rs.getBigDecimal(9); //i.price
-                    BigDecimal sum = rs.getBigDecimal(10); //i.total
-                    Integer position = rs.getInt(11) + 1;
-                    BigDecimal realAmount = rs.getBigDecimal(12); //i.real_amount
-                    String idSection = rs.getString(13);
+                //Integer id = rs.getInt(4); //i.id
+                Integer idReceipt = rs.getInt(5); //i.receipt_header
+                String idBarcode = useBarcodeAsId ? rs.getString(7) : rs.getString(6); //i.item : i.var
+                idBarcode = appendBarcode ? appendCheckDigitToBarcode(idBarcode, 5) : idBarcode;
+                if (idBarcode != null && weightCode != null && (idBarcode.length() == 13 || idBarcode.length() == 7) && idBarcode.startsWith(weightCode))
+                    idBarcode = idBarcode.substring(2, 7);
+                String idItem = useBarcodeAsId && appendBarcode ? appendCheckDigitToBarcode(rs.getString(7), 5) : rs.getString(7); //i.item
+                BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
+                BigDecimal price = rs.getBigDecimal(9); //i.price
+                BigDecimal sum = rs.getBigDecimal(10); //i.total
+                Integer position = rs.getInt(11) + 1;
+                BigDecimal realAmount = rs.getBigDecimal(12); //i.real_amount
+                String idSection = rs.getString(13);
 
-                    Payment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
-                    if(paymentEntry == null && zeroPaymentForZeroSumReceipt) {
-                        paymentEntry = new Payment(BigDecimal.ZERO);
-                    }
-                    if (paymentEntry != null && totalQuantity != null) {
-                        Integer receiptType = rs.getInt(14); //r.type
-                        boolean isSale = receiptType == 0 || receiptType == 8;
-                        boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
-                        String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
-                        Integer numberReceipt = rs.getInt(16); //r.global_number
-                        Date dateReceipt = rs.getDate(17); // r.date
-                        Time timeReceipt = rs.getTime(17); //r.date
-                        //Integer login = rs.getInt(18); //r.login
-                        Date dateZReport = rs.getDate(21); //s.date
-                        Time timeZReport = rs.getTime(21); //s.date
-                        //String idEmployee = loginMap.get(login);
+                Payment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
+                if(paymentEntry == null && zeroPaymentForZeroSumReceipt) {
+                    paymentEntry = new Payment(BigDecimal.ZERO);
+                }
+                if (paymentEntry != null && totalQuantity != null) {
+                    Integer receiptType = rs.getInt(14); //r.type
+                    boolean isSale = receiptType == 0 || receiptType == 8;
+                    boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
+                    String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
+                    Integer numberReceipt = rs.getInt(16); //r.global_number
+                    Date dateReceipt = rs.getDate(17); // r.date
+                    Time timeReceipt = rs.getTime(17); //r.date
+                    //Integer login = rs.getInt(18); //r.login
+                    Date dateZReport = rs.getDate(21); //s.date
+                    Time timeZReport = rs.getTime(21); //s.date
+                    //String idEmployee = loginMap.get(login);
 
-                        String giftCardValue = rs.getString(22); //rip.value
-                        String idEmployee = String.valueOf(rs.getInt(23)); //l.user_id
-                        String lastNameContact = rs.getString(24); //l.user_name
+                    String giftCardValue = rs.getString(22); //rip.value
+                    String idEmployee = String.valueOf(rs.getInt(23)); //l.user_id
+                    String lastNameContact = rs.getString(24); //l.user_name
 
-                        String discountCard = rs.getString("client_card_code"); //26
+                    String discountCard = rs.getString("client_card_code"); //26
 
-                        boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
-                        if (isGiftCard)
-                            idBarcode = giftCardValue;
-                        else {
-                            isGiftCard = giftCardList.contains(idBarcode);
-                            if (isGiftCard) {
-                                long dateTimeReceipt = rs.getTimestamp(17) == null ? 0 : rs.getTimestamp(17).getTime();
-                                int count = 1;
-                                while (usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
-                                    count++;
-                                }
-                                idBarcode = idBarcode + "/" + dateTimeReceipt + "/" + count;
-                                usedBarcodes.add(idBarcode);
+                    boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
+                    if (isGiftCard)
+                        idBarcode = giftCardValue;
+                    else {
+                        isGiftCard = giftCardList.contains(idBarcode);
+                        if (isGiftCard) {
+                            long dateTimeReceipt = rs.getTimestamp(17) == null ? 0 : rs.getTimestamp(17).getTime();
+                            int count = 1;
+                            while (usedBarcodes.contains(idBarcode + "/" + dateTimeReceipt + "/" + count)) {
+                                count++;
                             }
+                            idBarcode = idBarcode + "/" + dateTimeReceipt + "/" + count;
+                            usedBarcodes.add(idBarcode);
                         }
+                    }
 
-                        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-                        for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
-                            sumGiftCardMap.put(entry.getKey(), new GiftCard(entry.getValue()));
-                        }
+                    Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                    for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
+                        sumGiftCardMap.put(entry.getKey(), new GiftCard(entry.getValue()));
+                    }
 
-                        totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
-                        BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
-                        if (totalQuantity != null) {
-                            salesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, cash_id, numberZReport,
-                                    dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
-                                    null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
-                                    price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
-                                    position, null, idSection, false, cashRegister));
-                            receiptSet.add(Pair.create(idReceipt, cash_id));
-                        }
+                    totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
+                    BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
+                    if (totalQuantity != null) {
+                        salesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, cash_id, numberZReport,
+                                dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
+                                null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
+                                price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
+                                position, null, idSection, false, cashRegister));
+                        receiptSet.add(Pair.create(idReceipt, cash_id));
                     }
                 }
             }
@@ -1349,8 +1346,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             } else if (barcode.length() == 7) {  //EAN-8
                 int checkSum = 0;
                 for (int i = 0; i <= 6; i = i + 2) {
-                    checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
-                    checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                    checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i))) * 3;
+                    checkSum += i == 6 ? 0 : Integer.parseInt(String.valueOf(barcode.charAt(i + 1)));
                 }
                 checkSum %= 10;
                 if (checkSum != 0)
@@ -1377,8 +1374,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private String appendEAN13(String barcode) {
         int checkSum = 0;
         for (int i = 0; i <= 10; i = i + 2) {
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
         }
         checkSum %= 10;
         if (checkSum != 0)

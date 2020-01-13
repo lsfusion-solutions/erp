@@ -3,7 +3,6 @@ package equ.clt.handler.ukm4;
 import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
 import equ.api.ItemGroup;
-import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -232,7 +231,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public UKM4SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (fitHandler(c) && c.directory != null && c.number != null) {

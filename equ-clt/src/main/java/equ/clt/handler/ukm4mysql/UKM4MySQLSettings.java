@@ -7,20 +7,50 @@ import java.util.List;
 
 public class UKM4MySQLSettings implements Serializable{
 
+    //Коды признака оплаты наличными через запятую. По умолчанию используется код 0
     private String cashPayments;
+    //Коды признака оплаты картой через запятую. По умолчанию используется код 1
     private String cardPayments;
+    //Коды признака оплаты подарочным сертификатом через запятую. По умолчанию используется код 2
     private String giftCardPayments;
+
+    //Список подарочных сертификатов через запятую. Если receipt_payment.card_number содержится в списке,
+    //тип оплаты считается подарочным сертификатом
     private List<String> giftCardList = new ArrayList<>();
+
+    //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 300 секунд
     private Integer timeout;
+
+    //если true, то не выгружаются таблицы classif, taxes, taxGroups, items, itemsStocks, stocks, priceList,
+    //priceType, priceTypeStorePriceList, var, properties, propertyValues, itemPropertyValues
     private Boolean skipItems;
+
+    //если true, то не выгружается таблица classif
     private Boolean skipClassif;
+
+    //если true, то не выгружается таблица priceListVar
     private Boolean skipBarcodes;
+
+    //если true, то в качестве идентификатора товара используется idBarcode, а не idItem
     private Boolean useBarcodeAsId;
+
+    //Если true, то при отправке обрезаем контрольный символ штрихкода, при получении добавляем
     private Boolean appendBarcode;
+
+    //Если задано, то readCashDocumentInfo читает только CashDocument не старше указанного кол-ва дней.
+    //По умолчанию читаются все CashDocument
     private Integer lastDaysCashDocument;
+
+    //Если true, то номер z-отчёта читается из shift.number, иначе из receipt.shift_open
     private boolean useShiftNumberAsNumberZReport;
+
+    //Если true, то выгружаем таблицы taxes и taxGroups
     private boolean exportTaxes;
-    private boolean zeroPaymentForZeroSumReceipt; //при 100% скидке создаём платёж с нулевой суммой (для hoddabi)
+
+    //Если true, то при 100% скидке создаём платёж с нулевой суммой (для hoddabi)
+    private boolean zeroPaymentForZeroSumReceipt;
+
+    //Если true, то для весовых товаров отправляем кол-во 0
     private Boolean sendZeroQuantityForWeightItems;
 
     public UKM4MySQLSettings() {
