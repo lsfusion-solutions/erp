@@ -878,7 +878,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
+    public KristalSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String exportPrefixPath = kristalSettings != null ? kristalSettings.getExportPrefixPath() : null;
@@ -981,20 +981,20 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 document = builder.build(fileReader);
             }
             Element rootNode = document.getRootElement();
-            List daysList = rootNode.getChildren("DAY");
+            List<Element> daysList = rootNode.getChildren("DAY");
 
             for (Object dayNode : daysList) {
 
-                List shopsList = ((Element) dayNode).getChildren("SHOP");
+                List<Element> shopsList = ((Element) dayNode).getChildren("SHOP");
 
                 for (Object shopNode : shopsList) {
 
-                    List cashesList = ((Element) shopNode).getChildren("CASH");
+                    List<Element> cashesList = ((Element) shopNode).getChildren("CASH");
 
                     for (Object cashNode : cashesList) {
 
                         Integer numberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
-                        List gangsList = ((Element) cashNode).getChildren("GANG");
+                        List<Element> gangsList = ((Element) cashNode).getChildren("GANG");
 
                         if (notDetailed) {
 
@@ -1022,8 +1022,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                 BigDecimal discountSumReceipt = denominate(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominate);
 
-                                List receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
-                                List paymentsList = ((Element) gangNode).getChildren("PAYMENT");
+                                List<Element> receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
+                                List<Element> paymentsList = ((Element) gangNode).getChildren("PAYMENT");
 
                                 BigDecimal sumCard = BigDecimal.ZERO;
                                 BigDecimal sumCash = BigDecimal.ZERO;
@@ -1086,7 +1086,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             for (Object gangNode : gangsList) {
 
                                 String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
-                                List receiptsList = ((Element) gangNode).getChildren("HEAD");
+                                List<Element> receiptsList = ((Element) gangNode).getChildren("HEAD");
 
                                 for (Object receiptNode : receiptsList) {
 
@@ -1109,8 +1109,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     long denominationDate = getDate(2016, 7, 1).getTime(); //01.07.2016
                                     boolean denominate = dateTimeReceipt <= denominationDate;
 
-                                    List receiptDetailsList = (receiptElement).getChildren("POS");
-                                    List paymentsList = (receiptElement).getChildren("PAY");
+                                    List<Element> receiptDetailsList = (receiptElement).getChildren("POS");
+                                    List<Element> paymentsList = (receiptElement).getChildren("PAY");
 
                                     BigDecimal sumCard = BigDecimal.ZERO;
                                     BigDecimal sumCash = BigDecimal.ZERO;
@@ -1148,7 +1148,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                         Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
 
                                         String discountCard = null;
-                                        List discountCardList = receiptDetailElement.getChildren("DSC");
+                                        List<Element> discountCardList = receiptDetailElement.getChildren("DSC");
                                         for (Object card : discountCardList) {
                                             if (discountCard == null || discountCard.isEmpty())
                                                 discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
@@ -1231,14 +1231,6 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 idBarcode += "0";
         }
         return idBarcode;
-    }
-
-    private String trimLeadingZeroes(String input) {
-        if (input == null)
-            return null;
-        while (input.startsWith("0"))
-            input = input.substring(1);
-        return input.trim();
     }
 
     private String fillLeadingZeroes(String input) {
