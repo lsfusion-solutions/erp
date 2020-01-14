@@ -322,9 +322,24 @@ nearestInclude (SnapshotABC snapshot, SkuGroup skuGroup) = dataInclude(snapshot,
 
 include 'Вкл' (SnapshotABC snapshot, SkuGroup skuGroup) =
     OVERRIDE dataInclude(snapshot, skuGroup), 
-             nearestInclude (snapshot, skuGroup) MATERIALIZED;    
+             nearestInclude (snapshot, skuGroup) MATERIALIZED;
+
+dataExclude 'Искл.' = DATA BOOLEAN (SnapshotABC, SkuGroup); 
+dataExclude 'Искл.' = DATA BOOLEAN (SnapshotABC, Sku);
+
+levelParentExclude (SnapshotABC snapshot, SkuGroup group) = GROUP
+                                                              MIN level(group, SkuGroup parent) IF dataExclude(snapshot, parent) MATERIALIZED;
+nearestParentExclude (SnapshotABC snapshot, SkuGroup group) = group(group, levelParentExclude(snapshot, group));
+nearestExclude 'Вкл.' (SnapshotABC snapshot, SkuGroup group) =
+    dataExclude(snapshot, nearestParentExclude (snapshot, group)) MATERIALIZED;
+             
+exclude 'Искл.' (SnapshotABC snapshot, SkuGroup group) =
+    OVERRIDE dataExclude(snapshot, group), nearestExclude(snapshot, group) MATERIALIZED;
+    
+exclude 'Искл.' (SnapshotABC snapshot, Sku sku) =
+    OVERRIDE dataExclude(snapshot, sku), exclude(snapshot, group(groupType(snapshot), sku));
                       
-include 'Вкл' (SnapshotABC snapshot, Sku sku) = include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot);  
+include 'Вкл' (SnapshotABC snapshot, Sku sku) = include(snapshot, skuGroup(sku)) AND groupType(skuGroup(sku)) == groupType(snapshot) AND NOT exclude(snapshot, sku);  
                     
 countIncludeSku 'Вкл' (SnapshotABC snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);                    
 
@@ -794,7 +809,7 @@ FORM snapshotABC 'ABC-отчет'
 //-- выбор групп товара     
     TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
     PROPERTIES READONLY order(sk2), name(sk2)
-    PROPERTIES include(r,sk2)
+    PROPERTIES include(r,sk2), exclude(r, sk2)
     ORDER order(sk2), name(sk2)
     FILTERS groupType(sk2)==groupType(r)
     FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT   
