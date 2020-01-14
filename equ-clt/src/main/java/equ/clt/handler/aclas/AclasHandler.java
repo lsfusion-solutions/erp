@@ -17,11 +17,11 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static equ.clt.handler.HandlerUtils.trim;
 
 public class AclasHandler extends MultithreadScalesHandler {
 
@@ -45,10 +45,10 @@ public class AclasHandler extends MultithreadScalesHandler {
         }
     }
 
-    public static byte[] receiveScaleStatus(UDPPort port) throws IOException {
+    /*public static byte[] receiveScaleStatus(UDPPort port) throws IOException {
         byte[] response = port.receiveCommand(259);
         return Arrays.copyOfRange(response, 4, 10);
-    }
+    }*/
 
     private byte[] getHexBytes(String value) {
         int len = value.length();
@@ -70,10 +70,10 @@ public class AclasHandler extends MultithreadScalesHandler {
         return receiveReply(udpPort);
     }
 
-    private byte[] getScaleStatus(UDPPort udpPort) throws CommunicationException, IOException {
+    /*private byte[] getScaleStatus(UDPPort udpPort) throws CommunicationException, IOException {
         sendCommand(udpPort, (byte) 0x0e, new byte[]{0x03, 0x00}, new byte[] {(byte) 0xff, 0x0f});
         return receiveScaleStatus(udpPort);
-    }
+    }*/
 
     private boolean clearData(UDPPort udpPort) throws CommunicationException, IOException {
         sendCommand(udpPort, (byte) 0x0e, new byte[]{0x04, 0x00}, getClearDataBytes256(1));
@@ -90,17 +90,41 @@ public class AclasHandler extends MultithreadScalesHandler {
     }
 
     private boolean loadPLU(UDPPort udpPort, ScalesInfo scales, ScalesItemInfo item) throws CommunicationException, IOException {
-        ByteBuffer addressBytes = ByteBuffer.allocate(2);
-        addressBytes.order(ByteOrder.LITTLE_ENDIAN);
-        addressBytes.putShort(parseMessageNumber(item));//2 bytes
-
-        sendCommand(udpPort, (byte) 0x0b, addressBytes.array(), getPLUBytes256(scales, item));
-        return receiveReply(udpPort);
+        int attempts = 0;
+        Boolean result = null;
+        while ((result == null || !result) && attempts < 3) {
+            sendCommand(udpPort, (byte) 0x0b, getAddressBytes(parseMessageNumber(item)), getPLUBytes256(scales, item));
+            result = receiveReply(udpPort);
+            attempts++;
+        }
+        return result;
     }
 
     private short parseMessageNumber(ScalesItemInfo item) {
         Integer messageNumber = Integer.parseInt(item.idBarcode);
         return (short) (messageNumber > Short.MAX_VALUE ? messageNumber % Short.MAX_VALUE : messageNumber);
+    }
+
+    private boolean loadMessage(UDPPort udpPort, ScalesItemInfo item) throws CommunicationException, IOException {
+        int attempts = 0;
+        Boolean result = null;
+        while ((result == null || !result) && attempts < 3) {
+            sendCommand(udpPort, (byte) 0x62, getAddressBytes((short) (getMessageNumber(item) - 1)), getMessageBytes256(item));
+            result = receiveReply(udpPort);
+            attempts++;
+        }
+        return result;
+    }
+
+    private short getMessageNumber(ScalesItemInfo item) {
+        return (short) (item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode));
+    }
+
+    private byte[] getAddressBytes(short number) {
+        ByteBuffer addressBytes = ByteBuffer.allocate(2);
+        addressBytes.order(ByteOrder.LITTLE_ENDIAN);
+        addressBytes.putShort(number);//2 bytes
+        return addressBytes.array();
     }
 
     private byte[] getConnectBytes256() {
@@ -174,10 +198,11 @@ public class AclasHandler extends MultithreadScalesHandler {
         bytes.putShort(item.daysExpiry == null ? 0 : item.daysExpiry.shortValue());
 
         //message1, 1 byte
-        bytes.put((byte) 0);
+        bytes.putShort(getMessageNumber(item));
 
+        //по документации он есть, но тут почему-то на message1 используется 2 байта, а не 1
         //message2, 1 byte
-        bytes.put((byte) 0);
+        //bytes.put((byte) 0);
 
         //package weight, 3 bytes
         bytes.put(getHexBytes(fillLeadingZeroes(0, 6)));
@@ -193,6 +218,24 @@ public class AclasHandler extends MultithreadScalesHandler {
 
         //code, 5 bytes
         bytes.put(getHexBytes(fillLeadingZeroes(item.idBarcode, 8)));
+
+        return bytes.array();
+    }
+
+    private byte[] getMessageBytes256(ScalesItemInfo item) {
+        ByteBuffer bytes = ByteBuffer.allocate(256);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        for(int i = 0; i < 7; i++) {
+            bytes.put((byte) 0x00);
+        }
+
+        byte[] descriptionBytes = trim(item.description, 249).getBytes(Charset.forName("cp1251"));
+        bytes.put(descriptionBytes);
+
+        for (int i = 0; i < 249 - descriptionBytes.length; i++) {
+            bytes.put((byte) 0x00);
+        }
 
         return bytes.array();
     }
@@ -264,12 +307,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        int attempts = 0;
-                                        Boolean result = null;
-                                        while ((result == null || !result) && attempts < 3) {
-                                            result = loadPLU(udpPort, scales, item);
-                                            attempts++;
-                                        }
+                                        Boolean result = loadPLU(udpPort, scales, item) && loadMessage(udpPort, item);
                                         if (!result) {
                                             logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, item %s", scales.port, item.idItem));
                                             globalError++;
