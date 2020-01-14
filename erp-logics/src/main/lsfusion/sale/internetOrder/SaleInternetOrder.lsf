@@ -488,6 +488,7 @@ copy 'Копировать'(InternetOrder internetOrder)  {
 } TOOLBAR;
 
 backgroundInternetOrder (InternetOrder o) = ABSTRACT CASE COLOR (InternetOrder);
+hideEdit(InternetOrder o) = ABSTRACT BOOLEAN (InternetOrder);
 
 FORM internetOrders 'Интернет-заказы' 
 
@@ -506,7 +507,7 @@ FORM internetOrders 'Интернет-заказы'
     PROPERTIES (o) READONLY PANEL createdNameUser[InternetOrder], createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) NEWSESSION NEW, EDIT SHOWIF isOpened(o), copy
+    PROPERTIES (o) NEWSESSION NEW, EDIT SHOWIF (isOpened(o) AND NOT hideEdit(o)), copy
     PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
     PROPERTIES     SHOWIF isOpened(o) NEWSESSION deleteo=DELETE(o) 
     FILTERGROUP open
@@ -721,6 +722,7 @@ namePriceListType 'Вид цен' (InternetOrderDetail d) = name(priceListType(d
 
 defaultPriceListTypeInternetOrder = DATA PriceListType ();
 nameDefaultPriceListTypeInternetOrder 'Вид цены ИМ' = name(defaultPriceListTypeInternetOrder());
+
 
 EXTEND FORM options
     PROPERTIES () nameDefaultPriceListTypeInternetOrder
