@@ -46,6 +46,7 @@ CLASS TypeChange 'Тип изменения' {
     addBarcode 'Добавление штрихкода',
     deleteBarcode 'Удаление штрихкода',
     changeBarcode 'Изменение штрихкода',
+    changeId 'Изменение кода',
     addAttribute 'Добавление атрибутов',    
     changeAttribute 'Изменение атрибутов',
     deleteAttribute 'Удаление атрибутов'    
@@ -136,6 +137,22 @@ WHEN DROPPED(Barcode b IS Barcode) AND PREV(sku(b)) IS Item IF NOT disableItemLo
         nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
 
+    }
+}
+
+WHEN CHANGED(id(Item i)) AND NOT SET (i IS Item) AND NOT disableItemLog()  DO {
+NEW d = ItemLog {
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);     
+        
+        typeChange(d) <- TypeChange.changeId;
+        note(d) <- STRING[500]('До: ' + OVERRIDE PREV(id(i)), 'Не задан');              
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();             
     }
 }
 WHEN (SET ((value(Item i, ItemAttribute ia)))) IF NOT disableItemLog()  DO { 
