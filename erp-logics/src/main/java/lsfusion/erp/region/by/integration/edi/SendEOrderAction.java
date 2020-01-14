@@ -45,7 +45,7 @@ public class SendEOrderAction extends EDIAction {
         eOrderInterface = i.next();
     }
 
-    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String outputDir, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEOrder(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port, String outputDir, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         if(context.getDbManager().isServer()) {
             DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
@@ -144,7 +144,7 @@ public class SendEOrderAction extends EDIAction {
         }
     }
 
-    private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
+    private String readContentSubXML(ExecutionContext<ClassPropertyInterface> context, DataObject eOrderObject, String documentNumber, String documentDate,
                                      String deliveryDate, String GLNSupplierStock, String nameSupplier, String nameCustomer,
                                      String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note, boolean isCancel,
                                      String outputDir)

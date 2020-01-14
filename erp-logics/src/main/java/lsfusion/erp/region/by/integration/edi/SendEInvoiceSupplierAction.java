@@ -46,7 +46,7 @@ public class SendEInvoiceSupplierAction extends EDIAction {
         eInvoiceInterface = i.next();
     }
 
-    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider,
+    protected void sendEInvoice(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port, String provider,
                                 String outputDir, String hostEDSService, Integer portEDSService)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (context.getDbManager().isServer()) {
@@ -109,7 +109,7 @@ public class SendEInvoiceSupplierAction extends EDIAction {
         }
     }
 
-    protected String createBLRWBL(ExecutionContext context, DataObject eInvoiceObject, String outputDir, String documentNumber,
+    protected String createBLRWBL(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String outputDir, String documentNumber,
                                   String documentDate, String glnSupplier, String glnCustomer, String glnCustomerStock, boolean isCancel)
             throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
@@ -331,7 +331,7 @@ public class SendEInvoiceSupplierAction extends EDIAction {
         }
     }
 
-    private List<EInvoiceDetail> getEInvoiceDetailList(ExecutionContext context, DataObject eInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<EInvoiceDetail> getEInvoiceDetailList(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<EInvoiceDetail> result = new ArrayList<>();
         KeyExpr eInvoiceDetailExpr = new KeyExpr("eInvoiceDetail");
         ImRevMap<Object, KeyExpr> eInvoiceDetailKeys = MapFact.singletonRev("eInvoiceDetail", eInvoiceDetailExpr);
@@ -340,7 +340,7 @@ public class SendEInvoiceSupplierAction extends EDIAction {
         String[] eInvoiceDetailNames = new String[]{"lineItemID", "lineItemBuyerID", "lineItemName", "grossWeightValue", "quantityDespatched", "lineItemQuantityUOM",
                 "despatchUnitQuantityDespatched", "valueVAT", "additionalInformation", "lineItemAmountWithoutCharges", "lineItemAmountCharges",
                 "lineItemAmount", "lineItemPrice", "lineItemAmountExcise"};
-        LP[] eInvoiceDetailProperties = findProperties("lineItemID[EInvoiceDetail]", "lineItemBuyerID[EInvoiceDetail]", "lineItemName[EInvoiceDetail]", "grossWeightValue[EInvoiceDetail]",
+        LP<?>[] eInvoiceDetailProperties = findProperties("lineItemID[EInvoiceDetail]", "lineItemBuyerID[EInvoiceDetail]", "lineItemName[EInvoiceDetail]", "grossWeightValue[EInvoiceDetail]",
                 "quantityDespatched[EInvoiceDetail]", "lineItemQuantityUOM[EInvoiceDetail]", "despatchUnitQuantityDespatched[EInvoiceDetail]",
                 "valueVAT[EInvoiceDetail]", "additionalInformation[EInvoiceDetail]", "lineItemAmountWithoutCharges[EInvoiceDetail]",
                 "lineItemAmountCharges[EInvoiceDetail]", "lineItemAmount[EInvoiceDetail]", "lineItemPrice[EInvoiceDetail]", "lineItemAmountExcise[EInvoiceDetail]");
