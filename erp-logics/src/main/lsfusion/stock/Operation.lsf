@@ -494,6 +494,10 @@ END
 META defineOperationRole(dumb)
 
     allRoles 'Для всех ролей' = DATA BOOLEAN (Operation);
+    preventChangesDocumentDefault 'Запретить редактирование' = DATA BOOLEAN (Operation);
+    countDaysDocumentDefault 'Количество дней для запрета' = DATA INTEGER (Operation);
+    preventCloseDocumentDefault 'Запретить закрытие' = DATA BOOLEAN (Operation);
+    preventOpenDocumentDefault 'Запретить открытие' = DATA BOOLEAN (Operation);
 
     TABLE userRoleOperation (UserRole, Operation);
     dataIn 'Отм.' = DATA BOOLEAN (UserRole, Operation);
@@ -524,7 +528,7 @@ META defineOperationRole(dumb)
     preventOpenDocument (User user, Operation operation) = preventOpenDocument(mainRole(user), operation);
 
     EXTEND FORM operation
-        PROPERTIES(o) allRoles
+        PROPERTIES(o) allRoles, preventChangesDocumentDefault, countDaysDocumentDefault, preventCloseDocumentDefault, preventOpenDocumentDefault
 
         OBJECTS r = UserRole
         PROPERTIES(r) READONLY name
@@ -540,8 +544,19 @@ META defineOperationRole(dumb)
                 type = CONTAINERV;
                 caption = 'Роли';
                 NEW roleContainer1 {
-                    MOVE PROPERTY(allRoles(o));
-                    caption = 'Для всех';
+                    type = CONTAINERH;
+                    NEW roleContainer11 {
+                        MOVE PROPERTY(allRoles(o));
+                        caption = 'Для всех';
+                        }
+                    NEW roleContainer12 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(preventChangesDocumentDefault(o));
+                        MOVE PROPERTY(countDaysDocumentDefault(o));
+                        MOVE PROPERTY(preventCloseDocumentDefault(o));
+                        MOVE PROPERTY(preventOpenDocumentDefault(o));
+                        caption = 'По умолчанию (для новых ролей)';
+                    }
                 }
                 MOVE BOX(r);
             }
@@ -555,6 +570,10 @@ META defineOperationRole(dumb)
         preventCloseDocument(ur, Operation o) <- preventCloseDocument(userRole,o) WHERE preventCloseDocument(userRole,o);
         preventOpenDocument(ur, Operation o) <- preventOpenDocument(userRole,o) WHERE preventOpenDocument(userRole,o);    
     }
+    preventChangesDocument(UserRole ur, Operation o) <- preventChangesDocumentDefault(o) WHEN SET (ur IS UserRole);
+    countDaysDocument(UserRole ur, Operation o) <- countDaysDocumentDefault(o) WHEN SET (ur IS UserRole);
+    preventCloseDocument(UserRole ur, Operation o) <- preventCloseDocumentDefault(o) WHEN SET (ur IS UserRole);
+    preventOpenDocument(UserRole ur, Operation o) <- preventOpenDocumentDefault(o) WHEN SET (ur IS UserRole);
 END
 
 META extendFormFilterRole(concrete, form)

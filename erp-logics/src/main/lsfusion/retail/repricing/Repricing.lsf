@@ -813,12 +813,17 @@ batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
 skipShowEdit = ABSTRACT BOOLEAN (Repricing);
 skipShowDelete = ABSTRACT BOOLEAN (Repricing);
+overShowEditDelete = ABSTRACT VALUE BOOLEAN (Repricing);
 
-showEditUser (Repricing i) =  isOpened(i) AND NOT preventChangesDocument(currentUser(),operation(i))  AND NOT skipShowEdit(i); 
+@defineOperationChangesDocument(repricing, Repricing, preventChangesDocument, createdUser);
+
+overShowEditDelete(Repricing p) += showEditDeleteUser(p);
+
+showEditUser (Repricing i) =  isOpened(i) AND overShowEditDelete(i)  AND NOT skipShowEdit(i); 
 
 isUserOpened(UserRepricing p)=  isOpened[Repricing](p) AND is(p);
 
-showDeleteUser (Repricing i) =  isUserOpened(i) AND NOT preventChangesDocument(currentUser(),operation(i)) AND NOT skipShowDelete(i);
+showDeleteUser (Repricing i) =  isUserOpened(i) AND overShowEditDelete(i) AND NOT skipShowDelete(i);
 
 filterRepricingDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
 filterDateFrom (Repricing i) = date(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      

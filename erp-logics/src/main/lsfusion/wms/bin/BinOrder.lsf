@@ -218,10 +218,8 @@ overShowDelete = ABSTRACT BOOLEAN (BinOrder);
 
 skipToShowEdit = ABSTRACT BOOLEAN (BinOrder);
 skipToShowDelete = ABSTRACT BOOLEAN (BinOrder);
-overShowEdit (BinOrder o) += isOpened(o) AND NOT skipToShowEdit(o);
 
 isUserOpened(UserBinOrder o)=  isOpened[BinOrder](o) AND is(o);
-overShowDelete (UserBinOrder o) += isUserOpened(o) AND NOT skipToShowDelete(o); 
 
 overCopy  ABSTRACT LIST ( UserBinOrderDetail, BinOrderDetail);
 overCopy  ABSTRACT LIST ( BinOrder, UserBinOrder);
@@ -397,6 +395,11 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
 @defineOperationRole();
 
 @defineDocumentOperationContainer(binOrder, o, isPostedBinOrder, nameStock, first, name, );
+
+@defineOperationChangesDocument(binOrder, BinOrder, preventChangesDocument, created);
+
+overShowEdit (BinOrder o) += showEditDeleteUser(o) AND isOpened(o) AND NOT skipToShowEdit(o);
+overShowDelete (BinOrder o) += showEditDeleteUser(o) AND isUserOpened(o) AND NOT skipToShowDelete(o); 
 
 overCopy(BinOrder order, UserBinOrder userOrder) + { 
     operation(userOrder) <- operation(order);    

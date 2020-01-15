@@ -273,7 +273,20 @@ EXTEND FORM userRevaluation
         FILTER 'В документе ' quantityUserRevaluationDetail(b, p) 'F9'
 ;
 
+skipShowEdit = ABSTRACT BOOLEAN (Revaluation);
+skipShowDelete = ABSTRACT BOOLEAN (Revaluation);
+overShowEditDelete = ABSTRACT VALUE BOOLEAN (Revaluation);
+
+@defineOperationChangesDocument(revaluation, Revaluation, preventChangesDocument, createdUser);
+
+overShowEditDelete(Revaluation p) += showEditDeleteUser(p);
+
+showEditUser (Revaluation i) =  isOpened(i) AND overShowEditDelete(i)  AND NOT skipShowEdit(i); 
+
 isUserOpened(UserRevaluation r)=  isOpened[Revaluation](r) AND is(r);
+
+showDeleteUser (Revaluation i) =  isUserOpened(i) AND overShowEditDelete(i) AND NOT skipShowDelete(i);
+
 
 FORM revaluations 'Переоценки' 
     OBJECTS p = Revaluation    
@@ -286,7 +299,7 @@ FORM revaluations 'Переоценки'
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p) NEWSESSION NEW[UserRevaluation], EDIT SHOWIF isOpened(p), deletep = DELETE SHOWIF isUserOpened(p)
+    PROPERTIES (p) NEWSESSION NEW[UserRevaluation], EDIT SHOWIF showEditUser(p), deletep = DELETE SHOWIF showDeleteUser(p)
     PROPERTIES (p) close[UserRevaluation] SHOWIF isOpened[UserRevaluation](p), open SHOWIF isClosed[UserRevaluation](p)
     PROPERTIES (p) print 
 

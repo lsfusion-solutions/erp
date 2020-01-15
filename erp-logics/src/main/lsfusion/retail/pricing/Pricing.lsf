@@ -433,9 +433,14 @@ groupType (UserPricing p) = SystemGroupType.skuGroupType IF p IS UserPricing;
 @defineDocumentSkuStockIn(userPricing, sku, departmentStore);
 @extendFormDocumentSkuStockIn(UserPricing, userPricing, p);
 
+
 isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
 edit(UserPricingDetail d) + {  edit(userPricing(d)); }
+
+skipChange = ABSTRACT VALUE BOOLEAN (Pricing);
+overShowEditDelete = ABSTRACT VALUE BOOLEAN (Pricing);
+showChange(Pricing p) = overShowEditDelete(p) AND NOT skipChange(p) AND isOpened(p);
 
 FORM pricings 'Акты расценки' 
     OBJECTS p = Pricing LAST
@@ -448,7 +453,7 @@ FORM pricings 'Акты расценки'
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p) NEWSESSION NEW[UserPricing], EDIT SHOWIF isOpened(p), deletep = DELETE SHOWIF isUserOpened(p) 
+    PROPERTIES (p) NEWSESSION NEW[UserPricing], EDIT SHOWIF showChange(p), deletep = DELETE SHOWIF showChange(p) 
     PROPERTIES(p)  close[UserPricing] SHOWIF isOpened[UserPricing](p), open SHOWIF isClosed[UserPricing](p)     
 
     OBJECTS d = PricingDetail
@@ -605,6 +610,9 @@ DESIGN operation {
 
 @defineDocumentOperationRolePrefix(userPricing, );
 
+@defineOperationChangesDocument(pricing, Pricing, preventChangesDocument, created);
+
+overShowEditDelete(Pricing p) += showEditDeleteUser(p);
 // Записываем тип цены по умолчанию из операции
 skipSetPriceListTypesDepartmentStore 'Не подставлять виды цен магазина' = DATA BOOLEAN (Operation);
 

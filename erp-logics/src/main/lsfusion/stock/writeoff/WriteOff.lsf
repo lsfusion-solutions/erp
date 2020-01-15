@@ -410,8 +410,14 @@ shipmentDateTime(WriteOff writeOff) = dateTime(writeOff);
 skipShowEdit = ABSTRACT BOOLEAN (WriteOff);
 skipShowDelete = ABSTRACT BOOLEAN (WriteOff);
 
-showEdit (WriteOff w) = isOpened(w) AND NOT skipShowEdit(w); 
-showDelete(UserWriteOff w) = isOpened[WriteOff](w) AND is(w) AND NOT skipShowDelete(w);
+overShowEditDelete = ABSTRACT VALUE BOOLEAN (WriteOff);
+
+@defineOperationChangesDocument(writeOff, WriteOff, preventChangesDocument, createdUser);
+
+overShowEditDelete(WriteOff p) += showEditDeleteUser(p);
+
+showEdit (WriteOff w) = isOpened(w) AND overShowEditDelete(w) AND NOT skipShowEdit(w); 
+showDelete(UserWriteOff w) = isOpened[WriteOff](w) AND is(w) AND overShowEditDelete(w) AND NOT skipShowDelete(w);
 
 filterWriteOffDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (WriteOff w) = date(w) >= filterWriteOffDateFrom() OR (w IS WriteOff AND NOT filterWriteOffDateFrom());      
