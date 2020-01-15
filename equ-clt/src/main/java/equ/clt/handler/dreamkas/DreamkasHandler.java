@@ -2,7 +2,6 @@ package equ.clt.handler.dreamkas;
 
 import com.google.common.base.Throwables;
 import equ.api.RequestExchange;
-import equ.api.SalesBatch;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -10,7 +9,6 @@ import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.UnsupportedEncodingException;
@@ -87,7 +85,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     int readSalesInfoCount = -1;
     // Вызывается при чтении реализации
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws UnsupportedEncodingException {
+    public DreamkasSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws UnsupportedEncodingException {
         DreamkasSettings dreamkasSettings = springContext.containsBean("dreamkasSettings") ? (DreamkasSettings) springContext.getBean("dreamkasSettings") : null;
         Integer runReadSalesInterval = dreamkasSettings != null ? dreamkasSettings.getRunReadSalesInterval() : null;
         Integer salesHours = dreamkasSettings != null ? dreamkasSettings.getSalesHours() : null;

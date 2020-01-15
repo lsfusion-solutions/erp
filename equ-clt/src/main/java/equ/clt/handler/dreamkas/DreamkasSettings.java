@@ -10,6 +10,7 @@ public class DreamkasSettings implements Serializable {
     private Integer salesHours = 0;
     private Integer salesLimitReceipt = 100;
     private Integer stepSend = 100;
+    //если задано, чтение реализации вызывается только каждый указанный раз
     private Integer runReadSalesInterval;
 
     public DreamkasSettings () {
