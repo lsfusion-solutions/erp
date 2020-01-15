@@ -70,7 +70,7 @@ public class EncodeIdsAction extends InternalAction {
         return MapFact.fromJavaMap(ids);
     }
 
-    private void writeIds(ExecutionContext context, ImMap<Long, String> processes) throws SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+    private void writeIds(ExecutionContext<ClassPropertyInterface> context, ImMap<Long, String> processes) throws SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
 
         ImOrderSet<LP> props = SetFact.fromJavaOrderSet(Collections.singletonList(findProperty("encodingId[LONG]")));
 

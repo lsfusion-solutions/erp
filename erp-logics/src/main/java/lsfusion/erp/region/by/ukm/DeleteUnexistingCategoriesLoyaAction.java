@@ -47,7 +47,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         }
     }
 
-    private Set<Long> readExistingCategories(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Set<Long> readExistingCategories(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Set<Long> itemGroupSet = new HashSet<>();
 
         KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");
@@ -65,7 +65,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         return itemGroupSet;
     }
 
-    protected boolean deleteUnexistingCategories(ExecutionContext context, Set<Long> existingCategories) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    protected boolean deleteUnexistingCategories(ExecutionContext<ClassPropertyInterface> context, Set<Long> existingCategories) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
 
         ERPLoggers.importLogger.info("Loya: deleting unexisting categories started");
         List<Long> categories = getLoyaCategories(context);
@@ -78,7 +78,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         return succeeded;
     }
 
-    private List<Long> getLoyaCategories(ExecutionContext context) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private List<Long> getLoyaCategories(ExecutionContext<ClassPropertyInterface> context) throws IOException, JSONException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         String requestURL = settings.url + "category";
         if (settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s", requestURL));
@@ -101,7 +101,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         return categories;
     }
 
-    private boolean deleteCategory(ExecutionContext context, Long categoryId) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    private boolean deleteCategory(ExecutionContext<ClassPropertyInterface> context, Long categoryId) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         ERPLoggers.importLogger.info(String.format("Loya: deleting category %s", categoryId));
         String requestURL = settings.url + "category/" + settings.partnerId + "/" + categoryId;
         String requestBody = "[" + categoryId + "]";

@@ -69,7 +69,7 @@ public class EVATAction extends GenerateXMLEVATAction {
         }
     }
 
-    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ERPLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Long, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
@@ -106,7 +106,7 @@ public class EVATAction extends GenerateXMLEVATAction {
         }
     }
 
-    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Long, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
             ERPLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());

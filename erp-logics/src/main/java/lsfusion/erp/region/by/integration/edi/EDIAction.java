@@ -11,6 +11,7 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
@@ -166,8 +167,8 @@ abstract class EDIAction extends DefaultExportXMLAction {
         return outputXMLString(doc, charset, null, null, true);
     }
 
-    protected boolean sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
-                              DataObject eInvoiceObject, boolean showMessages, boolean isCancel, int step) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected boolean sendDocument(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
+                                   DataObject eInvoiceObject, boolean showMessages, boolean isCancel, int step) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean result = false;
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML);
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
@@ -224,7 +225,7 @@ abstract class EDIAction extends DefaultExportXMLAction {
             httpPost.addHeader("Content-Type", "text/xml; charset=UTF-8");
         } else {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", Charset.forName("UTF-8")))).build());
+            builder.addPart(FormBodyPartBuilder.create("xml", new StringBody(xml, ContentType.create("application/xml", StandardCharsets.UTF_8))).build());
             FormBodyPart part = FormBodyPartBuilder.create(file.first, new ByteArrayBody(file.second.getBytes(), file.first)).build();
             part.addField("Content-Id", file.first);
             builder.addPart(part);
