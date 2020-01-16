@@ -1,6 +1,6 @@
 MODULE PurchaseAutoOrder;
 
-REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceListPromotion, Time, SaleLedgerDaysChange;
+REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceListPromotion, Time, SaleLedgerDaysChange, ItemReplace;
 
 NAMESPACE Purchase;
 
@@ -18,6 +18,12 @@ dateFromPromotion 'Дата начала акции' = DATA DATE (Sku, Stock) TA
 dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
 averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock) TABLE promotionSkuStock;   
 
+//расчет данных по замененным товарам модуль ItemReplace
+overAverageSold (Sku sku, Stock stock) = (GROUP SUM averageSold(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+overAverageSoldPromotion (Sku sku, Stock stock) = (GROUP SUM averageSoldPromotion(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+overPrevCurrentBalance 'Остаток замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentBalance(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+overPrevCurrentReserve 'Резерв замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentReserve(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+
 regularPromotionDetail = DATA PriceListDetail (Sku, Stock) TABLE promotionSkuStock INDEXED;
 dateFromRegular 'Дата начала продаж' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
 dateToRegular 'Дата окончания продаж' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
@@ -26,10 +32,10 @@ quantityDaysPromotionCalc 'Кол-во дней' (Sku s, UserOrder o) = quantity
 
 quantityDaysPromotion 'Кол-во дней' (Sku s, UserOrder o) = quantityDaysPromotionCalc(s,o) IF quantityDaysPromotionCalc(s,o) >0;
 
-planPromotion 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysPromotion(s, o) * averageSoldPromotion(s, customerStock(o));
+planPromotion 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysPromotion(s, o) * ( averageSoldPromotion(s, customerStock(o)) (+) overAverageSoldPromotion(s, customerStock(o)) );
  
 quantityDaysRegular 'Кол-во дней' (Sku s, UserOrder o) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o));
-planRegular 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysRegular(s, o) * averageSold(s, customerStock(o)); 
+planRegular 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysRegular(s, o) * ( averageSold(s, customerStock(o)) (+) overAverageSold(s, customerStock(o)) ); 
 
 plan 'Планируемые продажи' (Sku s, UserOrder o) =
     planPromotion(s, o) (+) planRegular(s, o);
@@ -114,7 +120,6 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
                                                             WHERE dateFromPromotion(sku, stock);
     APPLY;
 }
-
 
 FORM soldParams 'Параметры автозаказа'
 
