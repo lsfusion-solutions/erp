@@ -1,7 +1,6 @@
 package equ.clt.handler.belcoopsoyuz;
 
 import com.google.common.base.Throwables;
-import equ.api.SalesBatch;
 import equ.api.SalesInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.cashregister.CashRegisterInfo;
@@ -34,9 +33,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static equ.clt.handler.DBFUtils.getDBFFieldValue;
-import static equ.clt.handler.DBFUtils.putField;
-import static equ.clt.handler.DBFUtils.putNumField;
+import static equ.clt.handler.DBFUtils.*;
 
 public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
 
@@ -483,7 +480,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
     }*/
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
+    public BelCoopSoyuzSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
 
         Map<String, CashRegisterInfo> sectionCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -754,8 +751,8 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 try {
                     int checkSum = 0;
                     for (int i = 0; i <= 10; i = i + 2) {
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+                        checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+                        checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
                     }
                     checkSum %= 10;
                     if (checkSum != 0)

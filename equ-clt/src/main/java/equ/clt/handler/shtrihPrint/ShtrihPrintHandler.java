@@ -133,8 +133,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                                         String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
                                                         int len = nameItem.length();
-                                                        String firstName = nameItem.substring(0, len < 28 ? len : 28);
-                                                        String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
+                                                        String firstName = nameItem.substring(0, Math.min(len, 28));
+                                                        String secondName = len < 28 ? "" : nameItem.substring(28, Math.min(len, 56));
                                                         Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : item.expiryDate;
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
@@ -156,7 +156,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         if (error == 0) {
                                                             processTransactionLogger.info("Shtrih: sending item " + item.pluNumber);
                                                             int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName,
-                                                                    item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                                                    item.price, shelfLife, groupCode, messageNumber, expiryDate/*, item.splitItem ? 0 : 1*/);
                                                             if (result != 0)
                                                                 error = result;
                                                         }
@@ -203,7 +203,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                             if (error == 0) {
                                                                 processTransactionLogger.info("Shtrih: resetting item " + i);
                                                                 int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(9999.99),
-                                                                        0, 0, i, new Date(2001 - 1900, Calendar.JANUARY, 1), 0);
+                                                                        0, 0, i, new Date(2001 - 1900, Calendar.JANUARY, 1)/*, 0*/);
                                                                 if (result != 0)
                                                                     error = result;
                                                             }
@@ -295,8 +295,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                                         String nameItem = item.name != null && capitalLetters ? item.name.toUpperCase() : item.name;
                                                         int len = nameItem.length();
-                                                        String firstName = nameItem.substring(0, len < 28 ? len : 28);
-                                                        String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
+                                                        String firstName = nameItem.substring(0, Math.min(len, 28));
+                                                        String secondName = len < 28 ? "" : nameItem.substring(28, Math.min(len, 56));
 
                                                         shtrihActiveXComponent.setProperty("PLUNumber", new Variant(item.pluNumber));
                                                         shtrihActiveXComponent.setProperty("Price", new Variant(item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue()));
@@ -719,7 +719,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private int setPLUDataEx(List<String> errors, UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
-                             int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType) throws IOException {
+                             int shelfLife, int groupCode, int messageNumber, Date expiryDate/*, int goodsType*/) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
