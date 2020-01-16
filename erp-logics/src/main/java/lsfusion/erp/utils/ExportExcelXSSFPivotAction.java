@@ -168,7 +168,7 @@ public abstract class ExportExcelXSSFPivotAction extends InternalAction {
         return result;
     }
 
-    public String readTitle(ExecutionContext context, Map<String, DataObject> valuesMap, String idTitle) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public String readTitle(ExecutionContext<ClassPropertyInterface> context, Map<String, DataObject> valuesMap, String idTitle) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         if (idTitle != null) {
             

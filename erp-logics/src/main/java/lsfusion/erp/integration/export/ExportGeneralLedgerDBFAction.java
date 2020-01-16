@@ -62,7 +62,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         }
     }
 
-    private File exportGeneralLedgers(ExecutionContext context, ObjectValue dateFrom, ObjectValue dateTo, ObjectValue legalEntity, ObjectValue glAccountType) 
+    private File exportGeneralLedgers(ExecutionContext<ClassPropertyInterface> context, ObjectValue dateFrom, ObjectValue dateTo, ObjectValue legalEntity, ObjectValue glAccountType)
             throws JDBFException, ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException {
 
         OverJDBField[] fields = {
@@ -96,7 +96,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocument", "seriesGLDocument",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "quantityGeneralLedger", "idOperationGeneralLedger"};
-        LP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
+        LP<?>[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
                 "description[GeneralLedger]", "idDebit[GeneralLedger]", "idCredit[GeneralLedger]", "sum[GeneralLedger]",
                 "quantity[GeneralLedger]", "idOperation[GeneralLedger]");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
@@ -106,7 +106,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
         String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        LP[] dimensionTypeProperties = findProperties("idDebit[GeneralLedger,DimensionType]", "orderDebit[GeneralLedger,DimensionType]",
+        LP<?>[] dimensionTypeProperties = findProperties("idDebit[GeneralLedger,DimensionType]", "orderDebit[GeneralLedger,DimensionType]",
                 "idCredit[GeneralLedger,DimensionType]", "orderCredit[GeneralLedger,DimensionType]");
         for (int j = 0; j < dimensionTypeProperties.length; j++) {
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));

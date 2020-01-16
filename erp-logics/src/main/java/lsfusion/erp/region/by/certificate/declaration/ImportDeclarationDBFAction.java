@@ -60,7 +60,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
         }
     }
 
-    private void importDeclaration(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclaration(ExecutionContext<ClassPropertyInterface> context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = readDeclarationsFromDBF(context, declarationObject, entry);
 
@@ -106,7 +106,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
         }
     }
 
-    private Map<String, List<List<Object>>> readDeclarationsFromDBF(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
+    private Map<String, List<List<Object>>> readDeclarationsFromDBF(ExecutionContext<ClassPropertyInterface> context, DataObject declarationObject, RawFileData entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationsMap = new HashMap<>();
         File tempFile = null;
@@ -195,7 +195,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
         return declarationsMap;
     }
 
-    private List<List<Object>> chooseDeclaration(ExecutionContext context, Map<String, List<List<Object>>> declarationMap, int size) {
+    private List<List<Object>> chooseDeclaration(ExecutionContext<ClassPropertyInterface> context, Map<String, List<List<Object>>> declarationMap, int size) {
         List<List<Object>> data = null;
         Object[][] variants = new Object[declarationMap.size()][1];
         int i = 0;

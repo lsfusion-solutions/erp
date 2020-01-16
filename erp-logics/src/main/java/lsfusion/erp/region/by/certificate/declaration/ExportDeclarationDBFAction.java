@@ -110,7 +110,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         }
     }
 
-    private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Declaration exportDeclaration(ExecutionContext<ClassPropertyInterface> context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);  //GA, NOMER_GTD
         BigDecimal sumDeclaration = (BigDecimal) findProperty("sumDeclarationDetail[Declaration]").read(context, declarationObject);  //G222
@@ -130,7 +130,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
                 "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
                 "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail"};
 
-        LP[] exportProperties = findProperties("extraName[DeclarationDetail]", "markin[DeclarationDetail]",
+        LP<?>[] exportProperties = findProperties("extraName[DeclarationDetail]", "markin[DeclarationDetail]",
                 "number[DeclarationDetail]", "codeCustomsGroup[DeclarationDetail]", "sidOrigin2Country[DeclarationDetail]",
                 "sumGrossWeight[DeclarationDetail]", "extraComponentsQuantity[DeclarationDetail]", "sum[DeclarationDetail]",
                 "nameCustoms[DeclarationDetail]", "quantity[DeclarationDetail]", "sumNetWeight[DeclarationDetail]",
@@ -195,7 +195,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
                 addressLegalEntityDeclaration, declarationDetailList, sumDeclaration, countDeclaration);
     }
 
-    private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private G44 exportG44ToList(ExecutionContext<ClassPropertyInterface> context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<G44Detail> customsDocumentDetailList = new ArrayList<>();
         List<G44Detail> complianceDetailList = new ArrayList<>();
@@ -203,7 +203,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);
 
         String[] customsDocumentNames = new String[]{"orderCustomsDocument", "idCustomsDocument", "nameCustomsDocument", "dateCustomsDocument", "isVATCustomsExceptionCustomsDocument", "typePaymentCustomsDocument", "refDocCustomsDocument", "descriptionCustomsDocument"};
-        LP[] customsDocumentProperties = new LP[]{findProperty("order[CustomsDocument]"), findProperty("id[CustomsDocument]"), findProperty("name[CustomsDocument]"), findProperty("date[CustomsDocument]"), findProperty("isVATCustomsException[CustomsDocument]"), findProperty("typePayment[CustomsDocument]"), findProperty("refDoc[CustomsDocument]"), findProperty("description[CustomsDocument]")};
+        LP<?>[] customsDocumentProperties = new LP[]{findProperty("order[CustomsDocument]"), findProperty("id[CustomsDocument]"), findProperty("name[CustomsDocument]"), findProperty("date[CustomsDocument]"), findProperty("isVATCustomsException[CustomsDocument]"), findProperty("typePayment[CustomsDocument]"), findProperty("refDoc[CustomsDocument]"), findProperty("description[CustomsDocument]")};
 
         KeyExpr declarationDetailExpr = new KeyExpr("declarationDetail");
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
@@ -242,7 +242,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance"};
-        LP[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
+        LP<?>[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
                 "toDate[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");

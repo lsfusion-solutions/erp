@@ -56,11 +56,11 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         sendEVAT(context, evatObject);
     }
 
-    private void sendEVAT(ExecutionContext context, DataObject evatObject) {
+    private void sendEVAT(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject) {
         generateXML(context, evatObject, true, false);
     }
 
-    Map<String, Map<Long, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    Map<String, Map<Long, String>> getInvoices(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Long, String>> evatMap = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("evat", evatExpr);
@@ -84,7 +84,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         return evatMap;
     }
 
-    Map<String, Map<Long, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    Map<String, Map<Long, List<Object>>> generateXMLs(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Long, List<Object>>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("evat", evatExpr);
@@ -113,7 +113,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         return files;
     }
 
-    protected List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath, boolean saveToLocal) {
+    protected List<Object> generateXML(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, boolean choosePath, boolean saveToLocal) {
         File tmpFile = null;
         try {
 
@@ -244,7 +244,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, String documentNumber, String invoice, String dateCancelled, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createGeneralElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String status, String documentNumber, String invoice, String dateCancelled, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Element generalElement = new Element("general");
 
         String dateIssuance = formatDate(new Date(System.currentTimeMillis()));
@@ -292,7 +292,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createProviderElement(ExecutionContext context, DataObject evatObject, String declaration, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createProviderElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String declaration, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusSupplier[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonSupplier[EVAT]").read(context, evatObject) != null;
@@ -338,7 +338,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createRecipientElement(ExecutionContext context, DataObject evatObject, String declarationCustomer, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRecipientElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String declarationCustomer, Namespace namespace, boolean exportProviderTaxes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusCustomer[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonCustomer[EVAT]").read(context, evatObject) != null;
@@ -377,7 +377,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject, String addressSupplier, String addressCustomer, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createSenderReceiverElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String addressSupplier, String addressCustomer, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String countryCodeSupplier = trim((String) findProperty("countryCodeConsignor[EVAT]").read(context, evatObject));
         String unpSupplier = trim((String) findProperty("unpConsignor[EVAT]").read(context, evatObject));
         String nameSupplier = trim((String) findProperty("consignor[EVAT]").read(context, evatObject));
@@ -398,7 +398,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createDeliveryConditionElement(ExecutionContext context, DataObject evatObject, String numberDoc, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createDeliveryConditionElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String numberDoc, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate((Date) findProperty("dateContract[EVAT]").read(context, evatObject));
@@ -430,7 +430,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createRosterElement(ExecutionContext context, DataObject evatObject, Namespace namespace, boolean allowZeroVAT) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRosterElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, Namespace namespace, boolean allowZeroVAT) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         BigDecimal totalSum = (BigDecimal) findProperty("totalSum[EVAT]").read(context, evatObject);
         BigDecimal totalExciseSum = (BigDecimal) findProperty("totalExciseSum[EVAT]").read(context, evatObject);
@@ -449,7 +449,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
         String[] evatDetailNames = new String[]{"objValue", "name", "code", "evatCodeUOM", "codeOced",
                 "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
-        LP[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "evatCodeUOM[EVATDetail]",
+        LP<?>[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "evatCodeUOM[EVATDetail]",
                 "codeOced[EVATDetail]", "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]",
                 "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {

@@ -168,21 +168,15 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
     private void exportSignals(Connection conn, int version) throws SQLException {
         conn.setAutoCommit(true);
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
-            String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);",
-                    "incr", version);
+        try (Statement statement = conn.createStatement()) {
+            String sql = String.format("INSERT INTO `signal` (`signal`, version) VALUES('%s', '%s') ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);", "incr", version);
             statement.executeUpdate(sql);
         } catch (Exception e) {
             throw Throwables.propagate(e);
-        } finally {
-            if (statement != null)
-                statement.close();
         }
     }
 
-    private List<GiftCard> getGiftCards(ExecutionContext context) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<GiftCard> getGiftCards(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
         List<GiftCard> giftCards = new ArrayList<>();
 
         KeyExpr giftCardExpr = new KeyExpr("giftCard");
@@ -192,7 +186,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
         String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
                 "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "allowReturn", "allowReturnPayment"};
-        LP[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
+        LP<?>[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
                 "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
                 "dateSold[GiftCard]", "expireDate[GiftCard]", "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
@@ -247,7 +241,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         return giftCards;
     }
 
-    private void finishExport(ExecutionContext context, List<GiftCard> giftCards) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void finishExport(ExecutionContext<ClassPropertyInterface> context, List<GiftCard> giftCards) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         for(GiftCard giftCard : giftCards) {
@@ -292,17 +286,12 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
     private int getVersion(Connection conn) throws SQLException {
         int version;
-        Statement statement = null;
-        try {
-            statement = conn.createStatement();
+        try (Statement statement = conn.createStatement()) {
             String query = "select max(version) from `signal`";
             ResultSet rs = statement.executeQuery(query);
             version = rs.next() ? rs.getInt(1) : 0;
         } catch (SQLException e) {
             version = 0;
-        } finally {
-            if (statement != null)
-                statement.close();
         }
         return version;
     }

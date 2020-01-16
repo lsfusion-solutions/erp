@@ -1,13 +1,11 @@
 package lsfusion.erp.integration.image;
 
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
-import java.sql.SQLException;
 import java.util.Iterator;
 
 public class SearchFirstImageArticleAction extends DefaultImageArticleAction {

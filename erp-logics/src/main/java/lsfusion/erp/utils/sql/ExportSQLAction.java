@@ -11,6 +11,7 @@ import lsfusion.server.logics.form.interactive.instance.FormInstance;
 import lsfusion.server.logics.form.interactive.instance.FormRow;
 import lsfusion.server.logics.form.interactive.instance.property.PropertyDrawInstance;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -62,7 +63,7 @@ abstract class ExportSQLAction extends InternalAction {
     public abstract void setObject(PreparedStatement ps, int index, Object value) throws SQLException;
 
     @Override
-    public void executeInternal(ExecutionContext context) throws SQLException, SQLHandledException {
+    public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         Connection conn = null;
         PreparedStatement ps = null;
@@ -122,16 +123,11 @@ abstract class ExportSQLAction extends InternalAction {
                         wheres += (wheres.isEmpty() ? "" : " AND ") + key + "=?";
 
                     if (truncate) {
-                        Statement statement = null;
-                        try {
-                            statement = conn.createStatement();
+                        try (Statement statement = conn.createStatement()) {
                             String truncateStatement = getTruncateStatement();
                             ERPLoggers.importLogger.info("ExportSQL: " + truncateStatement);
                             statement.execute(truncateStatement);
                             conn.commit();
-                        } finally {
-                            if (statement != null)
-                                statement.close();
                         }
                     }
                     ERPLoggers.importLogger.info(String.format("ExportSQL: prepare statement (%s rows, %s columns, %s keys)", rows.size(), columnNames.size(), keyColumns.size()));

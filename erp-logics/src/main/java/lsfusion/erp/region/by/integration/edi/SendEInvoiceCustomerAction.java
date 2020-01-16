@@ -41,7 +41,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         eInvoiceInterface = i.next();
     }
 
-    protected void sendEInvoice(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    protected void sendEInvoice(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                                 String hostEDSService, Integer portEDSService,
                                 boolean useEDSServiceForCustomer, String outputDir, String provider)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
@@ -154,7 +154,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    private void sendDocument(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
+    private void sendDocument(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port, String provider, String invoiceNumber, String documentXML,
                               DataObject eInvoiceObject, boolean showMessages) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, documentXML);
@@ -191,7 +191,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    protected RawFileData createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected RawFileData createBLRAPN(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -257,7 +257,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    protected String createBLRAPNString(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String outputDir) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String createBLRAPNString(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String outputDir) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String error = "";
 
         String deliveryNoteId = (String) findProperty("deliveryNoteNumber[EInvoice]").read(context, eInvoiceObject);
@@ -313,7 +313,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    private boolean sendBLRAPN(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    private boolean sendBLRAPN(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                             String provider, Object signedDocument, DataObject eInvoiceObject, String documentNumber, String documentDate, String invoiceNumber,
                             String glnCustomer, String glnCustomerStock, boolean showMessages) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;
@@ -327,7 +327,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         return result;
     }
 
-    protected RawFileData createBLRWBR(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected RawFileData createBLRWBR(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String documentNumber, String documentDate, String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         File tmpFile = null;
         try {
 
@@ -437,7 +437,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    protected String createBLRWBRString(ExecutionContext context, DataObject eInvoiceObject, String documentNumber, String documentDate,
+    protected String createBLRWBRString(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String documentNumber, String documentDate,
                                         String referenceNumber, String referenceDate, String glnCustomer, String glnCustomerStock, String outputDir)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String error = "";
@@ -539,7 +539,7 @@ public class SendEInvoiceCustomerAction extends EDIAction {
         }
     }
 
-    private boolean sendBLRWBR(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    private boolean sendBLRWBR(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                                String provider, Object signedDocument, DataObject eInvoiceObject, String documentNumber, String documentDate, String invoiceNumber,
                                String glnCustomer, String glnCustomerStock) throws JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         boolean result = false;

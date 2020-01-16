@@ -95,7 +95,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail",
                         "calcSumVATReceiptDetail", "idSectionReceiptDetail", "commentReceiptDetail"};
-                LP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
+                LP<?>[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
                         "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
                         "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]",
                         "calcSumVAT[ReceiptDetail]", "idSection[ReceiptDetail]", "fiscalEpsonComment[ReceiptDetail]");
@@ -182,7 +182,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
         }
     }
 
-    protected void addCustomProperties(ExecutionContext context, QueryBuilder<Object, Object> receiptDetailQuery, KeyExpr receiptDetailExpr) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected void addCustomProperties(ExecutionContext<ClassPropertyInterface> context, QueryBuilder<Object, Object> receiptDetailQuery, KeyExpr receiptDetailExpr) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
     }
 
     private String formatSumVAT(BigDecimal value) {

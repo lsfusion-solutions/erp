@@ -53,7 +53,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
         }
     }
 
-    private void importDeclarationAdjustments(ExecutionContext context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
+    private void importDeclarationAdjustments(ExecutionContext<ClassPropertyInterface> context, DataObject declarationObject, RawFileData entry) throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, SQLHandledException {
 
         Map<String, List<List<Object>>> declarationAdjustmentsMap = readDeclarationAdjustmentsFromDBF(entry);
 
@@ -179,7 +179,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
         return declarationsMap;
     }
 
-    private List<List<Object>> chooseDeclaration(ExecutionContext context, Map<String, List<List<Object>>> declarationMap) {
+    private List<List<Object>> chooseDeclaration(ExecutionContext<ClassPropertyInterface> context, Map<String, List<List<Object>>> declarationMap) {
         List<List<Object>> data = null;
         Object[][] variants = new Object[declarationMap.size()][1];
         int i = 0;

@@ -34,7 +34,7 @@ public class SearchImageArticleAction extends DefaultImageArticleAction {
         loadImages(context, articleObject, 0, 8);
     }
 
-    public void resetImages(ExecutionContext context) throws SQLHandledException {
+    public void resetImages(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
 

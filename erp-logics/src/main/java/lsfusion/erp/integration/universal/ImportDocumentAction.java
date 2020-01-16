@@ -55,7 +55,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
-    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(ExecutionContext<ClassPropertyInterface> context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         LinkedHashMap<String, ImportColumnDetail> defaultColumns = new LinkedHashMap<>();
         LinkedHashMap<String, ImportColumnDetail> customColumns = new LinkedHashMap<>();
@@ -202,7 +202,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         return result;
     }
 
-    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
+    protected void renameImportedFile(ExecutionContext<ClassPropertyInterface> context, String oldPath, String extension) {
         File importedFile = new File(oldPath);
         String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
         String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";

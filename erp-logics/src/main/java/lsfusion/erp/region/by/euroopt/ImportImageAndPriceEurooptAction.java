@@ -73,7 +73,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
 
     }
 
-    private List<JSONArray> getData(ExecutionContext context, String mainPage, boolean useTor, boolean importImages, boolean importPrices)
+    private List<JSONArray> getData(ExecutionContext<ClassPropertyInterface> context, String mainPage, boolean useTor, boolean importImages, boolean importPrices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         JSONArray imagesJSON = new JSONArray();
         JSONArray pricesJSON = new JSONArray();
@@ -249,7 +249,7 @@ public class ImportImageAndPriceEurooptAction extends EurooptAction {
         return null;
     }
 
-    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Pair<List<String>, Map<String, String>> getItemListData(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemListURLList = new ArrayList<>();
         Map<String, String> barcodeMap = new HashMap<>();
         KeyExpr itemListExpr = new KeyExpr("eurooptItemList");

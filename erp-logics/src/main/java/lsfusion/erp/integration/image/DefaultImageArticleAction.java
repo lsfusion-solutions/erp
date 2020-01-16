@@ -40,7 +40,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    public void loadImages(ExecutionContext context, DataObject articleObject, Integer start, Integer pageSize) {
+    public void loadImages(ExecutionContext<ClassPropertyInterface> context, DataObject articleObject, Integer start, Integer pageSize) {
         try {         
             String url = formatURL(context, articleObject, pageSize, start);
             JSONObject response;
@@ -84,7 +84,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
         }
     }
 
-    public void loadFirstImage(ExecutionContext context, DataObject articleObject) {
+    public void loadFirstImage(ExecutionContext<ClassPropertyInterface> context, DataObject articleObject) {
         try {
             String url = formatURL(context, articleObject, 8, 0);
             JSONObject response;
@@ -134,7 +134,7 @@ public class DefaultImageArticleAction extends DefaultIntegrationAction {
         return file;
     }
 
-    private String formatURL(ExecutionContext context, DataObject articleObject, int pageSize, int start) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String formatURL(ExecutionContext<ClassPropertyInterface> context, DataObject articleObject, int pageSize, int start) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String patternImageArticle = trim((String) findProperty("patternImage[Article]").read(context, articleObject));
         String idArticle = trim((String) findProperty("id[Article]").read(context, articleObject), "");
         String idBrandArticle = trim((String) findProperty("idBrand[Article]").read(context, articleObject), "");

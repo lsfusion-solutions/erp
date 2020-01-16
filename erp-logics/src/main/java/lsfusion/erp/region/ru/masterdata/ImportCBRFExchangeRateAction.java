@@ -60,66 +60,63 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
     }
 
-    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
+    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, extraSIDCurrency, context);
 
-        if (exchangesList != null) {
+        ImportField typeExchangeRUField = new ImportField(findProperty("name[TypeExchange]"));
+        ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
+        ImportField currencyField = new ImportField(findProperty("shortName[Currency]"));
+        ImportField homeCurrencyField = new ImportField(findProperty("shortName[Currency]"));
+        ImportField rateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
+        ImportField foreignRateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
+        ImportField dateField = new ImportField(DateClass.instance);
 
-            ImportField typeExchangeRUField = new ImportField(findProperty("name[TypeExchange]"));
-            ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
-            ImportField currencyField = new ImportField(findProperty("shortName[Currency]"));
-            ImportField homeCurrencyField = new ImportField(findProperty("shortName[Currency]"));
-            ImportField rateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
-            ImportField foreignRateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
-            ImportField dateField = new ImportField(DateClass.instance);
+        ImportKey<?> typeExchangeRUKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeRUField));
 
-            ImportKey<?> typeExchangeRUKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeRUField));
+        ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
 
-            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
+        ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));
 
-            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));
+        ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                findProperty("currencyShortName[BPSTRING[3]]").getMapping(homeCurrencyField));
 
-            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(homeCurrencyField));
+        List<ImportProperty<?>> props = new ArrayList<>();
 
-            List<ImportProperty<?>> props = new ArrayList<>();
+        props.add(new ImportProperty(typeExchangeRUField, findProperty("name[TypeExchange]").getMapping(typeExchangeRUKey)));
+        props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeRUKey),
+                object(findClass("Currency")).getMapping(homeCurrencyKey)));
+        props.add(new ImportProperty(rateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeRUKey, currencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeRUField, findProperty("name[TypeExchange]").getMapping(typeExchangeRUKey)));
-            props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeRUKey),
-                    object(findClass("Currency")).getMapping(homeCurrencyKey)));
-            props.add(new ImportProperty(rateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeRUKey, currencyKey, dateField)));
+        props.add(new ImportProperty(typeExchangeForeignField, findProperty("name[TypeExchange]").getMapping(typeExchangeForeignKey)));
+        props.add(new ImportProperty(currencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeForeignKey),
+                object(findClass("Currency")).getMapping(currencyKey)));
+        props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeForeignField, findProperty("name[TypeExchange]").getMapping(typeExchangeForeignKey)));
-            props.add(new ImportProperty(currencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeForeignKey),
-                    object(findClass("Currency")).getMapping(currencyKey)));
-            props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
-
-            List<List<Object>> data = new ArrayList<>();
-            for (Exchange e : exchangesList) {
-                data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
-            }
-            ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
-                    homeCurrencyField, rateField, foreignRateField, dateField), data);
-
-            IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeRUKey,
-                    typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
-            service.synchronize(true, false);
+        List<List<Object>> data = new ArrayList<>();
+        for (Exchange e : exchangesList) {
+            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
         }
+        ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
+                homeCurrencyField, rateField, foreignRateField, dateField), data);
+
+        IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeRUKey,
+                typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
+        service.synchronize(true, false);
     }
 
-    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
         List<Exchange> exchangesList = new ArrayList<>();
 
         Document document = builder.build(new URL("http://www.cbr.ru/scripts/XML_val.asp?d=0").openStream());
         Element rootNode = document.getRootElement();
-        List list = rootNode.getChildren("Item");
+        List<Element> list = rootNode.getChildren("Item");
 
         for (Object aList : list) {
 
@@ -133,7 +130,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
                         + "&date_req2=" + new SimpleDateFormat("dd/MM/yyyy").format(dateTo)
                         + "&VAL_NM_RQ=" + id).openStream());
                 Element exchangeRootNode = exchangeDocument.getRootElement();
-                List exchangeList = exchangeRootNode.getChildren("Record");
+                List<Element> exchangeList = exchangeRootNode.getChildren("Record");
 
                 String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, findProperty("currencyExtraSID[BPSTRING[6]]").readClasses(context, new DataObject(extraSIDCurrency)));
 

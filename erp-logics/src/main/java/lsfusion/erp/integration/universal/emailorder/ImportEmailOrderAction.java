@@ -1,26 +1,26 @@
 package lsfusion.erp.integration.universal.emailorder;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.file.FileData;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportXLSXAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -28,7 +28,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,7 +56,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
 
     }
 
-    private Map<DataObject, List<Object>> readAttachmentMap(ExecutionContext context) throws SQLException, SQLHandledException {
+    private Map<DataObject, List<Object>> readAttachmentMap(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         Map<DataObject, List<Object>> attachmentMap = new HashMap<>();
 
@@ -100,7 +99,7 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
         return attachmentMap;
     }
 
-    private void importOrder(ExecutionContext context, RawFileData file) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importOrder(ExecutionContext<ClassPropertyInterface> context, RawFileData file) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow[]").read(context);
         String numberCell = (String) findProperty("importEmailOrderNumberCell[]").read(context);
@@ -112,48 +111,45 @@ public class ImportEmailOrderAction extends DefaultImportXLSXAction {
 
             List<List<Object>> data = importOrderFromXLSX(file, firstRow, numberCell, quantityColumn);
 
-            if (data != null) {
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
-                List<ImportProperty<?>> props = new ArrayList<>();
-                List<ImportField> fields = new ArrayList<>();
-                List<ImportKey<?>> keys = new ArrayList<>();
+            ImportField seriesNumberUserOrderField = new ImportField(findProperty("seriesNumber[UserOrder]"));
+            ImportKey<?> userOrderKey = new ImportKey((CustomClass) findClass("Purchase.UserOrder"),
+                    findProperty("order[BPSTRING[18]]").getMapping(seriesNumberUserOrderField));
+            userOrderKey.skipKey = true;
+            keys.add(userOrderKey);
+            fields.add(seriesNumberUserOrderField);
 
-                ImportField seriesNumberUserOrderField = new ImportField(findProperty("seriesNumber[UserOrder]"));
-                ImportKey<?> userOrderKey = new ImportKey((CustomClass) findClass("Purchase.UserOrder"),
-                        findProperty("order[BPSTRING[18]]").getMapping(seriesNumberUserOrderField));
-                userOrderKey.skipKey = true;
-                keys.add(userOrderKey);
-                fields.add(seriesNumberUserOrderField);
+            ImportField isConfirmedOrderField = new ImportField(findProperty("isConfirmed[Purchase.Order]"));
+            props.add(new ImportProperty(isConfirmedOrderField, findProperty("isConfirmed[Purchase.Order]").getMapping(userOrderKey)));
+            fields.add(isConfirmedOrderField);
 
-                ImportField isConfirmedOrderField = new ImportField(findProperty("isConfirmed[Purchase.Order]"));
-                props.add(new ImportProperty(isConfirmedOrderField, findProperty("isConfirmed[Purchase.Order]").getMapping(userOrderKey)));
-                fields.add(isConfirmedOrderField);
+            ImportField indexUserOrderDetailField = new ImportField(findProperty("index[UserOrderDetail]"));
+            ImportKey<?> userOrderDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserOrderDetail"),
+                    findProperty("orderDetail[INTEGER,STRING[18]]").getMapping(indexUserOrderDetailField, seriesNumberUserOrderField));
+            userOrderDetailKey.skipKey = true;
+            keys.add(userOrderDetailKey);
+            props.add(new ImportProperty(seriesNumberUserOrderField, findProperty("userOrder[UserOrderDetail]").getMapping(userOrderDetailKey),
+                    object(findClass("Purchase.UserOrder")).getMapping(userOrderKey)));
+            fields.add(indexUserOrderDetailField);
 
-                ImportField indexUserOrderDetailField = new ImportField(findProperty("index[UserOrderDetail]"));
-                ImportKey<?> userOrderDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserOrderDetail"),
-                        findProperty("orderDetail[INTEGER,STRING[18]]").getMapping(indexUserOrderDetailField, seriesNumberUserOrderField));
-                userOrderDetailKey.skipKey = true;
-                keys.add(userOrderDetailKey);
-                props.add(new ImportProperty(seriesNumberUserOrderField, findProperty("userOrder[UserOrderDetail]").getMapping(userOrderDetailKey),
-                        object(findClass("Purchase.UserOrder")).getMapping(userOrderKey)));
-                fields.add(indexUserOrderDetailField);
+            ImportField quantityUserOrderDetailField = new ImportField(findProperty("quantity[UserOrderDetail]"));
+            props.add(new ImportProperty(quantityUserOrderDetailField, findProperty("quantity[UserOrderDetail]").getMapping(userOrderDetailKey)));
+            fields.add(quantityUserOrderDetailField);
 
-                ImportField quantityUserOrderDetailField = new ImportField(findProperty("quantity[UserOrderDetail]"));
-                props.add(new ImportProperty(quantityUserOrderDetailField, findProperty("quantity[UserOrderDetail]").getMapping(userOrderDetailKey)));
-                fields.add(quantityUserOrderDetailField);
+            ImportTable table = new ImportTable(fields, data);
 
-                ImportTable table = new ImportTable(fields, data);
-
-                try(ExecutionContext.NewSession newContext = context.newSession()) {
-                    IntegrationService service = new IntegrationService(newContext, table, keys, props);
-                    service.synchronize(true, false);
-                    newContext.apply();
-                }
+            try(ExecutionContext.NewSession newContext = context.newSession()) {
+                IntegrationService service = new IntegrationService(newContext, table, keys, props);
+                service.synchronize(true, false);
+                newContext.apply();
             }
         }
     }
 
-    private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void finishImportOrder(ExecutionContext<ClassPropertyInterface> context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try(ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("importedOrder[AttachmentEmail]").change(true, newContext, (DataObject) orderObject);
             newContext.apply();
