@@ -230,6 +230,9 @@ in = DATA BOOLEAN (MarketingInvoiceDetail, Invoice.InvoiceDetail);
 
 overCreateMarketingInvoice ABSTRACT LIST (ContractMarketing, MarketingInvoice, DATE, DATE);
 
+skipMarketing = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+skipMarketing = ABSTRACT BOOLEAN (PurchaseReturn.UserInvoiceDetail);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -258,13 +261,13 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         numberTask(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         
         LOCAL in = BOOLEAN (Purchase.UserInvoiceDetail);
-        in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
+        in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
 
         LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
         marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
 
         LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
-        in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d);
+        in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
         
         LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
         marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
