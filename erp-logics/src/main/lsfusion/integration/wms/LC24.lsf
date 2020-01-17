@@ -1,14 +1,15 @@
 MODULE LC24;
 
 REQUIRE Warehouse, Item, LegalEntityBy, SalePack, EDI, PurchaseInvoice, PurchaseShipment, PurchaseInvoiceCustody,
-        SaleInvoice, SaleShipment, WMSIntegration;
+        SaleInvoice, SaleShipment, WMSIntegration, ItemSize;
 
 NAMESPACE Integration;
 
 isLC24 'Склад логистического оператора (ЛЦ24)' = DATA BOOLEAN (Warehouse);
+isCold 'Холодный склад' = DATA BOOLEAN (Warehouse);
 
 EXTEND FORM warehouse 
-    PROPERTIES (w) isLC24
+    PROPERTIES (w) isLC24, isCold SHOWIF isLC24(w)
 ;
 
 connectionStringLC24 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
@@ -78,6 +79,9 @@ EXTEND FORM items
 overExportItemsLC24 ABSTRACT ();
 overExportItemsLC24 = DATA LOCAL BOOLEAN ();
 
+overIdSkuGroup3 = ABSTRACT STRING[100](Item);
+overNameSkuGroup3 = ABSTRACT STRING[250](Item);
+
 exportItemsLC24 'Выгрузить товары в wms ЛЦ24' ()  {     
     overExportItemsLC24();
     IF NOT overExportItemsLC24() THEN {
@@ -86,21 +90,21 @@ exportItemsLC24 'Выгрузить товары в wms ЛЦ24' ()  {
             c02 = id(Item i),
             c03 = nameAttribute(i),
             c04 = STRING[50](nameAttribute(i)),
-            c05 = idSkuGroup3(i),
-            c06 = nameSkuGroup3(i),
-            c07 = (OVERRIDE idSkuGroup4(i), nameSkuGroup3(i)),
+            c05 = (OVERRIDE overIdSkuGroup3(i), idSkuGroup3(i)),
+            c06 = (OVERRIDE overNameSkuGroup3(i), nameSkuGroup3(i)),
+            c07 = (OVERRIDE idSkuGroup4(i), idSkuGroup3(i)),
             c08 = (OVERRIDE nameSkuGroup4(i), nameSkuGroup3(i)),
             c09 = '',
             c10 = '',
             c11 = (OVERRIDE INTEGER (Sale.amountPack(i)), 1),
             c12 = '',
             c13 = '',
-            c14 = UNP(GROUP MIN LegalEntity l IF isCompany(l)),
-            c15 = '',
-            c16 = '',
-            c17 = '',
-            c18 = '',
-            c19 = '',
+            c14 = UNP(GROUP MIN legalEntity(Stock st) IF isCompany(st) AND isLC24(st)),
+            c15 = netWeight(i),
+            c16 = grossWeight(i),
+            c17 = width(i),
+            c18 = length(i),
+            c19 = height(i),
             c20 = '',
             c21 = '',
             c22 = '',
@@ -111,18 +115,17 @@ exportItemsLC24 'Выгрузить товары в wms ЛЦ24' ()  {
             c27 = '',
             c28 = '',
             c29 = '',
-            c30 = '',
-            c31 = '',
-            c32 = '',
-            c33 = '',
+            c30 = expiryDays(i),
+            c31 = '30',
+            c32 = idBarcode(i),
+            c33 = valueVAT(i),
             c34 = '',
-            c35 = '',
+            c35 = nameCountry(i),
             c36 = '',
             c37 = '',
             c38 = '',
             c39 = '1',
-            c40 = '',
-            c41 = ''
+            c40 = ''
             WHERE in(i);
     }   
     WRITE exportFile() TO connectionStringLC24() + inPathLC24() + 'goods_main_' + nowTextLC24();
@@ -267,7 +270,7 @@ exportPurchaseLC24 'Выгрузить в ЛЦ24' (Purchase.Invoice i) {
             c06 = '',
             c07 = '',
             c08 = '',
-            c09 = '0',
+            c09 = IF isCold(customerStock(i)) THEN  '1' ELSE '0',
             c10 = '0',
             c11 = '',
             c12 = custodyContract(customerStock(i)), 
@@ -331,17 +334,16 @@ exportSaleLC24 'Выгрузить в ЛЦ24' (Sale.Order o) {
         EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
             c01 = '0', //0 – отгрузка товара;
             c02 = seriesNumber(o),
-            c03 = '',
-            c04 = toChar(dateTime(o), 'YYYYMMDDHH24MISS'),
-            c05 = toChar(shipmentDateTime(o), 'YYYYMMDDHH24MISS'),
-            c06 = id(customerStock(o)),
-            c07 = '0',
-            c08 = '2',
-            c09 = '0',
-            c10 = '',
-            c11 = custodyContract(supplierStock(o)), 
-            c12 = toChar(custodyContractDate(supplierStock(o)), 'YYYYMMDD'),
-            c13 = seriesNumberContractSku(o);
+            c03 = toChar(dateTime(o), 'YYYYMMDDHH24MISS'),
+            c04 = toChar(shipmentDateTime(o), 'YYYYMMDDHH24MISS'),
+            c05 = id(customerStock(o)),
+            c06 = IF isCold(customerStock(o)) THEN '1' ELSE '0',
+            c07 = '2',
+            c08 = '1',
+            c09 = address(customerStock(o)),
+            c10 = custodyContract(supplierStock(o)), 
+            c11 = toChar(custodyContractDate(supplierStock(o)), 'YYYYMMDD'),
+            c12 = IF supplier(o) = customer(o) THEN 'Внутреннее перемещение'  ELSE (CONCAT ' ', 'Договор поставки ', descriptionContractSku(o));
         WRITE exportFile() TO 'file://' + tmpDirLC24() + fileName();
         
         EXPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM 
