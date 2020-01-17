@@ -1,0 +1,16 @@
+MODULE PurchaseAutoOrderItemReplace;
+
+REQUIRE PurchaseAutoOrder, ItemReplace;
+
+NAMESPACE Purchase;
+
+//расчет данных по замененным товарам модуль ItemReplace
+calcAverageSold (Sku sku, Stock stock) = (GROUP SUM averageSold(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+calcAverageSoldPromotion (Sku sku, Stock stock) = (GROUP SUM averageSoldPromotion(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+calcPrevCurrentBalance 'Остаток замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentBalance(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+calcPrevCurrentReserve 'Резерв замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentReserve(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+
+overAverageSold (Sku sku, Stock stock) += calcAverageSold (sku, stock);
+overAverageSoldPromotion (Sku sku, Stock stock) += calcAverageSoldPromotion (sku, stock);
+overPrevCurrentBalance (Sku sku, Stock stock) += calcPrevCurrentBalance (sku, stock);
+overPrevCurrentReserve (Sku sku, Stock stock) += calcPrevCurrentReserve (sku, stock);

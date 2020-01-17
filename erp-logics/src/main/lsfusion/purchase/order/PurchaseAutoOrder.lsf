@@ -1,6 +1,6 @@
 MODULE PurchaseAutoOrder;
 
-REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceListPromotion, Time, SaleLedgerDaysChange, ItemReplace;
+REQUIRE PurchaseDemand, PurchaseScheduleOrder, PriceListPromotion, Time, SaleLedgerDaysChange;
 
 NAMESPACE Purchase;
 
@@ -19,10 +19,10 @@ dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock
 averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock) TABLE promotionSkuStock;   
 
 //расчет данных по замененным товарам модуль ItemReplace
-overAverageSold (Sku sku, Stock stock) = (GROUP SUM averageSold(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
-overAverageSoldPromotion (Sku sku, Stock stock) = (GROUP SUM averageSoldPromotion(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
-overPrevCurrentBalance 'Остаток замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentBalance(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
-overPrevCurrentReserve 'Резерв замен' (Sku sku, Stock stock) =  GROUP SUM (prevCurrentReserve(Sku oldSku, stock) IF isActive(ItemReplace rep) AND oldSku(rep) = oldSku AND newSku(rep) = sku);
+overAverageSold (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
+overAverageSoldPromotion (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
+overPrevCurrentBalance 'Остаток замен' (Sku sku, Stock stock) = ABSTRACT NUMERIC[16,5](Sku, Stock);
+overPrevCurrentReserve 'Резерв замен' (Sku sku, Stock stock) = ABSTRACT NUMERIC[16,5](Sku, Stock);
 
 regularPromotionDetail = DATA PriceListDetail (Sku, Stock) TABLE promotionSkuStock INDEXED;
 dateFromRegular 'Дата начала продаж' = DATA DATE (Sku, Stock) TABLE promotionSkuStock;
