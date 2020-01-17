@@ -1168,7 +1168,95 @@ META defineAddDetailDialogSkuCustomInner (object, class, detail, detailClass, ca
     } TOOLBAR;
 END
 
-@defineDialogStockSku(dialogSku);
+@defineDialogStockSku(dialogSku){
+
+    @defineDialogSku (dialogSku){
+
+    dialogQuantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Sku);
+
+    FORM dialogSku 'Подбор SKU'
+        TREE skuTree sk = SkuGroup PARENT parent(sk)
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+        OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
+        PROPERTIES READONLY    idBarcode(s), id(s) SHOWIF showIDs(), inputName = name(s) //form###nameSku(s)
+        PROPERTIES(s)          dialogQuantity
+        PROPERTIES             EDIT(s) NEWSESSION
+
+        FILTERS                isParent(sk, s)
+        FILTERGROUP activeSku FILTER 'Активные' active(s) DEFAULT
+        ORDER inputName
+
+        OBJECTS si=Sku
+        PROPERTIES READONLY     idBarcode(si), selectedName = name(si)
+        PROPERTIES(si)          dialogQuantity
+        FILTERS                 dialogQuantity(si)
+        ORDER selectedName
+    ;
+
+    DESIGN dialogSku {
+        BOX {
+            size = (1024, 768);
+            NEW skuContainer BEFORE TOOLBARBOX {
+                fill = 1;
+                type = SPLITH;
+
+                MOVE BOX(TREE skuTree);
+                NEW inputContainer {
+                    fill = 2;
+                    type = CONTAINERV;
+
+                    NEW filterContainer {
+                        align = STRETCH;
+                        type = CONTAINERH;
+                        //NEW PROPERTY(form###nameStock());
+                    }
+
+                    NEW inputSkuContainer {
+                        fill = 1;
+                        type = SPLITV;
+
+                        MOVE BOX(s) {
+                            fill = 3;
+                        }
+                        MOVE BOX(si);
+                    }
+                }
+            }
+        }
+    }
+
+};
+
+    dialogSkuStock = DATA LOCAL Stock ();
+    dialogAll 'Весь остаток' = DATA LOCAL BOOLEAN (Sku);
+    dialogSkuNameStock 'Склад' () = name(dialogSkuStock()) CHARWIDTH 30;
+
+    dialogBalance 'Остаток' (Sku sku) = currentBalance(sku, dialogSkuStock());
+    dialogBalanceFilter (Sku sku) = dialogBalance(sku) OR (sku IS Sku AND NOT dialogSkuStock());
+
+    dialogQuantity(Sku sku) <- dialogBalance(sku) WHEN SET(dialogAll(sku));
+
+    EXTEND FORM dialogSku
+        PROPERTIES() dialogSkuNameStock
+
+        PROPERTIES(s) READONLY dialogBalance SHOWIF dialogSkuStock()
+        PROPERTIES(s)          dialogAll SHOWIF dialogSkuStock()
+        FILTERGROUP balance
+            FILTER 'С остатком' dialogBalanceFilter(s) DEFAULT
+
+        PROPERTIES(si) READONLY dialogBalance SHOWIF dialogSkuStock()
+        PROPERTIES(si)          dialogAll SHOWIF dialogSkuStock()
+    ;
+
+    DESIGN dialogSku {
+        filterContainer {
+            MOVE PROPERTY(dialogSkuNameStock());
+        }
+    }
+};
 
 dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 

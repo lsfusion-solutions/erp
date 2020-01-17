@@ -54,7 +54,9 @@ DESIGN departmentStoresCompany {
         MOVE TOOLBARBOX;
     }
 }
-@extendFormFilterStockAccess(d, departmentStores, company);
+@extendFormFilterStockAccess(d, departmentStores, company){
+    EXTEND FORM departmentStores FILTERS accessCompany(currentUser(), d);
+};
 
 nameIncludeDepartmentStores 'Магазины' = GROUP CONCAT name(DepartmentStore ds) IF include(ds), ', ' ORDER ds CHARWIDTH 20;
 changeIncludeDepartmentStores() {
@@ -157,9 +159,19 @@ DESIGN repricingMultiDashboard {
     }
 }
 
-@extendFormFilterStockAccess(ds, repricingMultiDashboard);
-@extendFormFilterAccessStock(Repricing, p, repricingMultiDashboard, departmentStore, company);
-@extendFormFilterRoleAccess(repricing, p, repricingMultiDashboard);
+@extendFormFilterStockAccess(ds, repricingMultiDashboard){ // по умолчанию для компании
+    @extendFormFilterStockAccess(ds, repricingMultiDashboard, company){
+    EXTEND FORM repricingMultiDashboard FILTERS accessCompany(currentUser(), ds);
+};
+};
+@extendFormFilterAccessStock(Repricing, p, repricingMultiDashboard, departmentStore, company){
+    EXTEND FORM repricingMultiDashboard FILTERS accessCompany(currentUser(),departmentStore(p)) OR NOT departmentStore(p);
+};
+@extendFormFilterRoleAccess(repricing, p, repricingMultiDashboard){
+    @extendFormFilterRoleAccessPrefix(repricing, p, repricingMultiDashboard, ){
+    EXTEND FORM repricingMultiDashboard FILTERS in(currentUser(), operation(p));
+};    
+};
 
 createMultiDashboardRepricing 'Создать переоценку'(Operation o, DATETIME dt)  { 
 	NEWSESSION NESTED LOCAL {
