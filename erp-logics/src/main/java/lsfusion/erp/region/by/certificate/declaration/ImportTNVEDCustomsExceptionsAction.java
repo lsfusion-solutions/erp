@@ -105,7 +105,7 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
         }
     }
 
-    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         Map<String, List<Object>> dataVATMap = new HashMap<>();
@@ -159,7 +159,7 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
         return data;
     }
 
-    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Set<String> getTNVEDSet(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = new HashSet<>();
 

@@ -1,6 +1,7 @@
 package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import lsfusion.erp.integration.universal.ImportColumnDetail;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.ImportField;
 import lsfusion.server.physics.dev.integration.service.ImportKey;
 import lsfusion.server.physics.dev.integration.service.ImportProperty;
@@ -17,7 +18,7 @@ public class ImportPurchaseInvoicePurchaseShipment extends ImportDefaultPurchase
         super(LM);
     }
 
-    public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
+    public void makeImport(ExecutionContext<ClassPropertyInterface> context, List<ImportField> fields, List<ImportProperty<?>> props, LinkedHashMap<String, ImportColumnDetail> defaultColumns,
                            List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data, ImportKey<?> userInvoiceDetailKey) throws ScriptingErrorLog.SemanticErrorException {
         ScriptingLogicsModule LM = context.getBL().getModule("PurchaseShipment");
 

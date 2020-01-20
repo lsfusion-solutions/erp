@@ -45,26 +45,26 @@ public class LoyaAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected String getURL(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String getURL(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String ip = (String) findProperty("ipLoya[]").read(context);
         String port = (String) findProperty("portLoya[]").read(context);
         return ip == null ? null : String.format("http://%s:%s/api/1.0/", ip, port == null ? "" : port);
     }
 
-    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpEntityEnclosingRequestBase request, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext<ClassPropertyInterface> context, HttpEntityEnclosingRequestBase request, JSONObject requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         return executeRequestWithRelogin(context, request, requestBody.toString());
     }
 
-    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpEntityEnclosingRequestBase request, String requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext<ClassPropertyInterface> context, HttpEntityEnclosingRequestBase request, String requestBody) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         request.setEntity(new StringEntity(requestBody, "utf-8"));
         return executeRequestWithRelogin(context, request);
     }
 
-    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpRequestBase request) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext<ClassPropertyInterface> context, HttpRequestBase request) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         return executeRequestWithRelogin(context, request, 2);
     }
 
-    protected LoyaResponse executeRequestWithRelogin(ExecutionContext context, HttpRequestBase request, int count) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
+    protected LoyaResponse executeRequestWithRelogin(ExecutionContext<ClassPropertyInterface> context, HttpRequestBase request, int count) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         assert settings != null;
         HttpResponse response = executeRequest(request, settings.sessionKey);
         String responseMessage = getResponseMessage(response);
@@ -118,7 +118,7 @@ public class LoyaAction extends InternalAction {
         return response.getStatusLine().getStatusCode() == 200;
     }
 
-    protected SettingsLoya login(ExecutionContext context, boolean relogin) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException, IOException {
+    protected SettingsLoya login(ExecutionContext<ClassPropertyInterface> context, boolean relogin) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JSONException, IOException {
         String error = null;
         String url = getURL(context);
         if (url == null) {

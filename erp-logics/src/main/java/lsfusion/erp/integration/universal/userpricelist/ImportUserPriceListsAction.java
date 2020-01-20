@@ -95,7 +95,7 @@ public class ImportUserPriceListsAction extends DefaultImportAction {
         }
     }
 
-    protected void renameImportedFile(ExecutionContext context, String oldPath, String extension) {
+    protected void renameImportedFile(ExecutionContext<ClassPropertyInterface> context, String oldPath, String extension) {
         File importedFile = new File(oldPath);
         String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
         String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";

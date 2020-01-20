@@ -1395,7 +1395,7 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
         return result;
     }
 
-    protected String getDefaultCountry(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    protected String getDefaultCountry(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String defaultCountry = (String) findProperty("nameDefaultCountry[]").read(context);
         if (defaultCountry == null)
             defaultCountry = "БЕЛАРУСЬ";

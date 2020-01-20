@@ -165,7 +165,7 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
         }
     }
 
-    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<List<Object>>> importDutiesFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = getTNVEDSet(context);
         Map<String, BigDecimal> registrationMap = new HashMap<>();

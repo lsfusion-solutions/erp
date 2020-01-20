@@ -110,7 +110,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         this.saleManufacturingPriceLM = context.getBL().getModule("SaleManufacturingPrice");
@@ -130,7 +130,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
         return importResult1 && importResult2;
     }
 
-    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
+    public boolean importOrders(List<SaleOrderDetail> orderDetailsList, ExecutionContext<ClassPropertyInterface> context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType, ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null) {

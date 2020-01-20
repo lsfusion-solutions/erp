@@ -58,7 +58,7 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
 
     }
 
-    private JSONArray getItemsInfo(ExecutionContext context, String mainPage, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
+    private JSONArray getItemsInfo(ExecutionContext<ClassPropertyInterface> context, String mainPage, boolean useTor, boolean onlyBarcode) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
         JSONArray itemsJSON = new JSONArray();
         List<String> itemURLs = getItemURLs(context);
         if (!itemURLs.isEmpty()) {
@@ -182,7 +182,7 @@ public class ImportItemsInfoEurooptAction extends EurooptAction {
         return element.children().size() > child ? Jsoup.parse(element.childNode(child).outerHtml()).text() : "";
     }
 
-    private List<String> getItemURLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<String> getItemURLs(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<String> itemURLs = new ArrayList<>();
         KeyExpr itemExpr = new KeyExpr("eurooptItem");
         ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev("eurooptItem", itemExpr);

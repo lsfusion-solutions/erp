@@ -65,7 +65,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         userInvoiceInterface = i.next();
     }
 
-    protected void makeCustomImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props,
+    protected void makeCustomImport(ExecutionContext<ClassPropertyInterface> context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props,
                                     LinkedHashMap<String, ImportColumnDetail> defaultColumns, List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data,
                                     ImportKey<?> itemKey, ImportKey<?> userInvoiceDetailKey, String countryKeyType, boolean preImportCountries) throws ScriptingErrorLog.SemanticErrorException {
     }
@@ -1163,7 +1163,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext context, RawFileData importFile,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromXLSX(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                          Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                          List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                          Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,
@@ -1286,7 +1286,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
     }
 
-    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext context, RawFileData importFile,
+    private List<List<PurchaseInvoiceDetail>> importUserInvoicesFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData importFile,
                                                                         Map<String, ImportColumnDetail> defaultColumns, Map<String, ImportColumnDetail> customColumns,
                                                                         List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields, List<String> timeFields,
                                                                         Set<String> purchaseInvoiceSet, boolean completeIdItemAsEAN,

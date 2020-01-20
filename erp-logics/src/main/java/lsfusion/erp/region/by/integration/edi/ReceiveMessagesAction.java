@@ -22,6 +22,7 @@ import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
@@ -49,7 +50,7 @@ public class ReceiveMessagesAction extends EDIAction {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
+    protected void receiveMessages(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, int port,
                                    String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
                                    boolean sendReplies, boolean invoices)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, IOException {
@@ -57,7 +58,7 @@ public class ReceiveMessagesAction extends EDIAction {
                 disableConfirmation, receiveSupplierMessages, sendReplies, invoices);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port,
+    protected void receiveMessages(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, int port,
                                    String hostEDSService, Integer portEDSService,
                                    String provider, String archiveDir, boolean disableConfirmation, boolean receiveSupplierMessages,
                                    boolean sendReplies, boolean invoices)
@@ -114,7 +115,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new XMLOutputter().outputString(doc);
     }
 
-    private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    private void importMessages(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                                 String hostEDSService, Integer portEDSService,
                                 String provider, String responseMessage, String archiveDir, boolean disableConfirmation,
                                 boolean receiveSupplierMessages, boolean sendReplies, boolean invoices)
@@ -192,7 +193,7 @@ public class ReceiveMessagesAction extends EDIAction {
         }
     }
 
-    private void importData(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    private void importData(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                             String hostEDSService, Integer portEDSService, String provider, String archiveDir,
                             Map<String, String> systemMessageMap, Map<String, String> ordrspMap, Map<String, String> desadvMap,
                             Map<String, String> blrwblMap, Map<String, String> blrwbrMap, Map<String, String> blrapnMap, Map<String, String> ordersMap,
@@ -541,7 +542,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
+    private String importOrderMessages(ExecutionContext<ClassPropertyInterface> context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : data.firstData;
         if (importData != null && !importData.isEmpty()) {
@@ -591,7 +592,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return message;
     }
 
-    private DocumentData parseOrderResponse(String subXML, ExecutionContext context, String url, String login, String password, String host,
+    private DocumentData parseOrderResponse(String subXML, ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host,
                                             Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
@@ -657,12 +658,12 @@ public class ReceiveMessagesAction extends EDIAction {
         return value == null ? null : ("EDI_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
+    private String importOrderResponses(ExecutionContext<ClassPropertyInterface> context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = importOrderResponses(context, data, true);
         return message == null ? importOrderResponses(context, data, false) : message;
     }
 
-    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
+    private String importOrderResponses(ExecutionContext<ClassPropertyInterface> context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -816,7 +817,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return message;
     }
 
-    private DocumentData parseDespatchAdvice(String subXML, ExecutionContext context, String url, String login, String password, String host,
+    private DocumentData parseDespatchAdvice(String subXML, ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host,
                                              Integer port, String provider, String archiveDir, String documentId, boolean sendReplies, boolean disableConfirmation)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
@@ -872,12 +873,12 @@ public class ReceiveMessagesAction extends EDIAction {
         return new DocumentData(documentNumber, firstData, secondData);
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
+    private String importDespatchAdvices(ExecutionContext<ClassPropertyInterface> context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException {
         String message = importDespatchAdvices(context, data, true);
         return message == null ? importDespatchAdvices(context, data, false) : message;
     }
 
-    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
+    private String importDespatchAdvices(ExecutionContext<ClassPropertyInterface> context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
         if (importData != null && !importData.isEmpty()) {
@@ -1074,7 +1075,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new BLRWBL(documentId, id, documentNumber, dateTime, deliveryNoteNumber, isCancel, supplierGLN, customerGLN, customerStockGLN, data);
     }
 
-    private String importBLRWBL(ExecutionContext context, BLRWBL blrwbl) {
+    private String importBLRWBL(ExecutionContext<ClassPropertyInterface> context, BLRWBL blrwbl) {
         String message = null;
         List<List<Object>> importData = blrwbl.detailList;
         if (importData != null && !importData.isEmpty()) {
@@ -1167,7 +1168,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return message;
     }
 
-    private InvoiceMessage parseInvoiceSystemMessage(ExecutionContext context, String subXML, String documentId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    private InvoiceMessage parseInvoiceSystemMessage(ExecutionContext<ClassPropertyInterface> context, String subXML, String documentId) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         String documentNumber = trim(rootNode.getChildText("documentNumber"));
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
@@ -1204,7 +1205,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new BLRWBR(docId, documentId, creationDateTime, documentNumber, deliveryNoteNumber, documentNumberBLRAPN, documentDate, isCancel);
     }
 
-    private DocumentData parseInvoiceMessage(ExecutionContext context, String subXML, String provider, String documentId, boolean receiveSupplierMessages) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    private DocumentData parseInvoiceMessage(ExecutionContext<ClassPropertyInterface> context, String subXML, String provider, String documentId, boolean receiveSupplierMessages) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Element rootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes(StandardCharsets.UTF_8))).getRootElement();
         Element acknowledgementElement = rootNode.getChild("Acknowledgement");
 
@@ -1236,7 +1237,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new DocumentData(documentNumber, null, null);
     }
 
-    private String importInvoiceMessages(ExecutionContext context, List<List<Object>> importData) throws ScriptingErrorLog.SemanticErrorException {
+    private String importInvoiceMessages(ExecutionContext<ClassPropertyInterface> context, List<List<Object>> importData) throws ScriptingErrorLog.SemanticErrorException {
         String message = null;
         if (!importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
@@ -1285,7 +1286,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return message;
     }
 
-    private String importInvoiceSystemMessage(ExecutionContext context, InvoiceMessage invoiceMessage) {
+    private String importInvoiceSystemMessage(ExecutionContext<ClassPropertyInterface> context, InvoiceMessage invoiceMessage) {
         String message = null;
         if (invoiceMessage != null && invoiceMessage.invoiceNumber != null) {
 
@@ -1314,7 +1315,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return message;
     }
 
-    private void confirmDocumentReceived(ExecutionContext context, String documentId, String url, String login, String password,
+    private void confirmDocumentReceived(ExecutionContext<ClassPropertyInterface> context, String documentId, String url, String login, String password,
                                          String host, Integer port, String provider, String archiveDir, boolean disableConfirmation) throws IOException, JDOMException {
         if(!disableConfirmation) {
 
@@ -1366,7 +1367,7 @@ public class ReceiveMessagesAction extends EDIAction {
             return new XMLOutputter().outputString(doc);
     }
 
-    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String archiveDir,
+    protected boolean sendRecipientError(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port, String provider, String archiveDir,
                                          String documentId, String documentNumber, String error, boolean disableConfirmation, boolean sendReplies) throws IOException, JDOMException {
         if(!disableConfirmation && sendReplies) {
             boolean succeeded = false;
@@ -1446,7 +1447,7 @@ public class ReceiveMessagesAction extends EDIAction {
         return new String(org.apache.commons.codec.binary.Base64.encodeBase64(xml.getBytes()));
     }
 
-    private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port,
+    private Map<String, String> getOrderBarcodesMap(ExecutionContext<ClassPropertyInterface> context, String url, String login, String password, String host, Integer port,
                                                     String provider, String archiveDir, String documentId, String documentNumber, String orderNumber,
                                                     boolean sendReplies, boolean disableConfirmation)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
@@ -1504,7 +1505,7 @@ public class ReceiveMessagesAction extends EDIAction {
             return description;
     }
 
-    private String createBLRAPN(ExecutionContext context, DataObject eInvoiceObject, String outputDir, String documentNumber, String documentDate,
+    private String createBLRAPN(ExecutionContext<ClassPropertyInterface> context, DataObject eInvoiceObject, String outputDir, String documentNumber, String documentDate,
                                 String referenceNumber, String referenceDate, String glnSupplier, String glnCustomer)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 

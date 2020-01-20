@@ -19,6 +19,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -41,57 +42,54 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context, boolean denominate) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context, boolean denominate) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
 
 
         List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency, denominate);
 
-        if (exchangesList != null) {
+        ImportField typeExchangeBYRField = new ImportField(findProperty("name[TypeExchange]"));
+        ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
+        ImportField currencyField = new ImportField(findProperty("shortName[Currency]"));
+        ImportField homeCurrencyField = new ImportField(findProperty("shortName[Currency]"));
+        ImportField rateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
+        ImportField foreignRateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
+        ImportField dateField = new ImportField(DateClass.instance);
 
-            ImportField typeExchangeBYRField = new ImportField(findProperty("name[TypeExchange]"));
-            ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
-            ImportField currencyField = new ImportField(findProperty("shortName[Currency]"));
-            ImportField homeCurrencyField = new ImportField(findProperty("shortName[Currency]"));
-            ImportField rateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
-            ImportField foreignRateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
-            ImportField dateField = new ImportField(DateClass.instance);
+        ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeBYRField));
 
-            ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeBYRField));
+        ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
+                findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
 
-            ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchange[ISTRING[50]]").getMapping(typeExchangeForeignField));
+        ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));
 
-            ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(currencyField));
+        ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
+                findProperty("currencyShortName[BPSTRING[3]]").getMapping(homeCurrencyField));
 
-            ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName[BPSTRING[3]]").getMapping(homeCurrencyField));
+        List<ImportProperty<?>> props = new ArrayList<>();
 
-            List<ImportProperty<?>> props = new ArrayList<>();
+        props.add(new ImportProperty(typeExchangeBYRField, findProperty("name[TypeExchange]").getMapping(typeExchangeBYRKey)));
+        props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeBYRKey),
+                object(findClass("Currency")).getMapping(homeCurrencyKey)));
+        props.add(new ImportProperty(rateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeBYRKey, currencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeBYRField, findProperty("name[TypeExchange]").getMapping(typeExchangeBYRKey)));
-            props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeBYRKey),
-                    object(findClass("Currency")).getMapping(homeCurrencyKey)));
-            props.add(new ImportProperty(rateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeBYRKey, currencyKey, dateField)));
+        props.add(new ImportProperty(typeExchangeForeignField, findProperty("name[TypeExchange]").getMapping(typeExchangeForeignKey)));
+        props.add(new ImportProperty(currencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeForeignKey),
+                object(findClass("Currency")).getMapping(currencyKey)));
+        props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeForeignField, findProperty("name[TypeExchange]").getMapping(typeExchangeForeignKey)));
-            props.add(new ImportProperty(currencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeForeignKey),
-                    object(findClass("Currency")).getMapping(currencyKey)));
-            props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
-
-            List<List<Object>> data = new ArrayList<>();
-            for (Exchange e : exchangesList) {
-                data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
-            }
-            ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
-                    homeCurrencyField, rateField, foreignRateField, dateField), data);
-
-            IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeBYRKey,
-                    typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
-            service.synchronize(true, false);
-            //session.apply(LM.getBL());
+        List<List<Object>> data = new ArrayList<>();
+        for (Exchange e : exchangesList) {
+            data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
         }
+        ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
+                homeCurrencyField, rateField, foreignRateField, dateField), data);
+
+        IntegrationService service = new IntegrationService(context, table, Arrays.asList(typeExchangeBYRKey,
+                typeExchangeForeignKey, currencyKey, homeCurrencyKey), props);
+        service.synchronize(true, false);
+        //session.apply(LM.getBL());
     }
 
     private List<Exchange> importExchangesFromXMLDenominated(Date dateFrom, Date dateTo, String shortNameCurrency, boolean denominate) throws IOException, ParseException, JSONException {
@@ -132,7 +130,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
     public JSONArray readJsonFromUrl(String url) throws IOException, JSONException {
         try (InputStream is = new URL(url).openStream()) {
-            BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             String jsonText = readAll(rd);
             return new JSONArray(jsonText);
         }

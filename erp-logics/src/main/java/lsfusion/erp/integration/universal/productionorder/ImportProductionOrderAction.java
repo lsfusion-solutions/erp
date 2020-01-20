@@ -89,7 +89,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
         }
     }
 
-    public boolean makeImport(ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
+    public boolean makeImport(ExecutionContext<ClassPropertyInterface> context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, RawFileData file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
             throws ParseException, IOException, SQLException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
@@ -101,7 +101,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
         return importResult;
     }
 
-    public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, ExecutionContext context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
+    public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, ExecutionContext<ClassPropertyInterface> context, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {

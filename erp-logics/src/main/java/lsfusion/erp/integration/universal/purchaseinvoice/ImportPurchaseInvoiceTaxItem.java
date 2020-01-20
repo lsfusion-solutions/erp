@@ -3,6 +3,7 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.ImportField;
 import lsfusion.server.physics.dev.integration.service.ImportKey;
 import lsfusion.server.physics.dev.integration.service.ImportProperty;
@@ -20,7 +21,7 @@ public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceAc
         super(LM);
     }
 
-    public void makeImport(ExecutionContext context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props,
+    public void makeImport(ExecutionContext<ClassPropertyInterface> context, List<ImportField> fields, List<ImportKey<?>> keys, List<ImportProperty<?>> props,
                            LinkedHashMap<String, ImportColumnDetail> defaultColumns, List<PurchaseInvoiceDetail> userInvoiceDetailsList, List<List<Object>> data,
                            ImportField valueVATUserInvoiceDetailField, ImportKey<?> itemKey, ImportKey<?> VATKey)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

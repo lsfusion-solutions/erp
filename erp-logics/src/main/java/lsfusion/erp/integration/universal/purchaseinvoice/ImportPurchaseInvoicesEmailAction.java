@@ -255,7 +255,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
         }
     }
 
-    private void logImportError(ExecutionContext context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private void logImportError(ExecutionContext<ClassPropertyInterface> context, ObjectValue attachmentEmailObject, String error, boolean isOld) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (ExecutionContext.NewSession newContext = context.newSession()) {
             findProperty("lastError[AttachmentEmail]").change(error, newContext, (DataObject) attachmentEmailObject);
             if (isOld)
