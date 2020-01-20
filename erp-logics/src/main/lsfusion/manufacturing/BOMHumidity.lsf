@@ -30,12 +30,12 @@ changePercentDryness(Product product)   {
 }
 
 // Влажность компонент
-percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](overSku(component));
-@changeNutrition(component, overSku, percentHumidity);
-percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](overSku(component)) IN itemHumidity;     
+percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](sku(component));
+@changeNutrition(component, sku, percentHumidity);
+percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](sku(component)) IN itemHumidity;     
 changePercentDryness(Component component)   { 
     INPUT n = NUMERIC[8,2] DO
-        percentHumidity(Item item) <- (100-n) WHERE item == overSku(component);
+        percentHumidity(Item item) <- (100-n) WHERE item == sku(component);
 }                                           
                                               
 //------------------------- Производственная рецептура --------------------------//
@@ -261,10 +261,10 @@ fillNutrition 'Рассчитать ценность' (BOM BOM)  {
                 coeffGramsDrynessQuantity() <- NUMERIC[22,8](gramsQuantityComponents(p)/(GROUP SUM netGramsQuantity(Component c)* (OVERRIDE percentDryness[Product](material(c)),percentDryness[Item](material(c)))/100.0));  
 
                 IF NOT isFillNutrition(p) THEN { //чтобы избежать двойного округления
-                    proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*(OVERRIDE proteins[Product](material(c)),proteins[Item](material(c)))/100.0)*coeffGramsDrynessQuantity())));
-                    fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*(OVERRIDE fats[Product](material(c)),fats[Item](material(c)))/100.0)*coeffGramsDrynessQuantity())));
-                    carbohydrates(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*(OVERRIDE carbohydrates[Product](material(c)),carbohydrates[Item](material(c)))/100.0)*coeffGramsDrynessQuantity())));
-                    energy(p)<- NUMERIC[8,2](energyParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*(OVERRIDE energy[Product](material(c)),energy[Item](material(c)))/100.0)*coeffGramsDrynessQuantity())));           
+                    proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*proteinsProduct(c)/100.0)*coeffGramsDrynessQuantity())));
+                    fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*fatsProduct(c)/100.0)*coeffGramsDrynessQuantity())));
+                    carbohydrates(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*carbohydratesProduct(c)/100.0)*coeffGramsDrynessQuantity())));
+                    energy(p)<- NUMERIC[8,2](energyParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*energyProduct(c)/100.0)*coeffGramsDrynessQuantity())));           
                 } ELSE {
                     overFillNutrition(p);  
                 }                              

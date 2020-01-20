@@ -20,17 +20,10 @@ META changeNutrition(object, skuProp, property)
     }
 END
 
-fats 'Жиры на 100г, г' = fats[Item](overSku(Component c));
-carbohydrates 'Углеводы 100г, г' = carbohydrates[Item](overSku(Component c));
-proteins 'Белки 100г, г' = proteins[Item](overSku(Component c));
-energy 'Энерг.ценность на 100г, ккал' = energy[Item](overSku(Component c));
-
-@changeNutrition(component, overSku, fats);
-@changeNutrition(component, overSku, carbohydrates);
-@changeNutrition(component, overSku, proteins);
-@changeNutrition(component, overSku, energy);
-
-// Энергетическая ценность спецификации
+fats 'Жиры на 100г, г' = fats[Item](sku(Component c));
+carbohydrates 'Углеводы 100г, г' = carbohydrates[Item](sku(Component c));
+proteins 'Белки 100г, г' = proteins[Item](sku(Component c));
+energy 'Энерг.ценность на 100г, ккал' = energy[Item](sku(Component c));
 
 // Энергетическая ценность изделий
 
@@ -39,6 +32,21 @@ carbohydrates 'Углеводы 100г, г' = DATA NUMERIC[8,2](Product);
 proteins 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
 energy 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
 productYield 'Выход' = DATA STRING[100] (Product) CHARWIDTH 20;
+
+fatsProduct 'Жиры на 100г, г' (Component c) = IF material(c) IS Product THEN fats[Product](material(c)) ELSE fats[Item](sku(c));
+carbohydratesProduct 'Углеводы 100г, г' (Component c) = IF material(c) IS Product THEN carbohydrates[Product](material(c)) ELSE carbohydrates[Item](sku(c));
+proteinsProduct 'Белки 100г, г' (Component c) = IF material(c) IS Product THEN proteins[Product](material(c)) ELSE proteins[Item](sku(c));
+energyProduct 'Энерг.ценность на 100г, ккал' (Component c) = IF material(c) IS Product THEN energy[Product](material(c)) ELSE energy[Item](sku(c));
+
+
+@changeNutrition(component, sku, fats);
+@changeNutrition(component, sku, carbohydrates);
+@changeNutrition(component, sku, proteins);
+@changeNutrition(component, sku, energy);
+
+// Энергетическая ценность спецификации
+
+
 
 //-- округление по (ТР ТС 022/2011)     
 humidityParamsRound (NUMERIC[18,5] nu) = CASE 
@@ -169,7 +177,8 @@ fillDescriptionItem 'Записать описание в карточку то�
 WHEN LOCAL FORMS BOM CHANGED(description(Product p)) AND fillDescriptionItem() DO {
     description(Item item)<- description(p) WHERE item == sku(p);
 }
-
+skipNutrition = ABSTRACT BOOLEAN (BOM);
+showNutritionSkip(BOM b) = showNutrition(b) AND NOT skipNutrition(b);
 EXTEND FORM BOM
     PROPERTIES(b) showNutrition
     PROPERTIES(b) recipes, numberStateStandart //SHOWIF showNutritionBOM(b)    
@@ -191,7 +200,7 @@ EXTEND FORM BOM
     ORDER index(cc)
     FILTERS       BOM(cc) == b
                 
-    PROPERTIES(cc) SHOWIF showNutrition(b) BACKGROUND background(cc) fats ON CHANGE changeFats(cc), carbohydrates ON CHANGE changeCarbohydrates(cc), 
+    PROPERTIES(cc) SHOWIF showNutritionSkip(b) BACKGROUND background(cc) fats ON CHANGE changeFats(cc), carbohydrates ON CHANGE changeCarbohydrates(cc), 
                   proteins ON CHANGE changeProteins(cc), energy ON CHANGE changeEnergy(cc)
                   
     OBJECTS ppp = Product
