@@ -1,0 +1,47 @@
+MODULE POSSalary;
+
+REQUIRE POS;
+
+NAMESPACE POS;
+
+EXTEND CLASS PaymentMeans { paymentMeansSalary 'В счёт зарплаты'}
+order(PaymentMeans p) += WHEN p == PaymentMeans.paymentMeansSalary THEN 3;
+
+sumSalaryPayment 'Сумма продаж (в счёт з/п)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansSalary BY receipt(payment);
+sumSalaryPayment 'Сумма продаж (в счёт з/п)' (zReport) = GROUP SUM sumSalaryPayment(Receipt r) BY zReport(r) MATERIALIZED IN documentSum;
+
+minSalaryPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansSalary;
+
+EXTEND FORM zReport
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumSalaryPayment
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumSalaryPayment 
+;
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumSalaryPayment
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumSalaryPayment   
+;
+
+prePostSalary ABSTRACT (Receipt);
+postSalary 'В счёт зарплаты'(Receipt receipt)  { 
+    prePostSalary(receipt);
+    prePost(receipt);
+    IF sumReceiptDetail(receipt) THEN {
+        NEW p = Payment {
+            receipt(p) <- receipt;
+            paymentType(p) <- minSalaryPaymentType();
+            sum(p) <- sumReceiptDetail(receipt);
+        }
+        postPrint(receipt);
+    }
+} CHANGEKEY 'F12' IN receiptAction;
+
+EXTEND FORM POS
+    PROPERTIES(r) READONLY SHOWIF currentZReport()  nameEmployee
+    PROPERTIES(r) SHOWIF currentZReport() postSalary
+;
+
+WHEN LOCAL FORMS postReceiptPayment CHANGED(sum(Payment payment)) AND (paymentType(payment) == minCardPaymentType() OR paymentType(payment) == minCashPaymentType()) DO {
+    sum(Payment p) <- sumReceiptDetail(receipt(payment)) (-) [GROUP SUM sum(Payment pp) IF receipt(pp) == receipt(payment) AND pp != p]() WHERE receipt(p) == receipt(payment) AND paymentType(p) != paymentType(payment)
+        AND (paymentType(p) == minCardPaymentType() OR paymentType(p) == minCashPaymentType());
+}
