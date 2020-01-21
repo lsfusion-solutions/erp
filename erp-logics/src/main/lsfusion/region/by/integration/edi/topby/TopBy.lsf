@@ -16,6 +16,8 @@ loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] (LegalEnti
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] (LegalEntity) ECHO;
 hostTopBy 'Хост' = DATA STRING[100] ();
 portTopBy 'Порт' = DATA INTEGER ();
+hostTopBy 'Хост' = DATA STRING[100] (LegalEntity);
+portTopBy 'Порт' = DATA INTEGER (LegalEntity);
 archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirTopBy 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
@@ -29,6 +31,16 @@ onStarted() + {
         loginTopBy(LegalEntity le) <- loginTopBy() WHERE isCompany(le);
         passwordTopBy(LegalEntity le) <- passwordTopBy() WHERE isCompany(le);
         migratedLoginPasswordTopBy() <- TRUE;
+    }
+}
+
+migratedHostPortTopBy = DATA BOOLEAN (); 
+
+onStarted() + {
+    IF NOT migratedHostPortTopBy() THEN {
+        hostTopBy(LegalEntity le) <- hostTopBy() WHERE isCompany(le);
+        portTopBy(LegalEntity le) <- portTopBy() WHERE isCompany(le);
+        migratedHostPortTopBy() <- TRUE;
     }
 }
 
@@ -174,7 +186,7 @@ END
 
 receiveMessagesTopBy (BOOLEAN invoices) {
     FOR loginTopBy(LegalEntity le) AND passwordTopBy(le) DO
-        receiveMessagesS(loginTopBy(le), passwordTopBy(le), hostTopBy(), portTopBy(), ('http://' +  hostTopBy() + ':' + portTopBy() + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
+        receiveMessagesS(loginTopBy(le), passwordTopBy(le), hostTopBy(le), portTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
 }
 
 receiveTopByAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.topby.ReceiveMessagesTopByAction' ();
@@ -846,11 +858,11 @@ receiveInvoiceTopBy 'Получить сообщения по электронн
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() hostTopBy, portTopBy, archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
+    PROPERTIES() archiveDirTopBy, outputDirTopBy, disableConfirmationTopBy, receiveSupplierMessagesTopBy, receiveTopBy,
                  receiveInvoiceTopBy, confirmNotFoundOrders
     OBJECTS let = LegalEntity
     FILTERS isCompany(let)
-    PROPERTIES(let) name READONLY, loginTopBy, passwordTopBy
+    PROPERTIES(let) name READONLY, loginTopBy, passwordTopBy, hostTopBy, portTopBy
 ;
     
 DESIGN integrationData {
@@ -860,8 +872,6 @@ DESIGN integrationData {
             NEW params {
                 caption = 'Общие';
                 fill = 1;
-                MOVE PROPERTY(hostTopBy());
-                MOVE PROPERTY(portTopBy());
                 MOVE PROPERTY(archiveDirTopBy());
                 MOVE PROPERTY(outputDirTopBy());
                 MOVE PROPERTY(disableConfirmationTopBy());

@@ -245,7 +245,7 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
         TRY {
-            IF loginTopBy(customer(c)) AND passwordTopBy(customer(c)) AND hostTopBy() AND portTopBy() THEN {
+            IF loginTopBy(customer(c)) AND passwordTopBy(customer(c)) AND hostTopBy(customer(c)) AND portTopBy(customer(c)) THEN {
                 IF hostEDSServiceCustomerTopBy(c) AND portEDSServiceCustomerTopBy(c) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
@@ -297,7 +297,7 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] provider) {
                                 envelopeContent() <- encodedBase64();
                                 EXPORT envelope XML TO ixml;
                                 //EXPORT envelopeEInvoice OBJECTS ei = ei, login = loginTopBy(), password = passwordTopBy(), innerXML = encodedBase64(), documentDate = blrwblDateTime(), documentType = 'BLRWBL' XML TO ixml;
-                                sendRequestEDI(hostTopBy(), portTopBy(), loginTopBy(customer(c)), passwordTopBy(customer(c)), ('http://' + hostTopBy() +':' + portTopBy() + '/DmcService'), ixml());
+                                sendRequestEDI(hostTopBy(customer(c)), portTopBy(customer(c)), loginTopBy(customer(c)), passwordTopBy(customer(c)), ('http://' + hostTopBy(customer(c)) +':' + portTopBy(customer(c)) + '/DmcService'), ixml());
                                 logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
