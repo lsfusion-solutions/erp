@@ -72,6 +72,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
+                BigDecimal sumSalary = null;
                 BigDecimal sumGiftCard = null;
 
                 KeyExpr paymentExpr = new KeyExpr("payment");
@@ -84,19 +85,26 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
+
+                ScriptingLogicsModule posSalaryLM = context.getBL().getModule("POSSalary");
+
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansSalaryObject = posSalaryLM != null ? ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansSalary") : null;
                     Integer idTypeRegister = (Integer) paymentValues.get("idTypeRegister");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
+                    Object paymentMeans = paymentValues.get("paymentMeansPayment");
                     if(sumPayment != null) {
                         if(idTypeRegister != null) {
                             BigDecimal sum = paymentSumMap.get(idTypeRegister);
                             paymentSumMap.put(idTypeRegister, safeAdd(sum, sumPayment));
-                        } else if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                        } else if (paymentMeansCashObject.getValue().equals(paymentMeans)) {
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
-                        } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                        } else if (paymentMeansCardObject.getValue().equals(paymentMeans)) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
+                        } else if (paymentMeansSalaryObject != null && paymentMeansSalaryObject.getValue().equals(paymentMeans)) {
+                            sumSalary = sumSalary == null ? sumPayment : sumSalary.add(sumSalary);
                         } else if (giftCardLM != null) {
                             sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
                         } else
@@ -112,7 +120,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                         "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                         "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail",
                         "skuReceiptDetail", "boardNameSkuReceiptDetail"};
-                LP[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
+                LP<?>[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
                         "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]",
                         "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]");
@@ -148,7 +156,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
-                            new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
+                            new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalSentoReceiptTop, fiscalSentoReceiptBottom));
                     if (result instanceof Integer) {

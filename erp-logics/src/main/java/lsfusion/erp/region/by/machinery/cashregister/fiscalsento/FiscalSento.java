@@ -195,9 +195,10 @@ public class FiscalSento {
         double cash = receipt.sumCash == null ? 0 : receipt.sumCash.abs().doubleValue();
         double payCard = receipt.sumCard == null ? 0 : receipt.sumCard.abs().doubleValue();
         double coupon = receipt.sumGiftCard == null ? 0 : receipt.sumGiftCard.abs().doubleValue();
+        double credit = receipt.sumSalary == null ? 0 : receipt.sumSalary.abs().doubleValue();
 
-        logAction("closeDocument", total, cash, 0, payCard, coupon, 0);
-        if(!sentoDLL.sento.closeDocument(total, cash, 0, payCard, coupon, 0))
+        logAction("closeDocument", total, cash, 0, payCard, coupon, credit);
+        if(!sentoDLL.sento.closeDocument(total, cash, 0, payCard, coupon, credit))
             checkErrors();
     }
 
