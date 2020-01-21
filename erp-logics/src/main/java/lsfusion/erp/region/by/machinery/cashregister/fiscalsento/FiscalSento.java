@@ -164,7 +164,7 @@ public class FiscalSento {
 
     public static int getReceiptNumber() {
         String[] statusDocument = statusDocument();
-        String receiptNumber = statusDocument.length > 8 ? statusDocument[8] : "0";
+        String receiptNumber = statusDocument.length > 9 ? statusDocument[9] : "0";
         return Integer.parseInt(receiptNumber);
     }
 
