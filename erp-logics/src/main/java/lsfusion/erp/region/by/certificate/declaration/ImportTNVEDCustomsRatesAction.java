@@ -199,10 +199,10 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
                             registrationMap.put(codeCustomsGroup, stav_a);
                         break;
                     case 2:
-                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
+                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
                         break;
                     case 4:
-                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo), null, null, null, stav_a, dateFrom, dateTo));
+                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, null, null, null, stav_a, dateFrom, dateTo));
                         break;
                 }
             }
@@ -218,13 +218,13 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
 
         for (String tnved : tnvedSet) {
             List<Object> entry = dataVATMap.get(tnved);
-            dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + String.valueOf(defaultDateTo) : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
+            dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + defaultDateTo : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
                     entry == null ? defaultDateFrom : entry.get(6), entry == null ? defaultDateTo : entry.get(7)));
         }
         return Arrays.asList(dataDuty, dataVAT);
     }
 
-    private Set<String> getTNVEDSet(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Set<String> getTNVEDSet(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         Set<String> tnvedSet = new HashSet<>();
 

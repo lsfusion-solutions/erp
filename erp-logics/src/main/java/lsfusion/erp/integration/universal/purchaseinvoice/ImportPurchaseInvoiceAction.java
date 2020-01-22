@@ -205,7 +205,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         else return result1 + result2;
     }
 
-    public Pair<Integer, DataObject> importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext context,
+    public Pair<Integer, DataObject> importUserInvoices(List<PurchaseInvoiceDetail> userInvoiceDetailsList, ExecutionContext<ClassPropertyInterface> context,
                                   LinkedHashMap<String, ImportColumnDetail> defaultColumns, LinkedHashMap<String, ImportColumnDetail> customColumns,
                                   DataObject userInvoiceObject, String keyType, String countryKeyType, ObjectValue operationObject,
                                   ObjectValue supplierObject, ObjectValue supplierStockObject, ObjectValue customerObject,
@@ -404,7 +404,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItem"));
 
                 String replaceField;
-                LP iGroupAggr;
+                LP<?> iGroupAggr;
                 ImportField iField;
                 if (keyType == null || keyType.equals("item")) {
                     replaceField = "idItem";
@@ -1442,7 +1442,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                                   String staticCaptionImportType, List<PurchaseInvoiceDetail> primaryList, List<PurchaseInvoiceDetail> secondaryList)
             throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         if (propertyImportType != null) {
-            LP<?> sidProp = (LP)context.getBL().findSafeProperty(propertyImportType);
+            LP<?> sidProp = (LP<?>)context.getBL().findSafeProperty(propertyImportType);
             if (sidProp != null) {
                 ScriptingLogicsModule itemArticleLM = context.getBL().getModule("ItemArticle");
                 LP<?> idArticleProp = itemArticleLM.findProperty("id[Article]");
