@@ -70,6 +70,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte GET_ALL_BASE = 8;
     public static final byte SAVE_PALLET = 9;
     public static final byte CHECK_ORDER = 10;//0x0A
+    public static final byte GET_PREFERENCES = 11;//0x0B
 
     private static final Logger logger = EquipmentLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = EquipmentLoggers.priceCheckerLogger;
@@ -189,6 +190,136 @@ public class TerminalServer extends MonitorServer {
         });
         listenThread.setDaemon(true);
         listenThread.start();
+    }
+
+    protected String getPreferences(String idTerminal) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.getPreferences(session, getStack(), idTerminal);
+        }
+    }
+
+    private String formatValue(String value) {
+        return value == null || value.isEmpty() ? null : value;
+    }
+
+    private String fillZeroes(int i) {
+        String value = String.valueOf(i);
+        while (value.length() < 4)
+            value = "0" + value;
+        return value;
+    }
+
+    private Timestamp parseTimestamp(String value) {
+        Timestamp timestamp;
+        try {
+            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, "yyyy-MM-dd HH:mm:ss").getTime());
+        } catch (Exception e) {
+            logger.error("Parsing timestamp failed: " + value, e);
+            timestamp = null;
+        }
+        return timestamp;
+    }
+
+    private Date parseDate(String value) {
+        Date date;
+        try {
+            date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss").getTime());
+        } catch (Exception e) {
+            logger.error("Parsing date failed: " + value, e);
+            date = null;
+        }
+        return date;
+    }
+
+
+    private BigDecimal parseBigDecimal(String value) {
+        try {
+            return value == null || value.isEmpty() ? null : new BigDecimal(value);
+        } catch (Exception e) {
+            logger.error("Error occurred while parsing numeric value: ", e);
+            return null;
+        }
+    }
+
+    private Integer parseInteger(String value) {
+        try {
+            return value == null || value.isEmpty() || value.equals("0") ? null : Integer.parseInt(value);
+        } catch (Exception e) {
+            logger.error("Error occurred while parsing integer value: ", e);
+            return null;
+        }
+    }
+
+    private List<String[]> readDocumentParams(DataInputStream inFromClient) throws IOException {
+        byte b;
+        String escStr = Character.toString((char) esc);
+        List<String[]> result = new ArrayList<>();
+        List<Byte> line = new ArrayList<>();
+        while ((b = inFromClient.readByte()) != 3) {
+            if (b == (char) 13) {
+                result.add(bytesToString(line).split(escStr, -1));
+                line = new ArrayList();
+            } else
+                line.add(b);
+        }
+        result.add(bytesToString(line).split(escStr, -1));
+        return result;
+    }
+
+    private String bytesToString(List<Byte> bytes) throws UnsupportedEncodingException {
+        String result = "";
+        if (!bytes.isEmpty()) {
+            ByteBuffer lineBytes = ByteBuffer.allocate(bytes.size());
+            for (byte lb : bytes)
+                lineBytes.put(lb);
+            result = new String(lineBytes.array(), "cp1251");
+        }
+        return result;
+    }
+
+    private String[] readParams(DataInputStream inFromClient) throws IOException {
+        byte b;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        String escStr = Character.toString((char) esc);
+        while ((b = inFromClient.readByte()) != 3) {
+            baos.write(b);
+        }
+        String result = baos.toString("cp1251");
+        return result.split(escStr, -1);
+    }
+
+    public String login(String login, String password, String idTerminal) throws SQLException {
+        DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
+        if (userObject != null) {
+            String sessionId = String.valueOf((login + password + idTerminal).hashCode());
+            userMap.put(sessionId, new UserInfo(userObject, idTerminal));
+            return sessionId;
+        }
+        return null;
+    }
+
+    protected Object readItem(DataObject user, String barcode, String bin) throws SQLException {
+        return terminalHandlerInterface.readItem(createSession(), user, barcode, bin);
+    }
+
+    protected String readItemHtml(String barcode, String idStock) throws SQLException {
+        return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
+    }
+
+    protected RawFileData readBase(DataObject userObject) throws SQLException {
+        return terminalHandlerInterface.readBase(createSession(), userObject);
+    }
+
+    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.savePallet(session, getStack(), user, numberPallet, nameBin);
+        }
+    }
+
+    protected String checkOrder(DataObject user, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.checkOrder(session, getStack(), user, numberOrder);
+        }
     }
 
     public class SocketCallable implements Callable {
@@ -460,6 +591,33 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+                    case GET_PREFERENCES:
+                        try {
+                            logger.info("getPreferences");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 1) {
+                                sessionId = params[0];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.idTerminal == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    result = getPreferences(userInfo.idTerminal);
+                                    if (result == null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("GetPreferences Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
                     default:
                         result = "unknown command";
                         errorCode = UNKNOWN_COMMAND;
@@ -499,6 +657,7 @@ public class TerminalServer extends MonitorServer {
                         case GET_ITEM_HTML:
                         case SAVE_PALLET:
                         case CHECK_ORDER:
+                        case GET_PREFERENCES:
                             if (result != null) {
                                 write(outToClient, result);
                             }
@@ -533,130 +692,6 @@ public class TerminalServer extends MonitorServer {
             return null;
         }
 
-    }
-
-    private String formatValue(String value) {
-        return value == null || value.isEmpty() ? null : value;
-    }
-
-    private String fillZeroes(int i) {
-        String value = String.valueOf(i);
-        while (value.length() < 4)
-            value = "0" + value;
-        return value;
-    }
-
-    private Timestamp parseTimestamp(String value) {
-        Timestamp timestamp;
-        try {
-            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, "yyyy-MM-dd HH:mm:ss").getTime());
-        } catch (Exception e) {
-            logger.error("Parsing timestamp failed: " + value, e);
-            timestamp = null;
-        }
-        return timestamp;
-    }
-
-    private Date parseDate(String value) {
-        Date date;
-        try {
-            date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss").getTime());
-        } catch (Exception e) {
-            logger.error("Parsing date failed: " + value, e);
-            date = null;
-        }
-        return date;
-    }
-
-
-    private BigDecimal parseBigDecimal(String value) {
-        try {
-            return value == null || value.isEmpty() ? null : new BigDecimal(value);
-        } catch (Exception e) {
-            logger.error("Error occurred while parsing numeric value: ", e);
-            return null;
-        }
-    }
-
-    private Integer parseInteger(String value) {
-        try {
-            return value == null || value.isEmpty() || value.equals("0") ? null : Integer.parseInt(value);
-        } catch (Exception e) {
-            logger.error("Error occurred while parsing integer value: ", e);
-            return null;
-        }
-    }
-
-    private List<String[]> readDocumentParams(DataInputStream inFromClient) throws IOException {
-        byte b;
-        String escStr = Character.toString((char) esc);
-        List<String[]> result = new ArrayList<>();
-        List<Byte> line = new ArrayList<>();
-        while ((b = inFromClient.readByte()) != 3) {
-            if (b == (char) 13) {
-                result.add(bytesToString(line).split(escStr, -1));
-                line = new ArrayList();
-            } else
-                line.add(b);
-        }
-        result.add(bytesToString(line).split(escStr, -1));
-        return result;
-    }
-
-    private String bytesToString(List<Byte> bytes) throws UnsupportedEncodingException {
-        String result = "";
-        if (!bytes.isEmpty()) {
-            ByteBuffer lineBytes = ByteBuffer.allocate(bytes.size());
-            for (byte lb : bytes)
-                lineBytes.put(lb);
-            result = new String(lineBytes.array(), "cp1251");
-        }
-        return result;
-    }
-
-    private String[] readParams(DataInputStream inFromClient) throws IOException {
-        byte b;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        String escStr = Character.toString((char) esc);
-        while ((b = inFromClient.readByte()) != 3) {
-            baos.write(b);
-        }
-        String result = baos.toString("cp1251");
-        return result.split(escStr, -1);
-    }
-
-    public String login(String login, String password, String idTerminal) throws SQLException {
-        DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
-        if (userObject != null) {
-            String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-            userMap.put(sessionId, new UserInfo(userObject, idTerminal));
-            return sessionId;
-        }
-        return null;
-    }
-
-    protected Object readItem(DataObject user, String barcode, String bin) throws SQLException {
-        return terminalHandlerInterface.readItem(createSession(), user, barcode, bin);
-    }
-
-    protected String readItemHtml(String barcode, String idStock) throws SQLException {
-        return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
-    }
-
-    protected RawFileData readBase(DataObject userObject) throws SQLException {
-        return terminalHandlerInterface.readBase(createSession(), userObject);
-    }
-
-    protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
-        try (DataSession session = createSession()) {
-            return terminalHandlerInterface.savePallet(session, getStack(), user, numberPallet, nameBin);
-        }
-    }
-
-    protected String checkOrder(DataObject user, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
-        try (DataSession session = createSession()) {
-            return terminalHandlerInterface.checkOrder(session, getStack(), user, numberOrder);
-        }
     }
 
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, String idTerminal, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws SQLException {

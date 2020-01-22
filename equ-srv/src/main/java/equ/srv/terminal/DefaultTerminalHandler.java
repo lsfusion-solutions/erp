@@ -256,6 +256,17 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         return result;
     }
 
+    @Override
+    public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String result = null;
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        if(terminalHandlerLM != null) {
+            terminalHandlerLM.findAction("getTerminalPreferences[STRING]").execute(session, stack, new DataObject(idTerminal));
+            result = (String) terminalHandlerLM.findProperty("terminalPreferencesJSON[]").read(session);
+        }
+        return result;
+    }
+
     private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
