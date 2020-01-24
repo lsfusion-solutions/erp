@@ -46,6 +46,7 @@ portTerminalServer 'Порт' = DATA INTEGER ();
 
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
+sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN ();
 
 currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = IF stock IS Warehouse
     THEN currentAccountPriceA(sku(barcode), stock) 
@@ -54,6 +55,7 @@ currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) 
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN ();
 filterCurrentQuantityInTerminal 'Фильтровать по текущим остаткам' = DATA BOOLEAN ();
 currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
+activeItem (Barcode barcode) = NOT inactive(sku(barcode));
 
 skipGoodsInReadBase 'Не выгружать товары при выгрузке базы целиком' = DATA BOOLEAN ();
     
@@ -66,7 +68,7 @@ checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
 
 EXTEND FORM options
-    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, sendAllItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
+    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
     namePriceListTypeTerminal, skipGoodsInReadBase
 ;
 DESIGN options {
@@ -79,6 +81,7 @@ DESIGN options {
                 caption = 'Цены';
                 MOVE PROPERTY(useCurrentPriceInTerminal());
                 MOVE PROPERTY(sendAllItems());
+                MOVE PROPERTY(sendOnlyActiveItems());
             }
             MOVE PROPERTY(useCurrentQuantityInTerminal());
             MOVE PROPERTY(filterCurrentQuantityInTerminal());

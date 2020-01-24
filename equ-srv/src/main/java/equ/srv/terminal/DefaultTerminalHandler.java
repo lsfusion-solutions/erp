@@ -275,6 +275,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if(!skipGoodsInReadBase) {
                 boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
                 boolean allItems = terminalHandlerLM.findProperty("sendAllItems").read(session) != null;
+                boolean onlyActiveItems = terminalHandlerLM.findProperty("sendOnlyActiveItems").read(session) != null;
                 boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal").read(session) != null;
                 boolean filterCurrentQuantity = terminalHandlerLM.findProperty("filterCurrentQuantityInTerminal").read(session) != null;
 
@@ -302,6 +303,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if (filterCurrentQuantity)
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
+                if (onlyActiveItems) {
+                    barcodeQuery.and(terminalHandlerLM.findProperty("activeItem[Barcode]").getExpr(barcodeExpr).getWhere());
+                }
 
                 barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
 
