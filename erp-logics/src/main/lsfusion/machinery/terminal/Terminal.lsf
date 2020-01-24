@@ -57,7 +57,29 @@ FORM terminal 'ТСД'
 
 // ------------------------------------- Конфигурация ТСД --------------------------------- //
 
-terminalPreferencesJSON 'Файл конфигурации ТСД' = DATA STRING ();
+CLASS ExchangeFormat 'Формат обмена' {
+    Format_SQLite 'SQLite',
+    Format_CSV 'CSV',
+    Format_XML 'XML'
+}
+    
+exchangeFormatValue(ExchangeFormat f) = CASE 
+                        WHEN f = ExchangeFormat.Format_SQLite THEN 0
+                        WHEN f = ExchangeFormat.Format_CSV THEN 1
+                        WHEN f = ExchangeFormat.Format_XML THEN 2
+                        ELSE 0;
+                        
+exchangeValue 'Значение' (ExchangeFormat f) = exchangeFormatValue(f);                                                                       
+exchangeName 'Формат' (ExchangeFormat f) = staticCaption(f);
+
+FORM exchangeFormats 'Форматы обмена'
+    OBJECTS f = ExchangeFormat
+    PROPERTIES(f) READONLY exchangeValue, exchangeName
+    LIST ExchangeFormat OBJECT f
+    ORDER exchangeValue(f)
+;
+
+terminalPreferencesJSON = DATA LOCAL STRING();
 
 CLASS TerminalPreferences 'Конфигурация ТСД';
 TABLE terminalPreferences (TerminalPreferences);
@@ -67,7 +89,7 @@ ID 'ID терминала' = DATA STRING[50] (TerminalPreferences);
 dbFile 'Файл базы данных' = DATA STRING[255] (TerminalPreferences);
 autoDocNum 'Автоматическая нумерация документа' = DATA BOOLEAN (TerminalPreferences);
 defaultVopDocument 'Код операции для документа' = DATA STRING[3] (TerminalPreferences);
-anaPost 'Код аналитики поставщика' = DATA STRING[5] (TerminalPreferences);
+postVan 'Вид аналитики поставщика' = DATA STRING[5] (TerminalPreferences);
 weightTemplate 'Весовые шаблоны' = DATA TEXT (TerminalPreferences);
 voice 'Голосовые сообщения' = DATA BOOLEAN (TerminalPreferences);
 fieldDate1Alias 'Дата 1' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
@@ -81,16 +103,20 @@ onlineEnable 'Включить On-line обмена с сервером' = DATA 
 onlineServer 'Имя/IP-адрес сервера' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 15;
 onlinePort 'Порт сервера' = DATA INTEGER (TerminalPreferences);
 
-obmenType 'Формат файлового обмена' = DATA INTEGER (TerminalPreferences);
-obmenDir 'Каталог' = DATA STRING[255] (TerminalPreferences);
-obmenUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
-obmenPass 'Пароль' = DATA STRING[30] (TerminalPreferences);
-obmenDomain 'Домен' = DATA STRING[30] (TerminalPreferences);
-obmenFtp 'Включить FTP-обмен' = DATA BOOLEAN (TerminalPreferences);
-obmenFtpServer 'FTP-cервер' = DATA STRING[50] (TerminalPreferences) CHARWIDTH 50;
-obmenFtpUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
-obmenFtpPass 'Пароль' = DATA STRING[30] (TerminalPreferences);
-obmenFtpDir 'Каталог' = DATA STRING[30] (TerminalPreferences);
+mobCennikEnable 'Включить мобильную печать ценников' = DATA BOOLEAN (TerminalPreferences);
+mobCennikVop 'Код операции для On-line ценника' = DATA STRING[3] (TerminalPreferences);
+
+exchangeFormat = DATA ExchangeFormat (TerminalPreferences);
+exchangeFormatName 'Формат файлового обмена' (TerminalPreferences t) = staticCaption(exchangeFormat(t));
+exchangeDir 'Каталог' = DATA STRING[255] (TerminalPreferences);
+exchangeUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
+exchangePass 'Пароль' = DATA STRING[30] (TerminalPreferences);
+exchangeDomain 'Домен' = DATA STRING[30] (TerminalPreferences);
+exchangeFtp 'Включить FTP-обмен' = DATA BOOLEAN (TerminalPreferences);
+exchangeFtpServer 'FTP-cервер' = DATA STRING[50] (TerminalPreferences) CHARWIDTH 50;
+exchangeFtpUser 'Пользователь' = DATA STRING[30] (TerminalPreferences);
+exchangeFtpPass 'Пароль' = DATA STRING[30] (TerminalPreferences);
+exchangeFtpDir 'Каталог' = DATA STRING[30] (TerminalPreferences);
 
 updateAppStartUp 'Автоматическая проверка обновления' = DATA BOOLEAN (TerminalPreferences);
 updateAppServer 'FTP-сервер' = DATA STRING[50] (TerminalPreferences) CHARWIDTH 50;
@@ -105,7 +131,7 @@ FORM terminalPreferences 'Конфигурация ТСД'
     PROPERTIES(t) dbFile
     PROPERTIES(t) autoDocNum    
     PROPERTIES(t) defaultVopDocument
-    PROPERTIES(t) anaPost
+    PROPERTIES(t) postVan
     PROPERTIES(t) weightTemplate
     PROPERTIES(t) voice
     PROPERTIES(t) fieldDate1Alias
@@ -115,16 +141,18 @@ FORM terminalPreferences 'Конфигурация ТСД'
     PROPERTIES(t) fieldField3Alias
     PROPERTIES(t) menuIk
     
-    PROPERTIES(t) obmenType
-    PROPERTIES(t) obmenUser
-    PROPERTIES(t) obmenPass
-    PROPERTIES(t) obmenDir
-    PROPERTIES(t) obmenDomain
-    PROPERTIES(t) obmenFtp
-    PROPERTIES(t) obmenFtpServer
-    PROPERTIES(t) obmenFtpUser
-    PROPERTIES(t) obmenFtpPass
-    PROPERTIES(t) obmenFtpDir
+    PROPERTIES(t) mobCennikEnable, mobCennikVop
+        
+    PROPERTIES(t) exchangeFormatName
+    PROPERTIES(t) exchangeUser
+    PROPERTIES(t) exchangePass
+    PROPERTIES(t) exchangeDir
+    PROPERTIES(t) exchangeDomain
+    PROPERTIES(t) exchangeFtp
+    PROPERTIES(t) exchangeFtpServer
+    PROPERTIES(t) exchangeFtpUser
+    PROPERTIES(t) exchangeFtpPass
+    PROPERTIES(t) exchangeFtpDir
     
     PROPERTIES(t) onlineEnable, onlineServer, onlinePort
     
@@ -133,48 +161,14 @@ FORM terminalPreferences 'Конфигурация ТСД'
     PROPERTIES(t) updateAppUser
     PROPERTIES(t) updateAppPass
     PROPERTIES(t) updateAppDir
-    
-//    PROPERTIES dbFile = (OVERRIDE dbFile(t), 'tsd.db')
-//    PROPERTIES autoDocNum = (OVERRIDE autoDocNum(t), NULL)    
-//    PROPERTIES defaultVopDocument = (OVERRIDE dbFile(t), '')
-//    PROPERTIES anaPost = (OVERRIDE anaPost(t), '')
-//    PROPERTIES weightTemplate = (OVERRIDE weightTemplate(t), '')
-//    PROPERTIES voice = (OVERRIDE voice(t), NULL)
-//    PROPERTIES fieldDate1Alias = (OVERRIDE fieldDate1Alias(t), '')
-//    PROPERTIES fieldDate2Alias = (OVERRIDE fieldDate2Alias(t), '')
-//    PROPERTIES fieldField1Alias = (OVERRIDE fieldField1Alias(t), '')
-//    PROPERTIES fieldField2Alias = (OVERRIDE fieldField2Alias(t), '')
-//    PROPERTIES fieldField3Alias = (OVERRIDE fieldField3Alias(t), '')
-//    PROPERTIES menuIk = (OVERRIDE menuIk(t), NULL)
-//    
-//    PROPERTIES obmenType = (OVERRIDE obmenType(t), 0)
-//    PROPERTIES obmenUser = (OVERRIDE obmenUser(t), '')
-//    PROPERTIES obmenPass = (OVERRIDE obmenPass(t), '')
-//    PROPERTIES obmenDir = (OVERRIDE obmenDir(t), '')
-//    PROPERTIES obmenDomain = (OVERRIDE obmenDomain(t), '')
-//    PROPERTIES obmenFtp = (OVERRIDE obmenFtp(t), NULL )
-//    PROPERTIES obmenFtpServer = (OVERRIDE obmenFtpServer(t), '')
-//    PROPERTIES obmenFtpUser = (OVERRIDE obmenFtpUser(t), '')
-//    PROPERTIES obmenFtpPass = (OVERRIDE obmenFtpPass(t), '')
-//    PROPERTIES obmenFtpDir = (OVERRIDE obmenFtpDir(t), '')
-//    
-//    PROPERTIES onlineEnable = (OVERRIDE onlineEnable(t), NULL)
-//    PROPERTIES onlineServer = (OVERRIDE onlineServer(t), '')
-//    PROPERTIES onlinePort = (OVERRIDE onlinePort(t), 2004)
-//    
-//    PROPERTIES updateAppStartUp = (OVERRIDE updateAppStartUp(t), NULL)
-//    PROPERTIES updateAppServer = (OVERRIDE updateAppServer(t), 'office.luxsoft.by')
-//    PROPERTIES updateAppUser = (OVERRIDE updateAppUser(t), 'tsd')
-//    PROPERTIES updateAppPass = (OVERRIDE updateAppPass(t), 'tsd')
-//    PROPERTIES updateAppDir = (OVERRIDE updateAppDir(t), '')
-    
+        
     EDIT TerminalPreferences OBJECT t    
 ;
 
 initDefaultValues (TerminalPreferences tp)  {
          
     dbFile(tp) <- 'tsd.db';
-    anaPost(tp) <- 'ПС'; 
+    postVan(tp) <- 'ПС'; 
     weightTemplate(tp) <- '20TTTTTWWWWW'; 
     menuIk(tp) <- TRUE;
     
@@ -187,74 +181,69 @@ initDefaultValues (TerminalPreferences tp)  {
 
 getTerminalPreferences(terminalID) {
 
-    NEWSESSION {
-
-        LOCAL json = STRING();
-        json() <- '';
+    LOCAL json = STRING();
+    json() <- '';
     
-        FOR TerminalPreferences tp IS TerminalPreferences AND (NOT ID(tp) OR ID(tp) == terminalID) DO {
+    FOR TerminalPreferences t IS TerminalPreferences AND (NOT ID(t) OR ID(t) == terminalID) DO {
             
-            json() <- json() + '"DatabaseName":"' + (OVERRIDE dbFile(tp), '') + '",';
-//            xml() <- xml() + '\t<DatabaseName>' + (OVERRIDE dbFile(tp), '') + '</DatabaseName>\n';
-            json() <- json() + '"AutoDocumentNumbering":' + IF autoDocNum(tp) THEN 'true' ELSE 'false,';          
-//            xml() <- xml() + '\t<AutoDocumentNumbering>' + IF autoDocNum(tp) THEN 'true' ELSE 'false' + '</AutoDocumentNumbering>\n';
-//            xml() <- xml() + '\t<DefaultDocumentVop>' + (OVERRIDE defaultVopDocument(tp), '') + '</DefaultDocumentVop>\n';
-//            xml() <- xml() + '\t<PostVan>' + (OVERRIDE anaPost(tp), '') + '</PostVan>\n';
-//            xml() <- xml() + '\t<VesTemplate>' + (OVERRIDE weightTemplate(tp), '') + '</VesTemplate>\n';             
-//            xml() <- xml() + '\t<Voice>' + IF voice(tp) THEN 'true' ELSE 'false' + '</Voice>\n';
-//            xml() <- xml() + '\t<AliasDate1>' + (OVERRIDE fieldDate1Alias(tp), '') + '</AliasDate1>\n';
-//            xml() <- xml() + '\t<AliasDate2>' + (OVERRIDE fieldDate2Alias(tp), '') + '</AliasDate2>\n';
-//            xml() <- xml() + '\t<AliasField1>' + (OVERRIDE fieldField1Alias(tp), '') + '</AliasField1>\n';
-//            xml() <- xml() + '\t<AliasField2>' + (OVERRIDE fieldField2Alias(tp), '') + '</AliasField2>\n';
-//            xml() <- xml() + '\t<AliasField3>' + (OVERRIDE fieldField3Alias(tp), '') + '</AliasField3>\n';
-//            xml() <- xml() + '\t<ShowMenuIk>' + IF menuIk(tp) THEN 'true' ELSE 'false' + '</ShowMenuIk>\n';
+        json() <- json() + '"DatabaseName":"' + (OVERRIDE dbFile(t), '') + '",';
+        json() <- json() + '"AutoDocumentNumbering":' + (IF autoDocNum(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"DefaultDocumentVop":"' + (OVERRIDE defaultVopDocument(t), '') + '",';
+        json() <- json() + '"PostVan":"' + (OVERRIDE postVan(t), '') + '",';
+        json() <- json() + '"VesTemplate":"' + (OVERRIDE weightTemplate(t), '') + '",';             
+        json() <- json() + '"Voice":' + (IF voice(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"AliasDate1":"' + (OVERRIDE fieldDate1Alias(t), '') + '",';
+        json() <- json() + '"AliasDate2":"' + (OVERRIDE fieldDate2Alias(t), '') + '",';
+        json() <- json() + '"AliasField1":"' + (OVERRIDE fieldField1Alias(t), '') + '",';
+        json() <- json() + '"AliasField2":"' + (OVERRIDE fieldField2Alias(t), '') + '",';
+        json() <- json() + '"AliasField3":"' + (OVERRIDE fieldField3Alias(t), '') + '",';
+        json() <- json() + '"ShowMenuIk":' + (IF menuIk(t) THEN 'true' ELSE 'false') + ',';
             
-//            xml() <- xml() + '\t<ObmenType>' + (OVERRIDE obmenType(tp), 0) + '</ObmenType>\n';
-//            xml() <- xml() + '\t<ObmenUserName>' + (OVERRIDE obmenUser(tp), '') + '</ObmenUserName>\n';
-//            xml() <- xml() + '\t<ObmenPass>' + (OVERRIDE obmenPass(tp), '') + '</ObmenPass>\n';
-//            xml() <- xml() + '\t<ObmenDir>' + (OVERRIDE obmenDir(tp), '') + '</ObmenDir>\n';
-//            xml() <- xml() + '\t<ObmenDomain>' + (OVERRIDE obmenDomain(tp), '') + '</ObmenDomain>\n';
-//            xml() <- xml() + '\t<ObmenFtp>' + IF obmenFtp(tp) THEN 'true' ELSE 'false' + '</ObmenFtp>\n';
-//            xml() <- xml() + '\t<ObmenFtpServer>' + (OVERRIDE obmenFtpServer(tp), '') + '</ObmenFtpServer>\n';
-//            xml() <- xml() + '\t<ObmenFtpUserName>' + (OVERRIDE obmenFtpUser(tp), '') + '</ObmenFtpUserName>\n';
-//            xml() <- xml() + '\t<ObmenFtpPass>' + (OVERRIDE obmenFtpPass(tp), '') + '</ObmenFtpPass>\n';
-//            xml() <- xml() + '\t<ObmenFtpDir>' + (OVERRIDE obmenFtpDir(tp), '') + '</ObmenFtpDir>\n';
+        json() <- json() + '"MobCennikEnable":' + (IF mobCennikEnable(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"MobCennikVop":"' + (OVERRIDE mobCennikVop(t), '') + '",';
+                        
+        json() <- json() + '"ObmenType":"' + exchangeValue(exchangeFormat(t)) + '",';
+        json() <- json() + '"ObmenUserName":"' + (OVERRIDE exchangeUser(t), '') + '",';
+        json() <- json() + '"ObmenPass":"' + (OVERRIDE exchangePass(t), '') + '",';
+        json() <- json() + '"ObmenDir":"' + (OVERRIDE exchangeDir(t), '') + '",';
+        json() <- json() + '"ObmenDomain":"' + (OVERRIDE exchangeDomain(t), '') + '",';
+        json() <- json() + '"ObmenFtp":' + (IF exchangeFtp(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"ObmenFtpServer":"' + (OVERRIDE exchangeFtpServer(t), '') + '",';
+        json() <- json() + '"ObmenFtpUserName":"' + (OVERRIDE exchangeFtpUser(t), '') + '",';
+        json() <- json() + '"ObmenFtpPass":"' + (OVERRIDE exchangeFtpPass(t), '') + '",';
+        json() <- json() + '"ObmenFtpDir":"' + (OVERRIDE exchangeFtpDir(t), '') + '",';
     
-//            xml() <- xml() + '\t<OnlineEnable>' + IF onlineEnable(tp) THEN 'true' ELSE 'false' + '</OnlineEnable>\n';
-//            xml() <- xml() + '\t<OnlineServer>' + (OVERRIDE onlineServer(tp), '') + '</OnlineServer>\n';
-//            xml() <- xml() + '\t<OnlinePort>' + (OVERRIDE onlinePort(tp), 2004) + '</OnlinePort>\n';
+        json() <- json() + '"OnlineEnable":' + (IF onlineEnable(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"OnlineServer":"' + (OVERRIDE onlineServer(t), '') + '",';
+        json() <- json() + '"OnlinePort":"' + (OVERRIDE onlinePort(t), 2004) + '",';
     
-//            xml() <- xml() + '\t<UpdateAppStartUp>' + IF updateAppStartUp(tp) THEN 'true' ELSE 'false' + '</UpdateAppStartUp>\n';
-//            xml() <- xml() + '\t<UpdateAppServer>' + (OVERRIDE updateAppServer(tp), '') + '</UpdateAppServer>\n';
-//            xml() <- xml() + '\t<UpdateAppUser>' + (OVERRIDE updateAppUser(tp), '') + '</UpdateAppUser>\n';
-//            xml() <- xml() + '\t<UpdateAppPassword>' + (OVERRIDE updateAppPass(tp), '') + '</UpdateAppPassword>\n';
-            json() <- json() + '"UpdateAppDir":"' + (OVERRIDE updateAppDir(tp), '') + '"';
-//            xml() <- xml() + '\t<UpdateAppDir>' + (OVERRIDE updateAppDir(tp), '') + '</UpdateAppDir>\n';
-              
-        }
-
-        IF length(json()) > 0 THEN json() <- '[\{' + json() + '\}]'; ELSE json() <- NULL;
-        terminalPreferencesJSON() <- json();
-        //MESSAGE terminalPreferencesJSON();        
+        json() <- json() + '"UpdateAppStartUp":' + (IF updateAppStartUp(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"UpdateAppServer":"' + (OVERRIDE updateAppServer(t), '') + '",';
+        json() <- json() + '"UpdateAppUser":"' + (OVERRIDE updateAppUser(t), '') + '",';
+        json() <- json() + '"UpdateAppPassword":"' + (OVERRIDE updateAppPass(t), '') + '",';
+        json() <- json() + '"UpdateAppDir":"' + (OVERRIDE updateAppDir(t), '') + '"';              
     }
+
+    IF length(json()) > 0 THEN json() <- '[\{' + json() + '\}]'; ELSE json() <- NULL;
+    
+    terminalPreferencesJSON() <- json();
 }
 
-//exportToXML 'Создать' (TerminalPreferences tp) {    
-//    LOCAL terminalID = STRING[50]();
-//    terminalID() <- '123';
-//    getTerminalPreferences(terminalID());        
-//}
+actionTest 'Test' (TerminalPreferences tp) {
+    getTerminalPreferences('');
+    MESSAGE terminalPreferencesJSON();
+}
 
-FORM terminalsPreferences 'Конфигурации ТСД'
+FORM terminalsPreferences 'Конфигурация ТСД'
     OBJECTS t=TerminalPreferences
     PROPERTIES(t) READONLY name, ID
-//    PROPERTIES(t) exportToXML TOOLBAR
+//    PROPERTIES(t) actionTest TOOLBAR
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE    
 ;
 
 EXTEND FORM terminalPreferences
     EVENTS ON INIT {
-        initDefaultValues(t);
+//        initDefaultValues(t);
     }      
 ;
 
@@ -281,7 +270,7 @@ DESIGN terminalPreferences {
                 MOVE PROPERTY(autoDocNum(t));
                 MOVE PROPERTY(weightTemplate(t));
                 MOVE PROPERTY(defaultVopDocument(t));
-                MOVE PROPERTY(anaPost(t));
+                MOVE PROPERTY(postVan(t));
                 MOVE PROPERTY(voice(t));
                 NEW fieldsAliases {
                     caption = 'Наименования полей ввода';
@@ -301,6 +290,13 @@ DESIGN terminalPreferences {
                     MOVE PROPERTY(menuIk(t));
                 }                                  
             }
+            NEW cennik {
+                caption = 'Печать ценников';
+                fill = 0;
+                type = CONTAINERV;
+                MOVE PROPERTY(mobCennikEnable(t));        
+                MOVE PROPERTY(mobCennikVop(t));
+            }            
             NEW online {
                 caption = 'On-line настройки';
                 fill = 0;
@@ -313,25 +309,25 @@ DESIGN terminalPreferences {
                 caption = 'Обмен';
                 fill = 0;
                 type = CONTAINERV;
-                MOVE PROPERTY(obmenType(t)); 
+                MOVE PROPERTY(exchangeFormatName(t)); 
                 NEW filesObmen {
                     caption = 'Сетевой обмен';
                     fill = 1;
                     type = CONTAINERV;
-                    MOVE PROPERTY(obmenDir(t));
-                    MOVE PROPERTY(obmenUser(t));
-                    MOVE PROPERTY(obmenPass(t));
-                    MOVE PROPERTY(obmenDomain(t));
+                    MOVE PROPERTY(exchangeDir(t));
+                    MOVE PROPERTY(exchangeUser(t));
+                    MOVE PROPERTY(exchangePass(t));
+                    MOVE PROPERTY(exchangeDomain(t));
                 }                                  
                 NEW ftpObmen {
                     caption = 'FTP обмен';
                     fill = 1;
                     type = CONTAINERV;
-                    MOVE PROPERTY(obmenFtp(t));
-                    MOVE PROPERTY(obmenFtpServer(t));
-                    MOVE PROPERTY(obmenFtpUser(t));
-                    MOVE PROPERTY(obmenFtpPass(t));
-                    MOVE PROPERTY(obmenFtpDir(t));
+                    MOVE PROPERTY(exchangeFtp(t));
+                    MOVE PROPERTY(exchangeFtpServer(t));
+                    MOVE PROPERTY(exchangeFtpUser(t));
+                    MOVE PROPERTY(exchangeFtpPass(t));
+                    MOVE PROPERTY(exchangeFtpDir(t));
                 }                                                     
             } 
             NEW updateApp {
