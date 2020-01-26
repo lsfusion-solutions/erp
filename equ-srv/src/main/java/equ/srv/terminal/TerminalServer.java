@@ -54,8 +54,6 @@ public class TerminalServer extends MonitorServer {
     public static byte GET_ITEM_INFO_ERROR = 110;
     public static byte UNKNOWN_COMMAND = 111;
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
-    public static byte GET_PREFERENCES_NOPREFERENCES = 112;
-    public static String GET_PREFERENCES_NOPREFERENCES_TEXT = "Конфигурация ТСД не определена";
 
     public static final byte GET_USER_INFO = 4;
 
@@ -606,8 +604,8 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     result = getPreferences(userInfo.idTerminal);
                                     if (result == null) {
-                                        errorCode = GET_PREFERENCES_NOPREFERENCES;
-                                        errorText = GET_PREFERENCES_NOPREFERENCES_TEXT;
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
                                     }
                                 }
                             } else {
@@ -636,7 +634,6 @@ public class TerminalServer extends MonitorServer {
                 writeByte(outToClient, errorCode);
                 if (errorText != null) {
                     write(outToClient, errorText);
-                    writeByte(outToClient, etx);
                 } else {
                     switch (command) {
                         case GET_USER_INFO:
@@ -644,7 +641,6 @@ public class TerminalServer extends MonitorServer {
                                 writeBytes(outToClient, result);
                                 writeByte(outToClient, esc);
                                 write(outToClient, String.valueOf(System.currentTimeMillis()));
-                                writeByte(outToClient, etx);
                             }
                             break;
                         case GET_ITEM_INFO:
@@ -655,24 +651,15 @@ public class TerminalServer extends MonitorServer {
                                     }
                                     writeByte(outToClient, esc);
                                 }
-                                writeByte(outToClient, etx);
                             }
                             break;
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
                         case SAVE_PALLET:
                         case CHECK_ORDER:
-                            if (result != null) {
-                                write(outToClient, result);
-                                writeByte(outToClient, etx);
-                            }
-                            break;
                         case GET_PREFERENCES:
                             if (result != null) {
-                                byte[] bytes = result.getBytes("UTF8");
-                                write(outToClient, String.valueOf(bytes.length));
-                                writeByte(outToClient, etx);
-                                write(outToClient, bytes);
+                                write(outToClient, result);
                             }
                             break;
                         case GET_ALL_BASE:
@@ -685,8 +672,8 @@ public class TerminalServer extends MonitorServer {
                     }
                 }
 
-//                if (fileData == null)
-//                    writeByte(outToClient, etx);
+                if (fileData == null)
+                    writeByte(outToClient, etx);
                 logger.info(String.format("Command %s: answer sent", command));
                 Thread.sleep(1000);
                 return null;
