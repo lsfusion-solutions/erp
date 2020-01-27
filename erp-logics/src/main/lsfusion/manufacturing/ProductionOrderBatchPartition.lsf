@@ -31,7 +31,7 @@ toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Batch);
 
 toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch);
 takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt);
-originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt) / (OVERRIDE multiplier(s, b, sku(bt)), 1.0);
+originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b) = GROUP SUM NUMERIC[16,5](toConsume(s, b, Batch bt) / (OVERRIDE multiplier(s, b, sku(bt)), 1.0));
 
 lastDetail = GROUP LAST ComponentDetail d ORDER d BY order(d), bruttoSku(d), BOM(d), batch(d); 
 
@@ -125,7 +125,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     DELETE ComponentDetail d WHERE order(d) = o AND NOT d = lastDetail(o, bruttoSku(d), BOM(d), batch(d));
     
     // Добавляем компоненты, по которым нету ни одной партии
-    FOR NUMERIC[16,5] q = (quantity(Sku s, BOM b) (-) originalTakenBatch(s, b)) IF q > 0 NEW d = ComponentDetail DO {
+    FOR NUMERIC[16,5] q = (quantity(Sku s, BOM b) (-) originalTakenBatch(s, b)) IF ( IF originalTakenBatch(s, b) THEN q >0.00001 ELSE q > 0 )  NEW d = ComponentDetail DO {
         order(d) <- o;
         bruttoSku(d) <- s;
         component(d)<- component(s,b);
