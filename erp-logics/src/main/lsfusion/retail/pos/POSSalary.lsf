@@ -23,8 +23,11 @@ EXTEND FORM zReports
 ;
 
 prePostSalary ABSTRACT (Receipt);
+skipPostSalary = DATA LOCAL BOOLEAN (Receipt);
 postSalary 'В счёт зарплаты'(Receipt receipt)  { 
+    skipPostSalary(receipt) <- NULL;
     prePostSalary(receipt);
+    IF skipPostSalary(receipt) THEN RETURN;
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         NEW p = Payment {
