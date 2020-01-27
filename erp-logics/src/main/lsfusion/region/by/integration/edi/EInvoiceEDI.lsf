@@ -8,11 +8,6 @@ NAMESPACE EDI;
 CLASS ECreditNote 'Электронный акт приемки EDI';
 TABLE eCreditNote(ECreditNote);
 
-exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
-//importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
-//exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
-importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
-
 dateTimeCreated 'Создан' = DATA DATETIME (ECreditNote);
 dateTimeCreated(ECreditNote c) <- currentDateTime() WHEN (c IS ECreditNote);
 
@@ -64,8 +59,8 @@ passwordEDSServiceCustomer (ECreditNote c) = OVERRIDE passwordEDSService(custome
 currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (ECreditNote);
 
 isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
-//isCancelNumber (ECreditNote c) = IF isCancel(c) THEN 1 ELSE 0;
-//eCreditNoteActDifNumberIsCancel (number, isCancel) = GROUP NAGGR ECreditNote c BY actDifNumber(c), isCancelNumber(c);
+isCancelNumber (ECreditNote c) = IF isCancel(c) THEN 1 ELSE 0;
+eCreditNoteActDifNumberIsCancel (number, isCancel) = GROUP NAGGR ECreditNote c BY actDifNumber(c), isCancelNumber(c);
 
 CLASS ECreditNoteDetail 'Строка электронной акта приемки EDI';
 TABLE eCreditNoteDetail(ECreditNoteDetail); 
@@ -74,34 +69,6 @@ TABLE eCreditNoteDetail(ECreditNoteDetail);
 
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (ECreditNote);
-
-//signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST (ECreditNote);
-//signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'()  { 
-//    FOR in(ECreditNote c) DO { 
-//        IF EDIProvider(supplier(c)) THEN
-//            signAndSendSupplier(c);
-//        ELSE
-//            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
-//    }
-//    ELSE
-//        MESSAGE 'Не выбрано ни одного акта приемки';
-//    
-//}
-
-signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST (ECreditNote);
-signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'()  { 
-    IF askPasswordEDSService() THEN {
-        DIALOG passwordEDSService DO {} ELSE { BREAK; };
-    }
-    FOR in(ECreditNote c) DO { 
-        IF EDIProvider(supplier(c)) THEN
-            signAndSendCustomer(c);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
-    }
-    ELSE
-        MESSAGE 'Не выбрано ни одного акта приемки';
-}
 
 eCreditNote = DATA ECreditNote(ECreditNoteDetail) NONULL DELETE INDEXED;
 
@@ -152,20 +119,14 @@ background = ABSTRACT CASE COLOR (ECreditNote);
 FORM eCreditNotes 'Электронные акты приемки EDI'
     OBJECTS c = ECreditNote
     PROPERTIES(c) in
-    PROPERTIES(c) READONLYIF isReadonly() exportedCustomer, importedCustomer//importedSupplier, exportedSupplier,
-    PROPERTIES(c) READONLY isCancel, dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDateTime, deliveryNoteNumber, deliveryNoteDateTime,
+    PROPERTIES(c) READONLYIF isReadonly() isCancel
+    PROPERTIES(c) READONLY dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDateTime, deliveryNoteNumber, deliveryNoteDateTime,
                            glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
     FILTERGROUP notExported
-        //FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(c) 'F8'
-        FILTER 'Не импортированы (покупатель)' NOT importedCustomer(c) 'F9'
-        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(c) 'F10'
-        //FILTER 'Не импортированы (поставщик)' NOT importedSupplier(c) 'F11'
     
     OBJECTS d = ECreditNoteDetail
     PROPERTIES(d) READONLY lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT BACKGROUND backgroundVAT(d),
      lineItemPrice, amountOrdered, amountReceived, lineItemQuantityUOM
-
-    PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNoteEDI//, signAndSendSupplierCreditNoteEDI
 
     FILTERS eCreditNote(d) == c
 

@@ -385,12 +385,6 @@ FILTERS orderDespatchAdvice(d) == o
 CLASS EInvoice 'Электронная накладная EDI';
 TABLE eInvoice(EInvoice);
 
-exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (EInvoice);
-importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (EInvoice);
-exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (EInvoice);
-importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (EInvoice);
-importedSupplierCancel 'Импортирован (поставщик) отмена' = DATA BOOLEAN (EInvoice);
-
 dateTimeCreated 'Создана' = DATA DATETIME (EInvoice);
 dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice); 
 
@@ -462,11 +456,6 @@ nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customer
 addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = address(customerStock(i));
 contactCustomerStock 'ФИО и должность лица, которое отвечает за получение груза со стороны грузополучателя' = DATA STRING[150] (EInvoice);
 
-aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
-aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
-passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
-passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
-
 transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice);
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice);
 proxyID 'Номер доверенности' = DATA STRING[70] (EInvoice);
@@ -500,37 +489,6 @@ EXTEND FORM computer PROPERTIES(c) certificateEDI, passwordEDI, signerPathEDI, o
 EXTEND FORM computers PROPERTIES(c) READONLY certificateEDI, passwordEDI, signerPathEDI, outputEDI;
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
-
-signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
-signAndSendSupplierEDI 'Подписать и отправить (поставщик)'()  {
-    IF askPasswordEDSService() THEN {
-        DIALOG passwordEDSService DO {} ELSE { BREAK; };
-    }
-    FOR in(EInvoice i) DO { 
-        IF EDIProvider(supplier(i)) THEN
-            signAndSendSupplier(i);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для накладной : ' + number(i);
-    }
-    ELSE
-        MESSAGE 'Не выбрано ни одной накладной';
-    
-}
-
-signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST ( EInvoice);
-signAndSendCustomerEDI 'Подписать и отправить (покупатель)'()  { 
-    IF askPasswordEDSService() THEN {
-        DIALOG passwordEDSService DO {} ELSE { BREAK; };
-    }
-    FOR in(EInvoice i) DO { 
-        IF EDIProvider(supplier(i)) THEN
-            signAndSendCustomer(i);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для накладной : ' + number(i);
-    }
-    ELSE
-        MESSAGE 'Не выбрано ни одной накладной';
-}
 
 eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE INDEXED;
 
@@ -621,22 +579,16 @@ nameType 'Тип' (EInvoiceMessage o) = staticCaption(type(o));
 FORM eInvoices 'Электронные накладные EDI'
     OBJECTS e = EInvoice
     PROPERTIES(e) in
-    PROPERTIES(e) READONLYIF isReadonly() exportedSupplier, importedCustomer, exportedCustomer, importedSupplier, importedSupplierCancel, isCancel
+    PROPERTIES(e) READONLYIF isReadonly() isCancel
     PROPERTIES(e) READONLY dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
                            nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
     PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
-        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
-        FILTER 'Не импортированы (покупатель)' NOT importedCustomer(e) 'F9'
-        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(e) 'F10'
-        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) 'F11'
     
     OBJECTS d = EInvoiceDetail
     PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT BACKGROUND backgroundVAT(d),
      lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
      grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields
-
-    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendCustomerEDI
 
     FILTERS eInvoice(d) == e
 

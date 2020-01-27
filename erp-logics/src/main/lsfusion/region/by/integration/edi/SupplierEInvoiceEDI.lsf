@@ -1,0 +1,65 @@
+MODULE SupplierEInvoiceEDI;
+
+REQUIRE EInvoiceEDI;
+
+NAMESPACE EDI;
+
+exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (EInvoice);
+importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (EInvoice);
+importedSupplierCancel 'Импортирован (поставщик) отмена' = DATA BOOLEAN (EInvoice);
+
+aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
+passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
+
+signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
+signAndSendSupplierEDI 'Подписать и отправить (поставщик)'()  {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO { 
+        IF EDIProvider(supplier(i)) THEN
+            signAndSendSupplier(i);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для накладной : ' + number(i);
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+    
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() exportedSupplier, importedSupplier, importedSupplierCancel
+    EXTEND FILTERGROUP notExported
+        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
+        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) 'F11'
+    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI
+;
+
+
+
+importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+
+signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST (ECreditNote);
+signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'()  { 
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(ECreditNote c) DO { 
+        IF EDIProvider(supplier(c)) THEN
+            signAndSendSupplier(c);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одного акта приемки';
+
+}
+
+EXTEND FORM eCreditNotes
+    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() importedSupplier, exportedSupplier
+    EXTEND FILTERGROUP notExported
+        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(c) 'F8'
+        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(c) 'F11'
+    PROPERTIES() DRAW c TOOLBAR signAndSendSupplierCreditNoteEDI
+;

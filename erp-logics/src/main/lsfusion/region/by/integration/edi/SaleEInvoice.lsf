@@ -1,7 +1,155 @@
 MODULE SaleEInvoice;
 
-REQUIRE SaleInvoice, ConsignmentEInvoice;
+REQUIRE SaleInvoice, ConsignmentEInvoice, SaleCreditNote;
 
 NAMESPACE Sale;
 
 @defineInvoiceEinvoice();
+
+eOperation = DATA Operation(LegalEntity);
+nameEOperation 'Операция (Продажа) для электронных актов приемки'(LegalEntity l) = name(eOperation(l));
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) saleNameEOperation = nameEOperation;
+
+DESIGN legalEntity {
+    EDI{
+        MOVE PROPERTY(saleNameEOperation);
+    }
+}
+
+creditNote = DATA CreditNote(ECreditNote) INDEXED;
+eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY creditNote(ec);
+numberCreditNote 'Номер акта приемки EDI (расход)' (ECreditNote c) = number(creditNote(c));
+
+EXTEND FORM eCreditNotes
+    PROPERTIES (c) READONLY SaleNumberCreditNote = numberCreditNote
+;
+
+filterDate 'Дата' = DATA LOCAL DATE ();
+filterDate (ECreditNote c) = DATE(dateTime(c)) == filterDate() OR NOT filterDate();      
+
+filterSupplier = DATA LOCAL LegalEntity ();
+filterSupplier (ECreditNote c) = supplier(c)= filterSupplier() OR (c IS ECreditNote AND NOT filterSupplier()) OR NOT supplier(c);
+
+filterCustomer = DATA LOCAL LegalEntity ();
+filterCustomer (ECreditNote c) = customer(c)= filterCustomer() OR (c IS ECreditNote AND NOT filterCustomer()) OR NOT customer(c);
+
+filterStock = DATA LOCAL Stock ();
+filterStock (ECreditNote c) = customerStock(c)= filterStock() OR (c IS EInvoice AND NOT filterStock()) OR NOT customerStock(c);
+
+FORM selectECreditNote 'Акты приемки EDI'
+    PROPERTIES filterDate()
+    
+    OBJECTS ec = ECreditNote
+    PROPERTIES(ec) READONLY dateTime, number, actDifNumber, deliveryNoteNumber, nameSupplier, nameCustomer
+    FILTERS filterDate(ec), 
+            filterSupplier(ec),
+            filterCustomer(ec),
+            filterStock(ec),
+            NOT creditNote(ec)            
+;
+
+DESIGN selectECreditNote {
+    NEW filter {
+        caption = 'Фильтр';
+        MOVE PROPERTY (filterDate());
+    }
+    
+    MOVE BOX(ec);
+    MOVE TOOLBARBOX;
+}
+
+overCopy  ABSTRACT LIST ( ECreditNoteDetail, UserCreditNoteDetail);
+copyData(ECreditNote ec, CreditNote c)  { 
+    creditNote(ECreditNote e) <- NULL WHERE creditNote(e) == c AND NOT isCancel(e);
+    creditNote(ec) <- c;
+    number(c) <- number(ec);
+    series(c) <- NULL;
+    operation(c) <- eOperation(customer(ec)) WHERE eOperation(customer(ec));
+    supplier(c) <- supplier(ec);
+    supplierStock(c) <- OVERRIDE supplierStock(invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec)))), defaultStock(supplier(c));
+    customer(c) <- customer(ec);
+    customerStock(c) <- customerStock(ec);
+    date(c) <- DATE(dateTime(ec));
+    time(c) <- TIME(dateTime(ec));
+    
+    FOR eCreditNote(ECreditNoteDetail ecd) == eCreditNote(c) NEW cd = UserCreditNoteDetail DO {
+        userCreditNote(cd) <- c;
+        sku(cd) <- OVERRIDE sku(lineItemBuyerID(ecd)), skuGTIN(lineItemID(ecd)), sku(lineItemID(ecd));
+        invoiceDetail(cd) <- OVERRIDE (GROUP MIN InvoiceDetail d IF invoice(d) == invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec))) AND index(d) == lineItemNumber(ecd) AND sku(d) == sku(cd)), (GROUP MIN InvoiceDetail d IF invoice(d) == invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec))) AND sku(d) == sku(cd));
+        quantity(cd) <- quantityOrdered(ecd) (-) quantityReceived(ecd);
+        price(cd) <- lineItemPrice(ecd);
+        VAT(cd) <- valueCurrentVAT(country(customerStock(ec)), valueVAT(ecd));;
+        valueVAT(cd) <- NUMERIC[10,5](valueVAT(ecd));  
+        overCopy(ecd,cd); 
+    }
+}
+
+//importFromECreditNote 'Импорт из акта приемки EDI' (UserCreditNote c)  { 
+//    IF isPosted(c) THEN {
+//        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+//        RETURN;
+//    }
+//    
+//    filterDate() <- date(c);
+//    filterSupplier() <- supplier(c);
+//    filterCustomer() <- customer(c);    
+//    filterStock() <- customerStock(c);
+//    
+//    DIALOG selectECreditNote OBJECTS ec INPUT DO {
+//        IF ec THEN
+//            copyData(ec,c);
+//    }
+//}
+
+//EXTEND FORM userCreditNote 
+//    PROPERTIES READONLY numberECreditNote(c)
+//    PROPERTIES(c) importFromECreditNote
+//;
+//
+//DESIGN userCreditNote {
+//    import {
+//        NEW importEDI {
+//            caption = 'Накладная EDI';
+//            flex = 1;
+//            type = CONTAINERV;
+//            MOVE PROPERTY(numberEInvoice(i));
+//            MOVE PROPERTY(nameReceiver(i));
+//            MOVE PROPERTY(importFromEInvoice(i));
+//        }
+//    }
+//}
+
+numberECreditNote 'Номер электронного акта приемки'(CreditNote c) = actDifNumber(eCreditNote(c));
+isECreditNote 'Электронный акт приемки' (CreditNote c) = TRUE IF eCreditNote(c);
+signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'(CreditNote c)  { 
+    NEWSESSION {
+        in(ECreditNote e) <- e = eCreditNote(c);
+        signAndSendSupplierCreditNoteEDI();
+        in(ECreditNote e) <- NULL;
+    }
+}
+
+EXTEND FORM creditNotes
+        PROPERTIES READONLY PANEL numberECreditNote(c)
+        PROPERTIES(c) signAndSendSupplierCreditNoteEDI SHOWIF (eCreditNote(c) AND NOT exportedSupplier(eCreditNote(c)))
+;
+
+DESIGN creditNotes {
+    documentDetail {
+        NEW tabCreditNote AFTER printTab {
+            caption = 'Печатные формы';
+            type = TABBED;
+            MOVE printTab {caption = 'Акт расхождений';};
+            NEW eCreditNote {
+                caption = 'Электронный акт приемки';
+                NEW createCN {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberECreditNote(c));
+                    MOVE PROPERTY(signAndSendSupplierCreditNoteEDI(c));
+                }
+            }
+        }
+    }
+}
