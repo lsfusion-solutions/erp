@@ -146,6 +146,17 @@ shortNameUOM 'Ед.изм.' (ProductDetail productDetail) = shortName(UOM(produc
 CONSTRAINT product(ProductDetail d) AND NOT sku(d) = sku(product(d)) CHECKED BY product[ProductDetail]
     MESSAGE 'Sku изделия и строки изделия не соответствуют друг другу';
     
+productsChange(ProductDetail d) {
+    IF componentsStock(d) THEN {
+        productSku() <- sku(d);
+        DIALOG productsChange OBJECTS st = componentsStock(d), p = product(d) CHANGE;
+    } ELSE {
+        MESSAGE 'Не выбран склад компонент';   
+    } 
+    productSku() <- NULL;
+}
+
+    
 expiryDate 'Годен до' = DATA DATE (ProductDetail);
 expiryTime 'Годен до' = DATA TIME (ProductDetail);
 expiryDateTime 'Годен до' (ProductDetail d) = dateTimeToDateTime(expiryDate(d), expiryTime(d));
@@ -1181,7 +1192,7 @@ FORM order 'Производственный заказ'
                   quantityComponentDetail, sumComponentDetail, calcBOMPrice, isPricePercent, isPriceCoeff , keepSupplier
     PROPERTIES(o)   nameCalcPriceListType, nameProductsPriceListType, VATProduct, showBOMQuantity
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, shortNameUOM, nameSupplier
+    PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct ON CHANGE productsChange(pd), shortNameUOM, nameSupplier
     PROPERTIES(pd) expiryDate, expiryTime, manufactureDate, manufactureTime, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
                    calcComponentsPrice READONLY, componentsPrice ON CHANGE changeComponentsPrice(pd),
                    costPrice

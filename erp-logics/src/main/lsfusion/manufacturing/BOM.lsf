@@ -502,7 +502,52 @@ DESIGN products {
         }
         MOVE TOOLBARBOX;
     }
-}                                                                                    
+}                     
+
+productSku = DATA LOCAL Sku();
+nameProductSku 'SKU' () = name(productSku()); 
+
+FORM productsChange 'Изделия'
+    OBJECTS st = Stock PANEL
+    PROPERTIES READONLY name(st), nameProductSku() DRAW st  SHOWIF productSku()
+    OBJECTS p=Product
+    PROPERTIES (p) READONLY number, series, date
+    PROPERTIES(p) id SHOWIF showIDs()
+    PROPERTIES(p) READONLY inactive, description, index, nameSku, shortNameUOM, quantity
+    PROPERTIES(p) READONLY fromDate, toDate
+    FILTERGROUP active
+        FILTER 'Активные' NOT inactive(p) DEFAULT
+    FILTERS in(BOM(p),st) OR (p IS Product AND NOT countStocks(BOM(p)) ),
+            productSku()==sku(p) OR (p IS Product AND NOT productSku())
+    
+    OBJECTS c = Component
+    PROPERTIES(c) READONLY BACKGROUND background(c) index 
+    PROPERTIES(c) READONLY BACKGROUND background(c) idBarcodeSku, id SHOWIF showIDs(), nameMaterial, shortNameUOM 
+    PROPERTIES(c) READONLY BACKGROUND background(c) 
+                  nettoQuantity, overNettoNetWeight,
+                  wastage,
+                  bruttoQuantity, overBruttoNetWeight
+    ORDER index(c)
+    FILTERS       BOM(c) == BOM(p)       
+; 
+DESIGN productsChange {
+    BOX {
+        size = (1024, 768);
+        NEW filter{
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY (name(st));
+            MOVE PROPERTY (nameProductSku());
+        }
+        NEW top {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(p);
+            MOVE BOX(c);
+        }
+        MOVE TOOLBARBOX;
+    }
+}                                                               
 
 useChangeableNettoNetWeightComponent 'Изменять Выход спецификации вручную' = DATA BOOLEAN ();
 
