@@ -230,7 +230,7 @@ public class AclasHandler extends MultithreadScalesHandler {
             bytes.put((byte) 0x00);
         }
 
-        byte[] descriptionBytes = trim(item.description, 249).getBytes(Charset.forName("cp1251"));
+        byte[] descriptionBytes = trim(item.description, "", 249).getBytes(Charset.forName("cp1251"));
         bytes.put(descriptionBytes);
 
         for (int i = 0; i < 249 - descriptionBytes.length; i++) {
