@@ -307,7 +307,7 @@ public class AclasHandler extends MultithreadScalesHandler {
                                 if (!Thread.currentThread().isInterrupted() && globalError < 5) {
                                     if (item.idBarcode != null && item.idBarcode.length() <= 5) {
                                         processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                        Boolean result = loadPLU(udpPort, scales, item) && loadMessage(udpPort, item);
+                                        Boolean result = loadPLU(udpPort, scales, item)/* && loadMessage(udpPort, item)*/;
                                         if (!result) {
                                             logError(localErrors, String.format(getLogPrefix() + "IP %s, send failed, item %s", scales.port, item.idItem));
                                             globalError++;
