@@ -29,6 +29,9 @@ GROUP blrwblCarrier EXTID 'Carrier' : deliveryNote;
 blrwblTransportContact = DATA LOCAL NESTED STRING[150]();
 blrwblTransportID = DATA LOCAL NESTED STRING[35]();
 blrwblTrailerID = DATA LOCAL NESTED STRING[35]();
+blrwblFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
+blrwblFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
+blrwblFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 GROUP despatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
 blrwblLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
 blrwblLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
@@ -47,8 +50,9 @@ blrwblLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 lineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
-blrwblFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
+blrwblLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
+blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
+blrwblLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrwbl
     PROPERTIES IN deliveryNote blrwblDocumentNumber() EXTID 'DocumentID',
@@ -68,6 +72,11 @@ FORM blrwbl
     PROPERTIES IN blrwblShipTo blrwblCustomerStockGLN() EXTID 'GLN'
     PROPERTIES IN blrwblCarrier blrwblTransportContact() EXTID 'TransportContact'
     
+    OBJECTS e = INTEGER EXTID 'ExtraField' IN deliveryNote
+    PROPERTIES(e) blrwblFieldName EXTID 'FieldName',
+                  blrwblFieldCode EXTID 'FieldCode',
+                  blrwblFieldValue EXTID 'FieldValue'
+    
     OBJECTS i = INTEGER EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItemDeliveryNote
     PROPERTIES(i) blrwblLineItemNumber EXTID 'LineItemNumber',
                   blrwblLineItemID EXTID 'LineItemID',
@@ -86,8 +95,9 @@ FORM blrwbl
                   blrwblLineItemAmount EXTID 'LineItemAmount',
                   blrwblLineItemAmountCharges EXTID 'LineItemAmountCharges'
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
-    PROPERTIES(f) blrwblFieldName EXTID 'FieldName',
-                  blrwblFieldValue EXTID 'FieldValue'
+    PROPERTIES(f) blrwblLineItemFieldName EXTID 'FieldName',
+                  blrwblLineItemFieldCode EXTID 'FieldCode',
+                  blrwblLineItemFieldValue EXTID 'FieldValue'
     FILTERS lineItemLineItemExtraField(f) == i
 ;
 
@@ -119,6 +129,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     transportContact(ei) <- blrwblTransportContact();
                     transportID(ei) <- blrwblTransportID();
                     trailerID(ei) <- blrwblTrailerID();
+                    isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'PW0013' AND blrwblFieldValue(e) == '1');
                     XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
                         eInvoice(ed) <- ei;
@@ -138,7 +149,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         lineItemAmountWithoutCharges(ed) <- blrwblLineItemAmountWithoutCharges(l);
                         lineItemAmount(ed) <- blrwblLineItemAmount(l);
                         lineItemAmountCharges(ed) <- blrwblLineItemAmountCharges(l);
-                        lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblFieldName(INTEGER f), blrwblFieldValue(f)) IF lineItemLineItemExtraField(f) == l, ', ' ORDER blrwblFieldName(f);
+                        lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF lineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
                     }
                 }
                 APPLY NESTED LOCAL;

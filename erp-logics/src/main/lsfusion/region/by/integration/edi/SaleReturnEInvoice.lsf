@@ -2,10 +2,19 @@ MODULE SaleReturnEInvoice;
 
 REQUIRE InvoiceEInvoice, SaleReturnInvoice;
 
-PRIORITY SaleReturn;
+NAMESPACE SaleReturn;
 
-NAMESPACE EDI;
+eOperation = DATA Sale.Operation (LegalEntity);
+nameEOperation 'Операция (Продажа-возврат) для электронных накладных' (LegalEntity l) = overName(eOperation(l));
 
+EXTEND FORM legalEntity
+    PROPERTIES (l) SaleReturnInvoiceNameEOperation = nameEOperation;
+
+DESIGN legalEntity {
+    EDI{
+        MOVE PROPERTY (SaleReturnInvoiceNameEOperation);
+    }
+}
 
 receiver = DATA Employee (UserInvoice);
 receiver(UserInvoice i) += receiver(i);
@@ -26,5 +35,64 @@ DESIGN userInvoice {
             MOVE PROPERTY(numberEInvoice(i));
             MOVE PROPERTY(nameReceiver(i));
         }
+    }
+}
+
+signAndSendCustomerEDI 'Подписать и отправить (покупатель)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        signAndSendCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
+
+EXTEND FORM invoices
+    PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
+    PROPERTIES numberEInvoice(i) SHOWIF eInvoice(i) PANEL READONLY,
+               signAndSendCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i))),
+               statusDescription(i) SHOWIF eInvoice(i) PANEL
+;
+
+DESIGN invoices {
+    printTabScroll {
+        NEW tabConsignment{
+            type = TABBED;
+            MOVE printTab {caption = 'Накладная';};
+            NEW eInvoice {
+                caption = 'Электронная накладная';
+                NEW createEI {
+                    type = CONTAINERH;
+                    MOVE PROPERTY(numberEInvoice(i));
+                    MOVE PROPERTY(signAndSendCustomerEDI(i));
+                    MOVE PROPERTY(statusDescription(i));
+                }
+            }
+        }
+    }    
+}
+
+overCopy  ABSTRACT LIST ( EInvoiceDetail, UserInvoiceDetail);
+copyData(EInvoice ei, Invoice i)  { 
+    invoice(EInvoice e) <- NULL WHERE invoice(e) == i AND NOT isCancel(e);
+    invoice(ei) <- i;
+    number(i) <- deliveryNoteNumber(ei);
+    series(i) <- NULL;
+    operation(i) <- eOperation(customer(ei)) WHERE eOperation(customer(ei));
+    supplier(i) <- supplier(ei);
+    supplierStock(i) <- OVERRIDE supplierStock(ei), defaultStock(supplier(ei));
+    customer(i) <- customer(ei);
+    customerStock(i) <- customerStock(ei);
+    date(i) <- DATE(dateTime(ei));
+    time(i) <- TIME(dateTime(ei));
+    
+    FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) NEW id = UserInvoiceDetail DO {
+        userInvoice(id) <- i;
+        sku(id) <- OVERRIDE sku(lineItemBuyerID(eid)), skuGTIN(lineItemID(eid)), sku(lineItemID(eid));
+        quantity(id) <- quantityDespatched(eid);
+        price(id) <- lineItemPrice(eid);
+        VAT(id) <- valueCurrentVAT(country(defaultStock(supplier(ei))), overValueVAT(eid));;
+        valueVAT(id) <- NUMERIC[10,5](overValueVAT(eid));  
+        invoicePrice(id) <- round2(price(id) * (100 + valueVAT(id))/100); 
+        overCopy(eid,id); 
     }
 }
