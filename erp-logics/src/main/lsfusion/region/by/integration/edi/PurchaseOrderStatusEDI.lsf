@@ -11,31 +11,34 @@ backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantit
 skuWithoutPrice 'Товары без цены' (Order o) = GROUP CONCAT idSku(OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) BY order(d);
 
 overEmailCustomer(Order.Order order) + { 
-    IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
-        
+    IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) THEN {
         consumedEmailCustomer(order) <- TRUE;
-        
-        IF NOT countOrderDetail(order) THEN {
-            MESSAGE 'В заказе нет строк. Отправка отменена.';
-            RETURN;
+        IF NOT skipSend(order) THEN {
+            
+            IF NOT countOrderDetail(order) THEN {
+                MESSAGE 'В заказе нет строк. Отправка отменена.';
+                RETURN;
+            }
+            
+            IF shipmentDateTime(order) < sumMinutes(currentDateTime(), 60) THEN { //конкретно у СТТ текущего + час, поэтому пока для всех такое
+                MESSAGE 'Дата/время поставки не может быть меньше текущего. Отправка отменена.';
+                RETURN;
+            }
+            
+            IF (skuWithoutPrice(order)) THEN {
+                MESSAGE 'Заказ не может быть отправлен, так как есть товары без цены: \n' + skuWithoutPrice(order) + '\nОтправка отменена';
+                RETURN;
+            }
+            
+            send[EOrder](order);
+            IF NOT sentDateTime[UserOrder](order) THEN {
+                notEmailSend(order) <- 'edi';
+                logSendDocumentOrder(order);
+            }
+            sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
+        } ELSE {
+            overSend(order);
         }
-        
-        IF shipmentDateTime(order) < sumMinutes(currentDateTime(), 60) THEN { //конкретно у СТТ текущего + час, поэтому пока для всех такое
-            MESSAGE 'Дата/время поставки не может быть меньше текущего. Отправка отменена.';
-            RETURN;
-        }
-        
-        IF (skuWithoutPrice(order)) THEN {
-            MESSAGE 'Заказ не может быть отправлен, так как есть товары без цены: \n' + skuWithoutPrice(order) + '\nОтправка отменена';
-            RETURN;
-        }
-        
-        send[EOrder](order);
-        IF NOT sentDateTime[UserOrder](order) THEN {
-            notEmailSend(order) <- 'edi';
-            logSendDocumentOrder(order);
-        }
-        sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
     }
 }
 
