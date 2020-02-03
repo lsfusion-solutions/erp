@@ -12,15 +12,18 @@ aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(supplierStock(i)
 passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
 
 signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST ( EInvoice);
-signAndSendSupplierEDI 'Подписать и отправить (поставщик)'()  {
+signAndSendSupplierEDI 'Подписать и отправить (поставщик)'() {
     IF askPasswordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
     FOR in(EInvoice i) DO { 
-        IF EDIProvider(supplier(i)) THEN
-            signAndSendSupplier(i);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для накладной : ' + number(i);
+        IF isEDI(i) THEN {
+            IF EDIProvider(supplier(i)) THEN
+                signAndSendSupplier(i);
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + number(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + number(i);
     }
     ELSE
         MESSAGE 'Не выбрано ни одной накладной';

@@ -654,6 +654,20 @@ DESIGN eInvoice {
     PROPERTY (currency(e)){notNull = TRUE;}
 }
 
+// -------
+isNotEDI = DATA BOOLEAN (EInvoice);
+isEDI 'EDI' (EInvoice e) = NOT isNotEDI(e) IF e IS EInvoice;
+
+changeIsEDI (EInvoice e) {
+    INPUT b = BOOLEAN DO {
+        isNotEDI(e) <- NOT b;
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES READONLYIF isReadonly() isEDI(e) ON CHANGE changeIsEDI(e)
+;
+
 //----------------------- Переход на новый основной классификатор ---------------------------//
 overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
     userShowGTIN(ng) <- userShowGTIN(itemGroup(g));
