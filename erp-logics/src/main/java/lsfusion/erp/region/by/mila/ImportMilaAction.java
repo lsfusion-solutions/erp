@@ -97,9 +97,9 @@ public class ImportMilaAction extends InternalAction {
             saveResult(tmpFile);
             // вызываем поиск максимального количеста страниц, принадлежащих группе
             lRet = getPagesGoods(c_url, tmpFile); // c_url
-            if (!lRet) break;
             cResult.append("]}");   // закрываем goods
             saveResult(tmpFile);
+            if (!lRet) break;       // даже если ошибка, то все равно массив группы будет закрыт
         }
         cResult.append("]}"); // закрываем groups
         saveResult(tmpFile);
