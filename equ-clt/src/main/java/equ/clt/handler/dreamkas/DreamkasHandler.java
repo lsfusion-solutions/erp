@@ -166,8 +166,9 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
             cal.set(Calendar.HOUR, 23);
             cal.set(Calendar.MINUTE, 59);
             cal.set(Calendar.SECOND, 59);
-            machineryExchangeLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, cal.getTime()));
-            pendingQueryList.add(getReceiptsQuery(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, true)));
+            String pendingQuery = getReceiptsQuery(entry.dateFrom, cal.getTime(), getCashRegisterSet(entry, true));
+            machineryExchangeLogger.info(logPrefix + "creating request: " +  pendingQuery);
+            pendingQueryList.add(pendingQuery);
             succeededRequests.add(entry.requestExchange);
         }
     }
