@@ -107,6 +107,10 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
 
             if (!pendingQueryList.isEmpty()) {
                 String pendingQuery = pendingQueryList.remove(0);
+                machineryExchangeLogger.info(logPrefix + "processing pending query: " + pendingQuery);
+                for(String p: pendingQueryList) {
+                    machineryExchangeLogger.info(logPrefix + "waiting pending query: " + p);
+                }
                 if (!server.getSales(pendingQuery)) {
                     if (server.logMessage.length() > 0) {
                         sendSalesLogger.error(logPrefix + server.logMessage);
@@ -157,7 +161,12 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws UnsupportedEncodingException {
         for (RequestExchange entry : requestExchangeList) {
-            machineryExchangeLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, entry.dateTo));
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(entry.dateTo);
+            cal.set(Calendar.HOUR, 23);
+            cal.set(Calendar.MINUTE, 59);
+            cal.set(Calendar.SECOND, 59);
+            machineryExchangeLogger.info(logPrefix + String.format("creating request for dates: from %s to %s", entry.dateFrom, cal.getTime()));
             pendingQueryList.add(getReceiptsQuery(entry.dateFrom, entry.dateTo, getCashRegisterSet(entry, true)));
             succeededRequests.add(entry.requestExchange);
         }
