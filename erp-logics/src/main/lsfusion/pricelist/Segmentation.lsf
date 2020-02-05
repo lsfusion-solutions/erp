@@ -105,8 +105,10 @@ priceWithoutVAT 'ЦО без НДС' (Sku sku, Segmentation segmentation) = roun
 stop = DATA LOCAL NESTED BOOLEAN (Segmentation);
 
 saveToSku 'Записать сегменты в SKU' (Segmentation segmentation)   {
-    priceSegment(Sku sku) <- priceSegment(sku, segmentation) WHERE include(segmentation,sku);    
-}
+    priceSegment(Sku sku) <- priceSegment(sku, segmentation) WHERE include(segmentation,sku);
+    APPLY;
+    MESSAGE 'Атрибут "Ценовой сегмент" в справочнике товаров заполнен';
+} CONFIRM;
 
 takeData 'Сформировать отчет' (Segmentation segmentation)   { 
     stop(segmentation) <- NULL;
@@ -152,8 +154,8 @@ FORM segmentation 'Ценовая сегментация'
                    nameGroupType, levelGroup                  
           
     OBJECTS ps = PriceSegment
-    PROPERTIES name(ps), graduationFrom(ps, r), graduationTo(ps, r)    
-    ORDER graduationFrom(ps, r)
+    PROPERTIES order(ps), name(ps), graduationFrom(ps, r), graduationTo(ps, r)    
+    ORDER order(ps), name(ps)
           
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY name(sk), averagePrice(sk, r)
@@ -195,11 +197,14 @@ DESIGN segmentation {
                 }
             }    
             NEW col2 {    
-                fill = 1;
+                fill = 1.5;
                 size = (200, 100);
                 MOVE BOX(ps);
                 MOVE PROPERTY(graduationFrom(ps, r));
                 MOVE PROPERTY(graduationTo(ps, r));
+                PROPERTY(order(ps)) {
+                    hide = TRUE;
+                }
                 REMOVE TOOLBARBOX(ps);
             }
             NEW col3 {
