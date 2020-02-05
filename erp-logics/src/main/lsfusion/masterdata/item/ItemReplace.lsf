@@ -18,8 +18,10 @@ newSkuBarcode 'Штрихкод' (ItemReplace rep) = idBarcode(newSku(rep));
 
 isActive 'Акт' = DATA BOOLEAN (ItemReplace);
 
-oldSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
-newSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
+//oldSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
+//newSkuBalance 'Остаток' = DATA NUMERIC[16,5] (ItemReplace);
+oldSkuBalance 'Остаток' (ItemReplace rep) = GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
+newSkuBalance 'Остаток' (ItemReplace rep) = GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);
 
 replacedOld 'Заменен' (Item i) = GROUP SUM 1 IF oldSku(ItemReplace rep) = i AND isActive(rep);
 replacedNew 'Заменен' (Item i) = GROUP SUM 1 IF newSku(ItemReplace rep) = i AND isActive(rep);
@@ -33,12 +35,12 @@ CONSTRAINT replacedOld(Item item) > 1 AND item IS Item MESSAGE 'Нельзя с�
 
 WHEN LOCAL CHANGED (oldSku(ItemReplace rep) AND rep IS ItemReplace) DO {
     oldSkuInRange(rep) <- GROUP SUM countRange(oldSku(rep), Stock st, currentDate()); 
-    oldSkuBalance(rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate());
+    //oldSkuBalance(rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate());
     IF replacedOld(oldSku(rep)) > 1 THEN { 
         MESSAGE 'Нельзя создавать две активные замены товара';
         oldSku(rep) <- NULL;
         oldSkuInRange(rep) <- NULL; 
-        oldSkuBalance(rep) <- NULL;
+    //    oldSkuBalance(rep) <- NULL;
     }
 }
 
@@ -48,22 +50,22 @@ WHEN LOCAL CHANGED (isActive(ItemReplace rep) AND rep IS ItemReplace) DO {
         isActive(rep) <- NULL;
     }
     oldSkuInRange(rep) <- GROUP SUM countRange(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
-    oldSkuBalance(rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
+    //oldSkuBalance(rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
     newSkuInRange(rep) <- GROUP SUM countRange(newSku(rep), Stock st, currentDate()) IF isActive(rep);
-    newSkuBalance(rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);
+    //newSkuBalance(rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);
 }
 
 WHEN LOCAL CHANGED (newSku(ItemReplace rep) AND rep IS ItemReplace) DO {
     newSkuInRange(rep) <- GROUP SUM countRange(newSku(rep), Stock st, currentDate());
-    newSkuBalance(rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate());
+    //newSkuBalance(rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate());
 }
 
-FORM selectNewItem
+FORM selectNewItem 'Выбор товара для замены'
     OBJECTS gt=GroupType
     OBJECTS itOld = Item
     
     OBJECTS itNew = Item
-    PROPERTIES (itNew) READONLY name, idBarcode
+    PROPERTIES (itNew) READONLY name, idBarcode, nameManufacturer, nameCountry
     FILTERS group(gt, itNew) = group(gt, itOld)
     FILTERS active(itNew)
     ORDER name(itNew);    
@@ -187,15 +189,6 @@ EXTEND FORM items
         FILTER 'Заменяющие' replacedNew(i)   
 ;
 
-DESIGN items {
-    tab {
-        NEW itemReplaces{            
-            caption = 'Замена товаров';
-            MOVE BOX(rep);
-        }
-    }
-}
-
 replaceItem 'Заменить товар' (Item item, GroupType gt)  {
     IF (item IS Item) THEN {
         IF replacedOld(item) > 1 THEN {
@@ -216,27 +209,35 @@ replaceItem 'Заменить товар' (Item item, GroupType gt)  {
 }
 
 EXTEND FORM items PROPERTIES replaceItem(i, gt);
+
 DESIGN items {
-    actionsRow2 {
-        NEW replacedAction {
-            caption = 'Замена товара в АМ и автозаказе';
-            type = CONTAINERH;
-            MOVE FILTERGROUP(replaced);
-            MOVE PROPERTY(replaceItem(i,gt)) { focusable = FALSE; } 
+    tab {
+        fill = 1.5;
+        NEW itemReplaces{            
+            caption = 'Замена товаров';
+            type = CONTAINERV; 
+            NEW replacedAction {
+                caption = 'Замена товара в АМ и автозаказе';
+                type = CONTAINERH;
+                MOVE FILTERGROUP(replaced);
+                MOVE PROPERTY(replaceItem(i,gt)) { focusable = FALSE; } 
+            }
+            MOVE BOX(rep);            
         }
     }
 }
 
 recalcItemReplace 'Обновить данные' () {
     oldSkuInRange(ItemReplace rep) <- GROUP SUM countRange(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
-    oldSkuBalance(ItemReplace rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
+    //oldSkuBalance(ItemReplace rep) <- GROUP SUM balanceB(oldSku(rep), Stock st, currentDate()) IF isActive(rep);
     newSkuInRange(ItemReplace rep) <- GROUP SUM countRange(newSku(rep), Stock st, currentDate()) IF isActive(rep);
-    newSkuBalance(ItemReplace rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);  
+    //newSkuBalance(ItemReplace rep) <- GROUP SUM balanceB(newSku(rep), Stock st, currentDate()) IF isActive(rep);
+    APPLY;
 } TOOLBAR;
 
-EXTEND FORM itemReplaces
-    PROPERTIES recalcItemReplace()
-;
+//EXTEND FORM itemReplaces
+//    PROPERTIES recalcItemReplace()
+//;
 
 // добавляем на форму Ассортиментной матрицы
 countSkuReplaced 'Кол-во замененных товаров в ассортиментных матрицах' (RangeRev v) = GROUP SUM 1 IF level(v, Sku sku) AND replacedOld(sku);
