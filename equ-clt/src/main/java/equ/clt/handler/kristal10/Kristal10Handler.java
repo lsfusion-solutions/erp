@@ -964,7 +964,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
-    public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
+    public Kristal10SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         String transformUPCBarcode = kristalSettings == null ? null : kristalSettings.getTransformUPCBarcode();
@@ -1001,7 +1001,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
         File[] filesList = new File(exchangeDirectory).listFiles(pathname -> pathname.getName().startsWith("purchases") && pathname.getPath().endsWith(".xml"));
         
-        Set<String> ids = new HashSet<>();
+        //Set<String> ids = new HashSet<>();
         Set<String> usedBarcodes = new HashSet<>();
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info(getLogPrefix() + "No checks found in " + exchangeDirectory);
@@ -1137,9 +1137,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             }
 
                             String discountCard = null;
-                            List discountCardsList = purchaseNode.getChildren("discountCards");
+                            List<Element> discountCardsList = purchaseNode.getChildren("discountCards");
                             for (Object discountCardNode : discountCardsList) {
-                                List discountCardList = ((Element) discountCardNode).getChildren("discountCard");
+                                List<Element> discountCardList = ((Element) discountCardNode).getChildren("discountCard");
                                 for (Object discountCardEntry : discountCardList) {
                                     discountCard = ((Element) discountCardEntry).getValue();
                                     if (discountCard != null && !couponsList.contains(discountCard)) {
@@ -1151,7 +1151,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 }
                             }
 
-                            List positionsList = purchaseNode.getChildren("positions");
+                            List<Element> positionsList = purchaseNode.getChildren("positions");
                             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
                             BigDecimal currentPaymentSum = BigDecimal.ZERO;
 
