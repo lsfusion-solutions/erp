@@ -3,7 +3,11 @@ REQUIRE StockDocument, LogTools;
 
 @defineLogRotate(supermag, 5, weekly);
 
+countDaysExportData 'За сколько дней отсылать' = DATA INTEGER ();
+countDaysExport 'За сколько дней отсылать' () = OVERRIDE countDaysExportData(), 60;
+dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
 exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
+exportSupermagAll 'Экспорт в супермаг' ABSTRACT LIST ();
 exportTime (DATETIME dt)=  [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
 formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
 
@@ -38,7 +42,7 @@ exportDirectorySupermag 'Путь для экспорта файлов в суп
 exportDirectorySupermagReturn 'Путь для ответов о состояни загрузки в супермаг' = DATA STRING[500] ();
 
 EXTEND FORM integrationData 
-    PROPERTIES() exportDirectorySupermag, exportDirectorySupermagReturn
+    PROPERTIES() exportDirectorySupermag, exportDirectorySupermagReturn, countDaysExport, exportSupermagAll
 ;
 
 DESIGN integrationData {
@@ -46,31 +50,22 @@ DESIGN integrationData {
         NEW supermag {
             caption = 'Супермаг документы';
             MOVE PROPERTY (exportDirectorySupermag());  
-            MOVE PROPERTY (exportDirectorySupermagReturn());        
+            MOVE PROPERTY (exportDirectorySupermagReturn());      
+            MOVE PROPERTY (countDaysExport());     
+            MOVE PROPERTY (exportSupermagAll());   
         }
     }
 }
 
-//select 'Отм.' = DATA LOCAL BOOLEAN (StockDocumentLedger);
-//exportSupermagSelect 'Экспорт в супермаг (отм.)'() {
-//    FOR select(StockDocumentLedger l) DO {
-//        exportSupermag(l);
-//    }
-//    select(StockDocumentLedger l) <- NULL;
-//} 
-//
-//EXTEND FORM sumStockDocumentLedger
-//    PROPERTIES (il) exportSupermag TOOLBAR, select 
-//    PROPERTIES (ol) exportSupermag TOOLBAR, select
-//    PROPERTIES exportSupermagSelect() TOOLBAR DRAW ol SHOWIF (GROUP SUM 1 IF select(StockDocumentLedger hhh))
-//;
-//exportSupermagInterval 'Экспорт в супермаг'(DATE df, DATE dt) {
-//    FOR active(StockDocumentLedger l) AND date(l)>= df AND date(l) <= dt DO {
-//        exportSupermag(l);
-//    }
-//} 
-
 isExport 'Загружен' (StockDocumentLedger d)= lastDateTimeSupermagLog(d) AND dateTimeAnswerSupermagLog(d) AND NOT (errorAnswerFileSupermagLog(d) OR errorAnswerSupermagLog(d));
+banDroppedExport 'Запрещено удалять документы, которые экспортированы в супермаг' = DATA BOOLEAN ();
+prevExportPosted (StockDocumentLedger l) = PREV(active(l) AND isExport(l)); 
+//CONSTRAINT DROPPED (StockDocumentLedger l IS StockDocumentLedger) AND PREV(isExport(l)) AND banDroppedExport()
+//    MESSAGE 'Запрещено удалять документы, которые экспортированы в супермаг';
+CONSTRAINT DROPPED (isExport(StockDocumentLedger l)) AND PREV(isExport(l)) AND banDroppedExport()
+    MESSAGE 'Запрещено удалять (распроводить) документы, которые экспортированы в супермаг';    
+    
+
 FORM exportSupermag 'Экспорт в супермаг' 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
@@ -79,15 +74,15 @@ FORM exportSupermag 'Экспорт в супермаг'
     PROPERTIES(ol) READONLY isClosed, isPosted, date, nameStock,
                    oObjName = objectClassName, description,
                    nameOperation, nameLegalEntity, nameLegalEntityStock, 
-                   sumItem, sumContainer, sum, lastDateTimeSupermagLog,
+                   sumItem, sumContainer, sum, dateTimeChange, lastDateTimeSupermagLog,
                    dateTimeAnswerSupermagLog,errorAnswerFileSupermagLog,errorAnswerSupermagLog, isExport
                    
-    FILTERS active(ol),            
-            date(ol) >= dFrom,
+    FILTERS date(ol) >= dFrom,
             date(ol) <= dTo
     ORDER date(ol), nameStock(ol)    
     FILTERGROUP open FILTER 'Открыт' isOpened(ol) 'F6'   
-    
+    FILTERGROUP post FILTER 'Проведен' active(ol) 'F7' DEFAULT 
+         
     OBJECTS l = SupermagLog
     PROPERTIES (l) READONLY id, dateTime, userLogin, nameContact, dateTimeAnswer, errorAnswerFile, errorAnswer, textError
     FILTERS stockDocumentLedger(l)==ol
@@ -168,6 +163,7 @@ exportSupermag (DATE dt) {
 
 }
 
+@defineLogRotate(supermagAnswer, 5, weekly);
 importAnswer 'Импорт ответов из супермаг'()  { 
     IF   exportDirectorySupermagReturn() THEN {  
         LOCAL importName = ISTRING[100] (INTEGER ); 
@@ -215,3 +211,13 @@ importAnswer 'Импорт ответов из супермаг'()  {
 EXTEND FORM exportSupermag
     PROPERTIES () importAnswer TOOLBAR DRAW l
 ;
+
+EXTEND FORM integrationData 
+    PROPERTIES() importAnswer, banDroppedExport
+;
+DESIGN integrationData {
+    supermag {    
+        MOVE PROPERTY (importAnswer());       
+        MOVE PROPERTY (banDroppedExport());         
+    }    
+}

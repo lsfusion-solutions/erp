@@ -11,6 +11,20 @@ GROUP SMACTS : AC;
 
 inc = DATA LOCAL BOOLEAN (Repricing);
 
+dateTimeChange = DATA DATETIME (Repricing);
+dateTimeChange[StockDocumentLedger](Repricing i) += dateTimeChange(i);
+
+changeDoc(Repricing d) = CHANGED(seriesNumber(d))OR CHANGED(departmentStore(d))  
+    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED (retailSumRepricingDetail(d)) OR CHANGED(isPosted(d));
+
+changeDoc(RepricingDetail d) = CHANGED(quantity( d)) OR CHANGED(sku(d)) OR CHANGED(price(d)) OR CHANGED(sum(d)) 
+    OR CHANGED(retailPrice(d)) OR CHANGED(retailSum(d))   OR CHANGED(curRetailPrice(d)) OR CHANGED (diffRetailSum(d)) OR CHANGED (valueVAT(d));
+changeDocDetail(Repricing i) = GROUP SUM 1 IF changeDoc(RepricingDetail d) AND repricing(d)==i;
+
+WHEN SET(changeDoc(Repricing i)) OR SET (changeDocDetail(i)) DO {
+    dateTimeChange(i)<- currentDateTime();  
+}
+
 FORM exportRepricingMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 
@@ -86,7 +100,7 @@ FORM exportRepricingMag FORMEXTID 'PACKAGE'
 
 exportRepricingMag 'Экспорт в супермаг' (Repricing i) {
     inc(Repricing ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND isPosted(i) AND idSupermag(departmentStore(i));    
+    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(departmentStore(i));    
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(Repricing ii)) THEN{
@@ -114,6 +128,12 @@ exportRepricingMag 'Экспорт в супермаг' (Repricing i) {
 }
 exportSupermag(Repricing s) +{
     exportRepricingMag(s);
+}
+
+exportSupermagAll() +{
+    FOR date(Repricing s AS Repricing) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(operation(s))DO {
+        exportRepricingMag(s);
+    }
 }
 
 EXTEND FORM repricings

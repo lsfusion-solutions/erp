@@ -17,6 +17,26 @@ curRate(RetailSales i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currenc
 curRate(ReceiptSaleSkuLedger d) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(d)),(1.0 IF d IS ReceiptSaleSkuLedger));
 curRate(ReceiptReturnSkuLedger d) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(d)),(1.0 IF d IS ReceiptReturnSkuLedger));
 
+dateTimeChange = DATA DATETIME (RetailSales);
+dateTimeChange[StockDocumentLedger](RetailSales i) += dateTimeChange(i);
+
+changeDoc(RetailSales d) = CHANGED(departmentStore(d)) OR CHANGED(date(d)) OR CHANGED(sumItem(d)) OR CHANGED (curRate(d)) OR CHANGED(isPosted(d));
+
+changeDoc(ReceiptSaleSkuLedger d) = CHANGED(price(d)) OR CHANGED(sku(d)) OR CHANGED(sum[SaleLedger](d)) 
+    OR CHANGED(sumVAT[SaleLedger](d)) OR CHANGED(quantity[SaleLedger](d)) OR CHANGED(valueVAT[SaleLedger](d));
+  
+changeDocReturn(ReceiptReturnSkuLedger d) = CHANGED(price(d)) OR CHANGED(sku(d)) OR CHANGED(sum[SaleLedger](d)) 
+    OR CHANGED(sumVAT[SaleLedger](d)) OR CHANGED(quantity[SaleLedger](d)) OR CHANGED(valueVAT[SaleLedger](d));
+    
+changeDocDetail(RetailSales i) = GROUP SUM 1 IF changeDoc(ReceiptSaleSkuLedger d) AND stockDocumentLedger(d)==i; 
+changeDocReturnDetail(RetailSales i) = GROUP SUM 1 IF changeDocReturn(ReceiptReturnSkuLedger d) AND stockDocumentLedger(d)==i; 
+
+WHEN SET(changeDoc(RetailSales i)) OR SET (changeDocDetail(i)) OR SET(changeDocReturnDetail(i)) DO {
+    dateTimeChange(i)<- currentDateTime();  
+}
+
+
+
 FORM exportZReportMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 //-- продажи
@@ -32,7 +52,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF i IS RetailSales EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
     PROPERTIES = 1 IF i IS RetailSales EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
-    PROPERTIES = 3 IF i IS RetailSales EXTID 'DOCSTATE' IN SMDOCUMENTS       
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS       
     PROPERTIES = 1 IF i IS RetailSales  EXTID 'ISROUBLES' IN SMDOCUMENTS  
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
     PROPERTIES = 1 IF i IS RetailSales  EXTID 'OPCODE' IN SMDOCUMENTS      
@@ -86,7 +106,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF i IS RetailSales EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS1  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS1 
     PROPERTIES = 1 IF i IS RetailSales EXTID 'CURRENCYTYPE' IN SMDOCUMENTS1    
-    PROPERTIES = 3 IF i IS RetailSales EXTID 'DOCSTATE' IN SMDOCUMENTS1       
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS1       
     PROPERTIES = 1 IF i IS RetailSales  EXTID 'ISROUBLES' IN SMDOCUMENTS1  
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTS1  
     PROPERTIES = 3 IF i IS RetailSales  EXTID 'OPCODE' IN SMDOCUMENTS1      
@@ -126,7 +146,7 @@ EXTEND FORM zReports
 ;
 exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
     inc(RetailSales ii) <- NULL;
-    inc(i) <- TRUE IF isPosted(i) AND idSupermag(departmentStore(i));
+    inc(i) <- TRUE IF idSupermag(departmentStore(i));
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(RetailSales ii)) THEN{        
@@ -182,7 +202,9 @@ exportSupermag(RetailSales s) +{
     exportZReportMag(s);
 }
 
-//EXTEND FORM zReports
-//    PROPERTIES (z) exportZReportMag TOOLBAR 
-//;
+exportSupermagAll() +{    
+    FOR date(RetailSales s AS RetailSales) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(departmentStore(s))DO {
+        exportZReportMag(s);
+    }
+}
 

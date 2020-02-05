@@ -28,6 +28,20 @@ maxOrder (Sale.Invoice i) = GROUP MAX Order o IF include(o, i);
 curRate(Sale.Invoice i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS Sale.Invoice));
 curRate(Sale.InvoiceDetail d) = curRate(Sale.invoice(d));
 
+dateTimeChange = DATA DATETIME (Invoice);
+dateTimeChange[StockDocumentLedger](InvoiceShipment i) += dateTimeChange(invoice(i));
+
+changeDoc(Invoice d) = CHANGED(seriesNumber(d)) OR CHANGED(supplier(d))  OR CHANGED(supplierStock(d))  OR CHANGED(customer(d))  OR CHANGED(customerStock(d))  
+    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED (creditInvoiceSumInvoiceDetail(d)) OR CHANGED(curRate(d)) OR CHANGED(isPosted(d)) OR CHANGED (invoiceShipment(d));
+
+changeDoc(InvoiceDetail d) = CHANGED(quantity( d)) OR CHANGED(sku(d)) OR CHANGED(price(d)) OR CHANGED(invoicePrice(d))  OR CHANGED (valueVAT(d))
+    OR CHANGED(retailPrice(d)) OR CHANGED(creditQuantity(d)) OR CHANGED(creditInvoiceSum(d)) OR CHANGED(creditSum(d)) OR CHANGED(manufacturingPrice(d));
+changeDocDetail(Invoice i) = GROUP SUM 1 IF changeDoc(InvoiceDetail d) AND invoice(d)==i;
+
+WHEN SET(changeDoc(Invoice i)) OR SET (changeDocDetail(i)) DO {
+    dateTimeChange(i)<- currentDateTime();  
+}
+
 FORM exportInvoiceMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 
@@ -45,7 +59,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF i IS Sale.Invoice EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
     PROPERTIES = 1 IF i IS Sale.Invoice EXTID 'CURRENCYTYPE' IN SMDOCUMENTS    
-    PROPERTIES = 3 IF i IS Sale.Invoice EXTID 'DOCSTATE' IN SMDOCUMENTS       
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS        
     PROPERTIES = 1 IF i IS Sale.Invoice  EXTID 'ISROUBLES' IN SMDOCUMENTS  
     PROPERTIES = id(supplierStock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
     PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
@@ -144,7 +158,7 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF i IS Sale.Invoice EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS1  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS1 
     PROPERTIES = 1 IF i IS Sale.Invoice EXTID 'CURRENCYTYPE' IN SMDOCUMENTS1    
-    PROPERTIES = 3 IF i IS Sale.Invoice EXTID 'DOCSTATE' IN SMDOCUMENTS1       
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS1            
     PROPERTIES = 1 IF i IS Sale.Invoice  EXTID 'ISROUBLES' IN SMDOCUMENTS1  
     PROPERTIES = id(supplierStock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS1  
     PROPERTIES = id(customerStock(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTS1      
@@ -224,7 +238,7 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
 
 exportInvoiceMag 'Экспорт в супермаг' (Sale.Invoice i) {
     inc(Sale.Invoice ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND isPosted(i);
+    inc(i) <- TRUE WHERE idSupermag(operation(i));
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(Sale.Invoice ii)) THEN{
@@ -274,6 +288,12 @@ exportInvoiceMag 'Экспорт в супермаг' (Sale.Invoice i) {
 }
 exportSupermag(InvoiceShipment s) +{
     exportInvoiceMag(invoice(s));
+}
+
+exportSupermagAll() +{
+    FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND idSupermag(operation(s)) DO {
+        exportInvoiceMag(s);
+    }
 }
 
 EXTEND FORM Sale.invoices

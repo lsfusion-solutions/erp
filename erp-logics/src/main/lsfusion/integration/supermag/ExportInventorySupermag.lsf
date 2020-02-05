@@ -1,0 +1,228 @@
+MODULE ExportInventorySupermag;
+REQUIRE Inventory, ExportSupermag;
+
+NAMESPACE Inventory;
+
+
+EXTEND FORM operation
+    PROPERTIES (o) idSupermag
+;
+DESIGN operation{
+    propertyContainer {
+        MOVE PROPERTY(idSupermag(o));
+    }
+}
+
+EXTEND FORM operations
+    PROPERTIES (o) READONLY idSupermag
+;
+
+GROUP LA;
+GROUP SMDOCUMENTS: LA;
+
+
+
+
+inc = DATA LOCAL BOOLEAN (CollationSheet);
+
+dateTimeChange = DATA DATETIME (CollationSheet);
+dateTimeChange[StockDocumentLedger](CollationSheet i) += dateTimeChange(i);
+
+changeDoc(CollationSheet d) = CHANGED(seriesNumber(d))OR CHANGED(stock(d))
+    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED(isPosted(d));
+
+changeDoc1(InventorySkuDetail d) = CHANGED(quantity( d)) OR CHANGED(sku(d)) OR CHANGED(sum(d)); 
+changeDoc2(InventoryBatchDetail d) = CHANGED(quantity( d)) OR CHANGED(batch(d)) OR CHANGED(sku(d)) OR CHANGED(sum(d)); 
+
+
+changeDocDetail1(CollationSheet i) = GROUP SUM 1 IF changeDoc1(InventorySkuDetail d) AND collationSheet(d)==i;
+changeDocDetail2(CollationSheet i) = GROUP SUM 1 IF changeDoc2(InventoryBatchDetail d) AND collationSheet(d)==i;
+
+WHEN SET(changeDoc(CollationSheet i)) OR SET(changeDocDetail1(i)) OR SET(changeDocDetail2(i)) DO {
+    dateTimeChange(i)<- currentDateTime();  
+}
+index(OutInventorySkuDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
+index(InInventorySkuDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
+index(OutInventoryBatchDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
+index(InInventoryBatchDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
+
+FORM exportCollationSheetMagN FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = CollationSheet EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Акт потерь' IF i IS CollationSheet EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF i IS CollationSheet EXTID 'action'      
+    
+    PROPERTIES = STRING[100]('LA'+name(i)) EXTID 'Id'
+    PROPERTIES = STRING[100](STRING[100](name(i))) EXTID 'ID' IN SMDOCUMENTS
+    PROPERTIES = 'LA' IF i IS CollationSheet EXTID 'DOCTYPE' IN SMDOCUMENTS    
+    PROPERTIES = idSupermag(stock(i)) EXTID 'BORNIN' IN SMDOCUMENTS    
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS    
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS      
+    PROPERTIES = 1 IF i IS CollationSheet  EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
+    PROPERTIES = 1 IF i IS CollationSheet EXTID 'CURRENCYTYPE' IN SMDOCUMENTS        
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS           
+    PROPERTIES = 1 IF i IS CollationSheet  EXTID 'ISROUBLES' IN SMDOCUMENTS      
+    PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS  
+    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS  
+    PROPERTIES = 0 IF i IS CollationSheet  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS       
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUM' IN SMDOCUMENTS    
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUMCUR' IN SMDOCUMENTS      
+    PROPERTIES = 'Сличительная ведомость' IF i IS CollationSheet EXTID 'COMMENTARY' IN SMDOCUMENTS  
+                                                                
+    OBJECTS d = OutInventorySkuDetail   EXTID 'SMSPEC' IN LA
+    PROPERTIES = STRING[100](name(collationSheet(d))) EXTID 'DOCID'    
+    PROPERTIES = 'LA' IF d IS OutInventorySkuDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(d) EXTID 'SPECITEM'        
+    PROPERTIES = id(sku(d)) EXTID 'ARTICLE'                          
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = - quantity(d) EXTID 'QUANTITY'      
+    PROPERTIES = 0 IF d IS OutInventorySkuDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF d IS OutInventorySkuDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF d IS OutInventorySkuDetail EXTID 'TOTALPRICENOTAX'            
+    FILTERS collationSheet(d)==i,            
+            inc(i)      
+            
+    OBJECTS dd = OutInventoryBatchDetail   EXTID 'SMSPEC' IN LA
+    PROPERTIES = STRING[100](name(collationSheet(dd))) EXTID 'DOCID'    
+    PROPERTIES = 'LA' IF dd IS OutInventoryBatchDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(dd) EXTID 'SPECITEM'        
+    PROPERTIES = id(sku(dd)) EXTID 'ARTICLE'                          
+    PROPERTIES d2= index(dd) EXTID 'DISPLAYITEM'  
+    PROPERTIES = - quantity(dd) EXTID 'QUANTITY'      
+    PROPERTIES = 0 IF dd IS OutInventoryBatchDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF dd IS OutInventoryBatchDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF dd IS OutInventoryBatchDetail EXTID 'TOTALPRICENOTAX'            
+    FILTERS collationSheet(dd)==i,            
+            inc(i)                                                      
+; 
+
+GROUP FA;
+GROUP SMDOCUMENTS1 EXTID 'SMDOCUMENTS': FA;
+
+FORM exportCollationSheetMagP FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = CollationSheet EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Акт обнаружений' IF i IS CollationSheet EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF i IS CollationSheet EXTID 'action'      
+    
+    PROPERTIES = STRING[100]('FA'+name(i)) EXTID 'Id'
+    PROPERTIES = STRING[100](STRING[100](name(i))) EXTID 'ID' IN SMDOCUMENTS1
+    PROPERTIES = 'FA' IF i IS CollationSheet EXTID 'DOCTYPE' IN SMDOCUMENTS1    
+    PROPERTIES = idSupermag(stock(i)) EXTID 'BORNIN' IN SMDOCUMENTS1    
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS1    
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS1      
+    PROPERTIES = 1 IF i IS CollationSheet  EXTID 'CURRENCYRATE' IN SMDOCUMENTS1 
+    PROPERTIES = 1 IF i IS CollationSheet EXTID 'CURRENCYTYPE' IN SMDOCUMENTS1        
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS1           
+    PROPERTIES = 1 IF i IS CollationSheet  EXTID 'ISROUBLES' IN SMDOCUMENTS1      
+    PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS1  
+    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1  
+    PROPERTIES = 0 IF i IS CollationSheet  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS1       
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUM' IN SMDOCUMENTS1    
+    PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1      
+    PROPERTIES = 'Сличительная ведомость' IF i IS CollationSheet EXTID 'COMMENTARY' IN SMDOCUMENTS1  
+                                                                
+    OBJECTS d = InInventorySkuDetail   EXTID 'SMSPEC' IN FA
+    PROPERTIES = STRING[100](name(collationSheet(d))) EXTID 'DOCID'    
+    PROPERTIES = 'FA' IF d IS InInventorySkuDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(d) EXTID 'SPECITEM'        
+    PROPERTIES = id(sku(d)) EXTID 'ARTICLE'                          
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = quantity(d) EXTID 'QUANTITY'      
+    PROPERTIES = 0 IF d IS InInventorySkuDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF d IS InInventorySkuDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF d IS InInventorySkuDetail EXTID 'TOTALPRICENOTAX'            
+    FILTERS collationSheet(d)==i,            
+            inc(i)   
+            
+    OBJECTS dd = InInventoryBatchDetail   EXTID 'SMSPEC' IN FA
+    PROPERTIES = STRING[100](name(collationSheet(dd))) EXTID 'DOCID'    
+    PROPERTIES = 'FA' IF dd IS InInventoryBatchDetail EXTID 'DOCTYPE'      
+    PROPERTIES = index(dd) EXTID 'SPECITEM'        
+    PROPERTIES = id(sku(dd)) EXTID 'ARTICLE'                          
+    PROPERTIES d2= index(dd) EXTID 'DISPLAYITEM'  
+    PROPERTIES = quantity(dd) EXTID 'QUANTITY'      
+    PROPERTIES = 0 IF dd IS InInventoryBatchDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF dd IS InInventoryBatchDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF dd IS InInventoryBatchDetail EXTID 'TOTALPRICENOTAX'            
+    FILTERS collationSheet(dd)==i,            
+            inc(i)                                                      
+; 
+
+
+exportCollationSheetMag 'Экспорт в супермаг' (CollationSheet i) {
+    inc(CollationSheet ii) <- NULL;
+    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(stock(i));    
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    IF (GROUP SUM 1 IF inc(CollationSheet ii)) THEN{   
+
+        TRY{
+            EXPORT exportCollationSheetMagN XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'LA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'LA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+            IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                FOR inc(CollationSheet ii)  DO NEW log = SupermagLog {
+                    id(log)<- 'LA_' +STRING[30](LONG(ii))+'_'+(OVERRIDE name(ii), '')+'_'+ formulaDateT(dt());  
+                    dateTime(log) <- currentDateTime();
+                    userLogin(log) <- login(currentUser()); 
+                    nameContact(log) <- STRING[100](name(currentUser()));
+                    stockDocumentLedger(log)<- ii;
+                }     
+                APPLY NESTED LOCAL;
+            }             
+                 
+        } CATCH {
+            logToFile('supermag', CONCAT '\n', 'Акт потерь', 'file://' + exportDirectorySupermag() + '/' + 'LA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Акт потерь. Ошибка при экспорте LA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
+        }         
+
+        TRY{
+            EXPORT exportCollationSheetMagP XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'FA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt());  
+            fileExists('file://' + exportDirectorySupermag() + '/' + 'FA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+            IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                FOR inc(CollationSheet ii)  DO NEW log = SupermagLog {
+                    id(log)<- 'FA_' +STRING[30](LONG(ii))+'_'+(OVERRIDE name(ii), '')+'_'+ formulaDateT(dt());  
+                    dateTime(log) <- currentDateTime();
+                    userLogin(log) <- login(currentUser()); 
+                    nameContact(log) <- STRING[100](name(currentUser()));
+                    stockDocumentLedger(log)<- ii;
+                }     
+                APPLY NESTED LOCAL;
+            }             
+                 
+        } CATCH {
+            logToFile('supermag', CONCAT '\n', 'Акт обнаружений', 'file://' + exportDirectorySupermag() + '/' + 'FA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Акт обнаружений. Ошибка при экспорте FA_' +STRING[30](LONG(i))+'_'+(OVERRIDE name(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
+        }         
+        
+    
+
+    }   
+    inc(CollationSheet ii) <- NULL;
+}
+exportSupermag(CollationSheet s) +{
+    exportCollationSheetMag(s);
+}
+
+exportSupermagAll() +{
+    FOR date(CollationSheet s AS CollationSheet) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(operation(s)) DO {
+        exportCollationSheetMag(s);
+    }
+}
+
+//EXTEND FORM inventories
+//    PROPERTIES (i) exportCollationSheetMag TOOLBAR 
+//;
+//DESIGN collationSheets {
+//    actionContainer{
+//        NEW mag {
+//            caption = 'Супермаг';
+//            MOVE PROPERTY (exportCollationSheetMag(i));
+//        }        
+//    }
+//}
+
