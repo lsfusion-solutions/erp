@@ -19,8 +19,8 @@ dateToPromotion 'Дата окончания акции' = DATA DATE (Sku, Stock
 averageSoldPromotion 'Продаж в день за акцию' = DATA NUMERIC[14,3] (Sku, Stock) TABLE promotionSkuStock;   
 
 //расчет данных по замененным товарам модуль ItemReplace
-overAverageSold (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
-overAverageSoldPromotion (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
+//overAverageSold (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
+//overAverageSoldPromotion (Sku sku, Stock stock) = ABSTRACT NUMERIC[14,3](Sku, Stock);
 overPrevCurrentBalance 'Остаток замен' (Sku sku, Stock stock) = ABSTRACT NUMERIC[16,5](Sku, Stock);
 overPrevCurrentReserve 'Резерв замен' (Sku sku, Stock stock) = ABSTRACT NUMERIC[16,5](Sku, Stock);
 
@@ -32,10 +32,10 @@ quantityDaysPromotionCalc 'Кол-во дней' (Sku s, UserOrder o) = quantity
 
 quantityDaysPromotion 'Кол-во дней' (Sku s, UserOrder o) = quantityDaysPromotionCalc(s,o) IF quantityDaysPromotionCalc(s,o) >0;
 
-planPromotion 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysPromotion(s, o) * ( averageSoldPromotion(s, customerStock(o)) (+) overAverageSoldPromotion(s, customerStock(o)) );
+planPromotion 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysPromotion(s, o) * averageSoldPromotion(s, customerStock(o));
  
 quantityDaysRegular 'Кол-во дней' (Sku s, UserOrder o) = (quantityDaysNextShipment(o) (-) quantityDaysPromotion(s, o));
-planRegular 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysRegular(s, o) * ( averageSold(s, customerStock(o)) (+) overAverageSold(s, customerStock(o)) ); 
+planRegular 'Планируемые продажи' (Sku s, UserOrder o) = quantityDaysRegular(s, o) * averageSold(s, customerStock(o)); 
 
 plan 'Планируемые продажи' (Sku s, UserOrder o) =
     planPromotion(s, o) (+) planRegular(s, o);
