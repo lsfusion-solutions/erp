@@ -40,19 +40,20 @@ replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute);
 replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF toSku(sb) = s;  
 
 createBatchComponentDetailOver  ABSTRACT LIST (Order);
-
+prevCurrentBalanceZero(Sku s, Order o) = prevCurrentBalance(s, componentsStock(o)) IF prevCurrentBalance(s, componentsStock(o))>0;
 createBatchComponentDetail 'Рассчитать партии по FIFO' (Order o) {
     // общая потребность по компонентам
     quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     product(Sku s, BOM b) <- GROUP MAX product(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     component(Sku s, BOM b) <- GROUP MAX component(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     // рассчитываем куда расписать количество, которого не хватает
-    lack (Sku s) <- bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalance(s, componentsStock(o));
+    lack (Sku s) <- NULL;
+    lack (Sku s) <- (bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalanceZero(s, o)) WHERE (bruttoQuantity(s, o) OR originalSubQuantity(s, o));
     lack (Sku s) <- NULL WHERE lack(s) <= 0.0;
 
     LOCAL subBalance = NUMERIC[16,5] (Substitute);
     LOCAL subDateTime = DATETIME (Substitute);
-    subBalance(Substitute s) <- prevCurrentBalance(toSku(s), componentsStock(o)) / multiplier(s) WHERE lack(fromSku(s));
+    subBalance(Substitute s) <- prevCurrentBalanceZero(toSku(s), o) / multiplier(s) WHERE lack(fromSku(s));
     subDateTime(Substitute s) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s));
     
     replaceSub (Substitute s) <- subQuantity(o, s);
@@ -88,7 +89,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     // Расписываем партии по FIFO
     FOR Stock st = componentsStock(o) DO {
         LOCAL balance = NUMERIC[16,5] (Batch);
-        balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND date(b)<=date(o);
+        balance (Batch b) <- prevCurrentBalance(b, st) WHERE toConsumePart(prevSkuCurrentBalance(b, st)) AND date(b)<=date(o) AND prevCurrentBalance(b, st) >0;
         
         toConsume(Batch b) <- PARTITION UNGROUP toConsumePart
                                     LIMIT balance(b)
