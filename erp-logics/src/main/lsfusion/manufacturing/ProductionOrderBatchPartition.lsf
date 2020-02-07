@@ -30,7 +30,7 @@ toConsumePart 'Кол-во всего по товару' = DATA LOCAL NUMERIC[16
 toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Batch);
 
 toConsume 'Кол-во из партии' = DATA LOCAL NUMERIC[16,5] (Sku, BOM, Batch);
-takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b) = GROUP SUM toConsume(s, b, Batch bt);
+takenBatch 'Расписано по партиям (замена)' (Sku s, BOM b, Sku sr) = GROUP SUM toConsume(s, b, Batch bt) IF sku(bt) = sr;
 originalTakenBatch 'Расписано по партиям (в исходном количестве)' (Sku s, BOM b) = GROUP SUM NUMERIC[16,5](toConsume(s, b, Batch bt) / (OVERRIDE multiplier(s, b, sku(bt)), 1.0));
 
 lastDetail = GROUP LAST ComponentDetail d ORDER d BY order(d), bruttoSku(d), BOM(d), batch(d); 
@@ -101,7 +101,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     toConsume(Sku s, BOM b, Batch bt) <- NULL;
     FOR toConsume(Batch bt) DO {
         toConsume(Sku s, BOM b, bt) <- PARTITION UNGROUP toConsume
-                                               LIMIT STRICT quantity(s, b, sku(bt)) - (OVERRIDE takenBatch(s, b), 0.0)
+                                               LIMIT STRICT quantity(s, b, sku(bt)) - (OVERRIDE takenBatch(s, b, sku(bt)), 0.0)
                                                ORDER s, b
                                                BY bt;
     }
@@ -161,7 +161,7 @@ EXTEND FORM order
     
     OBJECTS bom = BOM
     PROPERTIES(bom) READONLY fullName
-    PROPERTIES READONLY quantity(bs, bom), quantity(bs, bom, br), multiplier(bs, bom, br), originalQuantity(bs, bom, br), originalTakenBatch(bs, bom), takenBatch(br, bom)
+    PROPERTIES READONLY quantity(bs, bom), quantity(bs, bom, br), multiplier(bs, bom, br), originalQuantity(bs, bom, br), originalTakenBatch(bs, bom), takenBatch(bs, bom, br)
     FILTERS quantity(bs, bom)
     
     OBJECTS bbt = Batch
