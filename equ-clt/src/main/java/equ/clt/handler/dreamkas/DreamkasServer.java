@@ -409,6 +409,7 @@ public class DreamkasServer {
                     for (int i = 0; i < extraPrices.length(); i++) {
                         if (nPos >= 1) cResult += ",";
                         cResult += extraPrices.getJSONObject(i).toString();
+                        nPos++;
                     }
                 }
             }
