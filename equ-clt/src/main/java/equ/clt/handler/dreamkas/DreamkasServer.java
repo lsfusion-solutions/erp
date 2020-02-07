@@ -50,7 +50,7 @@ public class DreamkasServer {
     //  --- Основной метод загрузки кассового сервера новыми товарами (POST) или обновление товаров (PATCH)
     public boolean sendPriceList(TransactionCashRegisterInfo transaction) {
         boolean lRet = true;
-        if (transaction.itemsList == null) return true;
+        if (transaction.itemsList == null || transaction.machineryInfoList.isEmpty()) return true;
         // Очистка БД товаров, если snapshot
         if (transaction.snapshot) {
             if (!deleteAllPLU()) return false;

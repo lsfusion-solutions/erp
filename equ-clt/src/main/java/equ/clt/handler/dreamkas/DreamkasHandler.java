@@ -71,7 +71,7 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
 
         for (TransactionCashRegisterInfo transaction : transactionList) {
             if (!server.sendPriceList(transaction)) {
-                if (server.logMessage.length() > 0) processTransactionLogger.error(logPrefix + server.logMessage);
+                if (server.logMessage.length() > 0) processTransactionLogger.error(logPrefix + String.format("transaction: %s, error: %s", transaction.id, server.logMessage));
                 try {
                     throw new RuntimeException(server.eMessage);
                 } catch (Exception e) {
