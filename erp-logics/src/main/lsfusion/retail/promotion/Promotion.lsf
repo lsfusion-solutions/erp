@@ -561,14 +561,18 @@ WHEN LOCAL (CHANGED(promotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(
 WHEN LOCAL (CHANGED(promotionMarkupSum(PromotionDetail detail)) OR CHANGED(promotionPrice(detail))) AND promotionPrice(detail) > 0.0 DO {
     promotionMarkup(detail) <- NUMERIC[8,3]((promotionMarkupSum(detail)/promotionPrice(detail)) * 100.0);
 }
-WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(promotionPrice(detail))) DO {
-    promotionMarkupSum(detail) <- NUMERIC[16,4]((proposedPromotionPrice(detail)/(1.0+valueVAT(detail)/100.0))-promotionPrice(detail));
-}
+
 WHEN LOCAL (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(retailPrice(detail))) AND retailPrice(detail) > 0.0 DO {
     discount(detail) <- NUMERIC[8,3]((1.0-proposedPromotionPrice(detail)/retailPrice(detail)) * 100.0);
 }
 WHEN LOCAL (CHANGED(discount(PromotionDetail detail)) AND NOT CHANGED (proposedPromotionPrice(detail))) DO {
     proposedPromotionPrice(detail) <- NUMERIC[16,4] (round2(retailPrice(detail) * (1.0 - discount(detail) / 100)));
+}
+WHEN LOCAL (CHANGED(promotionMarkup(PromotionDetail detail))) AND promotionPrice(detail) > 0.0 DO {
+    proposedPromotionPrice(detail) <- NUMERIC[16,4] (round2((promotionPrice(detail) * (1.0 (+) promotionMarkup(detail) / 100))*(1.0+valueVAT(detail)/100.0)));;
+}
+WHEN LOCAL GOAFTER proposedPromotionPrice[PromotionDetail] (CHANGED(proposedPromotionPrice(PromotionDetail detail)) OR CHANGED(valueVAT(detail)) OR CHANGED(promotionPrice(detail)) OR CHANGED(promotionMarkup(detail))) DO {
+    promotionMarkupSum(detail) <- NUMERIC[16,4]((proposedPromotionPrice(detail)/(1.0+valueVAT(detail)/100.0))-promotionPrice(detail));
 }
 
 supplier 'Поставщик' (Stock stock, PromotionDetail detail) = companyA(defaultPriceListType(), sku(detail), stock, toDateTime(fromDate(detail)));
