@@ -133,3 +133,29 @@ END
 META createGroup(id, object, name, number, nameDB, caption, container)
     @createGroup(id, object, name, number, nameDB, nameDB, caption, container);
 END
+
+META createGroupCount(id, object, name, number, nameDB, expr, caption, container, count)
+    g###object###id name = DATA LOCAL BOOLEAN();
+    WHEN LOCAL SET(g###object###id()) AND countGroup() < count DO addGroup(number, name);
+    WHEN LOCAL SET(g###object###id()) AND countGroup() == count DO { g###object###id() <- NULL; };
+    WHEN LOCAL DROPPED(g###object###id()) DO deleteGroup(number);
+    
+    nameGroupDB###id(INTEGER i) += WHEN i == number THEN nameDB;
+    exprGroupDB###id(INTEGER i) += WHEN i == number THEN expr;
+    captionGroup###id(INTEGER i) += WHEN i == number THEN caption;
+    
+    hide###object###id = ABSTRACT BOOLEAN();
+    
+    EXTEND FORM id##Report
+        PROPERTIES() g###object###id SHOWIF NOT hide###object###id()
+    ;
+    DESIGN id##Report {
+        container {
+            MOVE PROPERTY(g###object###id());
+        }
+    }
+END 
+
+META createGroupCount(id, object, name, number, nameDB, caption, container, count)
+    @createGroupCount(id, object, name, number, nameDB, nameDB, caption, container, count);
+END
