@@ -17,7 +17,6 @@ import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.io.IOException;
 import java.math.BigDecimal;

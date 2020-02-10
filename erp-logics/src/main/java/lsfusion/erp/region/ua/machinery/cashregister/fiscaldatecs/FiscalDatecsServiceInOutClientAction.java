@@ -3,8 +3,6 @@ package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
-
 
 public class FiscalDatecsServiceInOutClientAction implements ClientAction {
 

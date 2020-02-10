@@ -9,7 +9,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import javax.swing.*;
 import java.sql.SQLException;

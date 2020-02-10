@@ -14,7 +14,6 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.property.data.SessionDataProperty;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import org.xBaseJ.xBaseJException;

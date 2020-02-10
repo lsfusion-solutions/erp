@@ -6,7 +6,6 @@ import lsfusion.erp.integration.*;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -14,7 +13,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 

@@ -8,7 +8,6 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.math.BigDecimal;
-import java.sql.SQLException;
 import java.text.DecimalFormat;
 
 public abstract class FiscalBoardAction extends InternalAction {

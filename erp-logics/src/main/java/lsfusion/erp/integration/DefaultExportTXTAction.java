@@ -7,7 +7,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.UnsupportedEncodingException;
-import java.sql.SQLException;
 
 public class DefaultExportTXTAction extends DefaultExportAction {
 

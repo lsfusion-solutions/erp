@@ -3,8 +3,6 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
-
 
 public class FiscalShtrihPrintReceiptClientAction implements ClientAction {
     int password;

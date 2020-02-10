@@ -8,7 +8,6 @@ import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UOM;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -16,7 +15,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 

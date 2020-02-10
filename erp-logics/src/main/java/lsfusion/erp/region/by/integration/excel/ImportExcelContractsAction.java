@@ -8,7 +8,6 @@ import lsfusion.erp.integration.ImportData;
 import jxl.Sheet;
 import jxl.read.biff.BiffException;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;

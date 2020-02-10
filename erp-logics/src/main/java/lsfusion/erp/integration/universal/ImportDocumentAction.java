@@ -22,7 +22,6 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;

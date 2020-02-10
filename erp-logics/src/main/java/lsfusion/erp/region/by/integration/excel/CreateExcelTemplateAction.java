@@ -9,7 +9,6 @@ import jxl.write.WriteException;
 import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
@@ -17,7 +16,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 
 public abstract class CreateExcelTemplateAction extends InternalAction {

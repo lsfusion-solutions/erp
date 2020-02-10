@@ -4,7 +4,6 @@ package lsfusion.erp.integration.universal;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 

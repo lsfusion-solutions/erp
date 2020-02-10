@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 
 

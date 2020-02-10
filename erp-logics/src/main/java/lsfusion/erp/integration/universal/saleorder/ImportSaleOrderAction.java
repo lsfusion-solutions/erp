@@ -27,7 +27,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.physics.dev.integration.service.*;
-import lsfusion.server.logics.action.session.DataSession;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;

@@ -10,7 +10,6 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.logics.action.session.DataSession;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
