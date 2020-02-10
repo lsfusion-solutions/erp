@@ -48,7 +48,9 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     component(Sku s, BOM b) <- GROUP MAX component(ComponentDetail d) IF  bruttoQuantity(d) AND bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
     // рассчитываем куда расписать количество, которого не хватает
     lack (Sku s) <- NULL;
-    lack (Sku s) <- (bruttoQuantity(s, o) (-) originalSubQuantity(s, o) (-) prevCurrentBalanceZero(s, o)) WHERE (bruttoQuantity(s, o) OR originalSubQuantity(s, o));
+    LOCAL brutto = NUMERIC[16,5] (Sku);
+    brutto (Sku s) <-  bruttoQuantity(s, o);  
+    lack (Sku s) <- (brutto(s) (-) originalSubQuantity(s, o) (-) prevCurrentBalanceZero(s, o)) WHERE (brutto(s) OR originalSubQuantity(s, o));
     lack (Sku s) <- NULL WHERE lack(s) <= 0.0;
 
     LOCAL subBalance = NUMERIC[16,5] (Substitute);
@@ -59,7 +61,7 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     replaceSub (Substitute s) <- subQuantity(o, s);
     FOR lack(Sku s) DO {
         replaceSub (Substitute sb) <- PARTITION UNGROUP lack
-                                                LIMIT subBalance(sb) (-) replaceSub(toSku(sb))
+                                                LIMIT subBalance(sb) (-) replaceSub(toSku(sb)) (-) brutto (toSku(sb))
                                                 ORDER subDateTime(sb), sb
                                                 BY fromSku(sb)
             WHERE fromSku(sb) = s AND NOT replaceSub(sb);
