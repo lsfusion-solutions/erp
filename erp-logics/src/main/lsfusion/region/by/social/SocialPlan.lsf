@@ -68,12 +68,21 @@ CONSTRAINT intersectsInterval(Interval d, Interval ud)
 //defaultInterval  = GROUP MIN Interval i IF dateFrom(i) <= DATE dt AND dateTo(i) >= dt AND quantity(Group g, i) BY g,child(i),dt; 
 //quantity 'Норма (граммов)' (Group g, Child c, DATE dt) = quantity(g,defaultInterval(g,c,dt));
 
+copyInterval 'Копировать' (Interval i) {
+    NEW ii = Interval {
+        child(ii) <- child(i);
+        dateFrom(ii) <- firstDayOfMonth(sum(dateTo(i),1));
+        dateTo(ii) <- lastDayOfMonth(dateFrom(ii));
+        quantity(Group g,ii) <- quantity(g,i);
+    }
+} TOOLBAR;
+
 EXTEND FORM child
 
     PROPERTIES (c) nameGroupType
     
     OBJECTS i = Interval
-    PROPERTIES (i) dateFrom, dateTo,  NEW, DELETE GRID
+    PROPERTIES (i) dateFrom, dateTo, copyInterval, NEW, DELETE GRID
     FILTERS child(i) == c
     
     OBJECTS g = Group
