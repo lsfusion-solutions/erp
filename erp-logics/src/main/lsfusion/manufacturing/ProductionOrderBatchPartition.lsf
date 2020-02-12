@@ -40,7 +40,7 @@ replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute);
 replaceSub 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb) IF toSku(sb) = s;  
 
 createBatchComponentDetailOver  ABSTRACT LIST (Order);
-prevCurrentBalanceZero(Sku s, Order o) = prevCurrentBalance(s, componentsStock(o)) IF prevCurrentBalance(s, componentsStock(o))>0;
+prevCurrentBalanceZero(Sku s, Order o) = GROUP SUM prevCurrentBalance(Batch b, componentsStock(o)) IF  date(b)<=date(o) AND prevCurrentBalance(b, componentsStock(o)) >0 AND sku(b)==s;
 createBatchComponentDetail 'Рассчитать партии по FIFO' (Order o) {
     // общая потребность по компонентам
     quantity(Sku s, BOM b) <- GROUP SUM bruttoQuantity(ComponentDetail d) IF bruttoSku(d) = s AND BOM(d) = b AND order(d) = o;
@@ -50,12 +50,18 @@ createBatchComponentDetail 'Рассчитать партии по FIFO' (Order 
     lack (Sku s) <- NULL;
     LOCAL brutto = NUMERIC[16,5] (Sku);
     brutto (Sku s) <-  bruttoQuantity(s, o);  
-    lack (Sku s) <- (brutto(s) (-) originalSubQuantity(s, o) (-) prevCurrentBalanceZero(s, o)) WHERE (brutto(s) OR originalSubQuantity(s, o));
+    
+    LOCAL prevBalance = NUMERIC[16,5](Sku);
+    prevBalance(Sku s) <- prevCurrentBalanceZero(s,o) WHERE (brutto(s) OR originalSubQuantity(s, o));
+                          
+    lack (Sku s) <- (brutto(s) (-) originalSubQuantity(s, o) (-) prevBalance(s)) WHERE (brutto(s) OR originalSubQuantity(s, o));
     lack (Sku s) <- NULL WHERE lack(s) <= 0.0;
 
     LOCAL subBalance = NUMERIC[16,5] (Substitute);
     LOCAL subDateTime = DATETIME (Substitute);
-    subBalance(Substitute s) <- prevCurrentBalanceZero(toSku(s), o) / multiplier(s) WHERE lack(fromSku(s));
+    LOCAL prevBalance = NUMERIC[16,5](Substitute);
+    prevBalance(Substitute s) <- prevCurrentBalanceZero(toSku(s), o) WHERE lack(fromSku(s));    
+    subBalance(Substitute s) <- prevBalance(s) / multiplier(s) WHERE lack(fromSku(s));
     subDateTime(Substitute s) <- prevDateTimeLastOrderBatch(toSku(s), componentsStock(o)) WHERE lack(fromSku(s));
     
     replaceSub (Substitute s) <- subQuantity(o, s);
