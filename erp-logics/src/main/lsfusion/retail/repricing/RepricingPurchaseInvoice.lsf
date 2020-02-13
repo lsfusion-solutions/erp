@@ -76,7 +76,7 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
 //        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
-    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < 0.01 AND active(l)
+    GROUP SUM signedQuantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (signedSum(l) / signedQuantity(l))) < 0.01 AND active(l)
           BY sku(l), stock(l);
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, DATETIME fromDateTime, DATETIME toDateTime) = 
@@ -85,7 +85,7 @@ calcRepricingAhead 'Кол-во движения по старой цене' (sk
 
         
 toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
-    prevBalanceB (sku, stock, fromDateTime) (-) calcSkuLedgerAhead(sku, stock, price, fromDateTime, toDateTime) (-) calcRepricingAhead(sku, stock, price, fromDateTime, toDateTime);
+    prevBalanceB (sku, stock, fromDateTime) (+) calcSkuLedgerAhead(sku, stock, price, fromDateTime, toDateTime) (-) calcRepricingAhead(sku, stock, price, fromDateTime, toDateTime);
              
 toRepricingQuantityTo 'Кол-во к дооценке' (InvoiceDetail detail, DATETIME toDateTime) = toRepricingQuantityDateTime(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
 
