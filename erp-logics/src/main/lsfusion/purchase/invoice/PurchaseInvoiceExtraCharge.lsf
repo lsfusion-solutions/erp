@@ -157,6 +157,8 @@ EXTEND FORM invoices
 
 calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
+overFillExtraCharge ABSTRACT(Invoice);
+
 fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  { 
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
@@ -175,6 +177,8 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  {
             extraChargePrice(i, UserInvoiceDetail d) <-
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }
+        
+        overFillExtraCharge(i);
     } ELSE {
         MESSAGE 'Для инвойса не задана валюта.';
     }
