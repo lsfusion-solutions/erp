@@ -980,36 +980,35 @@ calcValueVAT 'НДС, %' (ProductDetail d) = OVERRIDE  overCalcValueVAT(d),
 overFillPrice  ABSTRACT LIST ( ProductDetail);
 fillPriceExtra  ABSTRACT LIST ( ProductDetail);
 usePriceExtra  = ABSTRACT BOOLEAN ( Order);
-usePriceExtra(ProductDetail d) = usePriceExtra(order(d));
 
 fillPrice 'Заполнить цены для изделий'(ProductDetail detail)  { 
-    IF NOT usePriceExtra(detail) THEN {
-        valueVAT(detail) <- calcValueVAT(detail);
-        componentsPrice(detail) <- calcComponentsPrice(detail);
-        costPrice(detail) <- calcCost(detail);
-        overFillPrice(detail);
-        IF productsPriceListType(detail) AND prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail))    THEN {
-                                                                                                  
-            price(detail) <- prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail));  
-            changeValueProductsPrice(detail);                                                                                
-                                                                                             
-        }
-        IF calcPriceListType(detail) AND markup(calcPriceListType(detail), sku(detail)) AND NOT 
-            (productsPriceListType(detail) AND prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail))) THEN {
-            markup(detail) <- markup(calcPriceListType(detail), sku(detail));
-            changeValueMarkup(detail);
-        }
-    } ELSE {
-        fillPriceExtra(detail);    
+    valueVAT(detail) <- calcValueVAT(detail);
+    componentsPrice(detail) <- calcComponentsPrice(detail);
+    costPrice(detail) <- calcCost(detail);
+    overFillPrice(detail);
+    IF productsPriceListType(detail) AND prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail))    THEN {
+                                                                                              
+        price(detail) <- prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail));  
+        changeValueProductsPrice(detail);                                                                                
+                                                                                         
     }
-
+    IF calcPriceListType(detail) AND markup(calcPriceListType(detail), sku(detail)) AND NOT 
+        (productsPriceListType(detail) AND prevPriceB(productsPriceListType(detail),sku(detail),productsStock(detail),dateTime(detail))) THEN {
+        markup(detail) <- markup(calcPriceListType(detail), sku(detail));
+        changeValueMarkup(detail);
+    }
 } TOOLBAR;
 fillPriceExtra  ABSTRACT LIST (Order);
 
-fillPriceProducts 'Заполнить цены для изделий'(Order order)  { 
-    FOR order(ProductDetail detail) == order INLINE DO {
-        fillPrice(detail);                                                    
-    }
+fillPriceProducts 'Заполнить цены для изделий'(Order order)  {
+    IF usePriceExtra(order) THEN {
+        FOR order(ProductDetail detail) == order INLINE DO {
+            fillPriceExtra(detail);                                                    
+        }
+    } ELSE 
+        FOR order(ProductDetail detail) == order INLINE DO {
+            fillPrice(detail);                                                    
+        }
     fillPriceExtra(order);
 } TOOLBAR;
 
