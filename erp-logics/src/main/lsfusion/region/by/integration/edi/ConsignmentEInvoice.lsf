@@ -120,6 +120,8 @@ WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail
 overCreate ABSTRACT LIST(EInvoice, Consignment);
 overCreate ABSTRACT LIST(EInvoiceDetail, ConsignmentDetail);
 
+hideCreateEInvoice = ABSTRACT BOOLEAN (Consignment);
+
 createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
@@ -304,7 +306,7 @@ META defineInvoiceEinvoice (dumb)
     EXTEND FORM invoices
         PROPERTIES READONLY PANEL numberEInvoice(i)
         PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
-        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
+        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendSupplierEDI SHOWIF (eInvoice(i) AND NOT exportedSupplier(eInvoice(i))), 
                       cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
         PROPERTIES (i) editAttributesEInvoice SHOWIF (eInvoice(i) AND showEditEInvoiceCurrent())
