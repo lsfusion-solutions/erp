@@ -217,6 +217,9 @@ FORM EInvoiceAttachment 'Приложение'
     FILTERS include(e)
 ;
 
+hidePrintEInvoice = ABSTRACT BOOLEAN (EInvoice);
+hidePrintEInvoice(Invoice i) = hidePrintEInvoice(eInvoice(i));
+
 printConsignmentEInvoiceAttachment 'Реестр ТТН с приложением' (Invoice i)  { 
     include(EInvoice e) <- NULL;
     multy() <- NULL;
@@ -311,7 +314,7 @@ META defineInvoiceEinvoice (dumb)
                       cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
         PROPERTIES (i) editAttributesEInvoice SHOWIF (eInvoice(i) AND showEditEInvoiceCurrent())
         PROPERTIES    editAttributes = editAttributes(i) SHOWIF eInvoice(i)
-        PROPERTIES(i) SHOWIF eInvoice(i)
+        PROPERTIES(i) SHOWIF (eInvoice(i) AND NOT hidePrintEInvoice(i))
                       printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
                       printConsignmentEAttachment, printConsignmentEAttachmentXLSX
     ;
@@ -396,10 +399,10 @@ printConsignmentEInvoicesAll 'Реестр ТТН (несколько)' ()  {
 } IMAGE 'print.png';
 
 EXTEND FORM eInvoices
-    PROPERTIES(e) //SHOWIF invoice(e)
+    PROPERTIES(e) SHOWIF NOT hidePrintEInvoice(e)
                   printConsignmentEInvoiceAttachment,  printConsignmentEInvoice, 
                   printConsignmentEAttachment, printConsignmentEAttachmentXLSX
-    PROPERTIES    printConsignmentEInvoicesAll() SHOWIF (GROUP SUM 1 IF in(EInvoice iii))
+    PROPERTIES    printConsignmentEInvoicesAll() SHOWIF ((GROUP SUM 1 IF in(EInvoice iii)) AND NOT hidePrintEInvoice(e))
 ;
 DESIGN eInvoices {
     tab {
