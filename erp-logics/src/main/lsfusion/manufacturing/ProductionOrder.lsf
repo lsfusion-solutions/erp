@@ -2261,3 +2261,29 @@ CONSTRAINT SET(isPosted(ProductDetail d)) AND isPosted(d) AND NOT product(d) AND
         
 CONSTRAINT ((SET (ProductDetail d IS ProductDetail) AND NOT supplier(d)) OR DROPPED (supplier(d))) 
     AND needSupplier(operation(d)) MESSAGE 'Для изделия не задан поставщик';
+    
+//-- Чтобы нельзы было удалить спецификации               
+allowDeleteBOMs 'Разрешить удаление спецификацияй, по которым было производство' = DATA BOOLEAN ();
+
+useProducts 'Было производство' = GROUP SUM 1 IF quantity(ProductDetail pd) BY BOM(pd);
+     
+//CONSTRAINT DROPPED(Component c IS Component) AND PREV(useProducts(BOM(c))) 
+//    AND NOT allowDeleteBOMs()
+//        MESSAGE 'Запрещено изменять спецификацию (BOM), по которой было производство';
+//
+//CONSTRAINT DROPPED(Product p IS Product) AND PREV(useProducts(BOM(p))) 
+//    AND NOT allowDeleteBOMs()
+//        MESSAGE 'Запрещено изменять спецификацию (BOM), по которой было производство';   
+    
+CONSTRAINT DROPPED(BOM b IS BOM) AND PREV(useProducts(b)) 
+    AND NOT allowDeleteBOMs()
+        MESSAGE 'Запрещено удалять спецификацию (BOM), по которой было производство'; 
+        
+EXTEND FORM options
+    PROPERTIES () allowDeleteBOMs
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (allowDeleteBOMs());
+    }
+}
