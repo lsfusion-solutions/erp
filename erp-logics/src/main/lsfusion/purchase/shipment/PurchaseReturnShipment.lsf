@@ -134,35 +134,17 @@ EXTEND FORM userShipment
 @deriveDocumentDetailPriceAccountBatch (userShipment, sku, customerStock);
 
 disableUpdateShipmentPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
-ppprice = ABSTRACT NUMERIC[16,4](UserInvoiceDetail);
 
 WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-            SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO
+            SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() AND NOT disableUpdateShipmentPrice(detail) DO
     shipmentPrice (detail) <- prevAccountPriceB(batch(detail), customerStock(detail), dateTime(detail));
 
 WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
             CHANGED(customerStock(detail)) OR
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-            DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO
+            DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() AND NOT disableUpdateShipmentPrice(detail) DO
     shipmentPrice (detail) <- prevAccountPriceB(sku(detail), customerStock(detail), dateTime(detail));
-
-//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, customerStock){
-//    shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)
-//
-//                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-//                                                                                                   batch(detail),
-//                                                                                                   customerStock(detail),
-//                                                                                                   dateTime(detail))
-//                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
-//                                                                                                 sku(detail),
-//                                                                                                 customerStock(detail),
-//                                                                                                 dateTime(detail))
-//                                                    WHEN DO CHANGED(sku(detail)) OR
-//                                                         CHANGED(customerStock(detail)) OR
-//                                                         (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-//                                                         CHANGED(batch(detail));
-//};
 
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
