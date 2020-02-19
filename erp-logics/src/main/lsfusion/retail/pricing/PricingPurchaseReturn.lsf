@@ -37,7 +37,7 @@ WHEN LOCAL CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) D
 extraRetailPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail); 
 WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-              CHANGED(batch(detail))) AND batch(detail) DO {
+              CHANGED(batch(detail))) AND batch(detail) AND NOT skipUpdatePriceAccount()DO {
     retailPrice (detail)  <- prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                                        batch(detail),
                                                                                                        customerStock(detail),
@@ -47,7 +47,7 @@ WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
 WHEN LOCAL (CHANGED(customerStock(UserInvoiceDetail detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               DROPPED(batch(detail)) OR
-              CHANGED(sku(detail))) AND NOT batch(detail) DO {
+              CHANGED(sku(detail))) AND NOT batch(detail) AND NOT skipUpdatePriceAccount() DO {
     retailPrice (detail)  <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                       sku(detail),
                                                                                       customerStock(detail),
