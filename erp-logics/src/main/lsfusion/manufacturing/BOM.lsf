@@ -136,7 +136,7 @@ FORM materials 'Материалы'
     PROPERTIES(m) EDIT NEWSESSION, copy
     FILTERS isParent(sg, m)
     ORDER name(m)
-    FILTERGROUP inactiveM FILTER 'Активные' active(m) 'F5' DEFAULT
+//    FILTERGROUP inactiveM FILTER 'Активные' active(m) 'F5' DEFAULT
     LIST Material OBJECT m
 ;
 
@@ -754,6 +754,13 @@ addBOM 'Добавить'(Sku sku)  {
 	}
 } TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
 
+isActiveCurrent (BOM b) = isActive(b) OR (fromDate(b) > currentDate());
+isActiveCurrent (Material m) = active(m) AND (IF m IS Product THEN isActiveCurrent(BOM(m)) ELSE TRUE);
+
+EXTEND FORM materials
+    FILTERGROUP inactiveM FILTER 'Активные' isActiveCurrent(m) 'F5' DEFAULT
+;
+
 FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
@@ -764,7 +771,7 @@ FORM BOMs 'Спецификации'
     PROPERTIES (b) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
         FILTER 'Текущие' isActive(b) 'F11'            
-        FILTER 'Активные' isActive(b) OR (fromDate(b) > currentDate()) 'F10' DEFAULT
+        FILTER 'Активные' isActiveCurrent(b) 'F10' DEFAULT
         
     OBJECTS p = Product
     PROPERTIES(p) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM,
@@ -909,7 +916,7 @@ FORM BOMsDialog 'Спецификации'
     PROPERTIES (b) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
         FILTER 'Текущие' isActive(b) 'F11'            
-        FILTER 'Активные' isActive(b) OR (fromDate(b) > currentDate()) 'F10' DEFAULT
+        FILTER 'Активные' isActiveCurrent(b) 'F10' DEFAULT
         
     OBJECTS p = Product
     PROPERTIES(p) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM, 
