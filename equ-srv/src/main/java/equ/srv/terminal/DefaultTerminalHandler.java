@@ -68,7 +68,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public List<Object> readHostPort(DataSession session) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
                 String host = (String) terminalHandlerLM.findProperty("hostTerminalServer[]").read(session);
                 Integer port = (Integer) terminalHandlerLM.findProperty("portTerminalServer[]").read(session);
@@ -82,7 +82,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public Object readItem(DataSession session, DataObject user, String barcode, String bin) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
                 ObjectValue barcodeObject = terminalHandlerLM.findProperty("barcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
@@ -96,7 +96,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 BigDecimal quantity = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
                     if(currentPrice)
-                        price = (BigDecimal) terminalHandlerLM.findProperty("currentRetailPricingPrice[Sku,Stock]").read(session, skuObject, stockObject);
+                        price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
                     else
                         price = (BigDecimal) terminalHandlerLM.findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
                     quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Sku,Stock]").read(session, skuObject, stockObject);
@@ -248,7 +248,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public String checkOrder(DataSession session, ExecutionStack stack, DataObject user, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             terminalHandlerLM.findAction("checkOrder[STRING]").execute(session, stack, new DataObject(numberOrder));
             result = (String) terminalHandlerLM.findProperty("checkOrderResult[]").read(session);
@@ -259,7 +259,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             terminalHandlerLM.findAction("getTerminalPreferences[STRING]").execute(session, stack, new DataObject(idTerminal));
             result = (String) terminalHandlerLM.findProperty("terminalPreferencesJSON[]").read(session);
@@ -269,7 +269,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
     private List<TerminalBarcode> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalBarcode> result = new ArrayList<>();
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             boolean skipGoodsInReadBase = terminalHandlerLM.findProperty("skipGoodsInReadBase[]").read(session) != null;
             if(!skipGoodsInReadBase) {
@@ -347,7 +347,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
     private Map<String, List<String>> readExtraBarcodeMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, List<String>> result = new HashMap<>();
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if (terminalHandlerLM != null) {
 
             KeyExpr barcodeExpr = new KeyExpr("barcode");
@@ -708,7 +708,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                          String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) {
         try {
 
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
 
                 List<ImportProperty<?>> props = new ArrayList<>();
@@ -838,7 +838,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public boolean isActiveTerminal(DataSession session, ExecutionStack stack, String idTerminal) {
         try {
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
                 boolean checkIdTerminal = terminalHandlerLM.findProperty("checkIdTerminal[]").read(session) != null;
                 ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
@@ -885,7 +885,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     public DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) {
         try {
 
-            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerPricing");
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
