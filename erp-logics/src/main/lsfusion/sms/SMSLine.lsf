@@ -176,12 +176,12 @@ isMulti (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber_sms
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA STRING[1000] (Dispatch);
 CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
-    MESSAGE 'Сообщение для Viber не должно превышать 1000 символов';
+    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(Dispatch dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
 CONSTRAINT isViber(Dispatch d) AND NOT messageViber(d)
     MESSAGE 'Не задан текст сообщения Viber';
 messageSMS 'Текст сообщения SMS' = DATA TEXT (Dispatch);//DATA STRING[71] (Dispatch);
-CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND length(messageSMS(d)) > 71
-    MESSAGE 'Сообщение для SMS не должно превышать 71 символ';
+CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND length(messageSMS(d)) > 142
+    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(Dispatch dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
 CONSTRAINT isSMS(Dispatch d) AND NOT messageSMS(d)
     MESSAGE 'Не задан текст сообщения SMS';
 
@@ -203,7 +203,7 @@ CONSTRAINT SETCHANGED(date(Dispatch d)) AND date(d) < currentDate()
 timeFrom 'Время с' = DATA TIME (Dispatch) NONULL;
 timeTo 'Время по' = DATA TIME (Dispatch) NONULL;
 CONSTRAINT (SETCHANGED(timeTo(Dispatch d)) OR SETCHANGED (timeFrom(d)))  AND timeTo(d) < timeFrom(d)
-    MESSAGE 'Неверный интервал времени проведения';
+    MESSAGE 'Неверный интервал времени проведения ';
 CONSTRAINT SETCHANGED(timeFrom(Dispatch d)) AND timeFrom(d) < toTime(toDateTimeFormat('20000101090000','YYYYMMDDHH24MISS'))
     MESSAGE 'Можно использовать только диапазон 09:00:00 - 22:00:00';
 CONSTRAINT SETCHANGED(timeTo(Dispatch d)) AND timeTo(d) > toTime(toDateTimeFormat('20000101220000','YYYYMMDDHH24MISS'))
@@ -659,10 +659,10 @@ useTransaction 'Использовать транзакционный канал
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (DispatchTemplate);
 CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
-    MESSAGE 'Сообщение для Viber не должно превышать 1000 символов';
+    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(DispatchTemplate dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
 messageSMS 'Текст сообщения SMS' = DATA TEXT (DispatchTemplate);
-CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 71
-    MESSAGE 'Сообщение для SMS не должно превышать 71 символ';
+CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 142
+    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(DispatchTemplate dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
 
 lifetime 'Срок жизни сообщения (сек)' = DATA INTEGER (DispatchTemplate);
 CONSTRAINT SETCHANGED(lifetime(DispatchTemplate d)) AND NOT (lifetime(d) >= 120 AND lifetime(d) <= 86400)
@@ -676,10 +676,13 @@ CONSTRAINT caption(DispatchTemplate d) AND NOT action(d)
 CONSTRAINT action(DispatchTemplate d) AND NOT caption(d)
     MESSAGE 'Не задан заголовок для кнопки';
 
+timeFrom 'Время с' = DATA TIME (DispatchTemplate);
+timeTo 'Время по' = DATA TIME (DispatchTemplate);
+
 FORM dispatchTemplate 'Шаблон рассылки'
     OBJECTS d = DispatchTemplate PANEL
     PROPERTIES(d) id, useTransaction
-    PROPERTIES(d) messageViber, lifetime, image, caption, action
+    PROPERTIES(d) messageViber, lifetime, image, caption, action, timeFrom, timeTo
     PROPERTIES(d) messageSMS
     
     EDIT DispatchTemplate OBJECT d
@@ -690,6 +693,12 @@ DESIGN dispatchTemplate {
         type = CONTAINERV;
         MOVE PROPERTY(id(d));
         MOVE PROPERTY(useTransaction(d));
+        NEW time {
+            type = CONTAINERH;
+            caption = 'Время проведения';
+            MOVE PROPERTY(timeFrom(d));
+            MOVE PROPERTY(timeTo(d));
+        }
         NEW viber {
             type = CONTAINERV;
             caption = 'Viber';
@@ -711,7 +720,7 @@ DESIGN dispatchTemplate {
 
 FORM dispatchTemplates 'Шаблоны рассылки'
     OBJECTS d = DispatchTemplate
-    PROPERTIES(d) READONLY id, useTransaction, messageViber, lifetime, image, caption, action, messageSMS
+    PROPERTIES(d) READONLY id, useTransaction, messageViber, lifetime, image, caption, action, messageSMS, timeFrom, timeTo
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     
     LIST DispatchTemplate OBJECT d
