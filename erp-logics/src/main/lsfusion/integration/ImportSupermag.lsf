@@ -134,25 +134,25 @@ importItem 'Импорт товаров' () {
     LOCAL imported = BOOLEAN (Barcode);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3' TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()    
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3  AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = card.article)' TO file;
     
     logToFile('importSupermag', 'importItem_1');
     
     IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
     
     logToFile('importSupermag', 'importItem_2');
-    
+       
     FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](ISTRING[100] id) DO NEW s = Item {
         id(s) <- id;
     }
-    
-    FOR Item s = item(id(INTEGER i)) DO {
+   
+    FOR Item s = item(id(INTEGER i)) DO {    
         caption(s) <- replace(name(i), '\t', ' ');
         shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
         itemGroup(s) <- itemGroup(TEXT (idClass(i)));
-        country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
+        Item.country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
