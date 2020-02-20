@@ -23,8 +23,6 @@ receiveMessagesEDN (BOOLEAN invoices) {
     receiveMessagesSoap(loginEDN(), passwordEDN(), hostEDN(), portEDN(), ('https://' +  hostEDN() + ':' + portEDN() + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), receiveSupplierMessagesEDN(), TRUE, invoices, 'EDN');
 }
 
-receiveEDNAction 'Получить сообщения'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNAction' ();
-
 receiveEDN 'Получить сообщения' {
     checkIsServer();
     IF isServer() THEN {receiveMessagesEDN(NULL); };
@@ -65,8 +63,6 @@ sendPurchaseOrderEDN (EOrder o) {
         sendPurchaseOrder(o, loginEDN(), passwordEDN(), hostEDN(), portEDN(), ('https://' +  hostEDN() + ':' + portEDN() + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
     }
 }
-
-sendEDN 'Отправить'  INTERNAL  'lsfusion.erp.region.by.integration.edi.edn.SendEOrderEDNAction' (EOrder);
 
 send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE 'Заказ уже отправлен'; ELSE {sendPurchaseOrderEDN(o); } }
 cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
