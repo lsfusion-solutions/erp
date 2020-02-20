@@ -115,6 +115,8 @@ shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN
 
 statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
 
+overImportItem ABSTRACT LIST ();
+
 importItem 'Импорт товаров' () {
     
     LOCAL id = TEXT (INTEGER);
@@ -162,7 +164,7 @@ importItem 'Импорт товаров' () {
         statusInSuperMag(s) <- accepted(i);
         VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == vat(i) AND c = defaultCountry();        
     }
-    
+       
     logToFile('importSupermag', 'importItem_3');
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO file;
@@ -197,8 +199,11 @@ importItem 'Импорт товаров' () {
     
     logToFile('importSupermag', 'importItem_6');
     
-    DELETE Item i WHERE i IS Item AND NOT imported(i);
-    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
+    inactive(Item i ) <- TRUE WHERE i IS Item AND NOT imported(i);
+    statusInSuperMag(Item i ) <- 2 WHERE i IS Item AND NOT imported(i);
+//    DELETE Item i WHERE i IS Item AND NOT imported(i);
+//    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
+    overImportItem();
 
     logToFile('importSupermag', 'importItem_7');
     APPLY;
