@@ -10,10 +10,10 @@ controlRange (Sku s) = controlRange(skuGroup(s)) MATERIALIZED;
 
 EXTEND FORM userOrder
     FILTERGROUP filter2
-        FILTER 'В ассортименте' countRange(ks, st, date(o)) OR NOT controlRange(ks) 'F4' DEFAULT;
+        FILTER 'В ассортименте' countRange(ks, st, date(o)) OR NOT controlRange(ks) OR NOT st IS DepartmentStore 'F4' DEFAULT;
 ;
 
-limitRecommendedQuantity(Sku s, UserOrder o) += s IS Sku AND controlRange(skuGroup(s)) AND NOT countRange(s, customerStock(o), date(o));
+limitRecommendedQuantity(Sku s, UserOrder o) += s IS Sku AND customerStock(o) IS DepartmentStore AND controlRange(skuGroup(s)) AND NOT countRange(s, customerStock(o), date(o));
 
 skipControlRange = ABSTRACT BOOLEAN (Purchase.Order);
 
