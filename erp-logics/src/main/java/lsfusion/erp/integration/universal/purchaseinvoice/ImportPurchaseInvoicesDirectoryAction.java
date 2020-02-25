@@ -2,6 +2,7 @@ package lsfusion.erp.integration.universal.purchaseinvoice;
 
 import com.google.common.base.Throwables;
 import jxl.read.biff.BiffException;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
@@ -138,7 +139,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
 
                     for (FTPFile ftpFile : ftpClient.listFiles()) {
                         if (ftpFile.isFile()) {
-                            File file = File.createTempFile("purchaseInvoiceFTP", "");
+                            File file = File.createTempFile("purchaseInvoiceFTP", "." + BaseUtils.getFileExtension(ftpFile.getName()));
                             OutputStream outputStream = new FileOutputStream(file);
                             boolean done = ftpClient.retrieveFile(ftpFile.getName(), outputStream);
                             outputStream.close();
