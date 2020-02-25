@@ -259,10 +259,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     @Override
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
-        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
-        if(terminalHandlerLM != null) {
-            terminalHandlerLM.findAction("getTerminalPreferences[STRING]").execute(session, stack, new DataObject(idTerminal));
-            result = (String) terminalHandlerLM.findProperty("terminalPreferencesJSON[]").read(session);
+        ScriptingLogicsModule terminalPreferencesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalPreferences");
+        if(terminalPreferencesLM != null) {
+            terminalPreferencesLM.findAction("getTerminalPreferences[STRING]").execute(session, stack, new DataObject(idTerminal));
+            result = (String) terminalPreferencesLM.findProperty("terminalPreferencesJSON[]").read(session);
         }
         return result;
     }
