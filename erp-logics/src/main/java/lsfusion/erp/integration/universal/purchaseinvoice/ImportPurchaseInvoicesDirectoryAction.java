@@ -12,6 +12,7 @@ import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -24,6 +25,7 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
+import lsfusion.server.physics.dev.integration.external.to.file.FileUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
@@ -32,9 +34,7 @@ import org.xBaseJ.xBaseJException;
 import java.io.*;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction {
 
@@ -81,19 +81,27 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
 
                 if (directory != null && fileExtension != null) {
                     boolean ftp = directory.startsWith("ftp://");
-                    List<File> listFiles = listFiles(directory, ftp);
+                    Map<String, File> listFiles = listFiles(directory, ftp);
                     try {
-                        for (File f : listFiles) {
-                            if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
+                        for (Map.Entry<String, File> fileEntry : listFiles.entrySet()) {
+                            String name = fileEntry.getKey();
+                            File file = fileEntry.getValue();
+                            if (file.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
                                 try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                                     DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                                     try {
 
                                         findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                        int importResult = makeImport(newContext, invoiceObject, importTypeObject, f, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
+                                        int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
 
-                                        if (importResult != IMPORT_RESULT_ERROR) renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
+                                        if (importResult != IMPORT_RESULT_ERROR) {
+                                            if(ftp) {
+                                                renameImportedFTP(context, directory, name, "." + fileExtension);
+                                            } else {
+                                                renameImportedFile(context, file.getAbsolutePath(), "." + fileExtension);
+                                            }
+                                        }
 
                                     } catch (Exception e) {
                                         ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
@@ -105,7 +113,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                         }
                     } finally {
                         if (ftp) {
-                            for (File f : listFiles) {
+                            for (File f : listFiles.values()) {
                                 if (!f.delete())
                                     f.deleteOnExit();
                             }
@@ -118,8 +126,8 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
         }
     }
 
-    private List<File> listFiles(String directory, boolean ftp) throws IOException {
-        List<File> result = new ArrayList<>();
+    private Map<String, File> listFiles(String directory, boolean ftp) throws IOException {
+        Map<String, File> result = new HashMap<>();
 
         if (ftp) {
 
@@ -144,7 +152,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                             boolean done = ftpClient.retrieveFile(ftpFile.getName(), outputStream);
                             outputStream.close();
                             if (done) {
-                                result.add(file);
+                                result.put(ftpFile.getName(), file);
                             } else {
                                 throw new RuntimeException(String.format("Path '%s' read error for %s", ftpFile.getName(), directory));
                             }
@@ -154,7 +162,6 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                 } else {
                     throw new RuntimeException(String.format("Path '%s' not found for %s", ftpPath.remoteFile, directory));
                 }
-                return result;
             } finally {
                 if (ftpClient.isConnected()) {
                     ftpClient.logout();
@@ -168,11 +175,53 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
             if (dir.exists()) {
                 File[] listFiles = dir.listFiles();
                 if (listFiles != null) {
-                    result.addAll(Arrays.asList(listFiles));
+                    for(File f : listFiles) {
+                        result.put(f.getName(), f);
+                    }
                 }
             }
 
         }
         return result;
+    }
+
+    protected void renameImportedFTP(ExecutionContext<ClassPropertyInterface> context, String directory, String name, String extension) throws IOException {
+
+        String newExtensionUpCase = extension.substring(0, extension.length() - 1) + "E";
+        String newExtensionLowCase = extension.toLowerCase().substring(0, extension.length() - 1) + "e";
+
+        String renamed = name.endsWith(extension) ? name.replace(extension, newExtensionUpCase) : (name.endsWith(extension.toLowerCase()) ? name.replace(extension.toLowerCase(), newExtensionLowCase) : null);
+
+        int i = 1;
+        while (renamed != null && FileUtils.checkFileExists(directory + "/" + renamed)) {
+            renamed = name.endsWith(extension) ? (name.replace(extension, "") + "(" + i + ")" + newExtensionUpCase) : (name.endsWith(extension.toLowerCase()) ? (name.replace(extension.toLowerCase(), "") + "(" + i + ")" + newExtensionLowCase) : null);
+            i += 1;
+        }
+
+        FTPPath ftpPath = FTPPath.parseFTPPath(directory.replace("ftp://", ""));
+        FTPClient ftpClient = new FTPClient();
+        try {
+            ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+            if (ftpPath.charset != null) ftpClient.setControlEncoding(ftpPath.charset);
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            ftpClient.login(ftpPath.username, ftpPath.password);
+            if (ftpPath.passiveMode) {
+                ftpClient.enterLocalPassiveMode();
+            }
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+            if (ftpPath.remoteFile == null || ftpPath.remoteFile.isEmpty() || ftpClient.changeWorkingDirectory(ftpPath.remoteFile)) {
+                if (!ftpClient.rename(name, renamed)) {
+                    context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + name, "Ошибка"));
+                }
+            } else {
+                throw new RuntimeException(String.format("Path '%s' not found for %s", ftpPath.remoteFile, directory));
+            }
+        } finally {
+            if (ftpClient.isConnected()) {
+                ftpClient.logout();
+                ftpClient.disconnect();
+            }
+        }
     }
 }
