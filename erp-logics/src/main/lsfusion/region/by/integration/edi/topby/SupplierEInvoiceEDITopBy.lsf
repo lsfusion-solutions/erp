@@ -456,6 +456,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
 //при обмене накладными каждое сообщение - заново сформированная xml с одной подписью (отправителя)
 //при обмене актами выполненных работ, актами приемки, документами свободной формы - принимающая сторона подписывает тот же документ, ту же xml. 
 //т.е. накладывает ВТОРУЮ подпись на полученный документ, ничего в нем не меняя. меняется только шапка документа, которая не подписывается
+//при этом MessageHeader нужен новый... поэтому просто взять файл и отправить нельзя
+
 signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
     checkIsServer();
     IF isServer() THEN {
@@ -463,22 +465,18 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
             IF loginTopBy(supplier(c)) AND passwordTopBy(supplier(c)) AND hostTopBy(supplier(c)) AND portTopBy(supplier(c)) THEN {
                 IF hostEDSServiceSupplierTopBy(c) AND portEDSServiceSupplierTopBy(c) THEN {
                     LOCAL blrapnSubXML = FILE();
-                    IF customerADF(c) THEN {
-                        blrapnSubXML() <- customerADF(c);
-                    } ELSE {
-                        blrapnDateTime() <- currentDateTimeMillis();
-                        blrapnMsgSender() <- glnSupplier(c);
-                        blrapnMsgReceiver() <- glnCustomer(c);
-                        blrapnDeliveryNoteId() <- deliveryNoteNumber(c);
-                        blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(c));
-                        blrapnReferenceDocumentType() <- 'BLRADF';
-                        blrapnReferenceDocumentId() <- OVERRIDE blradf(c), number(c);
-                        blrapnReferenceDocumentDate() <- OVERRIDE blradfDate(c), dateTime(c);
-                        blrapnShipper() <- glnSupplier(c);
-                        blrapnReceiver() <- glnCustomer(c);
-                        toMilliseconds(blrapnDateTime());
-                        EXPORT exportBlrapn XML TO blrapnSubXML;                    
-                    }
+                    blrapnDateTime() <- currentDateTimeMillis();
+                    blrapnMsgSender() <- glnSupplier(c);
+                    blrapnMsgReceiver() <- glnCustomer(c);
+                    blrapnDeliveryNoteId() <- deliveryNoteNumber(c);
+                    blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(c));
+                    blrapnReferenceDocumentType() <- 'BLRADF';
+                    blrapnReferenceDocumentId() <- OVERRIDE blradf(c), number(c);
+                    blrapnReferenceDocumentDate() <- OVERRIDE blradfDate(c), dateTime(c);
+                    blrapnShipper() <- glnSupplier(c);
+                    blrapnReceiver() <- glnCustomer(c);
+                    toMilliseconds(blrapnDateTime());
+                    EXPORT exportBlrapn XML TO blrapnSubXML;                    
                     IF outputDirTopBy() THEN {
                         TRY{ mkdir(outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE blrapnSubXML() TO outputDirTopBy() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
