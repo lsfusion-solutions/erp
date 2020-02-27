@@ -136,9 +136,15 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             setAttribute(good, "marking-of-the-good", idItem);
 
-                            boolean deleteBarcode = deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem);
-                            if(deleteBarcode)
+                            List<String> deleteBarcodeList = new ArrayList<>();
+                            if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
+                                for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
+                                    if(entry.getValue().equals(idItem)){
+                                        deleteBarcodeList.add(entry.getKey());
+                                    }
+                                }
                                 usedDeleteBarcodes.barcodes.add(item.idBarcode);
+                            }
 
                             if(!skipScalesInfo) {
                                 //<plugin-property key="plu-number" value="4">
@@ -206,9 +212,15 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             Element barcode = new Element("bar-code");
                             setAttribute(barcode, "code", barcodeItem);
                             addStringElement(barcode, "default-code", "true");
-                            if(deleteBarcode)
-                                setAttribute(barcode, "deleted", true);
                             good.addContent(barcode);
+
+                            for(String deleteBarcode : deleteBarcodeList) {
+                                //parent: good
+                                Element deleteBarcodeElement = new Element("bar-code");
+                                setAttribute(deleteBarcodeElement, "code", deleteBarcode);
+                                setAttribute(deleteBarcodeElement, "deleted", true);
+                                good.addContent(deleteBarcodeElement);
+                            }
 
                             if (notGTINPrefixes != null) {
                                 if (barcodeItem != null && barcodeItem.length() > 7) {
