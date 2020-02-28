@@ -236,14 +236,14 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             String descriptionCustomsDocument = (String) resultValues.get("descriptionCustomsDocument");
             if (isVATCustomsExceptionCustomsDocument == null || isVATCustomsExceptionDeclarationDetail != null)
                 customsDocumentDetailList.add(new G44Detail(numberDeclarationDetail, orderCustomsDocument == null ? (Long) customsDocumentResult.getKey(i).getValue(1) : orderCustomsDocument, idCustomsDocument, nameCustomsDocument,
-                        dateCustomsDocument, null, null, null, typePaymentCustomsDocument, refDocCustomsDocument, descriptionCustomsDocument));
+                        dateCustomsDocument, null, null, null, typePaymentCustomsDocument, refDocCustomsDocument, descriptionCustomsDocument, null, null));
         }
 
 
         String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
-                "toDateCompliance"};
+                "toDateCompliance", "numberDeclarationCompliance", "dateDeclarationCompliance"};
         LP<?>[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
-                "toDate[Compliance]");
+                "toDate[Compliance]", "numberDeclaration[Compliance]", "dateDeclaration[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
         KeyExpr complianceExpr = new KeyExpr("compliance");
@@ -268,9 +268,11 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             Date dateCompliance = (Date) resultValues.get("dateCompliance");
             Date fromDateCompliance = (Date) resultValues.get("fromDateCompliance");
             Date toDateCompliance = (Date) resultValues.get("toDateCompliance");
+            String numberDeclarationCompliance = (String) resultValues.get("numberDeclarationCompliance");
+            Date dateDeclarationCompliance = (Date) resultValues.get("dateDeclarationCompliance");
 
             complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, "01191", seriesNumberCompliance,
-                    dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", ""));
+                    dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));
         }
 
         customsDocumentDetailList.addAll(complianceDetailList);
@@ -468,6 +470,10 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
             nameValueFieldMap.put("G44PREFDOC", dd.refdoc);
             nameValueFieldMap.put("G44NAME", dd.description);
+
+            nameValueFieldMap.put("G44REGNUM", trim(dd.numberDeclaration, 20));
+            nameValueFieldMap.put("G44DS", dd.dateDeclaration);
+            nameValueFieldMap.put("G44PP", dd.numberDeclaration != null ? 2 : 1);
 
             dbfwriter.addRecord(nameValueFieldMap.values().toArray()); //17
         }

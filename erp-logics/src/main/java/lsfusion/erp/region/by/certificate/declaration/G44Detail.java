@@ -16,8 +16,11 @@ public class G44Detail {
     public String vidplat;
     public String refdoc;
     public String description;
+    public String numberDeclaration;
+    public Date dateDeclaration;
 
-    public G44Detail(Integer numberDeclarationDetail, Long order, String KD, String ND, Date DD, Date beginDate, Date endDate, String country, String vidplat, String refdoc, String description) {
+    public G44Detail(Integer numberDeclarationDetail, Long order, String KD, String ND, Date DD, Date beginDate, Date endDate,
+                     String country, String vidplat, String refdoc, String description, String numberDeclaration, Date dateDeclaration) {
         this.numberDeclarationDetail = numberDeclarationDetail;
         this.order = order;
         this.KD = KD;
@@ -29,5 +32,7 @@ public class G44Detail {
         this.vidplat = vidplat;
         this.refdoc = refdoc;
         this.description = description;
+        this.numberDeclaration = numberDeclaration;
+        this.dateDeclaration = dateDeclaration;
     }
 }
