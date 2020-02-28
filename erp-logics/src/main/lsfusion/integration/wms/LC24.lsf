@@ -486,63 +486,6 @@ overImportConditionLC24 ABSTRACT (STRING[250]);
 overImportConditionLC24 = DATA LOCAL BOOLEAN (STRING[50]);
 importConditionLC24 'Импортировать состояния (накладные)' ()  {               
     LOCAL file = RAWFILE();
-
-    LOCAL H1 = STRING[100](INTEGER); //Номер документа
-    LOCAL H2 = STRING[100](INTEGER); //Дата документа
-    LOCAL H3 = STRING[100](INTEGER); //Фактическая дата отгрузки (отбора)
-    LOCAL H4 = STRING[100](INTEGER); //Номер бумажного документа
-    LOCAL H5 = STRING[100](INTEGER); //Дата бумажного документа
-    LOCAL H6 = INTEGER(INTEGER); //Вид расхода
-    LOCAL H7 = STRING[100](INTEGER); //Номер документа ЛЦ
-    LOCAL H8 = STRING[100](INTEGER); //Дата документа ЛЦ
-    LOCAL H9 = NUMERIC[18,4](INTEGER); //Сумма по документу
-    LOCAL H10 = STRING[100](INTEGER); //Номер бумажного документа снятия с ответ.хранения (Водитель)
-    LOCAL H11 = STRING[100](INTEGER); //Дата бумажного документа снятия с ответ.хранения (Автомобиль)
-    LOCAL H12 = STRING[100](INTEGER); //(Путевой лист)
-
-    LOCAL P1 = STRING[100](INTEGER); //Код товара
-    LOCAL P2 = STRING[100](INTEGER); //Номер партии
-    LOCAL P3 = INTEGER(INTEGER); //Код единицы измерения
-    LOCAL P4 = INTEGER(INTEGER); //Статус отгрузки (отбора)
-    LOCAL P5 = NUMERIC[16,5](INTEGER); //Количество
-    LOCAL P6 = STRING[100](INTEGER); //Дата изготовления
-    LOCAL P7 = NUMERIC[16,4](INTEGER); //Цена
-    LOCAL P8 = STRING[255](INTEGER); //Комментарий
-    LOCAL P9 = INTEGER(INTEGER); //Номер позиции
-    LOCAL P10 = NUMERIC[10,5](INTEGER); //Ставка НДС
-    LOCAL P11 = NUMERIC[18,4](INTEGER); //Сумма НДС
-    LOCAL P12 = NUMERIC[18,4](INTEGER); //Сумма
-    LOCAL P13 = INTEGER(INTEGER); //Состояние товара
-    LOCAL P14 = INTEGER(INTEGER); //Количество Мест
-    
-    LOCAL HA1 = STRING[100](INTEGER); //Номер документа
-    LOCAL HA2 = STRING[100](INTEGER); //Дата документа
-    LOCAL HA3 = STRING[100](INTEGER); //Фактическая дата прихода
-    LOCAL HA4 = STRING[100](INTEGER); //Номер бумажного документа
-    LOCAL HA5 = STRING[100](INTEGER); //Дата бумажного документа
-    LOCAL HA6 = INTEGER(INTEGER); //Вид прихода
-    LOCAL HA7 = STRING[100](INTEGER); //Номер документа ЛЦ
-    LOCAL HA8 = STRING[100](INTEGER); //Дата документа ЛЦ
-    LOCAL HA9 = STRING[100](INTEGER); //Код контрагента
-    LOCAL HA10 = STRING[255](INTEGER); //Адрес контрагента
-    LOCAL HA11 = STRING[100](INTEGER); //Номер бумажного документа первого поставщика
-    LOCAL HA12 = STRING[100](INTEGER); //Дата бумажного документа первого поставщика 
-    
-    LOCAL PA1 = STRING[100](INTEGER); //Код товара
-    LOCAL PA2 = STRING[100](INTEGER); //Номер партии
-    LOCAL PA3 = INTEGER(INTEGER); //Код единицы измерения
-    LOCAL PA4 = NUMERIC[16,5](INTEGER); //Заказанное количество
-    LOCAL PA5 = NUMERIC[16,5](INTEGER); //Принятое количество
-    LOCAL PA6 = NUMERIC[16,5](INTEGER); //Количество по документу
-    LOCAL PA7 = NUMERIC[16,5](INTEGER); //Количество брак
-    LOCAL PA8 = NUMERIC[16,4](INTEGER); //Цена
-    LOCAL PA9 = INTEGER(INTEGER); //Состояние товара
-    LOCAL PA10 = INTEGER(INTEGER); //Номер позиции
-    LOCAL PA11 = STRING[100](INTEGER); //Дата изготовления
-    LOCAL PA12 = NUMERIC[18,4](INTEGER); //Сумма
-    LOCAL PA13 = NUMERIC[18,4](INTEGER); //СуммаНДС
-    LOCAL PA14 = NUMERIC[10,5](INTEGER); //СтавкаНДС
-    LOCAL PA15 = NUMERIC[18,4](INTEGER); //СуммаСНДС
     
     listFiles(connectionStringLC24() + outPathLC24(), 'CP1251', NULL);
 
@@ -553,8 +496,18 @@ importConditionLC24 'Импортировать состояния (наклад
 //-- Отгрузка
         IF isSubstring(fileName, 'dispatch_selected') AND NOT overImportConditionLC24('dispatch_selected') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H6, H7, H8, H10, H11, H12;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P14;
+            
+            LOCAL H1 = STRING[100](INTEGER); //Номер документа
+            LOCAL H2 = STRING[100](INTEGER); //Дата документа
+            LOCAL H3 = STRING[100](INTEGER); //Фактическая дата отгрузки (отбора)
+            LOCAL H4 = INTEGER(INTEGER); //Вид расхода
+            LOCAL H5 = STRING[100](INTEGER); //Номер документа ЛЦ
+            LOCAL H6 = STRING[100](INTEGER); //Дата документа ЛЦ
+            LOCAL H7 = STRING[100](INTEGER); //Водитель
+            LOCAL H8 = STRING[100](INTEGER); //Автомобиль
+            LOCAL H9 = STRING[100](INTEGER); //Путевой лист
+                
+            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9;
             
             IF imported(0) AND (H1(0) OR H2(0)) AND NOT DATE(toDateFormat(H6(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) THEN {
                 LOCAL inv = Sale.UserInvoice();
@@ -581,14 +534,27 @@ importConditionLC24 'Импортировать состояния (наклад
                         contractSku(i) <- contractSku(ord());
                         shipmentDate(i) <- shipmentDate(ord());
                         shipmentTime(i) <- shipmentTime(ord());
-                        number(i) <- IF length(H7(0)) == 9 THEN STRING[28](right(H7(0),7)) ELSE STRING[28](H7(0));
-                        series(i) <- BPSTRING[2](upper((left(H7(0),2)))) IF length(H7(0)) == 9;
-                        date(i) <- DATE(toDateFormat(H8(0),'YYYYMMDD')); 
+                        number(i) <- IF length(H5(0)) == 9 THEN STRING[28](right(H5(0),7)) ELSE STRING[28](H5(0));
+                        series(i) <- BPSTRING[2](upper((left(H5(0),2)))) IF length(H5(0)) == 9;
+                        date(i) <- DATE(toDateFormat(H6(0),'YYYYMMDD')); 
                         include(Sale.Order o,i) <- TRUE WHERE o == ord();
-                        dataNameDriver(i) <- H10(0);
-                        dataNameTruck(i) <- H11(0);
-                        dataWaybill(i) <- H12(0);
+                        dataNameDriver(i) <- H7(0);
+                        dataNameTruck(i) <- H8(0);
+                        dataWaybill(i) <- H9(0);
                     }
+                    
+                    LOCAL P1 = STRING[100](INTEGER); //Код товара
+                    LOCAL P2 = STRING[100](INTEGER); //Номер партии
+                    LOCAL P3 = INTEGER(INTEGER); //Код единицы измерения
+                    LOCAL P4 = INTEGER(INTEGER); //Статус отбора
+                    LOCAL P5 = NUMERIC[16,5](INTEGER); //Количество
+                    LOCAL P6 = STRING[100](INTEGER); //Дата изготовления
+                    LOCAL P7 = NUMERIC[16,4](INTEGER); //Цена
+                    LOCAL P8 = STRING[255](INTEGER); //Комментарий
+                    LOCAL P9 = INTEGER(INTEGER); //Номер позиции
+                    LOCAL P10 = INTEGER(INTEGER); //Количество Мест
+                    
+                    IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10;
                                         
                     FOR imported(INTEGER r) AND r > 0 ORDER P9(r) NEW d = Sale.UserInvoiceDetail DO {
                         Sale.userInvoice(d) <- inv();
@@ -600,7 +566,7 @@ importConditionLC24 'Импортировать состояния (наклад
                         price(d) <- P7(r);
                         note(d) <- STRING[100](P8(r));
                         dataIndex(d) <- P9(r);
-                        dataPackQuantity(d) <- P14(r);
+                        dataPackQuantity(d) <- P10(r);
                         connectOrder(d);             
                         IF orderDetail(d) THEN {
                              VAT(d) <- VAT(orderDetail(d));    
@@ -620,7 +586,35 @@ importConditionLC24 'Импортировать состояния (наклад
         
         IF isSubstring(fileName, 'dispatch_result') AND NOT overImportConditionLC24('dispatch_result') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            
+            LOCAL H1 = STRING[100](INTEGER); //Номер документа
+            LOCAL H2 = STRING[100](INTEGER); //Дата документа
+            LOCAL H3 = STRING[100](INTEGER); //Фактическая дата отгрузки (отбора)
+            LOCAL H4 = STRING[100](INTEGER); //Номер бумажного документа
+            LOCAL H5 = STRING[100](INTEGER); //Дата бумажного документа
+            LOCAL H6 = INTEGER(INTEGER); //Вид расхода
+            LOCAL H7 = STRING[100](INTEGER); //Номер документа ЛЦ
+            LOCAL H8 = STRING[100](INTEGER); //Дата документа ЛЦ
+            LOCAL H9 = NUMERIC[18,4](INTEGER); //Сумма по документу
+            LOCAL H10 = STRING[100](INTEGER); //Номер бумажного документа снятия с ответ.хранения (Водитель)
+            LOCAL H11 = STRING[100](INTEGER); //Дата бумажного документа снятия с ответ.хранения (Автомобиль)
+            
             IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9, H10, H11;
+            
+            LOCAL P1 = STRING[100](INTEGER); //Код товара
+            LOCAL P2 = STRING[100](INTEGER); //Номер партии
+            LOCAL P3 = INTEGER(INTEGER); //Код единицы измерения
+            LOCAL P4 = INTEGER(INTEGER); //Статус отгрузки (отбора)
+            LOCAL P5 = NUMERIC[16,5](INTEGER); //Количество
+            LOCAL P6 = STRING[100](INTEGER); //Дата изготовления
+            LOCAL P7 = NUMERIC[16,4](INTEGER); //Цена
+            LOCAL P8 = STRING[255](INTEGER); //Комментарий
+            LOCAL P9 = INTEGER(INTEGER); //Номер позиции
+            LOCAL P10 = NUMERIC[10,5](INTEGER); //Ставка НДС
+            LOCAL P11 = NUMERIC[18,4](INTEGER); //Сумма НДС
+            LOCAL P12 = NUMERIC[18,4](INTEGER); //Сумма
+            LOCAL P13 = INTEGER(INTEGER); //Состояние товара
+
             IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13;
             
             LOCAL NESTED ok = BOOLEAN ();
@@ -651,14 +645,45 @@ importConditionLC24 'Импортировать состояния (наклад
 //-- Поступление        
         IF isSubstring(fileName, 'arrival_result') AND NOT overImportConditionLC24('arrival_result') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
+            
+            LOCAL HA1 = STRING[100](INTEGER); //Номер документа
+            LOCAL HA2 = STRING[100](INTEGER); //Дата документа
+            LOCAL HA3 = STRING[100](INTEGER); //Фактическая дата прихода
+            LOCAL HA4 = STRING[100](INTEGER); //Номер бумажного документа
+            LOCAL HA5 = STRING[100](INTEGER); //Дата бумажного документа
+            LOCAL HA6 = INTEGER(INTEGER); //Вид прихода
+            LOCAL HA7 = STRING[100](INTEGER); //Номер документа ЛЦ
+            LOCAL HA8 = STRING[100](INTEGER); //Дата документа ЛЦ
+            LOCAL HA9 = STRING[100](INTEGER); //Код контрагента
+            LOCAL HA10 = STRING[255](INTEGER); //Адрес контрагента
+            LOCAL HA11 = STRING[100](INTEGER); //Номер бумажного документа первого поставщика
+            LOCAL HA12 = STRING[100](INTEGER); //Дата бумажного документа первого поставщика 
+            
             IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO HA1, HA2, HA3, HA4, HA5, HA6, HA7, HA8, HA9, HA10, HA11, HA12;
+            
+            LOCAL PA1 = STRING[100](INTEGER); //Код товара
+            LOCAL PA2 = STRING[100](INTEGER); //Номер партии
+            LOCAL PA3 = INTEGER(INTEGER); //Код единицы измерения
+            LOCAL PA4 = NUMERIC[16,5](INTEGER); //Заказанное количество
+            LOCAL PA5 = NUMERIC[16,5](INTEGER); //Принятое количество
+            LOCAL PA6 = NUMERIC[16,5](INTEGER); //Количество по документу
+            LOCAL PA7 = NUMERIC[16,5](INTEGER); //Количество брак
+            LOCAL PA8 = NUMERIC[16,4](INTEGER); //Цена
+            LOCAL PA9 = INTEGER(INTEGER); //Состояние товара
+            LOCAL PA10 = INTEGER(INTEGER); //Номер позиции
+            LOCAL PA11 = STRING[100](INTEGER); //Дата изготовления
+            LOCAL PA12 = NUMERIC[18,4](INTEGER); //Сумма
+            LOCAL PA13 = NUMERIC[18,4](INTEGER); //СуммаНДС
+            LOCAL PA14 = NUMERIC[10,5](INTEGER); //СтавкаНДС
+            LOCAL PA15 = NUMERIC[18,4](INTEGER); //СуммаСНДС
+            
             IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8, PA9, PA10, PA11, PA12, PA13, PA14, PA15;
             
             LOCAL inv = Purchase.UserInvoice();
             LOCAL ord = Purchase.UserOrder();
             LOCAL isDet = BOOLEAN ();
             
-            inv() <- [GROUP MAX Purchase.UserInvoice i BY seriesNumber(i)](H1(0));
+            inv() <- [GROUP MAX Purchase.UserInvoice i BY seriesNumber(i)](HA1(0));
             IF NOT DATE(toDateFormat(HA12(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) THEN {
                 IF HA6(0) == 0 AND inv() THEN {
                     IF NOT isClosed(inv()) THEN {
