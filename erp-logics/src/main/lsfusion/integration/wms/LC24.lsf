@@ -322,7 +322,8 @@ DESIGN Purchase.invoices {
 }
 
 //заказ продажа
-isLC24Sale(Sale.Order order) = isLC24(customerStock(order)) OR isLC24(supplierStock(order));
+overLC24Sale = ABSTRACT BOOLEAN (Sale.Order);
+isLC24Sale(Sale.Order order) = isLC24(customerStock(order)) OR isLC24(supplierStock(order)) OR overLC24Sale(order);
 
 overExportSaleLC24 ABSTRACT (Sale.Order, STRING[250]);
 overExportSaleLC24 = DATA LOCAL BOOLEAN ();
@@ -482,9 +483,12 @@ DESIGN  integrationData {
 
 // состояния
 countDatesImportConditionLC24 'За сколько дней импортировать накладные' = DATA INTEGER ();
+beforeImportConditionLC24 ABSTRACT ();
 overImportConditionLC24 ABSTRACT (STRING[250]);
 overImportConditionLC24 = DATA LOCAL BOOLEAN (STRING[50]);
 importConditionLC24 'Импортировать состояния (накладные)' ()  {               
+
+    beforeImportConditionLC24();             
     LOCAL file = RAWFILE();
     
     listFiles(connectionStringLC24() + outPathLC24(), 'CP1251', NULL);
