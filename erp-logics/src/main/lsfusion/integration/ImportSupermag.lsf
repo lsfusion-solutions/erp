@@ -747,7 +747,6 @@ importContract 'Импорт договоров и соглашений' () {
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
 //        operation(p) <- PriceList.operation('supplier');
         contractTypeInSuperMag(p) <- contractType(i);
-        operation(p) <- (CASE WHEN contractTypeInSuperMag(p) = 2 THEN PriceList.operation('supplierakcia') ELSE PriceList.operation('supplier'));
         number(p) <- ISTRING[28] (id(p));
         date(p) <- date(i);
         time(p) <- 00:00;
@@ -761,7 +760,9 @@ importContract 'Импорт договоров и соглашений' () {
         allStocks(p) <- NULL;
         imported(p) <- TRUE;
     }
-  
+    
+    operation(UserPriceList p) <- (CASE WHEN contractTypeInSuperMag(p) = 2 THEN PriceList.operation('supplierakcia') ELSE PriceList.operation('supplier'));
+     
      // указываем какие магазины входят в договор ПСЦ            
     LOCAL idStock = INTEGER (INTEGER);    
     LOCAL idDoc = ISTRING[50] (INTEGER);    
@@ -815,17 +816,14 @@ importContract 'Импорт договоров и соглашений' () {
     
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
         sku(d) <- item(idItem(i));        
-        IF operation(userPriceList(d)) = PriceList.operation('supplierakcia') THEN { 
-          price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplierakcia');
-          price(d, LedgerPriceListType t) <- NULL WHERE t == dataPriceListType('supplier');          
-        }
-        ELSE {
-          price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('supplier');
-          price(d, LedgerPriceListType t) <- NULL WHERE t == dataPriceListType('supplierakcia');                  
-        }        
+//        price(d, LedgerPriceListType t) <- NULL WHERE t == dataPriceListType('supplier');          
+//        price(d, LedgerPriceListType t) <- NULL WHERE t == dataPriceListType('supplierakcia');                  
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType(id(operation(userPriceList(d))));
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
     }
+        
+    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromS() AND (id(operation(d)) = 'supplier' OR id(operation(d)) = 'supplierakcia') AND NOT imported(d);
         
     APPLY;
 }
@@ -1541,7 +1539,7 @@ importOrder 'Импорт заказов' () {
     LOCAL idSeparation = STRING[100] (INTEGER);
     LOCAL sql = TEXT ();
     
-    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes, cb.BASEID as Separation from Supermag.SMDocuments D, Supermag.SMDocOR DD, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (1, 2) and cb.ID(+) = D.ID AND cb.BASEDOCTYPE(+) = \'CO\' AND d.location IN (' 
+    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes, cb.BASEID as Separation from Supermag.SMDocuments D, Supermag.SMDocOR DD, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (0, 2, 3) and cb.ID(+) = D.ID AND cb.BASEDOCTYPE(+) = \'CO\' AND d.location IN (' 
     + stocks() + ') and dd.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')';
 
     LOCAL file = FILE ();
@@ -1561,7 +1559,7 @@ importOrder 'Импорт заказов' () {
         
         number(o) <- STRING[28](id(i));
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
-        isPosted(o) <- docstate(i) == 2;
+        isPosted(o) <- docstate(i) == 3;
         supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
         supplierStock(o) <- stock(ISTRING[100] (idSupplier(i)));
         customerStock(o) <- stock(ISTRING[100] (idStock(i)));
