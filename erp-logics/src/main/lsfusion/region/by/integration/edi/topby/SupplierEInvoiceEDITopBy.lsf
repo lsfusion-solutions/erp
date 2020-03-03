@@ -341,7 +341,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     isCancel() <- TRUE IF blradfFunctionCode() == '1';
                     IF eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0) THEN {
                         importedSupplier(ECreditNote ec) <- TRUE WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
-                        customerADF(ECreditNote ec) <- data(i) WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        securityID(ECreditNote ec) <- blradfSecurityID() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        certificateID(ECreditNote ec) <- blradfCertificateID() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        securityPartyID(ECreditNote ec) <- blradfSecurityPartyID() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        creationSignatureDate(ECreditNote ec) <- blradfCreationSignatureDate() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        creationSignatureTime(ECreditNote ec) <- blradfCreationSignatureTime() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
+                        signatureValue(ECreditNote ec) <- blradfSignatureValue() WHERE ec == eCreditNoteActDifNumberIsCancel(blradfActDifNumber(), IF isCancel() THEN 1 ELSE 0);
                     } ELSE NEW ec = ECreditNote {
                         importedSupplier(ec) <- TRUE;
                         id(ec) <- blradfCustomerGLN() + '/' + blradfActDifNumber() + (IF isCancel() THEN '_cancel' ELSE '');
@@ -355,9 +360,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
                         customer(ec) <- legalEntityGLN(blradfCustomerGLN());
                         customerStock(ec) <- companyStockGLN(blradfCustomerStockGLN());
+                        securityID(ec) <- blradfSecurityID();
+                        certificateID(ec) <- blradfCertificateID();
+                        securityPartyID(ec) <- blradfSecurityPartyID();
+                        creationSignatureDate(ec) <- blradfCreationSignatureDate();
+                        creationSignatureTime(ec) <- blradfCreationSignatureTime();
+                        signatureValue(ec) <- blradfSignatureValue();
                         XMLPath(ec) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         FOR blradfLineItemID(INTEGER l) OR blradfLineItemBuyerID(l) OR blradfLineItemSupplierID(l) DO NEW ed = ECreditNoteDetail {
                             id(ed) <- id(ec) + '/' + blradfLineItemNumber(l);
+                            eCreditNote(ed) <- ec;
+                            lineItemNumber(ed) <- blradfLineItemNumber(l);
                             lineItemID(ed) <- blradfLineItemID(l);
                             lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
                             lineItemSupplierID(ed) <- blradfLineItemSupplierID(l);
@@ -492,6 +505,12 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] provider) {
                             blradfDateTime() <- sumSeconds(blrapnDateTime(),1);
                             blradfMsgSenderID() <- glnSupplier(c);
                             blradfMsgReceiverID() <- glnCustomer(c);
+                            blradfSecurityID() <- securityID(c);
+                            blradfCertificateID() <- certificateID(c);
+                            blradfSecurityPartyID() <- securityPartyID(c);
+                            blradfCreationSignatureDate() <- creationSignatureDate(c);
+                            blradfCreationSignatureTime() <- creationSignatureTime(c);
+                            blradfSignatureValue() <- signatureValue(c);
                             toMilliseconds(blradfDateTime());
                             EXPORT exportBlradf OBJECTS ec = c XML TO blradfSubXML;
                             IF outputDirTopBy() THEN {

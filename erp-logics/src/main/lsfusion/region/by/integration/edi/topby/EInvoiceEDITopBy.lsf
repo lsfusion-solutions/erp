@@ -15,6 +15,13 @@ GROUP shipTo EXTID 'ShipTo';
 
 blradfMsgSenderID = DATA LOCAL NESTED STRING[13]();
 blradfMsgReceiverID = DATA LOCAL NESTED STRING[13]();
+GROUP securityBuyer EXTID 'SecurityBuyer';
+blradfSecurityID = DATA LOCAL NESTED STRING[14]();
+blradfCertificateID = DATA LOCAL NESTED STRING[256]();
+blradfSecurityPartyID = DATA LOCAL NESTED STRING[512]();
+blradfCreationSignatureDate = DATA LOCAL NESTED STRING[8]();
+blradfCreationSignatureTime = DATA LOCAL NESTED STRING[15]();
+blradfSignatureValue = DATA LOCAL NESTED TEXT();
 GROUP actDif EXTID 'ActDif';
 blradfDocumentNumber = DATA LOCAL NESTED STRING[28]();
 blradfActDifNumber = DATA LOCAL NESTED STRING[28]();
@@ -27,6 +34,7 @@ GROUP blradfBuyer EXTID 'Buyer' : actDif;
 blradfCustomerGLN = DATA LOCAL NESTED STRING[13]();
 GROUP blradfShipTo EXTID 'ShipTo' : actDif;
 blradfCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
+GROUP actDifLineItemActDif EXTID 'ActDifLineItem' : actDif;
 GROUP actDifLineItem EXTID 'ActDifLineItem';
 blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
 blradfLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
@@ -43,6 +51,12 @@ blradfAmountReceived = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 FORM blradf
     PROPERTIES IN messageHeader blradfMsgSenderID() EXTID 'MsgSenderID',
                                 blradfMsgReceiverID() EXTID 'MsgReceiverID'
+    PROPERTIES IN securityBuyer blradfSecurityID() EXTID 'SecurityID',
+                                blradfCertificateID() EXTID 'CertificateID',
+                                blradfSecurityPartyID() EXTID 'SecurityPartyID',
+                                blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
+                                blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
+                                blradfSignatureValue() EXTID 'SignatureValue'
     PROPERTIES IN actDif blradfDocumentNumber() EXTID 'DocumentID',
                          blradfActDifNumber() EXTID 'ActDifID',
                          blradfDeliveryNoteNumber() EXTID 'DeliveryNoteID',
@@ -52,7 +66,7 @@ FORM blradf
     PROPERTIES IN blradfBuyer blradfCustomerGLN() EXTID 'GLN'
     PROPERTIES IN blradfShipTo blradfCustomerStockGLN() EXTID 'GLN'
 
-    OBJECTS i = INTEGER EXTID 'LineItem' IN actDifLineItem
+    OBJECTS i = INTEGER EXTID 'LineItem' IN actDifLineItemActDif
     PROPERTIES(i) blradfLineItemNumber EXTID 'LineItemNumber',
                   blradfLineItemID EXTID 'LineItemID',
                   blradfLineItemBuyerID EXTID 'LineItemBuyerID',
@@ -80,6 +94,15 @@ FORM exportBlradf FORMEXTID 'BLRADF'
                         messageType = 'BLRADF' EXTID 'MessageType',
                         blradfMsgSenderID() EXTID 'MsgSenderID',
                         blradfMsgReceiverID() EXTID 'MsgReceiverID'
+    
+    OBJECTS ecs = ECreditNote EXTID 'SecurityBuyer'
+    FILTERS ecs == ec
+    PROPERTIES DRAW ecs blradfSecurityID() EXTID 'SecurityID',
+                        blradfCertificateID() EXTID 'CertificateID',
+                        blradfSecurityPartyID() EXTID 'SecurityPartyID',
+                        blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
+                        blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
+                        blradfSignatureValue() EXTID 'SignatureValue'
     
     OBJECTS ecn = ECreditNote EXTID 'ActDif'
     FILTERS ecn == ec
@@ -124,4 +147,8 @@ FORM exportBlradf FORMEXTID 'BLRADF'
                         totalAmountOrdered(ecnt) EXTID 'TotalAmountOrdered',
                         totalQuantityReceived(ecnt) EXTID 'TotalQuantityReceived',
                         totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
+    
+    OBJECTS ecse = ECreditNote EXTID 'SecurityEnd'
+    FILTERS ecse == ec
+    PROPERTIES DRAW ecse securityIDEnd = blradfSecurityID() EXTID 'SecurityID'
 ;
