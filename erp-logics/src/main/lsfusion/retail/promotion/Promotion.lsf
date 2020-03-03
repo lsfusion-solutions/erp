@@ -331,6 +331,21 @@ comment 'Замечания' = DATA ISTRING[255] (PromotionDetail) CHARWIDTH 50;
 
 approved 'Утвержден' = DATA BOOLEAN (PromotionDetail);
 
+notUseApprovedPromotion 'Не использовать признак Утвержден' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () notUseApprovedPromotion
+;
+
+DESIGN options { 
+    price {
+        NEW promotionPrice {
+            caption = 'Акции';
+            MOVE PROPERTY(notUseApprovedPromotion());        
+        }
+    } 
+}
+
 //политика безопасности
 proposeDate 'Дата предложения' = DATA DATE (Promotion);
 approveDate 'Дата утверждения'= DATA DATE (Promotion);
@@ -338,7 +353,7 @@ approveDate 'Дата утверждения'= DATA DATE (Promotion);
 @addRoleApplicationSetting(allowEditProposedPromotionDetail, 'Разрешить редактировать строки акции после даты предложения', BOOLEAN);
 @addRoleApplicationSetting(allowEditApprovedPromotionDetail, 'Разрешить редактировать строки акции после даты утверждения', BOOLEAN);
 
-showApproved (PromotionDetail detail) = currentDate() >= proposeDate(promotion(detail));
+showApproved (PromotionDetail detail) = currentDate() >= proposeDate(promotion(detail)) AND NOT notUseApprovedPromotion();
 showExcluded (PromotionDetail detail) = currentDate() >= approveDate(promotion(detail));
 
 CONSTRAINT DROPPED(PromotionDetail detail IS PromotionDetail) AND 
@@ -536,13 +551,11 @@ EXTEND FORM promotion
 retailPriceListType = DATA LedgerPriceListType ();
 nameRetailPriceListType 'Вид стандартной цены для акции' () = name(retailPriceListType());
 EXTEND FORM options PROPERTIES nameRetailPriceListType();
+
 DESIGN options { 
-    price {
-        NEW promotionPrice {
-            caption = 'Акции';
-            MOVE PROPERTY(nameRetailPriceListType());        
-        }
-    } 
+    promotionPrice {
+        MOVE PROPERTY(nameRetailPriceListType());        
+    }
 }
 
 WHEN LOCAL (CHANGED(sku(PromotionDetail detail)) OR CHANGED(fromDate(detail))) DO {
@@ -619,7 +632,7 @@ FORM promotionsStock 'Акции (магазин)'
     ORDER nameSku(d)
     FILTERS promotion(d) == p,
             accessManager(currentUser(), sku(d)) OR NOT sku(d),
-            approved(d)
+            IF notUseApprovedPromotion() THEN d IS PromotionDetail ELSE approved(d) 
     PROPERTIES nameSupplier(s,d) AFTER nameOverExtraPromotionType(d), createOrder(s,d)
 ;
 
