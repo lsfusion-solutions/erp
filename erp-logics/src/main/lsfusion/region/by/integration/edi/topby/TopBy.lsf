@@ -465,6 +465,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
 }
 
 @openXML(EInvoiceMessage,m,eInvoices);
+@openXML(ECreditNoteMessage,m,eCreditNotes);
 
 //todo: вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
 //возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
@@ -537,6 +538,70 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             }
                             logToFile('edi', provider + ' Import EInvoiceMessage ' + id(i) + ' succeeded');
                             invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
+                        }
+                    }
+                }
+            }
+            IF documentType() == 'BLRADF' THEN {
+                NEWSESSION NESTED LOCAL {
+                    IF NOT eCreditNoteMessage('m' + messageDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+                        number(m) <- 'm' + messageDocumentNumber();
+                    }
+                    FOR ECreditNoteMessage m == eCreditNoteMessage('m' + messageDocumentNumber()) DO {
+                        dateTime(m) <- messageDocumentDate();
+                        code(m) <- code();
+                        description(m) <- OVERRIDE description(), description(code());
+                        eCreditNote(m) <- eCreditNoteBlradf(documentNumber());
+                        XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            IF NOT disableConfirmation AND sendReplies THEN {
+                                LOCAL contentSubXML = FILE();
+                                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                                fileToString(contentSubXML());
+                                encodeBase64(resultString());
+                                LOCAL xml = XMLFILE();
+                                envelopeLogin() <- login;
+                                envelopePassword() <- password;
+                                envelopeDocumentDate() <- currentDateTime();
+                                envelopeDocumentNumber() <- id(i);
+                                envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                                envelopeContent() <- encodedBase64();
+                                EXPORT envelope XML TO xml;
+                                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                                sendRequestEDI(host, port, login, password, url, xml());
+                                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                                IF requestError() THEN {
+                                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                                }
+                            }
+                            logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' failed: ' + applyMessage());
+                            creditNoteMessagesFailed() <- creditNoteMessagesFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                LOCAL xml = XMLFILE();
+                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                                sendRequestEDI(host, port, login, password, url, xml());
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                IF requestError() THEN {
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    IF archiveDir THEN {
+                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                    }
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                }
+                            }
+                            logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' succeeded');
+                            creditNoteMessagesSucceeded() <- creditNoteMessagesSucceeded() + 1;
                         }
                     }
                 }
@@ -643,8 +708,6 @@ FORM exportBlrapn FORMEXTID 'BLRAPN'
         blrapnReceiver() EXTID 'GLN' IN blrapnReceiver,
         code = '2650' EXTID 'Code' IN blrapnErrorOrAcknowledgement
 ;
-
-@openXML(ECreditNoteMessage,m,eCreditNotes);
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrapn' AND invoices THEN {
