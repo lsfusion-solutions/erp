@@ -36,7 +36,7 @@ filterCustomer = DATA LOCAL LegalEntity ();
 filterCustomer (ECreditNote c) = customer(c)= filterCustomer() OR (c IS ECreditNote AND NOT filterCustomer()) OR NOT customer(c);
 
 filterStock = DATA LOCAL Stock ();
-filterStock (ECreditNote c) = customerStock(c)= filterStock() OR (c IS EInvoice AND NOT filterStock()) OR NOT customerStock(c);
+filterStock (ECreditNote c) = customerStock(c)= filterStock() OR (c IS ECreditNote AND NOT filterStock()) OR NOT customerStock(c);
 
 FORM selectECreditNote 'Акты приемки EDI'
     PROPERTIES filterDate()
@@ -85,41 +85,6 @@ copyData(ECreditNote ec, CreditNote c)  {
         overCopy(ecd,cd); 
     }
 }
-
-//importFromECreditNote 'Импорт из акта приемки EDI' (UserCreditNote c)  { 
-//    IF isPosted(c) THEN {
-//        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
-//        RETURN;
-//    }
-//    
-//    filterDate() <- date(c);
-//    filterSupplier() <- supplier(c);
-//    filterCustomer() <- customer(c);    
-//    filterStock() <- customerStock(c);
-//    
-//    DIALOG selectECreditNote OBJECTS ec INPUT DO {
-//        IF ec THEN
-//            copyData(ec,c);
-//    }
-//}
-
-//EXTEND FORM userCreditNote 
-//    PROPERTIES READONLY numberECreditNote(c)
-//    PROPERTIES(c) importFromECreditNote
-//;
-//
-//DESIGN userCreditNote {
-//    import {
-//        NEW importEDI {
-//            caption = 'Накладная EDI';
-//            flex = 1;
-//            type = CONTAINERV;
-//            MOVE PROPERTY(numberEInvoice(i));
-//            MOVE PROPERTY(nameReceiver(i));
-//            MOVE PROPERTY(importFromEInvoice(i));
-//        }
-//    }
-//}
 
 numberECreditNote 'Номер электронного акта приемки'(CreditNote c) = actDifNumber(eCreditNote(c));
 isECreditNote 'Электронный акт приемки' (CreditNote c) = TRUE IF eCreditNote(c);
