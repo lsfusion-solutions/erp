@@ -265,11 +265,12 @@ public class MachineryExchangeEquipmentServer {
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard",
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard",
                         "idDiscountCardType", "nameDiscountCardType", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact",
-                        "sexContact"};
+                        "sexContact", "extInfo"};
                 LP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "seriesNumber[DiscountCard]", "name[DiscountCard]",
                         "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
                         "idDiscountCardType[DiscountCard]", "nameDiscountCardType[DiscountCard]", "firstNameContact[DiscountCard]", "lastNameContact[DiscountCard]",
-                        "middleNameHttpServerContact[DiscountCard]", "birthdayContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]");
+                        "middleNameHttpServerContact[DiscountCard]", "birthdayContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]",
+                        "extInfo[DiscountCard]");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -305,10 +306,11 @@ public class MachineryExchangeEquipmentServer {
                     String middleNameContact = (String) row.get("middleNameContact");
                     Date birthdayContact = (Date) row.get("birthdayContact");
                     Integer sexContact = (Integer) row.get("sexContact");
+                    String extInfo = (String) row.get("extInfo");
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
                             percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
                             idDiscountCardType, nameDiscountCardType, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
-                            sexContact, true));
+                            sexContact, true, extInfo));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);

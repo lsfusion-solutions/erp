@@ -502,6 +502,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         cardGroupObject.put("idcardgroup", d.idDiscountCardType); //идентификационный код группы карт
         cardGroupObject.put("name", d.nameDiscountCardType != null ? d.nameDiscountCardType : d.idDiscountCardType); //имя группы карт
         cardGroupObject.put("text", d.idDiscountCardType); //текст
+
+        if(d.extInfo != null) {
+            JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
+            if (infoJSON != null) {
+                cardGroupObject.put("cardmode", infoJSON.optInt("cardmode"));
+            }
+        }
+
         cardGroupObject.put("notaddemptycard", true);
         cardGroupObject.put("pattern", "[0-9]");
         cardGroupObject.put("inputmask", 7); //маска способа ввода карты

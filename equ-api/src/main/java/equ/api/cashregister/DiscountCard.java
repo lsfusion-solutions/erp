@@ -20,11 +20,12 @@ public class DiscountCard implements Serializable {
     public Date birthdayContact;
     public Integer sexContact;
     public boolean isCompleted;
+    public String extInfo;
     
     public DiscountCard(String idDiscountCard, String numberDiscountCard, String nameDiscountCard, BigDecimal percentDiscountCard,
                         BigDecimal initialSumDiscountCard, Date dateFromDiscountCard, Date dateToDiscountCard,
                         String idDiscountCardType, String nameDiscountCardType, String firstNameContact, String lastNameContact,
-                        String middleNameContact, Date birthdayContact, Integer sexContact, boolean isCompleted) {
+                        String middleNameContact, Date birthdayContact, Integer sexContact, boolean isCompleted, String extInfo) {
         this.idDiscountCard = idDiscountCard;
         this.numberDiscountCard = numberDiscountCard;
         this.nameDiscountCard = nameDiscountCard;
@@ -40,6 +41,7 @@ public class DiscountCard implements Serializable {
         this.birthdayContact = birthdayContact;
         this.sexContact = sexContact;
         this.isCompleted = isCompleted;
+        this.extInfo = extInfo;
     }
     
 }
