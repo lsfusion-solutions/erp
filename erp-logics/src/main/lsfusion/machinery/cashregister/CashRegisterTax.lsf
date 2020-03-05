@@ -1,0 +1,63 @@
+MODULE CashRegisterTax;
+
+REQUIRE CashRegister, Tax;
+
+NAMESPACE CashRegister;
+
+
+CLASS TaxVATType 'Тип НДС по секциям';
+TABLE taxVATType (TaxVATType);
+
+name 'Тип НДС по секциям' = DATA STRING[50](TaxVATType) CHARWIDTH 10;
+
+TABLE taxVATTypeRange (TaxVATType, Range);
+numberSection 'Номер секции' = DATA INTEGER(TaxVATType, Range);
+
+FORM taxVATType 'Тип НДС по секциям'
+    OBJECTS t = TaxVATType PANEL
+    PROPERTIES (t) name
+    
+    OBJECTS vat = Range
+    PROPERTIES READONLY valueCurrentRate(vat)
+    PROPERTIES numberSection(t, vat)
+    FILTERS tax(vat) == Tax.taxVAT,
+            country(vat) = defaultCountry()
+
+    EDIT TaxVATType OBJECT t;
+;
+ 
+FORM taxVATTypes 'Типы НДС по секциям'
+    OBJECTS t = TaxVATType
+    PROPERTIES (t) READONLY name
+    PROPERTIES (t) NEWSESSION NEW, EDIT, DELETE
+    
+    OBJECTS vat = Range
+    PROPERTIES READONLY valueCurrentRate(vat)
+    PROPERTIES READONLY numberSection(t, vat)
+    FILTERS tax(vat) == Tax.taxVAT,
+            country(vat) = defaultCountry(), 
+            numberSection(t, vat)
+
+    LIST TaxVATType OBJECT t;
+;
+
+taxVATType = DATA TaxVATType(GroupCashRegister);
+nameTaxVATType 'Тип НДС по секциям' (GroupCashRegister c) = name(taxVATType(c));
+
+EXTEND FORM groupCashRegister
+    PROPERTIES(grc) nameTaxVATType
+;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY(nameTaxVATType(grc));
+    }
+}
+
+EXTEND FORM groupsCashRegister
+    PROPERTIES(grc) READONLY nameTaxVATType BEFORE section(grc)
+;
+
+overCopy(GroupCashRegister old, GroupCashRegister new ) + {
+    taxVATType(new) <- taxVATType(old);
+} 
