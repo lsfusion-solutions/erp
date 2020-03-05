@@ -185,8 +185,8 @@ END
 @receiveMessages(S);
 
 receiveMessagesTopBy (BOOLEAN invoices) {
-    FOR loginTopBy(LegalEntity le) AND passwordTopBy(le) DO
-        receiveMessagesS(loginTopBy(le), passwordTopBy(le), hostTopBy(le), portTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO
+        receiveMessagesS(login, passwordTopBy(le), hostTopBy(le), portTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), receiveSupplierMessagesTopBy(), NULL, invoices, 'TopBy');
 }
 
 receiveTopBy 'Получить сообщения' {
@@ -350,7 +350,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         }
                     }
                 }
-                WHEN documentType() == 'BLRWBR' OR documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
+                WHEN documentType() == 'SYSTEMMESSAGE' THEN {
                     logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
                     IF NOT disableConfirmation THEN {
                         LOCAL xml = XMLFILE();
@@ -370,37 +370,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         }
                     }
                     orderMessagesFailed() <- orderMessagesFailed() + 1;
-                }
-                WHEN documentType() == 'BLRWBL' THEN {
-                    IF NOT receiveSupplierMessages THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType()) XML TO contentSubXML;
-                            fileToString(contentSubXML());
-                            encodeBase64(resultString());
-                            LOCAL xml = XMLFILE();
-                            envelopeLogin() <- login;
-                            envelopePassword() <- password;
-                            envelopeDocumentDate() <- currentDateTime();
-                            envelopeDocumentNumber() <- id(i);
-                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                            envelopeContent() <- encodedBase64();
-                            EXPORT envelope XML TO xml;
-                            //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                            sendRequestEDI(host, port, login, password, url, xml());
-                            logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                            IF requestError() THEN {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                            }
-                        }
-                        logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + documentType());
-                        orderMessagesFailed() <- orderMessagesFailed() + 1;
-                    }
                 }
                 ELSE {
                     IF NOT disableConfirmation AND sendReplies THEN {
@@ -427,9 +396,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         } ELSE {
                             logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
                         }
+                        orderMessagesFailed() <- orderMessagesFailed() + 1;
                     }
-                    logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' error: incorrect documentType ' + (OVERRIDE documentType(), 'NULL'));
-                    orderMessagesFailed() <- orderMessagesFailed() + 1;
+                    logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
                 }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
@@ -467,13 +436,14 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
 @openXML(EInvoiceMessage,m,eInvoices);
 @openXML(ECreditNoteMessage,m,eCreditNotes);
 
-//todo: вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
+//вообще логика сообщений, похоже, дублирует логику apn а в случе если они приходят от сервера edi у них еще и одинаковый номер
 //возможно для накладных можно отделить те которые приходят с сервера, или хотя бы не затирать данные по apn. пока дублируем добавлением в номер мимвола m
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' AND invoices THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
-            IF documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' THEN {
+            CASE
+            WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- 'm' + messageDocumentNumber();
@@ -542,7 +512,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     }
                 }
             }
-            IF documentType() == 'BLRADF' THEN {
+            WHEN documentType() == 'BLRADF' THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eCreditNoteMessage('m' + messageDocumentNumber()) THEN NEW m = ECreditNoteMessage {
                         number(m) <- 'm' + messageDocumentNumber();
@@ -606,7 +576,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     }
                 }
             }
-            IF documentType() == 'SYSTEMMESSAGE' THEN {
+            WHEN documentType() == 'BLRAPN' OR documentType() == 'SYSTEMMESSAGE' THEN {
                 logToFile('edi', provider + ' Parse Invoice Message ' + id(i) + ' skipped for documentType ' + documentType());
                 IF NOT disableConfirmation THEN {
                     LOCAL xml = XMLFILE();
@@ -626,6 +596,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     }
                 }
                 invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+            }
+            ELSE {
+                logToFile('edi', provider + ' Parse Order Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
