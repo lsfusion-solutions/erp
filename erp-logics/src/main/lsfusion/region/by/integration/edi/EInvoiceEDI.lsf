@@ -116,6 +116,15 @@ backgroundVAT 'Цвет' (ECreditNoteDetail d) = IF sku(lineItemBuyerID(d)) AND 
                                                    THEN RGB(255,0,0);
 background = ABSTRACT CASE COLOR (ECreditNote);
 
+CLASS ECreditNoteMessageType 'Тип сообщения по накладной EDI' {
+    systemmessage_blradf 'SYSTEMMESSAGE-BLRADF',
+    blrapn_blrapn 'BLRAPN-BLRAPN',
+    blrapn_blradf 'BLRAPN-BLRADF'
+}
+
+type 'Тип' = DATA ECreditNoteMessageType (ECreditNoteMessage);
+nameType 'Тип' (ECreditNoteMessage o) = staticCaption(type(o));
+
 FORM eCreditNotes 'Электронные акты приемки EDI'
     OBJECTS c = ECreditNote
     PROPERTIES(c) in
@@ -131,7 +140,7 @@ FORM eCreditNotes 'Электронные акты приемки EDI'
     FILTERS eCreditNote(d) == c
 
     OBJECTS m = ECreditNoteMessage
-    PROPERTIES(m) READONLY numberECreditNote, dateTime, code, description
+    PROPERTIES(m) READONLY numberECreditNote, dateTime, nameType, code, description
     FILTERS eCreditNote(m) == c
     ORDER dateTime(m);
 ;

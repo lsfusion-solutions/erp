@@ -435,6 +435,7 @@ contactSupplier 'Отпуск разрешил (должность и ФИО)' =
 
 supplierStock 'Пункт погрузки' = DATA Stock (EInvoice);
 glnSupplierStock 'GLN пункта погрузки' (EInvoice i) = GLN(supplierStock(i));
+nameSupplierStock 'Пункт погрузки' (EInvoice i) = name(supplierStock(i));
 addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = address(supplierStock(i));
 contactSupplierStock 'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя' = DATA STRING[150] (EInvoice);
 
@@ -547,6 +548,9 @@ FORM dialogEInvoiceCustomer 'Выбор электронной накладно�
 ;
 @extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
 
+CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoiceDetail d) == i)
+    MESSAGE 'Запрещено создавать электронную накладную без строк';
+
 //-----------------------------------------Сообщение по накладной EDI-----------------------------------------//
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
 TABLE eInvoiceMessage(EInvoiceMessage);
@@ -583,7 +587,7 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(e) in
     PROPERTIES(e) READONLYIF isReadonly() isCancel
     PROPERTIES(e) READONLY dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                           nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
+                           nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
     PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
     
@@ -627,14 +631,18 @@ NAVIGATOR {
 
 FORM eInvoice 'Электронная накладная EDI'
     OBJECTS e = EInvoice PANEL 
-    PROPERTIES(e)  dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, 
-                nameFreightPayer, addressFreightPayer, unpFreightPayer,
-                nameSupplier, addressSupplier, unpSupplier, contactSupplier, contactSupplierStock, nameCustomer, addressCustomer, unpCustomer, nameCustomerStock,
-                dateTimeCreated, contractDate, contractId, sealIDReceiver, transportContact, waybillId, deliveryContact, transportID, trailerID, contactCustomerStock, currency 
+    PROPERTIES(e)  dateTime BACKGROUND background(e), number BACKGROUND background(e),
+                   deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
+                   contractId, contractDate, waybillId,
+                   nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
+                   nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock,
+                   nameFreightPayer, addressFreightPayer, unpFreightPayer,
+                   transportContact, deliveryContact, proxyID, proxyDate, partyIssuingProxyName, 
+                   quantityTrip, transportOwnerName, transportID, trailerID, sealIDReceiver, currency 
     
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemAmountWithoutCharges, 
-                    lineItemAmount, lineItemAmountCharges, grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, lineItemExtraFields
+                    lineItemAmount, lineItemAmountCharges, grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields
      FILTERS eInvoice(ed) == e
 ;
 

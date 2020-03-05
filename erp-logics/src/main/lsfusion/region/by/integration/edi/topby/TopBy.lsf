@@ -79,8 +79,8 @@ creditNoteMessagesSucceeded = DATA LOCAL NESTED INTEGER();
 creditNoteMessagesFailed = DATA LOCAL NESTED INTEGER();
 eInvoicesSucceeded = DATA LOCAL NESTED INTEGER();
 eInvoicesFailed = DATA LOCAL NESTED INTEGER();
-//eCreditNotesSucceeded = DATA LOCAL NESTED INTEGER();
-//eCreditNotesFailed = DATA LOCAL NESTED INTEGER();
+eCreditNotesSucceeded = DATA LOCAL NESTED INTEGER();
+eCreditNotesFailed = DATA LOCAL NESTED INTEGER();
 blrwbrCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 
@@ -156,8 +156,8 @@ META receiveMessages (namespace)
                         IF creditNoteMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по актам приемки: ' + creditNoteMessagesFailed();
                         IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
                         IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-                        //IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
-                        //IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
+                        IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
+                        IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
                         IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
                         IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
                         
@@ -522,6 +522,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
                         eCreditNote(m) <- eCreditNoteBlradf(documentNumber());
+                        type(m) <- ECreditNoteMessageType.systemmessage_blradf;
                         XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
@@ -687,7 +688,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
         TRY {
             IMPORT importBlrapn XML FROM data(i);
             IF blrapnDeliveryNoteId() AND belrapnCode() THEN {
-                IF lower(blrapnReferenceDocumentType()) == 'blrapn' OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN {
+                IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN {
                     NEWSESSION NESTED LOCAL {
                         IF NOT eInvoiceMessage(blrapnDocumentNumber()) THEN NEW m = EInvoiceMessage {
                             number(m) <- blrapnDocumentNumber();
@@ -759,7 +760,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         }
                     }
                 }
-                IF lower(blrapnReferenceDocumentType()) == 'blradf' THEN {
+                IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eCreditNoteActDifNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blradf' THEN {
                     NEWSESSION NESTED LOCAL {
                         IF NOT eCreditNoteMessage(blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
                             number(m) <- blrapnDocumentNumber();
@@ -769,6 +770,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             code(m) <- belrapnCode();
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
                             eCreditNote(m) <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
+                            type(m) <- CASE
+                                WHEN lower(blrapnReferenceDocumentType()) == 'blrapn' THEN ECreditNoteMessageType.blrapn_blrapn
+                                WHEN lower(blrapnReferenceDocumentType()) == 'blradf' THEN ECreditNoteMessageType.blrapn_blradf;
                             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
