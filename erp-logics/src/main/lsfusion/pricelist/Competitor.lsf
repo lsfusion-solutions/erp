@@ -50,6 +50,10 @@ competitors 'Конкуренты' (PriceList p) = GROUP CONCAT name(Competitor 
 createdUser = DATA User(PriceList);
 nameCreatedUser 'Создан пользователем' (PriceList p) = name(createdUser(p));
 
+@defineDocumentHeaderNumber(PriceList);
+
+@defineNumeratedDefault(PriceList, 'Прайсы конкурентов', 'ПК');
+
 CLASS PriceListDetail 'Строка прайса';
 TABLE priceListDetail (PriceListDetail);
 
@@ -128,7 +132,7 @@ WHEN LOCAL CHANGED (type(PriceList p)) DO {
 
 FORM priceList 'Прайс конкурентов'
     OBJECTS p = PriceList PANEL
-    PROPERTIES(p) date, nameType, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
+    PROPERTIES(p) number, series, date, nameType, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
     ORDER date(p)
 
     OBJECTS c = Competitor
@@ -153,10 +157,15 @@ FORM priceList 'Прайс конкурентов'
 DESIGN priceList {
     OBJECTS {
         NEW header FIRST {
-            caption = 'Параметры';
-            type = CONTAINERH;
-            MOVE PROPERTY (date(p));
-            MOVE PROPERTY (nameType(p));
+            type = CONTAINERV;
+            NEW number {
+                caption = 'Основные параметры';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(p)){flex = 0;};
+                MOVE PROPERTY (series(p));
+                MOVE PROPERTY (date(p));
+                MOVE PROPERTY (nameType(p));    
+            } 
             MOVE PROPERTY (note(p)) { charWidth = 50; }
         }
         NEW created AFTER header {
@@ -176,7 +185,7 @@ DESIGN priceList {
 
 FORM priceLists 'Прайсы конкурентов'
     OBJECTS p = PriceList
-    PROPERTIES(p) READONLY date, competitors, nameType, note, dateTimeCreated, nameCreatedUser
+    PROPERTIES(p) READONLY number, series, date, competitors, nameType, note, dateTimeCreated, nameCreatedUser
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
     ORDER date(p)
 
