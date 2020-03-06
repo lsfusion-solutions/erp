@@ -737,7 +737,9 @@ dateFromST () = toDateDDMMYY(dateFromS());
 fieldDateSupplierPriceList 'Поле даты для синхронизации' = DATA STRING[10] ();
 overfieldDateSupplierPriceList () = OVERRIDE fieldDateSupplierPriceList(), 'ENDSAT';
 
-EXTEND FORM integrationData PROPERTIES () daysSupplier, fieldDateSupplierPriceList;
+numberSupplierPrice 'Номер ПСЦ поставщика' = DATA STRING[20] ();
+
+EXTEND FORM integrationData PROPERTIES () daysSupplier, fieldDateSupplierPriceList, numberSupplierPrice;
 
 contractTypeInSuperMag = DATA INTEGER (UserPriceList);
 delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
@@ -760,12 +762,19 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL isCalendarDelay = ISTRING[1] (INTEGER);
     LOCAL contractType = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);    
+    LOCAL filterSql = TEXT ();
     
     logToFile('importSupermag', 'importPriceListSupplier_1');
     
     LOCAL file = FILE ();
+            
+    //фильтр на отбор ПСЦ
+    filterSql() <- 'cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberSupplierPrice()) > 0 THEN
+       filterSql() <- 'cc.id = \'' + numberSupplierPrice() + '\''; 
+               
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')' TO file;
+    EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
     
     logToFile('importSupermag', 'importPriceListSupplier_2');
     
@@ -821,7 +830,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL idDoc = ISTRING[50] (INTEGER);    
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')' TO file;
+        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
 
     logToFile('importSupermag', 'importPriceListSupplier_5');   
 
@@ -844,7 +853,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')' TO file;
+        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND ' + filterSql() TO file;
 
     logToFile('importSupermag', 'importPriceListSupplier_8');
 
@@ -880,7 +889,7 @@ DESIGN integrationData { supermagButtons {
     MOVE PROPERTY (importSupplierPrice());     
     MOVE PROPERTY (daysSupplier()) { caption = 'Кол-во дней синхронизации'; alignment = CENTER; }
     MOVE PROPERTY (fieldDateSupplierPriceList()) { caption = 'Поле даты для синхронизации'; alignment = CENTER; }
-    
+    MOVE PROPERTY (numberSupplierPrice()) { caption = 'Номер ПСЦ для импорта'; alignment = CENTER; }       
 } }
 
 daysRetail 'Кол-во дней для импорта розничных прайсов и актов переоценки' = DATA INTEGER ();
@@ -1456,6 +1465,7 @@ DESIGN integrationData {
 }
 
 dateFromOrder 'Дата с' = DATA DATE ();
+numberOrder 'Номер заказа' = DATA STRING[20] ();
 
 importOrder 'Импорт заказов' () {
     
@@ -1469,17 +1479,19 @@ importOrder 'Импорт заказов' () {
     LOCAL supplyTimeMin = INTEGER (INTEGER);
     LOCAL supplyTimeTillMin = INTEGER (INTEGER);
     LOCAL idSeparation = STRING[100] (INTEGER);
-    LOCAL sql = TEXT ();
+    LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();
     
-//    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes, cb.BASEID as Separation from Supermag.SMDocuments D, Supermag.SMDocOR DD, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (0, 2, 3) and cb.ID(+) = D.ID AND cb.BASEDOCTYPE(+) = \'CO\' AND d.location IN (' 
-//    + stocks() + ') and dd.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')';
-    sql() <- 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID and d.docstate IN (0, 2, 3) and cb.ID(+) = D.ID AND d.location IN ('+ stocks() + ') and dd.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')';         
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC sql() TO file;   
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') and dd.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberOrder()) > 0 THEN 
+        filterSql() <- 'd.id = \'' + numberOrder() + '\''; 
+           
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXEC 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     logToFile('importSupermag', 'importOrder_1');
     
-    IMPORT TABLE FROM file() TO id, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin, idSeparation;
+    IMPORT TABLE FROM file() TO id, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
     
     logToFile('importSupermag', 'importOrder_2');
     
@@ -1516,8 +1528,7 @@ importOrder 'Импорт заказов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM Supermag.SMSpecOR dd, Supermag.SMDocOR o, Supermag.SMDocuments d WHERE dd.DOCID = o.id AND o.id = d.id AND d.docstate IN (1, 2) AND d.location IN ('
-            + stocks() + ') AND o.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')' TO file;
+            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, dd.SPECITEM, dd.ARTICLE, dd.QUANTITY, dd.ITEMPRICE, dd.TOTALPRICE FROM Supermag.SMSpecOR dd, Supermag.SMDocOR o, Supermag.SMDocuments d WHERE dd.DOCID = o.id AND o.id = d.id AND ' + filterSql() TO file;
     
     logToFile('importSupermag', 'importOrder_4');
     
@@ -1543,26 +1554,17 @@ importOrder 'Импорт заказов' () {
     logToFile('importSupermag', 'importOrder_6');
     APPLY;
     logToFile('importSupermag', 'importOrder_7');
-    
-//    // импорт документов оснований
-//    LOCAL baseId = ISTRING[50] (INTEGER);
-//    
-//    sql() <- 'Select d.ID, cb.BASEID from Supermag.SMDocuments d, Supermag.SMDocOR dd, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND d.docstate IN (0, 2, 3) AND cb.ID(+) = dd.ID AND dd.location IN ('+ stocks() + ') and dd.orderdate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\') AND cb.BASEDOCTYPE IN (\'CO\',\'OR\')';
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC sql() TO file;
-//    
-//    IMPORT TABLE FROM file() TO id, baseId;
-//    
        
-    
 }
 
-EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder();
+EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder(), numberOrder();
 DESIGN integrationData { 
     supermagButtons { 
-        NEW orders {
+        NEW importOrders {
             type = CONTAINERH;
             MOVE PROPERTY (importOrder());
             MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
+            MOVE PROPERTY (numberOrder()) { alignment = CENTER; }            
         } 
     } 
 }
