@@ -739,11 +739,15 @@ overfieldDateSupplierPriceList () = OVERRIDE fieldDateSupplierPriceList(), 'ENDS
 
 numberSupplierPrice 'Номер ПСЦ поставщика' = DATA STRING[20] ();
 
-EXTEND FORM integrationData PROPERTIES () daysSupplier, fieldDateSupplierPriceList, numberSupplierPrice;
+EXTEND FORM integrationData PROPERTIES () daysSupplier, numberSupplierPrice;
 
 contractTypeInSuperMag = DATA INTEGER (UserPriceList);
 delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
 isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
+stateInSuperMag = DATA INTEGER (PriceList);
+//EXTEND FORM priceLists
+//PROPERTIES (p) stateInSuperMag
+//;
 
 overImportSupplierPrice ABSTRACT LIST ();
 
@@ -809,8 +813,8 @@ importSupplierPrice 'Импорт ПСЦ' () {
         number(p) <- ISTRING[28] (id(p));
         date(p) <- date(i);
         time(p) <- 00:00;
-        isPosted(p) <- posted(i) == 3 OR posted(i) == 0;
-        isClosed(p) <- posted(i) == 0;
+        isPosted(p) <- posted(i) = 3 OR posted(i) = 0;
+        stateInSuperMag(p) <- posted(i); 
         fromTime(p) <- 00:00;
         toDate(p) <- end(i);
         company(p) <- legalEntity(TEXT (idContragent(i)));
@@ -821,9 +825,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
         isBankDaysInSuperMag(p) <- isBankDays(i);
         allStocks(p) <- NULL;
         imported(p) <- TRUE;        
-    }
-    
-    overImportSupplierPrice();
+    }   
      
      // указываем какие магазины входят в ПСЦ            
     LOCAL idStock = INTEGER (INTEGER);    
@@ -843,6 +845,8 @@ importSupplierPrice 'Импорт ПСЦ' () {
     }     
 
     logToFile('importSupermag', 'importPriceListSupplier_7');
+    
+    overImportSupplierPrice();
 
     //загружаем спецификаци    
     LOCAL type = ISTRING[2](INTEGER);
@@ -871,7 +875,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     logToFile('importSupermag', 'importPriceListSupplier_10');
 
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
-        sku(d) <- item(idItem(i));        
+        sku(d) <- item(idItem(i));  
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType(id(operation(userPriceList(d))));
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
@@ -888,7 +892,6 @@ EXTEND FORM integrationData PROPERTIES importSupplierPrice();
 DESIGN integrationData { supermagButtons { 
     MOVE PROPERTY (importSupplierPrice());     
     MOVE PROPERTY (daysSupplier()) { caption = 'Кол-во дней синхронизации'; alignment = CENTER; }
-    MOVE PROPERTY (fieldDateSupplierPriceList()) { caption = 'Поле даты для синхронизации'; alignment = CENTER; }
     MOVE PROPERTY (numberSupplierPrice()) { caption = 'Номер ПСЦ для импорта'; alignment = CENTER; }       
 } }
 
@@ -1464,7 +1467,9 @@ DESIGN integrationData {
     }
 }
 
-dateFromOrder 'Дата с' = DATA DATE ();
+//dateFromOrder 'Дата с' = DATA DATE ();
+daysOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
+dateFromOrder () = sum(currentDate(), -daysOrder());
 numberOrder 'Номер заказа' = DATA STRING[20] ();
 
 importOrder 'Импорт заказов' () {
@@ -1557,13 +1562,13 @@ importOrder 'Импорт заказов' () {
        
 }
 
-EXTEND FORM integrationData PROPERTIES importOrder(), dateFromOrder(), numberOrder();
+EXTEND FORM integrationData PROPERTIES importOrder(), daysOrder(), numberOrder();
 DESIGN integrationData { 
     supermagButtons { 
         NEW importOrders {
             type = CONTAINERV;
             MOVE PROPERTY (importOrder());
-            MOVE PROPERTY (dateFromOrder()) { alignment = CENTER; }
+            MOVE PROPERTY (daysOrder()) { alignment = CENTER; }
             MOVE PROPERTY (numberOrder()) { alignment = CENTER; }            
         } 
     } 
