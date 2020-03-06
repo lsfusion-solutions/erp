@@ -366,7 +366,7 @@ public class FiscalVMK {
             double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
             double sum = item.sumPos - item.articleDiscSum + item.bonusPaid;
             Integer department = item.isCharge ? (chargeDepartment != null ? chargeDepartment : 1) :
-                    (item.isGiftCard ? (giftCardDepartment != null ? giftCardDepartment : 2) : 1); /*отдел*/
+                    (item.isGiftCard ? (giftCardDepartment != null ? giftCardDepartment : 2) : (item.numberSection != null ? item.numberSection : 1)); /*отдел*/
             logAction("vmk_sale", item.barcode, item.name, price, department, item.quantity, sum);
             return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
                     price, department, item.quantity, sum);

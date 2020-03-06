@@ -46,6 +46,7 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
             String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
 
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
+            ScriptingLogicsModule cashRegisterTaxLM = context.getBL().getModule("CashRegisterTax");
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
@@ -137,6 +138,9 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 if(posChargeLM != null) {
                     receiptDetailQuery.addProperty("isCharge", posChargeLM.findProperty("isCharge[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
+                if (cashRegisterTaxLM != null) {
+                    receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSection[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                }
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
@@ -164,15 +168,16 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                     double bonusPaidReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("bonusPaidReceiptDetail"), quantityReturn > 0);
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
+                    Integer numberSection = (Integer) receiptDetailValues.get("numberSection");
                     if (quantitySale > 0 && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantitySale, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
                     if (quantity > 0 && isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, numberSection));
                     if (quantityReturn > 0)
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, isCharge, price, quantityReturn, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail, numberSection));
                 }
 
                 if (context.checkApply()) {

@@ -62,7 +62,7 @@ public class FiscalVMKDisplayTextAction extends InternalAction {
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(context, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(isUnix, logPath, ip, comPort, baudRate,
-                        new ReceiptItem(false, false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
+                        new ReceiptItem(false, false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid, null)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalVMKDisplayText Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
