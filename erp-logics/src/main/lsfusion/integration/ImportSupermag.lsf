@@ -1,7 +1,7 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, PriceListOperation, PriceListBefore, PurchasePack, ItemStorage, RangeCheck, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, 
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, ItemFood, ItemDescription, PurchaseDemandItem, StockReserve, PurchaseOrder,
         PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, ItemPart, ItemSize, Repricing, StockContract, PriceListContract;
 
 PRIORITY Purchase;
@@ -1471,6 +1471,8 @@ DESIGN integrationData {
 daysOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
 dateFromOrder () = sum(currentDate(), -daysOrder());
 numberOrder 'Номер заказа' = DATA STRING[20] ();
+stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Order);
+EXTEND FORM orders PROPERTIES stateInSuperMag(o);
 
 importOrder 'Импорт заказов' () {
     
@@ -1507,7 +1509,9 @@ importOrder 'Импорт заказов' () {
     FOR UserOrder o == userOrder(id(INTEGER i)) DO {       
         number(o) <- STRING[28](id(i));
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
-        isPosted(o) <- docstate(i) == 3;
+        isPosted(o) <- docstate(i) == 3 OR docstate(i) == 0;
+        isClosed(o) <- docstate(i) == 0;
+        stateInSuperMag(o) <- docstate(i);
         supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
         supplierStock(o) <- stock(ISTRING[100] (idSupplier(i)));
         customerStock(o) <- stock(ISTRING[100] (idStock(i)));
