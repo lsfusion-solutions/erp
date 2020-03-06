@@ -473,7 +473,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
             nameValueFieldMap.put("G44REGNUM", trim(dd.numberDeclaration, 20));
             nameValueFieldMap.put("G44DS", dd.dateDeclaration);
-            nameValueFieldMap.put("G44PP", dd.numberDeclaration != null ? 2 : 1);
+            nameValueFieldMap.put("G44PP", dd.numberDeclaration != null ? "2" : "1");
 
             dbfwriter.addRecord(nameValueFieldMap.values().toArray()); //17
         }
