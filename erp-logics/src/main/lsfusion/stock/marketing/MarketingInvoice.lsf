@@ -382,10 +382,32 @@ createMarketingInvoiceQuarter 'Отметить договоры за кварт
     }
 }
 
-skip = ABSTRACT BOOLEAN(MarketingInvoice, MarketingInvoice);
+//skip = ABSTRACT BOOLEAN(MarketingInvoice, MarketingInvoice);
+//
+//CONSTRAINT dateFrom(MarketingInvoice i1) == dateFrom(MarketingInvoice i2) AND dateTo(i1) == dateTo(i2) AND contract(i1) == contract(i2) AND i1 != i2 AND NOT skip(i1, i2)
+//    MESSAGE 'Акт на оплату с такими датами уже существует';
+    
+countMarketingInvoices 'К-во актов'  = GROUP SUM 1 BY dateFrom(MarketingInvoice i), dateTo(i), contract(i);
+checkMarketingInvoices (MarketingInvoice i) = countMarketingInvoices(dateFrom(i), dateTo(i), contract(i))>1;
+skipcountMarketingInvoicesData = ABSTRACT BOOLEAN ();
+skipcountMarketingInvoices 'Не проверять количество актов на оплату по договору' = DATA BOOLEAN ();
+skipcountMarketingInvoicesOver () =  skipcountMarketingInvoicesData() OR  skipcountMarketingInvoices();
+EXTEND FORM options
+    PROPERTIES () skipcountMarketingInvoices
+;
+DESIGN options {
+    pane{
+        NEW marketing{
+            fill = 1;
+            caption = 'Маркетинг';
+            MOVE PROPERTY (skipcountMarketingInvoices());
+        }
+    }   
+}
 
-CONSTRAINT dateFrom(MarketingInvoice i1) == dateFrom(MarketingInvoice i2) AND dateTo(i1) == dateTo(i2) AND contract(i1) == contract(i2) AND i1 != i2 AND NOT skip(i1, i2)
+CONSTRAINT (CHANGED(dateFrom(MarketingInvoice i)) OR CHANGED(dateTo(i)) OR CHANGED(contract(i))) AND checkMarketingInvoices(i) AND NOT skipcountMarketingInvoicesOver()
     MESSAGE 'Акт на оплату с такими датами уже существует';
+
 
 FORM marketingInvoicesCreate 'Договоры маркетинга'   
 
