@@ -44,7 +44,7 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<String, Map<Long, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
+    public List<List<Object>> signAndSend(Map<String, Map<Long, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, String certNumber, int certIndex) {
         logger.info("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
@@ -58,10 +58,10 @@ public class EVATHandler {
             EVatService service = null;
 
             try {
-                service = initService(serviceUrl, unp, password, certIndex);
+                service = initService(serviceUrl, unp, password, certNumber, certIndex);
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
                     for (Map.Entry<Long, List<Object>> entry : filesEntry.getValue().entrySet()) {
-                        result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, 0));
+                        result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certNumber, certIndex, 0));
                     }
                 } else {
                     result.add(Arrays.asList(0, "Unable to create archive directory", true));
@@ -78,7 +78,7 @@ public class EVATHandler {
     }
 
     private List<Object> sendFile(List<Object> fileNumberEntry, Long evat, EVatService service, File archiveDir, String xsdPath,
-                                  String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
+                                  String serviceUrl, String unp, String password, String certNumber, Integer certIndex, Integer errorsCount)
             throws Exception {
         List<Object> result;
         RawFileData file = (RawFileData) fileNumberEntry.get(0);
@@ -146,8 +146,8 @@ public class EVATHandler {
             logger.info(String.format("EVAT %s: Error occurred (errors count %s)", number, errorsCount + 1));
             if (errorsCount < 5) {
                 errorsCount++;
-                service = initService(serviceUrl, unp, password, certIndex);
-                return sendFile(fileNumberEntry, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
+                service = initService(serviceUrl, unp, password, certNumber, certIndex);
+                return sendFile(fileNumberEntry, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certNumber, certIndex, errorsCount);
 
             } else {
                 logger.error("Send file error", e);
@@ -157,7 +157,7 @@ public class EVATHandler {
         return result;
     }
 
-    public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl, String password, int certIndex) {
+    public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl, String password, String certNumber, int certIndex) {
         logger.info("EVAT: client action getStatus");
         List<List<Object>> result = new ArrayList<>();
 
@@ -172,7 +172,7 @@ public class EVATHandler {
                 String unp = entry.getKey();
                 Map<Long, String> invoicesMap = entry.getValue();
 
-                service = initService(serviceUrl, unp, password, certIndex);
+                service = initService(serviceUrl, unp, password, certNumber, certIndex);
 
                 for (Map.Entry<Long, String> invoiceEntry : invoicesMap.entrySet()) {
                     Long evat = invoiceEntry.getKey();
@@ -196,7 +196,7 @@ public class EVATHandler {
         return result;
     }
 
-    private EVatService initService(String serviceUrl, String unp, String password, int certIndex) throws Exception {
+    private EVatService initService(String serviceUrl, String unp, String password, String certNumber, int certIndex) throws Exception {
         logger.info("EVAT: initService started");
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
@@ -204,7 +204,7 @@ public class EVATHandler {
         Security.addProvider(new AvCertStoreProvider());
 
         // Создание экземпляра класса доступа к порталу
-        EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector(certIndex));
+        EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector(certNumber, certIndex));
         service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();
         logger.info("EVAT: initService finished");

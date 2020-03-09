@@ -22,18 +22,20 @@ public class EVATClientAction implements ClientAction {
     public String path; //"c:/Program Files/Avest/AvJCEProv";
     public String exportPath; //"c:/Program Files/Avest/AvJCEProv/archive";
     public String password; //"191217635";
+    public String certNumber;
     public int certIndex;
     public boolean useActiveX;
     public int type;
 
     public EVATClientAction(Map<String, Map<Long, List<Object>>> files, Map<String, Map<Long, String>> invoices, String serviceUrl,
-                            String path, String exportPath, String password, int certIndex, boolean useActiveX, int type) {
+                            String path, String exportPath, String password, String certNumber, int certIndex, boolean useActiveX, int type) {
         this.files = files;
         this.invoices = invoices;
         this.serviceUrl = serviceUrl;
         this.path = path;
         this.exportPath = exportPath;
         this.password = password;
+        this.certNumber = certNumber;
         this.certIndex = certIndex;
         this.useActiveX = useActiveX;
         this.type = type;
@@ -63,7 +65,7 @@ public class EVATClientAction implements ClientAction {
         }
 
         try {
-            return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certIndex, useActiveX, type).execute();
+            return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certNumber, certIndex, useActiveX, type).execute();
         } catch (InterruptedException e) {
             e.printStackTrace();
             return e.getMessage();

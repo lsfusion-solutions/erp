@@ -41,6 +41,7 @@ public class EVATAction extends GenerateXMLEVATAction {
                 String pathEVAT = (String) findProperty("pathEVAT[]").read(context);
                 String exportPathEVAT = (String) findProperty("exportPathEVAT[]").read(context);
                 String passwordEVAT = (String) findProperty("passwordEVAT[]").read(context);
+                String certNumber = (String) findProperty("certNumberEVAT[]").read(context);
                 Integer certIndex = (Integer) findProperty("certIndexEVAT[]").read(context);
                 if(certIndex == null)
                     certIndex = 0;
@@ -50,11 +51,11 @@ public class EVATAction extends GenerateXMLEVATAction {
                         switch (type) {
                             case 0:
                                 ERPLoggers.importLogger.info("EVAT: sendAndSign called");
-                                sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
+                                sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certNumber, certIndex, useActiveX, type, context);
                                 break;
                             case 1:
                                 ERPLoggers.importLogger.info("EVAT: getStatus called");
-                                getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
+                                getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certNumber, certIndex, useActiveX, type, context);
                                 break;
                         }
                     } else {
@@ -69,11 +70,11 @@ public class EVATAction extends GenerateXMLEVATAction {
         }
     }
 
-    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, String certNumber, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ERPLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Long, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
-            Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certNumber, certIndex, useActiveX, type));
             String error = "";
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
@@ -106,11 +107,11 @@ public class EVATAction extends GenerateXMLEVATAction {
         }
     }
 
-    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, String certNumber, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Long, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
             ERPLoggers.importLogger.info("EVAT : start checking status " + invoices.keySet());
-            Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certNumber, certIndex, useActiveX, type));
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
                 String resultMessage = "";

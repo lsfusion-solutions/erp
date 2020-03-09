@@ -9,23 +9,24 @@ import by.avest.edoc.client.PersonalKeyManager;
 import java.io.BufferedReader;
 import java.io.Console;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 
 public class CustomKeyInteractiveSelector extends PersonalKeyManager {
+    String certNumber;
     int certIndex;
 
     public CustomKeyInteractiveSelector(KeyStore ks) {
         super(ks);
     }
 
-    public CustomKeyInteractiveSelector(int certIndex) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+    public CustomKeyInteractiveSelector(String certNumber, int certIndex) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         super(getDefaultKS());
+        this.certNumber = certNumber;
         this.certIndex = certIndex;
     }
 
@@ -55,7 +56,11 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         }
 
         return aliases[this.promptAliasIndex(aliases)];*/
-        return aliases[Math.min(certIndex, aliases.length - 1)];
+
+        if(certNumber != null && Arrays.asList(aliases).contains(certNumber))
+            return certNumber;
+        else
+            return aliases[Math.min(certIndex, aliases.length - 1)];
     }
 
     /*private int promptAliasIndex(String[] aliases) throws IOException {

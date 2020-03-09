@@ -13,19 +13,21 @@ class EVATWorker {
    private String path;
    private String exportPath;
    private String password;
+   private String certNumber;
    private int certIndex;
    private boolean useActiveX;
    private int type;
 
    EVATWorker(final Map<String, Map<Long, List<Object>>> files, Map<String, Map<Long, String>> invoices,
               final String serviceUrl, final String path, final String exportPath, final String password,
-              final int certIndex, final boolean useActiveX, final int type) {
+              final String certNumber, final int certIndex, final boolean useActiveX, final int type) {
       this.files = files;
       this.invoices = invoices;
       this.serviceUrl = serviceUrl;
       this.path = path;
       this.exportPath = exportPath;
       this.password = password;
+      this.certNumber = certNumber;
       this.certIndex = certIndex;
       this.useActiveX = useActiveX;
       this.type = type;
@@ -43,12 +45,12 @@ class EVATWorker {
                   if(useActiveX)
                      return new EVATActiveXHandler().signAndSend(files, serviceUrl, path, exportPath);
                   else
-                     return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certIndex);
+                     return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certNumber, certIndex);
                case 1:
                   if(useActiveX)
                      return new EVATActiveXHandler().getStatus(invoices, serviceUrl);
                   else
-                     return new EVATHandler().getStatus(invoices, serviceUrl, password, certIndex);
+                     return new EVATHandler().getStatus(invoices, serviceUrl, password, certNumber, certIndex);
                default:
                   return null;
             }
