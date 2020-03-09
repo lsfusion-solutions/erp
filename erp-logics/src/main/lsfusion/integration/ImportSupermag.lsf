@@ -819,7 +819,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
         toDate(p) <- end(i);
         company(p) <- legalEntity(TEXT (idContragent(i)));
         note(p) <- title(i);
-        contractSku(p) <- userContractSku(legalEntity(TEXT (idContragent(i))), defaultCompany());
+        contractSku(p) <- userContractSku(company(p), defaultCompany());
         fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
         delayPaymentInSuperMag(p) <- paymentDelay(i);
         isBankDaysInSuperMag(p) <- isBankDays(i);
@@ -1537,7 +1537,7 @@ importOrder 'Импорт заказов' () {
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT dd.DOCTYPE, dd.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     logToFile('importSupermag', 'importOrder_4');
     
