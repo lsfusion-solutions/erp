@@ -106,8 +106,8 @@ FORM exportBlradf FORMEXTID 'BLRADF'
     
     OBJECTS ecn = ECreditNote EXTID 'ActDif'
     FILTERS ecn == ec
-    PROPERTIES DRAW ecn documentID = (OVERRIDE blradf(ec), STRING[14](resultMilliseconds())) EXTID 'DocumentID',
-                        creationDateTime = toChar((OVERRIDE blradfDate(ec), blradfDateTime()),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+    PROPERTIES DRAW ecn documentID = (IF blradfMsgSenderID() == glnCustomer(ecn) THEN STRING[14](resultMilliseconds()) ELSE (OVERRIDE blradf(ec), STRING[14](resultMilliseconds()))) EXTID 'DocumentID',
+                        creationDateTime = toChar((IF blradfMsgSenderID() == glnCustomer(ecn) THEN blradfDateTime() ELSE (OVERRIDE blradfDate(ec), blradfDateTime())),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
                         functionCode = (IF isCancel(ecn) THEN '1' ELSE '9') EXTID 'FunctionCode',
                         actDifNumber(ecn) EXTID 'ActDifID',
                         actDifDate = toChar(actDifDateTime(ecn),'YYYYMMDD') EXTID 'ActDifDate',
