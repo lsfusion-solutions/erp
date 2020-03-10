@@ -163,6 +163,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
 
                 if(!transaction.itemsList.isEmpty()) {
+
+                    checkItems(params, transaction);
+
                     processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
                     exportGrp(conn, params, transaction);
 
@@ -219,6 +222,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
         }
         return exception;
+    }
+
+    private void checkItems(AstronConnectionString params, TransactionCashRegisterInfo transaction) {
+        StringBuilder invalidItems = new StringBuilder();
+        if (params.pgsql) {
+            for (int i = 0; i < transaction.itemsList.size(); i++) {
+
+                CashRegisterItemInfo item = transaction.itemsList.get(i);
+                String grpId = parseGroup(item.extIdItemGroup);
+                if (grpId == null || grpId.isEmpty()) {
+                    invalidItems.append(invalidItems.length() == 0 ? "" : ", ").append(item.idItem);
+                }
+            }
+        }
+        if (invalidItems.length() > 0)
+            throw new RuntimeException("No GRPID for item " + invalidItems.toString());
     }
 
     private void exportGrp(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction) throws SQLException {
