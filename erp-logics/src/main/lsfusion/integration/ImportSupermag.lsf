@@ -602,6 +602,8 @@ DESIGN integrationData {
     } 
 }
 
+idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
+
 importDepartmentStore 'Импорт отделов магазинов и складов' () {
     
     LOCAL id = INTEGER (INTEGER);
@@ -613,16 +615,16 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
     LOCAL idStore = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
         EXEC 'SELECT ID, NAME, IDCLASS, ADDRESS, FORMATID, l.CLIENTID AS COMPANYID, PARENTLOC FROM Supermag.SVGRANTEDLOCS g, Supermag.SMOWNCLIENTLOCS l WHERE g.ID = l.LOCID' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idStore;
     
-    FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) DO NEW s = DepartmentStore {
+    FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND NOT idClass(i) = idGroupWarehouseInSuperMag() DO NEW s = DepartmentStore {
         id(s) <- ISTRING[100] (id(i));
     }
     
-    FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) DO {        
+    FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) AND NOT idClass(i) = idGroupWarehouseInSuperMag() DO {        
         name(s) <- ISTRING[150](name(i));
         store(s) <- store(TEXT (idClass(i)));
     }
@@ -632,13 +634,16 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
         storeType(st) <- storeType('T' + idFormat(i));
         legalEntity(st) <- legalEntity(TEXT (idCompany(i)));
     }
+    
     // это склады распределительного центра
-    FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND idClass(i) = 11 DO NEW s = Warehouse {
+    FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO NEW s = Warehouse {
         id(s) <- ISTRING[100] (id(i));
     }
     
-    FOR Warehouse s = stock(TEXT (id(INTEGER i))) AND idClass(i) = 11 DO {        
+    FOR Warehouse s = stock(TEXT (id(INTEGER i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO {        
         name(s) <- ISTRING[150](name(i));
+        fullName(s) <- ISTRING[150](name(i));
+        stockGroup(s) <- warehouseGroup(TEXT (idGroupWarehouseInSuperMag()));
         address(s) <- ISTRING[150](address(i));
         legalEntity(s) <- legalEntity(TEXT (idCompany(i)));
     }
@@ -646,8 +651,14 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importDepartmentStore();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importDepartmentStore()); }}
+EXTEND FORM integrationData PROPERTIES importDepartmentStore(), idGroupWarehouseInSuperMag();
+DESIGN integrationData { supermagButtons {
+    NEW importStore {
+        type = CONTAINERH;
+        MOVE PROPERTY (importDepartmentStore());
+        MOVE PROPERTY (idGroupWarehouseInSuperMag());
+    } 
+}}
 
 //---------------------------------------------------------------Договоры
 
@@ -1507,12 +1518,12 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();
     
-    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') and dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') AND dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + numberOrder() + '\''; 
            
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-    EXEC 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
+    EXEC 'Select d.ID, d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO file;   
    
     IMPORT TABLE FROM file() TO id, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
     
@@ -1549,7 +1560,7 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
     
@@ -1605,7 +1616,7 @@ importStockOrder 'Импорт заказов (складских требова
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
                    
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location from Supermag.SMDocuments d, Supermag.SMStoreOrders dd where DD.DocType(+)= D.DocType and D.DocType = \'SO\' and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
+    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;   
     
@@ -1640,7 +1651,7 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -1662,12 +1673,12 @@ importStockOrder 'Импорт заказов (складских требова
     
     APPLY;
     
-    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ ImportSupermag.stocks() + ') and dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ ImportSupermag.stocks() + ') AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
                    
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd where DD.DocType(+)= D.DocType and D.DocType = \'SO\' and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
+    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd where DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;   
     
@@ -1695,7 +1706,7 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -1729,89 +1740,78 @@ DESIGN integrationData {
 
 importSaleOrder 'Импорт заказов (продажа)' () {
     
-//    LOCAL id = ISTRING[50] (INTEGER);
-//    LOCAL docstate = INTEGER (INTEGER);
-//    LOCAL idCustomer = INTEGER (INTEGER);
-//    LOCAL idSupplierStock = INTEGER (INTEGER);
-//    LOCAL comment = ISTRING[255] (INTEGER);
-//    LOCAL date = DATE (INTEGER);
-//    LOCAL deliveryDate = DATE (INTEGER);
-//    LOCAL deliveryTime = INTEGER (INTEGER);
-//    LOCAL filterSql = TEXT ();
-//    LOCAL file = FILE ();
-//   
-//    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') and dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
-//    IF length(numberOrder()) > 0 THEN 
-//        filterSql() <- 'd.id = \'' + numberOrder() + '\''; 
-//           
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-//    EXEC 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments D, Supermag.SMDocOR DD where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
-//    
-//    IMPORT TABLE FROM file() TO id, docstate, idCustomer, idSupplierStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
-//    
-//    filterSql() <- 'd.docstate IN (0, 2, 3) AND dd.location IN ('+ ImportSupermag.stocks() + ') and dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
-//    IF length(ImportSupermag.numberOrder()) > 0 THEN 
-//        filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
-//           
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-//    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
-//    
-//    IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;
-//    
-//    FOR [GROUP SUM 1 BY id(INTEGER i)](STRING[50] id) AND NOT Sale.userOrder(id) DO NEW o = Sale.UserOrder {
-//        id(o) <- id;
-//    }
-//    
-//    FOR Sale.UserOrder o == Sale.userOrder(id(INTEGER i)) DO {       
-//        number(o) <- STRING[28](id(i));
-//        operation(o) <- Sale.operation('saleStoreStore');
-//        isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
-//        isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
-//        stateInSuperMag(o) <- docstate(i);
-//        supplier(o) <- legalEntity(stock(ISTRING[100] (idSupplierStock(i))));
-//        supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
-//        customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStock(i))));
-//        customerStock(o) <- stock(ISTRING[100] (idCustomerStock(i)));
-//        date(o) <- date(i);  
-//        time(o) <- 00:00;
-//        shipmentDate(o) <- deliveryDate(i);
-//        shipmentTime(o) <- sumMinutes(00:00, deliveryTime(i));
-////        contractSku(o) <- userContractSku(supplier(o),defaultCompany());
-//    }  
-//    
-//    //импорт спецификаций
-//    LOCAL type = ISTRING[2](INTEGER);
-//    LOCAL idDoc = ISTRING[50](INTEGER);
-//    LOCAL specItem = INTEGER (INTEGER);
-//    LOCAL price = NUMERIC[19,4](INTEGER);
-//    LOCAL totalPrice = NUMERIC[19,4](INTEGER);
-//    LOCAL quantity = NUMERIC[14,3](INTEGER);
-//    LOCAL idItem = ISTRING[50](INTEGER);
-//    LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
-//
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-//            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
-//    
-//    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
-//    
-//    id(INTEGER i) <- CONCAT '', 'O', type(i), idDoc(i), specItem(i) WHERE imported(i); 
-//
-//    FOR Sale.userOrder(idDoc(INTEGER i)) AND NOT Sale.userOrderDetail(id(i)) DO NEW d = Sale.UserOrderDetail {
-//        id(d) <- id(i);
-//        userOrder(d) <- Sale.userOrder(idDoc(i));
-//    }
-//    
-//    FOR Sale.UserOrderDetail d = Sale.userOrderDetail(id(INTEGER i)) DO {
-//        sku(d) <- item(idItem(i));
-//        quantity(d) <- quantity(i);
-//        price(d) <- NUMERIC[16,4](price(i));
-//        sum(d) <- NUMERIC[16,4](totalPrice(i));
-//        dataIndex(d) <- specItem(i);
-//        imported(d) <- TRUE;
-//    }
-//    
-//    APPLY;
-//       
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL docstate = INTEGER (INTEGER);
+    LOCAL idCustomer = INTEGER (INTEGER);
+    LOCAL idSupplierStock = INTEGER (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL supplyDate = DATE (INTEGER);
+    LOCAL supplyTime = INTEGER (INTEGER);
+    LOCAL filterSql = TEXT ();
+    LOCAL file = FILE ();
+
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ ImportSupermag.stocks() + ') and dd.SupplyDate >= TO_DATE(\'' + toDateISO(ImportSupermag.dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(ImportSupermag.numberOrder()) > 0 THEN 
+        filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXEC 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
+
+    IMPORT TABLE FROM file() TO id, docstate, idCustomer, idSupplierStock, comment, date, supplyDate, supplyTime;
+
+    FOR [GROUP SUM 1 BY id(INTEGER i)](STRING[50] id) AND NOT Sale.userOrder(id) DO NEW o = Sale.UserOrder {
+        id(o) <- id;
+    }
+
+    FOR Sale.UserOrder o == Sale.userOrder(id(INTEGER i)) DO {       
+        number(o) <- STRING[28](id(i));
+        operation(o) <- Sale.operation('saleStoreCustomer');
+        isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
+        isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
+        stateInSuperMag(o) <- docstate(i);
+        supplier(o) <- legalEntity(stock(ISTRING[100] (idSupplierStock(i))));
+        supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
+        customer(o) <- legalEntity(stock(ISTRING[100] (idCustomer(i))));
+        customerStock(o) <- stock(ISTRING[100] (idCustomer(i)));
+        date(o) <- date(i);  
+        time(o) <- 00:00;
+        shipmentDate(o) <- supplyDate(i);
+        shipmentTime(o) <- sumMinutes(00:00, supplyTime(i));
+    }  
+
+    //импорт спецификаций
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL totalPrice = NUMERIC[19,4](INTEGER);
+    LOCAL quantity = NUMERIC[14,3](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
+
+    id(INTEGER i) <- CONCAT '', 'O', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+
+    FOR Sale.userOrder(idDoc(INTEGER i)) AND NOT Sale.userOrderDetail(id(i)) DO NEW d = Sale.UserOrderDetail {
+        id(d) <- id(i);
+        userOrder(d) <- Sale.userOrder(idDoc(i));
+    }
+
+    FOR Sale.UserOrderDetail d = Sale.userOrderDetail(id(INTEGER i)) DO {
+        sku(d) <- item(idItem(i));
+        quantity(d) <- quantity(i);
+        price(d) <- NUMERIC[16,4](price(i));
+        sum(d) <- NUMERIC[16,4](totalPrice(i));
+        dataIndex(d) <- specItem(i);
+        imported(d) <- TRUE;
+    }
+
+    APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importSaleOrder();
