@@ -1,0 +1,34 @@
+MODULE CashRegisterStore;
+
+REQUIRE CashRegister, Store;
+
+NAMESPACE CashRegister;
+
+countCashRegister 'Кол-во касс' (store) = GROUP SUM countCashRegister(DepartmentStore d) BY store(d);   
+countDataCashRegister 'Кол-во магазинов' = DATA INTEGER (Store);
+countChainStoresOver 'Кол-во касс' (Store store) = OVERRIDE countDataCashRegister(store), countCashRegister(store); 
+
+EXTEND FORM departmentStore
+    PROPERTIES(d) READONLY countCashRegister
+;
+
+DESIGN departmentStore{
+    headerExtraParams{
+        MOVE PROPERTY(countCashRegister(d));
+    }
+}
+    
+EXTEND FORM store
+    PROPERTIES(s) countChainStoresOver
+    PROPERTIES(d) READONLY countCashRegister BEFORE deleteD
+;
+    
+DESIGN store{
+    headerExtraParams{
+        MOVE PROPERTY(countChainStoresOver(s));
+    }    
+}  
+
+EXTEND FORM stores
+    PROPERTIES(s) READONLY countChainStoresOver
+;

@@ -394,7 +394,7 @@ public class SendSalesEquipmentServer {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
                 }
 
-                query.and(equipmentCashRegisterLM.findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
+                query.and(equipmentCashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
                 query.and(equipmentCashRegisterLM.findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
                 query.and(equipmentCashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);

@@ -1092,7 +1092,7 @@ openZReport 'Открыть Z-отчет' (CashRegister cashRegister)  {
         isPosted(z) <- TRUE;
         number(z) <- BPSTRING[255](z);
         cashRegister(z) <- cashRegister;
-        departmentStore(z) <- departmentStore(cashRegister); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
+        departmentStore(z) <- stock(cashRegister); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(cashRegister) <- z;
         apply();
     }
@@ -1106,7 +1106,7 @@ openCurrentZReport 'Открыть Z-отчет'()  {
         isPosted(z) <- TRUE;
         number(z) <- BPSTRING[255](z);
         cashRegister(z) <- currentCashRegister();
-        departmentStore(z) <- departmentStore(currentCashRegister()); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
+        departmentStore(z) <- stock(currentCashRegister()); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(CashRegister cashRegister) <- z WHERE cashRegister == currentCashRegister();
         fiscalCheckOpenZReport(z);
         apply();
@@ -1565,8 +1565,8 @@ CONSTRAINT onlyPossitiveQuantityReceipSaleDetail() AND ReceiptSaleDetail detail 
 fiscalZReport 'Закрыть Z-отчёт'  ABSTRACT LIST ( ) CONFIRM;
 fiscalZReport() + {  IF NOT sidModelCurrentCashRegister() THEN closeCurrentZReport(); }
 
-currentZReportDepartmentStore() = currentZReport() IF departmentStoreCurrentCashRegister();
-closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF departmentStoreCurrentCashRegister();
+currentZReportDepartmentStore() = currentZReport() IF stockCurrentCashRegister();
+closedCurrentZReportDepartmentStore() = closedCurrentZReport() IF stockCurrentCashRegister();
 
 fiscalElectronicJournal 'Печать контрольной ленты'  ABSTRACT LIST ( ) CONFIRM;
 fiscalElectronicJournalToFile 'Печать контрольной ленты в файл'  ABSTRACT LIST ( ) CONFIRM;
@@ -1614,7 +1614,7 @@ showifFiscalResetReceipt = ABSTRACT BOOLEAN ();
 
 EXTEND FORM operationCashRegister
     PROPERTIES READONLY curSumCurrentCashRegister() DRAW interval 
-    PROPERTIES() READONLY numberCurrentZReport SHOWIF departmentStoreCurrentCashRegister()
+    PROPERTIES() READONLY numberCurrentZReport SHOWIF stockCurrentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
     PROPERTIES() SHOWIF (currentZReportDepartmentStore() AND showifElectronicJournal()) fiscalElectronicJournal, fiscalElectronicJournalToFile
@@ -1650,7 +1650,7 @@ DESIGN operationCashRegister {
 
 // Update data
 fiscalUpdateData 'Загрузить информацию'  ABSTRACT LIST ( );
-fiscalUpdateDataShowIf = departmentStoreCurrentCashRegister() IF closedCurrentZReportDepartmentStore();
+fiscalUpdateDataShowIf = stockCurrentCashRegister() IF closedCurrentZReportDepartmentStore();
 
 EXTEND FORM operationCashRegister
     PROPERTIES() SHOWIF fiscalUpdateDataShowIf() fiscalUpdateData

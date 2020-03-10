@@ -1,6 +1,6 @@
 MODULE CashOperation;
 
-REQUIRE CashRegister, Numerator, Document, ZReport;
+REQUIRE CashRegisterStore, Numerator, Document, ZReport;
 
 // ----------------------------- Кассовые документы ---------------------------- //
 
@@ -136,7 +136,7 @@ numberCashRegister 'Касса внесения денег' (IncomeCashOperation
 zReport(incomeCashOperation) = DATA ZReport (IncomeCashOperation);
 numberZReport 'Z-отчёт' (IncomeCashOperation incomeCashOperation) = number(zReport(incomeCashOperation)) IN documentPrm;
 
-departmentStore = departmentStore(cashRegister(IncomeCashOperation incomeCashOperation));
+departmentStore = stock(cashRegister(IncomeCashOperation incomeCashOperation));
 nameDepartmentStore 'Отдел магазина' (IncomeCashOperation incomeCashOperation) = name(departmentStore(incomeCashOperation)) IN documentHeader
         CHARWIDTH 20;
 fullNameDepartmentStore 'Отдел магазина' (IncomeCashOperation incomeCashOperation) = fullName(departmentStore(incomeCashOperation)) IN documentHeader
@@ -210,7 +210,7 @@ numberCashRegister 'Касса изъятия денег' (OutcomeCashOperation 
 zReport(outcomeCashOperation) = DATA ZReport (OutcomeCashOperation);
 numberZReport 'Z-отчёт' (OutcomeCashOperation outcomeCashOperation) = number(zReport(outcomeCashOperation)) IN documentPrm;
 
-departmentStore = departmentStore(cashRegister(OutcomeCashOperation outcomeCashOperation));
+departmentStore = stock(cashRegister(OutcomeCashOperation outcomeCashOperation));
 nameDepartmentStore 'Отдел магазина' (OutcomeCashOperation outcomeCashOperation) = name(departmentStore(outcomeCashOperation)) IN documentHeader
         CHARWIDTH 20;
 fullNameDepartmentStore 'Отдел магазина' (OutcomeCashOperation outcomeCashOperation) = fullName(departmentStore(outcomeCashOperation)) IN documentHeader
@@ -283,7 +283,7 @@ FORM addIncomeCashOperation 'Внесение денег'
     PROPERTIES(c) READONLY npp
     PROPERTIES(c) sumCashForIncomeOperation, doNotFiscalisation
 
-    FILTERS departmentStore(c) == d
+    FILTERS stock(c) == d
     FILTERGROUP filtersCashRegister
         FILTER 'Только для текущей кассы' c==currentCashRegister() 'F9' DEFAULT;
 
@@ -347,7 +347,7 @@ overAddIncomeCashOperation ABSTRACT LIST (CashRegister,IncomeCashOperation);
 addIncomeCashOperationForm 'Внесение денег' ()  { 
 	NEWSESSION {
 	
-	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) NULL DO {
+	    DIALOG addIncomeCashOperation OBJECTS d = stock(currentCashRegister()) NULL DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
 	            NEW c = IncomeCashOperation {
@@ -399,7 +399,7 @@ addIncomeCashOperationForm 'Внесение денег' (DepartmentStore dep)  
 	    LOCAL departmentStore = DepartmentStore();
 	    IF dontUseCurrentCashRegister() THEN 
 	        departmentStore() <- dep;
-	    ELSE departmentStore() <- departmentStore(currentCashRegister());        
+	    ELSE departmentStore() <- stock(currentCashRegister());        
 	    DIALOG addIncomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForIncomeOperation(CashRegister cashRegister) DO {
@@ -442,7 +442,7 @@ FORM addOutcomeCashOperation 'Изъятие денег'
     PROPERTIES(c) READONLY npp
     PROPERTIES(c) sumCashForOutcomeOperation, doNotFiscalisation
 
-    FILTERS departmentStore(c) == d
+    FILTERS stock(c) == d
     FILTERGROUP filtersCashRegister
         FILTER 'Только для текущей кассы' c==currentCashRegister() 'F9' DEFAULT;
 
@@ -504,7 +504,7 @@ overAddOutcomeCashOperation ABSTRACT LIST (CashRegister,OutcomeCashOperation);
 
 addOutcomeCashOperationForm 'Изъятие денег' ()  { 
 	NEWSESSION {
-	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore(currentCashRegister()) NULL DO {
+	    DIALOG addOutcomeCashOperation OBJECTS d = stock(currentCashRegister()) NULL DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {
 	            cashRegister(c) <- cashRegister;
@@ -528,7 +528,7 @@ addOutcomeCashOperationForm 'Изъятие денег' (DepartmentStore dep)  {
 	    LOCAL departmentStore = DepartmentStore();
 	    IF dontUseCurrentCashRegister() THEN 
 	        departmentStore() <- dep;
-	    ELSE departmentStore() <- departmentStore(currentCashRegister());    	
+	    ELSE departmentStore() <- stock(currentCashRegister());    	
 	    DIALOG addOutcomeCashOperation OBJECTS d = departmentStore() NULL, dt INPUT, t INPUT DO {
 	        LOCAL fail = BOOLEAN();
 	        FOR sumCashForOutcomeOperation(CashRegister cashRegister) NEW c = OutcomeCashOperation DO {

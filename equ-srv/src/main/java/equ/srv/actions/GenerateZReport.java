@@ -96,7 +96,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                     cashRegisterQuery.addProperty("nppMachinery", findProperty("npp[Machinery]").getExpr(cashRegisterExpr));
                     cashRegisterQuery.addProperty("nppGroupMachinery", findProperty("nppGroupMachinery[Machinery]").getExpr(cashRegisterExpr));
                     cashRegisterQuery.and(findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
-                    cashRegisterQuery.and(findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(departmentStoreObject.getExpr(), Compare.EQUALS));
+                    cashRegisterQuery.and(findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(departmentStoreObject.getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(context);
 
