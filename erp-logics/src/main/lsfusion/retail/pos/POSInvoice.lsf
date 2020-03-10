@@ -1,6 +1,6 @@
 MODULE POSInvoice;
 
-REQUIRE POS, SaleInvoiceContract, SaleReturnInvoiceContract, ContractPayment, SaleShipment, ZReportPayment, Warehouse;
+REQUIRE POS, SaleInvoiceContract, SaleReturnInvoiceContract, ContractPayment, SaleShipment, ZReportPayment, Warehouse, FiscalVMKInvoicePayment;
 
 NAMESPACE Sale;
 
@@ -8,10 +8,6 @@ passportPartyB 'Паспорт' = passportNumber(partyB(Contract contract));
 shortNameOwnershipPartyB 'Форма собственности (сокр.)' = shortNameOwnership(partyB(Contract contract));
 balanceACurrentDate 'Задолженность' = balanceA(Contract contract, currentDate());
 lastPayment 'Платеж' = GROUP LAST Payment.Payment payment ORDER payment WHERE isCosted(payment) BY contract(payment);
-
-fiscalType 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
-dataFiscalType 'Тип платежа' = DATA INTEGER (Payment.Payment);
-fiscalType(Payment.Payment p) += dataFiscalType(p); 
 
 defaultCurrencyPaymentInstallments = DATA Currency (); 
 nameDefaultCurrencyPaymentInstallmentsy 'Валюта рассрочки' = name(defaultCurrencyPaymentInstallments()) CHARWIDTH 30;
@@ -190,10 +186,6 @@ setNameEmployee () + {
             nameEmployee() <- shortName(e);
         } 
 }
-
-printReceipt  ABSTRACT LIST ( Sale.Invoice, Payment.Payment);
-printReturnReceipt  ABSTRACT LIST ( Sale.Invoice, Payment.Payment);
-printReceiptResult = DATA LOCAL BOOLEAN ();
 
 createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[18,4] sum, PaymentType paymentType, PaymentCondition paymentCondition, STRING[100] note)   {       
     NEW i = UserInvoice {
