@@ -1,7 +1,7 @@
 MODULE FiscalVMK;
 
-REQUIRE System,
-        POS;
+REQUIRE CashRegister
+        ;//,POS;
 
 loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', NULL, NULL, TRUE, NULL, NULL ); };
 
@@ -22,42 +22,25 @@ onDesktopClientStarted() + {
 	}
 };
 
-fiscalVMKPrint 'Напечатать фискальный чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintReceiptAction' (Receipt);
-postPrint(Receipt receipt) + {  IF sidCashRegisterModel(receipt) == 'VMK' THEN fiscalVMKPrint(receipt); }
+setFiscalNumber 'Записать номер Z-отчёта' ABSTRACT (STRING[28]);
+
+closeCurrentZReport 'Закрыть текущий Z-отчёт' ABSTRACT ();
 
 fiscalVMKReceiptTitle 'Заголовок чека VMK' = ABSTRACT TEXT ();
-fiscalVMKTop 'Дополнительный текст перед чеком VMK' = ABSTRACT TEXT (Receipt);
-fiscalVMKBottom 'Дополнительный текст после чека VMK' = ABSTRACT TEXT (Receipt);
-fiscalVMKExtraReceipt 'Дополнительный текст отдельным чеком после основного чека VMK' = ABSTRACT TEXT (Receipt);
 
 fiscalVMKPrintCopyReceipt 'Копия чека'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintCopyReceiptAction' ();
-fiscalPrintCopyReceipt() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrintCopyReceipt(); }
 
 fiscalVMKAdvancePaper 'Прогон ленты'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKAdvancePaperAction' ();
-fiscalAdvancePaper() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKAdvancePaper(); }
 
 fiscalVMKXReport 'X-отчёт'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKXReportAction' ();
-fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKXReport(); }
 
 fiscalVMKZReport 'Z-отчёт'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKZReportAction' ();
-fiscalZReport() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKZReport(); }
 
 fiscalVMKCashSum 'Наличных в кассе'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKCashSumAction' ();
-fiscalCashSum() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKCashSum(); }
 
 fiscalVMKReportTop 'Заголовок отчёта VMK' = ABSTRACT TEXT ();
 
 fiscalVMKUpdateData 'Загрузить информацию'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKUpdateDataAction' ();
-fiscalUpdateData() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKUpdateData(); }
-
-fiscalVMKService 'Перемещение денег'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKServiceInOutAction' (CashOperation);
-fiscalService(CashOperation cashOperation) + {  IF sidCashRegisterModel(cashOperation) == 'VMK' THEN fiscalVMKService(cashOperation); }
-
-fiscalVMKDisplayText 'Вывести текст на дисплей'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKDisplayTextAction' (ReceiptDetail);
-fiscalDisplayText (ReceiptDetail receiptDetail) + {  IF sidCashRegisterModel(receiptDetail) == 'VMK' THEN fiscalVMKDisplayText(receiptDetail); }
-
-fiscalVMKCancel 'Отменить чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKCancelReceiptAction' (Receipt);
-fiscalCancel(Receipt receipt) + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKCancel(receipt); }
 
 UNP 'УНП (VMK)' = DATA STRING[9] (Machinery);
 UNPCurrentCashRegister() = UNP(currentCashRegister());

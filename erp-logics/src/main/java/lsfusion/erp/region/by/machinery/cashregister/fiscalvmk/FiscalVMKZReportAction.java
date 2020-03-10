@@ -22,8 +22,6 @@ public class FiscalVMKZReportAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
         try {
 
-            DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
-
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
@@ -36,7 +34,7 @@ public class FiscalVMKZReportAction extends InternalAction {
                     Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 2, fiscalVMKReportTop));
                     if (result instanceof Integer) {
                         if ((Integer) result != 0)
-                            findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
+                            findAction("setFiscalNumber[STRING[28]]").execute(context, new DataObject(String.valueOf(result)));
                     } else if (result instanceof String) {
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                     }
@@ -47,7 +45,7 @@ public class FiscalVMKZReportAction extends InternalAction {
                         result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 7, fiscalVMKReportTop));
                         if (result instanceof Integer) {
                             if ((Integer) result != 0)
-                                findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
+                                findAction("setFiscalNumber[STRING[28]]").execute(context, new DataObject(String.valueOf(result)));
                         } else if (result instanceof String) {
                             context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                         }
