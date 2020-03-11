@@ -270,8 +270,9 @@ costPrice 'Себестоимость изделия' = DATA NUMERIC[16,4] (Prod
 
 
 sum 'Сумма изделия' = DATA NUMERIC[18,4] (ProductDetail);
-sum(ProductDetail productDetail) <-
-    NUMERIC[18,4](round((quantity(productDetail) * price(productDetail)), currency(productDetail)))
+calcProductSum = ABSTRACT VALUE NUMERIC[18,4] (ProductDetail);
+calcProductSum(ProductDetail productDetail) += NUMERIC[18,4](round((quantity(productDetail) * price(productDetail)), currency(productDetail))); 
+sum(ProductDetail productDetail) <- calcProductSum(productDetail)
     WHEN CHANGED (quantity(productDetail)) OR
          CHANGED (price(productDetail)) OR
          CHANGED (currency(productDetail));
@@ -818,14 +819,13 @@ calcCost 'Себестоимость расчетная' (ProductDetail d)= IF c
 
 //-- Подсчет цены изделия с учетом замен
 //recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
-
-calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) =
-    IF roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
-        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
-                                               roundCondition(calcPriceListType(productDetail), sku(productDetail))))
+roundPrice = ABSTRACT INTEGER (ProductDetail);
+calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) = CASE
+    WHEN roundPrice(productDetail)  THEN NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), roundPrice(productDetail)))
+    WHEN roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), roundCondition(calcPriceListType(productDetail), sku(productDetail))))
     ELSE
-        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
-                                         currency(productDetail)));
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), currency(productDetail)));
                                          
 // Изменение надбавок при вводе пользователем процента
 

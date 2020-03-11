@@ -84,16 +84,17 @@ backgroundRetail(ProductDetail d) += WHEN d IS ProductDetail THEN backgroundReta
 
 //-- Свойства для агрегированных производств/расценок
 
-componentsSum 'Сумма компонентов произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((componentsPrice(productDetail)*outputQuantity(productDetail)),currency(productDetail)));
-costSum 'Сумма себестоимости произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((costPrice(productDetail)*outputQuantity(productDetail)),currency(productDetail)));
+roundPriceCalc(ProductDetail d) = OVERRIDE roundPrice(d), defaultRound(currency(d)); 
+componentsSum 'Сумма компонентов произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((componentsPrice(productDetail)*outputQuantity(productDetail)),roundPriceCalc(productDetail)));
+costSum 'Сумма себестоимости произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((costPrice(productDetail)*outputQuantity(productDetail)),roundPriceCalc(productDetail)));
 VATMarkupSum 'НДС и надбавка' (ProductDetail productDetail) =  NUMERIC[18,4](outputProductsSum(productDetail) (-) componentsSum(productDetail));
-retailVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](round([ X*Y/(100+Y)](VATMarkupSum(productDetail), valueVAT(productDetail)), currency(productDetail)));
+retailVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](round([ X*Y/(100+Y)](VATMarkupSum(productDetail), valueVAT(productDetail)), roundPriceCalc(productDetail)));
 retailMarkupSum 'Сумма надбавки' (ProductDetail productDetail) = NUMERIC[18,4](VATMarkupSum(productDetail) (-) retailVATSum(productDetail));
 retailMarkup 'Надбавка, %'(ProductDetail productDetail) = NUMERIC[8,3]([ round2(X*100/Y)](retailMarkupSum(productDetail), componentsSum(productDetail)));
 
 //--  если стоит галочка isVATOrder
-retVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](round([ X*Y/(100+Y)](outputProductsSum(productDetail), valueVAT(productDetail)), currency(productDetail)));
-retMarkupSum 'Сумма надбавки' (ProductDetail productDetail) = NUMERIC[18,4](round(outputProductsSum(productDetail) (-) retVATSum(productDetail) (-) componentsSum(productDetail), currency(productDetail)));
+retVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](round([ X*Y/(100+Y)](outputProductsSum(productDetail), valueVAT(productDetail)), roundPriceCalc(productDetail)));
+retMarkupSum 'Сумма надбавки' (ProductDetail productDetail) = NUMERIC[18,4](round(outputProductsSum(productDetail) (-) retVATSum(productDetail) (-) componentsSum(productDetail), roundPriceCalc(productDetail)));
 retMarkup 'Надбавка, %'(ProductDetail productDetail) = NUMERIC[8,3]([ round2(X*100/Y)](retMarkupSum(productDetail), componentsSum(productDetail)));
 
 overVATSum 'Сумма НДС' (ProductDetail d) = IF addVAT(d) THEN retVATSum(d) ELSE retailVATSum(d);
