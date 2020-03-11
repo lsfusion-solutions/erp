@@ -8,17 +8,17 @@ NAMESPACE SaleLedger;
 TABLE cumBalance (LegalEntity, Stock, DATE);
 
 cumBalance 'Остаток (накопленная сумма остатка в ценах себестоимости)' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
-soldSum 'Продано (в ценах продажи)' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
+soldSum 'Продано (в ценах себестоимости)' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su, Stock st, DATE dt) = NUMERIC[12,3](cumBalance(su, st, dt) /
     soldSum(su, st, dt));     
     
 cumBalance 'Остаток (накопленная сумма остатка в ценах себестоимости)' (LegalEntity su,DATE date)= GROUP SUM cumBalance(su, Stock st, date);
-soldSum 'Продано (в ценах продажи)' (LegalEntity su,DATE date)= GROUP SUM soldSum(su, Stock st, date);
+soldSum 'Продано (в ценах себестоимости)' (LegalEntity su,DATE date)= GROUP SUM soldSum(su, Stock st, date);
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE date) = NUMERIC[12,3](cumBalance(su, date) /
     soldSum(su, date));     
     
 cumBalance 'Остаток (накопленная сумма остатка в ценах себестоимости)' (LegalEntity su,DATE df,DATE dt)= GROUP SUM cumBalance(su, Stock st, DATE date) IF df <= date AND date <= dt;
-soldSum 'Продано (в ценах продажи)' (LegalEntity su,DATE df,DATE dt)= GROUP SUM soldSum(su, Stock st, DATE date) IF df <= date AND date <= dt;
+soldSum 'Продано (в ценах себестоимости)' (LegalEntity su,DATE df,DATE dt)= GROUP SUM soldSum(su, Stock st, DATE date) IF df <= date AND date <= dt;
 turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE df, DATE dt) = NUMERIC[12,3](cumBalance(su, df, dt) /
     soldSum(su, df, dt));     
        
@@ -48,7 +48,7 @@ takeSupplier 'Рассчитать товарооборачиваемость (�
 	                  
 	
 	                                        
-	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [ GROUP SUM sumSold(Batch batch, st, dt) BY supplier(batch)](su)) 
+	            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [ GROUP SUM costSumSold(Batch batch, st, dt) BY supplier(batch)](su)) 
 	                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur() AND [ GROUP SUM sumSold(Batch batch, st, dt) BY supplier(batch)](su);                 
 	            
 	            
