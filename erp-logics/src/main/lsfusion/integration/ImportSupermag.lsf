@@ -7,8 +7,6 @@ REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
         SaleOrder,  
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
-//PRIORITY Purchase;
-
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[100]();
 login 'Логин' = DATA ISTRING[100]();
@@ -180,7 +178,7 @@ importItem 'Импорт товаров' () {
     
     name(INTEGER i) <- left(name(i), 15);
     //весовой товар 
-    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22'; 
+    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22' AND length(name(i)) = 7; 
      
     FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
         id(b) <- ISTRING[15] (name(i));
@@ -1302,6 +1300,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL idStore = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
+    LOCAL filterSql = TEXT();
 
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
@@ -1422,11 +1421,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT ID, CREATEDAT, DATEBEGIN, DATEEND, DOCSTATE, NAME FROM Supermag.SVDocumentsMA WHERE DATEEND >= TO_DATE(\'' + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND DOCSTATE > 0' TO file;
     
-    logToFile('importSupermag', 'importPriceListPromotion_1');
-    
     IMPORT TABLE FROM file() TO id, date, begin, end, posted, name;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_2');
     
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
         id(p) <- id(i);
@@ -1451,8 +1446,6 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         imported(p) <- TRUE;
     }
     
-    logToFile('importSupermag', 'importPriceListPromotion_3');
-    
     LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
     LOCAL idItem = ISTRING[50](INTEGER);
@@ -1463,11 +1456,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
             EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA a WHERE d.DOCID = a.id AND a.DATEEND >= TO_DATE(\''
             + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND a.DOCSTATE > 0' TO file;
     
-    logToFile('importSupermag', 'importPriceListPromotion_4');
-    
     IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_5');
     
     id(INTEGER i) <- CONCAT '', 'P', idDoc(i), specItem(i) WHERE imported(i); 
     
@@ -1484,34 +1473,24 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('promotion');
     }
     
-    logToFile('importSupermag', 'importPriceListPromotion_6');
-    
     LOCAL idStock = INTEGER (INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA d WHERE a.AUCID = d.id AND d.DATEEND >= TO_DATE(\'' 
         + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\')' TO file;
     
-    logToFile('importSupermag', 'importPriceListPromotion_7');
-    
     IMPORT TABLE FROM file() TO idDoc, idStock;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_8');
-    
+       
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
         dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
     }
     
-    logToFile('importSupermag', 'importPriceListPromotion_9');
     APPLY NESTED LOCAL;
-    logToFile('importSupermag', 'importPriceListPromotion_10');
     
     DELETE UserPriceList p WHERE toDate(p) >= dateFromPromotion() AND id(operation(p)) == 'promotion' AND NOT imported(p);
     DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromPromotion() AND id(operation(d)) == 'promotion' AND NOT imported(d);
     
-    logToFile('importSupermag', 'importPriceListPromotion_11');
     APPLY;
-    logToFile('importSupermag', 'importPriceListPromotion_12');
 }
 
 EXTEND FORM integrationData PROPERTIES importPriceListPromotion(), daysPromotion();
