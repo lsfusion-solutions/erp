@@ -660,17 +660,176 @@ DESIGN integrationData { supermagButtons {
     } 
 }}
 
-//---------------------------------------------------------------Договоры
+in 'Отм.' = DATA BOOLEAN (Stock);
+stocks 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
 
+FORM dialogDepartmentStores 'Склады'
+    OBJECTS d = Stock
+    PROPERTIES (d) in
+    PROPERTIES (d) READONLY id, name, nameStore
+    FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
+    FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' in(d)
+    ORDER nameStore(d), name(d)
+;
+
+DESIGN dialogDepartmentStores {
+    size = (600, 600);
+}
+
+//---------------------------------------------------------------------------------------------------------------------импорт списков товаров
+importSkuLists 'Импорт списков товаров' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACardAssort' TO file;
+    
+    IMPORT TABLE FROM file() TO id, tree, name;
+    
+    IF NOT list('all') THEN NEW g = List {
+        id(g) <- 'all';
+        name(g) <- 'Все';
+    }
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT list(TEXT (id(i))) DO NEW g = List {
+        id(g) <- ISTRING[100] (id(i));
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    LOCAL idOrder = ISTRING[20](List);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        idOrder(g) <- tree(i);
+    }
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) ORDER level(i) DO {
+        
+        parent(g) <- OVERRIDE (GROUP MAX List gg IF idOrder(gg) == parent(i)), list('all');
+    }
+    
+    APPLY;
+    
+    LOCAL idList = INTEGER (INTEGER);
+    LOCAL idItem = ISTRING[100] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDASSORT, ARTICLE FROM Supermag.SMCardAssort' TO file;
+    
+    IMPORT TABLE FROM file() TO idList, idItem;
+    
+    LOCAL imported = BOOLEAN (ListDetail);
+    
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND NOT listDetail(s, l) DO NEW d = ListDetail {
+        list(d) <- l;
+        sku(d) <- s;
+    }
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND ListDetail d = listDetail(s, l) DO {
+        imported(d) <- TRUE;
+    }
+    
+    DELETE ListDetail d WHERE d IS ListDetail AND NOT imported(d);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importSkuLists();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSkuLists()); } }
+
+defaultCompany = DATA LegalEntity();
+nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
+
+EXTEND FORM options PROPERTIES nameDefaultCompany();
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY (nameDefaultCompany());
+    }
+}
+
+importBank 'Импорт банков' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = STRING[255](INTEGER);
+    LOCAL address = STRING[255](INTEGER);
+    LOCAL bic = STRING[40](INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE, ADDRESS, BIC FROM Supermag.SABanks' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name, address, bic;
+    
+    FOR id(INTEGER i) AND NOT bank(TEXT (id(i))) DO NEW b = Bank {
+        id(b) <- STRING[100] (id(i));
+    }
+    
+    FOR Bank b = bank(TEXT (id(INTEGER i))) DO {
+        name(b) <- STRING[200](name(i));
+        
+        IF NOT address(b, currentDate()) == address(i) THEN {
+            dataAddress(b, DATE d) <- STRING[150](address(i)) WHERE d == currentDate() AND NOT address(b, currentDate()) == address(i);
+        }
+        MFO(b) <- STRING[11](bic(i));
+    }
+    
+    APPLY;
+}
+
+importAccount 'Импорт счетов' () {
+    
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL idBank = INTEGER (INTEGER);
+    LOCAL account = STRING[40](INTEGER);
+    LOCAL active = STRING[1](INTEGER);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, BANKID, ACCOUNT, ISACTUAL FROM Supermag.SMClientBanks' TO file;
+    
+    IMPORT TABLE FROM file() TO idLegalEntity, idBank, account, active;
+    
+    FOR [GROUP SUM 1 IF legalEntity(TEXT (idLegalEntity(INTEGER i))) BY account(i), TEXT (idLegalEntity(i))](STRING[40] acc, STRING[100] id) 
+        AND NOT accountID(acc, id) DO NEW a = Bank.Account {
+        number(a) <- acc;
+        legalEntity(a) <- legalEntity(id);
+    }
+    
+    FOR Bank.Account a = accountID(account(INTEGER i), TEXT (idLegalEntity(i))) ORDER active(i) DO {
+        bank(a) <- bank(TEXT (idBank(i)));
+        inactive(a) <- active(i) == '0';
+    }
+    FOR LegalEntity l = legalEntity(TEXT (idLegalEntity(INTEGER i))) DO {
+        userAccount(l) <- Bank.defaultAccount(l);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW accounts {
+            type = CONTAINERH;
+            MOVE PROPERTY (importBank());
+            MOVE PROPERTY (importAccount());
+        } 
+    } 
+}
+
+//---------------------------------------------------------------------------------------------Договоры
 factoring 'Факторинг' = DATA BOOLEAN (UserContractSku);
 
 EXTEND FORM userContractSku PROPERTIES factoring(c);
 
-DESIGN userContractSku {
-    params {
+DESIGN userContractSku { params {
         MOVE PROPERTY (factoring(c));
-    }
-}
+}}
 
 userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
 
@@ -757,7 +916,84 @@ userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListD
 id = DATA ISTRING[100](UserRepricingDetail) INDEXED;
 userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingDetail BY id(d);
 
-//dateFromS 'Дата импорта договоров и прайсов' = DATA DATE ();
+
+//---------------------------------------------------------------------------------------расчетные виды цен
+importCalcPriceListType 'Импорт расчетных видов цен' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = ISTRING[50] (INTEGER);
+  
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
+        id(s) <- ISTRING[100] (id(i));
+    }
+    
+    FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {
+        
+        name(t) <- name(i);
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
+        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+        groupType(t) <- SystemGroupType.skuGroupType;  
+    }
+    
+    LOCAL idGroup = INTEGER (INTEGER);
+    LOCAL markup = NUMERIC[8,4] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO id, idGroup, markup;
+    
+    LOCAL idItemGroup = STRING[100](INTEGER);
+    
+    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
+    
+    FOR id(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (id(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+        dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (id(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    
+    LOCAL idType = INTEGER (INTEGER);
+    LOCAL idItem = STRING[15] (INTEGER);
+    
+    EXTERNAL  SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idItem, markup;
+    
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
+        dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
+
+id = DATA STRING[100](Range.Range);
+range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
+
+nameImport 'Наименование для импорта' = DATA STRING[50](Store);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
+EXTEND FORM store PROPERTIES nameImport(s);
+
+DESIGN store {
+    headerExtraParams {
+        MOVE PROPERTY (nameImport(s));
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------ПСЦ
 daysSupplier 'Кол-во дней для синхронизации ПСЦ' = DATA INTEGER ();
 dateFromS () = sum(currentDate(), -daysSupplier());
 dateFromST () = toDateDDMMYY(dateFromS());
@@ -773,9 +1009,6 @@ contractTypeInSuperMag = DATA INTEGER (UserPriceList);
 delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
 isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
 stateInSuperMag = DATA INTEGER (PriceList);
-//EXTEND FORM priceLists
-//PROPERTIES (p) stateInSuperMag
-//;
 
 overImportSupplierPrice ABSTRACT LIST ();
 
@@ -923,21 +1156,14 @@ DESIGN integrationData { supermagButtons {
     MOVE PROPERTY (numberSupplierPrice()) { caption = 'Номер ПСЦ для импорта'; alignment = CENTER; }       
 } }
 
-daysRetail 'Кол-во дней для импорта розничных прайсов и актов переоценки' = DATA INTEGER ();
-dateFromR () = sum(currentDate(), -daysRetail());
-dateFromRT () = toDateDDMMYYYY(dateFromR());
+
+//---------------------------------------------------------------------------------------------------------акты переоценки
+daysRepricing 'дней для импорта' = DATA INTEGER ();
+dateFromRepricing() = sum(currentDate(), -daysRepricing());
+dateFromRepricingT() = toDateDDMMYYYY(dateFromRepricing());
 
 withoutPrice 'Импорт только с товарами без цен' = DATA BOOLEAN ();
 
-DESIGN integrationData { 
-    supermagButtons { 
-        NEW supermagRetail {
-            type = CONTAINERH;
-        }
-    }
-}
-
-//---------------------------------------------------------------------------------------------------------------
 imported 'Импортируемая' = DATA BOOLEAN (Repricing.Operation);
 
 EXTEND FORM Repricing.operation PROPERTIES imported(o);
@@ -949,40 +1175,39 @@ DESIGN Repricing.operation {
 
 lastStatusSupermag '' = DATA INTEGER (UserRepricing);
 
-importRepricingRetail 'Импорт актов переоценки' (DATE df, DATE dt) {
+
+
+importRepricingRetail 'Импорт актов переоценки' () {
     
     LOCAL id = ISTRING[50] (INTEGER);
     LOCAL dateTime = DATETIME (INTEGER);
     LOCAL reason = INTEGER (INTEGER);
-    LOCAL posted = INTEGER (INTEGER);
+    LOCAL docstate = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserRepricing);
+    LOCAL filterSql = TEXT ();
+                                                                                                                                                             // a.Reason = 0 переоценка по приходу, у нас акт расценки               
+    filterSql () <- 'd.location IN ('+ ImportSupermag.stocks() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(ImportSupermag.dateFromRepricing()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0';
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\''
-         + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState >= 2'+
-                ' AND NOT a.REASON IN (0,2,3)' TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AC\' AND a.Id = d.Id AND ' + filterSql() TO file;
     
-    logToFile('importSupermag', 'importRepricingRetail_1 + : ' + df + ' / ' + dt + ' = ' + GROUP SUM 1 IF imported(INTEGER i));
-    
-    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
-    
-    logToFile('importSupermag', 'importRepricingRetail_2');  
+    IMPORT TABLE FROM file() TO id, dateTime, reason, docstate, idStore, comment;
 
-    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT Repricing.operation(TEXT (r)) DO NEW o = Repricing.Operation {
-        id(o) <- ISTRING[100](r);
-        name(o) <- ISTRING[100](r);
+    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Repricing.operation(TEXT (i)) DO NEW o = Repricing.Operation {
+        id(o) <- ISTRING[100](i);
+        name(o) <- ISTRING[100](i);
         allRoles(o) <- TRUE;
         imported(o) <- TRUE;
     }
    
-    FOR id(INTEGER i) AND NOT userRepricing(id(i)) DO NEW r = UserRepricing {
+    FOR id(INTEGER i) AND NOT Repricing.userRepricing(id(i)) DO NEW r = Repricing.UserRepricing {
         id(r) <- id(i);
     }
         
-    FOR UserRepricing rep == userRepricing(id(INTEGER i)) DO {       
+    FOR Repricing.UserRepricing rep == Repricing.userRepricing(id(INTEGER i)) DO {       
         operation(rep) <- Repricing.operation(TEXT (reason(i)));
         Repricing.number(rep) <- ISTRING[28] (id(rep));
         date(rep) <- DATE (dateTime(i));
@@ -990,41 +1215,36 @@ importRepricingRetail 'Импорт актов переоценки' (DATE df, D
         note(rep) <- comment(i);
         departmentStore(rep) <- departmentStore(TEXT (idStore(i)));
         imported(rep) <- TRUE;
-        IF NOT lastStatusSupermag(rep) = posted(i) AND posted(i) < 3 THEN isPosted(rep) <- posted(i) = 3;
-        lastStatusSupermag(rep) <- posted(i);
+//        isPosted(rep) <- CASE WHEN NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN docstate(i) = 3
+//                              WHEN NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN docstate(i) = 3
+        IF NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN isPosted(rep) <- docstate(i) = 3;
+        lastStatusSupermag(rep) <- docstate(i);
     }
-       
-    logToFile('importSupermag', 'importRepricingRetail_3');
     
     LOCAL type = ISTRING[2](INTEGER);
     LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
-    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL quantity = NUMERIC[16,5](INTEGER);   
+    LOCAL price = NUMERIC[16,4](INTEGER);
+    LOCAL oldPrice = NUMERIC[16,4](INTEGER);
     LOCAL idItem = ISTRING[50](INTEGER);
-    LOCAL aReason = INTEGER (INTEGER);
+    LOCAL actReason = INTEGER (INTEGER);
+    LOCAL priceType = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserRepricingDetail);
     LOCAL skip = BOOLEAN (INTEGER);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, sd.ARTICLE, a.REASON FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd, Supermag.SMDocuments s WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' 
-            + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + 
-            '\',\'YYYY-MM-DD\') AND d.DocType = sd.DocType and d.DocID = sd.DocID and d.SpecItem = sd.SpecItem AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) and sd.docid = s.id and s.docstate > 0' TO file;
-    
-    logToFile('importSupermag', 'importRepricingRetail_4 + : ' + GROUP SUM 1 IF imported(INTEGER i));
-    
-    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason;
-
-    logToFile('importSupermag', 'importRepricingRetail_5');
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT d.DocType, d.Id, dd.SpecItem, dd.Article, dd.ItemPrice,  ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AC\' AND a.Id = d.Id AND dd.DocId = d.Id AND ad.DocId = d.Id AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
+       
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, price, oldPrice, quantity, actReason, priceType;
     
     id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
 
-    IF withoutPrice() THEN {
-        skip(INTEGER i) <- imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
-    }
+//    IF withoutPrice() THEN {
+//        skip(INTEGER i) <- imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
+//    }
 
-    logToFile('importSupermag', 'importRepricingRetail_6');
-    
-    FOR userRepricing(idDoc(INTEGER i)) AND NOT userRepricingDetail(id(i)) AND NOT skip(i) DO {
+    FOR userRepricing(idDoc(INTEGER i)) AND NOT userRepricingDetail(id(i)) AND NOT skip(i) DO {        
         NEW d = UserRepricingDetail {
             id(d) <- id(i);
             userRepricing(d) <- userRepricing(idDoc(i));
@@ -1033,257 +1253,275 @@ importRepricingRetail 'Импорт актов переоценки' (DATE df, D
 
     FOR UserRepricingDetail d = userRepricingDetail(id(INTEGER i)) AND NOT skip(i) DO {
         sku(d) <- item(idItem(i));
+        quantity(d) <- quantity(i);
+        curRetailPrice(d) <- oldPrice(i);
+        retailPrice(d) <- price(i);
+//        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) IF actReason(i) > 0 WHERE t == dataPriceListType(TEXT (priceType(i)));
+        imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
+    }
+    
+//    IF NOT withoutPrice() THEN {
+//        DELETE UserRepricing p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
+//        DELETE UserRepricingDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
+//    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importRepricingRetail, daysRepricing;
+
+DESIGN integrationData { supermagButtons { 
+        NEW supermagRepricing {
+            type = CONTAINERH;
+            MOVE PROPERTY (importRepricingRetail());
+            MOVE PROPERTY (daysRepricing());
+        } 
+}}
+
+//---------------------------------------------------------------------------------------------------------------розничные прайсы
+daysPriceList 'дней для импорта' = DATA INTEGER ();
+dateFromPriceList () = sum(currentDate(), -daysPriceList());
+dateFromPriceListT () = toDateDDMMYYYY(dateFromPriceList());
+
+imported 'Импортируемая' = DATA BOOLEAN (PriceList.Operation);
+
+EXTEND FORM PriceList.operation PROPERTIES imported(o);
+
+DESIGN PriceList.operation { paramsContainer {
+        MOVE PROPERTY (imported(o));
+}}
+
+importPriceListRetail 'Импорт розничных прайсов' () {
+
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL dateTime = DATETIME (INTEGER);
+    LOCAL reason = INTEGER (INTEGER);
+    LOCAL posted = INTEGER (INTEGER);
+    LOCAL idStore = INTEGER (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
+
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\''
+         + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState > 0'+
+                ' AND NOT a.REASON IN (0,2,3)' TO file;
+
+    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
+
+    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO {  
+        NEW o = PriceList.Operation {
+            id(o) <- ISTRING[100](r);
+            name(o) <- ISTRING[100](r);
+            allRoles(o) <- TRUE;
+            groupType(o) <- SystemGroupType.skuGroupType;
+            dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
+            needStock(o) <- TRUE;
+            show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail';
+            change(DataPriceListType t, o) <- id(t) == 'retail';
+            in(Currency c, o) <- c == defaultCurrency();
+            doNotSetStocksUserPriceList(o) <- TRUE;
+            imported(o) <- TRUE;
+        }       
+    }
+
+    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO {
+        NEW p = UserPriceList {
+            id(p) <- id(i);
+        }
+    }
+
+    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {       
+        operation(p) <- PriceList.operation(TEXT (reason(i)));
+        number(p) <- ISTRING[28] (id(p));
+        date(p) <- DATE (dateTime(i));
+        time(p) <- TIME (dateTime(i));
+        fromDate(p) <- DATE (dateTime(i));
+        fromTime(p) <- TIME (IF reason(i) = 5 THEN sumSeconds(dateTime(i), 1) ELSE dateTime(i));
+        isPosted(p) <- posted(i) = 3;
+        note(p) <- comment(i);
+        dataIn(p, StockGroup s) <- NULL;
+        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
+        in(p, DataPriceListType t) <- id(t) == 'retail';
+        imported(p) <- TRUE;
+    }   
+
+    logToFile('importSupermag', 'importPriceListRetail_3');
+
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL aReason = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    LOCAL imported = BOOLEAN (UserRepricingDetail);
+    LOCAL skip = BOOLEAN (INTEGER);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, sd.ARTICLE, a.REASON FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd, Supermag.SMDocuments s WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' 
+            + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.DocType = sd.DocType and d.DocID = sd.DocID and d.SpecItem = sd.SpecItem AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) and sd.docid = s.id and s.docstate > 0' TO file;
+
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason;
+
+    id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+
+    IF withoutPrice() THEN {
+        skip(INTEGER i) <- imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
+    }
+
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) AND NOT skip(i) DO {
+        NEW d = UserPriceListDetail {
+            id(d) <- id(i);
+            userPriceList(d) <- userPriceList(idDoc(i));
+        }       
+    }
+
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) AND NOT skip(i) DO {
+        sku(d) <- item(idItem(i));
         price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) IF aReason(i) > 0 WHERE t == dataPriceListType('retail');
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
     }
 
-    logToFile('importSupermag', 'importRepricingRetail_7');
-    
-    IF NOT withoutPrice() THEN {
-        DELETE UserRepricing p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
-        DELETE UserRepricingDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
-        
-        logToFile('importSupermag', 'importRepricingRetail_8');
-    }
-    APPLY;
-    logToFile('importSupermag', 'importPriceListRetail_9');
-}
-
-importRepricingRetail 'Импорт актов переоценки' () { 
-    importRepricingRetail(dateFromR(), 2030_01_01);
-}
-
-EXTEND FORM integrationData PROPERTIES () importRepricingRetail;
-
-DESIGN integrationData { 
-    supermagButtons { 
-        supermagRetail {
-            MOVE PROPERTY (importRepricingRetail());
-        } 
-    } 
-}
-
-
-//-----------------------------------------------------------------------------------------------------
-//imported 'Импортируемая' = DATA BOOLEAN (PriceList.Operation);
-//
-//EXTEND FORM PriceList.operation PROPERTIES imported(o);
-//
-//DESIGN PriceList.operation {
-//    paramsContainer {
-//        MOVE PROPERTY (imported(o));
-//    }
-//}
-//
-//importPriceListRetail 'Импорт розничных прайсов' (DATE df, DATE dt) {
-//    
-//    LOCAL id = ISTRING[50] (INTEGER);
-//    LOCAL dateTime = DATETIME (INTEGER);
-//    LOCAL reason = INTEGER (INTEGER);
-//    LOCAL posted = INTEGER (INTEGER);
-//    LOCAL idStore = INTEGER (INTEGER);
-//    LOCAL comment = ISTRING[255] (INTEGER);
-//    LOCAL imported = BOOLEAN (UserPriceList);
-//    
-//    LOCAL file = FILE ();
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-//        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\''
-//         + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState > 0'+
-//                ' AND NOT a.REASON IN (0,2,3)' TO file;
-//    
-//    logToFile('importSupermag', 'importPriceListRetail_1 + : ' + df + ' / ' + dt + ' = ' + GROUP SUM 1 IF imported(INTEGER i));
-//    
-//    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
-//    
-//    logToFile('importSupermag', 'importPriceListRetail_2');
-//    
-//    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO {  
-//        NEW o = PriceList.Operation {
-//            id(o) <- ISTRING[100](r);
-//            name(o) <- ISTRING[100](r);
-//            allRoles(o) <- TRUE;
-//            groupType(o) <- SystemGroupType.skuGroupType;
-//            dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
-//            needStock(o) <- TRUE;
-//            show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail';
-//            change(DataPriceListType t, o) <- id(t) == 'retail';
-//            in(Currency c, o) <- c == defaultCurrency();
-//            doNotSetStocksUserPriceList(o) <- TRUE;
-//            imported(o) <- TRUE;
-//        }       
-//    }
-//   
-//    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO {
-//        NEW p = UserPriceList {
-//            id(p) <- id(i);
-//        }
-//    }
-//    
-//    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {       
-//        operation(p) <- PriceList.operation(TEXT (reason(i)));
-//        number(p) <- ISTRING[28] (id(p));
-//        date(p) <- DATE (dateTime(i));
-//        time(p) <- TIME (dateTime(i));
-//        fromDate(p) <- DATE (dateTime(i));
-//        fromTime(p) <- TIME (IF reason(i) = 5 THEN sumSeconds(dateTime(i), 1) ELSE dateTime(i));
-//        isPosted(p) <- posted(i) = 3;
-//        note(p) <- comment(i);
-//        dataIn(p, StockGroup s) <- NULL;
-//        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
-//        in(p, DataPriceListType t) <- id(t) == 'retail';
-//        imported(p) <- TRUE;
-//    }   
-//       
-//    logToFile('importSupermag', 'importPriceListRetail_3');
-//    
-//    LOCAL type = ISTRING[2](INTEGER);
-//    LOCAL idDoc = ISTRING[50](INTEGER);
-//    LOCAL specItem = INTEGER (INTEGER);
-//    LOCAL price = NUMERIC[19,4](INTEGER);
-//    LOCAL idItem = ISTRING[50](INTEGER);
-//    LOCAL aReason = INTEGER (INTEGER);
-//    LOCAL imported = BOOLEAN (UserPriceListDetail);
-//    LOCAL imported = BOOLEAN (UserRepricingDetail);
-//    LOCAL skip = BOOLEAN (INTEGER);
-//
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-//            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, sd.ARTICLE, a.REASON FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd, Supermag.SMDocuments s WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' 
-//            + toDateISO(df) + '\',\'YYYY-MM-DD\') AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) <= TO_DATE(\'' + toDateISO(dt) + 
-//            '\',\'YYYY-MM-DD\') AND d.DocType = sd.DocType and d.DocID = sd.DocID and d.SpecItem = sd.SpecItem AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) and sd.docid = s.id and s.docstate > 0' TO file;
-//    
-//    logToFile('importSupermag', 'importPriceListRetail_4 + : ' + GROUP SUM 1 IF imported(INTEGER i));
-//    
-//    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason;
-//
-//    logToFile('importSupermag', 'importPriceListRetail_5');
-//    
-//    id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
-//
-//    IF withoutPrice() THEN {
-//        skip(INTEGER i) <- imported(i) AND NOT (GROUP SUM 1 IF in(userPriceList(idDoc(i)), DepartmentStore st) AND NOT prevPriceA(dataPriceListType('retail'), item(idItem(i)), st, 2030_01_01_00:00));
-//    }
-//
-//    logToFile('importSupermag', 'importPriceListRetail_6');
-//    
-//    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) AND NOT skip(i) DO {
-//        NEW d = UserPriceListDetail {
-//            id(d) <- id(i);
-//            userPriceList(d) <- userPriceList(idDoc(i));
-//        }       
-//    }
-//   
-//    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) AND NOT skip(i) DO {
-//        sku(d) <- item(idItem(i));
-//        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) IF aReason(i) > 0 WHERE t == dataPriceListType('retail');
-//        imported(d) <- TRUE;
-//        dataIndex(d) <- specItem(i);
-//    }
-//
-//    logToFile('importSupermag', 'importPriceListRetail_7');
-//    
 //    IF NOT withoutPrice() THEN {
 //        DELETE UserPriceList p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
 //        DELETE UserPriceListDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
-//        
-//        logToFile('importSupermag', 'importPriceListRetail_8');
 //    }
-//    APPLY;
-//    logToFile('importSupermag', 'importPriceListRetail_9');
-//}
-//
-//importPriceListRetail 'Импорт розничных прайсов' () { 
-//    importPriceListRetail(dateFromR(), 2030_01_01);
-//}
-//
-//EXTEND FORM integrationData PROPERTIES () importPriceListRetail, daysRetail, withoutPrice;
-//DESIGN integrationData { 
-//    supermagButtons { 
-//        NEW supermagRetail {
-//            type = CONTAINERH;
-//            MOVE PROPERTY (importPriceListRetail());
-//            MOVE PROPERTY (daysRetail()) { caption = 'Кол-во дней'; alignment = CENTER; }
-//        } 
-//        MOVE PROPERTY (withoutPrice());
-//    } 
-//}
-
-//-----------------------------------------------------------------------------------------------
-importCalcPriceListType 'Импорт расчетных видов цен' () {
-    
-    LOCAL id = INTEGER (INTEGER);
-    LOCAL name = ISTRING[50] (INTEGER);
-  
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
-    
-    IMPORT TABLE FROM file() TO id, name;
-    
-    FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
-        id(s) <- ISTRING[100] (id(i));
-    }
-    
-    FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {
-        
-        name(t) <- name(i);
-        includeVAT(t) <- TRUE;
-        currency(t) <- defaultCurrency();
-        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
-        groupType(t) <- SystemGroupType.skuGroupType;  
-    }
-    
-    LOCAL idGroup = INTEGER (INTEGER);
-    LOCAL markup = NUMERIC[8,4] (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
-    
-    IMPORT TABLE FROM file() TO id, idGroup, markup;
-    
-    LOCAL idItemGroup = STRING[100](INTEGER);
-    
-    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
-    
-    FOR id(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (id(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
-        dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
-    }
-    
-    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (id(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
-    
-    LOCAL idType = INTEGER (INTEGER);
-    LOCAL idItem = STRING[15] (INTEGER);
-    
-    EXTERNAL  SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL' TO file;
-    
-    IMPORT TABLE FROM file() TO idType, idItem, markup;
-    
-    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
-        dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
-    }
-    
-    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
-    
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
+EXTEND FORM integrationData PROPERTIES () importPriceListRetail, daysPriceList, withoutPrice;
+DESIGN integrationData { supermagButtons { 
+        NEW supermagPriceList {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPriceListRetail());
+            MOVE PROPERTY (daysPriceList()) { alignment = CENTER; }
+        } 
+//        MOVE PROPERTY (withoutPrice());
+}}
 
-id = DATA STRING[100](Range.Range);
-range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
+//----------------------------------------------маркетинговые (акционные) прайслисты
+daysPromotion 'Кол-во дней для импорта акционных прайсов' = DATA INTEGER ();
+dateFromPromotion () = sum(currentDate(), -daysPromotion());
+dateFromPromotionT () = toDateDDMMYY(dateFromPromotion());
 
-nameImport 'Наименование для импорта' = DATA STRING[50](Store);
-
-EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
-EXTEND FORM store PROPERTIES nameImport(s);
-
-DESIGN store {
-    headerExtraParams {
-        MOVE PROPERTY (nameImport(s));
+importPriceListPromotion 'Импорт акционных прайсов' () {
+    
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL begin = DATETIME (INTEGER);
+    LOCAL end = DATETIME (INTEGER);
+    LOCAL posted = INTEGER (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
+    
+    LOCAL file = FILE ();
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT ID, CREATEDAT, DATEBEGIN, DATEEND, DOCSTATE, NAME FROM Supermag.SVDocumentsMA WHERE DATEEND >= TO_DATE(\'' + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND DOCSTATE > 0' TO file;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_1');
+    
+    IMPORT TABLE FROM file() TO id, date, begin, end, posted, name;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_2');
+    
+    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
+        id(p) <- id(i);
     }
+    
+    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
+        
+        operation(p) <- PriceList.operation('promotion');
+        number(p) <- ISTRING[28] (id(p));
+        date(p) <- date(i);
+        time(p) <- 00:00;
+        isPosted(p) <- posted(i) != 1;
+        fromDate(p) <- DATE (begin(i));
+        fromTime(p) <- TIME (begin(i));
+        toDate(p) <- DATE (end(i));
+        toTime(p) <- TIME (end(i));
+        note(p) <- name(i);
+        fromPriceBeforeDate(p) <- sum(DATE (begin(i)), -1);
+        fromPriceBeforeTime(p) <- 00:00;
+        toPriceBeforeDate(p) <- sum(DATE (end(i)), 1);
+        allStocks(p) <- NULL;
+        imported(p) <- TRUE;
+    }
+    
+    logToFile('importSupermag', 'importPriceListPromotion_3');
+    
+    LOCAL idDoc = ISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+            EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA a WHERE d.DOCID = a.id AND a.DATEEND >= TO_DATE(\''
+            + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND a.DOCSTATE > 0' TO file;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_4');
+    
+    IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_5');
+    
+    id(INTEGER i) <- CONCAT '', 'P', idDoc(i), specItem(i) WHERE imported(i); 
+    
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
+        id(d) <- id(i);
+        userPriceList(d) <- userPriceList(idDoc(i));
+    }
+    
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
+        sku(d) <- item(idItem(i));
+        imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
+        priceBefore(d) <- OVERRIDE (GROUP MAX prevPriceA(dataPriceListType('retail'), item(idItem(i)), Stock st, fromDateTime(userPriceList(idDoc(i)))) IF in(userPriceList(idDoc(i)), st)), 0.0;
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('promotion');
+    }
+    
+    logToFile('importSupermag', 'importPriceListPromotion_6');
+    
+    LOCAL idStock = INTEGER (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA d WHERE a.AUCID = d.id AND d.DATEEND >= TO_DATE(\'' 
+        + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\')' TO file;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_7');
+    
+    IMPORT TABLE FROM file() TO idDoc, idStock;
+    
+    logToFile('importSupermag', 'importPriceListPromotion_8');
+    
+    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
+        dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
+    }
+    
+    logToFile('importSupermag', 'importPriceListPromotion_9');
+    APPLY NESTED LOCAL;
+    logToFile('importSupermag', 'importPriceListPromotion_10');
+    
+    DELETE UserPriceList p WHERE toDate(p) >= dateFromPromotion() AND id(operation(p)) == 'promotion' AND NOT imported(p);
+    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromPromotion() AND id(operation(d)) == 'promotion' AND NOT imported(d);
+    
+    logToFile('importSupermag', 'importPriceListPromotion_11');
+    APPLY;
+    logToFile('importSupermag', 'importPriceListPromotion_12');
 }
 
+EXTEND FORM integrationData PROPERTIES importPriceListPromotion(), daysPromotion();
+DESIGN integrationData { supermagButtons { 
+        NEW supermagPromotion {
+            type = CONTAINERH;
+            MOVE PROPERTY (importPriceListPromotion());
+            MOVE PROPERTY (daysPromotion()) { alignment = CENTER; }
+        } 
+} }
+
+//---------------------------------------------------------------------------------------------------------------матрицы
 importRange 'Импорт ассортиментных матриц' () {
     
     LOCAL id = STRING[50] (INTEGER);
@@ -1321,6 +1559,15 @@ importRange 'Импорт ассортиментных матриц' () {
 EXTEND FORM integrationData PROPERTIES importRange();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importRange()); } }
 
+rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
+
+WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
+    include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
+    include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
+}
+
+
+//---------------------------------------------------------------------------------------импорт остатков
 scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
 useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN ();
 
@@ -1343,23 +1590,6 @@ quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
 price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
 retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
-
-in 'Отм.' = DATA BOOLEAN (Stock);
-stocks 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
-
-FORM dialogDepartmentStores 'Склады'
-    OBJECTS d = Stock
-    PROPERTIES (d) in
-    PROPERTIES (d) READONLY id, name, nameStore
-    FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
-    FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
-    FILTERGROUP in FILTER 'Отмеченные' in(d)
-    ORDER nameStore(d), name(d)
-;
-
-DESIGN dialogDepartmentStores {
-    size = (600, 600);
-}
 
 skipSetContractSku(Purchase.UserInvoice i) += idOperation(i) == 'initial';
 
@@ -1495,7 +1725,8 @@ DESIGN integrationData {
     }
 }
 
-//dateFromOrder 'Дата с' = DATA DATE ();
+
+//-----------------------------------------------------------------------------------------------------------заказы закупка
 daysOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
 dateFromOrder () = sum(currentDate(), -daysOrder());
 numberOrder 'Номер заказа' = DATA STRING[20] ();
@@ -1594,6 +1825,7 @@ DESIGN integrationData {
     } 
 }
 
+//------------------------------------------------------------------------------------заказы складские требования
 stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Sale.UserOrder);
 prevStateInSuperMag 'Пред. статус в супермаг' = DATA INTEGER (Sale.UserOrder);
 EXTEND FORM Sale.orders PROPERTIES stateInSuperMag(o);
@@ -1738,6 +1970,7 @@ DESIGN integrationData {
     } 
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------заказы продажа
 importSaleOrder 'Импорт заказов (продажа)' () {
     
     LOCAL id = ISTRING[50] (INTEGER);
@@ -1823,138 +2056,7 @@ DESIGN integrationData {
     } 
 }
 
-
-
-//--------------------------------------------------------------------------------------------------------------МАТРИЦЫ
-rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
-
-WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
-    include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
-    include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
-}
-
-daysPromotion 'Кол-во дней для импорта акционных прайсов' = DATA INTEGER ();
-dateFromP () = sum(currentDate(), -daysPromotion());
-dateFromPT () = toDateDDMMYY(dateFromP());
-
-importPriceListPromotion 'Импорт акционных прайсов' () {
-    
-    LOCAL id = ISTRING[50] (INTEGER);
-    LOCAL date = DATE (INTEGER);
-    LOCAL begin = DATETIME (INTEGER);
-    LOCAL end = DATETIME (INTEGER);
-    LOCAL posted = INTEGER (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceList);
-    
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ID, CREATEDAT, DATEBEGIN, DATEEND, DOCSTATE, NAME FROM Supermag.SVDocumentsMA WHERE DATEEND >= TO_DATE(\'' 
-        + toDateISO(dateFromP()) + '\',\'YYYY-MM-DD\') AND DOCSTATE > 0' TO file;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_1');
-    
-    IMPORT TABLE FROM file() TO id, date, begin, end, posted, name;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_2');
-    
-    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
-        id(p) <- id(i);
-    }
-    
-    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
-        
-        operation(p) <- PriceList.operation('promotion');
-        number(p) <- ISTRING[28] (id(p));
-        date(p) <- date(i);
-        time(p) <- 00:00;
-        isPosted(p) <- posted(i) != 1;
-        fromDate(p) <- DATE (begin(i));
-        fromTime(p) <- TIME (begin(i));
-        toDate(p) <- DATE (end(i));
-        toTime(p) <- TIME (end(i));
-        note(p) <- name(i);
-        fromPriceBeforeDate(p) <- sum(DATE (begin(i)), -1);
-        fromPriceBeforeTime(p) <- 00:00;
-        toPriceBeforeDate(p) <- sum(DATE (end(i)), 1);
-        allStocks(p) <- NULL;
-        imported(p) <- TRUE;
-    }
-    
-    logToFile('importSupermag', 'importPriceListPromotion_3');
-    
-    LOCAL idDoc = ISTRING[50](INTEGER);
-    LOCAL specItem = INTEGER (INTEGER);
-    LOCAL idItem = ISTRING[50](INTEGER);
-    LOCAL price = NUMERIC[19,4](INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceListDetail);
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA a WHERE d.DOCID = a.id AND a.DATEEND >= TO_DATE(\''
-            + toDateISO(dateFromP()) + '\',\'YYYY-MM-DD\') AND a.DOCSTATE > 0' TO file;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_4');
-    
-    IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_5');
-    
-    id(INTEGER i) <- CONCAT '', 'P', idDoc(i), specItem(i) WHERE imported(i); 
-    
-    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
-        id(d) <- id(i);
-        userPriceList(d) <- userPriceList(idDoc(i));
-    }
-    
-    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
-        sku(d) <- item(idItem(i));
-        imported(d) <- TRUE;
-        dataIndex(d) <- specItem(i);
-        priceBefore(d) <- OVERRIDE (GROUP MAX prevPriceA(dataPriceListType('retail'), item(idItem(i)), Stock st, fromDateTime(userPriceList(idDoc(i)))) IF in(userPriceList(idDoc(i)), st)), 0.0;
-        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('promotion');
-    }
-    
-    logToFile('importSupermag', 'importPriceListPromotion_6');
-    
-    LOCAL idStock = INTEGER (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA d WHERE a.AUCID = d.id AND d.DATEEND >= TO_DATE(\'' 
-        + toDateISO(dateFromP()) + '\',\'YYYY-MM-DD\')' TO file;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_7');
-    
-    IMPORT TABLE FROM file() TO idDoc, idStock;
-    
-    logToFile('importSupermag', 'importPriceListPromotion_8');
-    
-    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
-        dataIn(p, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](p, s);
-    }
-    
-    logToFile('importSupermag', 'importPriceListPromotion_9');
-    APPLY NESTED LOCAL;
-    logToFile('importSupermag', 'importPriceListPromotion_10');
-    
-    DELETE UserPriceList p WHERE toDate(p) >= dateFromP() AND id(operation(p)) == 'promotion' AND NOT imported(p);
-    DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromP() AND id(operation(d)) == 'promotion' AND NOT imported(d);
-    
-    logToFile('importSupermag', 'importPriceListPromotion_11');
-    APPLY;
-    logToFile('importSupermag', 'importPriceListPromotion_12');
-}
-
-EXTEND FORM integrationData PROPERTIES importPriceListPromotion(), daysPromotion();
-DESIGN integrationData { 
-    supermagButtons { 
-        NEW supermagPromo {
-            type = CONTAINERH;
-            MOVE PROPERTY (importPriceListPromotion());
-            MOVE PROPERTY (daysPromotion()) { caption = 'Кол-во дней'; alignment = CENTER; }
-        } 
-    } 
-}
-
+//-------------------------------------------------------------------------------------------------------------------сверка остатков
 dateCheckBalance 'Дата сверки' = DATA DATE ();
 synchronizeBalance 'Привести остатки к данным Супермага' = DATA BOOLEAN ();
 
@@ -2021,150 +2123,6 @@ DESIGN integrationData {
             MOVE PROPERTY (synchronizeBalance()) { alignment = CENTER; }
         }
     }
-}
-
-importSkuLists 'Импорт списков товаров' () {
-    
-    LOCAL id = INTEGER (INTEGER);
-    LOCAL tree = ISTRING[100] (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
-    
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACardAssort' TO file;
-    
-    IMPORT TABLE FROM file() TO id, tree, name;
-    
-    IF NOT list('all') THEN NEW g = List {
-        id(g) <- 'all';
-        name(g) <- 'Все';
-    }
-    
-    FOR id(INTEGER i) AND id(i) != 0 AND NOT list(TEXT (id(i))) DO NEW g = List {
-        id(g) <- ISTRING[100] (id(i));
-    }
-    
-    LOCAL level = INTEGER (INTEGER);
-    LOCAL parent = TEXT (INTEGER);
-    LOCAL idOrder = ISTRING[20](List);
-    
-    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
-    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
-    
-    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) DO {
-    
-        name(g) <- name(i);
-        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
-        idOrder(g) <- tree(i);
-    }
-    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) ORDER level(i) DO {
-        
-        parent(g) <- OVERRIDE (GROUP MAX List gg IF idOrder(gg) == parent(i)), list('all');
-    }
-    
-    APPLY;
-    
-    LOCAL idList = INTEGER (INTEGER);
-    LOCAL idItem = ISTRING[100] (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDASSORT, ARTICLE FROM Supermag.SMCardAssort' TO file;
-    
-    IMPORT TABLE FROM file() TO idList, idItem;
-    
-    LOCAL imported = BOOLEAN (ListDetail);
-    
-    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND NOT listDetail(s, l) DO NEW d = ListDetail {
-        list(d) <- l;
-        sku(d) <- s;
-    }
-    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND ListDetail d = listDetail(s, l) DO {
-        imported(d) <- TRUE;
-    }
-    
-    DELETE ListDetail d WHERE d IS ListDetail AND NOT imported(d);
-    
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importSkuLists();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSkuLists()); } }
-
-defaultCompany = DATA LegalEntity();
-nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
-
-EXTEND FORM options PROPERTIES nameDefaultCompany();
-
-DESIGN options {
-    commons {
-        MOVE PROPERTY (nameDefaultCompany());
-    }
-}
-
-importBank 'Импорт банков' () {
-    
-    LOCAL id = INTEGER (INTEGER);
-    LOCAL name = STRING[255](INTEGER);
-    LOCAL address = STRING[255](INTEGER);
-    LOCAL bic = STRING[40](INTEGER);
-    
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE, ADDRESS, BIC FROM Supermag.SABanks' TO file;
-    
-    IMPORT TABLE FROM file() TO id, name, address, bic;
-    
-    FOR id(INTEGER i) AND NOT bank(TEXT (id(i))) DO NEW b = Bank {
-        id(b) <- STRING[100] (id(i));
-    }
-    
-    FOR Bank b = bank(TEXT (id(INTEGER i))) DO {
-        name(b) <- STRING[200](name(i));
-        
-        IF NOT address(b, currentDate()) == address(i) THEN {
-            dataAddress(b, DATE d) <- STRING[150](address(i)) WHERE d == currentDate() AND NOT address(b, currentDate()) == address(i);
-        }
-        MFO(b) <- STRING[11](bic(i));
-    }
-    
-    APPLY;
-}
-
-importAccount 'Импорт счетов' () {
-    
-    LOCAL idLegalEntity = INTEGER (INTEGER);
-    LOCAL idBank = INTEGER (INTEGER);
-    LOCAL account = STRING[40](INTEGER);
-    LOCAL active = STRING[1](INTEGER);
-    
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, BANKID, ACCOUNT, ISACTUAL FROM Supermag.SMClientBanks' TO file;
-    
-    IMPORT TABLE FROM file() TO idLegalEntity, idBank, account, active;
-    
-    FOR [GROUP SUM 1 IF legalEntity(TEXT (idLegalEntity(INTEGER i))) BY account(i), TEXT (idLegalEntity(i))](STRING[40] acc, STRING[100] id) 
-        AND NOT accountID(acc, id) DO NEW a = Bank.Account {
-        number(a) <- acc;
-        legalEntity(a) <- legalEntity(id);
-    }
-    
-    FOR Bank.Account a = accountID(account(INTEGER i), TEXT (idLegalEntity(i))) ORDER active(i) DO {
-        bank(a) <- bank(TEXT (idBank(i)));
-        inactive(a) <- active(i) == '0';
-    }
-    FOR LegalEntity l = legalEntity(TEXT (idLegalEntity(INTEGER i))) DO {
-        userAccount(l) <- Bank.defaultAccount(l);
-    }
-    
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
-DESIGN integrationData { 
-    supermagButtons { 
-        NEW accounts {
-            type = CONTAINERH;
-            MOVE PROPERTY (importBank());
-            MOVE PROPERTY (importAccount());
-        } 
-    } 
 }
 
 idStock = DATA LOCAL INTEGER (INTEGER);
