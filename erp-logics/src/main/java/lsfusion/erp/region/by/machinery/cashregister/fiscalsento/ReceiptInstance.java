@@ -7,7 +7,6 @@ import java.util.TreeMap;
 
 public class ReceiptInstance implements Serializable {
     public BigDecimal sumDisc;
-    public TreeMap<Integer, BigDecimal> paymentSumMap;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public BigDecimal sumSalary;
@@ -18,11 +17,10 @@ public class ReceiptInstance implements Serializable {
     public List<ReceiptItem> receiptSaleList;
     public List<ReceiptItem> receiptReturnList;
 
-    public ReceiptInstance(BigDecimal sumDisc, TreeMap<Integer, BigDecimal> paymentSumMap, BigDecimal sumCard, BigDecimal sumCash,
+    public ReceiptInstance(BigDecimal sumDisc, BigDecimal sumCard, BigDecimal sumCash,
                            BigDecimal sumSalary, BigDecimal sumGiftCard,
                            BigDecimal sumTotal, String numberDiscountCard, List<ReceiptItem> receiptSaleList, List<ReceiptItem> receiptReturnList) {
         this.sumDisc = sumDisc;
-        this.paymentSumMap = paymentSumMap;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.sumSalary = sumSalary;

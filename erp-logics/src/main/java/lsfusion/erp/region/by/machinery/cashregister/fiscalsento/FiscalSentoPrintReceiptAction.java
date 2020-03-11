@@ -69,7 +69,6 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 BigDecimal sumDisc = null;
 
-                TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
                 BigDecimal sumSalary = null;
@@ -81,7 +80,6 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.addProperty("idTypeRegister", findProperty("idTypeRegister[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
@@ -92,14 +90,10 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     DataObject paymentMeansSalaryObject = posSalaryLM != null ? ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansSalary") : null;
-                    Integer idTypeRegister = (Integer) paymentValues.get("idTypeRegister");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     Object paymentMeans = paymentValues.get("paymentMeansPayment");
                     if(sumPayment != null) {
-                        if(idTypeRegister != null) {
-                            BigDecimal sum = paymentSumMap.get(idTypeRegister);
-                            paymentSumMap.put(idTypeRegister, safeAdd(sum, sumPayment));
-                        } else if (paymentMeansCashObject.getValue().equals(paymentMeans)) {
+                        if (paymentMeansCashObject.getValue().equals(paymentMeans)) {
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentMeans)) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
@@ -156,7 +150,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
-                            new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash, sumSalary,
+                            new ReceiptInstance(sumDisc, sumCard, sumCash, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalSentoReceiptTop, fiscalSentoReceiptBottom));
                     if (result instanceof Integer) {
