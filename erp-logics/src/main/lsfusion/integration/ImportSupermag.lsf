@@ -566,6 +566,10 @@ importStore 'Импорт магазинов' () {
 EXTEND FORM integrationData PROPERTIES importStore();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStore()); } }
 
+storeTypeInSupermag = DATA INTEGER (StoreType);
+
+overImportStoreType ABSTRACT LIST ();
+
 importStoreType 'Импорт форматов магазинов' () {
     
     LOCAL id = INTEGER (INTEGER);
@@ -588,6 +592,9 @@ importStoreType 'Импорт форматов магазинов' () {
     FOR StoreType g = storeType('T' + id(INTEGER i)) DO {
         name(g) <- name(i);
     }
+    
+    overImportStoreType();
+    
     APPLY;
 }
 
@@ -1837,6 +1844,8 @@ importStockOrder 'Импорт заказов (складских требова
         id(o) <- id;
     }
     
+    DELETE Sale.UserOrder o WHERE o IS Sale.UserOrder AND operation(o) = Sale.operation('saleStoreStore');
+
     FOR Sale.UserOrder o == Sale.userOrder(id(INTEGER i)) DO {       
         number(o) <- STRING[28](id(i));
         operation(o) <- Sale.operation('saleStoreStore');
