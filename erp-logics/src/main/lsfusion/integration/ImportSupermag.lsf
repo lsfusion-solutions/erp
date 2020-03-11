@@ -179,7 +179,9 @@ importItem 'Импорт товаров' () {
     logToFile('importSupermag', 'importItem_5');
     
     name(INTEGER i) <- left(name(i), 15);
-    
+    //весовой товар 
+    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22'; 
+     
     FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
         id(b) <- ISTRING[15] (name(i));
     }
@@ -494,13 +496,13 @@ importLegalEntity 'Импорт организаций' () {
     LOCAL own = ISTRING[1] (INTEGER);
     LOCAL clientClass = INTEGER (INTEGER);
     LOCAL supplierClass = INTEGER (INTEGER);
-    LOCAL active = INTEGER (INTEGER);
+    LOCAL status = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS, ACCEPTED FROM Supermag.SVCOMPANIES' TO file;
 
-    IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass;
+    IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass, status;
     
     FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
         id(s) <- ISTRING[100] (id(i));
@@ -534,7 +536,7 @@ importLegalEntity 'Импорт организаций' () {
         isSupplier(s) <- TRUE IF supplierClass(i);
         isCustomer(s) <- TRUE IF clientClass(i);
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup('companies') IF own(i) == '1', legalEntityGroup('S' + supplierClass(i)), legalEntityGroup('C' + clientClass(i));
-        inactive(s) <- active(i) == 2;
+        inactive(s) <- status(i) == 2;
     }
     APPLY;
 }
