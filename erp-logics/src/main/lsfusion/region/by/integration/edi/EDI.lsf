@@ -57,7 +57,6 @@ CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
 TABLE eOrderDetail(EOrderDetail); 
 
 order = ABSTRACT EOrder(EOrderDetail);
-numberOrder (EOrderDetail d) = number(order(d)); 
 
 sku = ABSTRACT Sku(EOrderDetail);
 idSku 'Код товара' (EOrderDetail o) = id(sku(o));
@@ -302,7 +301,6 @@ sku = DATA Sku(EOrderResponseDetail) INDEXED;
 nameSku 'Наименование' (EOrderResponseDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderResponseDetail o) = idBarcode(sku(o));
 GTINBarcode 'GTIN' (EOrderResponseDetail o) = GTINBarcode(sku(o));
-extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderResponseDetail o) = extraCodeUOM(UOM(sku(o)));
 
 eOrder (EOrderResponseDetail d) = eOrder(orderResponse(d)) MATERIALIZED INDEXED;
 
@@ -360,7 +358,6 @@ sku = DATA Sku(EOrderDespatchAdviceDetail) INDEXED;
 nameSku 'Наименование' (EOrderDespatchAdviceDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderDespatchAdviceDetail o) = idBarcode(sku(o));
 GTINBarcode 'GTIN' (EOrderDespatchAdviceDetail o) = GTINBarcode(sku(o));
-extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDespatchAdviceDetail o) = extraCodeUOM(UOM(sku(o)));
 quantityOrdered 'Кол-во заказываемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
 quantityDespatch 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
 valueVAT 'НДС, %' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
@@ -391,14 +388,11 @@ dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice);
 @defineExternalizable(eInvoice, STRING[100]);
 dateTime 'Дата/время документа' = DATA DATETIME (EInvoice);
 number 'Номер' = DATA STRING[28] (EInvoice);
-eInvoiceNumber (number) = GROUP NAGGR EInvoice e BY number(e);
 
 blrapn = DATA STRING[14] (EInvoice);
 eInvoiceBlrapn (number) = GROUP MAX EInvoice e BY blrapn(e);
-numberEInvoiceBlrapn(number) = number(eInvoiceBlrapn(number));
 blrwbr = DATA STRING[14] (EInvoice);
 eInvoiceBlrwbr (number) = GROUP MAX EInvoice e BY blrwbr(e);
-numberEInvoiceBlrwbr(number) = number(eInvoiceBlrwbr(number));
 blrwbl = DATA STRING[14] (EInvoice);
 blrwblDate = DATA DATETIME (EInvoice);
 eInvoiceBlrwbl (number) = GROUP MAX EInvoice e BY blrwbl(e);
@@ -421,10 +415,6 @@ sealIDReceiver 'Номер пломбы (грузоотправитель)' = DA
 contractId 'Номер Договора (или другого документа, служащего основанием отпуска)' = DATA STRING[70] (EInvoice);
 contractDate 'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)' = DATA DATE (EInvoice);
 waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
-
-deliveryNoteNumberEInvoiceBlrapn(number) = deliveryNoteNumber(eInvoiceBlrapn(number));
-deliveryNoteNumberEInvoiceBlrwbr(number) = deliveryNoteNumber(eInvoiceBlrwbr(number));
-deliveryNoteNumberEInvoiceBlrwbl(number) = deliveryNoteNumber(eInvoiceBlrwbl(number));
 
 supplier 'Поставщик' = DATA LegalEntity (EInvoice);
 glnSupplier 'GLN поставщика' (EInvoice i) = GLN(supplier(i));
@@ -478,18 +468,6 @@ isReturn 'Возврат' = DATA BOOLEAN (EInvoice);
 CLASS EInvoiceDetail 'Строка электронной накладной EDI';
 TABLE eInvoiceDetail(EInvoiceDetail); 
 @defineExternalizable(eInvoiceDetail, STRING[100]);
-
-certificateEDI 'Сертификат (EDI)' = DATA STRING[100] (Computer);
-certificateEDI 'Сертификат (EDI)' () = certificateEDI(currentComputer());
-passwordEDI 'Пароль (EDI)' = DATA STRING[100] (Computer) ECHO;
-passwordEDI 'Пароль (EDI)' () = passwordEDI(currentComputer());
-signerPathEDI 'Путь EDISigner (EDI)' = DATA STRING[100] (Computer);
-signerPathEDI 'Путь EDISigner (EDI)' () = signerPathEDI(currentComputer());
-outputEDI 'Директория подписанных файлов (EDI)' = DATA STRING[100] (Computer);
-outputEDI 'Директория подписанных файлов (EDI)' () = outputEDI(currentComputer());
-
-EXTEND FORM computer PROPERTIES(c) certificateEDI, passwordEDI, signerPathEDI, outputEDI;
-EXTEND FORM computers PROPERTIES(c) READONLY certificateEDI, passwordEDI, signerPathEDI, outputEDI;
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 
