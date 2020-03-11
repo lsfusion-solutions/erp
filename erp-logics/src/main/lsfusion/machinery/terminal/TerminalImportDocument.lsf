@@ -1,0 +1,46 @@
+MODULE TerminalImportDocument;
+
+REQUIRE Terminal;
+
+CLASS ImportFormat 'Формат файла' {
+    Format_CipherLab8000 'CipherLab 8000'
+}
+    
+importFormatValue(ImportFormat f) = CASE 
+                        WHEN f = ImportFormat.Format_CipherLab8000 THEN 0
+                        ELSE 0;
+                        
+importFormat 'Значение' (ImportFormat f) = importFormatValue(f);                                                                       
+importName 'Формат' (ImportFormat f) = staticCaption(f);
+
+FORM importFormats 'Формат файла'
+    OBJECTS f = ImportFormat
+    PROPERTIES(f) READONLY importFormat, importName
+    LIST ImportFormat OBJECT f
+    ORDER importFormat(f)
+;
+
+importDocument 'Добавить из файла'(TerminalDocument td)  {
+
+    LOCAL barcode = STRING[15](INTEGER );
+    LOCAL quantity = NUMERIC[14,3](INTEGER );
+	
+    DIALOG importFormats OBJECTS f INPUT DO {
+        IF f == ImportFormat.Format_CipherLab8000 THEN {
+        
+            INPUT file = CSVFILE DO {
+                    IMPORT CSV ';' NOHEADER FROM file TO barcode = A, quantity = B;
+
+                FOR quantity(INTEGER i) NEW o = TerminalDocumentDetail DO {
+                    terminalDocument(o) <- td;
+                    barcode(o) <- barcode(i);
+                    quantity(o) <- quantity(i);
+                }
+            }
+        }
+    }        
+}
+
+EXTEND FORM terminalDocument
+    PROPERTIES(td) importDocument DRAW tdd TOOLBAR     
+;
