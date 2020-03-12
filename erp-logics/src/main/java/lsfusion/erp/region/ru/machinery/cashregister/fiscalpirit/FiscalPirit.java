@@ -67,12 +67,13 @@ public class FiscalPirit {
         }
     }
 
-    public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList, boolean sale) {
+    public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
+                                       Integer giftCardDepartment, Integer giftCardPaymentType, boolean sale) {
         openZReportIfClosed(serialPort, cashier);
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
-            registerItemCommand(serialPort, item);
+            registerItemCommand(serialPort, item, giftCardDepartment);
         }
 
         subtotalCommand(serialPort);
@@ -82,7 +83,7 @@ public class FiscalPirit {
         }
 
         if (receipt.sumGiftCard != null) {
-            totalCommand(serialPort, receipt.sumGiftCard, "2");
+            totalCommand(serialPort, receipt.sumGiftCard, giftCardPaymentType != null ? String.valueOf(giftCardPaymentType) : "2");
         }
         if (receipt.sumCard != null) {
             totalCommand(serialPort, receipt.sumCard, "1");
@@ -216,8 +217,11 @@ public class FiscalPirit {
         sendCommand(serialPort, "32", "Аннулировать документ", false);
     }
 
-    private static void registerItemCommand(SerialPort serialPort, ReceiptItem item) {
-        sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode, formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, item.articleDiscSum)), "0", "0", "0", "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "BLR", "0"), true);
+    private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment) {
+        String department = giftCardDepartment != null ? String.valueOf(giftCardDepartment) : "0";
+        sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
+                formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, item.articleDiscSum)), "0", "0",
+                department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "BLR", "0"), true);
     }
 
     private static void subtotalCommand(SerialPort serialPort) {
