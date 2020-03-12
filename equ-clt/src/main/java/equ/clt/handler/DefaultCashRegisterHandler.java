@@ -22,6 +22,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     protected final static Logger softCheckLogger = Logger.getLogger("SoftCheckLogger");
     protected final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
 
+    protected static String oplatiPaymentType = "oplati";
+
     protected Set<CashRegisterInfo> getCashRegisterSet(RequestExchange requestExchange, boolean extra) {
         Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
         for (CashRegisterInfo cashRegister : requestExchange.cashRegisterSet) {
@@ -176,7 +178,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
         sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, null, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
                 discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptDetailExtraFields, cashRegisterInfo);
     }
@@ -184,22 +186,14 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     //Artix, Dreamkas, EQS, Kristal10, UKM4MySQL
     public static SalesInfo getSalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                                          Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                                         String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
-                                         String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+                                         String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, Map<String, BigDecimal> customPaymentMap,
+                                         String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                          BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                                          BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                                          String idSection, boolean skipReceipt, CashRegisterInfo cashRegisterInfo) {
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, customPaymentMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                 priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
                 idSection, skipReceipt, null, cashRegisterInfo);
     }
-
-    protected Map<String, GiftCard> getSingleSumGiftCardMap(BigDecimal sumGiftCard) {
-        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-        sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-        return sumGiftCardMap;
-    }
-
-
 }

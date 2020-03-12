@@ -27,6 +27,7 @@ public class SalesInfo implements Serializable {
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public Map<String, GiftCard> sumGiftCardMap;
+    public Map<String, BigDecimal> customPaymentMap;
     public String barcodeItem;
     public String idItem;
     public Long itemObject;
@@ -47,8 +48,8 @@ public class SalesInfo implements Serializable {
 
     public SalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
-                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, Map<String, BigDecimal> customPaymentMap,
+                     String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                      String idSection, boolean skipReceipt, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
@@ -68,6 +69,7 @@ public class SalesInfo implements Serializable {
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.sumGiftCardMap = sumGiftCardMap;
+        this.customPaymentMap = customPaymentMap;
         this.barcodeItem = barcodeItem;
         this.idItem = idItem;
         this.itemObject = itemObject;

@@ -480,7 +480,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                         dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idCashier,
-                                        nameCashier, null, null, null, getSingleSumGiftCardMap(null), idBarcode, idItem, null, null, totalQuantity,
+                                        nameCashier, null, null, null, getZeroSumGiftCardMap(), null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection, false, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
@@ -562,6 +562,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
             throw Throwables.propagate(e);
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet, directory);
+    }
+
+    protected Map<String, GiftCard> getZeroSumGiftCardMap() {
+        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+        sumGiftCardMap.put(null, new GiftCard(null));
+        return sumGiftCardMap;
     }
 
     private boolean needAnnihilate(SalesInfo saleReturnEntry, BigDecimal totalQuantity, BigDecimal discountSum) {

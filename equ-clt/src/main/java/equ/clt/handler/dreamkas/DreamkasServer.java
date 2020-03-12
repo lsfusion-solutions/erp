@@ -329,8 +329,8 @@ public class DreamkasServer {
 
                 salesInfoList.add(DreamkasHandler.getSalesInfo(false, false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
                         numberReceipt, dateReceipt, timeReceipt, idEmployee, idEmployee != null ? firstNameContact : null,
-                        idEmployee != null ? lastNameContact : null, sumCard, sumCash,
-                        null, barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
+                        idEmployee != null ? lastNameContact : null, sumCard, sumCash, null, null,
+                        barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
                         null, null, null, numberReceiptDetail, "", null, isCancel, null));
             }
         }

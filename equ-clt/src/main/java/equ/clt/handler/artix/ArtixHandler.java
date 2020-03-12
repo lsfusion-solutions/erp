@@ -1219,7 +1219,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                                 currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
-                                                        sumCard, sumCash, sumGiftCardMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
+                                                        sumCard, sumCash, sumGiftCardMap, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, cashRegister));
                                             }

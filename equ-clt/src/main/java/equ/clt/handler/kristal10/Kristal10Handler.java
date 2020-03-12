@@ -1075,6 +1075,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             BigDecimal sumCash = BigDecimal.ZERO;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
                             Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                            Map<String, BigDecimal> customPaymentMap = new HashMap<>();
                             List<Element> paymentsList = purchaseNode.getChildren("payments");
                             for (Element paymentNode : paymentsList) {
 
@@ -1134,6 +1135,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                     sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
                                                 } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                                 break;
+                                            }
+                                            case "by.lwo.oplati.payment": {
+                                                customPaymentMap.put(oplatiPaymentType, HandlerUtils.safeAdd(customPaymentMap.get(oplatiPaymentType), sum));
                                             }
                                         }
                                     }
@@ -1270,7 +1274,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                             sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                         currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
                                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
-                                                barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
+                                                customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
                                                 useSectionAsDepartNumber ? positionDepartNumber : null, false, cashRegister));
                                     }
@@ -1283,6 +1287,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
                             for(GiftCard giftCard : sumGiftCardMap.values()) {
                                 sum = HandlerUtils.safeAdd(sum, giftCard.sum);
+                            }
+                            for(BigDecimal customPayment : customPaymentMap.values()) {
+                                sum = HandlerUtils.safeAdd(sum, customPayment);
                             }
                             if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                 for (SalesInfo salesInfo : currentSalesInfoList) {

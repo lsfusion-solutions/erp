@@ -39,7 +39,8 @@ public class EquipmentServerImport {
 
             ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
             ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
-            keys.add(paymentKey);
+            keys.add(paymentTypeKey);
+            paymentTypeKey.skipKey = true;
             props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
             fields.add(sidTypePaymentField);
@@ -54,14 +55,7 @@ public class EquipmentServerImport {
 
             List<List<Object>> dataPayment = new ArrayList<>();
             for (int i = start; i < finish; i++) {
-                SalesInfo sale = salesInfoList.get(i);
-                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-                if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-                }
-                if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-                }
+                dataPayment.addAll(getPayments(salesInfoList.get(i), options));
             }
 
             if (!dataPayment.isEmpty())
@@ -93,6 +87,7 @@ public class EquipmentServerImport {
             ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
             ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[BPSTRING[10]]").getMapping(sidTypePaymentField));
             keys.add(paymentTypeKey);
+            paymentTypeKey.skipKey = true;
             props.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
                     zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
             fields.add(sidTypePaymentField);
@@ -107,18 +102,30 @@ public class EquipmentServerImport {
 
             List<List<Object>> dataPayment = new ArrayList<>();
             for (SalesInfo sale : data) {
-                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
-                if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-                }
-                if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                    dataPayment.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-                }
+                dataPayment.addAll(getPayments(sale, options));
             }
 
             if (!dataPayment.isEmpty())
                 new IntegrationService(session, new ImportTable(fields, dataPayment), keys, props).synchronize(true);
         }
+    }
+
+    private static List<List<Object>> getPayments(SalesInfo sale, EquipmentServer.EquipmentServerOptions options) {
+        List<List<Object>> result = new ArrayList<>();
+        String idReceipt = EquipmentServer.getIdReceipt(sale, options);
+        if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
+            result.add(Arrays.asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
+        }
+        if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
+            result.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
+        }
+        //из-за того, что у платежей giftCard id начинаются с 3
+        int paymentNumber = 2 + sale.sumGiftCardMap.size();
+        for (Map.Entry<String, BigDecimal> customPayment : sale.customPaymentMap.entrySet()) {
+            String paymentType = customPayment.getKey();
+            result.add(Arrays.asList(idReceipt + "_" + paymentType, idReceipt, paymentType, customPayment.getValue(), ++paymentNumber));
+        }
+        return result;
     }
 
     public static void importPaymentGiftCardMultiThread(BusinessLogics BL, DataSession session, List<SalesInfo> salesInfoList, int start, int finish, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

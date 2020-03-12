@@ -170,7 +170,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                                         sumReceiptDetail = safeSubtract(sumReceiptDetail, discountSumReceiptDetail);
                                         receiptSalesInfoList.add(new SalesInfo(false, false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery,
                                                 numberZReport, date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO,
-                                                BigDecimal.ZERO, null, item.barcode, null, null, null, quantityReceiptDetail,
+                                                BigDecimal.ZERO, null, null, item.barcode, null, null, null, quantityReceiptDetail,
                                                 item.price, sumReceiptDetail, null, discountSumReceiptDetail, null, null, numberReceiptDetail,
                                                 null, null, false, null, null));
                                         item.count = safeSubtract(item.count, quantityReceiptDetail);
