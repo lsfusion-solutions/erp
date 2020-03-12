@@ -120,10 +120,12 @@ public class EquipmentServerImport {
             result.add(Arrays.asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
         }
         //из-за того, что у платежей giftCard id начинаются с 3
-        int paymentNumber = 2 + sale.sumGiftCardMap.size();
-        for (Map.Entry<String, BigDecimal> customPayment : sale.customPaymentMap.entrySet()) {
-            String paymentType = customPayment.getKey();
-            result.add(Arrays.asList(idReceipt + "_" + paymentType, idReceipt, paymentType, customPayment.getValue(), ++paymentNumber));
+        if (sale.customPaymentMap != null && !sale.customPaymentMap.isEmpty()) {
+            int paymentNumber = 2 + sale.sumGiftCardMap.size();
+            for (Map.Entry<String, BigDecimal> customPayment : sale.customPaymentMap.entrySet()) {
+                String paymentType = customPayment.getKey();
+                result.add(Arrays.asList(idReceipt + "_" + paymentType, idReceipt, paymentType, customPayment.getValue(), ++paymentNumber));
+            }
         }
         return result;
     }
