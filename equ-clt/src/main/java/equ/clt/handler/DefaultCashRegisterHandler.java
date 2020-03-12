@@ -23,6 +23,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
     protected final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
 
     protected static String oplatiPaymentType = "oplati";
+    protected static String salaryPaymentType = "salary";
 
     protected Set<CashRegisterInfo> getCashRegisterSet(RequestExchange requestExchange, boolean extra) {
         Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
