@@ -206,13 +206,12 @@ CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail
 descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-quantityInvoiceDetail (sale, purchase) = GROUP SUM quantity(Purchase.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
+TABLE PurchaseInvoiceSaleInvoice(Purchase.Invoice, Sale.Invoice);
+countInvoiceDetail (sale, purchase) = GROUP SUM 1 BY invoice(invoiceDetail(Purchase.InvoiceDetail detail)), invoice(detail) MATERIALIZED;
 
 saleInvoices 'Накладные (продажа)' (Purchase.Invoice purchase) = GROUP
-                                                        CONCAT STRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, purchase) , ', '
-                                                        ORDER sale CHARWIDTH 30 MATERIALIZED;
-
-relationPurchase 'Связь' (Purchase.Invoice purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
+                                                        CONCAT STRING[255](description(Invoice sale)) IF countInvoiceDetail(sale, purchase) , ', '
+                                                        ORDER sale CHARWIDTH 30;
 
 invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(Purchase.InvoiceDetail detail) IF isPosted(detail)
                                                                    BY invoiceDetail(detail) MATERIALIZED;
