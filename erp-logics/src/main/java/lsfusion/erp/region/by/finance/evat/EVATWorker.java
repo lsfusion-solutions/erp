@@ -43,12 +43,12 @@ class EVATWorker {
             switch (type) {
                case 0:
                   if(useActiveX)
-                     return new EVATActiveXHandler().signAndSend(files, serviceUrl, path, exportPath);
+                     return new EVATActiveXHandler().signAndSend(files, serviceUrl, path, exportPath, password, certNumber);
                   else
                      return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certNumber, certIndex);
                case 1:
                   if(useActiveX)
-                     return new EVATActiveXHandler().getStatus(invoices, serviceUrl);
+                     return new EVATActiveXHandler().getStatus(invoices, serviceUrl, password, certNumber);
                   else
                      return new EVATHandler().getStatus(invoices, serviceUrl, password, certNumber, certIndex);
                default:

@@ -40,7 +40,7 @@ public class EVATActiveXHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<String, Map<Long, List<Object>>> files, String serviceUrl, String path, String exportPath) {
+    public List<List<Object>> signAndSend(Map<String, Map<Long, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, String certNumber) {
         logger.info("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
@@ -53,7 +53,7 @@ public class EVATActiveXHandler {
             logger.info(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
             try {
-                initService(serviceUrl);
+                initService(serviceUrl, password, certNumber);
                 if(service != null) {
                     if (archiveDir == null || archiveDir.exists() || archiveDir.mkdirs()) {
                         for (Map.Entry<Long, List<Object>> entry : filesEntry.getValue().entrySet()) {
@@ -138,7 +138,7 @@ public class EVATActiveXHandler {
         return result;
     }
 
-    public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl) {
+    public List<List<Object>> getStatus(Map<String, Map<Long, String>> invoices, String serviceUrl, String password, String certNumber) {
         logger.info("EVAT: client action getStatus");
         List<List<Object>> result = new ArrayList<>();
 
@@ -150,7 +150,7 @@ public class EVATActiveXHandler {
             for (Map.Entry<String, Map<Long, String>> entry : invoices.entrySet()) {
                 Map<Long, String> invoicesMap = entry.getValue();
 
-                initService(serviceUrl);
+                initService(serviceUrl, password, certNumber);
                 if(service != null) {
 
                     for (Map.Entry<Long, String> invoiceEntry : invoicesMap.entrySet()) {
@@ -176,14 +176,14 @@ public class EVATActiveXHandler {
         return result;
     }
 
-    private void initService(String serviceUrl) {
+    private void initService(String serviceUrl, String password, String certNumber) {
         if (service == null) {
             logger.info("EVAT: initService started");
 
             ActiveXComponent evatActiveXComponent = new ActiveXComponent("EInvVatService.Connector");
             service = evatActiveXComponent.getObject();
 
-            if (Dispatch.call(service, "Login", ""/*, (unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password*/, 0/*0x40*/).getInt() == 0) {
+            if (Dispatch.call(service, "Login", certNumber == null ? "" : (("PUB_KEY_ID=" + certNumber + ";") + "PASSWORD_KEY=" + password), certNumber == null ? 0 : 0x40).getInt() == 0) {
                 //Авторизация успешна
                 if (Dispatch.call(service, "Connect", serviceUrl).getInt() == 0) {
                     logger.info("EVAT: initService finished");
