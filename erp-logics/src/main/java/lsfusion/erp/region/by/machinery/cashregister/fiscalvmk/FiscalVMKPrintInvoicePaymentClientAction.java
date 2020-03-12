@@ -2,20 +2,23 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 
 
 public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAction {
     BigDecimal sumPayment;
     Integer typePayment;
     boolean sale;
+    List<InvoiceDetail> invoiceDetailList;
 
-    public FiscalVMKPrintInvoicePaymentClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate, BigDecimal sumPayment, Integer typePayment, boolean sale) {
+    public FiscalVMKPrintInvoicePaymentClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
+                                                    BigDecimal sumPayment, Integer typePayment, boolean sale, List<InvoiceDetail> invoiceDetailList) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
         this.sale = sale;
+        this.invoiceDetailList = invoiceDetailList;
     }
     
     public Object dispatch(ClientActionDispatcher dispatcher) {
@@ -25,7 +28,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
             FiscalVMK.openPort(isUnix, logPath, ip, comPort, baudRate);
             FiscalVMK.opensmIfClose();
 
-            Integer numberReceipt = printPayment(sumPayment, typePayment);
+            Integer numberReceipt = printPayment();
             
             if (numberReceipt == null) {
                 String error = FiscalVMK.getError(false);
@@ -42,7 +45,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
         }
     }
 
-    private Integer printPayment(BigDecimal sumPayment, Integer typePayment) {
+    private Integer printPayment() {
 
         if (!FiscalVMK.getFiscalClosureStatus())
             return null;
@@ -51,8 +54,15 @@ public class FiscalVMKPrintInvoicePaymentClientAction extends FiscalVMKClientAct
 
         Integer receiptNumber = FiscalVMK.getReceiptNumber();
 
-        if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment))
-            return null;
+        if(invoiceDetailList.isEmpty()) {
+            if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment))
+                return null;
+        } else {
+            for(InvoiceDetail detail : invoiceDetailList) {
+                if(!FiscalVMK.registerItemPaymentDetail(detail))
+                    return null;
+            }
+        }
 
         if (!FiscalVMK.subtotal())
             return null;
