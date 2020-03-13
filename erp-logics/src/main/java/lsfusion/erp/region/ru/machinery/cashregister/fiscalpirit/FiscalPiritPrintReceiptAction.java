@@ -68,6 +68,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
 
                 Integer giftCardDepartment = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardDepartmentCurrentCashRegister[]").read(context): null;
                 Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
+                Integer saleGiftCardPaymentType = (Integer) findProperty("saleGiftCardPaymentTypeCurrentCashRegister[]").read(context);
 
                 ScriptingLogicsModule posChargeLM = context.getBL().getModule("POSCharge");
 
@@ -76,6 +77,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
                 BigDecimal sumGiftCard = null;
+                BigDecimal sumPrepayment = null;
 
                 KeyExpr paymentExpr = new KeyExpr("payment");
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev("payment", paymentExpr);
@@ -90,12 +92,15 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                    DataObject paymentMeansPrepaymentObject = getPaymentMeansPrepayment();
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     if(sumPayment != null) {
                         if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                             sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
+                        } else if (paymentMeansPrepaymentObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
+                            sumPrepayment = sumPrepayment == null ? sumPayment : sumPrepayment.add(sumPayment);
                         } else if (giftCardLM != null) {
                             sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
                         } else
@@ -153,8 +158,8 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(isUnix, comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
-                            sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            giftCardDepartment, giftCardPaymentType));
+                            sumGiftCard == null ? null : sumGiftCard.abs(), sumPrepayment, sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
+                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())
@@ -169,6 +174,15 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    private DataObject getPaymentMeansPrepayment() {
+        try {
+            return ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansPrepayment");
+        } catch (Exception e) {
+            //paymentMeansPrepayment объявляется в multi-logics в модуле ElemaRF
+            return null;
         }
     }
 

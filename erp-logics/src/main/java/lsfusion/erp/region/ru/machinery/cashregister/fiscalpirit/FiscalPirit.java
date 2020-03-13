@@ -68,7 +68,7 @@ public class FiscalPirit {
     }
 
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
-                                       Integer giftCardDepartment, Integer giftCardPaymentType, boolean sale) {
+                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, boolean sale) {
         openZReportIfClosed(serialPort, cashier);
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
@@ -90,6 +90,9 @@ public class FiscalPirit {
         }
         if (receipt.sumCash != null) {
             totalCommand(serialPort, receipt.sumCash, "0");
+        }
+        if (receipt.sumPrepayment != null) { //если saleGiftCardPaymentType не задан, считаем наличными
+            totalCommand(serialPort, receipt.sumPrepayment, saleGiftCardPaymentType != null ? String.valueOf(saleGiftCardPaymentType) : "0");
         }
 
         closeDocumentCommand(serialPort);

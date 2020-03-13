@@ -9,18 +9,20 @@ public class ReceiptInstance implements Serializable {
     public BigDecimal sumCard;
     public BigDecimal sumCash;
     public BigDecimal sumGiftCard;
+    public BigDecimal sumPrepayment;
     public BigDecimal sumTotal;
     public String numberDiscountCard;
 
     public List<ReceiptItem> receiptSaleList;
     public List<ReceiptItem> receiptReturnList;
 
-    public ReceiptInstance(BigDecimal sumDisc, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard,
+    public ReceiptInstance(BigDecimal sumDisc, BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, BigDecimal sumPrepayment,
                            BigDecimal sumTotal, String numberDiscountCard, List<ReceiptItem> receiptSaleList, List<ReceiptItem> receiptReturnList) {
         this.sumDisc = sumDisc;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
         this.sumGiftCard = sumGiftCard;
+        this.sumPrepayment = sumPrepayment;
         this.sumTotal = sumTotal;
         this.numberDiscountCard = numberDiscountCard;
         this.receiptSaleList = receiptSaleList;

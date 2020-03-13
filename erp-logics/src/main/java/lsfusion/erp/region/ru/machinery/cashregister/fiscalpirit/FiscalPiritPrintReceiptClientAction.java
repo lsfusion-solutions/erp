@@ -8,13 +8,15 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
     ReceiptInstance receipt;
     Integer giftCardDepartment;
     Integer giftCardPaymentType;
+    Integer saleGiftCardPaymentType;
 
     public FiscalPiritPrintReceiptClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, ReceiptInstance receipt,
-                                               Integer giftCardDepartment, Integer giftCardPaymentType) {
+                                               Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType) {
         super(isUnix, comPort, baudRate, cashier);
         this.receipt = receipt;
         this.giftCardDepartment = giftCardDepartment;
         this.giftCardPaymentType = giftCardPaymentType;
+        this.saleGiftCardPaymentType = saleGiftCardPaymentType;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
@@ -37,11 +39,11 @@ public class FiscalPiritPrintReceiptClientAction extends FiscalPiritClientAction
                 Integer numberReceipt = null;
 
                 if (receipt.receiptSaleList.size() != 0) {
-                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptSaleList, giftCardDepartment, giftCardPaymentType, true);
+                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptSaleList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, true);
                 }
 
                 if (receipt.receiptReturnList.size() != 0) {
-                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptReturnList, giftCardDepartment, giftCardPaymentType, false);
+                    numberReceipt = FiscalPirit.printReceipt(serialPort, cashier, receipt, receipt.receiptReturnList, giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, false);
                 }
                 return numberReceipt;
             } catch (RuntimeException e) {
