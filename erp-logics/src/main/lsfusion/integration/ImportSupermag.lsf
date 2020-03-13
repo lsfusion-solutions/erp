@@ -925,48 +925,70 @@ userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingD
 
 
 //---------------------------------------------------------------------------------------расчетные виды цен
-importCalcPriceListType 'Импорт расчетных видов цен' () {
+importCalcPriceListType 'Импорт видов цен' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL name = ISTRING[50] (INTEGER);
+    LOCAL formatid = INTEGER (INTEGER);
   
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
     
-    IMPORT TABLE FROM file() TO id, name;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO file;
+
+    IMPORT TABLE FROM file() TO id, name, formatid;
     
-    FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
+    FOR id(INTEGER i) AND NOT dataPriceListType('D' + TEXT (id(i))) DO NEW s = DataPriceListType {
         id(s) <- ISTRING[100] (id(i));
     }
     
-    FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {
-        
+    FOR DataPriceListType t = dataPriceListType('D' + TEXT (id(INTEGER i))) DO {       
+        name(t) <- name(i);
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
+        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+    }
+       
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
+    
+    IMPORT TABLE FROM file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT calcPriceListType('C' + TEXT (id(i))) DO NEW s = CalcPriceListType {
+        id(s) <- 'C' + ISTRING[100] (id(i));
+    }
+    
+    FOR CalcPriceListType t = calcPriceListType('C' +TEXT (id(INTEGER i))) DO {        
         name(t) <- name(i);
         includeVAT(t) <- TRUE;
         currency(t) <- defaultCurrency();
         roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
         groupType(t) <- SystemGroupType.skuGroupType;  
-    }
+    }  
+    
+    APPLY;
+}
+
+importCalcExrtaCharge 'Импорт надбавок по расчетным видам цен' () {
+    LOCAL file = FILE ();
     
     LOCAL idGroup = INTEGER (INTEGER);
     LOCAL markup = NUMERIC[8,4] (INTEGER);
+    LOCAL idType = INTEGER (INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
     
-    IMPORT TABLE FROM file() TO id, idGroup, markup;
+    IMPORT TABLE FROM file() TO idType, idGroup, markup;
     
     LOCAL idItemGroup = STRING[100](INTEGER);
     
     idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
     
-    FOR id(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (id(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+    FOR idType(INTEGER i) AND CalcPriceListType t = calcPriceListType('C' + TEXT (idType(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
         dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
     }
     
-    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (id(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
     
-    LOCAL idType = INTEGER (INTEGER);
     LOCAL idItem = STRING[15] (INTEGER);
     
     EXTERNAL  SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
@@ -974,31 +996,17 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
     
     IMPORT TABLE FROM file() TO idType, idItem, markup;
     
-    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType('C' + TEXT (idType(i))) DO {
         dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
     }
     
-    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
+    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
     
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importCalcPriceListType();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); } }
-
-id = DATA STRING[100](Range.Range);
-range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
-
-nameImport 'Наименование для импорта' = DATA STRING[50](Store);
-
-EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
-EXTEND FORM store PROPERTIES nameImport(s);
-
-DESIGN store {
-    headerExtraParams {
-        MOVE PROPERTY (nameImport(s));
-    }
-}
+EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
+DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); MOVE PROPERTY (importCalcExrtaCharge()); } }
 
 //----------------------------------------------------------------------------------------------------------ПСЦ
 daysSupplier 'Кол-во дней для синхронизации ПСЦ' = DATA INTEGER ();
@@ -1307,15 +1315,15 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL idStore = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
+    LOCAL idPricetype = INTEGER (INTEGER);
     LOCAL filterSql = TEXT();
-
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, s.DOCSTATE, S.LOCATION, S.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments s WHERE TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\''
-         + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) AND a.id = s.id AND s.docState > 0'+
-                ' AND NOT a.REASON IN (0,2,3)' TO file;
+    
+    filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3) AND NOT a.REASON IN (0,2,3)';  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY, a.pricetype FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
 
-    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment;
+    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment, idPricetype;
 
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO {  
         NEW o = PriceList.Operation {
@@ -1325,8 +1333,8 @@ importPriceListRetail 'Импорт розничных прайсов' () {
             groupType(o) <- SystemGroupType.skuGroupType;
             dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
             needStock(o) <- TRUE;
-            show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail';
-            change(DataPriceListType t, o) <- id(t) == 'retail';
+            show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail' OR id(t) == 'D' + TEXT (idPricetype(r)) ;
+            change(DataPriceListType t, o) <- id(t) == 'D' + TEXT (idPricetype(r)) ;
             in(Currency c, o) <- c == defaultCurrency();
             doNotSetStocksUserPriceList(o) <- TRUE;
             imported(o) <- TRUE;
@@ -1350,7 +1358,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         note(p) <- comment(i);
         dataIn(p, StockGroup s) <- NULL;
         dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
-        in(p, DataPriceListType t) <- id(t) == 'retail';
+        in(p, DataPriceListType t) <- id(t) == 'D' + TEXT (idPricetype(i));
         imported(p) <- TRUE;
     }   
 
@@ -1366,11 +1374,10 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL imported = BOOLEAN (UserRepricingDetail);
     LOCAL skip = BOOLEAN (INTEGER);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, d.SPECITEM, sd.ITEMPRICE, sd.ARTICLE, a.REASON FROM Supermag.SMSpecActs d, Supermag.SMActs a, Supermag.SMSpec sd, Supermag.SMDocuments s WHERE a.id = d.docid AND TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' 
-            + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.DocType = sd.DocType and d.DocID = sd.DocID and d.SpecItem = sd.SpecItem AND a.pricetype = (SELECT MAX(PriceType) FROM Supermag.SMLocPrices lp WHERE lp.LOCID = s.location) and sd.docid = s.id and s.docstate > 0' TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+            EXEC 'SELECT d.DOCTYPE, d.DOCID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMSpecActs ad, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = ad.docid and ad.DocID = dd.DocID and ad.SpecItem = dd.SpecItem and dd.docid = d.id and ' + filterSql() TO file;
 
-    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason;
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
 
     id(INTEGER i) <- CONCAT '', 'R', type(i), idDoc(i), specItem(i) WHERE imported(i); 
 
@@ -1387,7 +1394,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
 
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) AND NOT skip(i) DO {
         sku(d) <- item(idItem(i));
-        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) IF aReason(i) > 0 WHERE t == dataPriceListType('retail');
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType('D' + TEXT (idPricetype(i)));
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
     }
@@ -1508,6 +1515,20 @@ DESIGN integrationData { supermagButtons {
             MOVE PROPERTY (daysPromotion()) { alignment = CENTER; }
         } 
 } }
+
+id = DATA STRING[100](Range.Range);
+range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
+
+nameImport 'Наименование для импорта' = DATA STRING[50](Store);
+
+EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
+EXTEND FORM store PROPERTIES nameImport(s);
+
+DESIGN store {
+    headerExtraParams {
+        MOVE PROPERTY (nameImport(s));
+    }
+}
 
 //---------------------------------------------------------------------------------------------------------------матрицы
 importRange 'Импорт ассортиментных матриц' () {
