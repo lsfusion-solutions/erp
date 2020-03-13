@@ -121,7 +121,7 @@ public class EquipmentServerImport {
         }
         //из-за того, что у платежей giftCard id начинаются с 3
         if (sale.customPaymentMap != null && !sale.customPaymentMap.isEmpty()) {
-            int paymentNumber = 2 + sale.sumGiftCardMap.size();
+            int paymentNumber = 2 + (sale.sumGiftCardMap != null ? sale.sumGiftCardMap.size() : 0);
             for (Map.Entry<String, BigDecimal> customPayment : sale.customPaymentMap.entrySet()) {
                 String paymentType = customPayment.getKey();
                 result.add(Arrays.asList(idReceipt + "_" + paymentType, idReceipt, paymentType, customPayment.getValue(), ++paymentNumber));
