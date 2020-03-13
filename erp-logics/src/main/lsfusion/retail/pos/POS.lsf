@@ -417,6 +417,7 @@ incorrectReceipt = ABSTRACT CASE TEXT (Receipt);
 
 overPostCash  ABSTRACT LIST ( Receipt);
 overPostCard  ABSTRACT LIST ( Receipt);
+prePostPrint  ABSTRACT LIST ( Receipt);
 overCreatePayment ABSTRACT ( Receipt);
 returnPost = DATA LOCAL BOOLEAN();
 
@@ -453,6 +454,7 @@ post 'Смешанная'(Receipt receipt)  {
         DIALOG postReceiptPayment OBJECTS r = receipt CHECK DO {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
+                prePostPrint(receipt);
                 postPrint(receipt);
                 printed() <- TRUE;
             } ELSE {
@@ -492,6 +494,7 @@ postCard 'Карточкой'(Receipt receipt)  {
         }
         postPaymentTerminal(receipt);
         IF NOT postPaymentTerminalReceiptResult() THEN {
+            prePostPrint(receipt);
             postPrint(receipt);
         } ELSE {
             MESSAGE postPaymentTerminalReceiptResult();
@@ -528,6 +531,7 @@ postCash 'Наличными'(Receipt receipt)  {
         LOCAL printed = BOOLEAN();
         printed() <- NULL;
         DIALOG postReceiptPayment OBJECTS r = receipt CHECK DO {
+            prePostPrint(receipt);
             postPrint(receipt);
             printed() <- TRUE;
         }

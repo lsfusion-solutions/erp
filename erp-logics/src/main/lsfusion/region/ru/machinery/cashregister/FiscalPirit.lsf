@@ -1,7 +1,8 @@
 MODULE FiscalPirit;
 
 REQUIRE System,
-        POS;
+        POS,
+        CashRegister;
 
 loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор Pirit', 'Pirit', NULL, NULL, TRUE, NULL, NULL ); };
 
@@ -26,3 +27,13 @@ fiscalService(CashOperation cashOperation) + {  IF isPirit() THEN fiscalPiritSer
 
 fiscalPiritCancel 'Отменить чек'  INTERNAL  'lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit.FiscalPiritCancelReceiptAction' (Receipt);
 fiscalCancel(Receipt receipt) + {  IF isPirit() THEN fiscalPiritCancel(receipt); }
+
+saleGiftCardPaymentType 'ТИП ОПЛАТЫ ПРОДАЖИ СЕРТИФИКАТА' = DATA INTEGER (GroupCashRegister) IN base;
+
+EXTEND FORM groupCashRegister PROPERTIES(grc) saleGiftCardPaymentType;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY(saleGiftCardPaymentType(grc));
+    }
+}
