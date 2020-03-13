@@ -829,101 +829,6 @@ DESIGN integrationData {
     } 
 }
 
-//---------------------------------------------------------------------------------------------Договоры
-factoring 'Факторинг' = DATA BOOLEAN (UserContractSku);
-
-EXTEND FORM userContractSku PROPERTIES factoring(c);
-
-DESIGN userContractSku { params {
-        MOVE PROPERTY (factoring(c));
-}}
-
-userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
-
-paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
-    AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
-
-regExp = '.*((3[01]|[12][0-9]|0[1-9])\\.(1[012]|0[1-9])\\.((?:19|20)\\d\{2\})).*';
-dateFromString = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
-
-importContract 'Импорт договоров' () { 
-   
-    LOCAL id = INTEGER (INTEGER);
-    LOCAL file = FILE ();
-    
-    //определяем условия оплаты в договоры из свойств контрагентов
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ID, PAYMENTDELAY, SUPPLIERFLAGS FROM Supermag.SVCompanies' TO file;
-    
-    LOCAL delay = INTEGER (INTEGER);
-    LOCAL bankings = INTEGER (INTEGER);
-    
-    IMPORT TABLE FROM file() TO id, delay, bankings;
-    
-    // добавляем новые условия сроков оплаты
-    LOCAL bank = INTEGER (INTEGER);
-    bank(INTEGER i) <- CASE WHEN bankings(i) == 26 THEN 1 ELSE 0 WHERE imported(i);
-    FOR [GROUP SUM 1 IF imported(INTEGER i) BY delay(i), bank(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
-        type(p) <- AgreementPaymentType.prepayment;
-        bankingDays(p) <- b == 1;
-        
-        NEW pp = PaymentPeriod {
-            paymentCondition(pp) <- p;
-            percent(pp) <- 100;
-            countDays(pp) <- d;
-        }
-    }
-    // записываем условия сроков оплаты контрагентам
-    LOCAL paymentCondition = PaymentCondition (LegalEntity);    
-    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i)))  DO {
-        paymentCondition(l) <- paymentCondition(paymentPeriod(delay(i), bank(i)));
-    }      
-    
-    // импорт договоров
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, PROPID, PROPVAL FROM Supermag.SMClientProperties' TO file;
-    
-    IMPORT TABLE FROM file() TO id, property, value;
-    
-    // находим контрагентов у кторых есть свойство факторинг
-    LOCAL factoring = BOOLEAN (LegalEntity);
-    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i)))  AND property(i) == 'factor' DO {
-        factoring(l) <- value(i) == 'факторинг';
-    }   
-    
-    // для всех контрагентов у которых есть свойство договор создаем договоры 
-    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i))) AND NOT userContractSku(l, defaultCompany()) AND property(i) == '3' DO NEW c = UserContractSku {
-        supplier(c) <- l;
-        customer(c) <- defaultCompany();
-    }
-    
-    LOCAL dateFromStr = STRING (INTEGER);
-    
-    dateFromStr(INTEGER i) <- OVERRIDE dateFromString(value(i),regExp()), '01.01.2001' WHERE property(i) == '3';
-    
-    // обновляем данные договоров
-    FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == '3' DO {
-        note(c) <- STRING[100](value(i));
-        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();
-        type(c) <- ContractSkuType.sale;
-        dateFrom(c) <- IF length(dateFromStr(i))=10  THEN toDateFormat(dateFromStr(i), 'DD.MM.YYYY') ELSE 2001_01_01;
-        number(c) <- STRING[28](replace(trim(getWord(value(i), 'от', 1)), '№', ''));
-        paymentCondition(c) <- paymentCondition(supplier(c));
-        factoring(c) <- factoring(supplier(c));
-//        dataInCustomer(Stock s, c) <- TRUE IF isCompany(s);
-    }   
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importContract();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importContract()); } }
-
-id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
-userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
-
-id = DATA ISTRING[100](UserRepricingDetail) INDEXED;
-userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingDetail BY id(d);
-
-
 //---------------------------------------------------------------------------------------расчетные виды цен
 importCalcPriceListType 'Импорт видов цен' () {
     
@@ -1008,7 +913,24 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
 DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); MOVE PROPERTY (importCalcExrtaCharge()); } }
 
-//----------------------------------------------------------------------------------------------------------ПСЦ
+
+//---------------------------------------------------------------------------------------------Договоры
+factoring 'Факторинг' = DATA BOOLEAN (UserContractSku);
+
+EXTEND FORM userContractSku PROPERTIES factoring(c);
+
+DESIGN userContractSku { params {
+        MOVE PROPERTY (factoring(c));
+}}
+
+userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
+
+paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
+    AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
+
+regExp = '.*((3[01]|[12][0-9]|0[1-9])\\.(1[012]|0[1-9])\\.((?:19|20)\\d\{2\})).*';
+dateFromString = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
+
 daysSupplier 'Кол-во дней для синхронизации ПСЦ' = DATA INTEGER ();
 dateFromS () = sum(currentDate(), -daysSupplier());
 dateFromST () = toDateDDMMYY(dateFromS());
@@ -1016,16 +938,193 @@ dateFromST () = toDateDDMMYY(dateFromS());
 fieldDateSupplierPriceList 'Поле даты для синхронизации' = DATA STRING[10] ();
 overfieldDateSupplierPriceList () = OVERRIDE fieldDateSupplierPriceList(), 'ENDSAT';
 
-numberSupplierPrice 'Номер ПСЦ поставщика' = DATA STRING[20] ();
+numberSupplierContract 'Номер контракта поставщика' = DATA STRING[20] ();
 
-EXTEND FORM integrationData PROPERTIES () daysSupplier, numberSupplierPrice;
+EXTEND FORM integrationData PROPERTIES () daysSupplier, numberSupplierContract;
+DESIGN integrationData { supermagButtons { 
+    NEW contractData {
+        type = CONTAINERH;
+        NEW contractButtons { };
+        NEW contractConditions {
+            MOVE PROPERTY (daysSupplier()) { caption = 'Кол-во дней синхронизации'; alignment = CENTER; }
+            MOVE PROPERTY (numberSupplierContract()) { caption = 'Номер ПСЦ для импорта'; alignment = CENTER; }
+        }       
+    }
+} }
+
+
+contractTypeInSuperMag = DATA INTEGER (UserContractSku);
+delayPaymentInSuperMag = DATA INTEGER (UserContractSku);
+isBankDaysInSuperMag = DATA INTEGER (UserContractSku);
+stateInSuperMag = DATA INTEGER (UserContractSku);
+
+overImportSupplierPrice ABSTRACT LIST ();
+
+importContract 'Импорт договор из контрактов с поставщиками' () { 
+    // загузка данных из Контрактов с поставщиками (уловия оплаты) и Соглашений о поставках (магазины)           
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL agrId = ISTRING[50] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL posted = INTEGER (INTEGER);
+    LOCAL begin = DATE (INTEGER);
+    LOCAL end = DATE (INTEGER);
+    LOCAL idContragent = INTEGER (INTEGER);
+    LOCAL idCompany = INTEGER (INTEGER);
+    LOCAL title = ISTRING[255] (INTEGER);
+    LOCAL paymentDelay = INTEGER (INTEGER);
+    LOCAL isCalendarDelay = ISTRING[1] (INTEGER);
+    LOCAL contractType = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);    
+    LOCAL filterSql = TEXT ();
+    
+    LOCAL file = FILE ();
+            
+    //фильтр на отбор ПСЦ
+    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberSupplierContract()) > 0 THEN
+       filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
+               
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
+    
+    IMPORT TABLE FROM file() TO id, date, posted, begin, end, idContragent, idCompany, title, paymentDelay, isCalendarDelay, contractType;
+
+    //  дополняем базу условиями отсрочки
+    LOCAL isBankDays = INTEGER (INTEGER);
+    isBankDays(INTEGER i) <- CASE WHEN isCalendarDelay(i) = '1' THEN 0 ELSE 1 WHERE imported(i);
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY paymentDelay(i), isBankDays(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
+        type(p) <- AgreementPaymentType.prepayment;
+        bankingDays(p) <- b = 1;
+               
+        NEW pp = PaymentPeriod {
+            paymentCondition(pp) <- p;
+            percent(pp) <- 100;
+            countDays(pp) <- d;
+        }
+    }
+
+    // создаем новые договоры
+    FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW p = UserContractSku {
+        id(p) <- id(i);
+    }
+    // обновляем догворы
+    FOR UserContractSku c == userContractSku(id(INTEGER i)) DO {
+        contractTypeInSuperMag(c) <- contractType(i);
+        stateInSuperMag(c) <- posted(i); 
+        delayPaymentInSuperMag(c) <- paymentDelay(i);
+        isBankDaysInSuperMag(c) <- isBankDays(i);
+        
+        type(c) <- ContractSkuType.sale;
+        number(c) <- ISTRING[28] (id(i));
+        dateFrom(c) <- begin(i);
+        dateTo(c) <- end(i);       
+        supplier(c) <- legalEntity(TEXT (idContragent(i)));
+        customer(c) <- defaultCompany();        
+        note(c) <- STRING[100] (title(i));
+        paymentCondition(c) <- paymentCondition(paymentPeriod(delayPaymentInSuperMag(i), isBankDaysInSuperMag(i))) WHERE delayPaymentInSuperMag(i) > 0;      
+        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();                
+    }   
+     
+//     // указываем какие магазины входят в ПСЦ            
+//    LOCAL idStock = INTEGER (INTEGER);    
+//    LOCAL idDoc = ISTRING[50] (INTEGER);    
+//
+//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+//        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
+//
+//    IMPORT TABLE FROM file() TO idDoc, idStock;
+//
+//    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
+//        dataIn(p, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (idStock(i)))](p, s);
+//    }     
+           
+    APPLY;
+}
+
+//importContractFromCompanies 'Импорт договоров из карточек контрагентов' () { 
+//   
+//    LOCAL id = INTEGER (INTEGER);
+//    LOCAL file = FILE ();
+//    
+//    //определяем условия оплаты в договоры из свойств контрагентов
+//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+//        EXEC 'SELECT ID, PAYMENTDELAY, SUPPLIERFLAGS FROM Supermag.SVCompanies' TO file;
+//    
+//    LOCAL delay = INTEGER (INTEGER);
+//    LOCAL bankings = INTEGER (INTEGER);
+//    
+//    IMPORT TABLE FROM file() TO id, delay, bankings;
+//    
+//    // добавляем новые условия сроков оплаты
+//    LOCAL bank = INTEGER (INTEGER);
+//    bank(INTEGER i) <- CASE WHEN bankings(i) == 26 THEN 1 ELSE 0 WHERE imported(i);
+//    FOR [GROUP SUM 1 IF imported(INTEGER i) BY delay(i), bank(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
+//        type(p) <- AgreementPaymentType.prepayment;
+//        bankingDays(p) <- b == 1;
+//        
+//        NEW pp = PaymentPeriod {
+//            paymentCondition(pp) <- p;
+//            percent(pp) <- 100;
+//            countDays(pp) <- d;
+//        }
+//    }
+//    // записываем условия сроков оплаты контрагентам
+//    LOCAL paymentCondition = PaymentCondition (LegalEntity);    
+//    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i)))  DO {
+//        paymentCondition(l) <- paymentCondition(paymentPeriod(delay(i), bank(i)));
+//    }      
+//    
+//    // импорт договоров
+//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, PROPID, PROPVAL FROM Supermag.SMClientProperties' TO file;
+//    
+//    IMPORT TABLE FROM file() TO id, property, value;
+//    
+//    // находим контрагентов у кторых есть свойство факторинг
+//    LOCAL factoring = BOOLEAN (LegalEntity);
+//    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i)))  AND property(i) == 'factor' DO {
+//        factoring(l) <- value(i) == 'факторинг';
+//    }   
+//    
+//    // для всех контрагентов у которых есть свойство договор создаем договоры 
+//    FOR LegalEntity l = legalEntity(TEXT (id(INTEGER i))) AND NOT userContractSku(l, defaultCompany()) AND property(i) == '3' DO NEW c = UserContractSku {
+//        supplier(c) <- l;
+//        customer(c) <- defaultCompany();
+//    }
+//    
+//    LOCAL dateFromStr = STRING (INTEGER);
+//    
+//    dateFromStr(INTEGER i) <- OVERRIDE dateFromString(value(i),regExp()), '01.01.2001' WHERE property(i) == '3';
+//    
+//    // обновляем данные договоров
+//    FOR UserContractSku c == userContractSku(legalEntity(TEXT (id(INTEGER i))), defaultCompany()) AND property(i) == '3' DO {
+//        note(c) <- STRING[100](value(i));
+//        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();
+//        type(c) <- ContractSkuType.sale;
+//        dateFrom(c) <- IF length(dateFromStr(i))=10  THEN toDateFormat(dateFromStr(i), 'DD.MM.YYYY') ELSE 2001_01_01;
+//        number(c) <- STRING[28](replace(trim(getWord(value(i), 'от', 1)), '№', ''));
+//        paymentCondition(c) <- paymentCondition(supplier(c));
+//        factoring(c) <- factoring(supplier(c));
+////        dataInCustomer(Stock s, c) <- TRUE IF isCompany(s);
+//    }   
+//    APPLY;
+//}
+
+EXTEND FORM integrationData PROPERTIES importContract();
+DESIGN integrationData { contractButtons { MOVE PROPERTY (importContract()); } }
+
+id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
+
+id = DATA ISTRING[100](UserRepricingDetail) INDEXED;
+userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingDetail BY id(d);
+
+//----------------------------------------------------------------------------------------------------------ПСЦ
 
 contractTypeInSuperMag = DATA INTEGER (UserPriceList);
 delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
 isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
 stateInSuperMag = DATA INTEGER (PriceList);
-
-overImportSupplierPrice ABSTRACT LIST ();
 
 importSupplierPrice 'Импорт ПСЦ' () { 
     // загузка данных из Контрактов с поставщиками (уловия оплаты) и Соглашений о поставках (магазины)           
@@ -1050,8 +1149,8 @@ importSupplierPrice 'Импорт ПСЦ' () {
             
     //фильтр на отбор ПСЦ
     filterSql() <- 'cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(numberSupplierPrice()) > 0 THEN
-       filterSql() <- 'cc.id = \'' + numberSupplierPrice() + '\''; 
+    IF length(numberSupplierContract()) > 0 THEN
+       filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
                
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
     EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
@@ -1165,12 +1264,9 @@ importSupplierPrice 'Импорт ПСЦ' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSupplierPrice();
-DESIGN integrationData { supermagButtons { 
-    MOVE PROPERTY (importSupplierPrice());     
-    MOVE PROPERTY (daysSupplier()) { caption = 'Кол-во дней синхронизации'; alignment = CENTER; }
-    MOVE PROPERTY (numberSupplierPrice()) { caption = 'Номер ПСЦ для импорта'; alignment = CENTER; }       
+DESIGN integrationData { contractButtons { 
+    MOVE PROPERTY (importSupplierPrice()) { caption = 'Импорт ПСЦ из контрактов с поставщиками'; };     
 } }
-
 
 //---------------------------------------------------------------------------------------------------------акты переоценки
 daysRepricing 'дней для импорта' = DATA INTEGER ();
