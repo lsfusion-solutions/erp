@@ -1,0 +1,284 @@
+MODULE SaleOrderStatus;
+
+REQUIRE SaleOrder, OrderPrint, SaleShipment;
+
+NAMESPACE Sale;
+
+//--------------- Статус заказа ---------------//
+
+@defineDocumentInterfaceDetailQuantityPrefix (order, original, ' (предзаказ)');
+CONSTRAINT CHANGED(originalQuantity(OrderDetail detail)) AND negativeValueOrders() AND originalQuantity(detail) < 0
+    MESSAGE 'Количество (предзаказ) в строке заказа должно быть не отрицательным';
+
+//-- Получен
+
+isReceived 'Получен' (o) = ABSTRACT BOOLEAN(Order) MATERIALIZED;
+isReceived 'Получен' (o) = DATA BOOLEAN (UserOrder);
+isReceived(UserOrder o) += isReceived(o);  
+
+isReceived 'Получен' (OrderDetail d) = isReceived(order(d));
+isReceived 'Получен' (UserOrderDetail d) = isReceived(userOrder(d));
+
+receivedDateTime 'Дата получения' (o) = ABSTRACT DATETIME (Order) MATERIALIZED;
+receivedDateTime 'Дата получения' (o) = DATA DATETIME (UserOrder);
+receivedDateTime(UserOrder o) += receivedDateTime(o); 
+
+//-- Подтвержден
+isConfirmed 'Подтвержден' (o) = ABSTRACT BOOLEAN(Order) MATERIALIZED;
+isConfirmed 'Подтвержден' (o) = DATA BOOLEAN (UserOrder);
+isConfirmed(UserOrder o) += isConfirmed(o);  
+
+notConfirmed 'Не подтвержден' (UserOrder o) = o IS UserOrder AND NOT isConfirmed(o) MATERIALIZED;
+
+isConfirmed 'Подтвержден' (OrderDetail d) = isConfirmed(order(d));
+isConfirmed 'Подтвержден' (UserOrderDetail d) = isConfirmed(userOrder(d));
+
+//-- Отменен
+isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
+isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
+isRejected(UserOrder o) += isRejected(o);  
+
+CLASS StatusOrder 'Статус'{
+    create 'Создан',
+    recieved 'Получен',    
+    confirmed 'Подтвержден',
+    inWork 'В работе',
+    inAcceptance 'В отправке',    
+    accepted 'Отправлен',    
+    closed 'Закрыт',      
+    canceled 'Отменен'       
+}
+TABLE statusOrder(StatusOrder);
+name 'Наименование' (StatusOrder t) = staticCaption(t) IF t IS StatusOrder CHARWIDTH 15;  
+
+FORM statusOrder 'Статус заказа'
+    OBJECTS c = StatusOrder
+    PROPERTIES(c) READONLY name
+    LIST StatusOrder OBJECT c
+;
+DESIGN statusOrder{
+    BOX {
+        size = (800, 600);
+    }
+}
+
+status= ABSTRACT CASE StatusOrder (Order) MATERIALIZED ;
+nameStatus 'Статус заказа' (Order o) = name(status(o));
+calcStatus 'Статус заказа' (Order o)= CASE
+    WHEN isClosed(o) THEN StatusOrder.closed
+    WHEN shippedOrderDetail(o) THEN StatusOrder.accepted
+    WHEN invoicedOrderDetail (o) THEN StatusOrder.inAcceptance
+    WHEN isPosted(o) THEN StatusOrder.inWork
+    WHEN isRejected(o) THEN StatusOrder.canceled
+    WHEN isConfirmed(o) THEN StatusOrder.confirmed
+    WHEN isReceived(o) THEN StatusOrder.recieved
+    WHEN o IS Order THEN StatusOrder.create;
+status(Order o) += WHEN o IS Order THEN calcStatus(o);
+
+defaultBackgroundOrderStatusRejected = RGB (255,128,128);
+userBackgroundOrderStatusRejected = ABSTRACT COLOR ();
+overBackgroundOrderStatusRejected = OVERRIDE userBackgroundOrderStatusRejected(), defaultBackgroundOrderStatusRejected();
+
+defaultBackgroundOrderStatusPosted = RGB(212,255,212);
+userBackgroundOrderStatusPosted = ABSTRACT COLOR (); 
+overBackgroundOrderStatusPosted = OVERRIDE userBackgroundOrderStatusPosted(), defaultBackgroundOrderStatusPosted();
+
+defaultBackgroundOrderStatusClosed = RGB(212,255,212);
+userBackgroundOrderStatusClosed = ABSTRACT COLOR (); 
+overBackgroundOrderStatusClosed = OVERRIDE userBackgroundOrderStatusClosed(), defaultBackgroundOrderStatusClosed();
+
+backgroundStatus = ABSTRACT CASE COLOR (Order);
+backgroundStatus(Sale.Order o) += WHEN isRejected(o) THEN overBackgroundOrderStatusRejected();
+backgroundStatus(Sale.Order o) += WHEN isPosted(o) THEN overBackgroundOrderStatusPosted();
+
+originalQuantity(UserOrderDetail d) <- quantity(d)
+    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d));    
+
+backgroundOriginalQuantity 'Цвет' (OrderDetail d) = RGB(255,0,0) IF quantity(d) != originalQuantity(d);      
+showOriginalQuantity(OrderDetail d) = isConfirmed(d) OR isReceived(d);
+showOriginalQuantity(UserOrderDetail d) = isConfirmed(d) OR isReceived(d);
+readonlyIfSent = ABSTRACT BOOLEAN (UserOrder);
+
+EXTEND FORM userOrder
+    PROPERTIES (o) isReceived, isConfirmed
+    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
+;
+DESIGN userOrder {
+    first {
+        MOVE PROPERTY (isConfirmed(o)) BEFORE PROPERTY(isPosted(o));
+        MOVE PROPERTY (isReceived(o)) BEFORE PROPERTY(isConfirmed(o));    
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES (o) READONLY  BEFORE isPosted(o) isReceived, isConfirmed, isRejected
+    PROPERTIES (o) READONLY  AFTER isPosted(o) nameStatus BACKGROUND backgroundStatus(o)
+    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d)
+;
+
+//-----------------надо доделать отправку подтверждения заказа покупателю чере email
+
+//fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA STRING[300] () CHARWIDTH 30;
+//notUseUserEmail 'Не использовать E-mail пользователя' = DATA BOOLEAN ();  
+//messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
+//
+//EXTEND FORM options
+//    PROPERTIES() fromEmailOrders, messageEmailOrders, notUseUserEmail
+//;
+//
+//DESIGN options{
+//    orders{
+//        NEW email{
+//            caption = 'Почта';
+//            fill = 1;
+//            MOVE PROPERTY(fromEmailOrders());
+//            MOVE PROPERTY(notUseUserEmail());
+//            MOVE PROPERTY(messageEmailOrders()) {
+//                fill = 1;
+//                panelCaptionAbove = TRUE;
+//            }        
+//        }
+//
+//    }
+//}
+//
+//FORM messageOrders 'Сообщение'
+//    OBJECTS o = Order PANEL
+//    PROPERTIES(o) seriesNumber, date, fullNameCustomer
+//    PROPERTIES () messageEmailOrders DRAW o
+//;
+//
+//overEmailList = ABSTRACT STRING[800](Order);
+//
+//calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { 
+//    
+//    LOCAL file = FILE ();
+//    PRINT printOrderXLS OBJECTS o=order XLSX TO file;
+//    
+//    LOCAL bodyFile = FILE ();
+//    PRINT messageOrders OBJECTS o=order HTML TO bodyFile;
+//    
+//    EMAIL
+//    FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), fromEmailOrders()
+//    SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
+//    TO (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order)))
+//    BODY bodyFile()
+//    ATTACH file() 
+//           NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
+//; }
+//
+//
+//EXTEND CLASS TypeChange{
+//    email 'Отправлен поставщику'
+//}
+//
+//notEmailSend = DATA LOCAL STRING[10](Sale.Order);
+//
+//logSendDocumentOrder(Sale.Order o)  { 
+//	NEW d = DocumentLog {
+//	    documentId(d) <- LONG(o);
+//	    typeDocument(d) <- objectClassName(o);
+//	    numberDocument(d) <- number(o);  
+//	    seriesDocument(d) <- series(o); 
+//	    dateDocument(d) <- date(o);
+//	    typeChange(d) <- TypeChange.email;
+//	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
+//	    hostnameComputer(d) <- hostnameCurrentComputer();
+//	    userLogin(d) <- login(currentUser()); 
+//	    nameContact(d) <- STRING[100](name[Contact](currentUser()));
+//	    dateTimeSession(d) <- currentDateTime();  
+//	    supplierStock(d) <- supplierStock(o);
+//	    customerStock(d) <- customerStock(o);
+//	    
+//	    IF NOT notEmailSend(o) THEN {
+//            PRINT printOrderXLS OBJECTS o = o XLSX TO exportFile;
+//            file(d) <- exportFile();
+//	    }
+//	}
+//}
+//
+//overEmailCustomer  ABSTRACT LIST ( Order.Order);
+//consumedEmailCustomer = DATA LOCAL BOOLEAN (Order.Order);
+//
+//emailCustomerSingle 'Отправить заказ поставщику' (Sale.Order order)  { 
+//	NEWSESSION {
+//	    
+//	    overEmailCustomer(order);
+//	
+//	    IF NOT consumedEmailCustomer(order) THEN {
+//	        IF (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order))) THEN {
+//	            isSent(order) <- TRUE;
+//	            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
+//	            sentDateTime(order) <- currentDateTime();
+//	            calcEmailCustomer(order);
+//	            
+//	        } ELSE MESSAGE 'Заказ №' + number(order) + ': у поставщика не задан e-mail';
+//	    }
+//	    
+//	    apply();
+//	}
+//} TOOLBAR;
+//
+//emailCustomer 'Отправить заказы поставщикам' (Sale.Order order) { 
+//    selected(order) <- TRUE;
+//    
+//    FOR selected(Order o) DO 
+//        emailCustomerSingle(o);
+//        
+//    selected(Order o) <- NULL;
+//}
+//
+//provider 'Доставка' = ABSTRACT CASE ISTRING[20] (Order);
+//provider(Order o) += WHEN (OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o))) THEN 'e-mail';
+//
+//EXTEND FORM orders
+//    PROPERTIES(o) PANEL  provider READONLY, emailCustomer
+//; 
+//
+//DESIGN orders {
+//    actionContainer {
+//        NEW emailContainer {
+//            caption = 'Почта';
+//                MOVE PROPERTY (provider(o));
+//                MOVE PROPERTY (emailCustomer(o));
+//        }
+//    }
+//}
+//
+//orderConfirmation 'Подтверждение заказа поставщиком'  = DATA BOOLEAN (Agreement);
+//
+//EXTEND FORM agreement 
+//    PROPERTIES(a) orderConfirmation 
+//;
+//DESIGN agreement {
+//    orderContainer1 {
+//        MOVE PROPERTY (orderConfirmation(a));
+//    }    
+//}
+//
+//orderConfirmation 'Подтверждение заказа поставщиком' = DATA BOOLEAN (ContractSku);
+//EXTEND FORM userContractSku
+//    PROPERTIES(c) orderConfirmation
+//;
+//
+//DESIGN userContractSku {
+//    params {
+//        MOVE PROPERTY(orderConfirmation(c));
+//    }
+//}
+//
+//overCopyUser(UserContractSku from, UserContractSku to) +{
+//    orderConfirmation(to) <- orderConfirmation(from);
+//}
+//orderConfirmation = ABSTRACT BOOLEAN (UserOrder);
+//
+//disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o)) OR orderConfirmation(o)) IF NOT isConfirmed(o);
+//
+////для планировщика
+//skipPostConfirmed = ABSTRACT CASE BOOLEAN (Order); 
+//postConfirmedOrders 'Провести подтвержденные заказы'()  { 
+//    FOR isConfirmed(Sale.Order o) AND  isDraft(o) AND isOpened(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
+//        isPosted(o) <- TRUE;
+//        APPLY;
+//    }
+//}
