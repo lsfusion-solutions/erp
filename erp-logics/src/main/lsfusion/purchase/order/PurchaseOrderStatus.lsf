@@ -92,9 +92,21 @@ calcStatus 'Статус заказа' (Order o)= CASE
     WHEN o IS Order THEN StatusOrder.create;
 status(Order o) += WHEN o IS Order THEN calcStatus(o);
 
+defaultBackgroundOrderStatusRejected = RGB (255,128,128);
+userBackgroundOrderStatusRejected = ABSTRACT COLOR ();
+overBackgroundOrderStatusRejected = OVERRIDE userBackgroundOrderStatusRejected(), defaultBackgroundOrderStatusRejected();
+
+defaultBackgroundOrderStatusPosted = RGB(212,255,212);
+userBackgroundOrderStatusPosted = ABSTRACT COLOR (); 
+overBackgroundOrderStatusPosted = OVERRIDE userBackgroundOrderStatusPosted(), defaultBackgroundOrderStatusPosted();
+
+defaultBackgroundOrderStatusClosed = RGB(212,255,212);
+userBackgroundOrderStatusClosed = ABSTRACT COLOR (); 
+overBackgroundOrderStatusClosed = OVERRIDE userBackgroundOrderStatusClosed(), defaultBackgroundOrderStatusClosed();
+
 backgroundStatus = ABSTRACT CASE COLOR (Order);
-backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN RGB (255,128,128);
-backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN RGB(212,255,212);
+backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN overBackgroundOrderStatusRejected();
+backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN overBackgroundOrderStatusPosted();
 
 originalQuantity(UserOrderDetail d) <- quantity(d)
     WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));    
