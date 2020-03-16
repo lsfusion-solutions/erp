@@ -991,18 +991,15 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             giftCardRegexp = "(?!666)\\d{3}";
         boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
 
-        Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
-        Map<String, List<CashRegisterInfo>> directoryCashRegisterMap = new HashMap<>();
-        Map<String, String> directoryWeightCodeMap = new HashMap<>();
+        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null) {
+            if (c.directory != null && c.number != null) {
                 String idDepartmentStore = useNumberGroupInShopIndices ? String.valueOf(c.numberGroup) : c.idDepartmentStore;
                 String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
-                directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
-                if (c.number != null)
-                    directoryCashRegisterMap.getOrDefault(c.directory + "_" + c.number, new ArrayList<>()).add(c);
-                if (c.weightCodeGroupCashRegister != null)
-                    directoryWeightCodeMap.put(key, c.weightCodeGroupCashRegister);
+
+                List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
+                keyCashRegisterList.add(c);
+                cashRegisterByKeyMap.put(key, keyCashRegisterList);
             }
         }
 
@@ -1067,9 +1064,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"/*.SSSX"*/).parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
                             Date dateReceipt = new Date(dateTimeReceipt);
                             Time timeReceipt = new Time(dateTimeReceipt);
-
-                            CashRegisterInfo cashRegister = getCashRegister(directoryCashRegisterMap, directory, numberCashRegister);
-                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
 
                             BigDecimal sumCard = BigDecimal.ZERO;
                             BigDecimal sumCash = BigDecimal.ZERO;
@@ -1187,7 +1181,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                                     String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
 
-                                    String weightCode = directoryWeightCodeMap.getOrDefault(key, "21");
+                                    CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
+                                    String weightCode = cashRegisterByKey != null ? cashRegisterByKey.weightCodeGroupCashRegister : null;
+                                    if (weightCode == null)
+                                        weightCode = "21";
 
                                     String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                                     String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
@@ -1245,11 +1242,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                             safeDivide(safeMultiply(discountSumReceiptDetail, 100), safeAdd(discountSumReceiptDetail, sumReceiptDetail)) : null;
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
+                                    Date startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
-                                        Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(key);
-                                        nppGroupMachinery = (nppGroupMachinery != null || useShopIndices) ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
+                                        Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
                                         if (nppGroupMachinery == null) {
-                                            sendSalesLogger.error("not found nppGroupMachinery : " + key + " { " + directoryDepartNumberGroupCashRegisterMap.toString() + " } : " + directory + "_" + numberCashRegister);
+                                            sendSalesLogger.error("not found nppGroupMachinery : " + key);
                                         }
 
                                         String idSaleReceiptReceiptReturnDetail = null;
@@ -1276,7 +1273,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                 numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash, sumGiftCardMap,
                                                 customPaymentMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                                 discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
-                                                useSectionAsDepartNumber ? positionDepartNumber : null, false, cashRegister));
+                                                useSectionAsDepartNumber ? positionDepartNumber : null, false, cashRegisterByKey));
                                     }
                                     count++;
                                 }
@@ -1309,10 +1306,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 new Kristal10SalesBatch(salesInfoList, filePathList);
     }
 
-    private CashRegisterInfo getCashRegister(Map<String, List<CashRegisterInfo>> directoryCashRegisterMap, String directory, Integer numberCashRegister) {
+    private CashRegisterInfo getCashRegister(Map<String, List<CashRegisterInfo>> cashRegisterMap, String key) {
         //ищем кассу без disableSales. Если все с disableSales, берём первую
         CashRegisterInfo cashRegister = null;
-        List<CashRegisterInfo> cashRegisterList = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+        List<CashRegisterInfo> cashRegisterList = cashRegisterMap.get(key);
         if(cashRegisterList != null) {
             for(CashRegisterInfo c : cashRegisterList) {
                 if(!c.disableSales) {
