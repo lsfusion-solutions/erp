@@ -83,8 +83,8 @@ backgroundRetail(ProductDetail d) += WHEN d IS ProductDetail THEN backgroundReta
 @defineDocumentHeaderPricingCommittee(order, componentsStock, );
 
 //-- Свойства для агрегированных производств/расценок
-
-roundPriceCalc(ProductDetail d) = OVERRIDE roundPrice(d), defaultRound(currency(d)); 
+useRoundPriceTest = DATA BOOLEAN ();
+roundPriceCalc(ProductDetail d) = OVERRIDE roundPrice(d) IF useRoundPriceTest(), defaultRound(currency(d)); 
 componentsSum 'Сумма компонентов произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((componentsPrice(productDetail)*outputQuantity(productDetail)),roundPriceCalc(productDetail)));
 costSum 'Сумма себестоимости произведенного изделия' (ProductDetail productDetail) = NUMERIC[18,4](round((costPrice(productDetail)*outputQuantity(productDetail)),roundPriceCalc(productDetail)));
 VATMarkupSum 'НДС и надбавка' (ProductDetail productDetail) =  NUMERIC[18,4](outputProductsSum(productDetail) (-) componentsSum(productDetail));
