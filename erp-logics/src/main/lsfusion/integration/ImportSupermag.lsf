@@ -2,7 +2,7 @@ MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
         Document, 
-        PriceListOperation, PriceListBefore, Repricing, PriceListContract,
+        PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
         PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, PurchaseOrderStatus,
         SaleOrder,  
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
@@ -1152,7 +1152,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     IF length(numberSupplierContract()) > 0 THEN
        filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
                
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
     EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
     
     logToFile('importSupermag', 'importPriceListSupplier_2');
@@ -1179,7 +1179,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     logToFile('importSupermag', 'importPriceListSupplier_4');   
     // создаем новые ПСЦ
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
-        id(p) <- id(i);
+        id[UserPriceList](p) <- id(i);
     }
     // обновляем ПСЦ
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
@@ -1194,7 +1194,8 @@ importSupplierPrice 'Импорт ПСЦ' () {
         toDate(p) <- end(i);
         company(p) <- legalEntity(TEXT (idContragent(i)));
         note(p) <- title(i);
-        contractSku(p) <- userContractSku(company(p), defaultCompany());
+        contractSku(p) <- userContractSku(TEXT (id(i)));
+//        contractSku(p) <- userContractSku(company(p), ImportSupermag.defaultCompany());
         fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
         delayPaymentInSuperMag(p) <- paymentDelay(i);
         isBankDaysInSuperMag(p) <- isBankDays(i);
@@ -1206,7 +1207,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL idStock = INTEGER (INTEGER);    
     LOCAL idDoc = ISTRING[50] (INTEGER);    
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
         EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
 
     logToFile('importSupermag', 'importPriceListSupplier_5');   
@@ -1231,7 +1232,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
         EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND ' + filterSql() TO file;
 
     logToFile('importSupermag', 'importPriceListSupplier_8');
@@ -1453,7 +1454,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         isPosted(p) <- posted(i) = 3;
         note(p) <- comment(i);
         dataIn(p, StockGroup s) <- NULL;
-        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
+//        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
         in(p, DataPriceListType t) <- id(t) == 'D' + TEXT (idPricetype(i));
         imported(p) <- TRUE;
     }   
@@ -1471,7 +1472,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-            EXEC 'SELECT d.DOCTYPE, d.DOCID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMSpecActs ad, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = ad.docid and ad.DocID = dd.DocID and ad.SpecItem = dd.SpecItem and dd.docid = d.id and ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMSpecActs ad, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = ad.docid and ad.DocID = dd.DocID and ad.SpecItem = dd.SpecItem and dd.docid = d.id and ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
 
@@ -1513,7 +1514,7 @@ DESIGN integrationData { supermagButtons {
 }}
 
 //----------------------------------------------маркетинговые (акционные) прайслисты
-daysPromotion 'Кол-во дней для импорта акционных прайсов' = DATA INTEGER ();
+daysPromotion 'дней для импорта' = DATA INTEGER ();
 dateFromPromotion () = sum(currentDate(), -daysPromotion());
 dateFromPromotionT () = toDateDDMMYY(dateFromPromotion());
 
@@ -1871,8 +1872,8 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         number[Document](o) <- STRING[28](id(i));
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
-        isClosed(o) <- docstate(i) == 3;
         isRejected(o) <- docstate(i) == 0;
+        isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
         stateInSuperMag(o) <- docstate(i);
         supplier(o) <- legalEntity(ISTRING[100] (idSupplier(i)));
         supplierStock(o) <- stock(ISTRING[100] (idSupplier(i)));
@@ -1882,7 +1883,6 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         time(o) <- 00:00;
         shipmentDate(o) <- supplyDate(i);
         shipmentTime(o) <- sumMinutes(00:00, supplyTimeMin(i));
-        contractSku(o) <- userContractSku(supplier(o),defaultCompany());
     }  
     
     //импорт спецификаций
@@ -1896,7 +1896,7 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
     
