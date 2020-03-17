@@ -506,7 +506,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         if(d.extInfo != null) {
             JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
             if (infoJSON != null) {
-                cardGroupObject.put("cardmode", infoJSON.optInt("cardmode"));
+                try {
+                    cardGroupObject.put("cardmode", infoJSON.getInt("cardmode"));
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -861,12 +864,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             if (d.idDiscountCardType != null && !usedGroups.contains(d.idDiscountCardType)) {
                                 usedGroups.add(d.idDiscountCardType);
                                 writeStringToFile(tmpFile, getAddCardGroupJSON(d) + "\n---\n");
-                                if(d.extInfo != null) {
-                                    JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
-                                    if (infoJSON != null) {
-                                        if(infoJSON.optBoolean("ChangeCardAccount")) {
-                                            writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
-                                        }
+                            }
+                            if(d.extInfo != null) {
+                                JSONObject infoJSON = new JSONObject(d.extInfo).optJSONObject("artix");
+                                if (infoJSON != null) {
+                                    if(infoJSON.optBoolean("ChangeCardAccount")) {
+                                        writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
                                     }
                                 }
                             }
