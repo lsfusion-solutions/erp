@@ -3,8 +3,8 @@ MODULE ImportSupermag;
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
         Document, 
         PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
-        PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, PurchaseOrderStatus,
-        SaleOrder,  
+        PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, PurchaseOrderStatus, PurchaseSaleOrder,
+        SaleOrder, SaleOrderStatus,
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
 host 'Хост' = DATA ISTRING[30]();
@@ -1948,12 +1948,13 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();
     
+    //входящие заказы - продажа
     filterSql() <- 'd.docstate IN (0, 2, 3) AND dd.location IN ('+ ImportSupermag.stocks() + ') AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
                    
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
+    EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;   
     
@@ -1961,13 +1962,11 @@ importStockOrder 'Импорт заказов (складских требова
         id(o) <- id;
     }
     
-    DELETE Sale.UserOrder o WHERE o IS Sale.UserOrder AND operation(o) = Sale.operation('saleStoreStore');
-
     FOR Sale.UserOrder o == Sale.userOrder(id(INTEGER i)) DO {       
         number(o) <- STRING[28](id(i));
-        operation(o) <- Sale.operation('saleStoreStore');
         isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
         isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
+        isRejected(o) <- docstate(i) == 0;     
         stateInSuperMag(o) <- docstate(i);
         supplier(o) <- legalEntity(stock(ISTRING[100] (idSupplierStock(i))));
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
@@ -1978,6 +1977,15 @@ importStockOrder 'Импорт заказов (складских требова
         shipmentDate(o) <- deliveryDate(i);
         shipmentTime(o) <- sumMinutes(00:00, deliveryTime(i));
     }  
+
+    FOR Sale.UserOrder o == Sale.userOrder(id(INTEGER i)) DO {       
+       operation(o) <- CASE 
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseWarehouse')
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreWarehouse')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseStore')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreStore')
+            ELSE Sale.operation('saleStoreStore');
+    } 
     
     //импорт спецификаций
     LOCAL type = ISTRING[2](INTEGER);
@@ -2012,6 +2020,7 @@ importStockOrder 'Импорт заказов (складских требова
     
     APPLY;
     
+    // заказы исходящие от магазина - закупка
     filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ ImportSupermag.stocks() + ') AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
@@ -2027,9 +2036,9 @@ importStockOrder 'Импорт заказов (складских требова
     
     FOR Purchase.UserOrder o == Purchase.userOrder(id(INTEGER i)) DO {       
         number[Document](o) <- STRING[28](id(i));
-        operation(o) <- Purchase.operation('purchaseStoreStore');
         isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
         isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
+        isRejected(o) <- docstate(i) == 0;
         stateInSuperMag(o) <- docstate(i);
         supplier(o) <- legalEntity(stock(ISTRING[100] (idSupplierStock(i))));
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
@@ -2039,7 +2048,25 @@ importStockOrder 'Импорт заказов (складских требова
         time(o) <- 00:00;
         shipmentDate(o) <- deliveryDate(i);
         shipmentTime(o) <- sumMinutes(00:00, deliveryTime(i));
+        createSale(o) <- NULL;       
     }  
+        
+    FOR Purchase.UserOrder o == Purchase.userOrder(id(INTEGER i)) DO {       
+       operation(o) <- CASE 
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseWarehouseWarehouse')
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseWarehouseStore')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseStoreWarehouse')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseStoreStore')
+            ELSE Purchase.operation('purchaseStoreStore');
+    } 
+    
+    IF length(ImportSupermag.numberOrder()) > 0 THEN {
+        FOR Purchase.UserOrder o == Purchase.userOrder(id(INTEGER i)) DO {
+            MESSAGE id(stockGroup(customerStock(o))) + ' ' +id(stockGroup(supplierStock(o))) + '=' + id(Purchase.operation(o));      
+        }       
+    } 
+     
+
     
     //импорт спецификаций
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
@@ -2192,7 +2219,7 @@ checkBalance 'Сверить остатки' () {
     
     IF synchronizeBalance() THEN {
     
-        FOR synchronizeBalance() AND [GROUP SUM 1 BY stock(TEXT (idStock(INTEGER i)))](Stock st) AND NOT userInvoice('equal_balance_' + id(st)) DO NEW i = Purchase.UserInvoice {
+        FOR synchronizeBalance() AND [GROUP SUM 1 BY stock(TEXT (idStock(INTEGER i)))](Stock st) AND NOT Purchase.userInvoice('equal_balance_' + id(st)) DO NEW i = Purchase.UserInvoice {
             id(i) <- 'equal_balance_' + id(st);
             operation(i) <- Purchase.operation('initial');
             customer(i) <- legalEntity(st);
@@ -2202,13 +2229,13 @@ checkBalance 'Сверить остатки' () {
         }
         
         FOR (balanceB(Sku sk, Stock st) OR balanceS(sk, st)) AND NOT (OVERRIDE balanceB(sk, st), 0.0) == balanceS(sk, st) 
-            AND NOT [GROUP MAX Purchase.UserInvoiceDetail dd BY userInvoice(dd), sku(dd)](userInvoice('equal_balance'), sk) DO NEW d = Purchase.UserInvoiceDetail {
-            userInvoice(d) <- userInvoice('equal_balance_' + id(st));
+            AND NOT [GROUP MAX Purchase.UserInvoiceDetail dd BY Purchase.userInvoice(dd), sku(dd)](Purchase.userInvoice('equal_balance'), sk) DO NEW d = Purchase.UserInvoiceDetail {
+            userInvoice(d) <- Purchase.userInvoice('equal_balance_' + id(st));
             sku(d) <- sk;
         }
             
         FOR (balanceB(Sku sk, Stock st) OR balanceS(sk, st)) AND NOT (OVERRIDE balanceB(sk, st), 0.0) == balanceS(sk, st) 
-            AND Purchase.UserInvoiceDetail d == [GROUP MAX Purchase.UserInvoiceDetail dd BY userInvoice(dd), sku(dd)](userInvoice('equal_balance_' + id(st)), sk) DO {
+            AND Purchase.UserInvoiceDetail d == [GROUP MAX Purchase.UserInvoiceDetail dd BY Purchase.userInvoice(dd), sku(dd)](Purchase.userInvoice('equal_balance_' + id(st)), sk) DO {
             
             quantity(d) <- quantity(d) (+) balanceS(sk, st) (-) balanceB(sk, st);
         }
@@ -2353,8 +2380,8 @@ DESIGN integrationData {
     } 
 }
 
-userShipment (Stock st) = GROUP MAX UserShipment s IF id(s) == ('init_' + id(customerStock(s))) BY customerStock(s);
-userShipmentDetail (Stock st, Sku sk) = GROUP MAX UserShipmentDetail d IF userShipment(d) == userShipment(st) BY sku(d);
+userShipment (Stock st) = GROUP MAX Purchase.UserShipment s IF id(s) == ('init_' + id(customerStock(s))) BY customerStock(s);
+userShipmentDetail (Stock st, Sku sk) = GROUP MAX Purchase.UserShipmentDetail d IF userShipment(d) == userShipment(st) BY sku(d);
 
 importBalanceShipment 'Импорт остатков (поставки)' () {
     
@@ -2367,7 +2394,7 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
         
     IMPORT TABLE FROM file() TO idItem, idStock, balance;
     
-    FOR INTEGER i = [GROUP MIN INTEGER ii IF NOT userShipment(stock(TEXT (idStock(ii)))) BY stock(TEXT (idStock(ii)))](Stock st) DO NEW s = UserShipment {
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF NOT userShipment(stock(TEXT (idStock(ii)))) BY stock(TEXT (idStock(ii)))](Stock st) DO NEW s = Purchase.UserShipment {
         id(s) <- 'init_' + id(stock(TEXT (idStock(i))));
         operation(s) <- Purchase.operation('initial');
         customerStock(s) <- stock(TEXT (idStock(i)));
@@ -2377,16 +2404,16 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
     }
     
     FOR [GROUP SUM 1 IF imported(INTEGER i) AND NOT userShipmentDetail(stock(TEXT (idStock(i))), item(idItem(i))) AND NOT balance(i) == 0 
-        BY stock(TEXT (idStock(i))), item(idItem(i))](Stock st, Item sk) DO NEW d = UserShipmentDetail {
+        BY stock(TEXT (idStock(i))), item(idItem(i))](Stock st, Item sk) DO NEW d = Purchase.UserShipmentDetail {
         userShipment(d) <- userShipment(st);
         sku(d) <- sk;
     }
     
-    FOR UserShipmentDetail d == userShipmentDetail(stock(TEXT (idStock(INTEGER i))), item(idItem(i))) DO {
+    FOR Purchase.UserShipmentDetail d == userShipmentDetail(stock(TEXT (idStock(INTEGER i))), item(idItem(i))) DO {
         quantity(d) <- balance(i);
     }
     
-    FOR UserShipmentDetail d  == userShipmentDetail(Stock st, Sku sk) AND (OVERRIDE quantity(d), 0) == 0 DO {
+    FOR Purchase.UserShipmentDetail d  == userShipmentDetail(Stock st, Sku sk) AND (OVERRIDE quantity(d), 0) == 0 DO {
         DELETE d;
     }
     
@@ -2430,7 +2457,7 @@ importPurchaseStore 'Импорт документов перемещения' (
     LOCAL id = ISTRING[50] (INTEGER);
     LOCAL idSupplierStockInt = INTEGER (INTEGER);
     LOCAL docstate = INTEGER (INTEGER);
-    LOCAL imported = BOOLEAN (UserInvoice);
+    LOCAL imported = BOOLEAN (Purchase.UserInvoice);
     LOCAL stocks = TEXT ();
     
     FOR dateFromPurchase(Store s) DO {
@@ -2444,11 +2471,11 @@ importPurchaseStore 'Импорт документов перемещения' (
         
         IMPORT TABLE FROM file() TO type, id, date, idSupplierStockInt, idCustomerStockInt, docstate;
         
-        FOR id(INTEGER i) AND NOT userInvoice(id(i)) DO NEW ui = UserInvoice {
+        FOR id(INTEGER i) AND NOT Purchase.userInvoice(id(i)) DO NEW ui = Purchase.UserInvoice {
             id(ui) <- id(i);
         }
         
-        FOR UserInvoice ui = userInvoice(id(INTEGER i)) DO {
+        FOR Purchase.UserInvoice ui = Purchase.userInvoice(id(INTEGER i)) DO {
             number(ui) <- STRING[28](id(i));
             supplierStock(ui) <- stock(TEXT (idSupplierStockInt(i)));
             supplier(ui) <- legalEntity(stock(TEXT (idSupplierStockInt(i))));
@@ -2465,7 +2492,7 @@ importPurchaseStore 'Импорт документов перемещения' (
         
         LOCAL sum = NUMERIC[16,4](INTEGER);
         LOCAL idDetail = ISTRING[100](INTEGER);
-        LOCAL imported = BOOLEAN (UserInvoiceDetail);
+        LOCAL imported = BOOLEAN (Purchase.UserInvoiceDetail);
     
         EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
             EXEC 'SELECT s.DOCTYPE, s.DOCID, s.SPECITEM, s.ARTICLE, s.QUANTITY, s.ITEMPRICE, s.TOTALPRICE FROM SuperMag.SVSpecIW s, SuperMag.SVDocumentsIW d WHERE s.docid = d.id AND d.CREATEDAT >= TO_DATE(\''
@@ -2476,13 +2503,13 @@ importPurchaseStore 'Импорт документов перемещения' (
         idDetail(INTEGER i) <- CONCAT '-', type(i), id(i), spec(i) WHERE imported(i);
         
         //строки
-        FOR imported(INTEGER r) AND NOT userInvoiceDetail(idDetail(r)) DO 
-            NEW d = UserInvoiceDetail {
+        FOR imported(INTEGER r) AND NOT Purchase.userInvoiceDetail(idDetail(r)) DO 
+            NEW d = Purchase.UserInvoiceDetail {
             id(d) <- idDetail(r);
         }
             
-        FOR UserInvoiceDetail d == userInvoiceDetail(idDetail(INTEGER r)) INLINE DO {
-            userInvoice(d) <- userInvoice(id(r));
+        FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(INTEGER r)) INLINE DO {
+            userInvoice(d) <- Purchase.userInvoice(id(r));
             sku(d) <- sku(idItem(r));
             quantity(d) <- quantity(r);
             shipmentQuantity(d) <- quantity(r);
@@ -2497,8 +2524,8 @@ importPurchaseStore 'Импорт документов перемещения' (
             imported(d) <- TRUE;
         }
         
-        DELETE UserInvoice i WHERE (operation(i) == Purchase.operation('purchaseStoreStore') OR operation(i) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(i) < dateFromPurchase(s) AND NOT imported(i);
-        DELETE UserInvoiceDetail d WHERE(operation(d) == Purchase.operation('purchaseStoreStore') OR operation(d) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(d) < dateFromPurchase(s) AND NOT imported(d);
+        DELETE Purchase.UserInvoice i WHERE (operation(i) == Purchase.operation('purchaseStoreStore') OR operation(i) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(i) < dateFromPurchase(s) AND NOT imported(i);
+        DELETE Purchase.UserInvoiceDetail d WHERE(operation(d) == Purchase.operation('purchaseStoreStore') OR operation(d) == Purchase.operation('purchaseStoreWarehouse')) AND NOT date(d) < dateFromPurchase(s) AND NOT imported(d);
     }
     APPLY;
 } 
