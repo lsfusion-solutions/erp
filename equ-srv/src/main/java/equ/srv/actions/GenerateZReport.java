@@ -111,17 +111,21 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 }
 
                 List<String> discountCardList = new ArrayList<>();
-                KeyExpr discountCardExpr = new KeyExpr("discountCard");
 
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("discountCard", discountCardExpr);
-                QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(keys);
-                discountCardQuery.addProperty("seriesNumber", findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr));
-                discountCardQuery.and(findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr).getWhere());
-                discountCardQuery.and(findProperty("firstNameContact[DiscountCard]").getExpr(discountCardExpr).getWhere());
+                ScriptingLogicsModule zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
+                if(zReportDiscountCardLM != null) {
+                    KeyExpr discountCardExpr = new KeyExpr("discountCard");
 
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(context);
-                for(ImMap<Object, Object> entry : discountCardResult.values()) {
-                    discountCardList.add((String) entry.get("seriesNumber"));
+                    ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("discountCard", discountCardExpr);
+                    QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(keys);
+                    discountCardQuery.addProperty("seriesNumber", zReportDiscountCardLM.findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr));
+                    discountCardQuery.and(zReportDiscountCardLM.findProperty("seriesNumber[DiscountCard]").getExpr(discountCardExpr).getWhere());
+                    discountCardQuery.and(zReportDiscountCardLM.findProperty("firstNameContact[DiscountCard]").getExpr(discountCardExpr).getWhere());
+
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(context);
+                    for (ImMap<Object, Object> entry : discountCardResult.values()) {
+                        discountCardList.add((String) entry.get("seriesNumber"));
+                    }
                 }
 
                 if (!cashRegisterInfoList.isEmpty()) {
