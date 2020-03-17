@@ -425,7 +425,6 @@ CLASS RequestExchangeType 'Тип запроса' {
     salesInfo 'Перегрузить продажи',
     checkZReport 'Сверить суммы z-отчётов',
     terminalOrder 'Загрузить заказы',
-    discountCard 'Загрузить дисконтные карты',
     cashierInfo 'Загрузить данные о кассирах'
 }
 
@@ -452,21 +451,18 @@ extraStocks (RequestExchange requestExchange) = GROUP
                                                 ORDER name(stock) CHARWIDTH 30 MATERIALIZED;                                                                         
 dateFrom 'Дата с' = DATA DATE (RequestExchange) NONULL IN id;
 dateTo 'Дата по' = DATA DATE (RequestExchange) NONULL;
-startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
-//todo: rename idDiscountCardFrom, idDiscountCardTo -> numberDiscountCardFrom, numberDiscountCardTo
-idDiscountCardFrom 'Номер дисконтной карты (с)' = DATA STRING[100] (RequestExchange);
-idDiscountCardTo 'Номер дисконтной карты (по)' = DATA STRING[100] (RequestExchange);
 requestExchangeType 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NONULL;
 nameRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticName(requestExchangeType(requestExchange)) IN id;
 captionRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticCaption(requestExchangeType(requestExchange));
 succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange);
 notSucceeded 'Не выгружен' (RequestExchange requestExchange) = requestExchange IS RequestExchange AND NOT succeeded(requestExchange);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (RequestExchange);
+
+overShowExtraStocks = ABSTRACT BOOLEAN(RequestExchange);
 showExtraStocks(RequestExchange requestExchange) = requestExchangeType(requestExchange) == RequestExchangeType.checkZReport OR 
                                    requestExchangeType(requestExchange) == RequestExchangeType.salesInfo OR 
                                    requestExchangeType(requestExchange) == RequestExchangeType.cashierInfo OR 
-                                   requestExchangeType(requestExchange) == RequestExchangeType.discountCard;
-showStartDate(RequestExchange requestExchange) = requestExchangeType(requestExchange) == RequestExchangeType.discountCard;
+                                   overShowExtraStocks(requestExchange);
 
 TABLE machineryRequestExchange(Machinery, RequestExchange);
 dataIn 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
@@ -496,9 +492,7 @@ CONSTRAINT stock(RequestExchange r) AND NOT inGroupMachinery(stock(r)) CHECKED B
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange PANEL
-    PROPERTIES(r) nameStock, dateFrom, dateTo, captionRequestExchangeType, succeeded, note, 
-                  startDate SHOWIF showStartDate(r), idDiscountCardFrom SHOWIF showStartDate(r), 
-                  idDiscountCardTo SHOWIF showStartDate(r)
+    PROPERTIES(r) nameStock, dateFrom, dateTo, captionRequestExchangeType, succeeded, note
  
     OBJECTS s = Stock GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
@@ -530,12 +524,6 @@ DESIGN requestExchange {
                 MOVE PROPERTY(succeeded(r));
                 MOVE PROPERTY(note(r));                
             }            
-            NEW thirdRow {
-                type = CONTAINERH;
-                MOVE PROPERTY(startDate(r));
-                MOVE PROPERTY(idDiscountCardFrom(r));
-                MOVE PROPERTY(idDiscountCardTo(r));                
-            }
         }
         NEW tabbedPanel {
             fill = 1;
@@ -557,9 +545,6 @@ copy 'Копировать'(RequestExchange request)  {
 	        dateTo(r) <- dateTo(request);
 	        note(r) <- note(request);
 	        requestExchangeType(r) <- requestExchangeType(request);
-	        startDate(r) <- startDate(request);
-	        idDiscountCardFrom(r) <- idDiscountCardFrom(request);
-	        idDiscountCardTo(r) <- idDiscountCardTo(request);
 	        
 	        FOR in(Stock stock, request) DO {
 	            in(stock, r) <- in(stock, request);
@@ -584,9 +569,7 @@ FORM requestExchanges 'Запросы обмена данными'
     
     OBJECTS r = RequestExchange LAST
     PROPERTIES(r) READONLY allStocks, dateFrom, dateTo, 
-                           captionRequestExchangeType, succeeded, dateTimeSucceeded, note, 
-                           startDate SHOWIF showStartDate(r) PANEL, idDiscountCardFrom SHOWIF showStartDate(r) PANEL, 
-                           idDiscountCardTo SHOWIF showStartDate(r) PANEL
+                           captionRequestExchangeType, succeeded, dateTimeSucceeded, note
     PROPERTIES(r)          NEWSESSION copy, NEW, EDIT, DELETE 
     
     OBJECTS rl = RequestExchangeLog

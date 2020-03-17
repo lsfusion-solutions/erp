@@ -1,0 +1,46 @@
+MODULE MachineryPriceTransactionDiscountCard;
+
+REQUIRE MachineryPriceTransaction, DiscountCard;
+
+NAMESPACE Machinery;
+
+EXTEND CLASS RequestExchangeType  {
+    discountCard 'Загрузить дисконтные карты'
+}
+
+overShowExtraStocks(RequestExchange requestExchange) += requestExchangeType(requestExchange) == RequestExchangeType.discountCard;
+
+startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
+numberDiscountCardFrom 'Номер дисконтной карты (с)' = DATA STRING[100] (RequestExchange);
+numberDiscountCardTo 'Номер дисконтной карты (по)' = DATA STRING[100] (RequestExchange);
+discountCardType = DATA DiscountCardType (RequestExchange);
+nameDiscountCardType 'Тип дисконтной карты' (RequestExchange r) = name(discountCardType(r));
+
+showStartDate(RequestExchange requestExchange) = requestExchangeType(requestExchange) == RequestExchangeType.discountCard;
+
+overCopy(RequestExchange request, RequestExchange r) + { 
+    startDate(r) <- startDate(request);
+    numberDiscountCardFrom(r) <- numberDiscountCardFrom(request);
+    numberDiscountCardTo(r) <- numberDiscountCardTo(request);
+    discountCardType(r) <- discountCardType(request);
+}
+
+EXTEND FORM requestExchange
+    PROPERTIES(r) SHOWIF showStartDate(r) startDate, numberDiscountCardFrom, numberDiscountCardTo, nameDiscountCardType
+;
+
+DESIGN requestExchange {       
+    topContainer {
+        NEW thirdRow {
+            type = CONTAINERH;
+            MOVE PROPERTY(startDate(r));
+            MOVE PROPERTY(numberDiscountCardFrom(r));
+            MOVE PROPERTY(numberDiscountCardTo(r));  
+            MOVE PROPERTY(nameDiscountCardType(r));              
+        }
+    }  
+}
+
+EXTEND FORM requestExchanges    
+    PROPERTIES(r) READONLY SHOWIF showStartDate(r) PANEL startDate, numberDiscountCardFrom, numberDiscountCardTo, nameDiscountCardType
+;

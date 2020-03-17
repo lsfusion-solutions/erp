@@ -14,6 +14,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.classes.ConcreteClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.data.integral.LongClass;
@@ -47,6 +48,7 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
     static ScriptingLogicsModule machineryLM;
     static ScriptingLogicsModule machineryPriceTransactionLM;
+    static ScriptingLogicsModule machineryPriceTransactionDiscountCardLM;
     static ScriptingLogicsModule terminalLM;
 
     public static void init(BusinessLogics BL) {
@@ -56,6 +58,7 @@ public class MachineryExchangeEquipmentServer {
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
         machineryLM = BL.getModule("Machinery");
         machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
+        machineryPriceTransactionDiscountCardLM = BL.getModule("MachineryPriceTransactionDiscountCard");
         terminalLM = BL.getModule("EquipmentTerminal");
     }
 
@@ -70,12 +73,13 @@ public class MachineryExchangeEquipmentServer {
                 ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev("requestExchange", requestExchangeExpr);
                 QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
 
-                String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
-                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
-                LP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "startDate[RequestExchange]",
-                        "nameRequestExchangeType[RequestExchange]", "idDiscountCardFrom[RequestExchange]", "idDiscountCardTo[RequestExchange]");
+                String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
+                LP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "nameRequestExchangeType[RequestExchange]");
                 for (int i = 0; i < requestExchangeProperties.length; i++) {
                     requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
+                }
+                if(machineryPriceTransactionDiscountCardLM != null) {
+                    requestExchangeQuery.addProperty("startDateRequestExchange", machineryPriceTransactionDiscountCardLM.findProperty("startDate[RequestExchange]").getExpr(requestExchangeExpr));
                 }
                 requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceeded[RequestExchange]").getExpr(requestExchangeExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
@@ -85,8 +89,6 @@ public class MachineryExchangeEquipmentServer {
                     Date dateFromRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue();
                     Date dateToRequestExchange = (Date) requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue();
                     Date startDateRequestExchange = (Date) requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue();
-                    String idDiscountCardFrom = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardFromRequestExchange").getValue());
-                    String idDiscountCardTo = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardToRequestExchange").getValue());
                     String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
                     //terminalOrder - единственный тип запроса для ТСД. Все остальные - только для касс
@@ -116,9 +118,10 @@ public class MachineryExchangeEquipmentServer {
                                 idStock = trim((String) result.getValue(j).get("idStockTerminal").getValue());
                             }
 
+                            //todo: idDiscountCardFrom, idDiscountCardTo убрать из equ-api
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<>(),
                                     new HashSet<>(), idStock, dateFromRequestExchange,
-                                    dateToRequestExchange, startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
+                                    dateToRequestExchange, startDateRequestExchange, null, null, typeRequestExchange));
                         }
 
                     } else {
@@ -159,7 +162,7 @@ public class MachineryExchangeEquipmentServer {
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,
                                     idStock, dateFromRequestExchange, dateToRequestExchange,
-                                    startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
+                                    startDateRequestExchange, null, null, typeRequestExchange));
 
                         }
 
@@ -255,7 +258,7 @@ public class MachineryExchangeEquipmentServer {
 
     public static List<DiscountCard> readDiscountCardList(EquipmentServer server, RequestExchange requestExchange) {
         List<DiscountCard> discountCardList = new ArrayList<>();
-        if(discountCardLM != null) {
+        if(machineryPriceTransactionDiscountCardLM != null) {
             try (DataSession session = server.createSession()) {
 
                 KeyExpr discountCardExpr = new KeyExpr("discountCard");
@@ -276,14 +279,24 @@ public class MachineryExchangeEquipmentServer {
                 }
                 discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                Long numberFrom = parseLong(requestExchange.idDiscountCardFrom);
+
+                DataObject requestExchangeObject = new DataObject(requestExchange.requestExchange, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
+
+                Long numberFrom = parseLong((String) machineryPriceTransactionDiscountCardLM.findProperty("numberDiscountCardFrom[RequestExchange]").read(session, requestExchangeObject));
                 if (numberFrom != null)
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
-                Long numberTo = parseLong(requestExchange.idDiscountCardTo);
+
+                Long numberTo = parseLong((String) machineryPriceTransactionDiscountCardLM.findProperty("numberDiscountCardTo[RequestExchange]").read(session, requestExchangeObject));
                 if (numberTo != null)
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
+
                 if(requestExchange.startDate != null)
                     discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(requestExchange.startDate, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+
+                ObjectValue requestExchangeType = machineryPriceTransactionDiscountCardLM.findProperty("discountCardType[RequestExchange]").readClasses(session, requestExchangeObject);
+                if(requestExchangeType instanceof DataObject) {
+                    discountCardQuery.and(discountCardLM.findProperty("discountCardType[DiscountCard]").getExpr(discountCardExpr).compare(requestExchangeType.getExpr(), Compare.EQUALS));
+                }
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder("idDiscountCard", false));
 
@@ -458,10 +471,11 @@ public class MachineryExchangeEquipmentServer {
 
     private static Long parseLong(String value) {
         try {
-            return Long.parseLong(value);
-        } catch(Exception e) {
-            return null;
+            if(value != null)
+                return Long.parseLong(value);
+        } catch(Exception ignored) {
         }
+        return null;
     }
 
     private static String getRowValue(ImMap<Object, Object> row, String key) {
