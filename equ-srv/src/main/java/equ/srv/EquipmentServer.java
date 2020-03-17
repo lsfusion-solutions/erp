@@ -84,7 +84,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     //Опциональные модули
     private ScriptingLogicsModule cashRegisterLM;
     private ScriptingLogicsModule cashRegisterItemLM;
-    private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule equipmentLM;
     private ScriptingLogicsModule giftCardLM;
     private ScriptingLogicsModule itemLM;
@@ -151,7 +150,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 //        Assert.notNull(equLM, "can't find Equipment module");
         cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
-        discountCardLM = getBusinessLogics().getModule("DiscountCard");
         equipmentLM = getBusinessLogics().getModule("Equipment");
         giftCardLM = getBusinessLogics().getModule("GiftCard");
         itemLM = getBusinessLogics().getModule("Item");
@@ -1155,11 +1153,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImportField discountSumSaleReceiptField = new ImportField(zReportLM.findProperty("discountSumSale[Receipt]"));
             saleFields.add(discountSumSaleReceiptField);
 
-            ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
-            if (discountCardLM != null) {
+            ImportField seriesNumberDiscountCardField = zReportDiscountCardLM == null ? null : new ImportField(zReportDiscountCardLM.findProperty("seriesNumber[DiscountCard]"));
+            if (zReportDiscountCardLM != null) {
                 saleFields.add(seriesNumberDiscountCardField);
             }
-            ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+            ImportKey<?> discountCardKey = zReportDiscountCardLM == null ? null : new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
             if (discountCardKey != null) {
                 saleKeys.add(discountCardKey);
                 returnKeys.add(discountCardKey);
@@ -1199,7 +1197,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             ImportField idSaleReceiptReceiptReturnDetailField = new ImportField(zReportLM.findProperty("id[Receipt]"));
             returnFields.add(idSaleReceiptReceiptReturnDetailField);
 
-            if (discountCardLM != null) {
+            if (zReportDiscountCardLM != null) {
                 returnFields.add(seriesNumberDiscountCardField);
             }
 
@@ -1250,10 +1248,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSale[Receipt]").getMapping(receiptKey)));
             saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                     zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-            if (discountCardLM != null && zReportDiscountCardLM != null) {
-                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+            if (zReportDiscountCardLM != null) {
+                saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
                 saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                        discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                        zReportDiscountCardLM.object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
             }
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
             saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
@@ -1294,15 +1292,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             //return 2
             returnProperties.addAll(commonProperties);
 
-            if (discountCardLM != null) {
+            if (zReportDiscountCardLM != null) {
                 returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturn[Receipt]").getMapping(receiptKey)));
             }
             returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                     zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-            if (discountCardLM != null && zReportDiscountCardLM != null) {
-                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+            if (zReportDiscountCardLM != null) {
+                returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
                 returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                        discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                        zReportDiscountCardLM.object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
             }
 
             returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
@@ -1526,7 +1524,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     isReturnReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("isReturn[ReceiptGiftCardSaleDetail]"));
                 }
 
-                ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
+                ImportField seriesNumberDiscountCardField = zReportDiscountCardLM == null ? null : new ImportField(zReportDiscountCardLM.findProperty("seriesNumber[DiscountCard]"));
                 ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
                 ImportField externalSumZReportField = zReportExternalLM == null ? null : new ImportField(zReportExternalLM.findProperty("externalSum[ZReport]"));
 
@@ -1550,7 +1548,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[STRING[100]]").getMapping(idEmployeeField));
                 saleKeys.add(employeeKey);
 
-                ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+                ImportKey<?> discountCardKey = zReportDiscountCardLM == null ? null : new ImportKey((ConcreteCustomClass) zReportDiscountCardLM.findClass("DiscountCard"), zReportDiscountCardLM.findProperty("discountSeriesNumber[BPSTRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
                 if(discountCardKey != null)
                     saleKeys.add(discountCardKey);
 
@@ -1570,10 +1568,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSale[Receipt]").getMapping(receiptKey)));
                 saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                         zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                if (discountCardLM != null && zReportDiscountCardLM != null) {
-                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                if (zReportDiscountCardLM != null) {
+                    saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
                     saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                            discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                            zReportDiscountCardLM.object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                 }
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
                 saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
@@ -1616,15 +1614,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 //return 2
                 returnProperties.addAll(commonProperties);
 
-                if (discountCardLM != null) {
+                if (zReportDiscountCardLM != null) {
                     returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturn[Receipt]").getMapping(receiptKey)));
                 }
                 returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                         zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                if (discountCardLM != null && zReportDiscountCardLM != null) {
-                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                if (zReportDiscountCardLM != null) {
+                    returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
                     returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
-                            discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
+                            zReportDiscountCardLM.object(zReportDiscountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                 }
 
                 returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
@@ -1710,7 +1708,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptSaleDetailField, priceReceiptSaleDetailField, sumReceiptSaleDetailField,
                         discountPercentReceiptSaleDetailField, discountSumReceiptSaleDetailField, discountSumSaleReceiptField));
-                if (discountCardLM != null) {
+                if (zReportDiscountCardLM != null) {
                     saleImportFields = new ArrayList<>(saleImportFields);
                     saleImportFields.add(seriesNumberDiscountCardField);
                 }
@@ -1730,7 +1728,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         idReceiptDetailField, numberReceiptDetailField, idBarcodeReceiptDetailField,
                         quantityReceiptReturnDetailField, priceReceiptReturnDetailField, retailSumReceiptReturnDetailField,
                         discountSumReceiptReturnDetailField, discountSumReturnReceiptField, idSaleReceiptReceiptReturnDetailField));
-                if (discountCardLM != null) {
+                if (zReportDiscountCardLM != null) {
                     returnImportFields = new ArrayList<>(returnImportFields);
                     returnImportFields.add(seriesNumberDiscountCardField);
                 }
@@ -1763,7 +1761,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 //return 5
                 List<ImportKey<?>> returnKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptReturnDetailKey, skuKey, employeeKey, receiptSaleDetailReceiptReturnDetailKey);
-                if (discountCardLM != null) {
+                if (zReportDiscountCardLM != null) {
                     returnKeys = new ArrayList<>(returnKeys);
                     returnKeys.add(discountCardKey);
                 }
@@ -2412,7 +2410,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
             //return 3
             row.addAll(Arrays.asList(safeNegate(quantity), price, safeNegate(sum), discount, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail));
-            if (discountCardLM != null) {
+            if (zReportDiscountCardLM != null) {
                 row.add(sale.seriesNumberDiscountCard);
             }
             if (zReportSectionLM != null) {
@@ -2424,7 +2422,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         } else {
             //sale 3
             row.addAll(Arrays.asList(quantity, price, sum, sale.discountPercentReceiptDetail, discount, sale.discountSumReceipt));
-            if (discountCardLM != null) {
+            if (zReportDiscountCardLM != null) {
                 row.add(sale.seriesNumberDiscountCard);
             }
             if (zReportSectionLM != null) {
