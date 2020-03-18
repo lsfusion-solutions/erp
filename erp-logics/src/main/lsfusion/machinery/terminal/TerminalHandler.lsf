@@ -1,6 +1,6 @@
 MODULE TerminalHandler; //для работы терминалов нужна зависимость equ-srv в pom.xml, создать lsfusion-bootstrap.xml 
 
-REQUIRE Terminal, MachineryPriceTransaction, Item, Warehouse;
+REQUIRE Terminal, PriceListAccount, Item;
 
 process 'Обработка документа ТСД' (terminalDocument)  ABSTRACT LIST ( TerminalDocument);
 process (TerminalDocument document) + { 
@@ -48,10 +48,11 @@ useCurrentPriceInTerminal 'Загружать в терминал текущие
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
 sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN ();
 
+useOverPriceInTerminal = ABSTRACT BOOLEAN (Stock) PREREAD;
 overCurrentPriceInTerminal = ABSTRACT NUMERIC[16,4] (Sku, Stock);
-currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = IF stock IS Warehouse
-    THEN currentAccountPriceA(sku(barcode), stock) 
-    ELSE overCurrentPriceInTerminal(sku(barcode), stock);       
+currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = IF useOverPriceInTerminal(stock)
+    THEN overCurrentPriceInTerminal(sku(barcode), stock) 
+    ELSE prevAccountPriceA(sku(barcode), stock, currentDateTime());
 
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN ();
 filterCurrentQuantityInTerminal 'Фильтровать по текущим остаткам' = DATA BOOLEAN ();
