@@ -3,7 +3,7 @@ package equ.api;
 import equ.api.cashregister.CashRegisterInfo;
 
 import java.io.Serializable;
-import java.sql.Date;
+import java.time.LocalDate;
 import java.util.Set;
 
 public class RequestExchange implements Serializable {
@@ -11,16 +11,13 @@ public class RequestExchange implements Serializable {
     public Set<CashRegisterInfo> cashRegisterSet;
     public Set<CashRegisterInfo> extraCashRegisterSet;
     public String idStock;
-    public Date dateFrom;
-    public Date dateTo;
-    public Date startDate;
-    public String idDiscountCardFrom;
-    public String idDiscountCardTo;
+    public LocalDate dateFrom;
+    public LocalDate dateTo;
+    public LocalDate startDate;
     private String typeRequestExchange;
 
     public RequestExchange(Long requestExchange, Set<CashRegisterInfo> cashRegisterSet, Set<CashRegisterInfo> extraCashRegisterSet,
-                           String idStock, Date dateFrom, Date dateTo, Date startDate,
-                           String idDiscountCardFrom, String idDiscountCardTo, String typeRequestExchange) {
+                           String idStock, LocalDate dateFrom, LocalDate dateTo, LocalDate startDate, String typeRequestExchange) {
         this.requestExchange = requestExchange;
         this.cashRegisterSet = cashRegisterSet;
         this.extraCashRegisterSet = extraCashRegisterSet;
@@ -28,8 +25,6 @@ public class RequestExchange implements Serializable {
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
         this.startDate = startDate;
-        this.idDiscountCardFrom = idDiscountCardFrom;
-        this.idDiscountCardTo = idDiscountCardTo;
         this.typeRequestExchange = typeRequestExchange;
     }
 

@@ -4,8 +4,8 @@ import equ.api.cashregister.CashRegisterInfo;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Map;
 
 public class SalesInfo implements Serializable {
@@ -16,11 +16,11 @@ public class SalesInfo implements Serializable {
     public Integer nppGroupMachinery;
     public Integer nppMachinery;
     public String numberZReport;
-    public Date dateZReport;
-    public Time timeZReport;
+    public LocalDate dateZReport;
+    public LocalTime timeZReport;
     public Integer numberReceipt;
-    public Date dateReceipt;
-    public Time timeReceipt;
+    public LocalDate dateReceipt;
+    public LocalTime timeReceipt;
     public String idEmployee;
     public String firstNameContact;
     public String lastNameContact;
@@ -46,8 +46,8 @@ public class SalesInfo implements Serializable {
     public Map<String, Object> receiptDetailExtraFields;
     public CashRegisterInfo cashRegisterInfo;
 
-    public SalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
+    public SalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport,
+                     LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
                      String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, Map<String, BigDecimal> customPaymentMap,
                      String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,

@@ -21,11 +21,14 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
+
+import static equ.srv.EquipmentServer.*;
 
 public class GenerateZReport extends DefaultIntegrationAction {
     private static final double deviationPercent = 0.25;
@@ -140,7 +143,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                         if (!numberZReportCashRegisterMap.containsKey(numberZReport))
                             numberZReportCashRegisterMap.put(numberZReport, cashRegister.cashRegisterObject);
                         Timestamp dateTime = dateFrom.getTime() <= dateTo.getTime() ? dateFrom : (new Timestamp(dateFrom.getTime() + Math.abs(r.nextLong() % (dateTo.getTime() - dateFrom.getTime()))));
-                        Date date = new Date(dateTime.getTime());
+                        LocalDate date = dateTime.toLocalDateTime().toLocalDate();
                         BigDecimal discountSum = null;
                         for (int receiptNumber = 1; receiptNumber <= addDeviation(receiptCount, r); receiptNumber++) {
 
@@ -149,7 +152,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                             BigDecimal sumCard = BigDecimal.ZERO;
                             List<SalesInfo> receiptSalesInfoList = new ArrayList<>();
 
-                            Time time = new Time(r.nextLong() % dateTime.getTime());
+                            LocalTime time = sqlTimeToLocalTime(new Time(r.nextLong() % dateTime.getTime()));
                             Integer currentReceiptDetailCount = addDeviation(receiptDetailCount, r);
                             Set<Integer> usedItems = new HashSet<>();
                             while(currentReceiptDetailCount >= numberReceiptDetail && usedItems.size() < itemZReportInfoList.size()) {

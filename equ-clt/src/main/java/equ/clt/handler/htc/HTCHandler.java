@@ -24,7 +24,9 @@ import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -32,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
@@ -330,13 +333,13 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
         machineryExchangeLogger.info("HTCHandler: sending discount cards");
         
-        Date currentDate = new java.sql.Date(Calendar.getInstance().getTimeInMillis());
+        LocalDate currentDate = LocalDate.now();
         try {
 
             File cachedDiscFile = null;
             
             for(String directory : getDirectorySet(requestExchange)) {
-                Date startDate = requestExchange.startDate;
+                LocalDate startDate = requestExchange.startDate;
 
                 machineryExchangeLogger.info("HTCHandler: sending " + discountCardList.size() + " discount cards to : " + directory + (startDate != null ? (" starting from " + startDate) : "") );
 
@@ -547,8 +550,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         } else return null;
     }
     
-    private String formatTime(Time time) {
-        return time == null ? null : new SimpleDateFormat("HHmm").format(new Date(time.getTime()));
+    private String formatTime(LocalTime time) {
+        return time == null ? null : time.format(DateTimeFormatter.ofPattern("HHmm"));
     }
 
     private void putField(DBF dbfFile, Field field, String value, boolean append) throws xBaseJException {
@@ -744,8 +747,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
                                     String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
 
-                                    salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                            timeReceipt, idEmployee, null, sumCard, sumCash, null, barcodeItem, null, null, null, quantityReceiptDetail,
+                                    salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
+                                            sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, sumCard, sumCash, null, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                             nameSalesFile, null, null, cashRegister));
                                 }
@@ -917,8 +920,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                 try {
                     String requestResult = null;
                     Calendar cal = Calendar.getInstance();
-                    cal.setTime(requestExchange.dateFrom);
-                    while (cal.getTime().compareTo(requestExchange.dateTo) <= 0) {
+                    cal.setTime(localDateToSqlDate(requestExchange.dateFrom));
+                    while (cal.getTime().compareTo(localDateToSqlDate(requestExchange.dateTo)) <= 0) {
                         if (failed) {
                             requestResult = requestResult == null ? String.format("Previous query to directory %s failed", directory) : requestResult;
                         } else {

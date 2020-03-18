@@ -1,19 +1,19 @@
 package equ.api.cashregister;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 public class CashierTime implements Serializable {
     public String idCashierTime;
     public String numberCashier;
     public Integer numberCashRegister;
     public Integer numberGroupCashRegister;
-    public Timestamp logOnCashier;
-    public Timestamp logOffCashier;
+    public LocalDateTime logOnCashier;
+    public LocalDateTime logOffCashier;
     public Boolean isZReport;
 
     public CashierTime(String idCashierTime, String numberCashier, Integer numberCashRegister, Integer numberGroupCashRegister,
-                       Timestamp logOnCashier, Timestamp logOffCashier, Boolean isZReport) {
+                       LocalDateTime logOnCashier, LocalDateTime logOffCashier, Boolean isZReport) {
         this.idCashierTime = idCashierTime;
         this.numberCashier = numberCashier;
         this.numberCashRegister = numberCashRegister;

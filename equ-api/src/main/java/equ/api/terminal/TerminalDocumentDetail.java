@@ -2,14 +2,14 @@ package equ.api.terminal;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 public class TerminalDocumentDetail implements Serializable {
     public String idDocument;
     public String numberDocument;
-    public Date dateDocument;
-    public Time timeDocument;
+    public LocalDate dateDocument;
+    public LocalTime timeDocument;
     public String commentDocument;
     public String directoryGroupTerminal;
     public String idTerminalHandbookType1;
@@ -24,7 +24,7 @@ public class TerminalDocumentDetail implements Serializable {
     public BigDecimal quantityDocumentDetail;
     public BigDecimal sumDocumentDetail;
     
-    public TerminalDocumentDetail(String idDocument, String numberDocument, Date dateDocument, Time timeDocument, String commentDocument,
+    public TerminalDocumentDetail(String idDocument, String numberDocument, LocalDate dateDocument, LocalTime timeDocument, String commentDocument,
                                   String directoryGroupTerminal, String idTerminalHandbookType1, String idTerminalHandbookType2,
                                   String idTerminalDocumentType, BigDecimal quantityDocument, String idDocumentDetail,
                                   String numberDocumentDetail,  String barcodeDocumentDetail, String nameDocumentDetail,

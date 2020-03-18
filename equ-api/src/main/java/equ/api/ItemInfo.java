@@ -2,7 +2,7 @@ package equ.api;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 import java.util.Map;
 
 public class ItemInfo implements Serializable {
@@ -13,7 +13,7 @@ public class ItemInfo implements Serializable {
     public BigDecimal price;
     public boolean splitItem;
     public Integer daysExpiry;
-    public Date expiryDate;
+    public LocalDate expiryDate;
     public boolean passScalesItem;
     public BigDecimal vat;
     public Integer pluNumber;
@@ -25,7 +25,7 @@ public class ItemInfo implements Serializable {
     public String info;
     
     public ItemInfo(Map<String, Integer> stockPluNumberMap, String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry,
-                    Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, String idItemGroup,
+                    LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags, String idItemGroup,
                     String nameItemGroup, String idUOM, String shortNameUOM, String info) {
         this.stockPluNumberMap = stockPluNumberMap;
         this.idItem = idItem;

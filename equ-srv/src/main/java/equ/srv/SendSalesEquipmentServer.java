@@ -28,8 +28,11 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.srv.EquipmentServer.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
@@ -88,7 +91,7 @@ public class SendSalesEquipmentServer {
                             null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
-                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (Date) row.get("documentsClosedDate"));
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), sqlDateToLocalDate((Date) row.get("documentsClosedDate")));
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -231,13 +234,13 @@ public class SendSalesEquipmentServer {
 
                 for (CashDocument cashDocument : cashDocumentList) {
                     if (cashDocument.sumCashDocument != null) {
-                        String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(cashDocument.dateCashDocument);
+                        String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + cashDocument.dateCashDocument.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
-                            dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
+                            dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, localDateToSqlDate(cashDocument.dateCashDocument),
+                                    localTimeToSqlTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
                         else
-                            dataOutcome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
-                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
+                            dataOutcome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, localDateToSqlDate(cashDocument.dateCashDocument),
+                                    localTimeToSqlTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
                     }
                 }
 
@@ -272,7 +275,7 @@ public class SendSalesEquipmentServer {
         } else return null;
     }
 
-    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
+    public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, String idStock, LocalDate dateFrom, LocalDate dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = server.createSession()) {
@@ -289,8 +292,8 @@ public class SendSalesEquipmentServer {
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(zReportExpr));
                 }
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(localDateToSqlDate(dateFrom), DateClass.instance), Compare.GREATER_EQUALS));
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(localDateToSqlDate(dateTo), DateClass.instance), Compare.LESS_EQUALS));
                 query.and(zReportLM.findProperty("departmentStore[ZReport]").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
                 query.and(zReportLM.findProperty("number[ZReport]").getExpr(zReportExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);

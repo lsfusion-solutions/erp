@@ -24,15 +24,16 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.Date;
 import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
@@ -542,8 +543,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 Set<String> stockSet = directoryStockEntry.getValue();
 
                 machineryExchangeLogger.info(getLogPrefix() + "creating request files for directory : " + directory);
-                String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+                String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                String dateTo = entry.dateTo.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
 
                 String exchangeDirectory = directory + "/reports/source/";
 
@@ -681,7 +682,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 Date dateCashDocument = new Date(dateTimeCashDocument);
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
-                                cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, sqlDateToLocalDate(dateCashDocument), sqlTimeToLocalTime(timeCashDocument),
                                         numberGroup, numberCashRegister, null, sumCashDocument));
                             }
                             readFiles.add(file.getAbsolutePath());
@@ -729,8 +730,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             }
 
             if (stopListInfo.dateTo == null || stopListInfo.timeTo == null) {
-                stopListInfo.dateTo = new Date(2040 - 1900, 0, 1);
-                stopListInfo.timeTo = new Time(23, 59, 59);
+                stopListInfo.dateTo = LocalDate.of(2040, 1, 1);
+                stopListInfo.timeTo = LocalTime.of(23, 59, 59);
             }
 
             String exchangeDirectory = directory + "/products/source/";
@@ -905,7 +906,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     Document doc = new Document(rootElement);
                     doc.setRootElement(rootElement);
 
-                    Date currentDate = new Date(Calendar.getInstance().getTime().getTime());
+                    LocalDate currentDate = LocalDate.now();
 
                     for (Map.Entry<Double, String> discountCardType : discountCardPercentTypeMap.entrySet()) {
                         //parent: rootElement
@@ -964,13 +965,13 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         }
     }
 
-    private String formatDate(Date date, String format) {
-        return date == null ? null : new SimpleDateFormat(format).format(date);
+    private String formatDate(LocalDate date, String format) {
+        return date == null ? null : date.format(DateTimeFormatter.ofPattern(format));
     }
 
 
-    private String formatDateTime(Timestamp dateTime, String format, String defaultValue) {
-        return dateTime == null ? defaultValue : new SimpleDateFormat(format).format(dateTime);
+    private String formatDateTime(LocalDateTime dateTime, String format, String defaultValue) {
+        return dateTime == null ? defaultValue : dateTime.format(DateTimeFormatter.ofPattern(format));
     }
 
     private String currentDate() {
@@ -1064,8 +1065,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             //discountSumReceipt = (discountSumReceipt != null && !isSale) ? discountSumReceipt.negate() : discountSumReceipt;
 
                             long dateTimeReceipt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"/*.SSSX"*/).parse(readStringXMLAttribute(purchaseNode, "saletime")).getTime();
-                            Date dateReceipt = new Date(dateTimeReceipt);
-                            Time timeReceipt = new Time(dateTimeReceipt);
+                            LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
+                            LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
 
                             BigDecimal sumCard = BigDecimal.ZERO;
                             BigDecimal sumCash = BigDecimal.ZERO;
@@ -1244,7 +1245,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                             safeDivide(safeMultiply(discountSumReceiptDetail, 100), safeAdd(discountSumReceiptDetail, sumReceiptDetail)) : null;
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
-                                    Date startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
+                                    LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
                                         if (nppGroupMachinery == null) {

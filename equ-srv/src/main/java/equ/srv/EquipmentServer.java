@@ -56,6 +56,8 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -209,9 +211,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         super(DAEMON_ORDER);
     }
 
-    @Override
-    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException {
-        return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
+    private static String getIdZReport(SalesInfo s) {
+        return s.nppGroupMachinery + "_" + s.nppMachinery + "_" + s.numberZReport + (s.dateZReport != null ? ("_" + s.dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"))) : "");
     }
 
     @Override
@@ -219,496 +220,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return softCheck == null ? null : softCheck.sendCashierTimeList(cashierTimeList);
     }
 
-    @Override
-    public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws SQLException {
-        try (DataSession session = createSession()) {
-            List<TransactionInfo> transactionList = new ArrayList<>();
-
-            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-            Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
-            Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
-            Integer selectTop = (Integer) equipmentLM.findProperty("selectTop[EquipmentServer]").read(session, equipmentServerObject);
-            if(selectTop == null)
-                selectTop = 0;
-
-            KeyExpr machineryPriceTransactionExpr = new KeyExpr("machineryPriceTransaction");
-            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("machineryPriceTransaction", machineryPriceTransactionExpr);
-            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-
-            String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
-                    "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction",
-                    "priorityMPT", "filterMPT", "infoMPT"};
-            LP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
-                    "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
-                    "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]",
-                    "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]", "info[MachineryPriceTransaction]");
-            for (int i = 0; i < mptProperties.length; i++) {
-                query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
-            }
-            query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
-            query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
-
-            logger.info(String.format("Starting to read top %s transactions", selectTop));
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session.sql, MapFact.toOrderMap("priorityMPT", true, "filterMPT", false), selectTop, session.baseClass, session.env);
-
-            List<Object[]> transactionObjects = new ArrayList<>();
-            for (int i = 0, size = result.size(); i < size; i++) {
-                ImMap<Object, ObjectValue> value = result.getValue(i);
-                ObjectValue dateTimeMPT = value.get("dateTimeMachineryPriceTransaction");
-                if(dateTimeMPT instanceof DataObject) {
-                    DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
-                    Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
-                    String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
-                    DataObject transactionObject = result.getKey(i).singleValue();
-                    boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
-                    String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
-                    Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
-                    String infoMPT = (String) value.get("infoMPT").getValue();
-                    transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
-                }
-            }
-
-            Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
-            List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
-            boolean skipTroubleMachineryGroups = skipTroubles != null && skipTroubleCounter < skipTroubles;
-            if (skipTroubleMachineryGroups)
-                skipTroubleCounter++;
-            else
-                skipTroubleCounter = 1;
-
-            logger.info("" + transactionObjects.size() + " transactions read");
-            int count = 0;
-            for (Object[] transaction : transactionObjects) {
-
-                count++;
-                logger.info("Reading transaction number " + count + " of " + transactionObjects.size());
-                DataObject groupMachineryObject = (DataObject) transaction[0];
-                Integer nppGroupMachinery = (Integer) transaction[1];
-                if(troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups)
-                    continue;
-
-                String nameGroupMachinery = (String) transaction[2];
-                DataObject transactionObject = (DataObject) transaction[3];
-                String dateTimeCode = (String) transaction[4];
-                Date date = new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime());
-                boolean snapshotTransaction = (boolean) transaction[6];
-                String descriptionTransaction = (String) transaction[7];
-                Timestamp lastErrorDateTransaction = (Timestamp) transaction[8];
-                String infoMPT = (String) transaction[9];
-
-                boolean isCashRegisterPriceTransaction = cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"));
-                boolean isScalesPriceTransaction = scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"));
-                boolean isPriceCheckerPriceTransaction = priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"));
-                boolean isTerminalPriceTransaction = terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"));
-                
-                String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
-
-                ValueExpr transactionExpr = transactionObject.getExpr();
-                KeyExpr barcodeExpr = new KeyExpr("barcode");
-                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev("barcode", barcodeExpr);
-
-                QueryBuilder<Object, Object> skuQuery = new QueryBuilder<>(skuKeys);
-
-                String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
-                        "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
-                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice"};
-                LP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
-                        "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
-                        "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]",
-                        "pluNumber[MachineryPriceTransaction,Barcode]", "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]",
-                        "minPrice[MachineryPriceTransaction,Barcode]", "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]");
-                for (int i = 0; i < skuProperties.length; i++) {
-                    skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
-                }
-
-                String[] barcodeNames = new String[]{"valueBarcode", "idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
-                LP[] barcodeProperties = equLM.findProperties("value[Barcode]", "id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
-                for (int i = 0; i < barcodeProperties.length; i++) {
-                    skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
-                }
-
-                if (isCashRegisterPriceTransaction) {
-                    skuQuery.addProperty("amountBarcode", equLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
-                    skuQuery.addProperty("mainBarcode", equLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
-                }
-                
-                if(itemLM != null) {
-                    skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrand[Barcode]").getExpr(barcodeExpr));
-                    skuQuery.addProperty("nameBrandBarcode", itemLM.findProperty("nameBrand[Barcode]").getExpr(barcodeExpr));
-                }
-                
-                if(itemFashionLM != null) {
-                    skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeason[Barcode]").getExpr(barcodeExpr));
-                    skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeason[Barcode]").getExpr(barcodeExpr));
-                }
-
-                if(cashRegisterItemLM != null) {
-                    skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            cashRegisterItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                    skuQuery.addProperty("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode",
-                            cashRegisterItemLM.findProperty("overIdSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                }
-                
-                if(scalesItemLM != null) {
-                    skuQuery.addProperty("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            scalesItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                }
-                
-                if (scalesItemLM != null) {
-                    String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
-                            "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
-                    LP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
-                            "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
-                    for (int i = 0; i < scalesSkuProperties.length; i++) {
-                        skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
-                    }
-                    skuQuery.addProperty("extraPercent", scalesItemLM.findProperty("extraPercent[MachineryPriceTransaction, Barcode]").getExpr(transactionExpr, barcodeExpr));
-                    skuQuery.addProperty("imagesCount", scalesItemLM.findProperty("imagesCount[Barcode]").getExpr(barcodeExpr));
-                }
-                
-                if (machineryPriceTransactionStockTaxLM != null) {
-                    String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
-                    LP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VAT[MachineryPriceTransaction,Barcode]");
-                    for (int i = 0; i < taxProperties.length; i++) {
-                        skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionExpr, barcodeExpr));
-                    }
-                }
-
-                if(machineryPriceTransactionSectionLM != null) {
-                    skuQuery.addProperty("sectionMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionSectionLM.findProperty("section[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                    skuQuery.addProperty("deleteSectionBarcode",
-                            machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode[?]").getExpr(barcodeExpr));
-                }
-
-                if(machineryPriceTransactionBalanceLM != null) {
-                    skuQuery.addProperty("balanceMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionBalanceLM.findProperty("balance[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                    skuQuery.addProperty("balanceDateMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionBalanceLM.findProperty("balanceDate[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                }
-
-                if(machineryPriceTransactionPromotionLM != null) {
-                    skuQuery.addProperty("restrictionToDateTimeMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionPromotionLM.findProperty("restrictionToDateTime[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
-                }
-
-                skuQuery.and(equLM.findProperty("in[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr).getWhere());
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
-
-                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
-                
-                if (isCashRegisterPriceTransaction) {
-                    
-                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
-                    boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
-                    Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
-                    String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idStock[GroupCashRegister]").read(session, groupMachineryObject);
-                    String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCode[GroupCashRegister]").read(session, groupMachineryObject);
-                    String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCode[GroupCashRegister]").read(session, groupMachineryObject);
-                    String nameStockGroupCashRegister = (String) cashRegisterLM.findProperty("nameStock[GroupMachinery]").read(session, groupMachineryObject);
-                    String sectionGroupCashRegister = (String) cashRegisterLM.findProperty("section[GroupMachinery]").read(session, groupMachineryObject);
-
-                    List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
-                    KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                    ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
-                    QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
-                    
-                    for (int i = 0; i < machineryProperties.length; i++) {
-                        cashRegisterQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
-                    }
-                    cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSales[CashRegister]").getExpr(cashRegisterExpr));
-                    cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            cashRegisterLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
-                    cashRegisterQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            cashRegisterLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
-                    cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            equLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, cashRegisterExpr));
-                    cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterExpr).compare(groupMachineryObject, Compare.EQUALS));
-                    cashRegisterQuery.and(cashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
-
-                    for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
-                        Integer nppMachinery = (Integer) row.get("nppMachinery");
-                        String portMachinery = trim((String) row.get("portMachinery"));
-                        String directoryCashRegister = trim((String) row.get("overDirectoryMachinery"));
-                        boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
-                        Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
-                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
-                                null, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
-                                startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
-                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
-                    }
-
-                    List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
-
-                    for (int i = 0, size = skuResult.size(); i < size; i++) {
-                        ImMap<Object, Object> row = skuResult.getValue(i);
-
-                        Long barcodeObject = (Long) row.get("valueBarcode");
-                        String barcode = getRowValue(row, "idBarcode");
-                        String mainBarcode = getRowValue(row, "mainBarcode");
-                        BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
-                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
-                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
-                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
-                        String info = (String) row.get("infoMPTBarcode");
-                        String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode");
-                        String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode");
-                        String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode");
-                        String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode");
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
-                        String idItem = (String) row.get("idSkuBarcode");
-                        Long itemGroupObject = (Long) row.get("skuGroupBarcode");
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
-
-                        String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
-                        String overIdItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode");
-                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
-                        String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
-                        String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
-                        BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
-                        Timestamp balanceDate = machineryPriceTransactionBalanceLM == null ? null : (Timestamp) row.get("balanceDateMachineryPriceTransactionBarcode");
-                        BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
-                        Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
-
-                        CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
-                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
-                                idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
-                        cashRegisterItemInfoList.add(c);
-                    }
-
-                    transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
-                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
-
-                } else if (isScalesPriceTransaction) {
-                    List<ScalesInfo> scalesInfoList = new ArrayList<>();
-                    String directory = trim((String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject));
-                    String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCode[GroupScales]").read(session, groupMachineryObject);
-                    String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
-
-                    KeyExpr scalesExpr = new KeyExpr("scales");
-                    ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev("scales", scalesExpr);
-                    QueryBuilder<Object, Object> scalesQuery = new QueryBuilder<>(scalesKeys);
-                    
-                    for (int i = 0; i < machineryProperties.length; i++) {
-                        scalesQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(scalesExpr));
-                    }
-                    scalesQuery.addProperty("inMachineryPriceTransactionMachinery", 
-                            scalesLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, scalesExpr));
-                    scalesQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                                scalesLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
-                    scalesQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            scalesLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
-                    scalesQuery.addProperty("activeScales", scalesLM.findProperty("active[Scales]").getExpr(scalesExpr));
-                    scalesQuery.and(scalesLM.findProperty("groupScales[Scales]").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
-                    //scalesQuery.and(scalesLM.findProperty("active[Scales]").getExpr(scalesExpr).getWhere());
-
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
-
-                    int enabledCount = 0;
-                    int enabledInactiveCount = 0;
-                    for (ImMap<Object, Object> values : scalesResult.valueIt()) {
-                        String portMachinery = trim((String) values.get("portMachinery"));
-                        Integer nppMachinery = (Integer) values.get("nppMachinery");
-                        boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
-                        boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
-                        boolean cleared = values.get("clearedMachineryMachineryPriceTransaction") != null;
-                        boolean active = values.get("activeScales") != null;
-                        if(enabled) {
-                            enabledCount++;
-                            if(!active)
-                                enabledInactiveCount++;
-                        }
-                        if(active)
-                            scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
-                                null, handlerModelGroupMachinery, portMachinery, directory,
-                                pieceCodeGroupScales, weightCodeGroupScales));
-                    }
-                    //если все отмеченные - неактивные, то не посылаем весы вообще
-                    if(enabledCount > 0 && enabledCount==enabledInactiveCount)
-                        scalesInfoList = new ArrayList<>();
-
-                    List<ScalesItemInfo> scalesItemInfoList = new ArrayList<>();
-                    
-                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
-                        String idItem = getRowValue(row, "idSkuBarcode");
-                        String barcode = getRowValue(row, "idBarcode");
-                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
-                        String description = (String) row.get("descriptionMachineryPriceTransactionBarcode");
-                        Integer descriptionNumberCellScales = (Integer) row.get("descriptionNumberMachineryPriceTransactionBarcode");
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
-                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
-                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
-                        String info = (String) row.get("infoMPTBarcode");
-
-                        String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
-                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
-                        BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
-
-                        BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
-                        Integer imagesCount = (Integer) row.get("imagesCount");
-
-                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
-                                passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
-                                retailPrice, imagesCount));
-                    }
-
-                    transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
-                            lastErrorDateTransaction, infoMPT));
-
-                } else if (isPriceCheckerPriceTransaction) {
-                    List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
-                    KeyExpr priceCheckerExpr = new KeyExpr("priceChecker");
-                    ImRevMap<Object, KeyExpr> priceCheckerKeys = MapFact.singletonRev("priceChecker", priceCheckerExpr);
-                    QueryBuilder<Object, Object> priceCheckerQuery = new QueryBuilder<>(priceCheckerKeys);
-                    
-                    for (int i = 0; i < machineryProperties.length; i++) {
-                        priceCheckerQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(priceCheckerExpr));
-                    }
-                    priceCheckerQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            priceCheckerLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, priceCheckerExpr));
-                    priceCheckerQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            priceCheckerLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
-                    priceCheckerQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            priceCheckerLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
-                    priceCheckerQuery.and(priceCheckerLM.findProperty("groupPriceChecker[PriceChecker]").getExpr(priceCheckerExpr).compare(groupMachineryObject, Compare.EQUALS));
-
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> priceCheckerResult = priceCheckerQuery.execute(session);
-
-                    for (ImMap<Object, Object> row : priceCheckerResult.valueIt()) {
-                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
-                        priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                null, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
-                    }
-
-                    List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
-                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
-                        String idItem = getRowValue(row, "idSkuBarcode");
-                        String barcode = getRowValue(row, "idBarcode");
-                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        
-                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split, 
-                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
-                    }
-                    
-                    transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
-                            nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
-                            snapshotTransaction, lastErrorDateTransaction, infoMPT));
-
-
-                } else if (isTerminalPriceTransaction) {
-                    List<TerminalInfo> terminalInfoList = new ArrayList<>();
-                    
-                    Integer nppGroupTerminal = (Integer) terminalLM.findProperty("npp[GroupMachinery]").read(session, groupMachineryObject);
-                    String directoryGroupTerminal = trim((String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject));
-                    ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListType[GroupMachinery]").readClasses(session, groupMachineryObject);
-                    ObjectValue stockGroupTerminal = terminalLM.findProperty("stock[GroupTerminal]").readClasses(session, groupMachineryObject);
-                    String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);
-
-                    KeyExpr terminalExpr = new KeyExpr("terminal");
-                    ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev("terminal", terminalExpr);
-                    QueryBuilder<Object, Object> terminalQuery = new QueryBuilder<>(terminalKeys);
-                    
-                    for (int i = 0; i < machineryProperties.length; i++) {
-                        terminalQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(terminalExpr));
-                    }
-                    terminalQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            terminalLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, terminalExpr));
-                    terminalQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            terminalLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
-                    terminalQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            terminalLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
-                    terminalQuery.and(terminalLM.findProperty("groupTerminal[Terminal]").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
-
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
-
-                    for (ImMap<Object, Object> row : terminalResult.valueIt()) {
-                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
-                        Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
-                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
-                        terminalInfoList.add(new TerminalInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                null, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
-                                directoryGroupTerminal, idPriceListType));
-                    }
-
-                    List<TerminalItemInfo> terminalItemInfoList = new ArrayList<>();
-                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
-                        String idItem = getRowValue(row, "idSkuBarcode");
-                        String barcode = getRowValue(row, "idBarcode");
-                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
-                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
-                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
-                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
-                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
-                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
-                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
-                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
-
-                        terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry, 
-                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
-                    }
-
-                    List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
-                    List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, getBusinessLogics());
-                    List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics(), null);
-                    List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, getBusinessLogics());
-
-                    transactionList.add(new TransactionTerminalInfo((Long) transactionObject.getValue(), dateTimeCode,
-                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
-                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
-                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
-                            nppGroupTerminal, directoryGroupTerminal, infoMPT));
-                }
-            }
-            return transactionList;
-        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
+    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
+        return value != null ? value.toLocalDate() : null;
     }
 
     private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -894,9 +407,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return MachineryExchangeEquipmentServer.readMachineryInfo(this, sidEquipmentServer);
     }
 
-    @Override
-    public Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) {
-        return SendSalesEquipmentServer.readRequestZReportSumMap(getBusinessLogics(), this, getStack(), idStock, dateFrom, dateTo);
+    public static java.sql.Date localDateToSqlDate(LocalDate value) {
+        return value != null ? java.sql.Date.valueOf(value) : null;
     }
 
     @Override
@@ -1976,31 +1488,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), this, getStack(), cashDocumentList);
     }
 
-    @Override
-    public void succeedTransaction(Long transactionId, Timestamp dateTime) {
-        synchronized (this) {
-            try (DataSession session = createSession()) {
-                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
-                equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
-                equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
-                session.applyException(getBusinessLogics(), getStack());
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
+    public static LocalDateTime utilDateToLocalDateTime(java.util.Date value) {
+        return value != null ? Instant.ofEpochMilli(value.getTime()).atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
     }
 
-    @Override
-    public void processingTransaction(Long transactionId, Timestamp dateTime) {
-        if (machineryPriceTransactionLM != null) {
-            try (DataSession session = createSession()) {
-                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
-                machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
-                session.applyException(getBusinessLogics(), getStack());
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
+    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
+        return value != null ? value.toLocalDateTime() : null;
     }
 
     @Override
@@ -2024,34 +1517,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    @Override
-    public void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) {
-        synchronized (this) {
-            if (machineryPriceTransactionLM != null) {
-                try (DataSession session = createSession()) {
-                    DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
-                    for (MachineryInfo machineryInfo : machineryInfoList) {
-                        ObjectValue machineryObject = null;
-                        if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                            machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                        else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                            machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                        if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
-                            boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
-                            if (!alreadySucceeded) {
-                                machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
-                                        (DataObject) machineryObject, transactionObject);
-                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session,
-                                        (DataObject) machineryObject, transactionObject);
-                            }
-                        }
-                    }
-                    session.applyException(getBusinessLogics(), getStack());
-                } catch (Exception e) {
-                    throw Throwables.propagate(e);
-                }
-            }
-        }
+    public static java.sql.Date localDateTimeToSqlDate(LocalDateTime value) {
+        return value != null ? new java.sql.Date(value.toInstant(OffsetDateTime.now(ZoneId.systemDefault()).getOffset()).toEpochMilli()) : null;
     }
 
     @Override
@@ -2096,23 +1563,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    @Override
-    public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) {
-        try {
-            ThreadLocalContext.assureRmi(this);
-            try (DataSession session = createSession()) {
-                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer));
-                if (equipmentServerObject instanceof DataObject) {
-                    Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
-                    Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
-                    Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
-                    Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
-                    return new EquipmentServerSettings(timeFrom, timeTo, delay, sendSalesDelay);
-                } else return null;
-            }
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
+    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
+        return value != null ? java.sql.Timestamp.valueOf(value) : null;
     }
 
     private String dateTimeCode(Timestamp timeStamp) {
@@ -2142,8 +1594,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return value != null && !value.isEmpty();
     }
     
-    protected String formatDate(Date date) {
-        return new SimpleDateFormat("dd.MM.yyyy").format(date);
+    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
+        return value != null ? value.toLocalTime() : null;
     }
     
     protected String formatDateTime(Timestamp date) {
@@ -2380,59 +1832,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private List<Object> getReceiptDetailRow(SalesInfo sale, BarcodePart barcodePart, String barcode, EquipmentServerOptions options) {
-        BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
-        BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
-        BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
-        BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
-
-        String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
-        BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
-        BigDecimal price = barcodePart != null ? barcodePart.price : sale.priceReceiptDetail;
-        BigDecimal sum = barcodePart != null ? barcodePart.sum : sale.sumReceiptDetail;
-        BigDecimal discount = barcodePart != null ? barcodePart.discountSum : sale.discountSumReceiptDetail;
-
-        List<Object> row = new ArrayList<>(Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
-                sale.numberZReport, sale.dateZReport, sale.timeZReport, sumCashEnd, sumProtectedEnd, sumBack, true,
-                getIdReceipt(sale, options), sale.numberReceipt, sale.dateReceipt, sale.timeReceipt, sale.skipReceipt ? true : null,
-                sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                idReceiptDetail, sale.numberReceiptDetail, barcodePart != null ? barcodePart.id : barcode));
-
-        if (sale.isGiftCard) {
-            //giftCard 3
-            row.addAll(Arrays.asList(sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null));
-            if (zReportSectionLM != null) {
-                row.add(sale.idSection);
-            }
-            if (zReportExternalLM != null) {
-                row.add(externalSum);
-            }
-        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-            //return 3
-            row.addAll(Arrays.asList(safeNegate(quantity), price, safeNegate(sum), discount, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail));
-            if (zReportDiscountCardLM != null) {
-                row.add(sale.seriesNumberDiscountCard);
-            }
-            if (zReportSectionLM != null) {
-                row.add(sale.idSection);
-            }
-            if (zReportExternalLM != null) {
-                row.add(externalSum);
-            }
-        } else {
-            //sale 3
-            row.addAll(Arrays.asList(quantity, price, sum, sale.discountPercentReceiptDetail, discount, sale.discountSumReceipt));
-            if (zReportDiscountCardLM != null) {
-                row.add(sale.seriesNumberDiscountCard);
-            }
-            if (zReportSectionLM != null) {
-                row.add(sale.idSection);
-            }
-            if (zReportExternalLM != null) {
-                row.add(externalSum);
-            }
-        }
-        return row;
+    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
+        return value != null ? java.sql.Time.valueOf(value) : null;
     }
 
     private List<List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
@@ -2474,8 +1875,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return options.encoder != null && !idReceiptDetail.startsWith("null") ? options.encoder.encodeLessMemory(idReceiptDetail) : idReceiptDetail;
     }
 
-    private static String getIdZReport(SalesInfo s) {
-        return s.nppGroupMachinery + "_" + s.nppMachinery + "_" + s.numberZReport + (s.dateZReport != null ? ("_" + new SimpleDateFormat("ddMMyyyy").format(s.dateZReport)) : "");
+    @Override
+    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, LocalDateTime> invoiceSet) throws RemoteException {
+        return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
     }
 
     private static String getIdReceipt(SalesInfo s, boolean timeId) {
@@ -2547,5 +1949,637 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         if (dividend == null || quotient == null || quotient.doubleValue() == 0)
             return null;
         return dividend.divide(quotient, scale, RoundingMode.HALF_UP);
+    }
+
+    @Override
+    public List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws SQLException {
+        try (DataSession session = createSession()) {
+            List<TransactionInfo> transactionList = new ArrayList<>();
+
+            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
+            Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
+            Integer selectTop = (Integer) equipmentLM.findProperty("selectTop[EquipmentServer]").read(session, equipmentServerObject);
+            if(selectTop == null)
+                selectTop = 0;
+
+            KeyExpr machineryPriceTransactionExpr = new KeyExpr("machineryPriceTransaction");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("machineryPriceTransaction", machineryPriceTransactionExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+            String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
+                    "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
+                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction",
+                    "priorityMPT", "filterMPT", "infoMPT"};
+            LP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
+                    "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
+                    "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]",
+                    "priority[MachineryPriceTransaction]", "filter[MachineryPriceTransaction]", "info[MachineryPriceTransaction]");
+            for (int i = 0; i < mptProperties.length; i++) {
+                query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
+            }
+            query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+            query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
+
+            logger.info(String.format("Starting to read top %s transactions", selectTop));
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session.sql, MapFact.toOrderMap("priorityMPT", true, "filterMPT", false), selectTop, session.baseClass, session.env);
+
+            List<Object[]> transactionObjects = new ArrayList<>();
+            for (int i = 0, size = result.size(); i < size; i++) {
+                ImMap<Object, ObjectValue> value = result.getValue(i);
+                ObjectValue dateTimeMPT = value.get("dateTimeMachineryPriceTransaction");
+                if(dateTimeMPT instanceof DataObject) {
+                    DataObject groupMachineryMPT = (DataObject) value.get("groupMachineryMachineryPriceTransaction");
+                    Integer nppGroupMachineryMPT = (Integer) value.get("nppGroupMachineryMachineryPriceTransaction").getValue();
+                    String nameGroupMachineryMPT = (String) value.get("nameGroupMachineryMachineryPriceTransaction").getValue();
+                    DataObject transactionObject = result.getKey(i).singleValue();
+                    boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
+                    String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
+                    Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
+                    String infoMPT = (String) value.get("infoMPT").getValue();
+                    transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
+                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
+                }
+            }
+
+            Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
+            List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
+            boolean skipTroubleMachineryGroups = skipTroubles != null && skipTroubleCounter < skipTroubles;
+            if (skipTroubleMachineryGroups)
+                skipTroubleCounter++;
+            else
+                skipTroubleCounter = 1;
+
+            logger.info("" + transactionObjects.size() + " transactions read");
+            int count = 0;
+            for (Object[] transaction : transactionObjects) {
+
+                count++;
+                logger.info("Reading transaction number " + count + " of " + transactionObjects.size());
+                DataObject groupMachineryObject = (DataObject) transaction[0];
+                Integer nppGroupMachinery = (Integer) transaction[1];
+                if(troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups)
+                    continue;
+
+                String nameGroupMachinery = (String) transaction[2];
+                DataObject transactionObject = (DataObject) transaction[3];
+                String dateTimeCode = (String) transaction[4];
+                LocalDate date = sqlDateToLocalDate(new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime()));
+                boolean snapshotTransaction = (boolean) transaction[6];
+                String descriptionTransaction = (String) transaction[7];
+                LocalDateTime lastErrorDateTransaction = sqlTimestampToLocalDateTime((Timestamp) transaction[8]);
+                String infoMPT = (String) transaction[9];
+
+                boolean isCashRegisterPriceTransaction = cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"));
+                boolean isScalesPriceTransaction = scalesLM != null && transactionObject.objectClass.equals(scalesLM.findClass("ScalesPriceTransaction"));
+                boolean isPriceCheckerPriceTransaction = priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"));
+                boolean isTerminalPriceTransaction = terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"));
+
+                String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
+
+                ValueExpr transactionExpr = transactionObject.getExpr();
+                KeyExpr barcodeExpr = new KeyExpr("barcode");
+                ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev("barcode", barcodeExpr);
+
+                QueryBuilder<Object, Object> skuQuery = new QueryBuilder<>(skuKeys);
+
+                String[] skuNames = new String[]{"nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
+                        "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
+                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "infoMPTBarcode", "pluNumberMachineryPriceTransactionBarcode",
+                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
+                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode", "retailPrice"};
+                LP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
+                        "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
+                        "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "info[MachineryPriceTransaction,Barcode]",
+                        "pluNumber[MachineryPriceTransaction,Barcode]", "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]",
+                        "minPrice[MachineryPriceTransaction,Barcode]", "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]", "retailPrice[MachineryPriceTransaction, Barcode]");
+                for (int i = 0; i < skuProperties.length; i++) {
+                    skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
+                }
+
+                String[] barcodeNames = new String[]{"valueBarcode", "idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
+                LP[] barcodeProperties = equLM.findProperties("value[Barcode]", "id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
+                for (int i = 0; i < barcodeProperties.length; i++) {
+                    skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
+                }
+
+                if (isCashRegisterPriceTransaction) {
+                    skuQuery.addProperty("amountBarcode", equLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("mainBarcode", equLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
+                }
+
+                if(itemLM != null) {
+                    skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrand[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameBrandBarcode", itemLM.findProperty("nameBrand[Barcode]").getExpr(barcodeExpr));
+                }
+
+                if(itemFashionLM != null) {
+                    skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeason[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeason[Barcode]").getExpr(barcodeExpr));
+                }
+
+                if(cashRegisterItemLM != null) {
+                    skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode",
+                            cashRegisterItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode",
+                            cashRegisterItemLM.findProperty("overIdSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
+                if(scalesItemLM != null) {
+                    skuQuery.addProperty("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode",
+                            scalesItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
+                if (scalesItemLM != null) {
+                    String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
+                            "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
+                    LP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
+                            "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
+                    for (int i = 0; i < scalesSkuProperties.length; i++) {
+                        skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
+                    }
+                    skuQuery.addProperty("extraPercent", scalesItemLM.findProperty("extraPercent[MachineryPriceTransaction, Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("imagesCount", scalesItemLM.findProperty("imagesCount[Barcode]").getExpr(barcodeExpr));
+                }
+
+                if (machineryPriceTransactionStockTaxLM != null) {
+                    String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
+                    LP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VAT[MachineryPriceTransaction,Barcode]");
+                    for (int i = 0; i < taxProperties.length; i++) {
+                        skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionExpr, barcodeExpr));
+                    }
+                }
+
+                if(machineryPriceTransactionSectionLM != null) {
+                    skuQuery.addProperty("sectionMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionSectionLM.findProperty("section[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("deleteSectionBarcode",
+                            machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode[?]").getExpr(barcodeExpr));
+                }
+
+                if(machineryPriceTransactionBalanceLM != null) {
+                    skuQuery.addProperty("balanceMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionBalanceLM.findProperty("balance[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                    skuQuery.addProperty("balanceDateMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionBalanceLM.findProperty("balanceDate[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
+                if(machineryPriceTransactionPromotionLM != null) {
+                    skuQuery.addProperty("restrictionToDateTimeMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionPromotionLM.findProperty("restrictionToDateTime[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
+                skuQuery.and(equLM.findProperty("in[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
+
+                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
+                LP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
+
+                if (isCashRegisterPriceTransaction) {
+
+                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
+                    boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
+                    Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
+                    String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idStock[GroupCashRegister]").read(session, groupMachineryObject);
+                    String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCode[GroupCashRegister]").read(session, groupMachineryObject);
+                    String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCode[GroupCashRegister]").read(session, groupMachineryObject);
+                    String nameStockGroupCashRegister = (String) cashRegisterLM.findProperty("nameStock[GroupMachinery]").read(session, groupMachineryObject);
+                    String sectionGroupCashRegister = (String) cashRegisterLM.findProperty("section[GroupMachinery]").read(session, groupMachineryObject);
+
+                    List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
+                    KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
+                    ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
+                    QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
+
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        cashRegisterQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
+                    }
+                    cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSales[CashRegister]").getExpr(cashRegisterExpr));
+                    cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction",
+                            cashRegisterLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
+                    cashRegisterQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            cashRegisterLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
+                    cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
+                            equLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, cashRegisterExpr));
+                    cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    cashRegisterQuery.and(cashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
+
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
+
+                    for (ImMap<Object, Object> row : cashRegisterResult.valueIt()) {
+                        Integer nppMachinery = (Integer) row.get("nppMachinery");
+                        String portMachinery = trim((String) row.get("portMachinery"));
+                        String directoryCashRegister = trim((String) row.get("overDirectoryMachinery"));
+                        boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        boolean cleared = row.get("clearedMachineryPriceTransaction") != null;
+                        Boolean disableSalesCashRegister = row.get("disableSalesCashRegister") != null;
+                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
+                        cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
+                                null, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
+                                sqlDateToLocalDate(startDateGroupCashRegister), overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
+                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
+                    }
+
+                    List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
+
+                    for (int i = 0, size = skuResult.size(); i < size; i++) {
+                        ImMap<Object, Object> row = skuResult.getValue(i);
+
+                        Long barcodeObject = (Long) row.get("valueBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String mainBarcode = getRowValue(row, "mainBarcode");
+                        BigDecimal amountBarcode = (BigDecimal) row.get("amountBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
+                        String info = (String) row.get("infoMPTBarcode");
+                        String idBrand = itemLM == null ? null : (String) row.get("idBrandBarcode");
+                        String nameBrand = itemLM == null ? null : (String) row.get("nameBrandBarcode");
+                        String idSeason = itemFashionLM == null ? null : (String) row.get("idSeasonBarcode");
+                        String nameSeason = itemFashionLM == null ? null : (String) row.get("nameSeasonBarcode");
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        String idItem = (String) row.get("idSkuBarcode");
+                        Long itemGroupObject = (Long) row.get("skuGroupBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        String description = scalesItemLM == null ? null : (String) row.get("descriptionMachineryPriceTransactionBarcode");
+
+                        String idItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode");
+                        String overIdItemGroup = cashRegisterItemLM == null ? null : (String) row.get("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode");
+                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+                        String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
+                        String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
+                        BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
+                        Timestamp balanceDate = machineryPriceTransactionBalanceLM == null ? null : (Timestamp) row.get("balanceDateMachineryPriceTransactionBarcode");
+                        BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
+                        Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
+
+                        CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, sqlDateToLocalDate(expiryDate), passScales, valueVAT,
+                                pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
+                                idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
+                                balance, sqlTimestampToLocalDateTime(balanceDate), sqlTimestampToLocalDateTime(restrictionToDateTime), barcodeObject, mainBarcode);
+                        cashRegisterItemInfoList.add(c);
+                    }
+
+                    transactionList.add(new TransactionCashRegisterInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
+                            nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
+                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
+                            idDepartmentStoreGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister, infoMPT));
+
+                } else if (isScalesPriceTransaction) {
+                    List<ScalesInfo> scalesInfoList = new ArrayList<>();
+                    String directory = trim((String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject));
+                    String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCode[GroupScales]").read(session, groupMachineryObject);
+                    String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
+
+                    KeyExpr scalesExpr = new KeyExpr("scales");
+                    ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev("scales", scalesExpr);
+                    QueryBuilder<Object, Object> scalesQuery = new QueryBuilder<>(scalesKeys);
+
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        scalesQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(scalesExpr));
+                    }
+                    scalesQuery.addProperty("inMachineryPriceTransactionMachinery",
+                            scalesLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, scalesExpr));
+                    scalesQuery.addProperty("succeededMachineryMachineryPriceTransaction",
+                                scalesLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
+                    scalesQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            scalesLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
+                    scalesQuery.addProperty("activeScales", scalesLM.findProperty("active[Scales]").getExpr(scalesExpr));
+                    scalesQuery.and(scalesLM.findProperty("groupScales[Scales]").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    //scalesQuery.and(scalesLM.findProperty("active[Scales]").getExpr(scalesExpr).getWhere());
+
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
+
+                    int enabledCount = 0;
+                    int enabledInactiveCount = 0;
+                    for (ImMap<Object, Object> values : scalesResult.valueIt()) {
+                        String portMachinery = trim((String) values.get("portMachinery"));
+                        Integer nppMachinery = (Integer) values.get("nppMachinery");
+                        boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
+                        boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
+                        boolean cleared = values.get("clearedMachineryMachineryPriceTransaction") != null;
+                        boolean active = values.get("activeScales") != null;
+                        if(enabled) {
+                            enabledCount++;
+                            if(!active)
+                                enabledInactiveCount++;
+                        }
+                        if(active)
+                            scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
+                                null, handlerModelGroupMachinery, portMachinery, directory,
+                                pieceCodeGroupScales, weightCodeGroupScales));
+                    }
+                    //если все отмеченные - неактивные, то не посылаем весы вообще
+                    if(enabledCount > 0 && enabledCount==enabledInactiveCount)
+                        scalesInfoList = new ArrayList<>();
+
+                    List<ScalesItemInfo> scalesItemInfoList = new ArrayList<>();
+
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
+                        String description = (String) row.get("descriptionMachineryPriceTransactionBarcode");
+                        Integer descriptionNumberCellScales = (Integer) row.get("descriptionNumberMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
+                        String shortNameUOM = (String) row.get("shortNameUOMMachineryPriceTransactionBarcode");
+                        String info = (String) row.get("infoMPTBarcode");
+
+                        String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
+                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+                        BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
+
+                        BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
+                        Integer imagesCount = (Integer) row.get("imagesCount");
+
+                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, sqlDateToLocalDate(expiryDate),
+                                passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
+                                null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
+                                retailPrice, imagesCount));
+                    }
+
+                    transactionList.add(new TransactionScalesInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
+                            nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
+                            lastErrorDateTransaction, infoMPT));
+
+                } else if (isPriceCheckerPriceTransaction) {
+                    List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
+                    KeyExpr priceCheckerExpr = new KeyExpr("priceChecker");
+                    ImRevMap<Object, KeyExpr> priceCheckerKeys = MapFact.singletonRev("priceChecker", priceCheckerExpr);
+                    QueryBuilder<Object, Object> priceCheckerQuery = new QueryBuilder<>(priceCheckerKeys);
+
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        priceCheckerQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(priceCheckerExpr));
+                    }
+                    priceCheckerQuery.addProperty("inMachineryPriceTransactionMachinery",
+                            priceCheckerLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, priceCheckerExpr));
+                    priceCheckerQuery.addProperty("succeededMachineryMachineryPriceTransaction",
+                            priceCheckerLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
+                    priceCheckerQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            priceCheckerLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
+                    priceCheckerQuery.and(priceCheckerLM.findProperty("groupPriceChecker[PriceChecker]").getExpr(priceCheckerExpr).compare(groupMachineryObject, Compare.EQUALS));
+
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> priceCheckerResult = priceCheckerQuery.execute(session);
+
+                    for (ImMap<Object, Object> row : priceCheckerResult.valueIt()) {
+                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
+                        Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
+                        priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
+                                null, handlerModelGroupMachinery, trim((String) row.get("portMachinery"))));
+                    }
+
+                    List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+
+                        priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split,
+                                daysExpiry, sqlDateToLocalDate(expiryDate), passScales, valueVAT, pluNumber, flags, null, null, null));
+                    }
+
+                    transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery,
+                            nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
+                            snapshotTransaction, lastErrorDateTransaction, infoMPT));
+
+
+                } else if (isTerminalPriceTransaction) {
+                    List<TerminalInfo> terminalInfoList = new ArrayList<>();
+
+                    Integer nppGroupTerminal = (Integer) terminalLM.findProperty("npp[GroupMachinery]").read(session, groupMachineryObject);
+                    String directoryGroupTerminal = trim((String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject));
+                    ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListType[GroupMachinery]").readClasses(session, groupMachineryObject);
+                    ObjectValue stockGroupTerminal = terminalLM.findProperty("stock[GroupTerminal]").readClasses(session, groupMachineryObject);
+                    String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);
+
+                    KeyExpr terminalExpr = new KeyExpr("terminal");
+                    ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev("terminal", terminalExpr);
+                    QueryBuilder<Object, Object> terminalQuery = new QueryBuilder<>(terminalKeys);
+
+                    for (int i = 0; i < machineryProperties.length; i++) {
+                        terminalQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(terminalExpr));
+                    }
+                    terminalQuery.addProperty("inMachineryPriceTransactionMachinery",
+                            terminalLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, terminalExpr));
+                    terminalQuery.addProperty("succeededMachineryMachineryPriceTransaction",
+                            terminalLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
+                    terminalQuery.addProperty("clearedMachineryMachineryPriceTransaction",
+                            terminalLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
+                    terminalQuery.and(terminalLM.findProperty("groupTerminal[Terminal]").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
+
+                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
+
+                    for (ImMap<Object, Object> row : terminalResult.valueIt()) {
+                        boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
+                        Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
+                        Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
+                        terminalInfoList.add(new TerminalInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
+                                null, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
+                                directoryGroupTerminal, idPriceListType));
+                    }
+
+                    List<TerminalItemInfo> terminalItemInfoList = new ArrayList<>();
+                    for (ImMap<Object, Object> row : skuResult.valueIt()) {
+                        String idItem = getRowValue(row, "idSkuBarcode");
+                        String barcode = getRowValue(row, "idBarcode");
+                        String name = getRowValue(row, "nameMachineryPriceTransactionBarcode");
+                        BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
+                        boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
+                        Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
+                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
+                        Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
+                        boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
+                        BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
+                        String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+
+                        terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry,
+                                sqlDateToLocalDate(expiryDate), passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
+                    }
+
+                    List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
+                    List<TerminalHandbookType> terminalHandbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, getBusinessLogics());
+                    List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, getBusinessLogics(), null);
+                    List<TerminalLegalEntity> terminalLegalEntityList = TerminalEquipmentServer.readTerminalLegalEntityList(session, getBusinessLogics());
+
+                    transactionList.add(new TransactionTerminalInfo((Long) transactionObject.getValue(), dateTimeCode,
+                            date, handlerModelGroupMachinery, (Long) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
+                            descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
+                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
+                            nppGroupTerminal, directoryGroupTerminal, infoMPT));
+                }
+            }
+            return transactionList;
+        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
+    public Map<String, List<Object>> readRequestZReportSumMap(String idStock, LocalDate dateFrom, LocalDate dateTo) {
+        return SendSalesEquipmentServer.readRequestZReportSumMap(getBusinessLogics(), this, getStack(), idStock, dateFrom, dateTo);
+    }
+
+    @Override
+    public void succeedTransaction(Long transactionId, LocalDateTime dateTime) {
+        synchronized (this) {
+            try (DataSession session = createSession()) {
+                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
+                equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
+                equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session, transactionObject);
+                session.applyException(getBusinessLogics(), getStack());
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    @Override
+    public void processingTransaction(Long transactionId, LocalDateTime dateTime) {
+        if (machineryPriceTransactionLM != null) {
+            try (DataSession session = createSession()) {
+                DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
+                machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session, transactionObject);
+                session.applyException(getBusinessLogics(), getStack());
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    @Override
+    public void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, LocalDateTime dateTime) {
+        synchronized (this) {
+            if (machineryPriceTransactionLM != null) {
+                try (DataSession session = createSession()) {
+                    DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
+                    for (MachineryInfo machineryInfo : machineryInfoList) {
+                        ObjectValue machineryObject = null;
+                        if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
+                            machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
+                            machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
+                            boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
+                            if (!alreadySucceeded) {
+                                machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
+                                        (DataObject) machineryObject, transactionObject);
+                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session,
+                                        (DataObject) machineryObject, transactionObject);
+                            }
+                        }
+                    }
+                    session.applyException(getBusinessLogics(), getStack());
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
+                }
+            }
+        }
+    }
+
+    @Override
+    public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) {
+        try {
+            ThreadLocalContext.assureRmi(this);
+            try (DataSession session = createSession()) {
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer));
+                if (equipmentServerObject instanceof DataObject) {
+                    Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
+                    Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
+                    Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
+                    Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
+                    return new EquipmentServerSettings(sqlTimeToLocalTime(timeFrom), sqlTimeToLocalTime(timeTo), delay, sendSalesDelay);
+                } else return null;
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    protected String formatDate(LocalDate date) {
+        return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+    }
+
+    private List<Object> getReceiptDetailRow(SalesInfo sale, BarcodePart barcodePart, String barcode, EquipmentServerOptions options) {
+        BigDecimal sumCashEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumCashEnd") : null;
+        BigDecimal sumProtectedEnd = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumProtectedEnd") : null;
+        BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
+        BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
+
+        String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
+        BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
+        BigDecimal price = barcodePart != null ? barcodePart.price : sale.priceReceiptDetail;
+        BigDecimal sum = barcodePart != null ? barcodePart.sum : sale.sumReceiptDetail;
+        BigDecimal discount = barcodePart != null ? barcodePart.discountSum : sale.discountSumReceiptDetail;
+
+        List<Object> row = new ArrayList<>(Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
+                sale.numberZReport, localDateToSqlDate(sale.dateZReport), localTimeToSqlTime(sale.timeZReport), sumCashEnd, sumProtectedEnd, sumBack, true,
+                getIdReceipt(sale, options), sale.numberReceipt, localDateToSqlDate(sale.dateReceipt), localTimeToSqlTime(sale.timeReceipt), sale.skipReceipt ? true : null,
+                sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                idReceiptDetail, sale.numberReceiptDetail, barcodePart != null ? barcodePart.id : barcode));
+
+        if (sale.isGiftCard) {
+            //giftCard 3
+            row.addAll(Arrays.asList(sale.priceReceiptDetail, sale.sumReceiptDetail, sale.isReturnGiftCard ? true : null));
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+            //return 3
+            row.addAll(Arrays.asList(safeNegate(quantity), price, safeNegate(sum), discount, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail));
+            if (zReportDiscountCardLM != null) {
+                row.add(sale.seriesNumberDiscountCard);
+            }
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        } else {
+            //sale 3
+            row.addAll(Arrays.asList(quantity, price, sum, sale.discountPercentReceiptDetail, discount, sale.discountSumReceipt));
+            if (zReportDiscountCardLM != null) {
+                row.add(sale.seriesNumberDiscountCard);
+            }
+            if (zReportSectionLM != null) {
+                row.add(sale.idSection);
+            }
+            if (zReportExternalLM != null) {
+                row.add(externalSum);
+            }
+        }
+        return row;
     }
 }

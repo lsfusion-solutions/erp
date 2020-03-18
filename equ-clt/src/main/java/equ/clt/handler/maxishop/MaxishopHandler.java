@@ -18,11 +18,14 @@ import java.math.BigDecimal;
 import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.safeSubtract;
 
@@ -166,9 +169,9 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                     if ("P".equals(postType)) {
                                         String zReportNumber = new String(importFile.getField("JFZNO").getBytes(), "Cp1251").trim();
                                         Integer receiptNumber = new Integer(new String(importFile.getField("JFCHECKNO").getBytes(), "Cp1251").trim());
-                                        java.sql.Date date = new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime());
+                                        LocalDate date = sqlDateToLocalDate(new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime()));
                                         String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
-                                        Time time = Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6));
+                                        LocalTime time = sqlTimeToLocalTime(Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6)));
                                         BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
                                         String barcodeReceiptDetail = new String(importFile.getField("JFPLUCODE").getBytes(), "Cp1251").trim().replace("E", "");
                                         BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());

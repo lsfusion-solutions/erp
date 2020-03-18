@@ -6,11 +6,11 @@ import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
 public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends CashRegisterHandler<S> {
@@ -149,9 +149,19 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
 
     }
 
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
-        return null;
+    //Astron, Atol, Belcoopsoyuz, HTC, Kristal, Maxishop, UKM4
+    public static SalesInfo getSalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport, LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
+                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
+                                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+                                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
+                                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
+                                     String idSection, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
+        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+        sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
+        return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, null, barcodeItem, idItem, itemObject,
+                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
+                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptDetailExtraFields, cashRegisterInfo);
     }
 
     @Override
@@ -169,24 +179,9 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         return null;
     }
 
-    //Astron, Atol, Belcoopsoyuz, HTC, Kristal, Maxishop, UKM4
-    public static SalesInfo getSalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, java.sql.Date dateZReport, Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
-                                     String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
-                                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
-                                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
-                                     String idSection, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
-        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
-        sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-        return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, null, barcodeItem, idItem, itemObject,
-                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptDetailExtraFields, cashRegisterInfo);
-    }
-
     //Artix, Dreamkas, EQS, Kristal10, UKM4MySQL
-    public static SalesInfo getSalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
-                                         Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
+    public static SalesInfo getSalesInfo(boolean isGiftCard, boolean isReturnGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport,
+                                         LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
                                          String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, Map<String, BigDecimal> customPaymentMap,
                                          String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                          BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
@@ -196,5 +191,10 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
                 idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, sumGiftCardMap, customPaymentMap, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                 priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
                 idSection, skipReceipt, null, cashRegisterInfo);
+    }
+
+    @Override
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
+        return null;
     }
 }

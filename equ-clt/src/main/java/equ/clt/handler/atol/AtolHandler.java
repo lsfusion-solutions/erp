@@ -16,7 +16,13 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static equ.clt.EquipmentServer.*;
 
 public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
@@ -149,8 +155,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
             String requestResult = null;
-            String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-            String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+            String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+            String dateTo = entry.dateTo.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
 
             machineryExchangeLogger.info("Atol: creating request files");
             for (String directory : getDirectorySet(entry)) {
@@ -215,11 +221,11 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) {
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
         softCheckLogger.info("Atol: requesting succeeded SoftCheckInfo");
 
-        Map<String, Timestamp> result = new HashMap<>();
+        Map<String, LocalDateTime> result = new HashMap<>();
         for (String directory : directoryList) {
 
             try {
@@ -252,7 +258,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                 String documentType = getStringValue(entry, 22);
                                 String numberSoftCheck = getStringValue(entry, 18);
                                 if (isSale && documentType != null && documentType.equals("2000001"))
-                                    result.put(numberSoftCheck, dateTime);
+                                    result.put(numberSoftCheck, sqlTimestampToLocalDateTime(dateTime));
                             }
                             scanner.close();
 
@@ -329,7 +335,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     BigDecimal sumCashDocument = isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
-                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
+                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt),
                                             nppGroupMachinery, numberCashRegister, null, sumCashDocument));
 
                                 }
@@ -429,12 +435,12 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                         } else if (isSale && documentType != null && documentType.equals("2000001")) {
                             //nothing to do: it's soft check
                         } else if (isSale || isReturn) {
-                            Date dateReceipt = getDateValue(entry, 1);
-                            Time timeReceipt = getTimeValue(entry, 2);
+                            LocalDate dateReceipt = sqlDateToLocalDate(getDateValue(entry, 1));
+                            LocalTime timeReceipt = sqlTimeToLocalTime(getTimeValue(entry, 2));
                             Integer numberCashRegister = getIntValue(entry, 4);
 
                             CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
-                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                            LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                             Long itemObject = getLongValue(entry, 7);

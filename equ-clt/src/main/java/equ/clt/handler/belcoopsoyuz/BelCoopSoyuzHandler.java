@@ -28,12 +28,15 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.Time;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.DBFUtils.*;
 
 public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
@@ -660,8 +663,8 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 if (!rec.isDeleted()) {
 
                     Integer numberReceipt = getJDBFIntegerFieldValue(rec, "CEDOCCOD");
-                    Date dateReceipt = getJDBFDateFieldValue(rec, "TEDOCINS");
-                    Time timeReceipt = getJDBFTimeFieldValue(rec, "TEDOCINS");
+                    LocalDate dateReceipt = sqlDateToLocalDate(getJDBFDateFieldValue(rec, "TEDOCINS"));
+                    LocalTime timeReceipt = sqlTimeToLocalTime(getJDBFTimeFieldValue(rec, "TEDOCINS"));
                     String barcodeItem = getJDBFFieldValue(rec, "CEOBIDE");
                     String curSection = getJDBFFieldValue(rec, "CESUCOD");
                     if(curSection != null)

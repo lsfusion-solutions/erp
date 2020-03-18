@@ -19,6 +19,9 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
+
 public class LSTerminalHandler extends TerminalHandler {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -232,7 +235,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                             terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, numberDocument,
-                                                    date, time, commentDocument, directoryEntry.getKey(), idTerminalHandbookType1, idTerminalHandbookType2,
+                                                    sqlDateToLocalDate(date), sqlTimeToLocalTime(time), commentDocument, directoryEntry.getKey(), idTerminalHandbookType1, idTerminalHandbookType2,
                                                     idDocumentType, null, idDocumentDetail, numberDocumentDetail, barcode, null,
                                                     price, quantity, sum));
                                     }

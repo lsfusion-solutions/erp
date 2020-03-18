@@ -2,15 +2,15 @@ package equ.api.scales;
 
 import equ.api.TransactionInfo;
 
-import java.sql.Date;
-import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TransactionScalesInfo extends TransactionInfo<ScalesInfo, ScalesItemInfo> {
-    public TransactionScalesInfo(Long id, String dateTimeCode, Date date, String handlerModel, Long idGroupMachinery,
+    public TransactionScalesInfo(Long id, String dateTimeCode, LocalDate date, String handlerModel, Long idGroupMachinery,
                                  Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                  List<ScalesItemInfo> itemsList, List<ScalesInfo> machineryInfoList, Boolean snapshot,
-                                 Timestamp lastErrorDate, String info) {
+                                 LocalDateTime lastErrorDate, String info) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description, null,
                 itemsList, machineryInfoList, snapshot, lastErrorDate, info);
     }

@@ -29,9 +29,12 @@ import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.getDate;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
@@ -327,10 +330,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                 machineryExchangeLogger.info("Kristal: creating request files for directory : " + directory);
 
-                String dateFrom = new SimpleDateFormat("yyyyMMdd").format(entry.dateFrom);
+                String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
                 Calendar cal = Calendar.getInstance();
-                cal.setTime(entry.dateTo);
+                cal.setTime(localDateToSqlDate(entry.dateTo));
                 cal.add(Calendar.DATE, 1);
                 String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
 
@@ -405,13 +408,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) throws ClassNotFoundException, SQLException {
 
         softCheckLogger.info("Kristal: requesting succeeded SoftCheckInfo");
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
 
-        Map<String, Timestamp> result = new HashMap<>();
+        Map<String, LocalDateTime> result = new HashMap<>();
         //result.put("888888", new Timestamp(Calendar.getInstance().getTime().getTime()));
         //return result;
 
@@ -433,7 +436,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     ResultSet rs = statement.executeQuery(queryString);
                     int count = 0;
                     while (rs.next()) {
-                        result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+                        result.put(fillLeadingZeroes(rs.getString(1)), sqlTimestampToLocalDateTime(rs.getTimestamp(2)));
                         count++;
                     }
 
@@ -497,10 +500,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     for (int i = result.size() - 1; i >= 0; i--) {
                         CashierTime ct = result.get(i);
                         if (ct.logOffCashier == null) {
-                            ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
+                            ct.logOffCashier = sqlTimestampToLocalDateTime(getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, localDateTimeToSqlTimestamp(ct.logOnCashier), dateTo));
                         }
-                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
-                        dateTo = ct.logOnCashier;
+                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")) + "/" + ct.logOffCashier.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")) + "/" + (ct.isZReport != null ? "1" : "0");
+                        dateTo = localDateTimeToSqlTimestamp(ct.logOnCashier);
                     }
 
                     machineryExchangeLogger.info(String.format("Kristal CashierTime: server %s, found %s entries", sqlHost, result.size()));
@@ -543,7 +546,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 Timestamp timeFrom = rs.getTimestamp(3);
                 Timestamp timeTo = rs.getTimestamp(4);
                 result.add(new CashierTime(null, numberCashier, numberCashRegister,
-                        directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, null));
+                        directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), sqlTimestampToLocalDateTime(timeFrom), sqlTimestampToLocalDateTime(timeTo), null));
             }
         }
         return result;
@@ -567,7 +570,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 Timestamp timeTo = rs.getTimestamp(3);
                 if (timeTo != null)
                     result.add(new CashierTime(null, null, numberCashRegister,
-                            directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, true));
+                            directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), sqlTimestampToLocalDateTime(timeFrom), sqlTimestampToLocalDateTime(timeTo), true));
             }
         }
         return result;
@@ -727,7 +730,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                             String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
                             if (!cashDocumentSet.contains(idCashDocument))
-                                result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
+                                result.add(new CashDocument(idCashDocument, number, sqlDateToLocalDate(date), sqlTimeToLocalTime(time), cashRegister.numberGroup, nppMachinery, null, sum));
                         }
                     }
                 } catch (SQLException e) {
@@ -1010,11 +1013,11 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                 CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                 String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
-                                Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                                LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
                                 long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss").getTime();
-                                Date dateReceipt = new Date(dateTimeReceipt);
-                                Time timeReceipt = new Time(dateTimeReceipt);
+                                LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
+                                LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
 
                                 //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
                                 //такие чеки пойдут на 999 группу касс - 254 кассу
@@ -1097,13 +1100,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
                                     //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
                                     long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), "dd.MM.yyyy HH:mm:ss").getTime();
-                                    Date dateReceipt = new Date(dateTimeReceipt);
-                                    Time timeReceipt = new Time(dateTimeReceipt);
+                                    LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
+                                    LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
                                     String idEmployee = receiptElement.getAttributeValue("CASSIR");
 
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                     String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
-                                    Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                                    LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
                                     //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
                                     //такие чеки пойдут на 999 группу касс - 254 кассу

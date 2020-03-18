@@ -24,12 +24,15 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
@@ -297,7 +300,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("measurecode", idUOM); //код единицы измерения
             if (item.balance != null) {
                 inventObject.put("remain", item.balance);
-                inventObject.put("remaindate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(item.balanceDate != null ? item.balanceDate : Calendar.getInstance().getTime()));
+                inventObject.put("remaindate", (item.balanceDate != null ? item.balanceDate : LocalDateTime.now()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
             }
             List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
             if (itemGroupList != null) {
@@ -547,7 +550,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         clientObject.put("name", name.trim()); //ФИО клиента
         //clientObject.put("text", name.trim()); //текст
         clientObject.put("sex", card.sexContact); //пол клиента
-        if(card.birthdayContact != null && card.birthdayContact.compareTo(new Date(0, 0, 1)) > 0 )
+        if(card.birthdayContact != null && card.birthdayContact.compareTo(LocalDate.of(1900, 1, 1)) > 0 )
             clientObject.put("birthday", new SimpleDateFormat("yyyy-MM-dd").format(card.birthdayContact)); //день рождения, год рождения должен быть больше 1900
         rootObject.put("command", "addClient");
         return rootObject.toString();
@@ -580,8 +583,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     try {
                         machineryExchangeLogger.info(logPrefix + "creating request file for directory: " + directory);
                         if (new File(directory).exists() || new File(directory).mkdirs()) {
-                            String dateFrom = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateFrom);
-                            String dateTo = new SimpleDateFormat("dd.MM.yyyy").format(entry.dateTo);
+                            String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+                            String dateTo = entry.dateTo.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
 
                             File reqFile = new File(directory + "/sale.req");
                             if (!reqFile.exists()) {
@@ -629,14 +632,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
     }
 
     @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(List<String> directoryList) {
+    public Map<String, LocalDateTime> requestSucceededSoftCheckInfo(List<String> directoryList) {
 
         ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
         Integer maxFilesCount = artixSettings == null ? null : artixSettings.getMaxFilesCount();
         int priorityDirectoriesCount = artixSettings == null ? 0 : artixSettings.getPriorityDirectoriesCount();
         boolean disableSoftCheck = artixSettings != null && artixSettings.isDisableSoftCheck();
 
-        Map<String, Timestamp> result = new HashMap<>();
+        Map<String, LocalDateTime> result = new HashMap<>();
         softCheckLogger.info(logPrefix + "reading SoftCheckInfo");
 
         //ArtixSettings artixSettings = springContext.containsBean("artixSettings") ? (ArtixSettings) springContext.getBean("artixSettings") : null;
@@ -707,7 +710,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 String invoiceNumber = inventPosition.getString("additionalbarcode");
                                                 invoiceNumber = invoiceNumber.length() >= 7 ? invoiceNumber.substring(invoiceNumber.length() - 7) : invoiceNumber;
                                                 softCheckLogger.info(logPrefix + "found softCheck " + invoiceNumber);
-                                                result.put(invoiceNumber, dateTimeReceipt);
+                                                result.put(invoiceNumber, sqlTimestampToLocalDateTime(dateTimeReceipt));
                                             }
                                         }
                                     }
@@ -805,8 +808,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
 
                                                 Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
-                                                Date dateCashDocument = timeEnd != null ? new Date(timeEnd) : null;
-                                                Time timeCashDocument = timeEnd != null ? new Time(timeEnd) : null;
+                                                LocalDate dateCashDocument = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
+                                                LocalTime timeCashDocument = timeEnd != null ? sqlTimeToLocalTime(new Time(timeEnd)) : null;
 
                                                 if (cashRegister.number.equals(numberCashRegister)) {
                                                     if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
@@ -910,7 +913,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         RuntimeException result = null;
         if (!disable) {
             try {
-                String directory = file.getParent() + "/success-" + formatDate(new Date(System.currentTimeMillis())) + "/";
+                String directory = file.getParent() + "/success-" + formatDate(LocalDate.now()) + "/";
                 if (new File(directory).exists() || new File(directory).mkdirs())
                     FileCopyUtils.copy(file, new File(directory + file.getName()));
             } catch (IOException e) {
@@ -1089,11 +1092,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         String idEmployee = documentObject.getString("userCode");
 
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
-                                        Date dateReceipt = timeEnd != null ? new Date(timeEnd) : null;
+                                        LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                         Time timeReceipt = timeEnd != null ? new Time(timeEnd) : null;
 
                                         Long dateTimeShift = getDateTimeShiftByReceipt(shiftList, numberCashRegister, numberZReport, timeEnd);
-                                        Date dateZReport = dateTimeShift == null ? dateReceipt : new Date(dateTimeShift);
+                                        LocalDate dateZReport = dateTimeShift == null ? dateReceipt : sqlDateToLocalDate(new Date(dateTimeShift));
                                         Time timeZReport = dateTimeShift == null ? timeReceipt : new Time(dateTimeShift);
 
                                         BigDecimal sumCard = BigDecimal.ZERO;
@@ -1239,12 +1242,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (cashRegister == null)
                                                 sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
                                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                                            LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
                                             if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                                 currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
-                                                        dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null,
+                                                        dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, cashRegister));
@@ -1322,7 +1325,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                                 String idCashierTime = numberCashier + "/" + numberCashRegister + "/" + nppGroupMachinery + "/" + formatTimestamp(logOnCashier) + "/" + formatTimestamp(logOffCashier);
-                                result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister, nppGroupMachinery, logOnCashier, logOffCashier, true));
+                                result.add(new CashierTime(idCashierTime, numberCashier, numberCashRegister, nppGroupMachinery, sqlTimestampToLocalDateTime(logOnCashier), sqlTimestampToLocalDateTime(logOffCashier), true));
                                 logOnCashier = null;
                             }
                             break;
@@ -1360,8 +1363,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         return date == null ? null : new SimpleDateFormat("dd.MM.yyyy H:mm:ss").format(date);
     }
 
-    private String formatDate(Date value) {
-        return value == null ? null : new SimpleDateFormat("yyyy-MM-dd").format(value);
+    private String formatDate(LocalDate value) {
+        return value == null ? null : value.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
     private String appendCheckDigitToBarcode(String barcode, Integer minLength, boolean appendBarcode) {

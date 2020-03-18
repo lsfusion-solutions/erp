@@ -16,8 +16,10 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
 import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSQLSalesBatch> {
@@ -82,7 +84,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             PreparedStatement ps = null;
             try {
 
-                Timestamp tedocact = new Timestamp(transaction.date.getTime() + 1000 * 60 * 5); //добавляем 5 минут
+                Timestamp tedocact = new Timestamp(localDateToSqlDate(transaction.date).getTime() + 1000 * 60 * 5); //добавляем 5 минут
                 String tedocactString = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(tedocact);
 
                 conn.setAutoCommit(true);
@@ -210,9 +212,9 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
                     Locale defaultLocale = Locale.getDefault();
                     try (Connection conn = getConnection(directory)) {
-                        String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                        String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         Calendar cal = Calendar.getInstance();
-                        cal.setTime(entry.dateTo);
+                        cal.setTime(localDateToSqlDate(entry.dateTo));
                         cal.add(Calendar.DATE, 1);
                         machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
@@ -328,9 +330,9 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
 
                                 BigDecimal quantity = isSale ? quantityReceiptDetail : safeNegate(quantityReceiptDetail);
                                 BigDecimal sum = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
-                                currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt,
-                                        idEmployee, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail, sum, discountSumReceiptDetail, null, null,
-                                        numberReceiptDetail, null, section, null, cashRegister));
+                                currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
+                                        sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, null, null, null, barcodeItem, null, null, null, quantity, priceReceiptDetail,
+                                        sum, discountSumReceiptDetail, null, null, numberReceiptDetail, null, section, null, cashRegister));
                                 currentReadRecordSet.add(id);
                             } else {
                                 if (!unknownSections.contains(section)) {

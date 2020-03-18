@@ -17,6 +17,8 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.localDateToSqlDate;
+
 public class ShtrihPrintHandler extends DefaultScalesHandler {
 
     private static String password = "0030";
@@ -135,7 +137,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         int len = nameItem.length();
                                                         String firstName = nameItem.substring(0, Math.min(len, 28));
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, Math.min(len, 56));
-                                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : item.expiryDate;
+                                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : localDateToSqlDate(item.expiryDate);
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
                                                         int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
@@ -309,7 +311,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                                                         shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : item.expiryDate));
+                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : localDateToSqlDate(item.expiryDate)));
                                                         shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                                                         String description = item.description == null ? "" : item.description;

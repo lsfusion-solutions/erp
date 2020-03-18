@@ -16,6 +16,8 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
 
 public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
@@ -132,7 +135,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     //если lsf flag 16 не установлен, то пишем флаг 32
                     ps.setInt(7, (item.flags != null && ((item.flags & 16) == 0) ? 32 : 0) + (item.splitItem ? 1 : 0)); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
-                    ps.setDate(9, item.expiryDate); //exp, Срок годности
+                    ps.setDate(9, localDateToSqlDate(item.expiryDate)); //exp, Срок годности
                     ps.setInt(10, item.splitItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
                     ps.setInt(11, item.splitItem ? 0 : 1); //weight, Флаг штучного товара (1 – штучный, 0 – нет)
                     ps.setString(12, composition); //text, Текст состава
@@ -376,7 +379,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                 Integer id = rs.getInt(13);
                 Integer type = rs.getInt(1); //type, Тип операции: 1. 2. Закрытие смены 3. Внесение 4. Выдача 5. Открытие чека 6. Регистрация 7. Оплата 8. Закрытие чека
 
-                Date dateReceipt = rs.getDate(12); // r.date
+                LocalDate dateReceipt = sqlDateToLocalDate(rs.getDate(12)); // r.date
                 if(dateReceipt == null) {
                     //записи без даты считаем некорректными
                     readRecordSet.add(id);
@@ -479,7 +482,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                                 String idCashier = rs.getString("operator"); //operator, id кассира
                                 String nameCashier = idCashier != null ? ("Кассир " + idCashier) : null;
                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, cash_id, numberZReport,
-                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idCashier,
+                                        dateReceipt, sqlTimeToLocalTime(timeReceipt), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idCashier,
                                         nameCashier, null, null, null, getZeroSumGiftCardMap(), null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
                                         position, null, idSection, false, cashRegister);
@@ -607,9 +610,9 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         machineryExchangeLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
-                        String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                        String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         Calendar cal = Calendar.getInstance();
-                        cal.setTime(entry.dateTo);
+                        cal.setTime(localDateToSqlDate(entry.dateTo));
                         cal.add(Calendar.DATE, 1);
                         machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());

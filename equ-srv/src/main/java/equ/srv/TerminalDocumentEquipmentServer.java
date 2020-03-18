@@ -26,6 +26,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static equ.srv.EquipmentServer.localDateToSqlDate;
+import static equ.srv.EquipmentServer.localTimeToSqlTime;
 import static lsfusion.base.BaseUtils.trim;
 
 public class TerminalDocumentEquipmentServer {
@@ -114,13 +116,13 @@ public class TerminalDocumentEquipmentServer {
                 props.add(new ImportProperty(dateTerminalDocumentField, terminalLM.findProperty("date[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(dateTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).dateDocument);
+                    data.get(i).add(localDateToSqlDate(terminalDocumentDetailList.get(i).dateDocument));
 
                 ImportField timeTerminalDocumentField = new ImportField(terminalLM.findProperty("time[TerminalDocument]"));
                 props.add(new ImportProperty(timeTerminalDocumentField, terminalLM.findProperty("time[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(timeTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).timeDocument);
+                    data.get(i).add(localTimeToSqlTime(terminalDocumentDetailList.get(i).timeDocument));
 
                 ImportField commentTerminalDocumentField = new ImportField(terminalLM.findProperty("comment[TerminalDocument]"));
                 props.add(new ImportProperty(commentTerminalDocumentField, terminalLM.findProperty("comment[TerminalDocument]").getMapping(terminalDocumentKey)));

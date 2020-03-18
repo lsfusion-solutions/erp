@@ -22,6 +22,8 @@ import java.rmi.registry.Registry;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -366,34 +368,8 @@ public class EquipmentServer {
 
     }
 
-    private boolean isTimeToRun() {
-        boolean start = true;
-        if(equipmentServerSettings == null) {
-            start = false;
-        } else if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
-            Calendar currentCal = Calendar.getInstance();
-
-            Calendar calendarFrom = Calendar.getInstance();
-            calendarFrom.setTime(equipmentServerSettings.timeFrom);
-            calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-            calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-            calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
-
-            Calendar calendarTo = Calendar.getInstance();
-            calendarTo.setTime(equipmentServerSettings.timeTo);
-            calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-            calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-            calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
-            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0) {
-                if(currentCal.compareTo(calendarFrom) < 0)
-                    calendarFrom.add(Calendar.DAY_OF_MONTH, -1);
-                else
-                    calendarTo.add(Calendar.DAY_OF_MONTH, 1);
-            }
-
-            start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
-        }
-        return start;
+    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
+        return value != null ? value.toLocalDate() : null;
     }
 
     static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
@@ -525,6 +501,70 @@ public class EquipmentServer {
         abstract void runTask() throws Exception;
     }
 
+    public static java.sql.Date localDateToSqlDate(LocalDate value) {
+        return value != null ? java.sql.Date.valueOf(value) : null;
+    }
+
+    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
+        return value != null ? value.toLocalDateTime() : null;
+    }
+
+    public static ExecutorService getFixedThreadPool(int nThreads, String name) {
+        return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
+    }
+
+    private void interruptThread(Thread thread) {
+        try {
+            if (thread != null) {
+                thread.interrupt();
+                thread.join(waitForThreadDeath != null ? waitForThreadDeath * 1000 : 300000); //5 minutes
+            }
+        } catch (InterruptedException e) {
+            equipmentLogger.error("Thread has been interrupted while join: ", e);
+        }
+    }
+
+    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
+        return value != null ? java.sql.Timestamp.valueOf(value) : null;
+    }
+
+    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
+        return value != null ? value.toLocalTime() : null;
+    }
+
+    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
+        return value != null ? java.sql.Time.valueOf(value) : null;
+    }
+
+    private boolean isTimeToRun() {
+        boolean start = true;
+        if(equipmentServerSettings == null) {
+            start = false;
+        } else if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
+            Calendar currentCal = Calendar.getInstance();
+
+            Calendar calendarFrom = Calendar.getInstance();
+            calendarFrom.setTime(localTimeToSqlTime(equipmentServerSettings.timeFrom));
+            calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+            calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+            calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+
+            Calendar calendarTo = Calendar.getInstance();
+            calendarTo.setTime(localTimeToSqlTime(equipmentServerSettings.timeTo));
+            calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+            calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+            calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0) {
+                if(currentCal.compareTo(calendarFrom) < 0)
+                    calendarFrom.add(Calendar.DAY_OF_MONTH, -1);
+                else
+                    calendarTo.add(Calendar.DAY_OF_MONTH, 1);
+            }
+
+            start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
+        }
+        return start;
+    }
 
     public class TaskPool {
 
@@ -564,9 +604,10 @@ public class EquipmentServer {
                     String groupId = clsHandler == null ? "No handler" : clsHandler.getGroupId(transactionInfo);
                     if(!checkedGroupIdSet.contains(groupId) && !currentlyProceededGroups.contains(groupId)) {
                         checkedGroupIdSet.add(groupId);
-                        if(transactionInfo.lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(transactionInfo.lastErrorDate) > 0) {
+                        Timestamp lastErrorDate = localDateTimeToSqlTimestamp(transactionInfo.lastErrorDate);
+                        if(lastErrorDate == null || minLastErrorDate == null || minLastErrorDate.compareTo(lastErrorDate) > 0) {
                             minGroupId = groupId;
-                            minLastErrorDate = transactionInfo.lastErrorDate;
+                            minLastErrorDate = lastErrorDate;
                             minClsHandler = clsHandler;
                             if(minLastErrorDate == null)
                                 break;
@@ -669,7 +710,7 @@ public class EquipmentServer {
                     try {
                         transactionInfoMap.put(transactionInfo, false);
 
-                        remote.processingTransaction(transactionInfo.id, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                        remote.processingTransaction(transactionInfo.id, LocalDateTime.now());
 
                         if (clsHandler instanceof TerminalHandler)
                             ((TerminalHandler) clsHandler).saveTransactionTerminalInfo((TransactionTerminalInfo) transactionInfo);
@@ -681,7 +722,7 @@ public class EquipmentServer {
 
                 try {
                     Map<Long, SendTransactionBatch> succeededMachineryInfoMap = clsHandler.sendTransaction(transactionEntry);
-                    
+
                     processTransactionLogger.info(String.format("   Sending transaction group %s: confirm to server, count : %s ", groupId, succeededMachineryInfoMap.size()));
 
                     for (TransactionInfo transactionInfo : transactionEntry) {
@@ -702,7 +743,7 @@ public class EquipmentServer {
                                 }
                                 if ((clsHandler instanceof CashRegisterHandler || clsHandler instanceof ScalesHandler) && succeededMachineryInfoList != null) {
                                     processTransactionLogger.info(String.format("   Sending transaction group %s (%s): confirm machinery to server", groupId, transactionInfo.id));
-                                    remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                                    remote.succeedMachineryTransaction(transactionInfo.id, succeededMachineryInfoList, LocalDateTime.now());
                                 }
                                 if(batch.clearedMachineryList != null && !batch.clearedMachineryList.isEmpty())
                                     remote.clearedMachineryTransaction(transactionInfo.id, batch.clearedMachineryList);
@@ -750,7 +791,7 @@ public class EquipmentServer {
 
         private void succeededTransaction(Long idTransactionInfo) {
             try {
-                remote.succeedTransaction(idTransactionInfo, new Timestamp(Calendar.getInstance().getTime().getTime()));
+                remote.succeedTransaction(idTransactionInfo, LocalDateTime.now());
             } catch (Exception ignored) {
             }
         }
@@ -760,21 +801,6 @@ public class EquipmentServer {
                 reportEquipmentServerError(remote, sidEquipmentServer, e);
             } catch (Exception ignored) {
             }
-        }
-    }
-
-    public static ExecutorService getFixedThreadPool(int nThreads, String name) {
-        return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
-    }
-
-    private void interruptThread(Thread thread) {
-        try {
-            if (thread != null) {
-                thread.interrupt();
-                thread.join(waitForThreadDeath != null ? waitForThreadDeath * 1000 : 300000); //5 minutes
-            }
-        } catch (InterruptedException e) {
-            equipmentLogger.error("Thread has been interrupted while join: ", e);
         }
     }
 }

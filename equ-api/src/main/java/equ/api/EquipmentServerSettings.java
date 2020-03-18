@@ -1,15 +1,15 @@
 package equ.api;
 
 import java.io.Serializable;
-import java.sql.Time;
+import java.time.LocalTime;
 
 public class EquipmentServerSettings implements Serializable {
-    public Time timeFrom;
-    public Time timeTo;
+    public LocalTime timeFrom;
+    public LocalTime timeTo;
     public Integer delay;
     public Integer sendSalesDelay;
 
-    public EquipmentServerSettings(Time timeFrom, Time timeTo, Integer delay, Integer sendSalesDelay) {
+    public EquipmentServerSettings(LocalTime timeFrom, LocalTime timeTo, Integer delay, Integer sendSalesDelay) {
         this.timeFrom = timeFrom;
         this.timeTo = timeTo;
         this.delay = delay;

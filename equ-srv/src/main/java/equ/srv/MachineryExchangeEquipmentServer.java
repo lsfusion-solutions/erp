@@ -38,6 +38,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
 
+import static equ.srv.EquipmentServer.localDateToSqlDate;
+import static equ.srv.EquipmentServer.sqlDateToLocalDate;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class MachineryExchangeEquipmentServer {
@@ -118,10 +120,9 @@ public class MachineryExchangeEquipmentServer {
                                 idStock = trim((String) result.getValue(j).get("idStockTerminal").getValue());
                             }
 
-                            //todo: idDiscountCardFrom, idDiscountCardTo убрать из equ-api
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), new HashSet<>(),
-                                    new HashSet<>(), idStock, dateFromRequestExchange,
-                                    dateToRequestExchange, startDateRequestExchange, null, null, typeRequestExchange));
+                                    new HashSet<>(), idStock, sqlDateToLocalDate(dateFromRequestExchange),
+                                    sqlDateToLocalDate(dateToRequestExchange), sqlDateToLocalDate(startDateRequestExchange), typeRequestExchange));
                         }
 
                     } else {
@@ -161,8 +162,8 @@ public class MachineryExchangeEquipmentServer {
                             }
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,
-                                    idStock, dateFromRequestExchange, dateToRequestExchange,
-                                    startDateRequestExchange, null, null, typeRequestExchange));
+                                    idStock, sqlDateToLocalDate(dateFromRequestExchange), sqlDateToLocalDate(dateToRequestExchange),
+                                    sqlDateToLocalDate(startDateRequestExchange), typeRequestExchange));
 
                         }
 
@@ -291,7 +292,7 @@ public class MachineryExchangeEquipmentServer {
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
 
                 if(requestExchange.startDate != null)
-                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(requestExchange.startDate, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(localDateToSqlDate(requestExchange.startDate), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
 
                 ObjectValue requestExchangeType = machineryPriceTransactionDiscountCardLM.findProperty("discountCardType[RequestExchange]").readClasses(session, requestExchangeObject);
                 if(requestExchangeType instanceof DataObject) {
@@ -321,8 +322,8 @@ public class MachineryExchangeEquipmentServer {
                     Integer sexContact = (Integer) row.get("sexContact");
                     String extInfo = (String) row.get("extInfo");
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
-                            percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
-                            idDiscountCardType, nameDiscountCardType, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
+                            percentDiscountCard, initialSumDiscountCard, sqlDateToLocalDate(dateFromDiscountCard), sqlDateToLocalDate(dateToDiscountCard),
+                            idDiscountCardType, nameDiscountCardType, firstNameContact, lastNameContact, middleNameContact, sqlDateToLocalDate(birthdayContact),
                             sexContact, true, extInfo));
                 }
             } catch (Exception e) {
@@ -393,10 +394,10 @@ public class MachineryExchangeEquipmentServer {
                 }
                 if (requestExchange.dateFrom != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(requestExchange.dateFrom, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                            new DataObject(localDateToSqlDate(requestExchange.dateFrom), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
                 if (requestExchange.dateTo != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(requestExchange.dateTo, DateClass.instance).getExpr(), Compare.LESS_EQUALS));
+                            new DataObject(localDateToSqlDate(requestExchange.dateTo), DateClass.instance).getExpr(), Compare.LESS_EQUALS));
                 if (requestExchange.idStock != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
                             purchaseInvoiceAgreementLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));

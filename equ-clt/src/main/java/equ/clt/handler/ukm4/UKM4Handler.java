@@ -21,8 +21,11 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
@@ -177,7 +180,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
 
                                     pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
                                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
-                                            item.price, null, 0, null, 1, transaction.date, null, null});
+                                            item.price, null, 0, null, 1, localDateToSqlDate(transaction.date), null, null});
                                 }
                             }
                         }
@@ -307,10 +310,10 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
                     Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
                     Integer numberReceiptDetail = getDBFIntegerFieldValue(importSailFile, "ID", defaultCharset);
-                    Date date = getDBFDateFieldValue(importSailFile, "DATE", defaultCharset);
+                    LocalDate date = sqlDateToLocalDate(getDBFDateFieldValue(importSailFile, "DATE", defaultCharset));
                     String timeString = getDBFFieldValue(importSailFile, "TIME", defaultCharset);
                     timeString = timeString.length() == 3 ? ("0" + timeString) : timeString;
-                    Time time = new Time(DateUtils.parseDate(timeString, "HHmm").getTime());
+                    LocalTime time = sqlTimeToLocalTime(new Time(DateUtils.parseDate(timeString, "HHmm").getTime()));
                     String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
                     BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
                     BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);

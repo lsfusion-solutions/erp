@@ -9,9 +9,9 @@ import lsfusion.interop.server.RmiServerInterface;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,7 +19,7 @@ import java.util.Set;
 public interface EquipmentServerInterface extends RmiServerInterface {
 
     //softCheck
-    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, LocalDateTime> invoiceSet) throws RemoteException, SQLException;
 
     //processStopList consumer
     boolean enabledStopListInfo() throws RemoteException, SQLException;
@@ -59,7 +59,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     String sendCashDocumentInfo(List<CashDocument> cashDocumentList) throws IOException, SQLException;
 
     //checkZReportSum
-    Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
+    Map<String, List<Object>> readRequestZReportSumMap(String idStock, LocalDate dateFrom, LocalDate dateTo) throws RemoteException, SQLException;
     Map<Integer, List<List<Object>>> readCashRegistersStock(String idStock) throws RemoteException, SQLException;
     void logRequestZReportSumCheck(Long idRequestExchange, Integer nppGroupMachinery, List<List<Object>> checkSumResult) throws RemoteException, SQLException;
 
@@ -69,10 +69,10 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //processTransaction consumer
     List<TransactionInfo> readTransactionInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    void processingTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
-    void succeedTransaction(Long transactionId, Timestamp dateTime) throws RemoteException, SQLException;
+    void processingTransaction(Long transactionId, LocalDateTime dateTime) throws RemoteException, SQLException;
+    void succeedTransaction(Long transactionId, LocalDateTime dateTime) throws RemoteException, SQLException;
     void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) throws RemoteException, SQLException;
-    void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException;
+    void succeedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList, LocalDateTime dateTime) throws RemoteException, SQLException;
     
     void errorTransactionReport(Long transactionID, Throwable exception) throws RemoteException, SQLException;
 

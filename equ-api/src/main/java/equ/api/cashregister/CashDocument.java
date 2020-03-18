@@ -2,26 +2,26 @@ package equ.api.cashregister;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 public class CashDocument implements Serializable {
     public String idCashDocument;
     public String numberCashDocument;
-    public Date dateCashDocument;
-    public Time timeCashDocument;
+    public LocalDate dateCashDocument;
+    public LocalTime timeCashDocument;
     public Integer nppGroupMachinery;
     public Integer nppMachinery;
     public String numberZReport;
     public BigDecimal sumCashDocument;
     public String idEmployee;
 
-    public CashDocument(String idCashDocument, String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppGroupMachinery,
+    public CashDocument(String idCashDocument, String numberCashDocument, LocalDate dateCashDocument, LocalTime timeCashDocument, Integer nppGroupMachinery,
                         Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument) {
         this(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument, nppGroupMachinery, nppMachinery, numberZReport, sumCashDocument, null);
     }
 
-    public CashDocument(String idCashDocument, String numberCashDocument, Date dateCashDocument, Time timeCashDocument, Integer nppGroupMachinery,
+    public CashDocument(String idCashDocument, String numberCashDocument, LocalDate dateCashDocument, LocalTime timeCashDocument, Integer nppGroupMachinery,
                         Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument, String idEmployee) {
         this.idCashDocument = idCashDocument;
         this.numberCashDocument = numberCashDocument;

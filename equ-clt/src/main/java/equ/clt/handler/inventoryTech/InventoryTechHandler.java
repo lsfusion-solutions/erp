@@ -25,6 +25,8 @@ import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.DBFUtils.*;
 
 public class InventoryTechHandler extends TerminalHandler {
@@ -218,7 +220,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                         String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
                                         String idDocumentDetail = idDocument + "/" + i;
                                         count++;
-                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, date, time,
+                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, sqlDateToLocalDate(date), sqlTimeToLocalTime(time),
                                                 null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
                                                 quantityDocument, idDocumentDetail, number, idBarcode, name, price, quantity, sum));
                                     }

@@ -16,6 +16,8 @@ import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.localDateToSqlDate;
+
 public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBatch> {
 
     private static String logPrefix = "Dreamkas: ";
@@ -162,11 +164,11 @@ public class DreamkasHandler extends DefaultCashRegisterHandler<DreamkasSalesBat
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws UnsupportedEncodingException {
         for (RequestExchange entry : requestExchangeList) {
             Calendar cal = Calendar.getInstance();
-            cal.setTime(entry.dateTo);
+            cal.setTime(localDateToSqlDate(entry.dateTo));
             cal.set(Calendar.HOUR, 23);
             cal.set(Calendar.MINUTE, 59);
             cal.set(Calendar.SECOND, 59);
-            String pendingQuery = getReceiptsQuery(entry.dateFrom, cal.getTime(), getCashRegisterSet(entry, true));
+            String pendingQuery = getReceiptsQuery(localDateToSqlDate(entry.dateFrom), cal.getTime(), getCashRegisterSet(entry, true));
             machineryExchangeLogger.info(logPrefix + "creating request: " +  pendingQuery);
             pendingQueryList.add(pendingQuery);
             succeededRequests.add(entry.requestExchange);

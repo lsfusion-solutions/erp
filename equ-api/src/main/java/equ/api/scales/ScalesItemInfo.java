@@ -3,7 +3,7 @@ package equ.api.scales;
 import equ.api.ItemInfo;
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 
 public class ScalesItemInfo extends ItemInfo {
     public Integer hoursExpiry;
@@ -15,7 +15,7 @@ public class ScalesItemInfo extends ItemInfo {
     public Integer imagesCount;
 
     public ScalesItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem,
-                          Integer daysExpiry, Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
+                          Integer daysExpiry, LocalDate expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber,
                           Integer flags, String idItemGroup, String canonicalNameSkuGroup, Integer hoursExpiry,
                           Integer labelFormat, String description, Integer descriptionNumber, String idUOM,
                           String shortNameUOM, String info, BigDecimal extraPercent, BigDecimal retailPrice, Integer imagesCount) {

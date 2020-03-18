@@ -15,8 +15,11 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
@@ -321,7 +324,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.setString(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
                     ps.setString(8, trim(item.description, "", 100)); //summary
-                    ps.setDate(9, item.expiryDate); //exp_date
+                    ps.setDate(9, localDateToSqlDate(item.expiryDate)); //exp_date
                     ps.setInt(10, version); //version
                     ps.setInt(11, 0); //deleted
                     if (exportTaxes) {
@@ -806,7 +809,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if (sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
-                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
+                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, sqlDateToLocalDate(date), sqlTimeToLocalTime(time), cashRegister.numberGroup, nppMachinery, numberZReport, sum));
                             }
                         }
                     }
@@ -1180,7 +1183,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                     String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
                     Integer numberReceipt = rs.getInt(16); //r.global_number
-                    Date dateReceipt = rs.getDate(17); // r.date
+                    LocalDate dateReceipt = sqlDateToLocalDate(rs.getDate(17)); // r.date
                     Time timeReceipt = rs.getTime(17); //r.date
                     //Integer login = rs.getInt(18); //r.login
                     Date dateZReport = rs.getDate(21); //s.date
@@ -1219,7 +1222,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (totalQuantity != null) {
                         if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
                             salesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, cash_id, numberZReport,
-                                    dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
+                                    sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee,
                                     null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, null, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
                                     position, null, idSection, false, cashRegister));
@@ -1248,9 +1251,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (params.connectionString != null) {
                         Class.forName("com.mysql.jdbc.Driver");
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                        String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(requestExchange.dateFrom);
+                        String dateFrom = requestExchange.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         Calendar cal = Calendar.getInstance();
-                        cal.setTime(requestExchange.dateTo);
+                        cal.setTime(localDateToSqlDate(requestExchange.dateTo));
                         cal.add(Calendar.DATE, 1);
                         machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
                         String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());

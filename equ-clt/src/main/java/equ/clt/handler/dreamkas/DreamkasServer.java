@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.getJSONObject;
 import static java.math.BigDecimal.ROUND_DOWN;
 
@@ -327,8 +329,8 @@ public class DreamkasServer {
                 if (isReturn) quantityReceiptDetail = quantityReceiptDetail.negate();
                 BigDecimal sumReceiptDetail = quantityReceiptDetail.multiply(priceReceiptDetail).setScale(2, RoundingMode.HALF_UP);
 
-                salesInfoList.add(DreamkasHandler.getSalesInfo(false, false, cashRegister.numberGroup, cashRegister.number, numberZReport, dateZReport, timeZReport,
-                        numberReceipt, dateReceipt, timeReceipt, idEmployee, idEmployee != null ? firstNameContact : null,
+                salesInfoList.add(DreamkasHandler.getSalesInfo(false, false, cashRegister.numberGroup, cashRegister.number, numberZReport, sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport),
+                        numberReceipt, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, idEmployee != null ? firstNameContact : null,
                         idEmployee != null ? lastNameContact : null, sumCard, sumCash, null, null,
                         barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
                         null, null, null, numberReceiptDetail, "", null, isCancel, null));
@@ -355,7 +357,7 @@ public class DreamkasServer {
             if (oLines.cResult.equals("MONEY_OUT"))
                 sumCashDocument = sumCashDocument.multiply(new BigDecimal(-1));
             idCashDocument += "/" + cashRegister.number + "/" + numberZReport;
-            cashDocList.add(new CashDocument(idCashDocument, null, dateCashDocument, timeCashDocument,
+            cashDocList.add(new CashDocument(idCashDocument, null, sqlDateToLocalDate(dateCashDocument), sqlTimeToLocalTime(timeCashDocument),
                     cashRegister.numberGroup, cashRegister.number, numberZReport, sumCashDocument));
         }
     }

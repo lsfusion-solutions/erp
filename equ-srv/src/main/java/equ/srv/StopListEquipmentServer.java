@@ -37,6 +37,8 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.*;
 
+import static equ.srv.EquipmentServer.sqlDateToLocalDate;
+import static equ.srv.EquipmentServer.sqlTimeToLocalTime;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class StopListEquipmentServer {
@@ -134,7 +136,8 @@ public class StopListEquipmentServer {
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
                         Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
-                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList, dateFrom, timeFrom, dateTo, timeTo,
+                        stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList,
+                                sqlDateToLocalDate(dateFrom), sqlTimeToLocalTime(timeFrom), sqlDateToLocalDate(dateTo), sqlTimeToLocalTime(timeTo),
                                 idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
                     }
                 }

@@ -18,11 +18,11 @@ import org.springframework.beans.factory.InitializingBean;
 
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
-import java.sql.SQLException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 
+import static equ.srv.EquipmentServer.sqlTimeToLocalTime;
 import static lsfusion.base.BaseUtils.trim;
 
 public class PromotionHandler extends RmiServer implements PromotionInterface, InitializingBean {
@@ -75,7 +75,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                         Time endTimeHTCPromotionTime = (Time) entryValue.get("endTimeHTCPromotionTime");
                         BigDecimal percentHTCPromotionTime = (BigDecimal) entryValue.get("percentHTCPromotionTime");
                         htcPromotionTimeList.add(new PromotionTime(isStopHTCPromotionTime, null, captionDayHTCPromotionTime,
-                                numberDayHTCPromotionTime, beginTimeHTCPromotionTime, endTimeHTCPromotionTime, percentHTCPromotionTime));
+                                numberDayHTCPromotionTime, sqlTimeToLocalTime(beginTimeHTCPromotionTime), sqlTimeToLocalTime(endTimeHTCPromotionTime), percentHTCPromotionTime));
                     }
 
                     //PromotionQuantity
