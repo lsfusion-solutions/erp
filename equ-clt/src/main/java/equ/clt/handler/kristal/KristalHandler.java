@@ -28,6 +28,8 @@ import java.sql.*;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.getDate;
@@ -369,7 +371,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             if (!deleteSuccessfulFiles) {
                 try {
                     if (makeDirsIfNeeded(f.getParent() + "/success/")) {
-                        String directory = f.getParent() + "/success/" + new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "/";
+                        String directory = f.getParent() + "/success/" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";
                         if (makeDirsIfNeeded(directory))
                             FileCopyUtils.copy(f, new File(directory + f.getName()));
                     }

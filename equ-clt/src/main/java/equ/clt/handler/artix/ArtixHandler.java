@@ -24,6 +24,8 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -208,7 +210,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }*/
 
-                        String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                        String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         File file = new File(directory + "/pos" + currentTime + ".aif");
                         try {
                             FileCopyUtils.copy(tmpFile, file);
@@ -847,7 +849,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                     if (new File(globalExchangeDirectory).exists() || new File(globalExchangeDirectory).mkdirs()) {
                         machineryExchangeLogger.info(String.format(logPrefix + "Send DiscountCards to %s", globalExchangeDirectory));
 
-                        String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                        String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
                         File tmpFile = File.createTempFile("pos",".aif");
                         machineryExchangeLogger.info(logPrefix + "creating discountCards file " + file.getAbsolutePath());
@@ -938,7 +940,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                     File tmpFile = File.createTempFile("pos", ".aif");
 
-                    String currentTime = new SimpleDateFormat("yyyyMMddHHmmss").format(System.currentTimeMillis());
+                    String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                     File file = new File(directory + "/pos" + currentTime + ".aif");
 
                     machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());

@@ -25,8 +25,10 @@ import java.nio.channels.FileLock;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -492,15 +494,15 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private synchronized File makeExportFile(String exchangeDirectory, String prefix) {
-        DateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy'T'HH-mm-ss");
-        File file = new File(exchangeDirectory + "//" + prefix + "_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
+        DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd-MM-yyyy'T'HH-mm-ss");
+        File file = new File(exchangeDirectory + "//" + prefix + "_" + LocalDateTime.now().format(dateFormat) + ".xml");
         //чит для избежания ситуации, совпадения имён у двух файлов (в основе имени - текущее время с точностью до секунд)
         while(file.exists()) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException ignored) {
             }
-            file = new File(exchangeDirectory + "//" + "catalog-goods_" + dateFormat.format(Calendar.getInstance().getTime()) + ".xml");
+            file = new File(exchangeDirectory + "//" + "catalog-goods_" + LocalDateTime.now().format(dateFormat) + ".xml");
         }
         return file;
     }
@@ -972,7 +974,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     private String currentDate() {
-        return new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "T00:00:00";
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "T00:00:00";
     }
 
     @Override
@@ -1375,7 +1377,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
 
                             }
-                            String dir = file.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "/";
+                            String dir = file.getParent() + "/success-" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "/";
                             File successDir = new File(dir);
                             if (successDir.exists() || successDir.mkdirs())
                                 FileCopyUtils.copy(file, new File(dir + file.getName()));

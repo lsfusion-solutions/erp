@@ -24,6 +24,8 @@ import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -892,7 +894,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
     }
 
     protected String getCurrentTimestamp() {
-        return new SimpleDateFormat("dd-MM-yyyy-hh-mm-ss").format(Calendar.getInstance().getTime());
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy-hh-mm-ss"));
     }
 
     class RequestSalesInfoTask implements Callable<Map<Long, String>> {

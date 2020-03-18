@@ -14,7 +14,8 @@ import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -186,7 +187,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private void logFile(String logDir, File file, String prefix) throws IOException {
         if (logDir != null) {
             if (new File(logDir).exists() || new File(logDir).mkdirs()) {
-                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(Calendar.getInstance().getTime()) + ".txt"));
+                FileCopyUtils.copy(file, new File(logDir + "/" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
             }
         }
     }

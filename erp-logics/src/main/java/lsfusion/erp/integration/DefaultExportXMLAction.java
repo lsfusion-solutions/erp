@@ -17,8 +17,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class DefaultExportXMLAction extends DefaultExportAction {
 
@@ -95,7 +95,7 @@ public class DefaultExportXMLAction extends DefaultExportAction {
         String xml = new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
         if (outputDir != null) {
             try {
-                FileUtils.writeStringToFile(new File(outputDir + "/" + new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
+                FileUtils.writeStringToFile(new File(outputDir + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS")) + ".xml"), xml);
             } catch (Exception e) {
                 ERPLoggers.importLogger.error("Export Error: ", e);
             }
@@ -115,7 +115,7 @@ public class DefaultExportXMLAction extends DefaultExportAction {
         if (outputDir != null) {
             try {
                 FileUtils.writeStringToFile(new File(outputDir + "/" + (prefix != null ? prefix : "") +
-                        new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss-SSS").format(Calendar.getInstance().getTime()) + ".xml"), xml);
+                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS")) + ".xml"), xml);
             } catch (Exception e) {
                 ERPLoggers.importLogger.error("Export Error: ", e);
             }

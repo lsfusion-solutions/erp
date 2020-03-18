@@ -15,9 +15,9 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -135,7 +135,7 @@ public class AclasHandler extends MultithreadScalesHandler {
         bytes.put(new byte[]{0x01, 0x00, 0x00, 0x00});
 
         //current date-time, 6 bytes
-        String dateTime = new SimpleDateFormat("yyMMddhhmmss").format(Calendar.getInstance().getTime());
+        String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMddhhmmss"));
         bytes.put(getHexBytes(dateTime));
         return bytes.array();
     }

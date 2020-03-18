@@ -3,6 +3,9 @@ package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 public class FiscalDatecs {
@@ -162,9 +165,9 @@ public class FiscalDatecs {
     }
 
     public static void printTaxReport() throws RuntimeException {
-        Date date = new Date(System.currentTimeMillis());
-        String dateFrom = fillZeros(date.getDate()) + fillZeros(date.getMonth()) + fillZeros(date.getYear());
-        String dateTo = fillZeros(date.getDate()) + fillZeros(date.getMonth()) + fillZeros(date.getYear());
+        LocalDate date = LocalDate.now();
+        String dateFrom = fillZeros(date.getDayOfMonth()) + fillZeros(date.getMonthValue()) + fillZeros(date.getYear());
+        String dateTo = fillZeros(date.getDayOfMonth()) + fillZeros(date.getMonthValue()) + fillZeros(date.getYear());
         Dispatch.call(cashDispatch, "PrintTaxReport", password, dateFrom, dateTo);
         checkErrors(true);
     }
