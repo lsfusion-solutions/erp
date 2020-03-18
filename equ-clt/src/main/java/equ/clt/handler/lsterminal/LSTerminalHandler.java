@@ -19,8 +19,7 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static equ.clt.EquipmentServer.sqlDateToLocalDate;
-import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
+import static equ.clt.EquipmentServer.*;
 
 public class LSTerminalHandler extends TerminalHandler {
 
@@ -550,7 +549,7 @@ public class LSTerminalHandler extends TerminalHandler {
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
                         String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
-                        statement.setObject(1, formatValue(order.date));
+                        statement.setObject(1, formatValue(localDateToSqlDate(order.date)));
                         statement.setObject(2, formatValue(order.number));
                         statement.setObject(3,supplier);
                         statement.setObject(4,formatValue(order.barcode));

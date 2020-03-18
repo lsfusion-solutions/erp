@@ -13,7 +13,6 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.base.file.FileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.remote.RmiManager;
@@ -34,7 +33,6 @@ import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.data.StringClass;
-import lsfusion.server.logics.classes.data.file.JSONClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
@@ -220,10 +218,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return softCheck == null ? null : softCheck.sendCashierTimeList(cashierTimeList);
     }
 
-    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
-        return value != null ? value.toLocalDate() : null;
-    }
-
     private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<Integer> result = new ArrayList<>();
         if(minutes != null) {
@@ -405,10 +399,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws SQLException {
         return MachineryExchangeEquipmentServer.readMachineryInfo(this, sidEquipmentServer);
-    }
-
-    public static java.sql.Date localDateToSqlDate(LocalDate value) {
-        return value != null ? java.sql.Date.valueOf(value) : null;
     }
 
     @Override
@@ -1488,14 +1478,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return SendSalesEquipmentServer.sendCashDocumentInfo(getBusinessLogics(), this, getStack(), cashDocumentList);
     }
 
-    public static LocalDateTime utilDateToLocalDateTime(java.util.Date value) {
-        return value != null ? Instant.ofEpochMilli(value.getTime()).atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
-    }
-
-    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
-        return value != null ? value.toLocalDateTime() : null;
-    }
-
     @Override
     public void clearedMachineryTransaction(Long transactionId, List<MachineryInfo> machineryInfoList) {
         if(machineryPriceTransactionLM != null) {
@@ -1515,10 +1497,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 throw Throwables.propagate(e);
             }
         }
-    }
-
-    public static java.sql.Date localDateTimeToSqlDate(LocalDateTime value) {
-        return value != null ? new java.sql.Date(value.toInstant(OffsetDateTime.now(ZoneId.systemDefault()).getOffset()).toEpochMilli()) : null;
     }
 
     @Override
@@ -1563,10 +1541,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
-        return value != null ? java.sql.Timestamp.valueOf(value) : null;
-    }
-
     private String dateTimeCode(Timestamp timeStamp) {
         String result = "";
         long time = timeStamp.getTime() / 1000;
@@ -1592,10 +1566,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     protected boolean notNullNorEmpty(Set value) {
         return value != null && !value.isEmpty();
-    }
-    
-    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
-        return value != null ? value.toLocalTime() : null;
     }
     
     protected String formatDateTime(Timestamp date) {
@@ -1830,10 +1800,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.dataGiftCard = dataGiftCard;
             this.receiptDetailExtraFields = receiptDetailExtraFields;
         }
-    }
-
-    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
-        return value != null ? java.sql.Time.valueOf(value) : null;
     }
 
     private List<List<SalesInfo>> groupSalesInfoByNppGroupMachinery(List<SalesInfo> salesInfoList) {
@@ -2581,5 +2547,29 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
         return row;
+    }
+
+    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
+        return value != null ? java.sql.Time.valueOf(value) : null;
+    }
+
+    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
+        return value != null ? value.toLocalTime() : null;
+    }
+
+    public static java.sql.Date localDateToSqlDate(LocalDate value) {
+        return value != null ? java.sql.Date.valueOf(value) : null;
+    }
+
+    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
+        return value != null ? value.toLocalDate() : null;
+    }
+
+    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
+        return value != null ? java.sql.Timestamp.valueOf(value) : null;
+    }
+
+    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
+        return value != null ? value.toLocalDateTime() : null;
     }
 }

@@ -2,10 +2,10 @@ package equ.api.terminal;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 
 public class TerminalOrder implements Serializable {
-    public Date date;
+    public LocalDate date;
     public String number;
     public String supplier;
     public String barcode;
@@ -27,7 +27,7 @@ public class TerminalOrder implements Serializable {
     public String posField2;
     public String posField3;
 
-    public TerminalOrder(Date date, String number, String supplier, String barcode, String idItem, String name, BigDecimal price,
+    public TerminalOrder(LocalDate date, String number, String supplier, String barcode, String idItem, String name, BigDecimal price,
                          BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity, BigDecimal minPrice,
                          BigDecimal maxPrice, String manufacturer, String weight, String color,
                          String headField1, String headField2, String headField3, String posField1, String posField2, String posField3) {

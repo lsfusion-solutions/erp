@@ -3,14 +3,14 @@ package equ.srv;
 import equ.api.terminal.TerminalOrder;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 
 public class ServerTerminalOrder extends TerminalOrder {
     public String minDate1;
     public String maxDate1;
     public String vop;
 
-    public ServerTerminalOrder(Date date, String number, String supplier, String barcode, String idItem, String name,
+    public ServerTerminalOrder(LocalDate date, String number, String supplier, String barcode, String idItem, String name,
                                BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                                BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                                String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,

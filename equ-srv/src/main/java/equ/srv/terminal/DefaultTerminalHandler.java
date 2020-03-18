@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static equ.srv.EquipmentServer.localDateToSqlDate;
 import static lsfusion.base.BaseUtils.trim;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
@@ -414,7 +415,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
                         String supplier = order.supplier == null ? "" : (prefix + formatValue(order.supplier));
-                        statement.setObject(1, formatValue(order.date));
+                        statement.setObject(1, formatValue(localDateToSqlDate(order.date)));
                         statement.setObject(2, formatValue(order.number));
                         statement.setObject(3,supplier);
                         statement.setObject(4,formatValue(order.barcode));

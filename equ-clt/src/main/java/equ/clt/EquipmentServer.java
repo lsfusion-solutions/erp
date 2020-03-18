@@ -22,8 +22,9 @@ import java.rmi.registry.Registry;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -368,10 +369,6 @@ public class EquipmentServer {
 
     }
 
-    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
-        return value != null ? value.toLocalDate() : null;
-    }
-
     static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
         if(handlerModel == null) return null;
         Object clsHandler;
@@ -501,14 +498,6 @@ public class EquipmentServer {
         abstract void runTask() throws Exception;
     }
 
-    public static java.sql.Date localDateToSqlDate(LocalDate value) {
-        return value != null ? java.sql.Date.valueOf(value) : null;
-    }
-
-    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
-        return value != null ? value.toLocalDateTime() : null;
-    }
-
     public static ExecutorService getFixedThreadPool(int nThreads, String name) {
         return Executors.newFixedThreadPool(nThreads, new DaemonThreadFactory(name));
     }
@@ -522,18 +511,6 @@ public class EquipmentServer {
         } catch (InterruptedException e) {
             equipmentLogger.error("Thread has been interrupted while join: ", e);
         }
-    }
-
-    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
-        return value != null ? java.sql.Timestamp.valueOf(value) : null;
-    }
-
-    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
-        return value != null ? value.toLocalTime() : null;
-    }
-
-    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
-        return value != null ? java.sql.Time.valueOf(value) : null;
     }
 
     private boolean isTimeToRun() {
@@ -803,4 +780,29 @@ public class EquipmentServer {
             }
         }
     }
+
+    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
+        return value != null ? java.sql.Time.valueOf(value) : null;
+    }
+
+    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
+        return value != null ? value.toLocalTime() : null;
+    }
+
+    public static java.sql.Date localDateToSqlDate(LocalDate value) {
+        return value != null ? java.sql.Date.valueOf(value) : null;
+    }
+
+    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
+        return value != null ? value.toLocalDate() : null;
+    }
+
+    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
+        return value != null ? java.sql.Timestamp.valueOf(value) : null;
+    }
+
+    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
+        return value != null ? value.toLocalDateTime() : null;
+    }
+
 }
