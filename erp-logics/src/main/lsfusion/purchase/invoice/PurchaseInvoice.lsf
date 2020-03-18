@@ -120,10 +120,6 @@ extraCostPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
 extraCostPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) MATERIALIZED;
 extraCostPrice (UserInvoiceDetail detail) += extraCostPrice(detail);
 
-extraCostPrice2 = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
-extraCostPrice2 = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
-extraCostPrice2 (UserInvoiceDetail detail) += extraCostPrice2(detail);
-
 customCostPrice = ABSTRACT NUMERIC[20,8](InvoiceDetail) MATERIALIZED;
 customCostPrice = ABSTRACT NUMERIC[20,8](UserInvoiceDetail) MATERIALIZED;
 customCostPrice(UserInvoiceDetail detail) += customCostPrice(detail);
@@ -143,20 +139,16 @@ incomePrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) 
 incomeSum(invoice) = GROUP SUM incomePrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
 // todo : переделать на обычный +, чтобы incomePriceInvoiceDetail суммировался с остальными через OVERRIDE, 0
-costPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+) extraCostPrice2(detail) (+)
+costPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
                                                 customCostPrice(detail) (+) certificateCostPrice(detail)) IF incomePrice(detail);
 
-costPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+) extraCostPrice2(detail) (+)
+costPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
                                                     customCostPrice(detail) (+) certificateCostPrice(detail)) IF incomePrice(detail);
 
 //-- Суммы
 extraCostSum = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
 extraCostSum = ABSTRACT NUMERIC[18,4] (UserInvoiceDetail);
 extraCostSum (UserInvoiceDetail detail) += extraCostSum(detail);
-
-extraCostSum2 = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
-extraCostSum2 = ABSTRACT NUMERIC[18,4] (UserInvoiceDetail);
-extraCostSum2 (UserInvoiceDetail detail) += extraCostSum2(detail);
 
 customCostSum = ABSTRACT NUMERIC[18,4](InvoiceDetail);
 customCostSum = ABSTRACT NUMERIC[18,4](UserInvoiceDetail);
@@ -170,7 +162,7 @@ incomeSum (UserInvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
                                        homeSum(detail)
                                     ELSE sum(detail);
 
-costSum(UserInvoiceDetail detail) = NUMERIC[18,4] (incomeSum(detail) (+) extraCostSum(detail) (+) extraCostSum2(detail) (+)
+costSum(UserInvoiceDetail detail) = NUMERIC[18,4] (incomeSum(detail) (+) extraCostSum(detail) (+)
                                                 customCostSum(detail) (+) certificateCostSum(detail)) IF incomeSum(detail);
                                                 
 // -------------------------------------- Формирование задолженности ---------------------------------------------------

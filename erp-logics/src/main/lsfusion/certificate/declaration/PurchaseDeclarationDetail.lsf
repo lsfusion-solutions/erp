@@ -232,8 +232,10 @@ overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDe
 } 
 
 // Проводим по инвойсу
-customCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationPrice(invoiceDetail) (+) dutyPrice(invoiceDetail);
-customCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationSum(invoiceDetail) (+) dutySum(invoiceDetail);
+extraPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail);
+extraSum = ABSTRACT NUMERIC[18,4] (UserInvoiceDetail);
+customCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationPrice(invoiceDetail) (+) dutyPrice(invoiceDetail) (+) extraPrice(invoiceDetail);
+customCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationSum(invoiceDetail) (+) dutySum(invoiceDetail) (+) extraSum(invoiceDetail);
 // НДС
 VATPrice 'НДС (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 VATPrice 'НДС (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
@@ -1099,7 +1101,8 @@ WHEN LOCAL FORMS declaration CHANGED(calcDutySum(DeclarationDetail d)) AND NOT C
 
 // -------------------------------- Расчет НДС -------------------------- //
 
-baseVATSum(DeclarationDetail d) = homeSum(d) (+) dutySum(d); 
+extraSum = ABSTRACT NUMERIC[18,4] (DeclarationDetail);
+baseVATSum(DeclarationDetail d) = homeSum(d) (+) dutySum(d) (+) extraSum(d); 
 
 calcVATSum 'НДС' (DeclarationDetail d) =
     round(baseVATSum(d) *
@@ -1107,7 +1110,7 @@ calcVATSum 'НДС' (DeclarationDetail d) =
                        homeCurrency(d)) CHARWIDTH 12;
 
 WHEN LOCAL FORMS declaration
-    (CHANGED(homeSum(DeclarationDetail d)) OR CHANGED(dutySum(d)) OR
+    (CHANGED(homeSum(DeclarationDetail d)) OR CHANGED(dutySum(d)) OR CHANGED(extraSum(d)) OR
     CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND NOT CHANGED(VATSum(d)) AND NOT isExported(d) DO
     VATSum(d) <- calcVATSum(d);
 
@@ -1476,6 +1479,8 @@ EXTEND FORM declaration
 
 
 //-- Декларирование
+overRecalculate ABSTRACT (Declaration);
+
 createDeclarationDetailUser 'Рассчитать платежи' (Invoice userInvoice)  { 
     FOR in(userInvoice, Declaration declaration) DO {
         createDeclarationInvoiceDetail(declaration);
@@ -1497,6 +1502,7 @@ createDeclarationDetailUser 'Рассчитать платежи' (Invoice userI
         }
         recalculateDutyPriceInvoice(declaration);
         recalculateRegistrationPriceInvoice(declaration);
+        overRecalculate(declaration);
     }    
 } TOOLBAR; 
 
