@@ -492,7 +492,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
        
     countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
     scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
-
+    overCreateScheduleOrderTime ABSTRACT LIST (ScheduleOrderTime, ScheduleOrder, DOW);
     setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow)  { 
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
             LOCAL transfer = INTEGER();
@@ -504,7 +504,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 
                 CASE WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 0 THEN orderDOW(t) <- DOW.friday;
                 WHEN transfer() + number(dow) - dayBefore(scheduleOrder) == 6 THEN orderDOW(t) <- DOW.friday;
-                ELSE orderDOW(t) <- DOW(transfer() + number(dow) - dayBefore(scheduleOrder));       
+                ELSE orderDOW(t) <- DOW(transfer() + number(dow) - dayBefore(scheduleOrder));
+                overCreateScheduleOrderTime(t,scheduleOrder,dow);      
             }
         }
     }
