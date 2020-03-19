@@ -24,11 +24,14 @@ import java.net.URL;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
 
 public class ImportCBRFExchangeRateAction extends InternalAction {
     private final ClassPropertyInterface currencyInterface;
@@ -48,8 +51,8 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
             String extraSIDCurrency = (String) findProperty("extraSID[Currency]").read(context, currencyObject);
-            Date cbrfDateFrom = (Date) findProperty("importCBRFExchangeRateDateFrom[]").read(context);
-            Date cbrfDateTo = (Date) findProperty("importCBRFExchangeRateDateTo[]").read(context);
+            LocalDate cbrfDateFrom = getLocalDate(findProperty("importCBRFExchangeRateDateFrom[]").read(context));
+            LocalDate cbrfDateTo = getLocalDate(findProperty("importCBRFExchangeRateDateTo[]").read(context));
 
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);
@@ -60,7 +63,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
     }
 
-    private void importExchanges(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
+    private void importExchanges(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, extraSIDCurrency, context);
@@ -109,7 +112,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
         service.synchronize(true, false);
     }
 
-    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
         List<Exchange> exchangesList = new ArrayList<>();
@@ -126,8 +129,8 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
             if (extraSIDCurrency.equals(id)) {
                 Document exchangeDocument = builder.build(new URL("http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1="
-                        + new SimpleDateFormat("dd/MM/yyyy").format(dateFrom)
-                        + "&date_req2=" + new SimpleDateFormat("dd/MM/yyyy").format(dateTo)
+                        + dateFrom.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        + "&date_req2=" + dateTo.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + "&VAL_NM_RQ=" + id).openStream());
                 Element exchangeRootNode = exchangeDocument.getRootElement();
                 List<Element> exchangeList = exchangeRootNode.getChildren("Record");

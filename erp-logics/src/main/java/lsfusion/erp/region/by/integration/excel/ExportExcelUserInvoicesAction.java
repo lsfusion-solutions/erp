@@ -87,7 +87,7 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
                 DataObject userInvoiceObject = new DataObject((Long)userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteCustomClass) findClass("UserInvoice"));
 
-                Date date = (Date) userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice");
+                Date date = localDateToSqlDate(getLocalDate((userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice"))));
 
                 if ((dateFromObject == null || date.after((Date) dateFromObject.object)) && (dateToObject == null || date.before((Date) dateToObject.object))) {
                     ImMap<Object, Object> userInvoiceValue = userInvoiceResult.getValue(i);

@@ -42,8 +42,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.text.ParseException;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -125,8 +126,8 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     for (int j = 0, sizej = emailResult.size(); j < sizej; j++) {
                         ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
-                        Timestamp dateTimeReceivedEmail = (Timestamp) emailEntryValue.get("dateTimeReceivedEmail").getValue();
-                        boolean isOld = (Calendar.getInstance().getTime().getTime() - dateTimeReceivedEmail.getTime()) > (24*60*60*1000); //старше 24 часов
+                        LocalDateTime dateTimeReceivedEmail = getLocalDateTime(emailEntryValue.get("dateTimeReceivedEmail").getValue());
+                        boolean isOld = Duration.between(LocalDateTime.now(), dateTimeReceivedEmail).toHours() >= 24; //старше 24 часов
                         String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
 

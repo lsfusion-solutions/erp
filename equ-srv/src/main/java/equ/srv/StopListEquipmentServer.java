@@ -6,7 +6,6 @@ import equ.api.MachineryInfo;
 import equ.api.StopListInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
-import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -31,14 +30,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
-import static equ.srv.EquipmentServer.sqlDateToLocalDate;
-import static equ.srv.EquipmentServer.sqlTimeToLocalTime;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalTime;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class StopListEquipmentServer {
@@ -88,10 +87,10 @@ public class StopListEquipmentServer {
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
                     String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
                     boolean excludeStopList = slEntry.get("excludeStopList").getValue() != null;
-                    Date dateFrom = (Date) slEntry.get("fromDateStopList").getValue();
-                    Date dateTo = (Date) slEntry.get("toDateStopList").getValue();
-                    Time timeFrom = (Time) slEntry.get("fromTimeStopList").getValue();
-                    Time timeTo = (Time) slEntry.get("toTimeStopList").getValue();
+                    LocalDate dateFrom = getLocalDate(slEntry.get("fromDateStopList").getValue());
+                    LocalDate dateTo = getLocalDate(slEntry.get("toDateStopList").getValue());
+                    LocalTime timeFrom = getLocalTime(slEntry.get("fromTimeStopList").getValue());
+                    LocalTime timeTo = getLocalTime(slEntry.get("toTimeStopList").getValue());
 
                     Set<String> idStockSet = new HashSet<>();
                     Map<String, Set<MachineryInfo>> handlerMachineryMap = new HashMap<>();
@@ -137,8 +136,7 @@ public class StopListEquipmentServer {
                         Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
                         stopListInfoMap.put(numberStopList, new StopListInfo(excludeStopList, numberStopList,
-                                sqlDateToLocalDate(dateFrom), sqlTimeToLocalTime(timeFrom), sqlDateToLocalDate(dateTo), sqlTimeToLocalTime(timeTo),
-                                idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
+                                dateFrom, timeFrom, dateTo, timeTo, idStockSet, inGroupMachineryItemMap, stopListItemMap, handlerMachineryMap));
                     }
                 }
 
@@ -278,7 +276,7 @@ public class StopListEquipmentServer {
                 ObjectValue stopListObject = stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
                 stopListLM.findProperty("stopList[StopListError]").change(stopListObject, session, errorObject);
                 stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
-                stopListLM.findProperty("date[StopListError]").change(getCurrentTimestamp(), session, errorObject);
+                stopListLM.findProperty("date[StopListError]").change(LocalDateTime.now(), session, errorObject);
                 OutputStream os = new ByteArrayOutputStream();
                 e.printStackTrace(new PrintStream(os));
                 stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);
@@ -303,10 +301,6 @@ public class StopListEquipmentServer {
                 throw Throwables.propagate(e);
             }
         }
-    }
-
-    private static Timestamp getCurrentTimestamp() {
-        return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
 }

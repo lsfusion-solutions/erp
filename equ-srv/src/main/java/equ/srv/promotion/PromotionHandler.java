@@ -6,24 +6,24 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.server.base.controller.remote.manager.RmiServer;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
-import lsfusion.server.base.controller.remote.manager.RmiServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.session.DataSession;
 import org.springframework.beans.factory.InitializingBean;
 
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
-import java.sql.Time;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import static equ.srv.EquipmentServer.sqlTimeToLocalTime;
 import static lsfusion.base.BaseUtils.trim;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalTime;
 
 public class PromotionHandler extends RmiServer implements PromotionInterface, InitializingBean {
 
@@ -71,11 +71,11 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                         boolean isStopHTCPromotionTime = entryValue.get("isStopHTCPromotionTime") != null;
                         String captionDayHTCPromotionTime = trim((String) entryValue.get("captionDayHTCPromotionTime"));
                         Integer numberDayHTCPromotionTime = (Integer) entryValue.get("numberDayHTCPromotionTime");
-                        Time beginTimeHTCPromotionTime = (Time) entryValue.get("beginTimeHTCPromotionTime");
-                        Time endTimeHTCPromotionTime = (Time) entryValue.get("endTimeHTCPromotionTime");
+                        LocalTime beginTimeHTCPromotionTime = getLocalTime(entryValue.get("beginTimeHTCPromotionTime"));
+                        LocalTime endTimeHTCPromotionTime = getLocalTime(entryValue.get("endTimeHTCPromotionTime"));
                         BigDecimal percentHTCPromotionTime = (BigDecimal) entryValue.get("percentHTCPromotionTime");
                         htcPromotionTimeList.add(new PromotionTime(isStopHTCPromotionTime, null, captionDayHTCPromotionTime,
-                                numberDayHTCPromotionTime, sqlTimeToLocalTime(beginTimeHTCPromotionTime), sqlTimeToLocalTime(endTimeHTCPromotionTime), percentHTCPromotionTime));
+                                numberDayHTCPromotionTime, beginTimeHTCPromotionTime, endTimeHTCPromotionTime, percentHTCPromotionTime));
                     }
 
                     //PromotionQuantity

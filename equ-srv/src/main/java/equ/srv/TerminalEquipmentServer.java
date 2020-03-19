@@ -28,10 +28,12 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.*;
 
-import static equ.srv.EquipmentServer.sqlDateToLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class TerminalEquipmentServer {
@@ -80,7 +82,7 @@ public class TerminalEquipmentServer {
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
-                    java.sql.Date dateOrder = (java.sql.Date) entry.get("dateOrder");
+                    LocalDate dateOrder = getLocalDate(entry.get("dateOrder"));
                     String numberOrder = trim((String) entry.get("numberOrder"));
                     String idSupplier = trim((String) entry.get("idSupplierOrder"));
                     String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
@@ -102,15 +104,15 @@ public class TerminalEquipmentServer {
                     String posField1 = (String) entry.get("posField1");
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
-                    String minDeviationDate = formatDate((Date) entry.get("minDeviationDate"));
-                    String maxDeviationDate = formatDate((Date) entry.get("maxDeviationDate"));
+                    String minDeviationDate = formatDate(getLocalDate(entry.get("minDeviationDate")));
+                    String maxDeviationDate = formatDate(getLocalDate(entry.get("maxDeviationDate")));
                     String vop = (String) entry.get("vop");
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
                     if (terminalOrder != null)
                         terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
                     else
-                        terminalOrderMap.put(key, new ServerTerminalOrder(sqlDateToLocalDate(dateOrder), numberOrder, idSupplier, barcode, idItem, name, price,
+                        terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop));
                 }
@@ -121,8 +123,8 @@ public class TerminalEquipmentServer {
         return new ArrayList<>(terminalOrderMap.values());
     }
 
-    private static String formatDate(Date date) {
-        return date != null ? new SimpleDateFormat("yyyy-MM-dd").format(date) : null;
+    private static String formatDate(LocalDate date) {
+        return date != null ? date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : null;
     }
 
     private static String formatColor(Color color) {

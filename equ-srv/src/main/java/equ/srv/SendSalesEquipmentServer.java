@@ -33,6 +33,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.srv.EquipmentServer.*;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
@@ -91,7 +92,7 @@ public class SendSalesEquipmentServer {
                             null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
-                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), sqlDateToLocalDate((Date) row.get("documentsClosedDate")));
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), getLocalDate(row.get("documentsClosedDate")));
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 
 public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
@@ -149,7 +150,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
             ImMap<Object, ObjectValue> resultValues = generalLedgerResult.getValue(i);
 
-            Date dateGeneralLedger = (Date) resultValues.get("dateGeneralLedger").getValue(); //D_VV
+            Date dateGeneralLedger = localDateToSqlDate(getLocalDate(resultValues.get("dateGeneralLedger").getValue())); //D_VV
             String numberGeneralLedger = trim((String) resultValues.get("numberGLDocument").getValue(), 8); //DOK
             String seriesGeneralLedger = trim((String) resultValues.get("seriesGLDocument").getValue(), 2); //SER_P
 

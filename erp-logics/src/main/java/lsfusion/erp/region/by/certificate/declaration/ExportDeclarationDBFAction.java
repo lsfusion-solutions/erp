@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.*;
 
 public class ExportDeclarationDBFAction extends DefaultExportAction {
@@ -119,7 +120,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         String UNPLegalEntityDeclaration = (String) findProperty("UNPLegalEntity[Declaration]").read(context, declarationObject);  //G141
         String fullNameLegalEntityDeclaration = (String) findProperty("fullNameLegalEntity[Declaration]").read(context, declarationObject); //G142
         String addressLegalEntityDeclaration = (String) findProperty("addressLegalEntity[Declaration]").read(context, declarationObject); //G143
-        Date dateDeclaration = (Date) findProperty("date[Declaration]").read(context, declarationObject);          //G542
+        Date dateDeclaration = localDateToSqlDate(getLocalDate(findProperty("date[Declaration]").read(context, declarationObject)));          //G542
 
         String[] exportNames = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
@@ -229,7 +230,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             Integer orderCustomsDocument = (Integer) resultValues.get("orderCustomsDocument");
             String idCustomsDocument = (String) resultValues.get("idCustomsDocument");
             String nameCustomsDocument = (String) resultValues.get("nameCustomsDocument");
-            Date dateCustomsDocument = (Date) resultValues.get("dateCustomsDocument");
+            LocalDate dateCustomsDocument = getLocalDate(resultValues.get("dateCustomsDocument"));
             Boolean isVATCustomsExceptionCustomsDocument = (Boolean) resultValues.get("isVATCustomsExceptionCustomsDocument");
             String typePaymentCustomsDocument = (String) resultValues.get("typePaymentCustomsDocument");
             String refDocCustomsDocument = (String) resultValues.get("refDocCustomsDocument");
@@ -265,11 +266,11 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
             Integer numberDeclarationDetail = (Integer) resultValues.get("numberDeclarationDetail");
             String seriesNumberCompliance = (String) resultValues.get("seriesNumberCompliance");
-            Date dateCompliance = (Date) resultValues.get("dateCompliance");
-            Date fromDateCompliance = (Date) resultValues.get("fromDateCompliance");
-            Date toDateCompliance = (Date) resultValues.get("toDateCompliance");
+            LocalDate dateCompliance = getLocalDate(resultValues.get("dateCompliance"));
+            LocalDate fromDateCompliance = getLocalDate(resultValues.get("fromDateCompliance"));
+            LocalDate toDateCompliance = (getLocalDate(resultValues.get("toDateCompliance")));
             String numberDeclarationCompliance = (String) resultValues.get("numberDeclarationCompliance");
-            Date dateDeclarationCompliance = (Date) resultValues.get("dateDeclarationCompliance");
+            LocalDate dateDeclarationCompliance = getLocalDate(resultValues.get("dateDeclarationCompliance"));
 
             complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, "01191", seriesNumberCompliance,
                     dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));
@@ -459,10 +460,10 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             nameValueFieldMap.put("G32", dd.numberDeclarationDetail);
             nameValueFieldMap.put("G44KD", trim(dd.KD, 5));
             nameValueFieldMap.put("G44ND", trim(dd.ND, 50));
-            nameValueFieldMap.put("G44DD", dd.DD);
-            nameValueFieldMap.put("G44BEGDATE", dd.beginDate);
+            nameValueFieldMap.put("G44DD", localDateToSqlDate(dd.DD));
+            nameValueFieldMap.put("G44BEGDATE", localDateToSqlDate(dd.beginDate));
 
-            nameValueFieldMap.put("G44ENDDATE", dd.endDate);
+            nameValueFieldMap.put("G44ENDDATE", localDateToSqlDate(dd.endDate));
             nameValueFieldMap.put("G44CODESTR", dd.country);
             nameValueFieldMap.put("G44VIDPLAT", dd.vidplat);
             nameValueFieldMap.put("NOMER_GTD", trim(g44.number, 6));
@@ -472,7 +473,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             nameValueFieldMap.put("G44NAME", dd.description);
 
             nameValueFieldMap.put("G44REGNUM", trim(dd.numberDeclaration, 20));
-            nameValueFieldMap.put("G44DS", dd.dateDeclaration);
+            nameValueFieldMap.put("G44DS", localDateToSqlDate(dd.dateDeclaration));
             nameValueFieldMap.put("G44PP", dd.numberDeclaration != null ? "2" : "1");
 
             dbfwriter.addRecord(nameValueFieldMap.values().toArray()); //17

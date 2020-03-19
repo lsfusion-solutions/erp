@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 
-import java.util.Date;
+import java.time.LocalDate;
 
 public class G44Detail {
 
@@ -9,18 +9,18 @@ public class G44Detail {
     public Long order;
     public String KD;
     public String ND;
-    public Date DD;
-    public Date beginDate;
-    public Date endDate;
+    public LocalDate DD;
+    public LocalDate beginDate;
+    public LocalDate endDate;
     public String country;
     public String vidplat;
     public String refdoc;
     public String description;
     public String numberDeclaration;
-    public Date dateDeclaration;
+    public LocalDate dateDeclaration;
 
-    public G44Detail(Integer numberDeclarationDetail, Long order, String KD, String ND, Date DD, Date beginDate, Date endDate,
-                     String country, String vidplat, String refdoc, String description, String numberDeclaration, Date dateDeclaration) {
+    public G44Detail(Integer numberDeclarationDetail, Long order, String KD, String ND, LocalDate DD, LocalDate beginDate, LocalDate endDate,
+                     String country, String vidplat, String refdoc, String description, String numberDeclaration, LocalDate dateDeclaration) {
         this.numberDeclarationDetail = numberDeclarationDetail;
         this.order = order;
         this.KD = KD;

@@ -47,7 +47,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.sql.Time;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -221,9 +221,9 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 for (PurchaseInvoiceDetail detail : userInvoiceDetailsList) {
                     Object dateDocument = detail.getFieldValue("dateDocument");
                     String idStock = (String) detail.getFieldValue("idCustomerStock");
-                    Date documentsClosedDate = idStock != null ?
-                            (Date) findProperty("documentsClosedDate[ISTRING[100]]").read(context, new DataObject(idStock)) :
-                            (Date) findProperty("documentsClosedDate[Stock]").read(context, customerStockObject);
+                    Date documentsClosedDate = localDateToSqlDate(idStock != null ?
+                            getLocalDate(findProperty("documentsClosedDate[ISTRING[100]]").read(context, new DataObject(idStock))) :
+                            getLocalDate(findProperty("documentsClosedDate[Stock]").read(context, customerStockObject)));
                     if (overDocumentsClosedDate((Date) dateDocument, documentsClosedDate, ignoreInvoicesAfterDocumentsClosedDate)) {
                         skip = true;
                     }

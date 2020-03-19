@@ -18,12 +18,12 @@ import org.json.JSONObject;
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -42,10 +42,10 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context, boolean denominate) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
+    protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
 
 
-        List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency, denominate);
+        List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);
 
         ImportField typeExchangeBYRField = new ImportField(findProperty("name[TypeExchange]"));
         ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
@@ -92,7 +92,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
         //session.apply(LM.getBL());
     }
 
-    private List<Exchange> importExchangesFromXMLDenominated(Date dateFrom, Date dateTo, String shortNameCurrency, boolean denominate) throws IOException, ParseException, JSONException {
+    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency) throws IOException, ParseException, JSONException {
 
         List<Exchange> exchangesList = new ArrayList<>();
 
@@ -107,16 +107,14 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
                 BigDecimal scale = jsonObject.getBigDecimal("Cur_Scale");
 
                 JSONArray exchangeDocument = readJsonFromUrl("http://www.nbrb.by/API/ExRates/Rates/Dynamics/" + id
-                        + "?startDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateFrom)
-                        + "&endDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateTo));
+                        + "?startDate=" + dateFrom.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+                        + "&endDate=" + dateTo.format(DateTimeFormatter.ofPattern("MM/dd/yyyy")));
 
                 for (int j = 0; j < exchangeDocument.length(); j++) {
 
                     JSONObject exchangeNode = exchangeDocument.getJSONObject(j);
 
                     BigDecimal rate = exchangeNode.getBigDecimal("Cur_OfficialRate");
-                    if(denominate)
-                        rate = safeDivide(rate, 10000);
 
                     exchangesList.add(new Exchange(charCode, "BYN", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), "yyyy-MM-dd'T'HH:mm:ss").getTime()),
                             safeDivide(rate, scale, 6)));

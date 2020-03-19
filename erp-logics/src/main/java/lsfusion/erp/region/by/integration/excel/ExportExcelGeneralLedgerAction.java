@@ -3,26 +3,30 @@ package lsfusion.erp.region.by.integration.excel;
 import com.google.common.base.Throwables;
 import jxl.write.WriteException;
 import lsfusion.base.Pair;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
     private final ClassPropertyInterface dateFromInterface;
@@ -85,12 +89,12 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
 
             for (ImMap<Object, Object> generalLedgerValue : generalLedgerResult.values()) {
 
-                Date date = (Date) generalLedgerValue.get("dateGeneralLedger");
+                LocalDate date = getLocalDate(generalLedgerValue.get("dateGeneralLedger"));
 
-                if ((dateFromObject.object == null || ((Date) dateFromObject.object).getTime() <= date.getTime()) && (dateToObject.object == null || ((Date) dateToObject.object).getTime() >= date.getTime())) {
+                if ((dateFromObject.object == null || ((Date) dateFromObject.object).getTime() <= localDateToSqlDate(date).getTime()) && (dateToObject.object == null || ((Date) dateToObject.object).getTime() >= localDateToSqlDate(date).getTime())) {
 
                     String isPostedGeneralLedger = generalLedgerValue.get("isPostedGeneralLedger") == null ? "FALSE" : "TRUE";
-                    String dateGeneralLedger = new SimpleDateFormat("dd.MM.yyyy").format(date);
+                    String dateGeneralLedger = date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
                     String nameLegalEntity = trim((String) generalLedgerValue.get("nameLegalEntityGeneralLedger"), "");
                     String nameGLDocument = trim((String) generalLedgerValue.get("nameGLDocumentGeneralLedger"), "");
                     String description = trim((String) generalLedgerValue.get("descriptionGeneralLedger"), "");

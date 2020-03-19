@@ -7,15 +7,15 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportAction;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
 
 import java.math.BigDecimal;
@@ -217,8 +217,8 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             Date dateFrom;
             Date dateTo;
             if(useGiftCardDates) {
-                dateFrom = (Date) resultValues.get("dateSold");
-                dateTo = (Date) resultValues.get("expireDate");
+                dateFrom = localDateToSqlDate(getLocalDate(resultValues.get("dateSold")));
+                dateTo = localDateToSqlDate(getLocalDate(resultValues.get("expireDate")));
             } else {
                 Calendar calendar = Calendar.getInstance();
                 dateFrom = new Date(calendar.getTime().getTime());

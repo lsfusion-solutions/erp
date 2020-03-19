@@ -51,10 +51,11 @@ import java.math.RoundingMode;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -62,6 +63,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class EquipmentServer extends RmiServer implements EquipmentServerInterface, InitializingBean {
@@ -234,12 +236,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> groupMachineryResult = groupMachineryQuery.execute(session);
 
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MINUTE, -minutes);
-            Timestamp minTime = new Timestamp(cal.getTimeInMillis());
+            LocalDateTime minTime = LocalDateTime.now().minusMinutes(minutes);
             for (ImMap<Object, Object> row : groupMachineryResult.valueIt()) {
                 Integer npp = (Integer) row.get("npp");
-                Timestamp lastErrorTime = (Timestamp) row.get("lastErrorTime");
+                LocalDateTime lastErrorTime = getLocalDateTime(row.get("lastErrorTime"));
                 if (lastErrorTime != null && lastErrorTime.compareTo(minTime) <= 0)
                     result.add(npp);
             }
@@ -1961,10 +1961,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     DataObject transactionObject = result.getKey(i).singleValue();
                     boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
-                    Timestamp lastErrorDate = (Timestamp) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
+                    LocalDateTime lastErrorDate = getLocalDateTime(value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue());
                     String infoMPT = (String) value.get("infoMPT").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), dateTimeMPT, snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
+                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), getLocalDateTime(dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
                 }
             }
 
@@ -1990,10 +1990,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String nameGroupMachinery = (String) transaction[2];
                 DataObject transactionObject = (DataObject) transaction[3];
                 String dateTimeCode = (String) transaction[4];
-                LocalDate date = sqlDateToLocalDate(new Date(((Timestamp) ((DataObject) transaction[5]).getValue()).getTime()));
+                LocalDate date = (LocalDate) transaction[5];
                 boolean snapshotTransaction = (boolean) transaction[6];
                 String descriptionTransaction = (String) transaction[7];
-                LocalDateTime lastErrorDateTransaction = sqlTimestampToLocalDateTime((Timestamp) transaction[8]);
+                LocalDateTime lastErrorDateTransaction = (LocalDateTime) transaction[8];
                 String infoMPT = (String) transaction[9];
 
                 boolean isCashRegisterPriceTransaction = cashRegisterLM != null && transactionObject.objectClass.equals(cashRegisterLM.findClass("CashRegisterPriceTransaction"));
@@ -2160,7 +2160,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
@@ -2182,14 +2182,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
                         String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
                         BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
-                        Timestamp balanceDate = machineryPriceTransactionBalanceLM == null ? null : (Timestamp) row.get("balanceDateMachineryPriceTransactionBarcode");
+                        LocalDateTime balanceDate = machineryPriceTransactionBalanceLM == null ? null : getLocalDateTime(row.get("balanceDateMachineryPriceTransactionBarcode"));
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
-                        Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
+                        LocalDateTime restrictionToDateTime = getLocalDateTime(row.get("restrictionToDateTimeMachineryPriceTransactionBarcode"));
 
-                        CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, sqlDateToLocalDate(expiryDate), passScales, valueVAT,
+                        CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
                                 idSeason, nameSeason, section, deleteSection, minPrice, overIdItemGroup, amountBarcode,
-                                balance, sqlTimestampToLocalDateTime(balanceDate), sqlTimestampToLocalDateTime(restrictionToDateTime), barcodeObject, mainBarcode);
+                                balance, balanceDate, restrictionToDateTime, barcodeObject, mainBarcode);
                         cashRegisterItemInfoList.add(c);
                     }
 
@@ -2256,7 +2256,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
@@ -2275,7 +2275,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal retailPrice = (BigDecimal) row.get("retailPrice");
                         Integer imagesCount = (Integer) row.get("imagesCount");
 
-                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, sqlDateToLocalDate(expiryDate),
+                        scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate,
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
                                 null, description, descriptionNumberCellScales, idUOM, shortNameUOM, info, extraPercent,
                                 retailPrice, imagesCount));
@@ -2321,14 +2321,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
 
                         priceCheckerItemInfoList.add(new PriceCheckerItemInfo(idItem, barcode, name, price, split,
-                                daysExpiry, sqlDateToLocalDate(expiryDate), passScales, valueVAT, pluNumber, flags, null, null, null));
+                                daysExpiry, expiryDate, passScales, valueVAT, pluNumber, flags, null, null, null));
                     }
 
                     transactionList.add(new TransactionPriceCheckerInfo((Long) transactionObject.getValue(), dateTimeCode,
@@ -2380,7 +2380,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        Date expiryDate = (Date) row.get("expiryDateMachineryPriceTransactionBarcode");
+                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
@@ -2388,7 +2388,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
 
                         terminalItemInfoList.add(new TerminalItemInfo(idItem, barcode, name, price, split, daysExpiry,
-                                sqlDateToLocalDate(expiryDate), passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
+                                expiryDate, passScales, valueVAT, pluNumber, flags, null, canonicalNameSkuGroup, null, null, null));
                     }
 
                     List<TerminalAssortment> terminalAssortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, getBusinessLogics(), priceListTypeGroupMachinery, stockGroupTerminal);
@@ -2478,11 +2478,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             try (DataSession session = createSession()) {
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
-                    Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
-                    Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
+                    LocalTime timeFrom = getLocalTime(equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject));
+                    LocalTime timeTo = getLocalTime(equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject));
                     Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
-                    return new EquipmentServerSettings(sqlTimeToLocalTime(timeFrom), sqlTimeToLocalTime(timeTo), delay, sendSalesDelay);
+                    return new EquipmentServerSettings(timeFrom, timeTo, delay, sendSalesDelay);
                 } else return null;
             }
         } catch (Exception e) {

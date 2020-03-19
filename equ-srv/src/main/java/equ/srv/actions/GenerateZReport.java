@@ -50,9 +50,9 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 Integer receiptDetailCount = (Integer) findProperty("averageReceiptDetailCountGenerateZReport[]").read(context);
                 ObjectValue stockObject = findProperty("departmentStoreGenerateZReport[]").readClasses(context);
 
-                Timestamp dateFrom = (Timestamp) findProperty("dateFromGenerateZReport[]").read(context);
+                Timestamp dateFrom = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("dateFromGenerateZReport[]").read(context)));
                 dateFrom = dateFrom == null ? new Timestamp(System.currentTimeMillis()) : dateFrom;
-                Timestamp dateTo = (Timestamp) findProperty("dateToGenerateZReport[]").read(context);
+                Timestamp dateTo = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("dateToGenerateZReport[]").read(context)));
                 dateTo = dateTo == null ? new Timestamp(System.currentTimeMillis()) : dateTo;
 
                 KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
