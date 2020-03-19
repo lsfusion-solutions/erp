@@ -3,7 +3,8 @@ MODULE ImportSupermag;
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
         Document, 
         PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
-        PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, PurchaseOrderStatus, PurchaseSaleOrder,
+        PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, 
+        PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract,
         SaleOrder, SaleOrderStatus,
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
@@ -1148,7 +1149,7 @@ importSupplierPrice 'Импорт ПСЦ' () {
     LOCAL file = FILE ();
             
     //фильтр на отбор ПСЦ
-    filterSql() <- 'cc.'+overfieldDateSupplierPriceList()+' >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberSupplierContract()) > 0 THEN
        filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
                
@@ -1239,7 +1240,6 @@ importSupplierPrice 'Импорт ПСЦ' () {
 
     IMPORT TABLE FROM file() TO type, idDoc, date, specItem, idItem, packSize, price;
 
-    logToFile('importSupermag', 'importPriceListSupplier_9');
 
     id(INTEGER i) <- CONCAT '', 'S', type(i), idDoc(i), specItem(i) WHERE imported(i); 
 
@@ -1247,8 +1247,6 @@ importSupplierPrice 'Импорт ПСЦ' () {
         id(d) <- id(i);
         userPriceList(d) <- userPriceList(idDoc(i));
     }
-
-    logToFile('importSupermag', 'importPriceListSupplier_10');
 
     FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
         sku(d) <- item(idItem(i));  
@@ -1269,6 +1267,168 @@ DESIGN integrationData { contractButtons {
     MOVE PROPERTY (importSupplierPrice()) { caption = 'Импорт ПСЦ из контрактов с поставщиками'; };     
 } }
 
+DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
+
+dateFromSeparation 'Дата с' = DATA DATE ();
+
+importSeparation 'Импорт признаков разделения' () {
+    
+    LOCAL id = STRING[50] (INTEGER);
+    LOCAL idLegalEntity = INTEGER (INTEGER);
+    LOCAL name = STRING[50] (INTEGER);
+    
+    LOCAL file = FILE ();
+    LOCAL filterSql = TEXT ();
+    //фильтр на отбор
+    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberSupplierContract()) > 0 THEN
+       filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
+    
+    // загружаем признаки разделения из свойства "товар" контракта с поставщиком
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT cc.ID, cc.CLIENTINDEX, COALESCE(dl.valstr, cc.title) FROM Supermag.SVDocumentsCO cc, Supermag.SVDocLabels dl WHERE dl.docid(+) = cc.id AND dl.name(+) = \'товар\' AND ' + filterSql() TO file;
+        
+    IMPORT TABLE FROM file() TO id, idLegalEntity, name;
+    
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY id(i)](STRING[100] id) AND NOT separation(id) DO NEW s = Separation {
+        id(s) <- id;
+    }
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY id(ii)](STRING[100] id) AND Separation s = separation(id) DO {
+        name(s) <- name(i);
+        legalEntity(s) <- legalEntity(TEXT (idLegalEntity(i)));
+    }
+    
+    // товары из договора помечаем в признак разделения
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT s.DOCID, s.ARTICLE FROM Supermag.SVSpecCO s, Supermag.SVDocumentsCO cc WHERE s.docid = cc.id AND ' + filterSql() TO file;
+    
+    IMPORT TABLE FROM file() TO id, idItem;
+    
+    dataSeparation(LegalEntity l, Item sk) <- NULL;
+    
+    FOR INTEGER i = [GROUP LAST INTEGER ii IF imported(ii) ORDER DESC id(ii), ii BY idItem(ii)](STRING[100] id) DO {
+        dataSeparation(LegalEntity l, Item sk) <- separation(id(i)) WHERE sk == sku(id) AND l == legalEntity(separation(id(i)));
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importSeparation, dateFromSeparation;
+DESIGN integrationData { supermagButtons { 
+        contractButtons {
+            MOVE PROPERTY (importSeparation()) { caption ='Импорт признаков разделения';};
+        } 
+    } 
+}
+
+scheduleOrderTime (scheduleOrder, orderDOW) = GROUP AGGR ScheduleOrderTime scheduleOrderTime BY scheduleOrder (scheduleOrderTime), orderDOW (scheduleOrderTime);
+
+shipmentSM = DATA STRING (ScheduleOrderTime ) IN id; 
+orderSM = DATA STRING (ScheduleOrderTime ) IN id; 
+
+//--------------------------------------------------------------графики заказов
+importScheduleOrder 'Импорт графиков заказов' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL docId = STRING[50] (INTEGER);
+    LOCAL idSep = STRING[50] (INTEGER);
+    LOCAL idSupplier = INTEGER (INTEGER);
+    LOCAL idCustomer = INTEGER (INTEGER);
+    LOCAL orderDOW = STRING[1] (INTEGER);
+    LOCAL orderDOWM = STRING[1] (INTEGER);
+    LOCAL shipmentDOW = STRING[7] (INTEGER);
+    LOCAL startDate = DATE (INTEGER);
+    LOCAL endDate = DATE (INTEGER);
+    LOCAL days = INTEGER (INTEGER);
+    LOCAL note = STRING[100] (INTEGER);
+    LOCAL shipmentDay = INTEGER (INTEGER);
+    LOCAL idStock = INTEGER (INTEGER);    
+    LOCAL imported = BOOLEAN (Purchase.ScheduleOrder);
+    LOCAL imported = BOOLEAN (Purchase.ScheduleOrderTime);  
+    
+    LOCAL file = FILE ();
+    LOCAL filterSql = TEXT ();
+    //фильтр на отбор
+    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberSupplierContract()) > 0 THEN
+       filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT d.ID, d.DOCTID, q.docco, cc.CLIENTINDEX, ao.client, ao.weekday, q.deliverydays, q.BEGINSAT, q.ENDSAT, ao.dayinterval, dl.valstr FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.scautoorderdoc d, Supermag.scautoorder ao, Supermag.SVDocLabels dl WHERE q.docco = cc.ID AND d.DOCTID = q.ID AND ao.id = d.id AND dl.docid(+) = q.docco AND dl.name(+) = \'товар\' AND ' + filterSql() TO file;
+        
+    IMPORT TABLE FROM file() TO id, docId, idSep, idSupplier, idCustomer, orderDOW, shipmentDOW, startDate, endDate, days, note;
+       
+    FOR [GROUP SUM 1 IF imported(INTEGER i) BY docId(i)](STRING[100] id) AND NOT scheduleOrder(id) DO NEW s = Purchase.ScheduleOrder {
+        id(s) <- id;
+    }
+    
+    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY docId(ii)](STRING[100] id) AND Purchase.ScheduleOrder s = scheduleOrder(id) DO {
+        createUserOrderAuto(s) <- TRUE;
+        id(s) <- docId(i);
+        supplier(s) <- legalEntity(TEXT (idSupplier(i)));
+        supplierStock(s) <- minStock(legalEntity(TEXT (idSupplier(i))));
+        customer(s) <- legalEntity(TEXT (idCustomer(i)));
+        startDate(s) <- startDate(i);
+        endDate(s) <- endDate(i);
+        period(s) <- days(i) / 7;
+        note(s) <- note(i);
+        type(s) <- GenType.genDayMonth;
+        operation(s) <- Purchase.operation('purchaseStoreSupplier');
+        separation(s) <- separation(idSep(i));
+        contractSku(s) <- userContractSku(TEXT (idSep(i)));
+        imported(s) <- TRUE;
+    }
+
+// не работает т.к. в СМ есть различные варианты не подходящие в Fusion, например два дня заказа на один день поставки, или два одинаковых дня заказа на два разных дня поставки
+// задача 2 этапа, в BIGZZ заказ идет через стороннее дополнение к СМ
+
+    // в Супермаге могут быть две записи с одним днем заказа WEEKDAY тогда у нас срабатывает constraint надо выбрать только одну запись 
+//    FOR [GROUP SUM 1 IF imported(INTEGER i) BY docId(i), orderDOW(i)](STRING[57] docId, STRING[1] weekday) AND NOT scheduleOrderTime(scheduleOrder(docId), DOWM(INTEGER (weekday))) DO NEW d = Purchase.ScheduleOrderTime {
+//        scheduleOrder(d) <- scheduleOrder(docId);
+//        orderDOW(d) <- DOWM(INTEGER (weekday));        
+//    }
+//
+//    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY docId(ii), orderDOW(ii)](STRING[57] docId, STRING[1] weekday) AND Purchase.ScheduleOrderTime d = scheduleOrderTime(scheduleOrder(docId), DOWM(INTEGER (weekday))) DO {
+//            shipmentSM(d) <- shipmentDOW(i);
+//            orderSM(d) <- orderDOW(i);
+//            shipmentDay(i) <- GROUP MIN INTEGER j IF right(left(shipmentDOW(i)+shipmentDOW(i), j), 1) == '1' AND iterate(j, INTEGER (orderDOW(i))+1, 14);            
+//            shipmentDay(i) <- shipmentDay(i) - 7 WHERE shipmentDay(i) > 7;              
+//            shipmentDOW(d) <- DOWM(shipmentDay(i));
+//            imported(d) <- TRUE;            
+//    }
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT qd.id, q.ID AS DOCID, cl.locationid FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl, Supermag.scautoorderdoc qd WHERE q.docco = cc.id AND q.id = cl.id AND qd.DOCTID = q.ID AND ' + filterSql() TO file;
+
+    IMPORT TABLE FROM file() TO id, docId, idStock;
+
+    dataIn(Purchase.ScheduleOrder o, Stock st) <- NULL WHERE id(o) AND st IS Stock;
+    
+    FOR Purchase.ScheduleOrder s = scheduleOrder(docId(INTEGER i)) AND Stock st = stock(TEXT (idStock(i))) DO {
+        dataIn(s, st) <- TRUE;
+    }
+    
+    LOCAL endDate = DATE (Purchase.ScheduleOrderTime);
+    LOCAL operation = Purchase.Operation (Purchase.ScheduleOrderTime);
+    
+    endDate(Purchase.ScheduleOrderTime d) <- endDate(scheduleOrder(d));   
+    operation(Purchase.ScheduleOrderTime d) <- operation(scheduleOrder(d));   
+    
+    DELETE Purchase.ScheduleOrderTime d WHERE endDate(d) >= dateFromS() AND operation(d) = Purchase.operation('purchaseStoreSupplier') AND NOT imported(d);
+    DELETE Purchase.ScheduleOrder o WHERE endDate(o) >= dateFromS() AND operation(o) = Purchase.operation('purchaseStoreSupplier') AND NOT imported(o);
+
+    APPLY;
+} 
+
+EXTEND FORM integrationData PROPERTIES () importScheduleOrder;
+DESIGN integrationData { supermagButtons { 
+        contractButtons {
+            MOVE PROPERTY (importScheduleOrder()) { caption = 'Импорт графиков заказов';};
+        } 
+    } 
+}
+
 //---------------------------------------------------------------------------------------------------------акты переоценки
 daysRepricing 'дней для импорта' = DATA INTEGER ();
 dateFromRepricing() = sum(currentDate(), -daysRepricing());
@@ -1286,8 +1446,6 @@ DESIGN Repricing.operation {
 }
 
 lastStatusSupermag '' = DATA INTEGER (UserRepricing);
-
-
 
 importRepricingRetail 'Импорт актов переоценки' () {
     
@@ -1671,7 +1829,6 @@ WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
     include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
     include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
 }
-
 
 //---------------------------------------------------------------------------------------импорт остатков
 scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
@@ -2535,59 +2692,6 @@ DESIGN integrationData {
     supermagButtons { 
         NEW saleWarehouse {
             MOVE PROPERTY (importPurchaseStore());
-        } 
-    } 
-}
-
-DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
-
-dateFromSeparation 'Дата с' = DATA DATE ();
-
-importSeparation 'Импорт признаков разделения' () {
-    
-    LOCAL id = STRING[50] (INTEGER);
-    LOCAL idLegalEntity = INTEGER (INTEGER);
-    LOCAL name = STRING[50] (INTEGER);
-    
-    LOCAL file = FILE ();
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT co.ID, co.CLIENTINDEX, COALESCE(dl.valstr, co.title) FROM Supermag.SVDocumentsCO co, Supermag.SVDocLabels dl WHERE co.CONTRACTTYPE = 0 AND co.DOCSTATE > 0 AND dl.docid(+) = co.id AND dl.name(+) = \'товар\' AND co.ENDSAT >= TO_DATE(\'' 
-        + toDateISO(dateFromSeparation()) + '\',\'YYYY-MM-DD\')' TO file;
-        
-    IMPORT TABLE FROM file() TO id, idLegalEntity, name;
-    
-    FOR [GROUP SUM 1 IF imported(INTEGER i) BY id(i)](STRING[100] id) AND NOT separation(id) DO NEW s = Separation {
-        id(s) <- id;
-    }
-    
-    FOR INTEGER i = [GROUP MIN INTEGER ii IF imported(ii) BY id(ii)](STRING[100] id) AND Separation s = separation(id) DO {
-        name(s) <- name(i);
-        legalEntity(s) <- legalEntity(TEXT (idLegalEntity(i)));
-    }
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT s.DOCID, s.ARTICLE FROM Supermag.SVSpecCO s, Supermag.SVDocumentsCO d WHERE s.docid = d.id AND d.CONTRACTTYPE = 0 AND d.DOCSTATE > 0 AND ENDSAT >= TO_DATE(\'' 
-        + toDateISO(dateFromSeparation()) + '\',\'YYYY-MM-DD\')' TO file;
-    
-    IMPORT TABLE FROM file() TO id, idItem;
-    
-    dataSeparation(LegalEntity l, Item sk) <- NULL;
-    
-    FOR INTEGER i = [GROUP LAST INTEGER ii IF imported(ii) ORDER DESC id(ii), ii BY idItem(ii)](STRING[100] id) DO {
-        dataSeparation(LegalEntity l, Item sk) <- separation(id(i)) WHERE sk == sku(id) AND l == legalEntity(separation(id(i)));
-    }
-    
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES () importSeparation, dateFromSeparation;
-DESIGN integrationData { 
-    supermagButtons { 
-        NEW separation {
-            type = CONTAINERH;
-            MOVE PROPERTY (importSeparation());
-            MOVE PROPERTY (dateFromSeparation()) { alignment = CENTER; }
         } 
     } 
 }
