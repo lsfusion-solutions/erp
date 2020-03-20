@@ -227,7 +227,7 @@ public class MachineryExchangeEquipmentServer {
 
     private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
-        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getWriteDate(LocalDateTime.now()), session, errorObject);
+        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
         OutputStream os = new ByteArrayOutputStream();
         t.printStackTrace(new PrintStream(os));
         machineryPriceTransactionLM.findProperty("erTrace[RequestExchangeError]").change(os.toString(), session, errorObject);
