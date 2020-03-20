@@ -1457,8 +1457,10 @@ importRepricingRetail 'Импорт актов переоценки' () {
     LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserRepricing);
     LOCAL filterSql = TEXT ();
-                                                                                                                                                             // a.Reason = 0 переоценка по приходу, у нас акт расценки               
+                                                                                                                                                                                   // a.Reason = 0 переоценка по приходу, у нас акт расценки               
     filterSql () <- 'd.location IN ('+ ImportSupermag.stocks() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(ImportSupermag.dateFromRepricing()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0';
+    IF length(numberSupplierContract()) > 0 THEN
+       filterSql() <- 'd.id = \'' + numberSupplierContract() + '\''; 
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
@@ -1485,9 +1487,8 @@ importRepricingRetail 'Импорт актов переоценки' () {
         note(rep) <- comment(i);
         departmentStore(rep) <- departmentStore(TEXT (idStore(i)));
         imported(rep) <- TRUE;
-//        isPosted(rep) <- CASE WHEN NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN docstate(i) = 3
-//                              WHEN NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN docstate(i) = 3
-        IF NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN isPosted(rep) <- docstate(i) = 3;
+        IF NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN isPosted(rep) <- NULL;
+        IF NOT lastStatusSupermag(rep) = docstate(i) AND docstate(i) < 3 THEN isClosed(rep) <- NULL;
         lastStatusSupermag(rep) <- docstate(i);
     }
     
@@ -1526,7 +1527,6 @@ importRepricingRetail 'Импорт актов переоценки' () {
         quantity(d) <- quantity(i);
         curRetailPrice(d) <- oldPrice(i);
         retailPrice(d) <- price(i);
-//        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) IF actReason(i) > 0 WHERE t == dataPriceListType(TEXT (priceType(i)));
         imported(d) <- TRUE;
         dataIndex(d) <- specItem(i);
     }
@@ -1535,7 +1535,22 @@ importRepricingRetail 'Импорт актов переоценки' () {
 //        DELETE UserRepricing p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
 //        DELETE UserRepricingDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
 //    }
-    APPLY;
+
+    // импорт документов оснований
+    LOCAL baseId = ISTRING[50] (INTEGER);
+    LOCAL baseType = ISTRING[50] (INTEGER);
+    
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXEC 'Select d.ID, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql() TO file;
+        
+    IMPORT TABLE FROM file() TO id, baseId, baseType;
+    
+    FOR id(INTEGER i) AND (baseType(i) = 'AB' OR baseType(i) = 'MA') DO {  
+        basisDoc(Repricing.UserRepricing o, Document d) <- NULL WHERE o = Repricing.userRepricing(id(i));
+        basisDoc(Repricing.UserRepricing o, Document d) <- TRUE WHERE o = Repricing.userRepricing(id(i)) AND d = userPriceList(baseId(i)); 
+    }
+
+    APPLY;       
 }
 
 EXTEND FORM integrationData PROPERTIES () importRepricingRetail, daysRepricing;
@@ -1687,8 +1702,12 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL imported = BOOLEAN (UserPriceList);
     
     LOCAL file = FILE ();
+    LOCAL filterSql = TEXT ();
+    
+    filterSql() <- 'DATEEND >= TO_DATE(\'' + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND ma.DOCSTATE IN (0,2,3)';
+      
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ID, CREATEDAT, DATEBEGIN, DATEEND, DOCSTATE, NAME FROM Supermag.SVDocumentsMA WHERE DATEEND >= TO_DATE(\'' + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND DOCSTATE > 0' TO file;
+        EXEC 'SELECT ma.ID, ma.CREATEDAT, ma.DATEBEGIN, ma.DATEEND, ma.DOCSTATE, NAME FROM Supermag.SVDocumentsMA ma WHERE ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO id, date, begin, end, posted, name;
     
@@ -1721,9 +1740,8 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA a WHERE d.DOCID = a.id AND a.DATEEND >= TO_DATE(\''
-            + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\') AND a.DOCSTATE > 0' TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+            EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
     
@@ -1745,8 +1763,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL idStock = INTEGER (INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA d WHERE a.AUCID = d.id AND d.DATEEND >= TO_DATE(\'' 
-        + toDateISO(dateFromPromotion()) + '\',\'YYYY-MM-DD\')' TO file;
+        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA ma WHERE a.AUCID = ma.id AND ' + filterSql()  TO file;
     
     IMPORT TABLE FROM file() TO idDoc, idStock;
        
