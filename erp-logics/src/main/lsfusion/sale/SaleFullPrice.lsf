@@ -182,13 +182,15 @@ WHEN LOCAL FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail]
     fullPrice(d) <- fullPrevList(pt, d);    
 }
 
-// при изменении полной цены пересчитывается цена 
+// при изменении полной цены пересчитывается цена
+skipRecalculateDiscountPrice = ABSTRACT BOOLEAN (InvoiceDetail);
 WHEN LOCAL //FORMS userInvoice 
         GOAFTER valueVAT[UserInvoiceDetail] 
         (CHANGED(fullPrice(UserInvoiceDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
          AND showFullPrice(invoice(d))
-         AND isItem(sku(d)) DO {
+         AND isItem(sku(d))
+         AND NOT skipRecalculateDiscountPrice(d) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -198,7 +200,8 @@ WHEN LOCAL FORMS userInvoice
         (CHANGED(percDiscount(UserInvoiceDetail d)))
          AND NOT CHANGED(price(d)) 
          AND showFullPrice(invoice(d))
-         AND fullPrice(d) AND isItem(sku(d)) DO {
+         AND fullPrice(d) AND isItem(sku(d))
+         AND NOT skipRecalculateDiscountPrice(d) DO {
     recalculateDiscountPrice(d);
 }
 
