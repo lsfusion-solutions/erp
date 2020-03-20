@@ -32,8 +32,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
-import static equ.srv.EquipmentServer.sqlDateToLocalDate;
-import static equ.srv.EquipmentServer.sqlTimestampToLocalDateTime;
+import static equ.srv.EquipmentServer.*;
 import static lsfusion.base.BaseUtils.trimToNull;
 
 public class TerminalServer extends MonitorServer {
@@ -464,8 +463,8 @@ public class TerminalServer extends MonitorServer {
                                                 String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
-                                                        priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
-                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
+                                                        priceDocumentDetail, commentDocumentDetail, localDateTimeToSqlTimestamp(parseTimestamp(dateDocumentDetail)),
+                                                        localDateToSqlDate(parseDate(extraDate1DocumentDetail)), localDateToSqlDate(parseDate(extraDate2DocumentDetail)), extraField1DocumentDetail,
                                                         extraField2DocumentDetail, extraField3DocumentDetail, parentDocument));
                                             }
                                         }
