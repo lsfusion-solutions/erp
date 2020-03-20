@@ -22,9 +22,12 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportTNVEDClassifierAction extends InternalAction {
 
@@ -68,7 +71,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
             int recordCount = dbfFile.getRecordCount();
 
             BigDecimal defaultVAT = new BigDecimal(20);
-            Date defaultDate = new Date(2001 - 1900, 0, 1);
+            LocalDate defaultDate = LocalDate.of(2001, 1, 1);
 
 
             for (int i = 1; i <= recordCount; i++) {
@@ -83,7 +86,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
                     groupID = "-" + i;
                     hasCode = null;
                 }
-                data.add(Arrays.asList(groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, defaultDate));
+                data.add(Arrays.asList(groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, getWriteDate(defaultDate)));
             }
         } finally {
             if(dbfFile != null)

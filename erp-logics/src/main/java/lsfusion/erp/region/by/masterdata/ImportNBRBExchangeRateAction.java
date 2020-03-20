@@ -10,7 +10,6 @@ import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
-import org.apache.commons.lang3.time.DateUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,10 +18,10 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,7 +80,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
         List<List<Object>> data = new ArrayList<>();
         for (Exchange e : exchangesList) {
-            data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
+            data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), getWriteDate(e.date)));
         }
         ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
                 homeCurrencyField, rateField, foreignRateField, dateField), data);
@@ -116,7 +115,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
                     BigDecimal rate = exchangeNode.getBigDecimal("Cur_OfficialRate");
 
-                    exchangesList.add(new Exchange(charCode, "BYN", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), "yyyy-MM-dd'T'HH:mm:ss").getTime()),
+                    exchangesList.add(new Exchange(charCode, "BYN", LocalDateTime.parse(exchangeNode.getString("Date"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")).toLocalDate(),
                             safeDivide(rate, scale, 6)));
                 }
                 if (exchangesList.size() > 0)

@@ -2,22 +2,21 @@ package lsfusion.erp.integration.image;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.logics.classes.data.time.DateTimeClass;
-import lsfusion.server.logics.classes.data.file.ImageClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.file.ImageClass;
+import lsfusion.server.logics.classes.data.time.DateTimeClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.Calendar;
+import java.time.LocalDateTime;
 import java.util.Iterator;
 
 public class UploadImageArticleFromURLAction extends DefaultImageArticleAction {
@@ -40,9 +39,8 @@ public class UploadImageArticleFromURLAction extends DefaultImageArticleAction {
             String urlImageArticle = (String) findProperty("urlImage[Article]").read(context, articleObject);
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
-                Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
                 findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
-                findProperty("timeChangedImage[Article]").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
+                findProperty("timeChangedImage[Article]").change(new DataObject(getWriteDateTime(LocalDateTime.now()), DateTimeClass.instance), context, articleObject);
                 if(!imageFile.delete())
                     imageFile.deleteOnExit();
 

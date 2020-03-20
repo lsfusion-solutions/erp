@@ -1,15 +1,15 @@
 package lsfusion.erp.region.by.masterdata;
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 
 public class Exchange {
     String currencyID;
     String homeCurrencyID;
-    Date date;
+    LocalDate date;
     BigDecimal exchangeRate;
 
-    public Exchange(String currencyID, String homeCurrencyID, Date date, BigDecimal exchangeRate) {
+    public Exchange(String currencyID, String homeCurrencyID, LocalDate date, BigDecimal exchangeRate) {
         this.currencyID = currencyID;
         this.homeCurrencyID = homeCurrencyID;
         this.date = date;

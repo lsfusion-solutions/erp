@@ -7,41 +7,37 @@ import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashierInfo;
 import equ.api.cashregister.DiscountCard;
 import equ.api.terminal.TerminalOrder;
-import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.ConcreteClass;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.data.integral.LongClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.ConcreteClass;
+import lsfusion.server.logics.classes.data.integral.LongClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
-import static equ.srv.EquipmentServer.localDateToSqlDate;
-import static equ.srv.EquipmentServer.sqlDateToLocalDate;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class MachineryExchangeEquipmentServer {
@@ -231,7 +227,7 @@ public class MachineryExchangeEquipmentServer {
 
     private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
-        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
+        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getWriteDate(LocalDateTime.now()), session, errorObject);
         OutputStream os = new ByteArrayOutputStream();
         t.printStackTrace(new PrintStream(os));
         machineryPriceTransactionLM.findProperty("erTrace[RequestExchangeError]").change(os.toString(), session, errorObject);
@@ -244,17 +240,13 @@ public class MachineryExchangeEquipmentServer {
                 for (Long request : succeededRequestsSet) {
                     DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
                     machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getWriteDateTime(LocalDateTime.now()), session, requestExchangeObject);
                 }
                 session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }
-    }
-
-    protected static Timestamp getCurrentTimestamp() {
-        return DateConverter.dateToStamp(Calendar.getInstance().getTime());
     }
 
     public static List<DiscountCard> readDiscountCardList(EquipmentServer server, RequestExchange requestExchange) {
@@ -292,7 +284,7 @@ public class MachineryExchangeEquipmentServer {
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
 
                 if(requestExchange.startDate != null)
-                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(localDateToSqlDate(requestExchange.startDate), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(getWriteDate(requestExchange.startDate), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
 
                 ObjectValue requestExchangeType = machineryPriceTransactionDiscountCardLM.findProperty("discountCardType[RequestExchange]").readClasses(session, requestExchangeObject);
                 if(requestExchangeType instanceof DataObject) {
@@ -394,10 +386,10 @@ public class MachineryExchangeEquipmentServer {
                 }
                 if (requestExchange.dateFrom != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(localDateToSqlDate(requestExchange.dateFrom), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                            new DataObject(getWriteDate(requestExchange.dateFrom), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
                 if (requestExchange.dateTo != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(localDateToSqlDate(requestExchange.dateTo), DateClass.instance).getExpr(), Compare.LESS_EQUALS));
+                            new DataObject(getWriteDate(requestExchange.dateTo), DateClass.instance).getExpr(), Compare.LESS_EQUALS));
                 if (requestExchange.idStock != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
                             purchaseInvoiceAgreementLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));

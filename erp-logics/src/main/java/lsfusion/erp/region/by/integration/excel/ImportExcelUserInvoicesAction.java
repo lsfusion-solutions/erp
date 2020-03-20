@@ -1,23 +1,23 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
+import jxl.Sheet;
+import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.UserInvoiceDetail;
-import jxl.Sheet;
-import jxl.read.biff.BiffException;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,7 +54,7 @@ public class ImportExcelUserInvoicesAction extends ImportExcelAction {
         for (int i = 1; i < sheet.getRows(); i++) {
             String seriesUserInvoice = parseString(sheet.getCell(0, i));
             String numberUserInvoice = parseString(sheet.getCell(1, i));
-            Date dateUserInvoice = parseDateValue(sheet.getCell(2, i));
+            LocalDate dateUserInvoice = sqlDateToLocalDate(parseDateValue(sheet.getCell(2, i)));
             String idItem = parseString(sheet.getCell(3, i));
             BigDecimal quantity = parseBigDecimal(sheet.getCell(4, i));
             String supplier = parseString(sheet.getCell(5, i));

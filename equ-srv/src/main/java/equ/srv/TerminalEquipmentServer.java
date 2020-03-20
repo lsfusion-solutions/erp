@@ -26,14 +26,16 @@ import lsfusion.server.logics.property.oraction.PropertyInterface;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.*;
+import java.util.Map;
 
 import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class TerminalEquipmentServer {
@@ -137,7 +139,7 @@ public class TerminalEquipmentServer {
         ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
         if (machineryPriceTransactionLM != null) {
 
-            DataObject currentDateTimeObject = new DataObject(new Timestamp(Calendar.getInstance().getTime().getTime()), DateTimeClass.instance);
+            DataObject currentDateTimeObject = new DataObject(getWriteDate(LocalDateTime.now()), DateTimeClass.instance);
 
             KeyExpr skuExpr = new KeyExpr("Sku");
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");

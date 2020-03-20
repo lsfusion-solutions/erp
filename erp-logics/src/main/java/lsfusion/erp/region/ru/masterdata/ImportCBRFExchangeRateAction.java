@@ -12,7 +12,6 @@ import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
-import org.apache.commons.lang3.time.DateUtils;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -21,7 +20,6 @@ import org.jdom.input.SAXBuilder;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -32,6 +30,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportCBRFExchangeRateAction extends InternalAction {
     private final ClassPropertyInterface currencyInterface;
@@ -102,7 +101,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
         List<List<Object>> data = new ArrayList<>();
         for (Exchange e : exchangesList) {
-            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
+            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), getWriteDate(e.date)));
         }
         ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
                 homeCurrencyField, rateField, foreignRateField, dateField), data);
@@ -144,8 +143,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
                     BigDecimal value = new BigDecimal(Double.valueOf(exchangeNode.getChildText("Value").replace(",", ".")) / Double.valueOf(exchangeNode.getChildText("Nominal")));
 
                     exchangesList.add(new Exchange(shortNameCurrency, "RUB",
-                            new Date(DateUtils.parseDate(exchangeNode.getAttributeValue("Date"), "dd.MM.yyyy").getTime()),
-                            value));
+                            LocalDate.parse(exchangeNode.getAttributeValue("Date"), DateTimeFormatter.ofPattern("dd.MM.yyyy")), value));
                 }
                 if (exchangesList.size() > 0)
                     return exchangesList;

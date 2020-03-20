@@ -21,7 +21,7 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -115,7 +115,7 @@ public class ExportExcelItemsAction extends ExportExcelAction {
                 BigDecimal vatWare = wareItemObject == null || countryItemObject == null ? null : (BigDecimal) findProperty("valueVAT[Ware,Country]").read(context, wareItemObject, countryItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
-                DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
+                DataObject dateObject = new DataObject(getWriteDate(LocalDate.now()), DateClass.instance);
                 BigDecimal vatItem = (BigDecimal) findProperty("valueVAT[Item,Country,DATE]").read(context, itemObject, countryItemObject, dateObject);
                 String nameCountry = trim((String) findProperty("name[Country]").read(context, countryItemObject), "");
 

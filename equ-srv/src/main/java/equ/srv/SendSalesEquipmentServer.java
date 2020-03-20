@@ -25,15 +25,13 @@ import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static equ.srv.EquipmentServer.*;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
@@ -237,11 +235,11 @@ public class SendSalesEquipmentServer {
                     if (cashDocument.sumCashDocument != null) {
                         String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + cashDocument.dateCashDocument.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
                         if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
-                            dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, localDateToSqlDate(cashDocument.dateCashDocument),
-                                    localTimeToSqlTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
+                            dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, getWriteDate(cashDocument.dateCashDocument),
+                                    getWriteTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
                         else
-                            dataOutcome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, localDateToSqlDate(cashDocument.dateCashDocument),
-                                    localTimeToSqlTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
+                            dataOutcome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, getWriteDate(cashDocument.dateCashDocument),
+                                    getWriteTime(cashDocument.timeCashDocument), cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate(), cashDocument.idEmployee, idZReport));
                     }
                 }
 
@@ -293,8 +291,8 @@ public class SendSalesEquipmentServer {
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(zReportExpr));
                 }
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(localDateToSqlDate(dateFrom), DateClass.instance), Compare.GREATER_EQUALS));
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(localDateToSqlDate(dateTo), DateClass.instance), Compare.LESS_EQUALS));
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(getWriteDate(dateFrom), DateClass.instance), Compare.GREATER_EQUALS));
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(getWriteDate(dateTo), DateClass.instance), Compare.LESS_EQUALS));
                 query.and(zReportLM.findProperty("departmentStore[ZReport]").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
                 query.and(zReportLM.findProperty("number[ZReport]").getExpr(zReportExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
@@ -302,10 +300,9 @@ public class SendSalesEquipmentServer {
                     String numberZReport = trim((String) entry.get("numberZReport"));
                     Integer numberCashRegisterZReport = (Integer) entry.get("numberCashRegisterZReport");
                     BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport");
-                    Date dateZReport = (Date) entry.get("dateZReport");
+                    LocalDate dateZReport = getLocalDate(entry.get("dateZReport"));
                     String nameDepartmentStore = (String) entry.get("nameDepartmentStore");
-                    zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList(sumZReport,
-                            dateZReport, nameDepartmentStore));
+                    zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList(sumZReport, dateZReport, nameDepartmentStore));
                 }
 
                 session.applyException(BL, stack);
@@ -368,7 +365,7 @@ public class SendSalesEquipmentServer {
                     Object message = entry.get(1);
                     DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
                     ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
-                    machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(EquipmentServer.getCurrentTimestamp(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(getWriteDateTime(LocalDateTime.now()), session, logObject);
                     machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change((String)message, session, logObject);
                     machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject, session, logObject);
                     machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);

@@ -1,23 +1,23 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -30,6 +30,8 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.*;
+
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
     private static final String charset = "Cp866";
@@ -134,9 +136,9 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
                     Date dateTo = new Date(DateUtils.parseDate(dateToValue, "yyyyMMdd").getTime());
                     if (type.equals(4)) {
                         if (codeCustomsGroup.length() == 10)
-                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
+                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, getWriteDate(dateFrom), getWriteDate(dateTo)));
                         else
-                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
+                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, getWriteDate(dateFrom), getWriteDate(dateTo)));
                     }
                 }
             }

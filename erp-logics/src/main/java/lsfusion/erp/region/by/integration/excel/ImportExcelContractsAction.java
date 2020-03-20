@@ -1,17 +1,17 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import com.google.common.base.Throwables;
+import jxl.Sheet;
+import jxl.read.biff.BiffException;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.Contract;
 import lsfusion.erp.integration.ImportAction;
 import lsfusion.erp.integration.ImportData;
-import jxl.Sheet;
-import jxl.read.biff.BiffException;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.sql.Date;
@@ -59,8 +59,8 @@ public class ImportExcelContractsAction extends ImportExcelAction {
             Date dateFromContract = parseDateValue(sheet.getCell(3, i));
             Date dateToContract = parseDateValue(sheet.getCell(4, i));
             String shortNameCurrency = parseString(sheet.getCell(5, i));
-            data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, dateFromContract,
-                    dateToContract, shortNameCurrency, null, null, null));
+            data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, sqlDateToLocalDate(dateFromContract),
+                    sqlDateToLocalDate(dateToContract), shortNameCurrency, null, null, null));
         }
 
         return data;

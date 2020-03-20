@@ -23,6 +23,8 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +32,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
+import static equ.srv.EquipmentServer.sqlDateToLocalDate;
+import static equ.srv.EquipmentServer.sqlTimestampToLocalDateTime;
 import static lsfusion.base.BaseUtils.trimToNull;
 
 public class TerminalServer extends MonitorServer {
@@ -211,7 +215,7 @@ public class TerminalServer extends MonitorServer {
         return value;
     }
 
-    private Timestamp parseTimestamp(String value) {
+    private LocalDateTime parseTimestamp(String value) {
         Timestamp timestamp;
         try {
             timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, "yyyy-MM-dd HH:mm:ss").getTime());
@@ -219,10 +223,10 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
         }
-        return timestamp;
+        return sqlTimestampToLocalDateTime(timestamp);
     }
 
-    private Date parseDate(String value) {
+    private LocalDate parseDate(String value) {
         Date date;
         try {
             date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss").getTime());
@@ -230,7 +234,7 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing date failed: " + value, e);
             date = null;
         }
-        return date;
+        return sqlDateToLocalDate(date);
     }
 
 

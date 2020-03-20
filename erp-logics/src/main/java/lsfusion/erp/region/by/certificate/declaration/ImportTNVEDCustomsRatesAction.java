@@ -1,22 +1,22 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.base.file.RawFileData;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
@@ -28,7 +28,10 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.*;
+
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportTNVEDCustomsRatesAction extends InternalAction {
 
@@ -199,10 +202,10 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
                             registrationMap.put(codeCustomsGroup, stav_a);
                         break;
                     case 2:
-                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */dateFrom, dateTo));
+                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */getWriteDate(dateFrom), getWriteDate(dateTo)));
                         break;
                     case 4:
-                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, null, null, null, stav_a, dateFrom, dateTo));
+                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, null, null, null, stav_a, getWriteDate(dateFrom), getWriteDate(dateTo)));
                         break;
                 }
             }
@@ -213,13 +216,13 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
                 tempFile.deleteOnExit();
         }
         
-        Date defaultDateFrom = new Date(2010 - 1900, 0, 1);
-        Date defaultDateTo = new Date(2040 - 1900, 11, 31);
+        LocalDate defaultDateFrom = LocalDate.of(2001, 1, 1);
+        LocalDate defaultDateTo = LocalDate.of(2040, 12, 31);
 
         for (String tnved : tnvedSet) {
             List<Object> entry = dataVATMap.get(tnved);
             dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + defaultDateTo : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
-                    entry == null ? defaultDateFrom : entry.get(6), entry == null ? defaultDateTo : entry.get(7)));
+                    entry == null ? defaultDateFrom : entry.get(6), getWriteDate(entry == null ? defaultDateTo : entry.get(7))));
         }
         return Arrays.asList(dataDuty, dataVAT);
     }

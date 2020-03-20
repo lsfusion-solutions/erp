@@ -2,7 +2,7 @@ package lsfusion.erp.integration;
 
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 
 public class UserInvoiceDetail {
     public String idUserInvoice;
@@ -11,7 +11,7 @@ public class UserInvoiceDetail {
     public Boolean createPricing;
     public Boolean createShipment;
     public String idUserInvoiceDetail;
-    public Date date;
+    public LocalDate date;
     public String idItem;
     public Boolean isWare;
     public BigDecimal quantity;
@@ -32,11 +32,11 @@ public class UserInvoiceDetail {
     public String certificateText;
     public String idContract;
     public String numberDeclaration;
-    public Date dateDeclaration;
+    public LocalDate dateDeclaration;
     public String numberCompliance;
-    public Date fromDateCompliance;
-    public Date toDateCompliance;
-    public Date expiryDate;
+    public LocalDate fromDateCompliance;
+    public LocalDate toDateCompliance;
+    public LocalDate expiryDate;
     public String idBin;
     public BigDecimal rateExchange;
     public BigDecimal homePrice;
@@ -49,21 +49,21 @@ public class UserInvoiceDetail {
     public String codeCustomsGroup;
     public BigDecimal retailVAT;
     public String numberTrip;
-    public Date dateTrip;
+    public LocalDate dateTrip;
 
 
     public UserInvoiceDetail(String idUserInvoice, String series, String number, Boolean createPricing,
-                             Boolean createShipment, String idUserInvoiceDetail, Date date, String idItem, Boolean isWare,
+                             Boolean createShipment, String idUserInvoiceDetail, LocalDate date, String idItem, Boolean isWare,
                              BigDecimal quantity, String idSupplier, String idCustomerStock, String idSupplierStock,
                              BigDecimal price, BigDecimal shipmentPrice, BigDecimal shipmentSum, BigDecimal chargePrice,
                              BigDecimal manufacturingPrice, BigDecimal manufacturingMarkup, BigDecimal wholesalePrice,
                              BigDecimal wholesaleMarkup, BigDecimal retailPrice, BigDecimal retailMarkup, String contractPrice,
-                             String certificateText, String idContract, String numberDeclaration, Date dateDeclaration,
-                             String numberCompliance, Date fromDateCompliance, Date toDateCompliance, Date expiryDate,
+                             String certificateText, String idContract, String numberDeclaration, LocalDate dateDeclaration,
+                             String numberCompliance, LocalDate fromDateCompliance, LocalDate toDateCompliance, LocalDate expiryDate,
                              String idBin, BigDecimal rateExchange, BigDecimal homePrice, BigDecimal priceDuty,
                              BigDecimal priceCompliance, BigDecimal priceRegistration, BigDecimal chargeSum,
                              Boolean isHomeCurrency, String shortNameCurrency, String codeCustomsGroup, 
-                             BigDecimal retailVAT, String numberTrip, Date dateTrip) {
+                             BigDecimal retailVAT, String numberTrip, LocalDate dateTrip) {
         this.idUserInvoice = idUserInvoice;
         this.series = series;
         this.number = number;

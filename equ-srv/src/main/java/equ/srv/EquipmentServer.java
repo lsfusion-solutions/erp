@@ -53,6 +53,7 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -452,7 +453,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
-    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, ExecutionException {
+    private String importSalesInfoMultiThread(final ExecutionStack stack, final String sidEquipmentServer, final String directory, final List<SalesInfo> salesInfoList, EquipmentServerOptions options) throws ExecutionException {
         String result = null;
 
         if (options.numberAtATime == null) {
@@ -523,7 +524,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         try (DataSession session = createSession()) {
             logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
-            Timestamp timeStart = getCurrentTimestamp();
+            LocalDateTime timeStart = LocalDateTime.now();
 
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
 
@@ -933,7 +934,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList = SendSalesEquipmentServer.readAllowReceiptsAfterDocumentsClosedDateCashRegisterList(this);
 
-                Timestamp timeStart = getCurrentTimestamp();
+                LocalDateTime timeStart = LocalDateTime.now();
 
                 int finish = (start + options.numberAtATime) < salesInfoList.size() ? (start + options.numberAtATime) : salesInfoList.size();
 
@@ -1389,12 +1390,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
             equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
-            equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
+            equLM.findProperty("date[EquipmentServerLog]").change(LocalDateTime.now(), session, logObject);
             return session.applyMessage(getBusinessLogics(), stack);
         }
     }
 
-    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, int taskIndex, int taskSize, Timestamp timeStart, String directory) {
+    private String formatCompleteMessageMultiThread(DataSession session, List<SalesInfo> salesInfoList, int start, int finish, int dataSize, int left, int taskIndex, int taskSize, LocalDateTime timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1413,7 +1414,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return formatCompleteMessage(session, nppCashRegisterMap, dates, fileNames, dataSize, left, timeStart, directory, String.format("Задание %s из %s. ", taskIndex + 1, taskSize));
     }
 
-    private String formatCompleteMessageSingleThread(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String directory) {
+    private String formatCompleteMessageSingleThread(DataSession session, List<SalesInfo> data, int dataSize, int left, LocalDateTime timeStart, String directory) {
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -1432,10 +1433,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private String formatCompleteMessage(DataSession session, Map<Integer, Set<Integer>> nppCashRegisterMap, Set<String> dates, List<String> fileNames,
-                                         int dataSize, int left, Timestamp timeStart, String directory, String prefix) {
-        Timestamp timeFinish = getCurrentTimestamp();
+                                         int dataSize, int left, LocalDateTime timeStart, String directory, String prefix) {
+        LocalDateTime timeFinish = LocalDateTime.now();
         String message = String.format("%sЗатрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
-                prefix, (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
+                prefix, Duration.between(timeStart, timeFinish).getSeconds(), formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
 
         String conflicts = session.getLastAttemptCountMap();
         if(conflicts != null)
@@ -1505,7 +1506,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
             equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
             equLM.findProperty("data[MachineryPriceTransactionError]").change(e.toString(), session, errorObject);
-            equLM.findProperty("date[MachineryPriceTransactionError]").change(getCurrentTimestamp(), session, errorObject);
+            equLM.findProperty("date[MachineryPriceTransactionError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
 
             DataObject transactionObject = session.getDataObject(((CustomClass) equLM.findClass("MachineryPriceTransaction")), transactionID);
             boolean logStackTrace = equLM.findProperty("logStackTrace[MachineryPriceTransaction]").read(session, transactionObject) != null;
@@ -1533,7 +1534,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             exception.printStackTrace(new PrintStream(os));
             equLM.findProperty("erTrace[EquipmentServerError]").change(os.toString(), session, errorObject);
 
-            equLM.findProperty("date[EquipmentServerError]").change(getCurrentTimestamp(), session, errorObject);
+            equLM.findProperty("date[EquipmentServerError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
 
             session.applyException(getBusinessLogics(), getStack());
         } catch (Exception e) {
@@ -1541,9 +1542,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
 
-    private String dateTimeCode(Timestamp timeStamp) {
+    private String dateTimeCode(LocalDateTime timeStamp) {
         String result = "";
-        long time = timeStamp.getTime() / 1000;
+        long time = localDateTimeToSqlTimestamp(timeStamp).getTime() / 1000;
         while (time > 26) {
             result = (char) (time % 26 + 97) + result;
             time = time / 26;
@@ -1568,12 +1569,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return value != null && !value.isEmpty();
     }
     
-    protected String formatDateTime(Timestamp date) {
-        return new SimpleDateFormat("dd.MM.yyyy hh:mm:ss").format(date);
-    }
-    
-    public static Timestamp getCurrentTimestamp() {
-        return DateConverter.dateToStamp(Calendar.getInstance().getTime());
+    protected String formatDateTime(LocalDateTime date) {
+        return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
     }
 
     private static Comparator<SalesInfo> COMPARATOR = (o1, o2) -> {
@@ -1964,7 +1961,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     LocalDateTime lastErrorDate = getLocalDateTime(value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue());
                     String infoMPT = (String) value.get("infoMPT").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode((Timestamp) dateTimeMPT.getValue()), getLocalDateTime(dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
+                            dateTimeCode(getLocalDateTime(dateTimeMPT.getValue())), getLocalDateTime(dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
                 }
             }
 
@@ -2104,7 +2101,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if (isCashRegisterPriceTransaction) {
 
-                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
+                    LocalDate startDateGroupCashRegister = getLocalDate(cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject));
                     boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
                     String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idStock[GroupCashRegister]").read(session, groupMachineryObject);
@@ -2143,7 +2140,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 null, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
-                                sqlDateToLocalDate(startDateGroupCashRegister), overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
+                                startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
                     }
 
@@ -2420,7 +2417,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
                 equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
-                equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session, transactionObject);
+                equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(getWriteDateTime(dateTime), session, transactionObject);
                 session.applyException(getBusinessLogics(), getStack());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2433,7 +2430,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = createSession()) {
                 DataObject transactionObject = session.getDataObject((CustomClass)equLM.findClass("MachineryPriceTransaction"), transactionId);
-                machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session, transactionObject);
+                machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(getWriteDateTime(dateTime), session, transactionObject);
                 session.applyException(getBusinessLogics(), getStack());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2458,7 +2455,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             if (!alreadySucceeded) {
                                 machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
                                         (DataObject) machineryObject, transactionObject);
-                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(localDateTimeToSqlTimestamp(dateTime), session,
+                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(getWriteDateTime(dateTime), session,
                                         (DataObject) machineryObject, transactionObject);
                             }
                         }
@@ -2507,8 +2504,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         BigDecimal discount = barcodePart != null ? barcodePart.discountSum : sale.discountSumReceiptDetail;
 
         List<Object> row = new ArrayList<>(Arrays.asList(sale.nppGroupMachinery, sale.nppMachinery, getIdZReport(sale, options),
-                sale.numberZReport, localDateToSqlDate(sale.dateZReport), localTimeToSqlTime(sale.timeZReport), sumCashEnd, sumProtectedEnd, sumBack, true,
-                getIdReceipt(sale, options), sale.numberReceipt, localDateToSqlDate(sale.dateReceipt), localTimeToSqlTime(sale.timeReceipt), sale.skipReceipt ? true : null,
+                sale.numberZReport, getWriteDate(sale.dateZReport), getWriteTime(sale.timeZReport), sumCashEnd, sumProtectedEnd, sumBack, true,
+                getIdReceipt(sale, options), sale.numberReceipt, getWriteDate(sale.dateReceipt), getWriteTime(sale.timeReceipt), sale.skipReceipt ? true : null,
                 sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
                 idReceiptDetail, sale.numberReceiptDetail, barcodePart != null ? barcodePart.id : barcode));
 

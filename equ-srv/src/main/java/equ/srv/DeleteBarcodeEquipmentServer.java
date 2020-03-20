@@ -28,9 +28,11 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static lsfusion.base.BaseUtils.trim;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
 
 class DeleteBarcodeEquipmentServer {
 
@@ -105,7 +107,7 @@ class DeleteBarcodeEquipmentServer {
             ObjectValue groupMachineryObject = deleteBarcodeLM.findProperty("groupMachineryNpp[INTEGER]").readClasses(session, new DataObject(nppGroupMachinery));
             deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcodeError]").change(groupMachineryObject, session, errorObject);
             deleteBarcodeLM.findProperty("data[DeleteBarcodeError]").change(exception.toString(), session, errorObject);
-            deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(DateConverter.dateToStamp(Calendar.getInstance().getTime()), session, errorObject);
+            deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             exception.printStackTrace(new PrintStream(os));
             deleteBarcodeLM.findProperty("errorTrace[DeleteBarcodeError]").change(os.toString(), session, errorObject);

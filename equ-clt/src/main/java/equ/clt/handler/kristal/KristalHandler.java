@@ -646,10 +646,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 List<Object> fusionEntry = zReportSumMap.get(key);
                                 BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
                                 fusionSum = fusionSum == null ? null : fusionSum.setScale(2, RoundingMode.HALF_UP);
-                                Date fusionDate = (Date) fusionEntry.get(1);
+                                LocalDate fusionDate = (LocalDate) fusionEntry.get(1);
                                 String nameDepartmentStore = (String) fusionEntry.get(2);
                                 BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(3)).setScale(2, RoundingMode.HALF_UP);
-                                Date kristalDate = rs.getDate(4);
+                                LocalDate kristalDate = sqlDateToLocalDate(rs.getDate(4));
                                 if (fusionSum == null || fusionSum.compareTo(kristalSum) != 0) {
                                     if (kristalDate.compareTo(fusionDate) == 0) {
                                         result.add(Arrays.asList(nppCashRegister,

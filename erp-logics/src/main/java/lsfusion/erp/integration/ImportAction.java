@@ -19,6 +19,8 @@ import lsfusion.server.physics.dev.integration.service.*;
 
 import java.lang.reflect.Field;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +46,7 @@ public class ImportAction extends DefaultImportAction {
     public boolean skipExtraInvoiceParams;
     public boolean skipCertificateInvoiceParams;
 
-    DataObject defaultDate = new DataObject(defaultDateFrom, DateClass.instance);
+    DataObject defaultDate = new DataObject(getWriteDate(LocalDate.of(2001, 1, 1)), DateClass.instance);
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException {
@@ -428,7 +430,7 @@ public class ImportAction extends DefaultImportAction {
         props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey)));
         fields.add(dateField);
         for (int i = 0; i < itemsList.size(); i++)
-            data.get(i).add(itemsList.get(i).date);
+            data.get(i).add(getWriteDate(itemsList.get(i).date));
 
         ObjectValue defaultCountryObject = findProperty("defaultCountry[]").readClasses(context);
         if(defaultCountryObject instanceof DataObject) {
@@ -792,14 +794,14 @@ public class ImportAction extends DefaultImportAction {
                 props.add(new ImportProperty(dateUserInvoiceField, findProperty("date[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(dateUserInvoiceField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).date);
+                    data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).date));
 
 
                 ImportField timeUserInvoiceField = new ImportField(TimeClass.instance);
                 props.add(new ImportProperty(timeUserInvoiceField, findProperty("time[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(timeUserInvoiceField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(noonTime);
+                    data.get(i).add(getWriteTime(LocalTime.NOON));
 
 
                 ImportField idItemField = new ImportField(findProperty("id[Item]"));
@@ -849,7 +851,7 @@ public class ImportAction extends DefaultImportAction {
                 props.add(new ImportProperty(expiryDateUserInvoiceDetailField, findProperty("expiryDate[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 fields.add(expiryDateUserInvoiceDetailField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(dataUserInvoiceDetail.get(i).expiryDate);
+                    data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).expiryDate));
 
                 if (!skipExtraInvoiceParams) {
 
@@ -1005,7 +1007,7 @@ public class ImportAction extends DefaultImportAction {
                         props.add(new ImportProperty(dateDeclarationField, findProperty("date[Declaration]").getMapping(declarationKey)));
                         fields.add(dateDeclarationField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).dateDeclaration);
+                            data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).dateDeclaration));
                     }
 
                     if (showField(dataUserInvoiceDetail, "numberCompliance")) {
@@ -1025,13 +1027,13 @@ public class ImportAction extends DefaultImportAction {
                         props.add(new ImportProperty(fromDateComplianceField, findProperty("fromDate[Compliance]").getMapping(complianceKey)));
                         fields.add(fromDateComplianceField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).fromDateCompliance);
+                            data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).fromDateCompliance));
 
                         ImportField toDateComplianceField = new ImportField(findProperty("toDate[Compliance]"));
                         props.add(new ImportProperty(toDateComplianceField, findProperty("toDate[Compliance]").getMapping(complianceKey)));
                         fields.add(toDateComplianceField);
                         for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                            data.get(i).add(dataUserInvoiceDetail.get(i).toDateCompliance);
+                            data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).toDateCompliance));
                     }
                 }
                 
@@ -1107,7 +1109,7 @@ public class ImportAction extends DefaultImportAction {
                     props.add(new ImportProperty(dateTripField, tripInvoiceLM.findProperty("date[Trip]").getMapping(tripKey)));
                     fields.add(dateTripField);
                     for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                        data.get(i).add(dataUserInvoiceDetail.get(i).dateTrip);
+                        data.get(i).add(getWriteDate(dataUserInvoiceDetail.get(i).dateTrip));
                 }
 
                 ImportTable table = new ImportTable(fields, data);
@@ -1952,13 +1954,13 @@ public class ImportAction extends DefaultImportAction {
             props.add(new ImportProperty(dateFromContractField, findProperty("dateFrom[Contract]").getMapping(userContractSkuKey)));
             fields.add(dateFromContractField);
             for (int i = 0; i < contractsList.size(); i++)
-                data.get(i).add(contractsList.get(i).dateFromContract);
+                data.get(i).add(getWriteDate(contractsList.get(i).dateFromContract));
 
             ImportField dateToContractField = new ImportField(findProperty("dateTo[Contract]"));
             props.add(new ImportProperty(dateToContractField, findProperty("dateTo[Contract]").getMapping(userContractSkuKey)));
             fields.add(dateToContractField);
             for (int i = 0; i < contractsList.size(); i++)
-                data.get(i).add(contractsList.get(i).dateToContract);
+                data.get(i).add(getWriteDate(contractsList.get(i).dateToContract));
 
             ImportField idSupplierField = new ImportField(findProperty("id[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),

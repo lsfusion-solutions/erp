@@ -2,7 +2,7 @@ package lsfusion.erp.integration;
 
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 
 public class Item {
     public String idItem;
@@ -14,7 +14,7 @@ public class Item {
     public String nameCountry;
     public String idBarcode;
     public String extIdBarcode;
-    public Date date;
+    public LocalDate date;
     public Boolean splitItem;
     public BigDecimal netWeightItem;
     public BigDecimal grossWeightItem;
@@ -35,7 +35,7 @@ public class Item {
     public String nameCustomsZone;
 
     public Item(String idItem, String idItemGroup, String captionItem, String idUOM, String nameBrand, String idBrand,
-                String nameCountry, String idBarcode, String extIdBarcode, Date date, Boolean splitItem,
+                String nameCountry, String idBarcode, String extIdBarcode, LocalDate date, Boolean splitItem,
                 BigDecimal netWeightItem, BigDecimal grossWeightItem, String compositionItem, BigDecimal retailVAT,
                 String idWare, BigDecimal priceWare, BigDecimal vatWare, String idWriteOffRate, BigDecimal baseMarkup,
                 BigDecimal retailMarkup, String idBarcodePack, BigDecimal amountPack, String idUOMPack, 

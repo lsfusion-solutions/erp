@@ -13,26 +13,29 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -153,7 +156,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
             if (showField(orderDetailsList, "dateDocument")) {
                 addDataField(props, fields, importColumns, findProperty("date[UserOrder]"), "dateDocument", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(orderDetailsList.get(i).getFieldValue("dateDocument"));
+                    data.get(i).add(getWriteDate(orderDetailsList.get(i).getFieldValue("dateDocument")));
             }
 
             ImportField idUserOrderDetailField = new ImportField(findProperty("id[UserOrderDetail]"));

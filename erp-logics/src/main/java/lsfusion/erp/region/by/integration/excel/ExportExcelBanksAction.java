@@ -18,9 +18,9 @@ import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 
 public class ExportExcelBanksAction extends ExportExcelAction {
@@ -54,8 +54,7 @@ public class ExportExcelBanksAction extends ExportExcelAction {
             for (int i = 0; i < bankProperties.length; i++) {
                 bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));
             }
-            java.sql.Date date = new java.sql.Date(Calendar.getInstance().getTime().getTime());
-            bankQuery.addProperty("dataAddressBankDate", findProperty("dataAddress[Bank,DATE]").getExpr(context.getModifier(), bankExpr, new DataObject(date, DateClass.instance).getExpr()));
+            bankQuery.addProperty("dataAddressBankDate", findProperty("dataAddress[Bank,DATE]").getExpr(context.getModifier(), bankExpr, new DataObject(getWriteDate(LocalDate.now()), DateClass.instance).getExpr()));
 
             bankQuery.and(findProperty("name[Bank]").getExpr(context.getModifier(), bankExpr).getWhere());
 

@@ -4,15 +4,14 @@ import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -20,12 +19,10 @@ import org.jdom.Namespace;
 import org.jdom.input.SAXBuilder;
 
 import java.sql.Date;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-
 
 public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
     private final ClassPropertyInterface declarationInterface;
@@ -78,7 +75,7 @@ public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
                     Double sum = Double.valueOf(node.getChildText("CustomsCost", gns));
                     Integer number = Integer.valueOf(node.getChildText("GoodsNumeric", gns));
 
-                    data.add(Arrays.asList(1, number, registryDate, duty, vat, sum));
+                    data.add(Arrays.asList(1, number, getWriteDate(registryDate), duty, vat, sum));
                 }
 
                 List<ImportProperty<?>> properties = new ArrayList<>();

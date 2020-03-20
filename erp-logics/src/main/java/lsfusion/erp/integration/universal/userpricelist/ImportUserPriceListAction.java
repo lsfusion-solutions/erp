@@ -2,37 +2,37 @@ package lsfusion.erp.integration.universal.userpricelist;
 
 import com.hexiong.jdbf.DBFReader;
 import com.hexiong.jdbf.JDBFException;
-import lsfusion.base.file.FileData;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.FileData;
+import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportUniversalAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
+import lsfusion.server.language.ScriptingErrorLog;
+import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.*;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.LogicalClass;
 import lsfusion.server.logics.classes.data.ParseException;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
-import lsfusion.server.logics.classes.data.LogicalClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.oraction.PropertyInterface;
-import lsfusion.server.language.ScriptingErrorLog;
-import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFFormulaEvaluator;
@@ -48,7 +48,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
+import java.time.LocalTime;
 import java.util.*;
 
 public class ImportUserPriceListAction extends ImportUniversalAction {
@@ -413,14 +413,14 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).dateUserPriceList);
+                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateUserPriceList));
 
                 ImportField timeUserPriceListField = new ImportField(findProperty("time[UserPriceList]"));
                 props.add(new ImportProperty(timeUserPriceListField, findProperty("time[UserPriceList]").getMapping(userPriceListObject)));
                 props.add(new ImportProperty(timeUserPriceListField, findProperty("fromTime[UserPriceList]").getMapping(userPriceListObject)));
                 fields.add(timeUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(new Time(0, 0, 0));
+                    data.get(i).add(getWriteTime(LocalTime.MIN));
             }
 
             if (showField(userPriceListDetailList, "isPosted")) {
@@ -436,7 +436,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateFromUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateFrom")));
                 fields.add(dateFromUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).dateFrom);
+                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateFrom));
             }
 
             if (showField(userPriceListDetailList, "dateTo")) {
@@ -444,7 +444,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateToUserPriceListField, findProperty("toDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateTo")));
                 fields.add(dateToUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).getFieldValue("dateTo"));
+                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).getFieldValue("dateTo")));
             }
 
             if (showField(userPriceListDetailList, "valueVAT")) {
@@ -460,7 +460,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey), true));
                 fields.add(dateField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(userPriceListDetailList.get(i).dateVAT);
+                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateVAT));
 
                 ImportField countryVATField = new ImportField(findProperty("name[Country]"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
@@ -651,13 +651,13 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateUserAdjustmentField, stockAdjustmentLM.findProperty("date[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(dateUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
-                    data.get(i).add(dataAdjustment.get(i).dateUserPriceList);
+                    data.get(i).add(getWriteDate(dataAdjustment.get(i).dateUserPriceList));
 
                 ImportField timeUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("time[UserAdjustment]"));
                 props.add(new ImportProperty(timeUserAdjustmentField, stockAdjustmentLM.findProperty("time[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(timeUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
-                    data.get(i).add(new Time(0, 0, 0));
+                    data.get(i).add(getWriteTime(LocalTime.MIN));
             }
 
             ImportField isPostedAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("isPosted[Adjustment]"));

@@ -1,16 +1,16 @@
 package lsfusion.erp.integration.image;
 
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.data.time.DateTimeClass;
-import lsfusion.server.logics.classes.data.file.ImageClass;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.file.ImageClass;
+import lsfusion.server.logics.classes.data.time.DateTimeClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,8 +19,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Iterator;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDateTime;
-import static lsfusion.erp.integration.DefaultIntegrationAction.localDateTimeToSqlTimestamp;
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 
 public class UploadImageArticleFromDirectoryAction extends InternalAction {
     private final ClassPropertyInterface articleInterface;
@@ -60,7 +59,7 @@ public class UploadImageArticleFromDirectoryAction extends InternalAction {
                         Timestamp timeChangedImageArticle = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("timeChangedImage[Article]").read(context, articleObject)));
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
                             findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
-                            findProperty("timeChangedImage[Article]").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
+                            findProperty("timeChangedImage[Article]").change(new DataObject(getWriteDateTime(new Timestamp(imageFile.lastModified())), DateTimeClass.instance), context, articleObject);
                         }
                     }
                 }

@@ -23,6 +23,7 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.*;
 
 public class ExportExcelUserInvoicesAction extends ExportExcelAction {
@@ -87,9 +88,9 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
             for (int i = 0, size = userInvoiceResult.size(); i < size; i++) {
                 DataObject userInvoiceObject = new DataObject((Long)userInvoiceResult.getKey(i).get("UserInvoice"), (ConcreteCustomClass) findClass("UserInvoice"));
 
-                Date date = localDateToSqlDate(getLocalDate((userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice"))));
+                LocalDate date = getLocalDate((userInvoiceResult.getValue(i).get("Purchase.dateUserInvoice")));
 
-                if ((dateFromObject == null || date.after((Date) dateFromObject.object)) && (dateToObject == null || date.before((Date) dateToObject.object))) {
+                if ((dateFromObject == null || date.isAfter(getLocalDate(dateFromObject.object)) && (dateToObject == null || date.isBefore(getLocalDate(dateToObject.object))))) {
                     ImMap<Object, Object> userInvoiceValue = userInvoiceResult.getValue(i);
 
                     String seriesUserInvoice = trim((String) userInvoiceValue.get("seriesUserInvoice"), "");
