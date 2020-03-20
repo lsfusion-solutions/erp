@@ -1390,7 +1390,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
             equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject, session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
-            equLM.findProperty("date[EquipmentServerLog]").change(LocalDateTime.now(), session, logObject);
+            equLM.findProperty("date[EquipmentServerLog]").change(getWriteDateTime(LocalDateTime.now()), session, logObject);
             return session.applyMessage(getBusinessLogics(), stack);
         }
     }
