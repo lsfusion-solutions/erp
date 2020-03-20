@@ -45,7 +45,7 @@ import java.util.zip.ZipOutputStream;
 import static equ.srv.EquipmentServer.localDateToSqlDate;
 import static lsfusion.base.BaseUtils.trim;
 import static lsfusion.base.BaseUtils.trimToEmpty;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
 
 public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
@@ -882,7 +882,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 if(result != null) {
                     ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
                     if(terminalObject instanceof DataObject) {
-                        terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(getWriteDate(LocalDateTime.now()), session, (DataObject) terminalObject);
+                        terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(getWriteDateTime(LocalDateTime.now()), session, (DataObject) terminalObject);
                         terminalHandlerLM.findProperty("lastUser[Terminal]").change(result, session, (DataObject) terminalObject);
                         String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
                         if(applyMessage != null)
