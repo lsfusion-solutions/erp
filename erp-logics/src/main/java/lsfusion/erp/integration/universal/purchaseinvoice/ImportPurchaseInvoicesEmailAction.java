@@ -127,7 +127,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         ImMap<Object, ObjectValue> emailEntryValue = emailResult.getValue(j);
                         ObjectValue attachmentEmailObject = emailResult.getKey(j).get("attachmentEmail");
                         LocalDateTime dateTimeReceivedEmail = getLocalDateTime(emailEntryValue.get("dateTimeReceivedEmail").getValue());
-                        boolean isOld = Duration.between(LocalDateTime.now(), dateTimeReceivedEmail).toHours() >= 24; //старше 24 часов
+                        boolean isOld = Duration.between(dateTimeReceivedEmail, LocalDateTime.now()).toHours() >= 24; //старше 24 часов
                         String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
 
