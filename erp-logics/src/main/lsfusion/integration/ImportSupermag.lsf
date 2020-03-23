@@ -853,6 +853,10 @@ importCalcPriceListType 'Импорт видов цен' () {
         currency(t) <- defaultCurrency();
         roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
     }
+    
+    FOR StoreType t = storeType('T' + TEXT (formatid(INTEGER i))) DO {
+        retailPriceListType(t) <- priceListType('D' + TEXT (id(i)));
+    }   
        
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
     
@@ -1563,7 +1567,7 @@ DESIGN integrationData { supermagButtons {
         } 
 }}
 
-//---------------------------------------------------------------------------------------------------------------розничные прайсы
+//---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
 daysPriceList 'дней для импорта' = DATA INTEGER ();
 dateFromPriceList () = sum(currentDate(), -daysPriceList());
 dateFromPriceListT () = toDateDDMMYYYY(dateFromPriceList());
@@ -1589,12 +1593,12 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL filterSql = TEXT();
     LOCAL file = FILE ();
     
-    filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3) AND NOT a.REASON IN (0,2,3)';  
+    filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY, a.pricetype FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
+        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments, Supermag.SMActs a d WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment, idPricetype;
-
+    // обновляем новые причины, вид операций  для ведомости базовых цен 1 - вручную
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO {  
         NEW o = PriceList.Operation {
             id(o) <- ISTRING[100](r);
@@ -1610,7 +1614,8 @@ importPriceListRetail 'Импорт розничных прайсов' () {
             imported(o) <- TRUE;
         }       
     }
-
+     
+    // создаем новые прайслисты 
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO {
         NEW p = UserPriceList {
             id(p) <- id(i);
@@ -1626,14 +1631,15 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         fromTime(p) <- TIME (IF reason(i) = 5 THEN sumSeconds(dateTime(i), 1) ELSE dateTime(i));
         isPosted(p) <- posted(i) = 3;
         note(p) <- comment(i);
-        dataIn(p, StockGroup s) <- NULL;
-//        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
         in(p, DataPriceListType t) <- id(t) == 'D' + TEXT (idPricetype(i));
         imported(p) <- TRUE;
-    }   
+    } 
+      
+    // список складов на который распостранятся действие базовой ведомости надо брать из соотвествия типа цены 
+//        dataIn(p, StockGroup s) <- NULL;
+//        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
 
-    logToFile('importSupermag', 'importPriceListRetail_3');
-
+    // спецификации
     LOCAL type = ISTRING[2](INTEGER);
     LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
@@ -1645,7 +1651,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMSpecActs ad, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMDocuments d WHERE d.DocType = \'AB\' AND a.id = ad.docid and ad.DocID = dd.DocID and ad.SpecItem = dd.SpecItem and dd.docid = d.id and ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND ad.docid = a.id and AND dd.docid = d.id AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
 
