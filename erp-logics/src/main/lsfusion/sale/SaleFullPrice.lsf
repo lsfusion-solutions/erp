@@ -19,8 +19,8 @@ percDiscount(UserOrderDetail d) += percDiscount(d);
 percDiscountNotSkip '% скидки' (UserOrderDetail d) = (OVERRIDE dataPercDiscount(d), percDiscount[UserOrder](userOrder(d))) IF isItem(sku(d)) AND NOT skipPercDiscount(d);
 
 @defineOperationProperty(showFullPrice, 'Показывать полную цену и скидку', paramsContainer);
-
-showFullPrice 'Показывать полную цену и скидку' (Order o) = showFullPrice(operation(o));
+skipShowFullPrice = ABSTRACT BOOLEAN (Order);
+showFullPrice 'Показывать полную цену и скидку' (Order o) = showFullPrice(operation(o)) AND NOT skipShowFullPrice(o);
 
 prevList (PriceListType t, UserOrderDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(d) AND NOT skipPercDiscount(d) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), priceStock(d), dateTime(d)) * (100.0 (-) percDiscount(d)) / 100.0));
@@ -61,11 +61,12 @@ WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail]
 }
     
 // при изменении полной цены пересчитывается цена 
+skipRecalculateDiscountPrice = ABSTRACT BOOLEAN (OrderDetail);
 WHEN LOCAL FORMS userOrder GOAFTER valueVAT[UserOrderDetail] 
         (CHANGED(fullPrice(UserOrderDetail d)))
          AND NOT CHANGED(percDiscount(d)) 
          AND showFullPrice(order(d))
-         AND isItem(sku(d)) DO {
+         AND isItem(sku(d)) AND NOT skipRecalculateDiscountPrice(d) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -74,7 +75,7 @@ WHEN LOCAL FORMS userOrder GOAFTER fullPrice[UserOrderDetail]
         (CHANGED(percDiscount(UserOrderDetail d)))
          AND NOT CHANGED(price(d)) 
          AND showFullPrice(order(d))
-         AND fullPrice(d) AND isItem(sku(d)) DO {
+         AND fullPrice(d) AND isItem(sku(d)) AND NOT skipRecalculateDiscountPrice(d) DO {
     recalculateDiscountPrice(d);
 }
 
@@ -140,8 +141,8 @@ dataPercDiscount '% скидки' = DATA NUMERIC[8,4] (UserInvoiceDetail);
 percDiscount '% скидки' (UserInvoiceDetail d) = OVERRIDE dataPercDiscount(d), percDiscount(userInvoice(d)) IF isItem(sku(d));
 percDiscount(UserInvoiceDetail d) += percDiscount(d);
 percDiscountNotSkip '% скидки' (UserInvoiceDetail d) = (OVERRIDE dataPercDiscount(d), percDiscount(userInvoice(d))) IF isItem(sku(d)) AND NOT skipPercDiscount(d);
-
-showFullPrice 'Показывать полную цену и скидку' (Invoice o) = showFullPrice(operation(o));
+skipShowFullPrice = ABSTRACT BOOLEAN (Invoice);
+showFullPrice 'Показывать полную цену и скидку' (Invoice o) = showFullPrice(operation(o)) AND NOT skipShowFullPrice(o);
 
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(userInvoice(d)) AND NOT skipPercDiscount(d) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(userInvoice(d))) / 100.0));
