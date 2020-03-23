@@ -1844,7 +1844,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     private static String getIdReceipt(SalesInfo s, boolean timeId) {
-        return getIdZReport(s) + "_" + s.numberReceipt + (timeId ? "_" + s.timeReceipt : "");
+        return getIdZReport(s) + "_" + s.numberReceipt + (timeId ? "_" + s.timeReceipt.format(DateTimeFormatter.ofPattern("HH:mm:ss")) : "");
     }
 
     private static String getIdReceiptDetail(SalesInfo s, boolean timeId) {
