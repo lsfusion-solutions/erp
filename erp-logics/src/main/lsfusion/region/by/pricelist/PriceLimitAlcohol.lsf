@@ -21,6 +21,9 @@ baseAlcohol = DATA Alcohol(AlcoholLimit) NONULL;
 nameBaseAlcohol 'Эталонное содержание алкоголя' (AlcoholLimit h) = name(baseAlcohol(h));
 baseAlcohol (AlcoholLimitDetail d) = baseAlcohol(alcoholLimit(d));
 
+minAlcoholValue 'Минимальное содержание алкоголя, %' = DATA NUMERIC[8,3] (AlcoholLimit);
+minAlcoholValue (AlcoholLimitDetail d) = minAlcoholValue(alcoholLimit(d));
+
 roundCondition  = DATA RoundCondition(AlcoholLimit);
 nameRoundCondition 'Условия округления'(AlcoholLimit h) = name(roundCondition(h));
 roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
@@ -32,7 +35,7 @@ isRB 'Производство РБ' = DATA BOOLEAN (AlcoholLimit);
 FORM alcoholLimit 'Минимальные цены на алкоголь'
 
     OBJECTS r = AlcoholLimit PANEL
-    PROPERTIES (r) isPosted, date, time, basePrice, nameBaseAlcohol, nameRoundCondition, note, isRB
+    PROPERTIES (r) isPosted, date, time, basePrice, nameBaseAlcohol, nameRoundCondition, note, isRB, minAlcoholValue
                                                               
     PROPERTIES (r) READONLY countAlcoholLimitDetail       
 
@@ -43,7 +46,7 @@ FORM alcoholLimit 'Минимальные цены на алкоголь'
     PROPERTIES (d) volume, basePrice
     PROPERTIES (d, a) minPrice COLUMNS (a) HEADER name(a)
     ORDER value(a)
-    FILTERS value(a)
+    FILTERS value(a), NOT value(a) < minAlcoholValue(r)
                 
     PROPERTIES (d) NEW, deleteid=DELETE GRID
 
@@ -74,6 +77,7 @@ DESIGN alcoholLimit {
                         MOVE PROPERTY(date(r));
                         MOVE PROPERTY(time(r)); 
                         MOVE PROPERTY (isRB(r));              
+                        MOVE PROPERTY (minAlcoholValue(r));              
                     }
                     NEW second {
                         type = CONTAINERH;
@@ -140,7 +144,7 @@ FORM alcoholLimits 'Минимальные цены на алкоголь'
     PROPERTIES (d) READONLY volume, basePrice
     PROPERTIES (d, a) READONLY minPrice COLUMNS (a) HEADER name(a)
     ORDER value(a)
-    FILTERS value(a)
+    FILTERS value(a), NOT value(a) < minAlcoholValue(r)
 
     FILTERS alcoholLimit(d) == r
                 
@@ -199,10 +203,10 @@ NAVIGATOR {
 minAlcoholLimitPrice (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT isRB(alcoholLimit(ad));
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND NOT isRB(alcoholLimit(ad));
             
 minAlcoholLimitPriceRB (Item s, DATETIME dt) = GROUP 
             LAST minPrice(AlcoholLimitDetail ad, Alcohol a)
             ORDER dateTime(ad), ad
-            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND isRB(alcoholLimit(ad));
+            WHERE isPosted(ad) AND dateTime(ad) <= dt AND volume(s) == volume(ad) AND alcohol(s) == a AND NOT value(a) < minAlcoholValue(ad) AND isRB(alcoholLimit(ad));
    
