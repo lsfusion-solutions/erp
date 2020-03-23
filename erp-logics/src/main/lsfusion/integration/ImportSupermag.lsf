@@ -1585,7 +1585,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL id = ISTRING[50] (INTEGER);
     LOCAL dateTime = DATETIME (INTEGER);
     LOCAL reason = INTEGER (INTEGER);
-    LOCAL posted = INTEGER (INTEGER);
+    LOCAL status = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);
@@ -1595,25 +1595,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     
     filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments, Supermag.SMActs a d WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
+        EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
 
-    IMPORT TABLE FROM file() TO id, dateTime, reason, posted, idStore, comment, idPricetype;
-    // обновляем новые причины, вид операций  для ведомости базовых цен 1 - вручную
-    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER r) AND NOT PriceList.operation(TEXT (r)) DO {  
-        NEW o = PriceList.Operation {
-            id(o) <- ISTRING[100](r);
-            name(o) <- ISTRING[100](r);
-            allRoles(o) <- TRUE;
-            groupType(o) <- SystemGroupType.skuGroupType;
-            dataIn(StockGroup g, o) <- TRUE IF g IS ChainStores;
-            needStock(o) <- TRUE;
-            show(PriceListType t, o) <- id(t) == 'supplier' OR id(t) == 'retail' OR id(t) == 'D' + TEXT (idPricetype(r)) ;
-            change(DataPriceListType t, o) <- id(t) == 'D' + TEXT (idPricetype(r)) ;
-            in(Currency c, o) <- c == defaultCurrency();
-            doNotSetStocksUserPriceList(o) <- TRUE;
-            imported(o) <- TRUE;
-        }       
-    }
+    IMPORT TABLE FROM file() TO id, dateTime, reason, status, comment, idPricetype;
      
     // создаем новые прайслисты 
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO {
@@ -1623,22 +1607,22 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     }
 
     FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {       
-        operation(p) <- PriceList.operation(TEXT (reason(i)));
+        operation(p) <- PriceList.operation('retail');
         number(p) <- ISTRING[28] (id(p));
         date(p) <- DATE (dateTime(i));
         time(p) <- TIME (dateTime(i));
         fromDate(p) <- DATE (dateTime(i));
         fromTime(p) <- TIME (IF reason(i) = 5 THEN sumSeconds(dateTime(i), 1) ELSE dateTime(i));
-        isPosted(p) <- posted(i) = 3;
+        isPosted(p) <- status(i) = 3;
         note(p) <- comment(i);
         in(p, DataPriceListType t) <- id(t) == 'D' + TEXT (idPricetype(i));
+        dataIn(p, StockGroup s) <- NULL;
+        dataIn(p, Stock s) <- NULL;
+        allStocks(p) <- NULL;
+        dataIn(p, StockGroup s) <- id(retailPriceListType[StoreType](s)) == 'D' + TEXT (idPricetype(i));       
         imported(p) <- TRUE;
     } 
       
-    // список складов на который распостранятся действие базовой ведомости надо брать из соотвествия типа цены 
-//        dataIn(p, StockGroup s) <- NULL;
-//        dataIn(p, DepartmentStore s) <- s == departmentStore(TEXT (idStore(i)));
-
     // спецификации
     LOCAL type = ISTRING[2](INTEGER);
     LOCAL idDoc = ISTRING[50](INTEGER);
@@ -1651,7 +1635,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND ad.docid = a.id and AND dd.docid = d.id AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND ad.docid = dd.docid AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
 
@@ -1675,10 +1659,6 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         dataIndex(d) <- specItem(i);
     }
 
-//    IF NOT withoutPrice() THEN {
-//        DELETE UserPriceList p WHERE date(p) >= df AND date(p) <= dt AND imported(operation(p)) AND NOT imported(p);
-//        DELETE UserPriceListDetail d WHERE date(d) >= df AND date(d) <= dt AND imported(operation(d)) AND NOT imported(d);
-//    }
     APPLY;
 }
 
