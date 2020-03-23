@@ -233,6 +233,10 @@ overCreateMarketingInvoice ABSTRACT LIST (ContractMarketing, MarketingInvoice, D
 skipMarketing = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
 skipMarketing = ABSTRACT BOOLEAN (PurchaseReturn.UserInvoiceDetail);
 
+overQuantityMarketing = ABSTRACT NUMERIC[16,5] (Purchase.UserInvoiceDetail);
+overSumMarketing = ABSTRACT NUMERIC[18,4] (Purchase.UserInvoiceDetail);
+overInvoiceSumMarketing = ABSTRACT NUMERIC[18,4] (Purchase.UserInvoiceDetail);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -273,7 +277,7 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
         
         LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM (OVERRIDE overQuantityMarketing(Purchase.UserInvoiceDetail d), quantity(d)) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
 
         LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
         quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
@@ -292,9 +296,9 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
             marketingPercent(md) <- marketingPercent(mc);
             sum (md) <- CASE 
                             WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                [ GROUP SUM invoiceSum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                [ GROUP SUM (OVERRIDE overInvoiceSumMarketing(Purchase.UserInvoiceDetail d), invoiceSum(d)) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
                             WHEN calcBase(mc) == CalcBase.supplier THEN 
-                                [ GROUP SUM sum(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                                [ GROUP SUM (OVERRIDE overSumMarketing(Purchase.UserInvoiceDetail d), sum(d)) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
             returnSum(md) <- CASE 
                                 WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
                                     [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
