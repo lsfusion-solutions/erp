@@ -370,7 +370,10 @@ userCreated = DATA LOCAL STRING[50] (INTEGER);
 
 overImportItems ABSTRACT LIST ();
 
-importItems 'Импорт товаров' () {
+lockedImportItemsMulti = DATA User ();
+lockResultImportItemsMulti = DATA LOCAL NESTED BOOLEAN ();
+    
+importItems1 'Импорт товаров' () {
     
     LOCAL idUOM = INTEGER (INTEGER);
     LOCAL idGroup1 = INTEGER (INTEGER);
@@ -443,6 +446,48 @@ importItems 'Импорт товаров' () {
 
     setNoCancelInTransaction();
     APPLY;
+}
+   
+lockImportItemsMulti(User object)  { 
+    NEWSESSION {    
+        lockResultImportItemsMulti() <- NULL;
+        APPLY SERIALIZABLE {
+            IF NOT object THEN
+                RETURN;
+            IF lockedImportItemsMulti() THEN {
+                cancel();
+            } ELSE {
+                lockedImportItemsMulti() <- currentUser();
+                lockResultImportItemsMulti() <- TRUE;
+            }
+        }
+    }
+}
+
+unlockImportItemsMulti(User object)  { 
+    NEWSESSION { 
+        APPLY lockedImportItemsMulti() <- NULL;
+    }
+}
+
+onStarted()+ { 
+    NEWSESSION {
+        lockedImportItemsMulti() <- NULL; 
+        APPLY;      
+    }
+}
+
+importItems 'Импорт товаров' ()  { 
+    lockImportItemsMulti(currentUser()); 
+    IF lockResultImportItemsMulti() THEN {
+        TRY {  
+        importItems1();
+        } FINALLY {
+            unlockImportItemsMulti(currentUser());                     
+        }
+    } ELSE {
+        MESSAGE 'Уже выполняется импорт товаров. Подождите...' NOWAIT;    
+    }
 }
 
 EXTEND FORM integrationData PROPERTIES () importItems;
