@@ -45,7 +45,12 @@ DESIGN integrationData {
 
 runImportTask(STRING[100] id, DATE date)  { 
     LOCAL template = FILE();
-    READ 'file://bi/' + id + '.json' TO template;
+    TRY {
+        READ 'file://bi/' + id + '.json' TO template;
+    } CATCH {
+        readResource('/bi/' + id + '.json');
+        template() <- resourceFile();
+    }
     fileToString(template(), 'UTF-8');
     
     stringToFile(replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
