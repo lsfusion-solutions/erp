@@ -8,7 +8,6 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.terminal.*;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -49,10 +48,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.rmi.RemoteException;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -2544,29 +2540,5 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
         return row;
-    }
-
-    public static java.sql.Time localTimeToSqlTime(LocalTime value) {
-        return value != null ? java.sql.Time.valueOf(value) : null;
-    }
-
-    public static LocalTime sqlTimeToLocalTime(java.sql.Time value) {
-        return value != null ? value.toLocalTime() : null;
-    }
-
-    public static java.sql.Date localDateToSqlDate(LocalDate value) {
-        return value != null ? java.sql.Date.valueOf(value) : null;
-    }
-
-    public static LocalDate sqlDateToLocalDate(java.sql.Date value) {
-        return value != null ? value.toLocalDate() : null;
-    }
-
-    public static java.sql.Timestamp localDateTimeToSqlTimestamp(LocalDateTime value) {
-        return value != null ? java.sql.Timestamp.valueOf(value) : null;
-    }
-
-    public static LocalDateTime sqlTimestampToLocalDateTime(java.sql.Timestamp value) {
-        return value != null ? value.toLocalDateTime() : null;
     }
 }

@@ -23,8 +23,6 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,8 +30,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
-import static equ.srv.EquipmentServer.*;
 import static lsfusion.base.BaseUtils.trimToNull;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
 
 public class TerminalServer extends MonitorServer {
 
@@ -214,7 +213,7 @@ public class TerminalServer extends MonitorServer {
         return value;
     }
 
-    private LocalDateTime parseTimestamp(String value) {
+    private Timestamp parseTimestamp(String value) {
         Timestamp timestamp;
         try {
             timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, "yyyy-MM-dd HH:mm:ss").getTime());
@@ -222,10 +221,10 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
         }
-        return sqlTimestampToLocalDateTime(timestamp);
+        return getWriteDateTime(timestamp);
     }
 
-    private LocalDate parseDate(String value) {
+    private Date parseDate(String value) {
         Date date;
         try {
             date = value == null ? null : new Date(DateUtils.parseDate(value, "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss").getTime());
@@ -233,7 +232,7 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing date failed: " + value, e);
             date = null;
         }
-        return sqlDateToLocalDate(date);
+        return getWriteDate(date);
     }
 
 
@@ -463,8 +462,8 @@ public class TerminalServer extends MonitorServer {
                                                 String extraField3DocumentDetail = line.length <= 10 ? null : formatValue(line[10]);
                                                 terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
                                                         ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
-                                                        priceDocumentDetail, commentDocumentDetail, localDateTimeToSqlTimestamp(parseTimestamp(dateDocumentDetail)),
-                                                        localDateToSqlDate(parseDate(extraDate1DocumentDetail)), localDateToSqlDate(parseDate(extraDate2DocumentDetail)), extraField1DocumentDetail,
+                                                        priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
+                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
                                                         extraField2DocumentDetail, extraField3DocumentDetail, parentDocument));
                                             }
                                         }

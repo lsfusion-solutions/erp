@@ -14,6 +14,7 @@ import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.ParseException;
+import java.time.LocalDate;
 
 public class DefaultImportXLSXAction extends DefaultImportAction {
 
@@ -95,8 +96,8 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         }
     }
 
-    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return getXLSXDateFieldValue(sheet, row, cell, null);
+    protected LocalDate getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
+        return sqlDateToLocalDate(getXLSXDateFieldValue(sheet, row, cell, null));
     }
 
     protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {

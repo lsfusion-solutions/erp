@@ -22,9 +22,12 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 
 public class ExportExcelUserInvoicesAction extends ExportExcelAction {
     private final ClassPropertyInterface dateFromInterface;
@@ -95,7 +98,7 @@ public class ExportExcelUserInvoicesAction extends ExportExcelAction {
 
                     String seriesUserInvoice = trim((String) userInvoiceValue.get("seriesUserInvoice"), "");
                     String numberUserInvoice = trim((String) userInvoiceValue.get("numberUserInvoice"), "");
-                    String dateInvoice = date == null ? null : new SimpleDateFormat("dd.MM.yyyy").format(date);
+                    String dateInvoice = date == null ? null : date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
 
                     Long supplierID = (Long) userInvoiceValue.get("supplierUserInvoice");
                     Long customerStockID = (Long) userInvoiceValue.get("Purchase.customerStockInvoice");

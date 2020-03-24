@@ -2,13 +2,13 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
 
 public class Declaration {
     
     public String number;
-    public Date date;
+    public LocalDate date;
     public String UNPLegalEntity;
     public String fullNameLegalEntity;
     public String addressLegalEntity;
@@ -16,7 +16,7 @@ public class Declaration {
     public BigDecimal sum;
     public Integer count;
     
-    public Declaration(String number, Date date, String UNPLegalEntity, String fullNameLegalEntity, 
+    public Declaration(String number, LocalDate date, String UNPLegalEntity, String fullNameLegalEntity,
                        String addressLegalEntity, List<DeclarationDetail> declarationDetailList, BigDecimal sum,
                        Integer count) {
         this.number = number;

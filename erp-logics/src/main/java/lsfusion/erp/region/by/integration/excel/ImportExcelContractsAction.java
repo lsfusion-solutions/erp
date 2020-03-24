@@ -14,9 +14,9 @@ import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,11 +56,11 @@ public class ImportExcelContractsAction extends ImportExcelAction {
             String idSupplier = parseString(sheet.getCell(1, i));
             String idCustomer = parseString(sheet.getCell(2, i));
             String idContract = idSupplier + "/" + idCustomer;
-            Date dateFromContract = parseDateValue(sheet.getCell(3, i));
-            Date dateToContract = parseDateValue(sheet.getCell(4, i));
+            LocalDate dateFromContract = parseDateValue(sheet.getCell(3, i));
+            LocalDate dateToContract = parseDateValue(sheet.getCell(4, i));
             String shortNameCurrency = parseString(sheet.getCell(5, i));
-            data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, sqlDateToLocalDate(dateFromContract),
-                    sqlDateToLocalDate(dateToContract), shortNameCurrency, null, null, null));
+            data.add(new Contract(idContract, idSupplier, idCustomer, numberContract, dateFromContract,
+                    dateToContract, shortNameCurrency, null, null, null));
         }
 
         return data;

@@ -12,6 +12,7 @@ import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.time.LocalDate;
 
 public class ImportExcelAction extends DefaultImportAction {
 
@@ -46,14 +47,14 @@ public class ImportExcelAction extends DefaultImportAction {
         return cell != null && cell.getContents().equals("1") ? true : null;
     }
 
-    protected static Date parseDateValue(Cell cell) throws ParseException {
+    protected static LocalDate parseDateValue(Cell cell) throws ParseException {
         return parseDateValue(cell, null);
     }
 
-    protected static Date parseDateValue(Cell cell, Date defaultDate) throws ParseException {
+    protected static LocalDate parseDateValue(Cell cell, Date defaultDate) throws ParseException {
         Date date = cell == null ? null : parseDate(cell.getContents(), defaultDate);
         if (date == null || date.getTime() < minDate || date.getTime() >= maxDate)
             date = defaultDate;
-        return date;
+        return sqlDateToLocalDate(date);
     }
 }

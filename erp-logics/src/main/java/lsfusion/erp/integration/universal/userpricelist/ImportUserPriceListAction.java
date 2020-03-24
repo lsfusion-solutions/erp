@@ -48,6 +48,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
 
@@ -118,10 +119,9 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         
         List<UserPriceListDetail> userPriceListDetailList;
         
-        Date dateDocument = localDateToSqlDate((getLocalDate(findProperty("date[UserPriceList]").read(context, userPriceListObject))));
-        Date dateFromDocument = localDateToSqlDate(getLocalDate((findProperty("fromDate[UserPriceList]").read(context, userPriceListObject))));
-        if(dateFromDocument == null)
-            dateFromDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
+        LocalDate dateDocument = getLocalDate(findProperty("date[UserPriceList]").read(context, userPriceListObject));
+        LocalDate dateFrom = getLocalDate((findProperty("fromDate[UserPriceList]").read(context, userPriceListObject)));
+        Date dateFromDocument = localDateToSqlDate(dateFrom == null ? (dateDocument == null ? LocalDate.now() : dateDocument) : dateFrom);
         String fileExtension = settings.getFileExtension();
 
         List<String> stringFields = Arrays.asList("idUserPriceList", "idItemGroup", "extraBarcodeItem", "articleItem", "captionItem", 

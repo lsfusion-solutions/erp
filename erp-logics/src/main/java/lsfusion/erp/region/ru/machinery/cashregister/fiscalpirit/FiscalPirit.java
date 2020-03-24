@@ -13,8 +13,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.*;
 
 public class FiscalPirit {
@@ -158,9 +161,9 @@ public class FiscalPirit {
     }
 
     private static void startKKT(SerialPort serialPort) {
-        Date currentDate = Calendar.getInstance().getTime();
-        String date = new SimpleDateFormat("ddMMyy").format(currentDate);
-        String time = new SimpleDateFormat("HHmmss").format(currentDate);
+        LocalDateTime currentDateTime = LocalDateTime.now();
+        String date = currentDateTime.toLocalDate().format(DateTimeFormatter.ofPattern("ddMMyy"));
+        String time = currentDateTime.toLocalTime().format(DateTimeFormatter.ofPattern("HHmmss"));
 
         PiritReply reply = startKKTCommand(serialPort, date, time);
         switch (reply.error) {

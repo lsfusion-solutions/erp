@@ -20,6 +20,7 @@ import lsfusion.server.physics.dev.integration.service.*;
 
 import java.math.BigDecimal;
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -121,8 +122,8 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 statement.setObject(1, giftCard.id); //account_type_id
                 statement.setObject(2, giftCard.number); //number
                 statement.setObject(3, giftCard.active); //active
-                statement.setObject(4, giftCard.dateFrom); //date_from
-                statement.setObject(5, giftCard.dateTo); //date_to
+                statement.setObject(4, localDateToSqlDate(giftCard.dateFrom)); //date_from
+                statement.setObject(5, localDateToSqlDate(giftCard.dateTo)); //date_to
                 statement.setObject(6, 0); //days_from_after_activate
                 statement.setObject(7, giftCard.expiryDays); //days_to_after_activate
                 statement.setObject(8, version); //version
@@ -230,7 +231,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             }
             Integer id = getId(idBarcode);
             if (id != null) {
-                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
+                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? sqlDateToLocalDate(dateFrom) : null, active || defect ? sqlDateToLocalDate(dateTo) : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
@@ -302,8 +303,8 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         BigDecimal price;
         String idBarcode;
         String departmentStore;
-        Date dateFrom;
-        Date dateTo;
+        LocalDate dateFrom;
+        LocalDate dateTo;
         Integer expiryDays;
         boolean active;
         boolean defect;
@@ -313,7 +314,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         boolean allowReturn;
         boolean allowReturnPayment;
 
-        public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, Date dateFrom, Date dateTo,
+        public GiftCard(Integer id, String number, BigDecimal price, String idBarcode, String departmentStore, LocalDate dateFrom, LocalDate dateTo,
                         Integer expiryDays, boolean active, boolean defect, String nameSku, String shortNameUOM, String overIdSkuGroup,
                         boolean allowReturn, boolean allowReturnPayment) {
             this.id = id;

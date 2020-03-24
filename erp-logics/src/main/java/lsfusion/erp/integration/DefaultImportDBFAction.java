@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
+import java.time.LocalDate;
 
 public class DefaultImportDBFAction extends DefaultImportAction {
 
@@ -87,8 +88,8 @@ public class DefaultImportDBFAction extends DefaultImportAction {
         return (result == null || (zeroIsNull && Double.valueOf(result).equals(0d))) ? null : new Double(result).intValue();
     }
 
-    protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
-        return getDBFDateFieldValue(importFile, fieldName, charset, null);
+    protected LocalDate getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {
+        return sqlDateToLocalDate(getDBFDateFieldValue(importFile, fieldName, charset, null));
     }
     
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset, java.sql.Date defaultValue) throws UnsupportedEncodingException, ParseException {

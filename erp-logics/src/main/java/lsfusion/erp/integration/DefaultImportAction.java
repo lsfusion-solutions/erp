@@ -1,15 +1,14 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -32,11 +31,6 @@ public class DefaultImportAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected Time defaultTimeFrom = new Time(0, 0, 0);
-    protected Time defaultTimeTo = new Time(23, 59, 59);
-    protected Time noonTime = new Time(12, 0, 0);
-    protected Date defaultDateFrom = new Date(2001 - 1900, 0, 1);
-
     private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
     protected BigDecimal VATifAllowed(BigDecimal VAT) {
         return VAT == null || !allowedVAT.contains(VAT.doubleValue()) ? null : VAT;
@@ -58,8 +52,8 @@ public class DefaultImportAction extends DefaultIntegrationAction {
         return entry == null ? null : (BigDecimal) entry.get(index);
     }
 
-    protected Date getDateFromEntry(List<Object> entry, int index) {
-        return entry == null ? null : (Date) entry.get(index);
+    protected LocalDate getDateFromEntry(List<Object> entry, int index) {
+        return entry == null ? null : (LocalDate) entry.get(index);
     }
 
     protected Boolean getBooleanFromEntry(List<Object> entry, int index) {

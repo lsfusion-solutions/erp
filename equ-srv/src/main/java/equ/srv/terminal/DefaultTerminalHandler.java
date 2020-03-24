@@ -6,26 +6,27 @@ import equ.srv.EquipmentLoggers;
 import equ.srv.ServerTerminalOrder;
 import equ.srv.TerminalEquipmentServer;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.base.file.RawFileData;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.*;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import lsfusion.server.physics.dev.integration.service.*;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.LogicsInstance;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.physics.admin.log.ServerLoggers;
+import lsfusion.server.physics.dev.integration.service.*;
 
 import java.awt.*;
 import java.io.File;
@@ -33,16 +34,15 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.sql.*;
-import java.sql.Date;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static equ.srv.EquipmentServer.localDateToSqlDate;
 import static lsfusion.base.BaseUtils.trim;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
@@ -403,7 +403,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
                         String supplier = order.supplier == null ? "" : (prefix + formatValue(order.supplier));
-                        statement.setObject(1, formatValue(localDateToSqlDate(order.date)));
+                        statement.setObject(1, formatValue(order.date));
                         statement.setObject(2, formatValue(order.number));
                         statement.setObject(3,supplier);
                         statement.setObject(4,formatValue(order.barcode));
@@ -689,7 +689,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     private Object formatValue(Object value) {
-        return value == null ? "" : value instanceof Date ? new SimpleDateFormat("dd.MM.yyyy").format(value) : value;
+        return value == null ? "" : value instanceof LocalDate ? ((LocalDate) value).format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : value;
     }
 
     @Override

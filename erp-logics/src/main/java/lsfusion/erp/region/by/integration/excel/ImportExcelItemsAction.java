@@ -75,7 +75,7 @@ public class ImportExcelItemsAction extends ImportExcelAction {
                     barcode = BarcodeUtils.appendCheckDigitToBarcode(barcode, 12);
                 }
             }
-            LocalDate date = sqlDateToLocalDate(parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime())));
+            LocalDate date = parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime()));
             Boolean split = parseBoolean(sheet.getCell(9, i));
             BigDecimal netWeightItem = parseBigDecimal(sheet.getCell(10, i));
             BigDecimal grossWeightItem = parseBigDecimal(sheet.getCell(11, i));

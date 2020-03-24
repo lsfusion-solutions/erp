@@ -120,7 +120,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         String UNPLegalEntityDeclaration = (String) findProperty("UNPLegalEntity[Declaration]").read(context, declarationObject);  //G141
         String fullNameLegalEntityDeclaration = (String) findProperty("fullNameLegalEntity[Declaration]").read(context, declarationObject); //G142
         String addressLegalEntityDeclaration = (String) findProperty("addressLegalEntity[Declaration]").read(context, declarationObject); //G143
-        Date dateDeclaration = localDateToSqlDate(getLocalDate(findProperty("date[Declaration]").read(context, declarationObject)));          //G542
+        LocalDate dateDeclaration = getLocalDate(findProperty("date[Declaration]").read(context, declarationObject));          //G542
 
         String[] exportNames = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
@@ -296,7 +296,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         String G364 = dd.isVATCustomsException == null ? "ОО" : "ПД";
 
         nameValueFieldMap.put("GA", trim(GA, 14));
-        nameValueFieldMap.put("G542", declaration.date);
+        nameValueFieldMap.put("G542", localDateToSqlDate(declaration.date));
         nameValueFieldMap.put("G141", trim(declaration.UNPLegalEntity, 9));
         nameValueFieldMap.put("G142", trim(declaration.fullNameLegalEntity, 35));
         
@@ -357,7 +357,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             String G364 = dd.isVATCustomsException == null ? "ОО" : "ПД";
 
             nameValueFieldMap.put("GA", trim(GA, 14));
-            nameValueFieldMap.put("G542", declaration.date);
+            nameValueFieldMap.put("G542", localDateToSqlDate(declaration.date));
             nameValueFieldMap.put("G141", trim(declaration.UNPLegalEntity, 9));
             nameValueFieldMap.put("G142", trim(declaration.fullNameLegalEntity, 35));
             

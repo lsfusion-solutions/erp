@@ -3,34 +3,33 @@ package lsfusion.erp.integration.export;
 import com.google.common.base.Throwables;
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
-import lsfusion.base.file.IOUtils;
-import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.file.IOUtils;
+import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportAction;
 import lsfusion.erp.integration.OverJDBField;
-import lsfusion.interop.form.property.Compare;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.data.where.Where;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.data.where.Where;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
@@ -150,7 +149,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
             ImMap<Object, ObjectValue> resultValues = generalLedgerResult.getValue(i);
 
-            Date dateGeneralLedger = localDateToSqlDate(getLocalDate(resultValues.get("dateGeneralLedger").getValue())); //D_VV
+            LocalDate dateGeneralLedger = getLocalDate(resultValues.get("dateGeneralLedger").getValue()); //D_VV
             String numberGeneralLedger = trim((String) resultValues.get("numberGLDocument").getValue(), 8); //DOK
             String seriesGeneralLedger = trim((String) resultValues.get("seriesGLDocument").getValue(), 2); //SER_P
 
@@ -203,7 +202,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
-            generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(7), (String) values.get(2),
+            generalLedgerList.add(new GeneralLedger((LocalDate) values.get(0), (String) values.get(1), (String) values.get(7), (String) values.get(2),
                     (String) values.get(6), (String) values.get(3), (String) values.get(4),
                     debit1Map.get(key), debit2Map.get(key), debit3Map.get(key), debit4Map.get(key),
                     credit1Map.get(key), credit2Map.get(key), credit3Map.get(key), credit4Map.get(key),
@@ -213,7 +212,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         generalLedgerList.sort(COMPARATOR);
 
         for(GeneralLedger gl : generalLedgerList) {
-        dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
+        dbfwriter.addRecord(new Object[]{localDateToSqlDate(gl.dateGeneralLedger), gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
                 gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, //7
                 gl.anad1, gl.anad2, gl.anad3, gl.anad4, gl.anak1, gl.anak2, gl.anak3, gl.anak4, //15,
                 gl.sumGeneralLedger, null, gl.quantityGeneralLedger, 0, "00", "TMC", gl.seriesGeneralLedger}); //22

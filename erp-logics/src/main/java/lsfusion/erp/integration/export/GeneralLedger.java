@@ -1,10 +1,10 @@
 package lsfusion.erp.integration.export;
 
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.time.LocalDate;
 
 public class GeneralLedger {
-    public Date dateGeneralLedger;
+    public LocalDate dateGeneralLedger;
     public String numberGeneralLedger;
     public String seriesGeneralLedger;
     public String descriptionGeneralLedger;
@@ -22,7 +22,7 @@ public class GeneralLedger {
     public BigDecimal quantityGeneralLedger;
     public BigDecimal sumGeneralLedger;
 
-    public GeneralLedger(Date dateGeneralLedger, String numberGeneralLedger, String seriesGeneralLedger, String descriptionGeneralLedger,
+    public GeneralLedger(LocalDate dateGeneralLedger, String numberGeneralLedger, String seriesGeneralLedger, String descriptionGeneralLedger,
                          String idOperationGeneralLedger, String idDebitGeneralLedger, String idCreditGeneralLedger,
                          String anad1, String anad2, String anad3, String anad4,
                          String anak1, String anak2, String anak3, String anak4,

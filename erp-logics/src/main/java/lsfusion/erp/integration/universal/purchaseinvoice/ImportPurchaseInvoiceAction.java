@@ -47,6 +47,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -220,10 +221,10 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 for (PurchaseInvoiceDetail detail : userInvoiceDetailsList) {
                     Object dateDocument = detail.getFieldValue("dateDocument");
                     String idStock = (String) detail.getFieldValue("idCustomerStock");
-                    Date documentsClosedDate = localDateToSqlDate(idStock != null ?
+                    LocalDate documentsClosedDate = idStock != null ?
                             getLocalDate(findProperty("documentsClosedDate[ISTRING[100]]").read(context, new DataObject(idStock))) :
-                            getLocalDate(findProperty("documentsClosedDate[Stock]").read(context, customerStockObject)));
-                    if (overDocumentsClosedDate((Date) dateDocument, documentsClosedDate, ignoreInvoicesAfterDocumentsClosedDate)) {
+                            getLocalDate(findProperty("documentsClosedDate[Stock]").read(context, customerStockObject));
+                    if (overDocumentsClosedDate(sqlDateToLocalDate((Date) dateDocument), documentsClosedDate, ignoreInvoicesAfterDocumentsClosedDate)) {
                         skip = true;
                     }
                 }
@@ -835,7 +836,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
         }   else return Pair.create(IMPORT_RESULT_EMPTY, userInvoiceObject);
     }
 
-    private boolean overDocumentsClosedDate(Date dateReceipt, Date documentsClosedDate, boolean ignoreReceiptsAfterDocumentsClosedDate) {
+    private boolean overDocumentsClosedDate(LocalDate dateReceipt, LocalDate documentsClosedDate, boolean ignoreReceiptsAfterDocumentsClosedDate) {
         return ignoreReceiptsAfterDocumentsClosedDate && dateReceipt != null && documentsClosedDate != null && dateReceipt.compareTo(documentsClosedDate) < 0;
     }
 

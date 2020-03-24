@@ -54,7 +54,7 @@ public class ImportExcelUserInvoicesAction extends ImportExcelAction {
         for (int i = 1; i < sheet.getRows(); i++) {
             String seriesUserInvoice = parseString(sheet.getCell(0, i));
             String numberUserInvoice = parseString(sheet.getCell(1, i));
-            LocalDate dateUserInvoice = sqlDateToLocalDate(parseDateValue(sheet.getCell(2, i)));
+            LocalDate dateUserInvoice = parseDateValue(sheet.getCell(2, i));
             String idItem = parseString(sheet.getCell(3, i));
             BigDecimal quantity = parseBigDecimal(sheet.getCell(4, i));
             String supplier = parseString(sheet.getCell(5, i));
