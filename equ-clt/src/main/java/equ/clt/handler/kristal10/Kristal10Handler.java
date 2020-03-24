@@ -934,7 +934,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 if(d.dateToDiscountCard != null)
                                     setAttribute(internalCard, "expiration-date", d.dateToDiscountCard);
                                 setAttribute(internalCard, "status",
-                                        d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
+                                        d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) >= 0 ? "ACTIVE" : "BLOCKED");
                                 setAttribute(internalCard, "deleted", "false");
                                 setAttribute(internalCard, "card-type-guid", d.idDiscountCardType != null ? d.idDiscountCardType : (guid != null ? guid : "0"));
 
