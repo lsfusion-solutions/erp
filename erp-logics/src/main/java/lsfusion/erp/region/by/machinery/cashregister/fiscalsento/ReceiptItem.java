@@ -10,10 +10,10 @@ public class ReceiptItem implements Serializable {
     public String name;
     public double sumPos;
     public double articleDiscSum;
-    public Integer numberSection;
+    public String numberSection;
 
     public ReceiptItem(BigDecimal price, double quantity, String barcode, String name, double sumPos,
-                       double articleDiscSum, Integer numberSection) {
+                       double articleDiscSum, String numberSection) {
         this.price = price;
         this.quantity = quantity;
         this.barcode = barcode;

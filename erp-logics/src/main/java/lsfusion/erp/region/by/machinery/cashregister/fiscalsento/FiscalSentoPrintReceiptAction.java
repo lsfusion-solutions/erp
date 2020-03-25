@@ -123,7 +123,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
                 }
                 if (cashRegisterTaxLM != null) {
-                    receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSection[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                    receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSectionSento[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
@@ -146,7 +146,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     double sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.doubleValue();
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
-                    Integer numberSection = (Integer) receiptDetailValues.get("numberSection");
+                    String numberSection = (String) receiptDetailValues.get("numberSection");
                     if (quantitySale > 0)
                         receiptSaleItemList.add(new ReceiptItem( price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                     if (quantityReturn > 0)

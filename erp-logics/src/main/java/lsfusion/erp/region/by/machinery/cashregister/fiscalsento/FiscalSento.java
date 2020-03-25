@@ -142,22 +142,10 @@ public class FiscalSento {
             checkErrors();
     }
 
-    private static int getVAT(Integer section) {
+    private static int getVAT(String section) {
         if (section != null) {
-            switch (section) {
-                case 1:
-                    return 'B';
-                case 2:
-                    return 'C';
-                case 3:
-                    return 'D';
-                case 4:
-                    return 'E';
-                case 5:
-                    return 'F';
-            }
-        }
-        return 'A';
+            return section.charAt(0);
+        } else return 'A';
     }
 
     public static void cancelReceipt() {
