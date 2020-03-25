@@ -648,11 +648,12 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
         id(s) <- ISTRING[100] (id(i));
     }
     
-    FOR Warehouse s = stock(TEXT (id(INTEGER i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO {        
+    FOR Warehouse s = stock(TEXT (id(INTEGER i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO {     
+        MESSAGE name(i) + ' ' + TEXT (idCompany(i));   
         name(s) <- ISTRING[150](name(i));
         fullName(s) <- ISTRING[150](name(i));
         stockGroup(s) <- warehouseGroup(TEXT (idGroupWarehouseInSuperMag()));
-        address(s) <- ISTRING[150](address(i));
+        address(s) <- OVERRIDE ISTRING[150](address(i)), '';
         legalEntity(s) <- legalEntity(TEXT (idCompany(i)));
     }
     
@@ -1791,35 +1792,45 @@ DESIGN store {
 //---------------------------------------------------------------------------------------------------------------матрицы
 importRange 'Импорт ассортиментных матриц' () {
     
-    LOCAL id = STRING[50] (INTEGER);
+    LOCAL itemId = STRING[50] (INTEGER);
+    LOCAL id = INTEGER (INTEGER);
     LOCAL name = ISTRING[50] (INTEGER);
     LOCAL store = Store(INTEGER);
     LOCAL rangeRev = RangeRev(INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT sm.article, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
+        EXEC 'SELECT sa.id, sa.name FROM Supermag.SACardMatrix sa' TO file;
     
-    IMPORT TABLE FROM file() TO id, name;
-    
-    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
-    
-    FOR itemGroupRoot(ItemGroup g, 2) == g AND NOT range(id(g)) DO NEW r = Range.Range {
-        id(r) <- id(g);
-        name(r) <- ISTRING[100](name(g));
-        inData(r, g) <- TRUE;
-        
+    IMPORT TABLE FROM file() TO id, name;    
+   
+    FOR id(INTEGER i) AND NOT range(STRING[100] (id(i))) DO NEW r =  Range.Range {
+        id(r) <- STRING[100] (id(i));
+        name(r) <- name(i);      
+        inData(r, ItemGroup g) <- TRUE IF itemGroupRoot(g, 2) == g; 
         NEW rr = RangeRev {
             range(rr) <- r;
             dateTime(rr) <- 2001_01_01_00:00;
-        }
+        }     
     }
     
-    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(id(i))) AND level(g, itemGroup(id(range(rr))));
-    
+    FOR Range.RangeRev rv AND rv IS RangeRev DO {
+        include(rv, Store st, Item s) <- NULL;    
+    }
+        
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+        EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
+
+    IMPORT TABLE FROM file() TO itemId, id, name;
+
+    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
+
+//    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(itemId(i))) AND level(g, itemGroup(id(range(rr))));
+    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF id(range(rr)) = STRING[100] (id(i));
+
     FOR [GROUP SUM 1 BY rangeRev(INTEGER i)](RangeRev r) DO {
-        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(id(i))](r, st, s);
+        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(itemId(i))](r, st, s);
     }
-    
+
     APPLY;
 }
 
@@ -2225,8 +2236,7 @@ importStockOrder 'Импорт заказов (складских требова
             MESSAGE id(stockGroup(customerStock(o))) + ' ' +id(stockGroup(supplierStock(o))) + '=' + id(Purchase.operation(o));      
         }       
     } 
-     
-
+    
     
     //импорт спецификаций
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
@@ -2263,6 +2273,117 @@ DESIGN integrationData {
         } 
     } 
 }
+
+//------------------------------------------------------------------------------------накладные перемещения
+stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Purchase.UserInvoice);
+prevStateInSuperMag 'Пред. статус в супермаг' = DATA INTEGER (Purchase.UserInvoice);
+stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Sale.UserInvoice);
+prevStateInSuperMag 'Пред. статус в супермаг' = DATA INTEGER (Sale.UserInvoice);
+EXTEND FORM Purchase.invoices PROPERTIES stateInSuperMag(i);
+EXTEND FORM Sale.invoices PROPERTIES stateInSuperMag(i);
+
+importStockInternalInvoice 'Импорт накладные перемещения на магазин' () {
+    
+    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL docstate = INTEGER (INTEGER);
+    LOCAL opercode = INTEGER (INTEGER);
+    LOCAL idCustomerStock = INTEGER (INTEGER);
+    LOCAL idSupplierStock = INTEGER (INTEGER);
+    LOCAL comment = ISTRING[255] (INTEGER);
+    LOCAL date = DATE (INTEGER);
+    LOCAL deliveryDate = DATE (INTEGER);
+    LOCAL deliveryTime = INTEGER (INTEGER);
+    LOCAL filterSql = TEXT ();
+    LOCAL file = FILE ();
+    LOCAL imported = BOOLEAN (Sale.UserInvoice);
+       
+    //  накладные созданые в СМ где получатели склады импорта, загружаем в Sale чтобы ТО потом руками созал свой приход, по стандартной схеме Fusion
+    filterSql() <- 'b.DocType(+)= D.DocType AND D.DocType = \'IW\' AND D.opcode = 4 AND b.id = d.id AND d.docstate IN (0, 2, 3) AND d.locationto IN ('+ ImportSupermag.stocks() + ') AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(ImportSupermag.numberOrder()) > 0 THEN 
+        filterSql() <- 'b.DocType(+)= D.DocType AND D.DocType = \'IW\' AND b.id = d.id AND d.id = \'' + ImportSupermag.numberOrder() + '\''; 
+       
+   // MESSAGE 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql();               
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXEC 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql() TO file;   
+    
+    IMPORT TABLE FROM file() TO id, docstate, date, opercode, idSupplierStock, idCustomerStock, comment;   
+    
+    FOR [GROUP SUM 1 BY id(INTEGER i)](STRING[50] id) AND NOT Sale.userInvoice(id) DO NEW o = Sale.UserInvoice {
+        id(o) <- id;
+    }
+    
+    FOR Sale.UserInvoice o == Sale.userInvoice(id(INTEGER i)) DO {       
+        number[Document](o) <- STRING[28](id(i));
+        isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
+        isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
+        stateInSuperMag(o) <- docstate(i);
+        supplier(o) <- legalEntity(stock(ISTRING[100] (idSupplierStock(i))));
+        supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
+        customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStock(i))));
+        customerStock(o) <- stock(ISTRING[100] (idCustomerStock(i)));
+        date(o) <- date(i);  
+        time(o) <- 00:00;
+        imported(o) <- TRUE;
+    }  
+        
+    FOR Sale.UserInvoice o == Sale.userInvoice(id(INTEGER i)) DO {       
+       operation(o) <- CASE 
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseWarehouse')
+            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreWarehouse')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseStore')
+            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreStore')
+            ELSE Sale.operation('saleStoreStore');
+    } 
+    
+    IF length(ImportSupermag.numberOrder()) > 0 THEN {
+        FOR Sale.UserInvoice o == Sale.userInvoice(id(INTEGER i)) DO {
+            MESSAGE id(stockGroup(customerStock(o))) + ' ' +id(stockGroup(supplierStock(o))) + '=' + id(Sale.operation(o));      
+        }       
+    }  
+     
+    //импорт спецификаций
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL idDoc = ISTRING[50](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL totalPrice = NUMERIC[19,4](INTEGER);
+    LOCAL quantity = NUMERIC[14,3](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL imported = BOOLEAN (Sale.UserInvoiceDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMInternalWayBills b, Supermag.SMSpec ds WHERE ds.DOCID = d.id  AND ' + filterSql() TO file;
+    
+    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
+
+    id(INTEGER i) <- CONCAT '', 'I', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+
+    FOR Sale.userInvoice(idDoc(INTEGER i)) AND NOT Sale.userInvoiceDetail(id(i)) DO NEW d = Sale.UserInvoiceDetail {
+        id(d) <- id(i);
+        Sale.userInvoice(d) <- Sale.userInvoice(idDoc(i));
+    }
+    
+    FOR Sale.UserInvoiceDetail d = Sale.userInvoiceDetail(id(INTEGER i)) DO {
+        sku(d) <- item(idItem(i));
+        quantity(d) <- quantity(i);
+        price(d) <- NUMERIC[16,4](price(i));
+        sum(d) <- NUMERIC[16,4](totalPrice(i));
+        dataIndex(d) <- specItem(i);
+        imported(d) <- TRUE;
+    }
+    
+    APPLY;           
+}
+
+EXTEND FORM integrationData PROPERTIES importStockInternalInvoice();
+DESIGN integrationData { 
+    supermagButtons { 
+        NEW importInvoicess {
+            MOVE PROPERTY (importStockInternalInvoice());
+        } 
+    } 
+}
+
 
 //-----------------------------------------------------------------------------------------------------------------------------заказы продажа
 importSaleOrder 'Импорт заказов (продажа)' () {
