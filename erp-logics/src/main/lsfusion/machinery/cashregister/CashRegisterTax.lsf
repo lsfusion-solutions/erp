@@ -11,7 +11,8 @@ TABLE taxVATType (TaxVATType);
 name 'Тип НДС по секциям' = DATA STRING[50](TaxVATType) CHARWIDTH 10;
 
 TABLE taxVATTypeRange (TaxVATType, Range);
-numberSection 'Номер секции' = DATA INTEGER(TaxVATType, Range);
+numberSection 'Номер секции ВМ' = DATA INTEGER(TaxVATType, Range);
+numberSectionSento 'Номер секции Sento' = DATA STRING[1](TaxVATType, Range);
 
 FORM taxVATType 'Тип НДС по секциям'
     OBJECTS t = TaxVATType PANEL
@@ -19,7 +20,7 @@ FORM taxVATType 'Тип НДС по секциям'
     
     OBJECTS vat = Range
     PROPERTIES READONLY valueCurrentRate(vat)
-    PROPERTIES numberSection(t, vat)
+    PROPERTIES (t, vat) numberSection, numberSectionSento
     FILTERS tax(vat) == Tax.taxVAT,
             country(vat) = defaultCountry()
 
@@ -33,10 +34,10 @@ FORM taxVATTypes 'Типы НДС по секциям'
     
     OBJECTS vat = Range
     PROPERTIES READONLY valueCurrentRate(vat)
-    PROPERTIES READONLY numberSection(t, vat)
+    PROPERTIES (t, vat) READONLY numberSection, numberSectionSento
     FILTERS tax(vat) == Tax.taxVAT,
             country(vat) = defaultCountry(), 
-            numberSection(t, vat)
+            numberSection(t, vat) OR numberSectionSento(t, vat)
 
     LIST TaxVATType OBJECT t;
 ;
@@ -45,6 +46,7 @@ taxVATType = DATA TaxVATType(GroupCashRegister);
 nameTaxVATType 'Тип НДС по секциям' (GroupCashRegister c) = name(taxVATType(c));
 
 numberSection(ReceiptDetail d) = numberSection(taxVATType(groupCashRegister(currentCashRegister())), VAT(d));
+numberSectionSento(ReceiptDetail d) = numberSectionSento(taxVATType(groupCashRegister(currentCashRegister())), VAT(d));
 
 EXTEND FORM groupCashRegister
     PROPERTIES(grc) nameTaxVATType
