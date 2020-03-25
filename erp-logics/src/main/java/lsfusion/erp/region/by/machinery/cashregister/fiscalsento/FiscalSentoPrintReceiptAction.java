@@ -48,6 +48,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
             String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
 
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
+            ScriptingLogicsModule cashRegisterTaxLM = context.getBL().getModule("CashRegisterTax");
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
@@ -121,6 +122,9 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
                 }
+                if (cashRegisterTaxLM != null) {
+                    receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSection[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -142,10 +146,11 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     double sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.doubleValue();
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
+                    Integer numberSection = (Integer) receiptDetailValues.get("numberSection");
                     if (quantitySale > 0)
-                        receiptSaleItemList.add(new ReceiptItem( price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail));
+                        receiptSaleItemList.add(new ReceiptItem( price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                     if (quantityReturn > 0)
-                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail));
+                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                 }
 
                 if (context.checkApply()) {

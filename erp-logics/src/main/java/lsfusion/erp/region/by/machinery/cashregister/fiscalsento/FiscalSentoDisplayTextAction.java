@@ -54,7 +54,7 @@ public class FiscalSentoDisplayTextAction extends InternalAction {
                 double articleDiscSum = getDouble((BigDecimal) findProperty("discountSum[ReceiptDetail]").read(context, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalSentoDisplayTextClientAction(false, logPath, comPort, baudRate,
-                        new ReceiptItem(price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum)));
+                        new ReceiptItem(price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, null)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalSentoDisplayText Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

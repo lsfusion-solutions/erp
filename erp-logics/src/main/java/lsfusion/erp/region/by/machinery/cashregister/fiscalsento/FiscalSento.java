@@ -137,9 +137,27 @@ public class FiscalSento {
 
     public static void openRefundDocument(ReceiptItem item) {
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
-        logAction("openRefundDocument", 1, item.barcode, 'A', price, item.quantity, item.sumPos, item.name);
-        if(!sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), 'A', price, item.quantity, item.sumPos, getBytes(item.name)))
+        logAction("openRefundDocument", 1, item.barcode, getVAT(item.numberSection), price, item.quantity, item.sumPos, item.name);
+        if(!sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, item.sumPos, getBytes(item.name)))
             checkErrors();
+    }
+
+    private static int getVAT(Integer section) {
+        if (section != null) {
+            switch (section) {
+                case 1:
+                    return 'B';
+                case 2:
+                    return 'C';
+                case 3:
+                    return 'D';
+                case 4:
+                    return 'E';
+                case 5:
+                    return 'F';
+            }
+        }
+        return 'A';
     }
 
     public static void cancelReceipt() {
@@ -259,8 +277,8 @@ public class FiscalSento {
     public static void registerItem(ReceiptItem item, String comment) {
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
-        logAction("sale", 6, item.barcode, 'A', price, item.quantity, item.sumPos, item.name, comment != null ? comment : "");
-        boolean result = sentoDLL.sento.sale((short) 6, 1, getBytes(item.barcode), 'A', price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+        logAction("sale", 6, item.barcode, getVAT(item.numberSection), price, item.quantity, item.sumPos, item.name, comment != null ? comment : "");
+        boolean result = sentoDLL.sento.sale((short) 6, 1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
         if(!result)
             checkErrors();
     }
