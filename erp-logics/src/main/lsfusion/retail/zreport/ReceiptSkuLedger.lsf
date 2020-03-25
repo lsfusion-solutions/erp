@@ -21,6 +21,8 @@ WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE dat
     VATReceiptSaleDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
+extraDiscountSum = ABSTRACT NUMERIC[18,4](ReceiptSaleSkuLedger); 
+
 departmentStore = DATA DepartmentStore (ReceiptSaleSkuLedger) INDEXED;
 sku = DATA Sku (ReceiptSaleSkuLedger);
 date = DATA DATE (ReceiptSaleSkuLedger);
@@ -66,7 +68,7 @@ VAT (ReceiptSaleSkuLedger ledger) += VATReceiptSaleDetail(departmentStore(ledger
 sum[SaleLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 price (ReceiptSaleSkuLedger ledger) += price(ledger);
 
-discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))) (+) extraDiscountSum(ledger);
 
 //-----------------------
 
@@ -90,6 +92,8 @@ VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[16,4] price)) DO {
     VATReceiptReturnDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
+
+extraDiscountSum = ABSTRACT NUMERIC[18,4](ReceiptReturnSkuLedger); 
 
 receiptReturnSkuLedger = AGGR ReceiptReturnSkuLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date, NUMERIC[16,4] price);// MATERIALIZED;
 //INDEX receiptReturnSkuLedger(DepartmentStore departmentStore, Sku sku, DATE date, NUMERIC[16,4] price);
@@ -124,7 +128,7 @@ quantity[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[14,3](quantityR
 VAT (ReceiptReturnSkuLedger ledger) += VATReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger));
 price (ReceiptReturnSkuLedger ledger) += price(ledger);
 sum[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
-discountSum (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+discountSum (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))) (+) -extraDiscountSum(ledger);
 
 //-------------
 
