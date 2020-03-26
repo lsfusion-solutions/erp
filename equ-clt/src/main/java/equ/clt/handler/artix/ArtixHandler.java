@@ -1200,16 +1200,25 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             BigDecimal discountSumReceiptDetail = null;
                                             BigDecimal discountPercentReceiptDetail = null;
 
-                                            boolean hasBonus = false;
+                                            BigDecimal bonusSum = null;
+                                            JSONArray bonusPositionsArray = inventPosition.getJSONArray("bonusPositions");
+                                            for (int j = 0; j < bonusPositionsArray.length(); j++) {
+                                                JSONObject bonusPosition = bonusPositionsArray.getJSONObject(j);
+                                                BigDecimal amount = bonusPosition.getBigDecimal("amount");
+                                                if(amount != null)
+                                                    bonusSum = safeAdd(bonusSum, amount);
+                                            }
+
+                                            BigDecimal bonusPaid = null;
                                             JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
                                             for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                 JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                                 String discType = discountPosition.getString("discType");
                                                 if(discType != null && discType.equals("bonus"))
-                                                    hasBonus = true;
+                                                    bonusPaid = safeAdd(bonusPaid, discountPosition.getBigDecimal("discSum"));
                                             }
 
-                                            if(bonusesInDiscountPositions && hasBonus) {
+                                            if(bonusesInDiscountPositions && bonusPaid != null) {
                                                 BigDecimal baseSum = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                     JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
@@ -1246,11 +1255,17 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                                                currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
+                                                SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
                                                         sumCard, sumCash, sumGiftCardMap, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, cashRegister));
+                                                        numberReceiptDetail, fileName, null, isSkip, cashRegister);
+                                                if(!bonusesInDiscountPositions) {
+                                                    salesInfo.detailExtraFields = new HashMap<>();
+                                                    salesInfo.detailExtraFields.put("bonusSum", bonusSum);
+                                                    salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
+                                                }
+                                                currentSalesInfoList.add(salesInfo);
                                             }
                                         }
                                     }

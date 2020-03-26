@@ -102,7 +102,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule zReportDiscountCardLM;
     private ScriptingLogicsModule zReportSectionLM;
     private ScriptingLogicsModule zReportExternalLM;
-    
+    private ScriptingLogicsModule zReportBonusLM;
+
     private boolean started = false;
 
     private int skipTroubleCounter = 1;
@@ -168,6 +169,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
         zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
         zReportExternalLM = getBusinessLogics().getModule("ZReportExternal");
+        zReportBonusLM = getBusinessLogics().getModule("ZReportBonus");
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
@@ -677,6 +679,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleFields.add(externalSumZReportField);
             }
 
+            ImportField bonusSumReceiptSaleDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusSum[ReceiptSaleDetail]"));
+            ImportField bonusPaidReceiptSaleDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusPaid[ReceiptSaleDetail]"));
+            if (zReportBonusLM != null) {
+                saleFields.add(bonusSumReceiptSaleDetailField);
+                saleFields.add(bonusPaidReceiptSaleDetailField);
+            }
+
             //return 1
             ImportField quantityReceiptReturnDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptReturnDetail]"));
             returnFields.add(quantityReceiptReturnDetailField);
@@ -705,6 +714,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
             if (zReportExternalLM != null) {
                 returnFields.add(externalSumZReportField);
+            }
+
+            ImportField bonusSumReceiptReturnDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusSum[ReceiptReturnDetail]"));
+            ImportField bonusPaidReceiptReturnDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]"));
+            if (zReportBonusLM != null) {
+                returnFields.add(bonusSumReceiptReturnDetailField);
+                returnFields.add(bonusPaidReceiptReturnDetailField);
             }
 
             //giftCard 1
@@ -788,6 +804,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 saleProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
             }
 
+            if (zReportBonusLM != null) {
+                saleProperties.add(new ImportProperty(bonusSumReceiptSaleDetailField, zReportBonusLM.findProperty("bonusSum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                saleProperties.add(new ImportProperty(bonusPaidReceiptSaleDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+            }
+
             //return 2
             returnProperties.addAll(commonProperties);
 
@@ -837,6 +858,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             if (zReportExternalLM != null) {
                 returnProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+            }
+
+            if (zReportBonusLM != null) {
+                returnProperties.add(new ImportProperty(bonusSumReceiptReturnDetailField, zReportBonusLM.findProperty("bonusSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                returnProperties.add(new ImportProperty(bonusPaidReceiptReturnDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
             }
 
             //giftCard 2
@@ -1110,6 +1136,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     saleProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
                 }
 
+                ImportField bonusSumReceiptSaleDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusSum[ReceiptSaleDetail]"));
+                ImportField bonusPaidReceiptSaleDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusPaid[ReceiptSaleDetail]"));
+                if(zReportBonusLM != null) {
+                    saleProperties.add(new ImportProperty(bonusSumReceiptSaleDetailField, zReportBonusLM.findProperty("bonusSum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                    saleProperties.add(new ImportProperty(bonusPaidReceiptSaleDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                }
+
                 //return 2
                 returnProperties.addAll(commonProperties);
 
@@ -1157,6 +1190,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if(zReportExternalLM != null) {
                     returnProperties.add(new ImportProperty(externalSumZReportField, zReportExternalLM.findProperty("externalSum[ZReport]").getMapping(zReportKey)));
+                }
+
+                ImportField bonusSumReceiptReturnDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusSum[ReceiptReturnDetail]"));
+                ImportField bonusPaidReceiptReturnDetailField = zReportBonusLM == null ? null : new ImportField(zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]"));
+                if(zReportBonusLM != null) {
+                    returnProperties.add(new ImportProperty(bonusSumReceiptReturnDetailField, zReportBonusLM.findProperty("bonusSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                    returnProperties.add(new ImportProperty(bonusPaidReceiptReturnDetailField, zReportBonusLM.findProperty("bonusPaid[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
                 }
 
                 //giftCard 2
@@ -1219,6 +1259,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     saleImportFields = new ArrayList<>(saleImportFields);
                     saleImportFields.add(externalSumZReportField);
                 }
+                if(zReportBonusLM != null) {
+                    saleImportFields.add(bonusSumReceiptSaleDetailField);
+                    saleImportFields.add(bonusPaidReceiptSaleDetailField);
+                }
 
                 //return 4
                 List<ImportField> returnImportFields = new ArrayList<>(commonZReportFields);
@@ -1238,6 +1282,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 if (zReportExternalLM != null) {
                     returnImportFields = new ArrayList<>(returnImportFields);
                     returnImportFields.add(externalSumZReportField);
+                }
+                if(zReportBonusLM != null) {
+                    returnImportFields.add(bonusSumReceiptReturnDetailField);
+                    returnImportFields.add(bonusPaidReceiptReturnDetailField);
                 }
 
                 //giftCard 4
@@ -2493,6 +2541,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         BigDecimal sumBack = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("sumBack") : null;
         BigDecimal externalSum = sale.zReportExtraFields != null ? (BigDecimal) sale.zReportExtraFields.get("externalSum") : null;
 
+        BigDecimal bonusSum = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("bonusSum") : null;
+        BigDecimal bonusPaid = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("bonusPaid") : null;
+
         String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
         BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
         BigDecimal price = barcodePart != null ? barcodePart.price : sale.priceReceiptDetail;
@@ -2526,6 +2577,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             if (zReportExternalLM != null) {
                 row.add(externalSum);
             }
+            if(zReportBonusLM != null) {
+                row.add(bonusSum);
+                row.add(bonusPaid);
+            }
         } else {
             //sale 3
             row.addAll(Arrays.asList(quantity, price, sum, sale.discountPercentReceiptDetail, discount, sale.discountSumReceipt));
@@ -2537,6 +2592,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
             if (zReportExternalLM != null) {
                 row.add(externalSum);
+            }
+            if(zReportBonusLM != null) {
+                row.add(bonusSum);
+                row.add(bonusPaid);
             }
         }
         return row;
