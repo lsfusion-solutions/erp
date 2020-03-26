@@ -2543,6 +2543,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
         BigDecimal bonusSum = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("bonusSum") : null;
         BigDecimal bonusPaid = sale.detailExtraFields != null ? (BigDecimal) sale.detailExtraFields.get("bonusPaid") : null;
+        if(bonusPaid != null && zReportBonusLM == null) {
+            sale.discountSumReceiptDetail = safeAdd(sale.discountSumReceiptDetail, bonusPaid);
+        }
 
         String idReceiptDetail = getIdReceiptDetail(sale, options) + (barcodePart != null ? ("_" + barcodePart.index) : "");
         BigDecimal quantity = barcodePart != null ? barcodePart.quantity : sale.quantityReceiptDetail;
