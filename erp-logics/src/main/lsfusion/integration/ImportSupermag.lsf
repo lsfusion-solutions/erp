@@ -1028,8 +1028,7 @@ importContract 'Импорт из контрактов с поставщикам
         contractTypeInSuperMag(c) <- contractType(i);
         stateInSuperMag(c) <- posted(i); 
         delayPaymentInSuperMag(c) <- paymentDelay(i);
-        isBankDaysInSuperMag(c) <- isBankDays(i);
-        
+        isBankDaysInSuperMag(c) <- isBankDays(i);       
         type(c) <- ContractSkuType.sale;
         number(c) <- ISTRING[28] (id(i));
         dateFrom(c) <- begin(i);
@@ -1040,8 +1039,8 @@ importContract 'Импорт из контрактов с поставщикам
         paymentCondition(c) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;      
         currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();  
         imported(c) <- TRUE;              
-    }   
-                
+    }
+
     // создаем новые ПСЦ
     FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {  id[UserPriceList](p) <- id(i);  }
     // обновляем ПСЦ
@@ -1055,9 +1054,9 @@ importContract 'Импорт из контрактов с поставщикам
         stateInSuperMag(p) <- posted(i); 
         fromTime(p) <- 00:00;
         toDate(p) <- end(i);
-        company(p) <- legalEntity(TEXT (idContragent(i)));
-        note(p) <- title(i);
         contractSku(p) <- userContractSku(TEXT (id(i)));
+        company(p) <- supplier(contractSku(p));
+        note(p) <- title(i);
         fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
         delayPaymentInSuperMag(p) <- paymentDelay(i);
         isBankDaysInSuperMag(p) <- isBankDays(i);
