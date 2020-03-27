@@ -5,7 +5,13 @@ REQUIRE ProductionOrderSku, ProductionOrderWorkshop;
 NAMESPACE Production;
 
 fillNegativeBalanceWorkshopProductDetail 'Заполнить изделия по остаткам' (Order o) {
-    fillNegativeBalanceProductDetail(o, skuGroup(workshopStock(o)));
+    FOR balanceA(Sku sk, productsStock(o), date(o)) < 0 AND inWorkshop(sk,workshopStock(o))  DO NEW d = ProductDetail {
+        order(d) <- o;
+        sku(d) <- sk;
+        quantity(d) <- abs(balanceA(sk, productsStock(o), date(o)));
+        product(d) <- GROUP MAX Product p IF isActive(BOM(p)) AND in(BOM(p), componentsStock(o)) AND sku(p) == sk;
+    }    
+    
 }
 
 @defineOperationProperty(showFillNegativeBalance, 'Показывать кнопку добавления строк с отриц. остатком', BOOLEAN, showContainer);
