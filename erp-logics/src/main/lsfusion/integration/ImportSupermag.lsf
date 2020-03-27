@@ -1030,6 +1030,9 @@ importContract 'Импорт договор из контрактов с пос�
         paymentCondition(c) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;      
         currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();                
     }   
+    
+    // чтобы обойти Constraint, переопределяем дату начала прайса если в СМ изменили дату начала конракта 
+    fromDate (PriceList.UserPriceList pl) <- dateFrom(contractSku(pl)) WHERE NOT dateFrom(contractSku(pl)) <= fromDate(pl);
      
 //     // указываем какие магазины входят в ПСЦ            
 //    LOCAL idStock = INTEGER (INTEGER);    
@@ -2010,6 +2013,8 @@ stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Purchase.User
 prevStateInSuperMag 'Пред. статус в супермаг' = DATA INTEGER (Purchase.UserOrder);
 EXTEND FORM Purchase.orders PROPERTIES stateInSuperMag(o);
 
+overImportPurchaseOrder ABSTRACT LIST ();
+
 importPurchaseOrder 'Импорт заказов (закупка)' () {
     
     LOCAL id = ISTRING[50] (INTEGER);
@@ -2085,7 +2090,10 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         dataIndex(d) <- specItem(i);
         imported(d) <- TRUE;
     }
-    APPLY;
+    
+    overImportPurchaseOrder();
+    
+    APPLY;       
 }
 
 EXTEND FORM integrationData PROPERTIES importPurchaseOrder(), daysOrder(), numberOrder();
