@@ -312,7 +312,32 @@ dataAddressCustomerStock 'Пункт разгрузки' (consignment) = ABSTRAC
 addressCustomerStock 'Пункт разгрузки' (Consignment consignment) = OVERRIDE dataAddressCustomerStock (consignment),
                                                                            address(customerStock(consignment)) CHARWIDTH 40 IN carConsignment;
 
-readdressing 'Переадресовка' (consignment) = ABSTRACT STRING[50] (Consignment) CHARWIDTH 40 IN carConsignment;
+readdressing 'Переадресовка' (consignment) = ABSTRACT STRING[50] (Consignment) CHARWIDTH 40 IN carConsignment; 
+
+FORM dialogEmployeesConsignment 'Сотрудники'
+    OBJECTS e = Employee
+    PROPERTIES (e) READONLY inactive, lastName, firstName, namePosition, nameMainRole, userRoles
+    
+    FILTERGROUP active FILTER 'Активные' active(e) 'F5'  DEFAULT 
+    
+    LIST Employee OBJECT e
+;
+
+DESIGN dialogEmployeesConsignment {
+    size = (800, 600);
+    PROPERTY (lastName(e)) {
+        charWidth = 15;
+    }
+    PROPERTY (firstName(e)) {
+        charWidth = 25;
+    }
+    PROPERTY (namePosition(e)) {
+        charWidth = 30;
+    }
+    PROPERTY (nameMainRole(e)) {
+        charWidth = 25;
+    }
+}
 
 // ------------------------------------- Отпуск товара --------------------------------- //
 
@@ -348,7 +373,7 @@ changeIssuanceAllowed(Consignment consignment)  {
             dataIssuanceAllowed(consignment) <- s;  
         }               
     } ELSE {
-        DIALOG dialogEmployees OBJECTS e = issuanceAllowed(consignment) INPUT NULL DO {
+        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceAllowed(consignment) INPUT NULL DO {
             issuanceAllowed(consignment) <- e;
             IF NOT issuanceAllowed(consignment) THEN {
                 overIssuanceAllowed(consignment) <- e;
@@ -379,7 +404,7 @@ changeIssuanceExecuted(Consignment consignment)  {
         } 
         
     } ELSE {
-        DIALOG dialogEmployees OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
+        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
             issuanceExecuted(consignment) <- e;
             IF NOT issuanceExecuted(consignment) THEN {
                 overIssuanceExecuted(consignment) <- e;
