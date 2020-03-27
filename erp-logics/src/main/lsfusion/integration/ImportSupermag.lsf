@@ -963,10 +963,21 @@ delayPaymentInSuperMag = DATA INTEGER (UserContractSku);
 isBankDaysInSuperMag = DATA INTEGER (UserContractSku);
 stateInSuperMag = DATA INTEGER (UserContractSku);
 
+contractTypeInSuperMag = DATA INTEGER (UserPriceList);
+delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
+isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
+stateInSuperMag = DATA INTEGER (PriceList);
+
+id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
+
+id = DATA ISTRING[100](UserRepricingDetail) INDEXED;
+userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingDetail BY id(d);
+
 overImportSupplierPrice ABSTRACT LIST ();
 
-importContract 'Импорт договор из контрактов с поставщиками' () { 
-    // загузка данных из Контрактов с поставщиками (уловия оплаты) и Соглашений о поставках (магазины)           
+//надо ггрузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
+importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
     LOCAL id = ISTRING[50] (INTEGER);
     LOCAL agrId = ISTRING[50] (INTEGER);
     LOCAL date = DATE (INTEGER);
@@ -980,11 +991,11 @@ importContract 'Импорт договор из контрактов с пос�
     LOCAL isCalendarDelay = ISTRING[1] (INTEGER);
     LOCAL contractType = INTEGER (INTEGER);
     LOCAL imported = BOOLEAN (UserPriceList);    
+    LOCAL imported = BOOLEAN (UserContractSku);    
     LOCAL filterSql = TEXT ();
     
     LOCAL file = FILE ();
             
-    //фильтр на отбор ПСЦ
     filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberSupplierContract()) > 0 THEN
        filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
@@ -1010,10 +1021,9 @@ importContract 'Импорт договор из контрактов с пос�
     }
 
     // создаем новые договоры
-    FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW p = UserContractSku {
-        id(p) <- id(i);
-    }
-    // обновляем догворы
+    FOR id(INTEGER i) AND NOT userContractSku(id(i)) DO NEW p = UserContractSku { id(p) <- id(i); }
+    
+    // обновляем договоры    
     FOR UserContractSku c == userContractSku(id(INTEGER i)) DO {
         contractTypeInSuperMag(c) <- contractType(i);
         stateInSuperMag(c) <- posted(i); 
@@ -1028,25 +1038,78 @@ importContract 'Импорт договор из контрактов с пос�
         customer(c) <- defaultCompany();        
         note(c) <- STRING[100] (title(i));
         paymentCondition(c) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;      
-        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();                
+        currency(c) <- OVERRIDE currency(supplier(c)), defaultCurrency();  
+        imported(c) <- TRUE;              
     }   
-    
-    // чтобы обойти Constraint, переопределяем дату начала прайса если в СМ изменили дату начала конракта 
-    fromDate (PriceList.UserPriceList pl) <- dateFrom(contractSku(pl)) WHERE NOT dateFrom(contractSku(pl)) <= fromDate(pl);
+                
+    // создаем новые ПСЦ
+    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {  id[UserPriceList](p) <- id(i);  }
+    // обновляем ПСЦ
+    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
+        contractTypeInSuperMag(p) <- contractType(i);
+        operation(p) <- PriceList.operation('supplier');
+        number(p) <- ISTRING[28] (id(p));
+        date(p) <- date(i);
+        time(p) <- 00:00;
+        isPosted(p) <- posted(i) = 3 OR posted(i) = 0;
+        stateInSuperMag(p) <- posted(i); 
+        fromTime(p) <- 00:00;
+        toDate(p) <- end(i);
+        company(p) <- legalEntity(TEXT (idContragent(i)));
+        note(p) <- title(i);
+        contractSku(p) <- userContractSku(TEXT (id(i)));
+        fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
+        delayPaymentInSuperMag(p) <- paymentDelay(i);
+        isBankDaysInSuperMag(p) <- isBankDays(i);
+        allStocks(p) <- NULL;
+        imported(p) <- TRUE;        
+    }   
      
-//     // указываем какие магазины входят в ПСЦ            
-//    LOCAL idStock = INTEGER (INTEGER);    
-//    LOCAL idDoc = ISTRING[50] (INTEGER);    
-//
-//    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-//        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
-//
-//    IMPORT TABLE FROM file() TO idDoc, idStock;
-//
-//    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
-//        dataIn(p, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (idStock(i)))](p, s);
-//    }     
-           
+     // указываем какие магазины входят в ПСЦ            
+    LOCAL idStock = INTEGER (INTEGER);    
+    LOCAL idDoc = ISTRING[50] (INTEGER);    
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
+
+    IMPORT TABLE FROM file() TO idDoc, idStock;
+
+    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
+        dataIn(p, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (idStock(i)))](p, s);
+    }     
+    
+    overImportSupplierPrice();
+
+    //загружаем спецификаци    
+    LOCAL type = ISTRING[2](INTEGER);
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL packSize = NUMERIC[14,3](INTEGER);
+    LOCAL price = NUMERIC[19,4](INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND ' + filterSql() TO file;
+
+    IMPORT TABLE FROM file() TO type, idDoc, date, specItem, idItem, packSize, price;
+
+    id(INTEGER i) <- CONCAT '', 'S', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
+        id(d) <- id(i);
+        userPriceList(d) <- userPriceList(idDoc(i));
+    }
+
+    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
+        sku(d) <- item(idItem(i));  
+        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType(id(operation(userPriceList(d))));
+        imported(d) <- TRUE;
+        dataIndex(d) <- specItem(i);
+    }
+
+//    IF overfieldDateContract() = 'ENDSAT' THEN {
+//       DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND (id(operation(p)) == 'supplier' OR id(operation(d)) = 'supplierakcia') AND NOT imported(p);
+//       DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromS() AND (id(operation(d)) = 'supplier' OR id(operation(d)) = 'supplierakcia') AND NOT imported(d);
     APPLY;
 }
 
@@ -1120,159 +1183,6 @@ importContract 'Импорт договор из контрактов с пос�
 
 EXTEND FORM integrationData PROPERTIES importContract();
 DESIGN integrationData { contractButtons { MOVE PROPERTY (importContract()); } }
-
-id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
-userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
-
-id = DATA ISTRING[100](UserRepricingDetail) INDEXED;
-userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingDetail BY id(d);
-
-//----------------------------------------------------------------------------------------------------------ПСЦ
-
-contractTypeInSuperMag = DATA INTEGER (UserPriceList);
-delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
-isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
-stateInSuperMag = DATA INTEGER (PriceList);
-
-importSupplierPrice 'Импорт ПСЦ' () { 
-    // загузка данных из Контрактов с поставщиками (уловия оплаты) и Соглашений о поставках (магазины)           
-    LOCAL id = ISTRING[50] (INTEGER);
-    LOCAL agrId = ISTRING[50] (INTEGER);
-    LOCAL date = DATE (INTEGER);
-    LOCAL posted = INTEGER (INTEGER);
-    LOCAL begin = DATE (INTEGER);
-    LOCAL end = DATE (INTEGER);
-    LOCAL idContragent = INTEGER (INTEGER);
-    LOCAL idCompany = INTEGER (INTEGER);
-    LOCAL title = ISTRING[255] (INTEGER);
-    LOCAL paymentDelay = INTEGER (INTEGER);
-    LOCAL isCalendarDelay = ISTRING[1] (INTEGER);
-    LOCAL contractType = INTEGER (INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceList);    
-    LOCAL filterSql = TEXT ();
-    
-    logToFile('importSupermag', 'importPriceListSupplier_1');
-    
-    LOCAL file = FILE ();
-            
-    //фильтр на отбор ПСЦ
-    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromS()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(numberSupplierContract()) > 0 THEN
-       filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
-               
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-    EXEC 'SELECT cc.ID, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
-    
-    logToFile('importSupermag', 'importPriceListSupplier_2');
-    
-    IMPORT TABLE FROM file() TO id, date, posted, begin, end, idContragent, idCompany, title, paymentDelay, isCalendarDelay, contractType;
-    
-    logToFile('importSupermag', 'importPriceListSupplier_3');
-
-    //  дополняем базу условиями отсрочки
-    LOCAL isBankDays = INTEGER (INTEGER);
-    isBankDays(INTEGER i) <- CASE WHEN isCalendarDelay(i) = '1' THEN 0 ELSE 1 WHERE imported(i);
-    
-    FOR [GROUP SUM 1 IF imported(INTEGER i) BY paymentDelay(i), isBankDays(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
-        type(p) <- AgreementPaymentType.prepayment;
-        bankingDays(p) <- b = 1;
-               
-        NEW pp = PaymentPeriod {
-            paymentCondition(pp) <- p;
-            percent(pp) <- 100;
-            countDays(pp) <- d;
-        }
-    }
-
-    logToFile('importSupermag', 'importPriceListSupplier_4');   
-    // создаем новые ПСЦ
-    FOR id(INTEGER i) AND NOT userPriceList(id(i)) DO NEW p = UserPriceList {
-        id[UserPriceList](p) <- id(i);
-    }
-    // обновляем ПСЦ
-    FOR UserPriceList p == userPriceList(id(INTEGER i)) DO {
-        contractTypeInSuperMag(p) <- contractType(i);
-        operation(p) <- PriceList.operation('supplier');
-        number(p) <- ISTRING[28] (id(p));
-        date(p) <- date(i);
-        time(p) <- 00:00;
-        isPosted(p) <- posted(i) = 3 OR posted(i) = 0;
-        stateInSuperMag(p) <- posted(i); 
-        fromTime(p) <- 00:00;
-        toDate(p) <- end(i);
-        company(p) <- legalEntity(TEXT (idContragent(i)));
-        note(p) <- title(i);
-        contractSku(p) <- userContractSku(TEXT (id(i)));
-//        contractSku(p) <- userContractSku(company(p), ImportSupermag.defaultCompany());
-        fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
-        delayPaymentInSuperMag(p) <- paymentDelay(i);
-        isBankDaysInSuperMag(p) <- isBankDays(i);
-        allStocks(p) <- NULL;
-        imported(p) <- TRUE;        
-    }   
-     
-     // указываем какие магазины входят в ПСЦ            
-    LOCAL idStock = INTEGER (INTEGER);    
-    LOCAL idDoc = ISTRING[50] (INTEGER);    
-
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
-
-    logToFile('importSupermag', 'importPriceListSupplier_5');   
-
-    IMPORT TABLE FROM file() TO idDoc, idStock;
-
-    logToFile('importSupermag', 'importPriceListSupplier_6');              
-
-    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList p) DO {
-        dataIn(p, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (idStock(i)))](p, s);
-    }     
-
-    logToFile('importSupermag', 'importPriceListSupplier_7');
-    
-    overImportSupplierPrice();
-
-    //загружаем спецификаци    
-    LOCAL type = ISTRING[2](INTEGER);
-    LOCAL specItem = INTEGER (INTEGER);
-    LOCAL idItem = ISTRING[50](INTEGER);
-    LOCAL packSize = NUMERIC[14,3](INTEGER);
-    LOCAL price = NUMERIC[19,4](INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceListDetail);
-
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND ' + filterSql() TO file;
-
-    logToFile('importSupermag', 'importPriceListSupplier_8');
-
-    IMPORT TABLE FROM file() TO type, idDoc, date, specItem, idItem, packSize, price;
-
-
-    id(INTEGER i) <- CONCAT '', 'S', type(i), idDoc(i), specItem(i) WHERE imported(i); 
-
-    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(id(i)) DO NEW d = UserPriceListDetail {
-        id(d) <- id(i);
-        userPriceList(d) <- userPriceList(idDoc(i));
-    }
-
-    FOR UserPriceListDetail d = userPriceListDetail(id(INTEGER i)) DO {
-        sku(d) <- item(idItem(i));  
-        price(d, LedgerPriceListType t) <- NUMERIC[16,4](price(i)) WHERE t == dataPriceListType(id(operation(userPriceList(d))));
-        imported(d) <- TRUE;
-        dataIndex(d) <- specItem(i);
-    }
-
-//    IF overfieldDateContract() = 'ENDSAT' THEN {
-//       DELETE UserPriceList p WHERE toDate(p) >= dateFromS() AND (id(operation(p)) == 'supplier' OR id(operation(d)) = 'supplierakcia') AND NOT imported(p);
-//       DELETE UserPriceListDetail d WHERE  toDate(d) >= dateFromS() AND (id(operation(d)) = 'supplier' OR id(operation(d)) = 'supplierakcia') AND NOT imported(d);
-        
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importSupplierPrice();
-DESIGN integrationData { contractButtons { 
-    MOVE PROPERTY (importSupplierPrice()) { caption = 'Импорт ПСЦ из контрактов с поставщиками'; };     
-} }
 
 DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
 
