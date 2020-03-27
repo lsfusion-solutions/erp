@@ -612,6 +612,11 @@ DESIGN integrationData {
 
 idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
 
+overImportDepartmentStore ABSTRACT LIST ();
+
+idParentStock = DATA LOCAL INTEGER (INTEGER);
+idStocks = DATA LOCAL INTEGER (INTEGER);
+
 importDepartmentStore 'Импорт отделов магазинов и складов' () {
     
     LOCAL id = INTEGER (INTEGER);
@@ -620,14 +625,14 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
     LOCAL address = ISTRING[255] (INTEGER);
     LOCAL idFormat = INTEGER (INTEGER);
     LOCAL idCompany = INTEGER (INTEGER);
-    LOCAL idStore = INTEGER (INTEGER);
+ //   LOCAL idParentStock = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
         EXEC 'SELECT ID, NAME, IDCLASS, ADDRESS, FORMATID, l.CLIENTID AS COMPANYID, PARENTLOC FROM Supermag.SVGRANTEDLOCS g, Supermag.SMOWNCLIENTLOCS l WHERE g.ID = l.LOCID' TO file;
     
-    IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idStore;
-    
+    IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idParentStock;
+        
     FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND NOT idClass(i) = idGroupWarehouseInSuperMag() DO NEW s = DepartmentStore {
         id(s) <- ISTRING[100] (id(i));
     }
@@ -655,6 +660,9 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
         address(s) <- OVERRIDE ISTRING[150](address(i)), '';
         legalEntity(s) <- legalEntity(TEXT (idCompany(i)));
     }
+    
+    idStocks(INTEGER i) <- id(i);
+    overImportDepartmentStore();
     
     APPLY;
 }
