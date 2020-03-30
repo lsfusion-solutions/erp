@@ -88,7 +88,7 @@ public class MachineryExchangeEquipmentServer {
                     DataObject requestExchangeObject = requestExchangeResult.getKey(i).get("requestExchange");
                     LocalDate dateFromRequestExchange = getLocalDate(requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue());
                     LocalDate dateToRequestExchange = getLocalDate(requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue());
-                    LocalDate startDateRequestExchange = getLocalDate(requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue());
+                    LocalDate startDateRequestExchange = machineryPriceTransactionDiscountCardLM != null ? getLocalDate(requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue()) : null;
                     String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
                     //terminalOrder - единственный тип запроса для ТСД. Все остальные - только для касс
