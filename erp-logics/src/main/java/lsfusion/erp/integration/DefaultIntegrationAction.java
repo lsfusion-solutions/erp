@@ -249,11 +249,11 @@ public class DefaultIntegrationAction extends InternalAction {
         }
     }
 
-    public static Date getWriteDate(Object value) {
+    public static LocalDate getWriteDate(Object value) {
         if(value instanceof LocalDate) {
-            return localDateToSqlDate((LocalDate) value);
+            return (LocalDate) value;
         } else {
-            return (Date) value;
+            return sqlDateToLocalDate((Date) value);
         }
     }
 
@@ -265,11 +265,11 @@ public class DefaultIntegrationAction extends InternalAction {
         }
     }
 
-    public static Time getWriteTime(Object value) {
+    public static LocalTime getWriteTime(Object value) {
         if(value instanceof LocalTime) {
-            return localTimeToSqlTime((LocalTime) value);
+            return (LocalTime) value;
         } else {
-            return (Time) value;
+            return sqlTimeToLocalTime((Time) value);
         }
     }
 
@@ -281,11 +281,11 @@ public class DefaultIntegrationAction extends InternalAction {
         }
     }
 
-    public static Timestamp getWriteDateTime(Object value) {
+    public static LocalDateTime getWriteDateTime(Object value) {
         if(value instanceof LocalDateTime) {
-            return localDateTimeToSqlTimestamp((LocalDateTime) value);
+            return (LocalDateTime) value;
         } else {
-            return (Timestamp) value;
+            return sqlTimestampToLocalDateTime((Timestamp) value);
         }
     }
 
