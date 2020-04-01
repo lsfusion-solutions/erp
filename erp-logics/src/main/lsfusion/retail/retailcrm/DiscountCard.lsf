@@ -170,7 +170,7 @@ initialSum 'Начальная сумма' (discountCard) = DATA NUMERIC[18,4] (
 percent 'Процент скидки' (discountCard) = DATA NUMERIC[18,4] (DiscountCard);
 
 inactive 'Неактивный' = DATA BOOLEAN (DiscountCard);
-active 'Активный' (DiscountCard g) = g IS DiscountCard AND NOT inactive(g);
+isActive 'Активный' (DiscountCard g) = g IS DiscountCard AND NOT inactive(g);
 
 // Генерация дисконтных карт
 FORM generationDiscountCards 'Генерация дисконтных карт'
@@ -227,7 +227,7 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
 // Формы по работе с дисконтными картами
 FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard PANEL
-    PROPERTIES(d) id SHOWIF showIDs(), name, initialSum, percent, nameNumerator, number, series, date, dateTo,
+    PROPERTIES(d) id SHOWIF showIDs(), name, initialSum, percent, nameNumerator, number, series, date, dateTo, inactive,
                   firstNameContact ON CHANGE changeFirstNameContact(d), lastNameContact ON CHANGE changeLastNameContact(d), 
                   phoneLegalEntity ON CHANGE changePhoneLegalEntity(d), emailLegalEntity ON CHANGE changeEmailLegalEntity(d),          
                   addressLegalEntity ON CHANGE changeAddressLegalEntity(d), birthdayContact ON CHANGE changeBirthdayContact(d), 
@@ -251,6 +251,7 @@ DESIGN discountCard {
                         MOVE PROPERTY(initialSum(d));
                         MOVE PROPERTY(percent(d));
                         MOVE PROPERTY(nameDiscountCardType(d));
+                        MOVE PROPERTY(inactive(d));
                     }
                 }
                 NEW row2 {
@@ -292,7 +293,7 @@ FORM discountCardDialog 'Дисконтные карты'
                            firstNameContact, lastNameContact, birthdayContact, 
                            name, initialSum, percent, date, dateTo
     FILTERGROUP active
-        FILTER 'Активные' active(d) DEFAULT 
+        FILTER 'Активные' isActive(d) DEFAULT 
 
     LIST DiscountCard OBJECT d
 ;
@@ -307,7 +308,7 @@ FORM discountCards 'Дисконтные карты'
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE 
     
     FILTERGROUP active
-        FILTER 'Активные' active(d) DEFAULT 
+        FILTER 'Активные' isActive(d) DEFAULT 
 
     ORDER number(d)
 
