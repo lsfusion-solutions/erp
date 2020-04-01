@@ -43,12 +43,15 @@ defaultInvoiceDetail = GROUP MAX invoiceDetail(PricingDetail d) BY pricing(d);
 nameOperationInvoice (Pricing p) = name(operation(defaultInvoiceDetail(p)));    
 
 //НДС поставщика и сумма с НДС  
+sumSupplierCNote = ABSTRACT VALUE NUMERIC[18,4](PricingDetail);
 sumCNote (PricingDetail d) = sum(invoiceDetail(d)) (-) sum(invoiceCreditNoteDetail(invoiceDetail(d)));     
+sumSupplierCNote(PricingDetail d) += sumCNote(d);
+
 invoiceSum (PricingDetail d) = invoiceSum(invoiceDetail(d)) (-) invoiceSum(invoiceCreditNoteDetail(invoiceDetail(d))) (+) extraRetailSum(d);//invoiceSum(invoiceDetail(d)) (+) extraRetailSum(d);
 
 overValueVAT = ABSTRACT VALUE NUMERIC[10,5] (PricingDetail);
 valueVAT (PricingDetail d) = OVERRIDE overValueVAT(d), (IF (invoice(invoiceDetail(d)) IS Sale.Invoice) THEN valueVAT(lastOrderBatchA(sku(d),stock(d),dateTime(d))) ELSE valueVAT(invoiceDetail(d)));
-sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumCNote(d);
+sumSupplier 'Сумма поставщика без НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN supplierSum[Sale.InvoiceDetail](invoiceDetail(d)) ELSE sumSupplierCNote(d);
 VATSum 'Сумма НДС'(PricingDetail d) = IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN round2(sumSupplier(d)*valueVAT(d)/100) 
                                                         ELSE VATSum(invoiceDetail(d)) (-) VATSum(invoiceCreditNoteDetail(invoiceDetail(d)));
 sumSupplierWithVAT 'Сумма поставщика с НДС' (PricingDetail d) =  IF invoice(invoiceDetail(d)) IS Sale.Invoice THEN sumSupplier(d) (+) extraRetailSum(d) (+) VATSum(d) ELSE invoiceSum(d);
