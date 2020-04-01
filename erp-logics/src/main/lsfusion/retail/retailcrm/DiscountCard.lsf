@@ -169,6 +169,9 @@ initialSum 'Начальная сумма' (discountCard) = DATA NUMERIC[18,4] (
 
 percent 'Процент скидки' (discountCard) = DATA NUMERIC[18,4] (DiscountCard);
 
+inactive 'Неактивный' = DATA BOOLEAN (DiscountCard);
+active 'Активный' (DiscountCard g) = g IS DiscountCard AND NOT inactive(g);
+
 // Генерация дисконтных карт
 FORM generationDiscountCards 'Генерация дисконтных карт'
     OBJECTS n=Numerator  PANEL
@@ -288,6 +291,8 @@ FORM discountCardDialog 'Дисконтные карты'
                            phoneLegalEntity, emailLegalEntity,  addressLegalEntity,
                            firstNameContact, lastNameContact, birthdayContact, 
                            name, initialSum, percent, date, dateTo
+    FILTERGROUP active
+        FILTER 'Активные' active(d) DEFAULT 
 
     LIST DiscountCard OBJECT d
 ;
@@ -300,6 +305,9 @@ FORM discountCards 'Дисконтные карты'
                   addressLegalEntity ON CHANGE changeAddressLegalEntity(d), birthdayContact ON CHANGE changeBirthdayContact(d), 
                   date, dateTo, name, initialSum, percent
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE 
+    
+    FILTERGROUP active
+        FILTER 'Активные' active(d) DEFAULT 
 
     ORDER number(d)
 
