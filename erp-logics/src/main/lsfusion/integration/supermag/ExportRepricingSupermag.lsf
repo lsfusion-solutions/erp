@@ -44,7 +44,7 @@ FORM exportRepricingMag FORMEXTID 'PACKAGE'
     PROPERTIES = 3 IF i IS Repricing EXTID 'DOCSTATE' IN SMDOCUMENTS           
     PROPERTIES = 1 IF i IS Repricing  EXTID 'ISROUBLES' IN SMDOCUMENTS  
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATION' IN SMDOCUMENTS      
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 0 IF i IS Repricing  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
     PROPERTIES = retailSumRepricingDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
     PROPERTIES i1 = retailSumRepricingDetail(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS      
@@ -100,7 +100,7 @@ FORM exportRepricingMag FORMEXTID 'PACKAGE'
 
 exportRepricingMag 'Экспорт в супермаг' (Repricing i) {
     inc(Repricing ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(departmentStore(i));    
+    inc(i) <- TRUE WHERE opcodeSupermag(operation(i)) AND idSupermag(departmentStore(i));    
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(Repricing ii)) THEN{
@@ -131,7 +131,7 @@ exportSupermag(Repricing s) +{
 }
 
 exportSupermagAll() +{
-    FOR date(Repricing s AS Repricing) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(operation(s))DO {
+    FOR date(Repricing s AS Repricing) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND opcodeSupermag(operation(s))DO {
         exportRepricingMag(s);
     }
 }

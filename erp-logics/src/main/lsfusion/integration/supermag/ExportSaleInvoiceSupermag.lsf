@@ -4,17 +4,20 @@ REQUIRE ExportSupermag, SaleManufacturingPrice, PricingSale, SaleCreditNoteContr
 NAMESPACE Sale;
 
 EXTEND FORM operation
-    PROPERTIES (o) idSupermag
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 DESIGN operation{
     propertyContainer {
-        MOVE PROPERTY(idSupermag(o));
+        MOVE PROPERTY(docTypeSupermag(o));
+        MOVE PROPERTY(opcodeSupermag(o));
+        MOVE PROPERTY(useropSupermag(o));
     }
 }
 
 EXTEND FORM operations
-    PROPERTIES (o) READONLY idSupermag
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag
 ;
+
 //---------------------- Оптовая торговля (Код операции 1)
 GROUP WO;
 GROUP SMDOCUMENTS : WO;
@@ -62,7 +65,7 @@ FORM exportInvoiceMag FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS        
     PROPERTIES = 1 IF i IS Sale.Invoice  EXTID 'ISROUBLES' IN SMDOCUMENTS  
     PROPERTIES = id(supplierStock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 2 IF i IS Sale.Invoice  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
     PROPERTIES = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
     PROPERTIES i1 = NUMERIC[18,4](creditInvoiceSumInvoiceDetail(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                
@@ -162,7 +165,7 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
     PROPERTIES = 1 IF i IS Sale.Invoice  EXTID 'ISROUBLES' IN SMDOCUMENTS1  
     PROPERTIES = id(supplierStock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS1  
     PROPERTIES = id(customerStock(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTS1      
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1      
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1      
     PROPERTIES = 0 IF i IS Sale.Invoice  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS1     
     PROPERTIES = creditInvoiceSumInvoiceDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS1 
     PROPERTIES i1 = NUMERIC[18,4](creditInvoiceSumInvoiceDetail(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
@@ -238,11 +241,11 @@ FORM exportInvoiceTransferMag FORMEXTID 'PACKAGE'
 
 exportInvoiceMag 'Экспорт в супермаг' (Sale.Invoice i) {
     inc(Sale.Invoice ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i));
+    inc(i) <- TRUE WHERE opcodeSupermag(operation(i));
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(Sale.Invoice ii)) THEN{
-        IF idSupermag(operation(i)) == '1' THEN {            
+        IF opcodeSupermag(operation(i)) == '1' THEN {            
             TRY {   
                 EXPORT exportInvoiceMag XML TO System.exportFile;         
                 WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
@@ -263,7 +266,7 @@ exportInvoiceMag 'Экспорт в супермаг' (Sale.Invoice i) {
                 MESSAGE  'Расходная накладная (опт). Ошибка при экспорте WO_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) +'. Обратитесь к администратору' NOWAIT;        
             }
         } 
-        IF idSupermag(operation(i)) == '4' THEN {             
+        IF opcodeSupermag(operation(i)) == '4' THEN {             
             TRY {   
                 EXPORT exportInvoiceTransferMag XML TO System.exportFile;         
                 WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'IW_' +STRING[30](LONG(i))+'_'+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
@@ -291,7 +294,7 @@ exportSupermag(InvoiceShipment s) +{
 }
 
 exportSupermagAll() +{
-    FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND idSupermag(operation(s)) DO {
+    FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND opcodeSupermag(operation(s)) DO {
         exportInvoiceMag(s);
     }
 }

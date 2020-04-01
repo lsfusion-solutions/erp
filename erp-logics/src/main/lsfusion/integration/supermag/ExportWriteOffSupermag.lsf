@@ -4,17 +4,20 @@ REQUIRE PricingWriteOff, ExportSupermag;
 NAMESPACE WriteOff;
 
 EXTEND FORM operation
-    PROPERTIES (o) idSupermag
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 DESIGN operation{
     propertyContainer {
-        MOVE PROPERTY(idSupermag(o));
+        MOVE PROPERTY(docTypeSupermag(o));
+        MOVE PROPERTY(opcodeSupermag(o));
+        MOVE PROPERTY(useropSupermag(o));
     }
 }
 
 EXTEND FORM operations
-    PROPERTIES (o) READONLY idSupermag
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag
 ;
+
 //---------------------- Оптовая торговля (Код операции 1)
 GROUP WO;
 GROUP SMDOCUMENTS : WO;
@@ -59,7 +62,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS       
     PROPERTIES = 1 IF i IS WriteOff.WriteOff  EXTID 'ISROUBLES' IN SMDOCUMENTS  
     PROPERTIES = id(stock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 4 IF i IS WriteOff.WriteOff  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
     PROPERTIES = sumWriteOffDetail(i) EXTID 'TOTALSUM' IN SMDOCUMENTS 
     PROPERTIES i1 = NUMERIC[18,4](sumWriteOffDetail(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                
@@ -109,7 +112,7 @@ FORM exportWriteOffMag FORMEXTID 'PACKAGE'
 
 exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
     inc(WriteOff ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(stock(i));    
+    inc(i) <- TRUE WHERE opcodeSupermag(operation(i)) AND idSupermag(stock(i));    
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(WriteOff ii)) THEN{    
@@ -140,7 +143,7 @@ exportSupermag(WriteOff s) +{
 }
 
 exportSupermagAll() +{
-    FOR date(WriteOff s AS WriteOff) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(operation(s)) DO {
+    FOR date(WriteOff s AS WriteOff) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND opcodeSupermag(operation(s)) DO {
         exportWriteOffMag(s);
     }
 }

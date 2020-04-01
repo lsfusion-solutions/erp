@@ -1,0 +1,80 @@
+MODULE ExportSupermagFormMeta;
+
+REQUIRE ExportSupermag;
+
+//GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
+
+META exportFormDoc (typeDoc, formName, doc, docDetail, description, commentary) 
+GROUP ###typeDoc;
+GROUP SMDOCUMENTS###typeDoc EXTID 'SMDOCUMENTS': ###typeDoc;
+
+FORM formName FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS i = ###doc EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF i IS ###doc EXTID 'action'      
+    PROPERTIES ATTR = ###description IF i IS ###doc EXTID 'description'  
+    
+    PROPERTIES = STRING[100](doctype(i)+seriesNumber(i)) EXTID 'Id'
+    PROPERTIES = STRING[100](STRING[100](seriesNumber(i))) EXTID 'ID' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = doctype(i) IF i IS ###doc EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = opcode(i) IF i IS ###doc EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = idSupermag(stock(i)) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = 0 IF i IS ###doc EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = 1 IF i IS ###doc  EXTID 'CURRENCYRATE' IN SMDOCUMENTS###typeDoc 
+    PROPERTIES = 1 IF i IS ###doc EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
+    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
+    PROPERTIES = 1 IF i IS ###doc  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = 0 IF i IS ###doc  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
+    PROPERTIES = 0 IF i IS ###doc EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = 0 IF i IS ###doc EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = ###commentary IF i IS ###doc EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
+                                                            
+    OBJECTS d = ###docDetail  EXTID 'SMSPEC' IN ###typeDoc
+    PROPERTIES = STRING[100](seriesNumber(d)) EXTID 'DOCID'    
+    PROPERTIES = doctype(doc(d)) IF d IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
+    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'  
+    PROPERTIES = abs(quantity(d)) EXTID 'QUANTITY'      
+    PROPERTIES = 0 IF d IS ###docDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF d IS ###docDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF d IS ###docDetail EXTID 'TOTALPRICENOTAX'            
+    FILTERS ##doc(d)==i,
+            inc(i)  
+    ;                                                
+END
+
+META exportFormWI (formName, doc, docDetail, description, commentary)   
+@exportFormDoc(WI,formName, doc, docDetail, description, commentary);
+
+EXTEND FORM formName
+    PROPERTIES = userop(i) IF i IS ###doc EXTID 'USEROP' IN SMDOCUMENTSWI        
+    PROPERTIES = id(stock(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTSWI
+    ;
+END
+
+META exportFormWO (formName, doc, docDetail, description, commentary)   
+@exportFormDoc(WO,formName, doc, docDetail, description, commentary);
+
+EXTEND FORM formName
+    PROPERTIES = userop(i) IF i IS ###doc EXTID 'USEROP' IN SMDOCUMENTSWO        
+    PROPERTIES = id(stock(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSWO
+    ;
+END
+
+META exportFormLA (formName, doc, docDetail, description, commentary)   
+@exportFormDoc(LA,formName, doc, docDetail, description, commentary);
+
+EXTEND FORM formName
+    PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTSLA
+    ;
+END
+
+META exportFormFA (formName, doc, docDetail, description, commentary)   
+@exportFormDoc(FA,formName, doc, docDetail, description, commentary);
+
+EXTEND FORM formName
+    PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTSFA
+    ;
+END 

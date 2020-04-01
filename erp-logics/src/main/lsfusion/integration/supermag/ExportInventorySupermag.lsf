@@ -3,18 +3,19 @@ REQUIRE Inventory, ExportSupermag;
 
 NAMESPACE Inventory;
 
-
 EXTEND FORM operation
-    PROPERTIES (o) idSupermag
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 DESIGN operation{
     propertyContainer {
-        MOVE PROPERTY(idSupermag(o));
+        MOVE PROPERTY(docTypeSupermag(o));
+        MOVE PROPERTY(opcodeSupermag(o));
+        MOVE PROPERTY(useropSupermag(o));
     }
 }
 
 EXTEND FORM operations
-    PROPERTIES (o) READONLY idSupermag
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 
 GROUP LA;
@@ -64,7 +65,7 @@ FORM exportCollationSheetMagN FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS           
     PROPERTIES = 1 IF i IS CollationSheet  EXTID 'ISROUBLES' IN SMDOCUMENTS      
     PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS  
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS  
     PROPERTIES = 0 IF i IS CollationSheet  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS       
     PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUM' IN SMDOCUMENTS    
     PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUMCUR' IN SMDOCUMENTS      
@@ -118,7 +119,7 @@ FORM exportCollationSheetMagP FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS1           
     PROPERTIES = 1 IF i IS CollationSheet  EXTID 'ISROUBLES' IN SMDOCUMENTS1      
     PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS1  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1  
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1  
     PROPERTIES = 0 IF i IS CollationSheet  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS1       
     PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUM' IN SMDOCUMENTS1    
     PROPERTIES = 0 IF i IS CollationSheet EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1      
@@ -154,7 +155,7 @@ FORM exportCollationSheetMagP FORMEXTID 'PACKAGE'
 
 exportCollationSheetMag 'Экспорт в супермаг' (CollationSheet i) {
     inc(CollationSheet ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(stock(i));    
+    inc(i) <- TRUE WHERE opcodeSupermag(operation(i)) AND idSupermag(stock(i));    
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(CollationSheet ii)) THEN{   
@@ -209,7 +210,7 @@ exportSupermag(CollationSheet s) +{
 }
 
 exportSupermagAll() +{
-    FOR date(CollationSheet s AS CollationSheet) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND idSupermag(operation(s)) DO {
+    FOR date(CollationSheet s AS CollationSheet) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(s)) AND opcodeSupermag(operation(s)) DO {
         exportCollationSheetMag(s);
     }
 }

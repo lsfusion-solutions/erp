@@ -4,16 +4,18 @@ REQUIRE StockAdjustment, ExportSupermag;
 NAMESPACE Stock;
 
 EXTEND FORM operation
-    PROPERTIES (o) idSupermag
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 DESIGN operation{
     propertyContainer {
-        MOVE PROPERTY(idSupermag(o));
+        MOVE PROPERTY(docTypeSupermag(o));
+        MOVE PROPERTY(opcodeSupermag(o));
+        MOVE PROPERTY(useropSupermag(o));
     }
 }
 
 EXTEND FORM operations
-    PROPERTIES (o) READONLY idSupermag
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag
 ;
 
 //---------------------- Изменение остатков код операции (-1)
@@ -51,7 +53,7 @@ FORM exportAdjustmentMagN FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS           
     PROPERTIES = 1 IF i IS Adjustment  EXTID 'ISROUBLES' IN SMDOCUMENTS      
     PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS  
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS  
     PROPERTIES = 0 IF i IS Adjustment  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS       
     PROPERTIES = 0 IF i IS Adjustment EXTID 'TOTALSUM' IN SMDOCUMENTS    
     PROPERTIES = 0 IF i IS Adjustment EXTID 'TOTALSUMCUR' IN SMDOCUMENTS    
@@ -98,7 +100,7 @@ FORM exportAdjustmentMagP FORMEXTID 'PACKAGE'
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS1           
     PROPERTIES = 1 IF i IS Adjustment  EXTID 'ISROUBLES' IN SMDOCUMENTS1      
     PROPERTIES = id(stock(i)) EXTID 'LOCATION' IN SMDOCUMENTS1  
-    PROPERTIES = idSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1  
+    PROPERTIES = opcodeSupermag(operation(i))  EXTID 'OPCODE' IN SMDOCUMENTS1  
     PROPERTIES = 0 IF i IS Adjustment  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS1       
     PROPERTIES = 0 IF i IS Adjustment EXTID 'TOTALSUM' IN SMDOCUMENTS1    
     PROPERTIES = 0 IF i IS Adjustment EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1      
@@ -122,7 +124,7 @@ FORM exportAdjustmentMagP FORMEXTID 'PACKAGE'
 
 exportAdjustmentMag 'Экспорт в супермаг' (Adjustment i) {
     inc(Adjustment ii) <- NULL;
-    inc(i) <- TRUE WHERE idSupermag(operation(i)) AND idSupermag(stock(i));    
+    inc(i) <- TRUE WHERE opcodeSupermag(operation(i)) AND idSupermag(stock(i));    
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
     IF (GROUP SUM 1 IF inc(Adjustment ii)) THEN{    
