@@ -2,11 +2,14 @@ package lsfusion.erp.utils.sql;
 
 import lsfusion.server.language.ScriptingLogicsModule;
 
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 
 public abstract class ExportMySQLAction extends ExportSQLAction {
 
@@ -45,10 +48,12 @@ public abstract class ExportMySQLAction extends ExportSQLAction {
     public void setObject(PreparedStatement ps, int index, Object value) throws SQLException {
         if (value == null)
             ps.setObject(index, null);
-        else if (value instanceof Date)
-            ps.setDate(index, (Date) value);
-        else if (value instanceof Timestamp)
-            ps.setTimestamp(index, ((Timestamp) value));
+        else if (value instanceof LocalDate)
+            ps.setDate(index, localDateToSqlDate((LocalDate) value));
+        else if (value instanceof LocalTime)
+            ps.setTime(index, localTimeToSqlTime((LocalTime) value));
+        else if (value instanceof LocalDateTime)
+            ps.setTimestamp(index, localDateTimeToSqlTimestamp((LocalDateTime) value));
         else if (value instanceof String)
             ps.setString(index, ((String) value).trim());
         else
