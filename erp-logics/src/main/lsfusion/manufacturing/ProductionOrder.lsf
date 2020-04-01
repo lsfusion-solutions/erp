@@ -1183,11 +1183,22 @@ showBOMQuantity= showBOMQuantity(order(ComponentDetail pd));
 
 background = ABSTRACT CASE COLOR (ProductDetail);
 
+useOwnChangeComponentsStock = ABSTRACT BOOLEAN(Order);
+changeProductsStockCompanyCustom ABSTRACT (Order); 
+changeProductsStockCompanyOver(Order o) {
+    IF NOT useOwnChangeComponentsStock(o) THEN {
+        changeProductsStockCompany(o);
+    } ELSE {
+        changeProductsStockCompanyCustom(o);
+    }
+}
+
+
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order PANEL
     PROPERTIES(o) isPosted, nameCompany, nameComponentsStock ON CHANGE changeComponentsStockCompany(o), 
-                  nameProductsStock ON CHANGE changeProductsStockCompany(o), nameNumerator, number, series,
+                  nameProductsStock ON CHANGE changeProductsStockCompanyOver(o), nameNumerator, number, series,
                   date, time, fromDate, toDate, note, quantityProductDetail, sumProductDetail, 
                   quantityComponentDetail, sumComponentDetail, calcBOMPrice, isPricePercent, isPriceCoeff , keepSupplier
     PROPERTIES(o)   nameCalcPriceListType, nameProductsPriceListType, VATProduct, showBOMQuantity
@@ -1693,7 +1704,8 @@ DESIGN orders {
 }
 @extendFormEditable(orders);
 @defineFilterIsOpened (order, orders, o);
-@extendFormFilterAccessStock(Order, o, orders, productsStock, company);
+
+EXTEND FORM orders FILTERS accessCompany(currentUser(),productsStock(o)) OR NOT productsStock(o) OR (useOwnChangeComponentsStock(o));
 
 isProduction = ABSTRACT CASE BOOLEAN (Order, LONG); 
 EXTEND FORM orders
