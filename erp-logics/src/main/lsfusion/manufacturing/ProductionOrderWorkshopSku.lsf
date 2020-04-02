@@ -4,8 +4,14 @@ REQUIRE ProductionOrderSku, ProductionOrderWorkshop;
 
 NAMESPACE Production;
 
+
+WHEN LOCAL CHANGED(workshopStock(Order o)) AND NOT (GROUP SUM 1 IF CHANGED (inWorkshop(ItemGroup g,o))) DO {
+    inWorkshop(ItemGroup g,o)<- inWorkshop(g,workshopStock(o));
+}
+
+
 fillNegativeBalanceWorkshopProductDetail 'Заполнить изделия по остаткам' (Order o) {
-    FOR balanceA(Sku sk, productsStock(o), date(o)) < 0 AND inWorkshop(sk,workshopStock(o))  DO NEW d = ProductDetail {
+    FOR balanceA(Sku sk, productsStock(o), date(o)) < 0 AND inWorkshop(sk,o)  DO NEW d = ProductDetail {
         order(d) <- o;
         sku(d) <- sk;
         quantity(d) <- abs(balanceA(sk, productsStock(o), date(o)));

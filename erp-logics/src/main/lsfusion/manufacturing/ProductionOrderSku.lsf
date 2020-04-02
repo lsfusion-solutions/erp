@@ -15,7 +15,7 @@ resetInWorkshopGroups  'Сбросить отмеченные'(Stock st)  {
     inWorkshop(ItemGroup g, st) <- NULL WHERE g IS ItemGroup ;    
 }  
 
-inWorkshop (Item i, Stock st)= GROUP SUM 1 IF isParent(ItemGroup g, i) AND inWorkshop(g,st);
+//inWorkshop (Item i, Stock st)= GROUP SUM 1 IF isParent(ItemGroup g, i) AND inWorkshop(g,st);
 
 migratedGroupWorkshop = DATA BOOLEAN ();
 onStarted() + { 
@@ -28,15 +28,12 @@ onStarted() + {
     }
 }
 
-
-
-
 FORM selectInWorkshopGroups 'Выбор групп'
 
     OBJECTS st = Stock PANEL 
 
     TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
-    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES READONLY order(sk2), id(sk2), name(sk2)
     PROPERTIES inWorkshop(sk2,st)
     ORDER order(sk2), name(sk2)
     PROPERTIES (st) resetInWorkshopGroups TOOLBAR DRAW sk2 SHOWIF countInWorkshopGroups(st)
@@ -66,5 +63,48 @@ EXTEND FORM departmentStore PROPERTIES nameInWorkshopGroups(d) ON CHANGE changeI
 DESIGN departmentStore {
     headerExtraParams {
         MOVE PROPERTY (nameInWorkshopGroups(d));
+    }
+}
+
+//-------------
+TABLE inWorkshop(ItemGroup,Order);
+inWorkshop 'Вкл' = DATA BOOLEAN (ItemGroup, Order);
+nameInWorkshopGroups 'Группы товаров' (Order o) = GROUP CONCAT name(ItemGroup g) IF inWorkshop(g,o),', ' ORDER name(g),g CHARWIDTH 25;
+countInWorkshopGroups 'Вкл' (Order o) = GROUP SUM 1 IF inWorkshop(ItemGroup g, o);       
+
+resetInWorkshopGroups  'Сбросить отмеченные'(Order o)  { 
+    inWorkshop(ItemGroup g, o) <- NULL WHERE g IS ItemGroup ;    
+}  
+
+inWorkshop (Item i, Order o)= GROUP SUM 1 IF isParent(ItemGroup g, i) AND inWorkshop(g,o);
+
+FORM selectInWorkshopGroupsOrder 'Выбор групп'
+
+    OBJECTS o = Order PANEL 
+
+    TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
+    PROPERTIES READONLY order(sk2), id(sk2), name(sk2)
+    PROPERTIES inWorkshop(sk2,o)
+    ORDER order(sk2), name(sk2)
+    PROPERTIES (o) resetInWorkshopGroups TOOLBAR DRAW sk2 SHOWIF countInWorkshopGroups(o)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT           
+;
+
+DESIGN selectInWorkshopGroupsOrder {
+    BOX {
+        size = (1024, 768);
+    }
+}
+
+changeInWorkshopGroups (Order o)  { 
+        SHOW selectInWorkshopGroupsOrder OBJECTS o = o ; 
+}
+
+EXTEND FORM order
+    PROPERTIES (o) SHOWIF (id(operation(o))=='storeProduction')  nameInWorkshopGroups ON CHANGE changeInWorkshopGroups(o)
+;
+DESIGN order {
+    headerRow111 {
+        MOVE PROPERTY (nameInWorkshopGroups(o));    
     }
 }
