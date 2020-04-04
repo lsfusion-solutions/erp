@@ -2,37 +2,39 @@ MODULE ExportSupermagFormMeta;
 
 REQUIRE ExportSupermag, StockSkuDocument;
 
-//GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
-doctype = DATA LOCAL STRING[10] (Document);
-opcode = DATA LOCAL STRING[100] (Document);
-userop = DATA LOCAL STRING[100] (Document);
-clientIndex = DATA LOCAL STRING[100] (Document);
-location = DATA Stock (Document);
-locationFrom = DATA Stock (Document);
-locationTo = DATA Stock (Document);
-ourSelfClient = DATA LOCAL STRING[100] (Document);
+META exportFilds (docMain, docDetail) 
+    doctype = DATA LOCAL STRING[10] (###docMain);
+    opcode = DATA LOCAL STRING[10] (###docMain);
+    userop = DATA LOCAL STRING[10] (###docMain);
+    opname =  DATA LOCAL STRING[100] (###docMain);
+    clientIndex = DATA LOCAL STRING[100] (###docMain);
+    location = DATA Stock (###docMain);
+    locationFrom = DATA Stock (###docMain);
+    locationTo = DATA Stock (###docMain);
+    ourSelfClient = DATA LOCAL STRING[100] (###docMain);
 
-curRate(Document i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS Document));
+    inc = DATA LOCAL BOOLEAN (###docMain);
+    priceWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    priceNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    valueTax = DATA LOCAL NUMERIC[10,5] (###docDetail);
+    sumTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    sumNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    sumWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    docId = DATA LOCAL STRING[100] (###docMain);
+    docId (###docDetail dd) = docId(##docMain(dd)); 
+    sumNoTax = DATA LOCAL NUMERIC[18,4] (###docMain);
+    sumWithTax = DATA LOCAL NUMERIC[18,4] (###docMain);
+    sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docMain);
+    
+    curRate(###docMain i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS ###docMain));
+    
+    //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
+    indexPlus (###docDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY ##docMain(ad) CHARWIDTH 4;
+    indexMinus (###docDetail ad) = PARTITION SUM 1 IF quantity(ad)<0 ORDER ad BY ##docMain(ad) CHARWIDTH 4;
+END
 
-//различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
-indexPlus (DocumentDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY document(ad) CHARWIDTH 4;
-indexMinus (DocumentDetail ad) = PARTITION SUM 1 IF quantity(ad)<0 ORDER ad BY document(ad) CHARWIDTH 4;
-index (DocumentDetail ad) = PARTITION SUM 1 ORDER ad BY document(ad) CHARWIDTH 4;
-
-priceWithTax = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-priceNoTax = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-valueTax = DATA LOCAL NUMERIC[10,5] (DocumentDetail);
-sumTax = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-sumNoTax = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-sumWithTax = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocumentDetail);
-docId = DATA LOCAL STRING[100] (Document);
-docId (DocumentDetail dd) = docId(document(dd)); 
-sumNoTax = DATA LOCAL NUMERIC[18,4] (Document);
-sumWithTax = DATA LOCAL NUMERIC[18,4] (Document);
-sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (Document);
-
-META exportFormDoc (typeDoc, formName, doc, docDetail, description, commentary) 
+META exportFormDoc (typeDoc, formName, docMain, docDetail, commentary) 
 GROUP ###typeDoc;
 GROUP SMDOCUMENTS###typeDoc EXTID 'SMDOCUMENTS': ###typeDoc;
 GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
@@ -40,54 +42,54 @@ GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
 FORM formName FORMEXTID 'PACKAGE' 
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 
-    OBJECTS i = ###doc EXTID 'POSTOBJECT'
-    PROPERTIES ATTR = 'normal' IF i IS ###doc EXTID 'action'      
-    PROPERTIES ATTR = ###description IF i IS ###doc EXTID 'description'  
+    OBJECTS i = ###docMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF i IS ###docMain EXTID 'action'      
+    PROPERTIES ATTR = opname(i) IF i IS ###docMain EXTID 'description'  
     
     PROPERTIES = STRING[100](doctype(i)+docId(i)) EXTID 'Id'
     PROPERTIES = STRING[100](docId(i)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = doctype(i) IF i IS ###doc EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = opcode(i) IF i IS ###doc EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = doctype(i) IF i IS ###docMain EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = opcode(i) IF i IS ###docMain EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
     PROPERTIES = idSupermag(location(i)) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = 0 IF i IS ###doc EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = 0 IF i IS ###docMain EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS###typeDoc 
-    PROPERTIES = 1 IF i IS ###doc EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
+    PROPERTIES = 1 IF i IS ###docMain EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
     PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
-    PROPERTIES = 1 IF i IS ###doc  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
-    PROPERTIES = 4 IF i IS ###doc  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
-    PROPERTIES = sumWithTax(i) IF i IS ###doc EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = sumWithTaxCurr(i) IF i IS ###doc EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = ###commentary IF i IS ###doc EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
+    PROPERTIES = 1 IF i IS ###docMain  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = 4 IF i IS ###docMain  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
+    PROPERTIES = sumWithTax(i) IF i IS ###docMain EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = sumWithTaxCurr(i) IF i IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = ###commentary IF i IS ###docMain EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
                                                             
     OBJECTS d = ###docDetail EXTID 'SMSPEC' IN ###typeDoc 
     PROPERTIES = docId(d) EXTID 'DOCID'    
-    PROPERTIES = doctype(doc(d)) IF d IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = doctype(##docMain(d)) IF d IS ###docDetail EXTID 'DOCTYPE'      
     PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
     PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'
     PROPERTIES = abs(quantity(d)) EXTID 'QUANTITY'
     PROPERTIES = priceWithTax(d) EXTID 'ITEMPRICE'     
     PROPERTIES d2 = NUMERIC[18,4](price(d)/curRate(i)) EXTID 'ITEMPRICECUR'                         
-    FILTERS ##doc(d)==i,
+    FILTERS ##docMain(d)==i,
             inc(i)  
     ;                                                
 END
 
-META exportFormWI (formName, doc, docDetail, description, commentary)   
-@exportFormDoc(WI,formName, doc, docDetail, description, commentary);
+META exportFormWI (formName, docMain, docDetail, commentary)   
+@exportFormDoc(WI,formName, docMain, docDetail, commentary);
 
 GROUP SMWAYBILLSIN EXTID 'SMWAYBILLSIN' : WI;
 GROUP SMSPECIOWI EXTID 'SMWSPECIO' : WI;
 
 EXTEND FORM formName
-    PROPERTIES = userop(i) IF i IS ###doc EXTID 'USEROP' IN SMDOCUMENTSWI        
+    PROPERTIES = userop(i) IF i IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWI        
     PROPERTIES = id(locationTo(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTSWI
     
     PROPERTIES = STRING[100](docId(i)) EXTID 'ID' IN SMWAYBILLSIN      
-    PROPERTIES = 'WI' IF i IS ###doc EXTID 'DOCTYPE' IN SMWAYBILLSIN 
-    PROPERTIES = 0 IF i IS ###doc EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
+    PROPERTIES = 'WI' IF i IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSIN 
+    PROPERTIES = 0 IF i IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
     PROPERTIES = id(legalEntity(locationTo(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
-    PROPERTIES = 0 IF i IS ###doc EXTID 'PAYCASH' IN SMWAYBILLSIN      
+    PROPERTIES = 0 IF i IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSIN      
 
     PROPERTIES = priceNoTax(d) IF d IS ###docDetail EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = sumWithTax(d) IF d IS ###docDetail EXTID 'TOTALPRICE'  
@@ -97,7 +99,7 @@ EXTEND FORM formName
     OBJECTS d2 = ###docDetail EXTID 'SMSPECIO' IN WI 
     PROPERTIES = docId(d2) EXTID 'DOCID'   
     PROPERTIES = 'WI' IF d2 IS ###docDetail EXTID 'DOCTYPE'     
-    FILTERS ##doc(d2)==i    
+    FILTERS ##docMain(d2)==i    
     
     OBJECTS d3 = ###docDetail EXTID 'SMSPECTAX' IN WI
     PROPERTIES = docId(d3) EXTID 'DOCID'    
@@ -105,25 +107,25 @@ EXTEND FORM formName
     PROPERTIES = 0 IF d3 IS ###docDetail  EXTID 'TAXID'        
     PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
     PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
-    FILTERS ##doc(d3)==i   
+    FILTERS ##docMain(d3)==i   
     ;
 END
 
-META exportFormWO (formName, doc, docDetail, description, commentary)   
-@exportFormDoc(WO,formName, doc, docDetail, description, commentary);
+META exportFormWO (formName, docMain, docDetail, commentary)   
+@exportFormDoc(WO,formName, docMain, docDetail, commentary);
 
 GROUP SMWAYBILLSOUT EXTID 'SMWAYBILLSOUT' : WO;
 GROUP SMSPECIOWO EXTID 'SMWSPECIO' : WO;
 
 EXTEND FORM formName
-    PROPERTIES = userop(i) IF i IS ###doc EXTID 'USEROP' IN SMDOCUMENTSWO        
+    PROPERTIES = userop(i) IF i IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWO        
     PROPERTIES = id(locationFrom(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSWO
     
     PROPERTIES = STRING[100](docId(i))  EXTID 'ID' IN SMWAYBILLSOUT      
-    PROPERTIES = 'WO' IF i IS ###doc EXTID 'DOCTYPE' IN SMWAYBILLSOUT
+    PROPERTIES = 'WO' IF i IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSOUT
     PROPERTIES = id(legalEntity(locationFrom(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT
     PROPERTIES = STRING[100](docId(i))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
-    PROPERTIES = 0 IF i IS ###doc EXTID 'PAYCASH' IN SMWAYBILLSOUT      
+    PROPERTIES = 0 IF i IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSOUT      
     
     PROPERTIES = priceNoTax(d) IF d IS ###docDetail EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = sumWithTax(d) IF d IS ###docDetail EXTID 'TOTALPRICE'  
@@ -132,8 +134,8 @@ EXTEND FORM formName
                 
     OBJECTS d2 = ###docDetail EXTID 'SMSPECIO' IN WO 
     PROPERTIES = docId(d2) EXTID 'DOCID'   
-    PROPERTIES = doctype(doc(d2)) IF d2 IS ###docDetail EXTID 'DOCTYPE'     
-    FILTERS ##doc(d2)==i
+    PROPERTIES = doctype(##docMain(d2)) IF d2 IS ###docDetail EXTID 'DOCTYPE'     
+    FILTERS ##docMain(d2)==i
         
     OBJECTS d3 = ###docDetail EXTID 'SMSPECTAX' IN WO
     PROPERTIES = docId(d3) EXTID 'DOCID'    
@@ -141,20 +143,20 @@ EXTEND FORM formName
     PROPERTIES = 0 IF d3 IS ###docDetail  EXTID 'TAXID'        
     PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
     PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
-    FILTERS ##doc(d3)==i   
+    FILTERS ##docMain(d3)==i   
     ;
 END
 
-META exportFormLA (formName, doc, docDetail, description, commentary)   
-@exportFormDoc(LA,formName, doc, docDetail, description, commentary);
+META exportFormLA (formName, docMain, docDetail, commentary)   
+@exportFormDoc(LA,formName, docMain, docDetail, commentary);
 
 EXTEND FORM formName
     PROPERTIES = id(location(i)) EXTID 'LOCATION' IN SMDOCUMENTSLA
     ;
 END
 
-META exportFormFA (formName, doc, docDetail, description, commentary)   
-@exportFormDoc(FA,formName, doc, docDetail, description, commentary);
+META exportFormFA (formName, docMain, docDetail, commentary)   
+@exportFormDoc(FA,formName, docMain, docDetail, commentary);
 
 EXTEND FORM formName
     PROPERTIES = id(location(i)) EXTID 'LOCATION' IN SMDOCUMENTSFA
