@@ -1,5 +1,5 @@
 MODULE ExportSupermag;
-REQUIRE StockDocument, LogTools;
+REQUIRE StockDocument, LogTools, Store;
 
 @defineLogRotate(supermag, 5, weekly);
 
@@ -14,8 +14,25 @@ formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DAT
 docTypeSupermag 'Вид документа в супермаг' = DATA STRING[10] (Operation.Operation);
 opcodeSupermag 'Код в супермаг' = DATA STRING[100] (Operation.Operation); 
 useropSupermag 'Доп код в супермаг' = DATA STRING[100] (Operation.Operation); 
+nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operation.Operation);  
 idSupermagReturn 'Код в супермаг (возврат)' = DATA STRING[100] (Operation.Operation); 
 idSupermag 'Код в супермаг (BORNIN)' = DATA STRING[100] (Stock); // base64
+
+contragentSupermag 'Контрагент для инвентаризаций с супермаг' = DATA LegalEntity (StockGroup);
+nameContragentSupermag 'Контрагент для инвентаризаций с супермаг' (StockGroup sg) = name(contragentSupermag(sg));
+EXTEND FORM stores
+    PROPERTIES nameContragentSupermag(s) READONLY;
+;
+
+EXTEND FORM store
+    PROPERTIES nameContragentSupermag(s);
+;
+
+DESIGN store {
+    headerExtraParams{
+        MOVE PROPERTY (nameContragentSupermag(s));
+    }
+}
 
 CLASS SupermagLog 'История' ;
 TABLE supermagLog (SupermagLog);
