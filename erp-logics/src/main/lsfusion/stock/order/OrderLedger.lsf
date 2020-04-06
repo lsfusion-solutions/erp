@@ -10,7 +10,7 @@ date 'Дата' (OrderLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED IND
 
 isPosted 'Проведен' = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (OrderLedger) MATERIALIZED;
-isOpened 'Открыт' (OrderLedger ledger) = ledger IS OrderLedger AND NOT isClosed(ledger) MATERIALIZED INDEXED;
+isOpened 'Открыт' (OrderLedger ledger) = ledger IS OrderLedger AND NOT isClosed(ledger) MATERIALIZED;
 
 sku (ledger) = ABSTRACT Sku (OrderLedger) MATERIALIZED;
 nameSku 'SKU' (OrderLedger ledger) = name(sku(ledger));
@@ -46,6 +46,7 @@ background 'Цвет' (OrderLedger ledger,DATETIME dateTime) = RGB(212,255,212) 
 
 skip = ABSTRACT VALUE BOOLEAN (OrderLedger);
 active (OrderLedger ledger) = isPosted(ledger) AND isOpened(ledger) AND NOT skip(ledger) MATERIALIZED;
+INDEX active(OrderLedger l), stock(l), sku(l);
 
 activePurchase (OrderLedger ledger) = active(ledger) AND isPurchase(ledger);
 activeSale (OrderLedger ledger) = active(ledger) AND NOT isPurchase(ledger);
