@@ -16,6 +16,7 @@ META exportFilds (docMain, docDetail)
     inc = DATA LOCAL BOOLEAN (###docMain);
     priceWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     priceNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    priceSupplier = DATA LOCAL NUMERIC[18,4] (###docDetail);
     valueTax = DATA LOCAL NUMERIC[10,5] (###docDetail);
     sumTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     sumNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
@@ -108,6 +109,14 @@ EXTEND FORM formName
     PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
     PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
     FILTERS ##docMain(d3)==i   
+
+    OBJECTS d4 = ###docDetail EXTID 'SMSPECBY' IN WI
+    PROPERTIES = docId(d4) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF d4 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceSupplier(d4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'STATEREGULATION'                           
+    FILTERS ##docMain(d4)==i    
     ;
 END
 
@@ -144,8 +153,19 @@ EXTEND FORM formName
     PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
     PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
     FILTERS ##docMain(d3)==i   
+
+    OBJECTS d4 = ###docDetail EXTID 'SMSPECBY' IN WO
+    PROPERTIES = docId(d4) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF d4 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceSupplier(d4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'STATEREGULATION'                           
+    FILTERS ##docMain(d4)==i    
     ;
 END
+
+
+
 
 META exportFormLA (formName, docMain, docDetail, commentary)   
 @exportFormDoc(LA,formName, docMain, docDetail, commentary);
