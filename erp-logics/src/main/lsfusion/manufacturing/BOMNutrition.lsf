@@ -160,12 +160,46 @@ fullDescriptionOver 'Описание (полное)' (Component c) = CONCAT ' '
 fullDescriptionCalc 'Описание' (BOM) = GROUP CONCAT fullDescriptionOver(Component component) IF NOT isPack(component), ', '
                                        ORDER DESC overNettoNetWeight(component), component
                                        BY BOM(component);
+
+useRecDescription 'В "Описание (полное)" использовать рекурсивное описание' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () useRecDescription
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (useRecDescription());
+    }
+}
+
+overDescCustom1(Component c) = CONCAT ' ', 
+    '<b>'+(OVERRIDE description(sku(c)) IF NOT (material(c) IS Product), TEXT(name(sku(c))))+'</b>',
+    (('('+TEXT('*'+TEXT(material(c))+'*')+')') IF material(c) IS Product); 
+overDescConcatCustom(Product p) = GROUP CONCAT TEXT(OVERRIDE overDescCustom1(Component c)) IF BOM(p)==BOM(c) AND NOT isPack(c), ', ' ORDER DESC bruttoQuantity(c), c ;  
                                        
 fillDescription 'Заполнить описание' (BOM BOM)  { 
-    FOR BOM(Product p) == BOM DO {
-        description(p) <-  descriptionCalc(BOM);   
-        fullDescription(p) <-  TEXT('<b>'+'Состав: '+'</b>'+fullDescriptionCalc(BOM));
+    IF NOT useRecDescription() THEN {
+        FOR BOM(Product p) == BOM DO {
+            description(p) <-  descriptionCalc(BOM);   
+            fullDescription(p) <-  TEXT('<b>'+'Состав: '+'</b>'+fullDescriptionCalc(BOM));
+        }    
+    } ELSE {
+        FOR BOM(Product product)== BOM DO {
+            LOCAL go = BOOLEAN (Product);
+            LOCAL result = TEXT ();
+            go(product)<- TRUE ;
+            result() <- TEXT('*'+TEXT(product)+'*');
+            WHILE (GROUP SUM 1 IF go(Product p)) DO {
+                FOR go(Product p) DO {
+                    result()<- replace(result(), TEXT('*'+TEXT(p)+'*'),overDescConcatCustom(p));
+                    go(Product pp)<- TRUE WHERE [GROUP SUM 1 IF material(Component c) IS Product AND NOT isPack(c) AND BOM(c)==BOM(p) BY material(c)](pp) AND pp IS Product;
+                    go(p)<- NULL;
+                }
+            }   
+            fullDescription(product) <-TEXT('<b>'+'Состав: '+'</b>'+result());
+ 
+        }
     }
+
 } TOOLBAR;    
 fillDescriptionItem 'Записать описание в карточку товара' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
