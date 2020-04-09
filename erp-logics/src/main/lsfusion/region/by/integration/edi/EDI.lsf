@@ -100,6 +100,7 @@ legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLN(llegal
 GLNSupplier(EOrder e) = GLN(supplier(e));
 GLNCustomer(EOrder e) = GLN(customer(e));
 
+notUseStockGLN 'Не использовать GLN склада для заказа' = DATA BOOLEAN  (LegalEntity);
 banCancel 'Запретить отмену заказа' = DATA BOOLEAN(LegalEntity);
 hourToSend 'Возможна повторная отправка до' = DATA TIME(LegalEntity);
 EDIProvider 'Провайдер EDI' = DATA EDIProvider(LegalEntity);
@@ -125,12 +126,16 @@ FORM passwordEDSService 'Пароль EDSService'
     }
 ;
 
-EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider, banCancel, hourToSend;
+EXTEND FORM legalEntity
+ PROPERTIES(l) GLN, nameEDIProvider
+ PROPERTIES(l) SHOWIF isSupplier(l) notUseStockGLN, banCancel, hourToSend;
+ 
 DESIGN legalEntity {
     column2{
         NEW EDI {
             caption = 'EDI';
             MOVE PROPERTY (GLN(l));
+            MOVE PROPERTY (notUseStockGLN(l));
             MOVE PROPERTY (nameEDIProvider(l));
             MOVE PROPERTY (banCancel(l));
             MOVE PROPERTY (hourToSend(l));
@@ -149,7 +154,7 @@ companyStockGLN = GROUP NAGGR Stock stock WHERE isCompany(stock) BY GLN(stock);
 stockGLN = GROUP MAX Stock stock BY GLN(stock);
 legalEntityStockGLN(STRING[13] GLN) = legalEntity(stockGLN(GLN));
 
-GLNSupplierStock 'GLN поставщика' (EOrder e) = GLN(supplierStock(e));
+GLNSupplierStock 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE GLN(supplierStock(e));
 GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 
 EXTEND FORM warehouse PROPERTIES(w) GLN;
