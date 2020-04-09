@@ -66,6 +66,7 @@ id = DATA LOCAL INTEGER (INTEGER);
 idItem = DATA LOCAL NUMERIC[13,0](INTEGER);
 idSku = DATA LOCAL NUMERIC[13,0](INTEGER);
 name = DATA LOCAL STRING[100](INTEGER);
+name2 = DATA LOCAL STRING[100](INTEGER);
 idParent = DATA LOCAL INTEGER (INTEGER);
 
 importItemGroup 'Импорт товарных групп' () {
@@ -372,7 +373,9 @@ overImportItems ABSTRACT LIST ();
 
 lockedImportItemsMulti = DATA User ();
 lockResultImportItemsMulti = DATA LOCAL NESTED BOOLEAN ();
-    
+
+useLabelName 'Импорт названия для ценника' = DATA BOOLEAN ();
+   
 importItems1 'Импорт товаров' () {
     
     LOCAL idUOM = INTEGER (INTEGER);
@@ -387,8 +390,8 @@ importItems1 'Импорт товаров' () {
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_good, SUBSTR(name, 1, 162), cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, CrDate, CrOper FROM Pub.katalog WHERE '
-             + 'NOT cod_sgr = \'990101\' WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_good, SUBSTR(name, 1, 162), SUBSTR(price_name, 1, 80), cod_meas, cod_sgr, cod_group, cod_dep, cod_firm, wflag, massa, volume, artic, CrDate, CrOper FROM Pub.katalog WHERE '
+             + 'NOT cod_sgr=  \'990101\' WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO idItem, name, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article, dateCreated, userCreated;
     
@@ -397,7 +400,7 @@ importItems1 'Импорт товаров' () {
     }
     
     FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
-        caption(s) <- name(i);
+        caption(s) <- IF useLabelName() THEN name2(i) ELSE name(i);
         itemGroup(s) <- OVERRIDE itemGroup(TEXT (idGroup1(i))), itemGroup(TEXT (idGroup2(i))), itemGroup(TEXT (idGroup3(i)));
         UOM(s) <- UOM(TEXT (idUOM(i)));
         supplier(s) <- legalEntityNew(TEXT (idLegalEntity(i)));
@@ -490,12 +493,13 @@ importItems 'Импорт товаров' ()  {
     }
 }
 
-EXTEND FORM integrationData PROPERTIES () importItems;
+EXTEND FORM integrationData PROPERTIES () importItems, useLabelName;
 DESIGN integrationData { 
     santaButtons { 
         NEW importItems {
             type = CONTAINERH;
             MOVE PROPERTY (importItems());
+            MOVE PROPERTY (useLabelName());
         }
     } 
 }
