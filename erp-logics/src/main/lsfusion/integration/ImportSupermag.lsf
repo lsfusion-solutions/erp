@@ -980,10 +980,10 @@ overImportSupplierPrice ABSTRACT LIST ();
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
     LOCAL id = ISTRING[50] (INTEGER);
     LOCAL agrId = ISTRING[50] (INTEGER);
-    LOCAL date = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
-    LOCAL begin = DATE (INTEGER);
-    LOCAL end = DATE (INTEGER);
+    LOCAL begin = DATETIME (INTEGER);
+    LOCAL end = DATETIME (INTEGER);
     LOCAL idContragent = INTEGER (INTEGER);
     LOCAL idCompany = INTEGER (INTEGER);
     LOCAL title = ISTRING[255] (INTEGER);
@@ -1031,8 +1031,8 @@ importContract 'Импорт из контрактов с поставщикам
         isBankDaysInSuperMag(c) <- isBankDays(i);       
         type(c) <- ContractSkuType.sale;
         number(c) <- ISTRING[28] (id(i));
-        dateFrom(c) <- begin(i);
-        dateTo(c) <- end(i);       
+        dateFrom(c) <- DATE (begin(i));
+        dateTo(c) <- DATE (end(i));       
         supplier(c) <- legalEntity(TEXT (idContragent(i)));
         customer(c) <- defaultCompany();        
         note(c) <- STRING[100] (title(i));
@@ -1048,16 +1048,16 @@ importContract 'Импорт из контрактов с поставщикам
         contractTypeInSuperMag(p) <- contractType(i);
         operation(p) <- PriceList.operation('supplier');
         number(p) <- ISTRING[28] (id(p));
-        date(p) <- date(i);
+        date(p) <- DATE(date(i));
         time(p) <- 00:00;
         isPosted(p) <- posted(i) = 3 OR posted(i) = 0;
         stateInSuperMag(p) <- posted(i); 
         fromTime(p) <- 00:00;
-        toDate(p) <- end(i);
+        toDate(p) <- DATE(end(i));
         contractSku(p) <- userContractSku(TEXT (id(i)));
         company(p) <- supplier(contractSku(p));
         note(p) <- title(i);
-        fromDate(p) <- MAX begin(i), dateFrom(contractSku(p)) ;
+        fromDate(p) <- MAX DATE(begin(i)), dateFrom(contractSku(p)) ;
         delayPaymentInSuperMag(p) <- paymentDelay(i);
         isBankDaysInSuperMag(p) <- isBankDays(i);
         allStocks(p) <- NULL;
@@ -1254,8 +1254,8 @@ importScheduleOrder 'Импорт графиков заказов' () {
     LOCAL orderDOW = STRING[1] (INTEGER);
     LOCAL orderDOWM = STRING[1] (INTEGER);
     LOCAL shipmentDOW = STRING[7] (INTEGER);
-    LOCAL startDate = DATE (INTEGER);
-    LOCAL endDate = DATE (INTEGER);
+    LOCAL startDate = DATETIME (INTEGER);
+    LOCAL endDate = DATETIME (INTEGER);
     LOCAL days = INTEGER (INTEGER);
     LOCAL note = STRING[100] (INTEGER);
     LOCAL shipmentDay = INTEGER (INTEGER);
@@ -1285,8 +1285,8 @@ importScheduleOrder 'Импорт графиков заказов' () {
         supplier(s) <- legalEntity(TEXT (idSupplier(i)));
         supplierStock(s) <- minStock(legalEntity(TEXT (idSupplier(i))));
         customer(s) <- legalEntity(TEXT (idCustomer(i)));
-        startDate(s) <- startDate(i);
-        endDate(s) <- endDate(i);
+        startDate(s) <- DATE (startDate(i));
+        endDate(s) <- DATE(endDate(i));
         period(s) <- days(i) / 7;
         note(s) <- note(i);
         type(s) <- GenType.genDayMonth;
@@ -1592,7 +1592,7 @@ dateFromPromotionT () = toDateDDMMYY(dateFromPromotion());
 importPriceListPromotion 'Импорт акционных прайсов' () {
     
     LOCAL id = ISTRING[50] (INTEGER);
-    LOCAL date = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
     LOCAL begin = DATETIME (INTEGER);
     LOCAL end = DATETIME (INTEGER);
     LOCAL posted = INTEGER (INTEGER);
@@ -1617,7 +1617,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         
         operation(p) <- PriceList.operation('promotion');
         number(p) <- ISTRING[28] (id(p));
-        date(p) <- date(i);
+        date(p) <- DATE (date(i));
         time(p) <- 00:00;
         isPosted(p) <- posted(i) != 1;
         fromDate(p) <- DATE (begin(i));
@@ -1759,7 +1759,7 @@ WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
 scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
 useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN ();
 
-date 'Дата ТТН' = DATA LOCAL DATE (INTEGER);
+date 'Дата ТТН' = DATA LOCAL DATETIME (INTEGER);
 num 'Номер ТТН' = DATA LOCAL STRING[28](INTEGER);
 series 'Серия ТТН' = DATA LOCAL STRING[2](INTEGER);
 spec 'Код для импорта' = DATA LOCAL INTEGER (INTEGER);
@@ -1797,7 +1797,7 @@ importInit 'Импорт остатков' ()  {
     
     idSupplier(INTEGER r) <- OVERRIDE ISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
     idCustomerStock(INTEGER r) <- ISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
-    date(INTEGER r) <- 2018_01_01 WHERE imported(r) AND NOT date(r);
+    date(INTEGER r) <- DATETIME (2018_01_01) WHERE imported(r) AND NOT date(r);
     retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(ISTRING[100] (idCustomerStockInt(r))) IS Warehouse;
     
     LOCAL supplier = LegalEntity(INTEGER);
@@ -1816,7 +1816,7 @@ importInit 'Импорт остатков' ()  {
         customer(i) <- legalEntity(stock(idCustomerStock(r)));
         customerStock(i) <- stock(idCustomerStock(r));
         number(i) <- num(r);
-        date(i) <- date(r);
+        date(i) <- DATE (date(r));
         time(i) <- 00:00;
         isPosted(i) <- TRUE;
         operation(i) <- Purchase.operation('initial');
@@ -1931,8 +1931,8 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL idStock = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
-    LOCAL date = DATE (INTEGER);
-    LOCAL supplyDate = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
+    LOCAL supplyDate = DATETIME (INTEGER);
     LOCAL supplyTimeMin = INTEGER (INTEGER);
     LOCAL supplyTimeTillMin = INTEGER (INTEGER);
     LOCAL idSeparation = STRING[100] (INTEGER);
@@ -1963,9 +1963,9 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         supplierStock(o) <- stock(ISTRING[100] (idSupplier(i)));
         customerStock(o) <- stock(ISTRING[100] (idStock(i)));
         customer(o) <- legalEntity(stock(ISTRING[100] (idStock(i))));
-        date(o) <- date(i);
+        date(o) <- DATE (date(i));
         time(o) <- 00:00;
-        shipmentDate(o) <- supplyDate(i);
+        shipmentDate(o) <- DATE (supplyDate(i));
         shipmentTime(o) <- sumMinutes(00:00, supplyTimeMin(i));
     }  
     
@@ -2029,8 +2029,8 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL idCustomerStock = INTEGER (INTEGER);
     LOCAL idSupplierStock = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
-    LOCAL date = DATE (INTEGER);
-    LOCAL deliveryDate = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
+    LOCAL deliveryDate = DATETIME (INTEGER);
     LOCAL deliveryTime = INTEGER (INTEGER);
     LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();
@@ -2059,9 +2059,9 @@ importStockOrder 'Импорт заказов (складских требова
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
         customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStock(i))));
         customerStock(o) <- stock(ISTRING[100] (idCustomerStock(i)));
-        date(o) <- date(i);  
+        date(o) <- DATE (date(i));  
         time(o) <- 00:00;
-        shipmentDate(o) <- deliveryDate(i);
+        shipmentDate(o) <- DATE (deliveryDate(i));
         shipmentTime(o) <- sumMinutes(00:00, deliveryTime(i));
     }  
 
@@ -2131,9 +2131,9 @@ importStockOrder 'Импорт заказов (складских требова
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
         customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStock(i))));
         customerStock(o) <- stock(ISTRING[100] (idCustomerStock(i)));
-        date(o) <- date(i);  
+        date(o) <- DATE (date(i));  
         time(o) <- 00:00;
-        shipmentDate(o) <- deliveryDate(i);
+        shipmentDate(o) <- DATE (deliveryDate(i));
         shipmentTime(o) <- sumMinutes(00:00, deliveryTime(i));
         createSale(o) <- NULL;       
     }  
@@ -2206,7 +2206,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
     LOCAL idCustomerStock = INTEGER (INTEGER);
     LOCAL idSupplierStock = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
-    LOCAL date = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
     LOCAL deliveryDate = DATE (INTEGER);
     LOCAL deliveryTime = INTEGER (INTEGER);
     LOCAL filterSql = TEXT ();
@@ -2237,7 +2237,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
         customer(o) <- legalEntity(stock(ISTRING[100] (idCustomerStock(i))));
         customerStock(o) <- stock(ISTRING[100] (idCustomerStock(i)));
-        date(o) <- date(i);  
+        date(o) <- DATE (date(i));  
         time(o) <- 00:00;
         imported(o) <- TRUE;
     }  
@@ -2309,8 +2309,8 @@ importSaleOrder 'Импорт заказов (продажа)' () {
     LOCAL idCustomer = INTEGER (INTEGER);
     LOCAL idSupplierStock = INTEGER (INTEGER);
     LOCAL comment = ISTRING[255] (INTEGER);
-    LOCAL date = DATE (INTEGER);
-    LOCAL supplyDate = DATE (INTEGER);
+    LOCAL date = DATETIME (INTEGER);
+    LOCAL supplyDate = DATETIME (INTEGER);
     LOCAL supplyTime = INTEGER (INTEGER);
     LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();
@@ -2338,9 +2338,9 @@ importSaleOrder 'Импорт заказов (продажа)' () {
         supplierStock(o) <- stock(ISTRING[100] (idSupplierStock(i)));
         customer(o) <- legalEntity(stock(ISTRING[100] (idCustomer(i))));
         customerStock(o) <- stock(ISTRING[100] (idCustomer(i)));
-        date(o) <- date(i);  
+        date(o) <- DATE (date(i));  
         time(o) <- 00:00;
-        shipmentDate(o) <- supplyDate(i);
+        shipmentDate(o) <- DATE(supplyDate(i));
         shipmentTime(o) <- sumMinutes(00:00, supplyTime(i));
     }  
 
@@ -2529,8 +2529,8 @@ importPlanTurnover 'Импорт плановой оборачиваемости
 
 //docType = DATA LOCAL ISTRING[10](INTEGER);
 idDoc = DATA LOCAL ISTRING[50](INTEGER);
-dateFrom = DATA DATE (INTEGER);
-dateTo = DATA DATE (INTEGER);
+dateFrom = DATA DATETIME (INTEGER);
+dateTo = DATA DATETIME (INTEGER);
 
 overImportBufferApsAdDocs ABSTRACT LIST();
 overImportBufferApsAdStocks ABSTRACT LIST();
@@ -2680,7 +2680,7 @@ importPurchaseStore 'Импорт документов перемещения' (
             customer(ui) <- legalEntity(stock(TEXT (idCustomerStockInt(i))));
             operation(ui) <- CASE WHEN stock(TEXT (idSupplierStockInt(i))) IS DepartmentStore THEN Purchase.operation('purchaseStoreStore')
                                   ELSE Purchase.operation('purchaseStoreWarehouse');
-            date(ui) <- date(i);
+            date(ui) <- DATE (date(i));
             time(ui) <- 00:00;
             isPosted(ui) <- TRUE;
             createShipment(ui) <- NULL;
