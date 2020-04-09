@@ -1069,7 +1069,7 @@ importContract 'Импорт из контрактов с поставщикам
     LOCAL idDoc = ISTRING[50] (INTEGER);    
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
+        EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO idDoc, idStock;
 
@@ -1088,7 +1088,7 @@ importContract 'Импорт из контрактов с поставщикам
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cd.docid=cc.id AND ' + filterSql() TO file;
+        EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cc.doctype=\'CO\' AND cd.docid=cc.id AND cd.doctype=\'CO\' AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, date, specItem, idItem, packSize, price;
 
@@ -1217,7 +1217,7 @@ importSeparation 'Импорт признаков разделения' () {
     
     // товары из договора помечаем в признак разделения
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT s.DOCID, s.ARTICLE FROM Supermag.SVSpecCO s, Supermag.SVDocumentsCO cc WHERE s.docid = cc.id AND ' + filterSql() TO file;
+        EXEC 'SELECT s.DOCID, s.ARTICLE FROM Supermag.SVSpecCO s, Supermag.SVDocumentsCO cc WHERE cc.doctype=\'CO\' AND s.docid = cc.id AND s.doctype=\'CO\' AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO id, idItem;
     
@@ -1421,7 +1421,7 @@ importRepricingRetail 'Импорт актов переоценки' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-        EXEC 'SELECT d.DocType, d.Id, dd.SpecItem, dd.Article, dd.ItemPrice,  ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AC\' AND a.Id = d.Id AND dd.DocId = d.Id AND ad.DocId = d.Id AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
+        EXEC 'SELECT d.DocType, d.Id, dd.SpecItem, dd.Article, dd.ItemPrice,  ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AC\' AND a.Id = d.Id AND dd.DocId = d.Id AND dd.DocType = \'AC\' AND ad.DocId = d.Id AND ad.DocType = \'AC\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
        
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, price, oldPrice, quantity, actReason, priceType;
     
@@ -1547,7 +1547,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
-            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND ad.docid = dd.docid AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND dd.DocType = \'AB\' AND ad.docid = dd.docid AND ad.DocType = \'AB\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
 
@@ -1730,7 +1730,7 @@ importRange 'Импорт ассортиментных матриц' () {
         
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
-
+                                                          
     IMPORT TABLE FROM file() TO itemId, id, name;
 
     store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
@@ -1980,7 +1980,7 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
     
@@ -2085,7 +2085,7 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -2158,7 +2158,7 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -2268,7 +2268,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
     LOCAL imported = BOOLEAN (Sale.UserInvoiceDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMInternalWayBills b, Supermag.SMSpec ds WHERE ds.DOCID = d.id  AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMInternalWayBills b, Supermag.SMSpec ds WHERE ds.DocType = \'IW\' AND ds.DOCID = d.id  AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
@@ -2355,7 +2355,7 @@ importSaleOrder 'Импорт заказов (продажа)' () {
     LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
 
