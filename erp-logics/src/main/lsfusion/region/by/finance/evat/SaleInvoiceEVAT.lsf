@@ -55,136 +55,144 @@ customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (InvoiceDetail);
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (SaleReturn.InvoiceDetail);
 // в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
+createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
+    EVATDocument(e) <- i;        
+    type(e) <- EVATType.sale;
+    status(e) <- EVATStatus.original;
+    
+    date(e) <- date(i);
+    
+    numberContract (e) <- number(contractSku(i));
+    dateContract (e) <- dateFrom(contractSku(i));
+    codeDocType (e) <- 603;
+    blankCodeDoc (e) <- OVERRIDE idBlankCode(i), blankCodeDoc() IF i IS Invoice, '402861' IF i IS Invoice;
+    seriesDoc(e) <- series(i);
+    numberDoc(e) <- number(i);
+    unpSender(e) <- UNP(supplier(i));
+    
+    //Поставщик
+    supplier(e) <- supplier(i);
+    branchCodeSupplier(e) <- branchCode(supplierStock(i));        
+    
+    //Получатель
+    customer(e) <- customer(i);   
+    branchCodeCustomer(e) <- branchCode(customerStock(i));        
+    
+    //Грузоотправитель
+    consignor(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+    countryCodeConsignor (e) <- sid(country(supplier(i)));
+    unpConsignor (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
+    shippingAddressConsignor(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
+    
+    //Грузополучатель
+    consignee(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+    countryCodeConsignee (e) <- sid(country(customer(i)));
+    unpConsignee (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
+    shippingAddressConsignee(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
+    
+    noCustomer(e) <- NOT VATSumInvoiceDetail(i);
+    
+    overCreateEVATSaleInvoice(e,i);
+    
+    FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+        evat(ed) <- e;
+
+        name(ed) <- nameSku(id);
+        sku(ed) <- sku(id);
+        code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+        UOM(ed) <- UOM(sku(id));
+        quantity(ed) <- quantity(id); 
+        price(ed) <- price(id);
+        sum(ed) <- sum(id);
+        exciseSum(ed) <- 0;
+        vatRate(ed) <- valueVAT(id);
+        vatSum(ed) <- VATSum(id);
+        sumWithVAT(ed) <- invoiceSum(id);
+        
+        IF valueVAT(id) == 0 THEN
+            descriptionType(ed) <- DescriptionType.vatExcemption;
+        ELSE
+            descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
+        overEVATDetailSaleInvoiceDetail(ed,id);
+    } 
+}
+
+createEVATSaleRenurnInvoice(EVAT e, SaleReturn.Invoice i) {
+    EVATDocument(e) <- i;        
+    type(e) <- EVATType.saleReturn;
+    status(e) <- EVATStatus.additionalNoRef;
+    
+    date(e) <- date(i);
+    
+    numberContract (e) <- number(contractSku(i));
+    dateContract (e) <- dateFrom(contractSku(i));
+    codeDocType (e) <- 603;
+    blankCodeDoc (e) <- OVERRIDE idBlankCode(i), blankCodeReturnDoc() IF i IS SaleReturn.Invoice, '402861' IF i IS SaleReturn.Invoice;
+    seriesDoc(e) <- series(i);
+    numberDoc(e) <- number(i);
+    unpSender(e) <- UNP(supplier(i));
+    
+    //Поставщик
+    supplier(e) <- supplier(i);
+    branchCodeSupplier(e) <- branchCode(supplierStock(i));
+    
+    //Получатель
+    customer(e) <- customer(i);
+    branchCodeCustomer(e) <- branchCode(customerStock(i));
+    
+    //Грузоотправитель
+    consignor(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+    countryCodeConsignor (e) <- sid(country(customer(i)));
+    unpConsignor (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
+    shippingAddressConsignor(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
+
+    //Грузополучатель
+    consignee(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+    countryCodeConsignee (e) <- sid(country(supplier(i)));
+    unpConsignee (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
+    shippingAddressConsignee(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
+    
+    noCustomer(e) <- NOT VATSumInvoiceDetail(i);
+    
+    overCreateEVATSaleReturnInvoice(e,i);
+    
+    FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+        evat(ed) <- e;
+
+        name(ed) <- nameSku(id);
+        sku(ed) <- sku(id);
+        code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+        UOM(ed) <- UOM(sku(id));
+        quantity(ed) <- -quantity(id); 
+        price(ed) <- price(id);
+        sum(ed) <- -sum(id);
+        exciseSum(ed) <- 0;
+        vatRate(ed) <- valueVAT(id);
+        vatSum(ed) <- -VATSum(id);
+        sumWithVAT(ed) <- -invoiceSum(id);
+        
+        IF valueVAT(id) == 0 THEN
+            descriptionType(ed) <- DescriptionType.vatExcemption;
+        ELSE
+            descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
+        overEVATDetailSaleReturnInvoiceDetail(ed, id);
+    } 
+}
+
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo)  { 
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND
         NOT EVAT(i)
         AND date(i) >= dFrom AND date(i) <= dTo AND 
         quantityInvoiceDetail(i) NEW e = EVAT DO {
-        EVATDocument(e) <- i;        
-        type(e) <- EVATType.sale;
-        status(e) <- EVATStatus.original;
-        
-        date(e) <- date(i);
-        
-        numberContract (e) <- number(contractSku(i));
-        dateContract (e) <- dateFrom(contractSku(i));
-        codeDocType (e) <- 603;
-        blankCodeDoc (e) <- OVERRIDE idBlankCode(i), blankCodeDoc() IF i IS Invoice, '402861' IF i IS Invoice;
-        seriesDoc(e) <- series(i);
-        numberDoc(e) <- number(i);
-        unpSender(e) <- UNP(supplier(i));
-        
-        //Поставщик
-        supplier(e) <- supplier(i);
-        branchCodeSupplier(e) <- branchCode(supplierStock(i));        
-        
-        //Получатель
-        customer(e) <- customer(i);   
-        branchCodeCustomer(e) <- branchCode(customerStock(i));        
-        
-        //Грузоотправитель
-        consignor(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
-        countryCodeConsignor (e) <- sid(country(supplier(i)));
-        unpConsignor (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
-        shippingAddressConsignor(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
-        
-        //Грузополучатель
-        consignee(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
-        countryCodeConsignee (e) <- sid(country(customer(i)));
-        unpConsignee (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
-        shippingAddressConsignee(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
-        
-        noCustomer(e) <- NOT VATSumInvoiceDetail(i);
-        
-        overCreateEVATSaleInvoice(e,i);
-        
-        FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
-            evat(ed) <- e;
-
-            name(ed) <- nameSku(id);
-            sku(ed) <- sku(id);
-            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
-            UOM(ed) <- UOM(sku(id));
-            quantity(ed) <- quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- sum(id);
-            exciseSum(ed) <- 0;
-            vatRate(ed) <- valueVAT(id);
-            vatSum(ed) <- VATSum(id);
-            sumWithVAT(ed) <- invoiceSum(id);
-            
-            IF valueVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption;
-            ELSE
-                descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
-            overEVATDetailSaleInvoiceDetail(ed,id);
-        } 
+        createEVATSaleInvoice(e, i);
     } 
     APPLY;
 
     FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
         NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo 
         NEW e = EVAT DO {
-        EVATDocument(e) <- i;        
-        type(e) <- EVATType.saleReturn;
-        status(e) <- EVATStatus.additionalNoRef;
-        
-        date(e) <- date(i);
-        
-        numberContract (e) <- number(contractSku(i));
-        dateContract (e) <- dateFrom(contractSku(i));
-        codeDocType (e) <- 603;
-        blankCodeDoc (e) <- OVERRIDE idBlankCode(i), blankCodeReturnDoc() IF i IS SaleReturn.Invoice, '402861' IF i IS SaleReturn.Invoice;
-        seriesDoc(e) <- series(i);
-        numberDoc(e) <- number(i);
-        unpSender(e) <- UNP(supplier(i));
-        
-        //Поставщик
-        supplier(e) <- supplier(i);
-        branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        
-        //Получатель
-        customer(e) <- customer(i);
-        branchCodeCustomer(e) <- branchCode(customerStock(i));
-        
-        //Грузоотправитель
-        consignor(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
-        countryCodeConsignor (e) <- sid(country(customer(i)));
-        unpConsignor (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i)); 
-        shippingAddressConsignor(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
-
-        //Грузополучатель
-        consignee(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
-        countryCodeConsignee (e) <- sid(country(supplier(i)));
-        unpConsignee (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i)); 
-        shippingAddressConsignee(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
-        
-        noCustomer(e) <- NOT VATSumInvoiceDetail(i);
-        
-        overCreateEVATSaleReturnInvoice(e,i);
-        
-        FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
-            evat(ed) <- e;
-
-            name(ed) <- nameSku(id);
-            sku(ed) <- sku(id);
-            code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
-            UOM(ed) <- UOM(sku(id));
-            quantity(ed) <- -quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- -sum(id);
-            exciseSum(ed) <- 0;
-            vatRate(ed) <- valueVAT(id);
-            vatSum(ed) <- -VATSum(id);
-            sumWithVAT(ed) <- -invoiceSum(id);
-            
-            IF valueVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption;
-            ELSE
-                descriptionType(ed) <- DescriptionType.deductionInFull IF NOT notDeductionInFull();
-            overEVATDetailSaleReturnInvoiceDetail(ed, id);
-        } 
+        createEVATSaleRenurnInvoice(e, i);
     }
     APPLY;
 } CONFIRM;
