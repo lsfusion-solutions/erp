@@ -13,6 +13,8 @@ public class UKM4MySQLSettings implements Serializable{
     private String cardPayments;
     //Коды признака оплаты подарочным сертификатом через запятую. По умолчанию используется код 2
     private String giftCardPayments;
+    //Коды признака оплаты кастомными типами платежей через запятую.
+    private String customPayments;
 
     //Список подарочных сертификатов через запятую. Если receipt_payment.card_number содержится в списке,
     //тип оплаты считается подарочным сертификатом
@@ -78,6 +80,14 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public String getCustomPayments() {
+        return customPayments;
+    }
+
+    public void setCustomPayments(String customPayments) {
+        this.customPayments = customPayments;
     }
 
     public List<String> getGiftCardList() {
