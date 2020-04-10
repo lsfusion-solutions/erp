@@ -36,7 +36,7 @@ exportReceipt 'Выгрузить Чеки' (DATE dFrom, DATE dTo)  {
             EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY HH24:MI:SS\')'](dateTime(ReceiptDetail d)),
                                 departmentStore = departmentStore(d),
                                 cashRegister = cashRegister(receipt(d)), employee = employee(receipt(d)),
-                                sku = sku(d), group1 = skuGroup2(sku(d)), group2 = skuGroup3(sku(d)), group3 = skuGroup4(sku(d)), group4 = skuGroup5(sku(d)),
+                                sku = sku(d),
                                 discountPercent = discountPercent(d), receipt = receipt(d), 
                                 quantity = signedQuantity(d), price = price(d), sum = signedSum(d), discountSum = signedDiscountSum(d),
                                 sumVAT = signedSumVAT(d), weight = signedQuantity(d) * overNetWeight(sku(d))
@@ -231,10 +231,10 @@ DESIGN receiptReport {
 @createGroup(receiptDetail, week, 'По неделям', 5, 'TIME_FORMAT(__time,\'yyyy неделя ww\')', 'Неделя', checkBoxContainer);
 @createGroup(receiptDetail, day, 'По дням', 6, 'TIME_FORMAT(__time,\'yyyy-MM-dd\')', 'День', checkBoxContainer);
 @createGroup(receiptDetail, sku, 'По товару', 7, 'sku', 'LOOKUP(sku,\'sku_name\')', 'Товар', checkBoxContainer);
-@createGroup(receiptDetail, group1, 'По направлению', 8, 'group1', 'LOOKUP(group1,\'group_name\')', 'Направление', checkBoxContainer);
-@createGroup(receiptDetail, group2, 'По группе', 9, 'group2', 'LOOKUP(group2,\'group_name\')', 'Группа', checkBoxContainer);
-@createGroup(receiptDetail, group3, 'По подгруппе', 10, 'group3', 'LOOKUP(group3,\'group_name\')', 'Подгруппа', checkBoxContainer);
-@createGroup(receiptDetail, group4, 'По субгруппе', 11, 'group4', 'LOOKUP(group4,\'group_name\')', 'Субгруппа', checkBoxContainer);
+@createGroup(receiptDetail, group1, 'По направлению', 8, 'LOOKUP(sku,\'sku_group1\')', 'LOOKUP(LOOKUP(sku,\'sku_group1\'),\'group_name\')', 'Направление', checkBoxContainer);
+@createGroup(receiptDetail, group2, 'По группе', 9, 'LOOKUP(sku,\'sku_group2\')', 'LOOKUP(LOOKUP(sku,\'sku_group2\'),\'group_name\')', 'Группа', checkBoxContainer);
+@createGroup(receiptDetail, group3, 'По подгруппе', 10, 'LOOKUP(sku,\'sku_group3\')', 'LOOKUP(LOOKUP(sku,\'sku_group3\'),\'group_name\')', 'Подгруппа', checkBoxContainer);
+@createGroup(receiptDetail, group4, 'По субгруппе', 11, 'LOOKUP(sku,\'sku_group4\')', 'LOOKUP(LOOKUP(sku,\'sku_group4\'),\'group_name\')', 'Субгруппа', checkBoxContainer);
 
 nameGroupsReceiptDetail = CONCAT ', ', (OVERRIDE exprGroup1ReceiptDetail(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2ReceiptDetail(), '\'\'') + ' AS nameGroup2',
@@ -339,10 +339,10 @@ changeIncludeBarcodesReceiptDetail()  {
     }
 }
 
-filterGroupsReceiptDetail() = CONCAT ' OR', ' group1 IN (' + nameIncludeSkuGroups1ReceiptDetail() + ')',
-                                       ' group2 IN (' + nameIncludeSkuGroups2ReceiptDetail() + ')',
-                                       ' group3 IN (' + nameIncludeSkuGroups3ReceiptDetail() + ')',
-                                       ' group4 IN (' + nameIncludeSkuGroups4ReceiptDetail() + ')';
+filterGroupsReceiptDetail() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameIncludeSkuGroups1ReceiptDetail() + ')',
+                                       ' LOOKUP(sku,\'sku_group2\') IN (' + nameIncludeSkuGroups2ReceiptDetail() + ')',
+                                       ' LOOKUP(sku,\'sku_group3\') IN (' + nameIncludeSkuGroups3ReceiptDetail() + ')',
+                                       ' LOOKUP(sku,\'sku_group4\') IN (' + nameIncludeSkuGroups4ReceiptDetail() + ')';
 fillReceiptDetailReport (DATE dateFrom, DATE dateTo)  { 
     nameGroup1ReceiptDetail(INTEGER i) <- NULL;
     nameGroup2ReceiptDetail(INTEGER i) <- NULL;
