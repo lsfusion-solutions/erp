@@ -777,15 +777,19 @@ nameSku 'Итоговый sku' (Sku sku,Order order)= name(sku (sku,order));
 idBarcodeSku 'Штрихкод' (Sku sku,Order order) = idBarcode(sku (sku, order));
 shortNameUOMSku 'Ед.изм.' (Sku sku,Order order) = shortNameUOM(sku (sku, order));
 
+sumOver=ABSTRACT NUMERIC[18,4](ComponentDetail);
+sumCustom(ComponentDetail c) = OVERRIDE sumOver(c), sum(c);
 sumComponentDetail 'Сумма' (BOM, sku, order) = GROUP SUM sum(ComponentDetail d) BY BOM(d), sku(d), order(d);
 
 sumComponentDetail = GROUP SUM sum(ComponentDetail d) BY BOM(d), order(d);
+sumComponentDetailCustom 'Сумма'  = GROUP SUM sumCustom(ComponentDetail d) BY BOM(d), order(d);
+
 quantityComponentDetail = GROUP SUM quantity(ComponentDetail d) BY BOM(d), order(d);
 BOMQuantityComponentDetail = GROUP SUM BOMQuantity(ComponentDetail d) BY BOM(d), order(d);
 
-priceComponents (BOM b, Order o) = sumComponentDetail(b, o) / quantityComponentDetail(b, o);  
+priceComponents (BOM b, Order o) = sumComponentDetailCustom(b, o) / quantityComponentDetail(b, o);  
 
-priceComponents (ProductDetail d) = sumComponentDetail(BOM(d), order(d)) / quantity(d);
+priceComponents (ProductDetail d) = sumComponentDetailCustom(BOM(d), order(d)) / quantity(d);
 
 calcPricePercent(ProductDetail d) =  IF calcBOMPrice(d) THEN
                                                         NUMERIC[16,5](calcPricePercentNumeric(d, price(d) /
@@ -1212,7 +1216,7 @@ FORM order 'Производственный заказ'
                    calcPriceCoeff SHOWIF isPriceCoeff(o) ON CHANGE changePriceCoeff(pd),                   
                    price ON CHANGE changeProductsPrice(pd), sum
     PROPERTIES(pd) BACKGROUND backgroundVAT(o) SHOWIF VATProduct(o) valueVAT
-    PROPERTIES(pd) NEW, deletepd=DELETE GRID
+    PROPERTIES(pd) newpd =NEW, deletepd=DELETE GRID
     PROPERTIES(o) DRAW pd createProducts, fillPriceProducts, deleteProductDetail
 
     FILTERS order(pd)==o
