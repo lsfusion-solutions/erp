@@ -20,11 +20,14 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
+`import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.*;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -1239,8 +1242,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
                                 String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
                                 String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
-                                Date dateReceiptOriginal = salesAttrsSplitted.length > 7 ? new Date(DateUtils.parseDate(salesAttrsSplitted[7], "yyyyMMddHHmmss").getTime()) : null;
-                                idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                                LocalDate dateReceiptOriginal = salesAttrsSplitted.length > 7 ? LocalDateTime.parse(salesAttrsSplitted[7], DateTimeFormatter.ofPattern("yyyyMMddHHmmss")).toLocalDate() : null;
+                                idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_" +
+                                        (dateReceiptOriginal != null ? dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) : "") + "_" + numberReceiptOriginal;
                             } else {
                                 idSaleReceiptReceiptReturnDetail = null;
                             }
@@ -1291,12 +1295,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         Statement statement = null;
                         try {
                             StringBuilder dateWhere = new StringBuilder();
-                            Long dateFrom = localDateToSqlDate(entry.dateFrom).getTime();
-                            Long dateTo = localDateToSqlDate(entry.dateTo).getTime();
-                            while (dateFrom <= dateTo) {
-                                String dateString = new SimpleDateFormat("yyyyMMdd").format(new Date(dateFrom));
+                            LocalDate dateFrom = entry.dateFrom;
+                            LocalDate dateTo = entry.dateTo;
+                            while (dateFrom.compareTo(dateTo) <= 0) {
+                                String dateString = dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                                 dateWhere.append((dateWhere.length() == 0) ? "" : " OR ").append("SALESTIME LIKE '").append(dateString).append("%'");
-                                dateFrom += 86400000;
+                                dateFrom = dateFrom.plusDays(1);
                             }
                             StringBuilder stockWhere = new StringBuilder();
                             for(CashRegisterInfo cashRegister : getCashRegisterSet(entry, true)) {
