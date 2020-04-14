@@ -238,6 +238,21 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 case "importVAT":
                     result = "IMPORT_VAT";
                     break;
+                case "exciseMark":
+                    result = "EXCISE_MARK";
+                    break;
+                case "controlMark":
+                    result = "CONTROL_MARK";
+                    break;
+                case "customsExcise":
+                    result = "CUSTOMS_EXCISE";
+                    break;
+                case "identifiedMark":
+                    result = "IDENTIFIED_MARK";
+                    break;
+                case "analyzedDeal":
+                    result = "ANALYZED_DEAL";
+                    break;
             }
         }
         return result;
@@ -448,10 +463,10 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
         String[] evatDetailNames = new String[]{"objValue", "name", "code", "evatCodeUOM", "codeOced",
-                "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
+                "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType", "overNameDescriptionType"};
         LP<?>[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "evatCodeUOM[EVATDetail]",
                 "codeOced[EVATDetail]", "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]",
-                "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
+                "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]", "overNameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {
             evatDetailQuery.addProperty(evatDetailNames[i], evatDetailProperties[i].getExpr(evatDetailExpr));
         }
@@ -474,6 +489,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             BigDecimal sumWithVat = (BigDecimal) entry.get("sumWithVAT");
 
             String description = getDescription(getLastPart(trim((String) entry.get("nameDescriptionType"))));
+            String overDescription = (String) entry.get("overNameDescriptionType");
 
             Element rosterItemElement = new Element("rosterItem", namespace);
             addStringElement(namespace, rosterItemElement, "number", getString(i + 1));
@@ -491,7 +507,13 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
             addStringElement(namespace, vatElement, "summaVat", bigDecimalToString(vatSum));
             rosterItemElement.addContent(vatElement);
             addStringElement(namespace, rosterItemElement, "costVat", bigDecimalToString(sumWithVat));
-            if(description != null) {
+            if(overDescription != null) {
+                Element descriptionsElement = new Element("descriptions", namespace);
+                for(String d : overDescription.split(",")) {
+                    addStringElement(namespace, descriptionsElement, "description", d);
+                }
+                rosterItemElement.addContent(descriptionsElement);
+            } else if (description != null) {
                 Element descriptionsElement = new Element("descriptions", namespace);
                 addStringElement(namespace, descriptionsElement, "description", description);
                 rosterItemElement.addContent(descriptionsElement);
