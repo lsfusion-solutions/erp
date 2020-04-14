@@ -1,14 +1,7 @@
 MODULE InventoryDelta;
 
-REQUIRE Inventory, StockDocumentSkuLedgerDelta;
+REQUIRE Inventory, StockDocumentSkuLedgerSkuDelta;
 NAMESPACE Inventory;
-
-
-lastCollationSheet (Stock st)= GROUP LAST CollationSheet cs
-        ORDER date(cs), cs
-        WHERE isPosted(cs) AND NOT isPartly(inventory(cs))
-        BY stock(cs);
-dateAccountDelta(Stock st) += sum(date(lastCollationSheet(st)),1);
 
 showAccountDelta 'Показывать "Отклонение от фактического"' = DATA BOOLEAN (Operation);
 
@@ -33,7 +26,7 @@ overRecalculateBalance(Inventory in) + {
     FOR inventory(CollationSheet cs) == in  DO { 
         accountDeltaQuantity(Sku s,cs) <- NULL;    
         accountDeltaSum(Sku s,cs) <- NULL;    
-        IF showAccountDelta(operation(in)) AND NOT isBatch(cs) AND NOT isPartly(in) THEN {
+        IF showAccountDelta(operation(in)) AND NOT isBatch(cs) THEN {// AND NOT isPartly(in)
             accountDeltaQuantity(Sku s,cs) <- accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in));          
             accountDeltaSum(Sku s,cs) <- accountDeltaSum(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaSum(s,stock(cs),prevDate(cs),date(in));          
         }                                 

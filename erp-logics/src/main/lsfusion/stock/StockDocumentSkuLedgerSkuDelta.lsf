@@ -1,0 +1,34 @@
+MODULE StockDocumentSkuLedgerSkuDelta;
+REQUIRE StockDocumentSkuLedger;
+NAMESPACE Stock;
+
+dateAccountDelta 'Дата с (отклонение от фактического)' = ABSTRACT DATE (Sku, Stock) MATERIALIZED;
+
+calcAccountDelta(Sku s, Stock st) = (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(sku(l),stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
+accountDeltaQuantity(Sku s, Stock st) += calcAccountDelta(s,st);    
+
+accountDeltaQuantity(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedQuantity(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+    AND skip(stockDocumentLedger(l)) AND date(l) >= df AND date(l)<=dt AND sku(l)==s AND stock(l)==st);   
+    
+accountDeltaBQuantity(Sku s, Stock st, DATETIME dateTime) +=  accountDeltaQuantity(s, st)(-) 
+                                                (GROUP SUM -signedQuantity (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
+                                                AND NOT date(l) < dateAccountDelta(sku(l),stock(l)) AND   dateTime(l) >= dateTime);
+                                       
+calcAccountDeltaSum(Sku s, Stock st) = NUMERIC[18,4](GROUP SUM -signedSum(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+    AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(sku(l),stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
+accountDeltaSum(Sku s, Stock st) += calcAccountDeltaSum(s,st);    
+
+accountDeltaSum(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedSum(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
+    AND skip(stockDocumentLedger(l)) AND date(l) >= df AND date(l)<=dt AND sku(l)==s AND stock(l)==st);   
+    
+accountDeltaBSum(Sku s, Stock st, DATETIME dateTime) +=  accountDeltaSum(s, st)(-) 
+                                                (GROUP SUM -signedSum (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
+                                                AND NOT date(l) < dateAccountDelta(sku(l),stock(l)) AND   dateTime(l) >= dateTime);                                     
+                                                                                 
+EXTEND FORM currentBalanceSkuStock
+    
+    PROPERTIES(s, st) READONLY dateAccountDelta BEFORE currentBalance(s, st), accountBalanceQuantity AFTER currentBalance(s, st), 
+                      accountBalanceSum AFTER currentSum(s, st)   
+;
+
