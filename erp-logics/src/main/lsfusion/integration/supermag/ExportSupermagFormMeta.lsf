@@ -22,8 +22,8 @@ META exportFilds (docMain, docDetail)
     sumNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     sumWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docDetail);
-    docId = DATA LOCAL STRING[100] (###docMain);
-    docId (###docDetail dd) = docId(##docMain(dd)); 
+ //   docId = DATA LOCAL STRING[100] (###docMain);
+    docId (###docDetail dd) = id(##docMain(dd)); 
     sumNoTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docMain);
@@ -36,6 +36,7 @@ META exportFilds (docMain, docDetail)
 END
 
 META exportFormDoc (typeDoc, formName, docMain, docDetail, commentary) 
+
 GROUP ###typeDoc;
 GROUP SMDOCUMENTS###typeDoc EXTID 'SMDOCUMENTS': ###typeDoc;
 GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
@@ -43,36 +44,36 @@ GROUP SMSPEC###typeDoc EXTID 'SMSPEC': ###typeDoc;
 FORM formName FORMEXTID 'PACKAGE' 
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 
-    OBJECTS i = ###docMain EXTID 'POSTOBJECT'
-    PROPERTIES ATTR = 'normal' IF i IS ###docMain EXTID 'action'      
-    PROPERTIES ATTR = opname(i) IF i IS ###docMain EXTID 'description'  
+    OBJECTS doc = ###docMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS ###docMain EXTID 'action'      
+    PROPERTIES ATTR = opname(doc) IF doc IS ###docMain EXTID 'description'  
     
-    PROPERTIES = STRING[100](doctype(i)+docId(i)) EXTID 'Id'
-    PROPERTIES = STRING[100](docId(i)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = doctype(i) IF i IS ###docMain EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = opcode(i) IF i IS ###docMain EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = idSupermag(location(i)) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = exportTime(dateTime(i))  EXTID 'CREATEDAT' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = 0 IF i IS ###docMain EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
-    PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS###typeDoc 
-    PROPERTIES = 1 IF i IS ###docMain EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
-    PROPERTIES = IF isPosted(i) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
-    PROPERTIES = 1 IF i IS ###docMain  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
-    PROPERTIES = 4 IF i IS ###docMain  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
-    PROPERTIES = sumWithTax(i) IF i IS ###docMain EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = sumWithTaxCurr(i) IF i IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = ###commentary IF i IS ###docMain EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
+    PROPERTIES = STRING[100](doctype(doc)+id(doc)) EXTID 'Id'
+    PROPERTIES = STRING[100](id(doc)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = doctype(doc) IF doc IS ###docMain EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = opcode(doc) IF doc IS ###docMain EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = idSupermag(location(doc)) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = exportTime(dateTime(doc))  EXTID 'CREATEDAT' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = 0 IF doc IS ###docMain EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN SMDOCUMENTS###typeDoc 
+    PROPERTIES = 1 IF doc IS ###docMain EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
+    PROPERTIES = IF isPosted(doc) THEN 3 ELSE 2 EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
+    PROPERTIES = 1 IF doc IS ###docMain  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
+    PROPERTIES = 4 IF doc IS ###docMain  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
+    PROPERTIES = sumWithTax(doc) IF doc IS ###docMain EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = sumWithTaxCurr(doc) IF doc IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = ###commentary IF doc IS ###docMain EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
                                                             
-    OBJECTS d = ###docDetail EXTID 'SMSPEC' IN ###typeDoc 
-    PROPERTIES = docId(d) EXTID 'DOCID'    
-    PROPERTIES = doctype(##docMain(d)) IF d IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = idSku(d) EXTID 'ARTICLE'                          
-    PROPERTIES d1= index(d) EXTID 'DISPLAYITEM'
-    PROPERTIES = abs(quantity(d)) EXTID 'QUANTITY'
-    PROPERTIES = priceWithTax(d) EXTID 'ITEMPRICE'     
-    PROPERTIES d2 = NUMERIC[18,4](price(d)/curRate(i)) EXTID 'ITEMPRICECUR'                         
-    FILTERS ##docMain(d)==i,
-            inc(i)  
+    OBJECTS docd = ###docDetail EXTID 'SMSPEC' IN ###typeDoc 
+    PROPERTIES = docId(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(##docMain(docd)) IF docd IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = idSku(docd) EXTID 'ARTICLE'                          
+    PROPERTIES d1= index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = abs(quantity(docd)) EXTID 'QUANTITY'
+    PROPERTIES = priceWithTax(docd) EXTID 'ITEMPRICE'     
+    PROPERTIES d2 = NUMERIC[18,4](price(docd)/curRate(doc)) EXTID 'ITEMPRICECUR'                         
+    FILTERS ##docMain(docd)==doc,
+            inc(doc)  
     ;                                                
 END
 
@@ -83,40 +84,40 @@ GROUP SMWAYBILLSIN EXTID 'SMWAYBILLSIN' : WI;
 GROUP SMSPECIOWI EXTID 'SMWSPECIO' : WI;
 
 EXTEND FORM formName
-    PROPERTIES = userop(i) IF i IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWI        
-    PROPERTIES = id(locationTo(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTSWI
+    PROPERTIES = userop(doc) IF doc IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWI        
+    PROPERTIES = id(locationTo(doc)) EXTID 'LOCATIONTO' IN SMDOCUMENTSWI
     
-    PROPERTIES = STRING[100](docId(i)) EXTID 'ID' IN SMWAYBILLSIN      
-    PROPERTIES = 'WI' IF i IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSIN 
-    PROPERTIES = 0 IF i IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
-    PROPERTIES = id(legalEntity(locationTo(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
-    PROPERTIES = 0 IF i IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSIN      
+    PROPERTIES = STRING[100](id(doc)) EXTID 'ID' IN SMWAYBILLSIN      
+    PROPERTIES = 'WI' IF doc IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSIN 
+    PROPERTIES = 0 IF doc IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
+    PROPERTIES = id(legalEntity(locationTo(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
+    PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSIN      
 
-    PROPERTIES = priceNoTax(d) IF d IS ###docDetail EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = sumWithTax(d) IF d IS ###docDetail EXTID 'TOTALPRICE'  
-    PROPERTIES = sumWithTaxCurr(d) IF d IS ###docDetail EXTID 'TOTALPRICECUR'      
-    PROPERTIES = sumNoTax(d) IF d IS ###docDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
     
-    OBJECTS d2 = ###docDetail EXTID 'SMSPECIO' IN WI 
-    PROPERTIES = docId(d2) EXTID 'DOCID'   
-    PROPERTIES = 'WI' IF d2 IS ###docDetail EXTID 'DOCTYPE'     
-    FILTERS ##docMain(d2)==i    
+    OBJECTS docd2 = ###docDetail EXTID 'SMSPECIO' IN WI 
+    PROPERTIES = docId(docd2) EXTID 'DOCID'   
+    PROPERTIES = 'WI' IF docd2 IS ###docDetail EXTID 'DOCTYPE'     
+    FILTERS ##docMain(docd2)==doc    
     
-    OBJECTS d3 = ###docDetail EXTID 'SMSPECTAX' IN WI
-    PROPERTIES = docId(d3) EXTID 'DOCID'    
-    PROPERTIES = 'WI' IF d3 IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = 0 IF d3 IS ###docDetail  EXTID 'TAXID'        
-    PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
-    PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
-    FILTERS ##docMain(d3)==i   
+    OBJECTS docd3 = ###docDetail EXTID 'SMSPECTAX' IN WI
+    PROPERTIES = docId(docd3) EXTID 'DOCID'    
+    PROPERTIES = 'WI' IF docd3 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF docd3 IS ###docDetail  EXTID 'TAXID'        
+    PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
+    PROPERTIES = sumTax(docd3) EXTID 'TAXSUM'            
+    FILTERS ##docMain(docd3)==doc   
 
-    OBJECTS d4 = ###docDetail EXTID 'SMSPECBY' IN WI
-    PROPERTIES = docId(d4) EXTID 'DOCID'    
-    PROPERTIES = 'WO' IF d4 IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'EXTRACHARGE'  
-    PROPERTIES = priceSupplier(d4) EXTID 'MANUFACTURERSPRICE'     
-    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'STATEREGULATION'                           
-    FILTERS ##docMain(d4)==i    
+    OBJECTS docd4 = ###docDetail EXTID 'SMSPECBY' IN WI
+    PROPERTIES = docId(docd4) EXTID 'DOCID'    
+    PROPERTIES = 'WI' IF docd4 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF docd4 IS ###docDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceSupplier(docd4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = 0 IF docd4 IS ###docDetail EXTID 'STATEREGULATION'                           
+    FILTERS ##docMain(docd4)==doc    
     ;
 END
 
@@ -127,40 +128,40 @@ GROUP SMWAYBILLSOUT EXTID 'SMWAYBILLSOUT' : WO;
 GROUP SMSPECIOWO EXTID 'SMWSPECIO' : WO;
 
 EXTEND FORM formName
-    PROPERTIES = userop(i) IF i IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWO        
-    PROPERTIES = id(locationFrom(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSWO
+    PROPERTIES = userop(doc) IF doc IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWO        
+    PROPERTIES = id(locationFrom(doc)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSWO
     
-    PROPERTIES = STRING[100](docId(i))  EXTID 'ID' IN SMWAYBILLSOUT      
-    PROPERTIES = 'WO' IF i IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSOUT
-    PROPERTIES = id(legalEntity(locationFrom(i))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT
-    PROPERTIES = STRING[100](docId(i))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
-    PROPERTIES = 0 IF i IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSOUT      
+    PROPERTIES = STRING[100](id(doc))  EXTID 'ID' IN SMWAYBILLSOUT      
+    PROPERTIES = 'WO' IF doc IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSOUT
+    PROPERTIES = id(legalEntity(locationFrom(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT
+    PROPERTIES = STRING[100](id(doc))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
+    PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSOUT      
     
-    PROPERTIES = priceNoTax(d) IF d IS ###docDetail EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = sumWithTax(d) IF d IS ###docDetail EXTID 'TOTALPRICE'  
-    PROPERTIES = sumWithTaxCurr(d) IF d IS ###docDetail EXTID 'TOTALPRICECUR'      
-    PROPERTIES = sumNoTax(d) IF d IS ###docDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
                 
-    OBJECTS d2 = ###docDetail EXTID 'SMSPECIO' IN WO 
-    PROPERTIES = docId(d2) EXTID 'DOCID'   
-    PROPERTIES = doctype(##docMain(d2)) IF d2 IS ###docDetail EXTID 'DOCTYPE'     
-    FILTERS ##docMain(d2)==i
+    OBJECTS docd2 = ###docDetail EXTID 'SMSPECIO' IN WO 
+    PROPERTIES = docId(docd2) EXTID 'DOCID'   
+    PROPERTIES = doctype(##docMain(docd2)) IF docd2 IS ###docDetail EXTID 'DOCTYPE'     
+    FILTERS ##docMain(docd2)==doc
         
-    OBJECTS d3 = ###docDetail EXTID 'SMSPECTAX' IN WO
-    PROPERTIES = docId(d3) EXTID 'DOCID'    
-    PROPERTIES = 'WO' IF d3 IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = 0 IF d3 IS ###docDetail  EXTID 'TAXID'        
-    PROPERTIES = valueTax(d3) EXTID 'TAXRATE'
-    PROPERTIES = sumTax(d3) EXTID 'TAXSUM'            
-    FILTERS ##docMain(d3)==i   
+    OBJECTS docd3 = ###docDetail EXTID 'SMSPECTAX' IN WO
+    PROPERTIES = docId(docd3) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF docd3 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF docd3 IS ###docDetail  EXTID 'TAXID'        
+    PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
+    PROPERTIES = sumTax(docd3) EXTID 'TAXSUM'            
+    FILTERS ##docMain(docd3)==doc   
 
-    OBJECTS d4 = ###docDetail EXTID 'SMSPECBY' IN WO
-    PROPERTIES = docId(d4) EXTID 'DOCID'    
-    PROPERTIES = 'WO' IF d4 IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'EXTRACHARGE'  
-    PROPERTIES = priceSupplier(d4) EXTID 'MANUFACTURERSPRICE'     
-    PROPERTIES = 0 IF d4 IS ###docDetail EXTID 'STATEREGULATION'                           
-    FILTERS ##docMain(d4)==i    
+    OBJECTS docd4 = ###docDetail EXTID 'SMSPECBY' IN WO
+    PROPERTIES = docId(docd4) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF docd4 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = 0 IF docd4 IS ###docDetail EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceSupplier(docd4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = 0 IF docd4 IS ###docDetail EXTID 'STATEREGULATION'                           
+    FILTERS ##docMain(docd4)==doc    
     ;
 END
 
@@ -171,7 +172,7 @@ META exportFormLA (formName, docMain, docDetail, commentary)
 @exportFormDoc(LA,formName, docMain, docDetail, commentary);
 
 EXTEND FORM formName
-    PROPERTIES = id(location(i)) EXTID 'LOCATION' IN SMDOCUMENTSLA
+    PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTSLA
     ;
 END
 
@@ -179,6 +180,6 @@ META exportFormFA (formName, docMain, docDetail, commentary)
 @exportFormDoc(FA,formName, docMain, docDetail, commentary);
 
 EXTEND FORM formName
-    PROPERTIES = id(location(i)) EXTID 'LOCATION' IN SMDOCUMENTSFA
+    PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTSFA
     ;
 END 

@@ -1,0 +1,31 @@
+MODULE CheckDocStatusSupermag;
+
+REQUIRE ImportSupermag, ExportSupermag; 
+
+overCheckDocStatusSupermag ABSTRACT LIST();
+
+docStatusId = DATA LOCAL ISTRING[50] (INTEGER);
+docStatusType = DATA LOCAL ISTRING[20] (INTEGER);
+docStatusState = DATA LOCAL INTEGER (INTEGER);
+
+checkDocStatusSupermag 'Проверка статусов документов в Супермаг' () { 
+    LOCAL filterSql = TEXT ();
+    LOCAL file = FILE ();           
+              
+    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXEC 'SELECT d.ID, d.DOCTYPE, d.DOCSTATE FROM Supermag.SMDocuments d WHERE d.CREATEDAT >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')' TO file;
+    
+    IMPORT TABLE FROM file() TO docStatusId, docStatusType, docStatusState;
+    
+    overCheckDocStatusSupermag();
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES checkDocStatusSupermag();
+DESIGN integrationData { 
+    supermagButtons { 
+        MOVE PROPERTY (checkDocStatusSupermag());
+    } 
+} 
+
