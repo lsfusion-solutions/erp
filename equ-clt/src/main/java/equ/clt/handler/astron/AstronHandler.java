@@ -42,7 +42,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
                     "logs/astron.log");
             astronLogger.removeAllAppenders();
-            ёё.addAppender(fileAppender);
+            astronLogger.addAppender(fileAppender);
 
         } catch (Exception ignored) {
         }
