@@ -116,8 +116,14 @@ replace(Sku s, Batch b) + {  sku(UserRevaluationDetail detail) <- s WHERE batch(
 
 // Не изменять текущие цены
 @defineDocumentInterfaceHeaderSkip(Revaluation, changeLedger, 'Не изменять текущие цены');
-@defineDocumentInterfaceDetailSkip(revaluation, changeLedger, 'Не изменять текущие цены');
+//@defineDocumentInterfaceDetailSkip(revaluation, changeLedger, 'Не изменять текущие цены');
 
+    notSkipChangeLedger = ABSTRACT BOOLEAN (RevaluationDetail);
+    notSkipChangeLedger = DATA BOOLEAN (UserRevaluationDetail);
+    notSkipChangeLedger (UserRevaluationDetail d) += notSkipChangeLedger(d);
+
+    skipChangeLedger 'Не изменять текущие цены' (RevaluationDetail d) = skipChangeLedger(revaluation(d)) AND NOT notSkipChangeLedger(d);
+    skipChangeLedger 'Не изменять текущие цены' (UserRevaluationDetail d) = skipChangeLedger(userRevaluation(d)) AND NOT notSkipChangeLedger(d);
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 
 FORM revaluation 'Переоценка (печать)'
