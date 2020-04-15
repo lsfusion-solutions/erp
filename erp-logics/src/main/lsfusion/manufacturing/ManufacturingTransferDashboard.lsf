@@ -130,6 +130,8 @@ DESIGN options {
     }
 }
 createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.Invoice, Purchase.UserInvoice);
+substituteToOver = ABSTRACT Substitute(Sku);
+lastSubstituteToOver (Sku s) = OVERRIDE  substituteToOver(s), lastSubstituteTo(s);
 
 createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si)  { 
 	NEWSESSION {
@@ -138,9 +140,9 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	            purchaseSku(sd) <- purchaseSku(orderDetail(sd));
 	            coeffPurchase(sd) <- multiplier(uniqueSubstituteFromTo(purchaseSku(orderDetail(sd)), sku(sd)));
 	        } ELSE {
-	            purchaseSku(sd) <- fromSku(lastSubstituteTo(sku(sd)));
-	            coeffPurchase(sd) <- IF lastSubstituteTo(sku(sd)) THEN 
-	                                                    multiplier(lastSubstituteTo(sku(sd)))
+	            purchaseSku(sd) <- fromSku(lastSubstituteToOver(sku(sd)));
+	            coeffPurchase(sd) <- IF lastSubstituteToOver(sku(sd)) THEN 
+	                                                    multiplier(lastSubstituteToOver(sku(sd)))
 	                                              ELSE
 	                                                    netWeight(sku(sd)) WHERE invoice(sd) == si;
 	        }
