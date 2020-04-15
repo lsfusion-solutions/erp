@@ -42,7 +42,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
                     "logs/astron.log");
             astronLogger.removeAllAppenders();
-            astronLogger.addAppender(fileAppender);
+            ёё.addAppender(fileAppender);
+
+        } catch (Exception ignored) {
+        }
+    }
+
+    static Logger astronTempLogger;
+    static {
+        try {
+            astronTempLogger = Logger.getLogger("astronTempLog");
+            astronTempLogger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
+                    "logs/astrontemp.log");
+            astronTempLogger.removeAllAppenders();
+            astronTempLogger.addAppender(fileAppender);
 
         } catch (Exception ignored) {
         }
@@ -93,6 +107,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
+                            astronTempLogger.info(String.format("sending transaction %s of %s", transactionCount, totalCount));
                             exception = exportTransaction(transaction, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(), exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout);
                         }
                         currentSendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
@@ -206,6 +221,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
 
                     if (lastTransaction) {
+                        astronTempLogger.info("waiting for processing transactions");
                         processTransactionLogger.info(logPrefix + "waiting for processing transactions");
                         exportFlags(conn, params, tables);
                         Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
