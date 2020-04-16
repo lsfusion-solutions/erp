@@ -9,13 +9,12 @@ import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
-import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -84,8 +83,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
             PreparedStatement ps = null;
             try {
 
-                Timestamp tedocact = new Timestamp(localDateToSqlDate(transaction.date).getTime() + 1000 * 60 * 5); //добавляем 5 минут
-                String tedocactString = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss").format(tedocact);
+                LocalDateTime tedocact = LocalDateTime.now().plusMinutes(5); //добавляем 5 минут
+                String tedocactString = tedocact.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
                 conn.setAutoCommit(true);
                 try(Statement statement = conn.createStatement()) {
@@ -128,7 +127,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     ps.setString(6, trim(item.name, 100)); //MEOBNAM, Наименование товара
                     ps.setDouble(7, item.price.doubleValue()); //NERECOST, роз.цена
                     ps.setDouble(8, item.price.doubleValue()); //NEOPPRIC, роз.цена
-                    ps.setTimestamp(9, tedocact); //TEDOCACT, дата и время вступления прайса в силу
+                    ps.setTimestamp(9, localDateTimeToSqlTimestamp(tedocact)); //TEDOCACT, дата и время вступления прайса в силу
                     ps.setString(10, item.section); //CECUCOD, секция
                     ps.setBigDecimal(11, item.balance != null ? item.balance : BigDecimal.ZERO); //NEOBFREE, остаток
                     String[] itemInfo = item.info != null ? item.info.split("-") : null;
@@ -156,8 +155,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                 try {
                     int checkSum = 0;
                     for (int i = 0; i <= 10; i = i + 2) {
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+                        checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i)));
+                        checkSum += Integer.parseInt(String.valueOf(barcode.charAt(i + 1))) * 3;
                     }
                     checkSum %= 10;
                     if (checkSum != 0)
@@ -213,11 +212,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     Locale defaultLocale = Locale.getDefault();
                     try (Connection conn = getConnection(directory)) {
                         String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                        Calendar cal = Calendar.getInstance();
-                        cal.setTime(localDateToSqlDate(entry.dateTo));
-                        cal.add(Calendar.DATE, 1);
-                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
-                        String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                        String dateTo = entry.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         machineryExchangeLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                         try (Statement statement = conn.createStatement()) {
@@ -245,9 +240,8 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
         List<String> allowedTypes = Arrays.asList("ТОВАР", "ТОВАР ВОЗВРАТ", "БОНУС", "ВСЕГО", "ВОЗВРАТ",
                 "ПЕРЕХОДЯЩАЯ СУММА", "ВХОДЯЩАЯ СУММА", "ВНЕСЕНИЕ НАЛИЧНЫХ", "ВЫПЛАТА НАЛИЧНЫХ");
 
-        Calendar cal = Calendar.getInstance();
-        cal.add(Calendar.MINUTE, -5); //хак: берём записи с отставанием на 5 минут
-        String dateFilter = String.format("TEDOCINS <= TO_TIMESTAMP('%s','YYYY-MM-DD HH24:MI:SS')", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(cal.getTime()));
+        //хак: берём записи с отставанием на 5 минут
+        String dateFilter = String.format("TEDOCINS <= TO_TIMESTAMP('%s','YYYY-MM-DD HH24:MI:SS')", LocalDateTime.now().minusMinutes(5).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT CEUNIKEY, CEUNIGO, CEDOCCOD, CEDOCNUM, TEDOCINS, CEOBIDE, CEOBNAM, CEOBMEA, CEOBTYP, NEOPEXP, NEOPPRIC, NEOPSUMC, " +
