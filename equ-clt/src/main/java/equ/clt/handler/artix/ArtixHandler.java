@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 
 import static equ.clt.EquipmentServer.*;
 import static equ.clt.handler.HandlerUtils.*;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
@@ -1218,6 +1219,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     bonusPaid = safeAdd(bonusPaid, discountPosition.getBigDecimal("discSum"));
                                             }
 
+                                            String externalNumber = trimToNull(inventPosition.optString("extdocid"));
+
                                             if(bonusesInDiscountPositions && bonusPaid != null) {
                                                 BigDecimal baseSum = BigDecimal.valueOf((inventPosition.getDouble("baseSum")));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
@@ -1265,6 +1268,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
                                                     salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
                                                 }
+                                                //todo: при изменении equ-api перекинуть в receiptExtraFields
+                                                salesInfo.detailExtraFields.put("externalNumber", externalNumber);
                                                 currentSalesInfoList.add(salesInfo);
                                             }
                                         }
