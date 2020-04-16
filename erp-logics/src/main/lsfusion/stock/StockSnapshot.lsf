@@ -96,15 +96,19 @@ FORM snapshotType 'Тип аналитического отчета'
                   isCostVATSupplier, isNetWeight, isDate  
                      
 //-- выбор складов                  
-    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent(sg2), ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent(sg2) 
     PROPERTIES VALUE(a2) READONLY, allStockInclude(t) DRAW a2 BACKGROUND backgroundAllStockInclude(t), 
-               name(sg2) READONLY, include(t,sg2) BACKGROUND backgroundInclude(t,sg2),
-               name(ts2) READONLY, include(t,ts2) BACKGROUND backgroundInclude(t,ts2)
+               name(sg2) READONLY, include(t,sg2) BACKGROUND backgroundInclude(t,sg2)
     ORDER name(sg2)
-    FILTERS stringEqualsAll(a2),
-            stockGroup(ts2) == sg2,
+    FILTERS stringEqualsAll(a2)
+    OBJECTS ts2 = Stock
+    PROPERTIES(ts2) READONLY id, name
+    PROPERTIES include(t,ts2)BACKGROUND backgroundInclude(t,ts2)
+    ORDER name(ts2)
+    FILTERS isParent(sg2, ts2) OR (ts2 IS Stock AND NOT sg2),
             isCompany(ts2)
-    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT                                                                                  
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT         
+    FILTERGROUP selectStock2 FILTER 'Отмеченные' include(t,ts2)                                                                                             
           
 //-- выбор групп товара     
     TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
@@ -167,9 +171,15 @@ DESIGN snapshotType {
         }
         NEW select{
             fill = 1;
-            type = SPLITH;
-            MOVE BOX(TREE stockTree2) { fill = 1; caption = 'Выбор складов'; }   
-            MOVE BOX(TREE skuTree2) { fill = 1; caption = 'Выбор групп'; }   
+            type = TABBED;
+            NEW selectStocks{
+                fill = 1;
+                type = SPLITH;
+                caption = 'Выбор складов'; 
+                MOVE BOX(TREE stockTree2);                                                                    
+                MOVE BOX(ts2);                  
+            }
+            MOVE BOX(TREE skuTree2) {caption = 'Выбор групп'; }   
         }
         MOVE TOOLBARBOX;
     }            
@@ -1510,17 +1520,21 @@ FORM snapshot 'Аналитический отчет'
                    isBatch, isDate, isCost, isVATSupplier, isCostVATSupplier,
                    isNetWeight 
 //-- выбор складов                  
-    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent(sg2), ts2 = Stock
+    TREE stockTree2 a2 = BPSTRING[3], sg2 = StockGroup PARENT parent(sg2) 
     PROPERTIES VALUE(a2) READONLY, allStockInclude(r) DRAW a2 BACKGROUND backgroundAllStockInclude(r), 
-               name(sg2) READONLY, include(r,sg2) BACKGROUND backgroundInclude(r,sg2),
-               name(ts2) READONLY, include(r,ts2) BACKGROUND backgroundInclude(r,ts2)
+               name(sg2) READONLY, include(r,sg2) BACKGROUND backgroundInclude(r,sg2)
     ORDER name(sg2)
     PROPERTIES deleteIncludeStocks(r) TOOLBAR
-    
-    FILTERS stringEqualsAll(a2),
-            stockGroup(ts2) == sg2,
+    FILTERS stringEqualsAll(a2)
+    OBJECTS ts2 = Stock
+    PROPERTIES(ts2) READONLY id, name
+    PROPERTIES include(r,ts2)BACKGROUND backgroundInclude(r,ts2)
+    ORDER name(ts2)
+    FILTERS isParent(sg2, ts2) OR (ts2 IS Stock AND NOT sg2),
             isCompany(ts2)
-    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT                                                                                  
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(ts2) 'ctrl F10' DEFAULT         
+    FILTERGROUP selectStock2 FILTER 'Отмеченные' include(r,ts2)   
+                                                                                 
           
 //-- выбор групп товара     
     TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
@@ -1933,12 +1947,18 @@ DESIGN snapshot {
                 NEW select{
                     fill = 1;
                     type = TABBED ;
-                    MOVE BOX(TREE stockTree2) { 
-                        fill = 1; caption = 'Выбор складов'; 
-                        TOOLBARBOX(TREE stockTree2) {
-                            MOVE PROPERTY (deleteIncludeStocks(r));
+                    NEW stockTab{
+                        fill = 1;
+                        type = SPLITH;
+                        caption = 'Выбор складов'; 
+                        MOVE BOX(TREE stockTree2) {                                                       
+                            TOOLBARBOX(TREE stockTree2) {
+                                MOVE PROPERTY (deleteIncludeStocks(r));
+                            }
                         }
+                        MOVE BOX(ts2);                       
                     }
+
                     MOVE BOX(le) { 
                         fill = 1; caption = 'Выбор поставщиков'; 
                         TOOLBARBOX(le) {
