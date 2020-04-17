@@ -83,7 +83,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
                                         processTransactionLogger.info(String.format("CL5000: Sending item %s to scales %s", barcode, scales.port));
                                         //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
                                         BigDecimal extraPercent = null;//item.extraPercent;
-                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name,
+                                        int reply = sendItem(socket, item, weightCode, pluNumber, barcode, item.name,
                                         item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue(),
                                                 HandlerUtils.trim(item.description, null, descriptionLength - 1), extraPercent);
                                         if (reply != 0) {
@@ -123,7 +123,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
         }
     }
 
-    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description, BigDecimal extraPercent) throws IOException {
+    private int sendItem(DataSocket socket, ScalesItemInfo item, short weightCode, int pluNumber, int barcode, String name, int price, String description, BigDecimal extraPercent) throws IOException {
         int descriptionLength = description == null ? 0 : (description.length() + 1);
         ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -162,8 +162,8 @@ public class CL5000JHandler extends DefaultScalesHandler {
         bytes.putShort((short) 0); //produced date
         bytes.putShort((short) 0); //packed date
         bytes.put((byte) 0); //packed time
-        bytes.putInt(0); //sell by date
-        bytes.put((byte) 0); //sell by time
+        bytes.putInt(item.daysExpiry != null ? item.daysExpiry : 0); //sell by date
+        bytes.put((byte) (item.hoursExpiry != null ? item.hoursExpiry : 0)); //sell by time
         bytes.putShort((short) 0); //message number
         bytes.putShort((short) 0); //reserved 1
         bytes.putShort((short) 0); //reserved 2
