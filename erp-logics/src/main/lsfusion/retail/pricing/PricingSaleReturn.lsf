@@ -40,11 +40,10 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
                                                  dateTime(detail)));
 }
 
-disableUpdateRetailPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             CHANGED(batch(detail))) AND supplierStock(detail) IS DepartmentStore
-            AND batch(detail) AND NOT CHANGED(retailPrice(detail)) AND NOT disableUpdateRetailPrice(detail) DO {
+            AND batch(detail) AND NOT CHANGED(retailPrice(detail)) DO {
     retailPrice (detail)  <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
                                         batch(detail),
                                         supplierStock(detail),
@@ -54,7 +53,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             DROPPED(batch(detail)) OR CHANGED(sku(detail))) AND supplierStock(detail) IS DepartmentStore
-            AND NOT batch(detail) AND NOT CHANGED(retailPrice(detail)) AND NOT disableUpdateRetailPrice(detail) DO {
+            AND NOT batch(detail) AND NOT CHANGED(retailPrice(detail)) DO {
     retailPrice (detail)  <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
                                         sku(detail),
                                         supplierStock(detail),
