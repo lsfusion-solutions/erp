@@ -1015,7 +1015,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ImportField skipReceiptField = new ImportField(zReportLM.findProperty("dataSkip[Receipt]"));
                 ImportField externalNumberReceiptField = zReportExternalNumberLM != null ? new ImportField(zReportExternalNumberLM.findProperty("externalNumber[Receipt]")) : null;
 
-                List<ImportField> commonReceiptFields = Arrays.asList(idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField);
+                List<ImportField> commonReceiptFields = getCommonReceiptFields(idReceiptField, numberReceiptField, dateReceiptField, timeReceiptField, skipReceiptField, externalNumberReceiptField);
 
 
                 ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
