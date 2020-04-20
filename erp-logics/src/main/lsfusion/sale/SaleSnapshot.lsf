@@ -242,61 +242,66 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
     }
     
 };                                                                                                
-               
+useOutCompareSale = ABSTRACT BOOLEAN (Snapshot);    
+useOutCompareSale ABSTRACT (Snapshot, DATE, DATE);          
 overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
-    IF isSale(snapshot) THEN {
-        IF isQuantity(snapshot) THEN {
-            saleQuantity(Sku sku, Stock stock, snapshot) <- NULL;
-            IF singleStock() THEN {
-                saleQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)) 
-                    WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
-            } ELSE {
-                saleQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
-            }
-            
-        }    
-        IF isSum(snapshot) THEN {   
-            saleSum(Sku sku, Stock stock, snapshot) <- NULL;
-            saleVATSum(Sku sku, Stock stock, snapshot) <- NULL;
-            IF singleStock() THEN {
-                saleSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE stock == singleStock() AND include(snapshot, sku) AND sumSold(sku, stock, dateFrom, dateTo);    
-                saleVATSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE stock == singleStock() AND include(snapshot, sku) AND sumVATSold(sku, stock, dateFrom, dateTo);
-            } ELSE {
-                saleSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumSold(sku, stock, dateFrom, dateTo);    
-                saleVATSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumVATSold(sku, stock, dateFrom, dateTo);    
+    IF isSale(snapshot)  THEN {
+        IF NOT useOutCompareSale(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                saleQuantity(Sku sku, Stock stock, snapshot) <- NULL;
+                IF singleStock() THEN {
+                    saleQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    saleQuantity(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
+                }
+                
             }    
-        } 
-        IF isCost(snapshot) THEN {   
-            saleCostSum(Sku sku, Stock stock, snapshot) <- NULL;
-            IF singleStock() THEN {
-                saleCostSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE stock = singleStock() AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
-            } ELSE {
-                saleCostSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
-            }                   
-        } 
-        IF isNetWeight(snapshot) THEN {
-            saleNetWeight(Sku sku, Stock stock, snapshot) <- NULL;
-            saleNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
-                WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
-        }  
-        IF isVATSupplier(snapshot) THEN {
-            saleVATSupplier(Sku sku, Stock stock, snapshot) <- NULL;
-            IF singleStock() THEN {
-                saleVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
-                    WHERE stock = singleStock() AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
-            } ELSE {
-                saleVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
-                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
-            }                     
+            IF isSum(snapshot) THEN {   
+                saleSum(Sku sku, Stock stock, snapshot) <- NULL;
+                saleVATSum(Sku sku, Stock stock, snapshot) <- NULL;
+                IF singleStock() THEN {
+                    saleSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND sumSold(sku, stock, dateFrom, dateTo);    
+                    saleVATSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock == singleStock() AND include(snapshot, sku) AND sumVATSold(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    saleSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumSold(sku, stock, dateFrom, dateTo);    
+                    saleVATSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](sumVATSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND sumVATSold(sku, stock, dateFrom, dateTo);    
+                }    
+            } 
+            IF isCost(snapshot) THEN {   
+                saleCostSum(Sku sku, Stock stock, snapshot) <- NULL;
+                IF singleStock() THEN {
+                    saleCostSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE stock = singleStock() AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    saleCostSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
+                }                   
+            } 
+            IF isNetWeight(snapshot) THEN {
+                saleNetWeight(Sku sku, Stock stock, snapshot) <- NULL;
+                saleNetWeight(Sku sku, Stock stock, snapshot) <- NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo)*overNetWeight(sku)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND quantitySold(sku, stock, dateFrom, dateTo);
+            }  
+            IF isVATSupplier(snapshot) THEN {
+                saleVATSupplier(Sku sku, Stock stock, snapshot) <- NULL;
+                IF singleStock() THEN {
+                    saleVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
+                        WHERE stock = singleStock() AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
+                } ELSE {
+                    saleVATSupplier(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)*valueVAT(sku,country(stock),dateTo)/100) 
+                        WHERE include(snapshot, stock) AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
+                }                     
+            }        
+        } ELSE {
+            useOutCompareSale(snapshot,dateFrom,dateTo);
         }                        
-    }
+    } 
 };  
 
 overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + { 
