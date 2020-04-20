@@ -15,6 +15,7 @@ import javax.naming.CommunicationException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.localDateToSqlDate;
@@ -137,7 +138,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         int len = nameItem.length();
                                                         String firstName = nameItem.substring(0, Math.min(len, 28));
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, Math.min(len, 56));
-                                                        Date expiryDate = item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : localDateToSqlDate(item.expiryDate);
+                                                        LocalDate expiryDate = item.expiryDate == null ? LocalDate.of(2001, 1, 1) : item.expiryDate;
                                                         Integer groupCode = 0; //item.idItemGroup == null ? 0 : Integer.parseInt(item.idItemGroup.replace("_", ""));
                                                         String description = item.description == null ? "" : item.description;
                                                         int messageNumber = usePLUNumberInMessage ? item.pluNumber : item.descriptionNumber;
@@ -205,7 +206,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                             if (error == 0) {
                                                                 processTransactionLogger.info("Shtrih: resetting item " + i);
                                                                 int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(9999.99),
-                                                                        0, 0, i, new Date(2001 - 1900, Calendar.JANUARY, 1)/*, 0*/);
+                                                                        0, 0, i, LocalDate.of(2001, 1, 1)/*, 0*/);
                                                                 if (result != 0)
                                                                     error = result;
                                                             }
@@ -311,7 +312,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         shtrihActiveXComponent.setProperty("GroupCode", new Variant(groupCode));
                                                         shtrihActiveXComponent.setProperty("PictureNumber", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ROSTEST", new Variant(0));
-                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(item.expiryDate == null ? new Date(2001 - 1900, Calendar.JANUARY, 1) : localDateToSqlDate(item.expiryDate)));
+                                                        shtrihActiveXComponent.setProperty("ExpiryDate", new Variant(localDateToSqlDate(item.expiryDate == null ? LocalDate.of(2001, 1, 1) : item.expiryDate)));
                                                         shtrihActiveXComponent.setProperty("GoodsType", new Variant(item.splitItem ? 0 : 1));
 
                                                         String description = item.description == null ? "" : item.description;
@@ -721,7 +722,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
     }
 
     private int setPLUDataEx(List<String> errors, UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
-                             int shelfLife, int groupCode, int messageNumber, Date expiryDate/*, int goodsType*/) throws IOException {
+                             int shelfLife, int groupCode, int messageNumber, LocalDate expiryDate/*, int goodsType*/) throws IOException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
@@ -736,8 +737,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
         bytes.putShort(Short.reverseBytes((short)messageNumber)); //2 байта
         bytes.put((byte) 0); //pictureNumber, 1 байта
         bytes.putInt(Integer.reverseBytes(0)); //ROSTEST, 4 байта
-        bytes.put((byte) expiryDate.getDate()); //1 байт
-        bytes.put((byte) (expiryDate.getMonth() + 1)); //1 байт
+        bytes.put((byte) expiryDate.getDayOfMonth()); //1 байт
+        bytes.put((byte) (expiryDate.getMonthValue())); //1 байт
         int year = expiryDate.getYear();
         bytes.put((byte) (year > 100 ? (year - 100) : year)); //1 байт
         //bytes.put((byte) goodsType); //1 байт
