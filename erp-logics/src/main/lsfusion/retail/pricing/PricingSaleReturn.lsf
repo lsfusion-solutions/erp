@@ -20,34 +20,45 @@ edit (InvoicePricingDetail d)+ {  edit(invoiceDetail(d)); }
 
 
 // Автоматически проставляем цены поставщика и розничные
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
-              CHANGED(supplierStock(detail)) OR
-              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-              CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
-    supplierPrice (detail)  <- round2(IF batch(detail) 
-                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                                   batch(detail),
-                                                                                                   supplierStock(detail),
-                                                                                                   dateTime(detail))
-                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                                 sku(detail),
-                                                                                                 supplierStock(detail),
-                                                                                                 dateTime(detail)));
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail))) AND supplierStock(detail) IS DepartmentStore
+            AND batch(detail) AND NOT CHANGED(supplierPrice(detail)) DO {
+    supplierPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                 batch(detail),
+                                                 supplierStock(detail),
+                                                 dateTime(detail)));
 }
-disableUpdateRetailPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail); 
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
-              CHANGED(supplierStock(detail)) OR              
-              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-              CHANGED(batch(detail))) AND NOT CHANGED(retailPrice (detail)) AND NOT disableUpdateRetailPrice(detail) DO {
-    retailPrice (detail)  <- (IF batch(detail)
-                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                               batch(detail),
-                                                                                               supplierStock(detail),
-                                                                                               dateTime(detail))
-                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                             sku(detail),
-                                                                                             supplierStock(detail),
-                                                                                             dateTime(detail))) (-) extraRetailPrice(detail);
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail)) OR CHANGED(sku(detail))) AND supplierStock(detail) IS DepartmentStore
+            AND NOT batch(detail) AND NOT CHANGED(supplierPrice(detail)) DO {
+    supplierPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                 sku(detail),
+                                                 supplierStock(detail),
+                                                 dateTime(detail)));
+}
+
+disableUpdateRetailPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail))) AND supplierStock(detail) IS DepartmentStore
+            AND batch(detail) AND NOT CHANGED(retailPrice(detail)) AND NOT disableUpdateRetailPrice(detail) DO {
+    retailPrice (detail)  <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
+                                        batch(detail),
+                                        supplierStock(detail),
+                                        dateTime(detail)) (-) extraRetailPrice(detail);
+}
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail)) OR CHANGED(sku(detail))) AND supplierStock(detail) IS DepartmentStore
+            AND NOT batch(detail) AND NOT CHANGED(retailPrice(detail)) AND NOT disableUpdateRetailPrice(detail) DO {
+    retailPrice (detail)  <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
+                                        sku(detail),
+                                        supplierStock(detail),
+                                        dateTime(detail)) (-) extraRetailPrice(detail);
 }
 
 // Автоматический расчет розничной надбавки
