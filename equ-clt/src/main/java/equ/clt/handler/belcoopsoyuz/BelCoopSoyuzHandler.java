@@ -9,6 +9,7 @@ import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.NumField2;
+import lsfusion.base.file.FTPPath;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
 import org.apache.commons.net.ftp.FTP;
@@ -33,11 +34,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.DBFUtils.*;
+import static lsfusion.base.file.FTPPath.parseFTPPath;
 
 public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
 
@@ -179,158 +180,89 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
         return sendTransactionBatchMap;
     }
 
-    private boolean copyFTPToFile(String path, File file) {
-        List<Object> properties = parseFTPPath(path, 21);
-        if (properties != null) {
-            String username = (String) properties.get(0);
-            String password = (String) properties.get(1);
-            String server = (String) properties.get(2);
-            Integer port = (Integer) properties.get(3);
-            String remoteFile = (String) properties.get(4);
-            FTPClient ftpClient = new FTPClient();
-            ftpClient.setDefaultTimeout(3600000);
-            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
-            try {
+    public static void storeFileToFTP(String path, File file) throws IOException {
+        FTPPath ftpPath = parseFTPPath(path);
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(3600000);
+        ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+        try {
 
-                ftpClient.connect(server, port);
-                ftpClient.login(username, password);
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            if (ftpClient.login(ftpPath.username, ftpPath.password)) {
+                configureFTPClient(ftpClient, ftpPath);
 
-                OutputStream outputStream = new FileOutputStream(file);
+                InputStream inputStream = new FileInputStream(file);
                 ftpClient.setDataTimeout(3600000);
-                boolean done = ftpClient.retrieveFile(remoteFile, outputStream);
-                outputStream.close();
-                if (!done)
-                    processTransactionLogger.info("BelCoopSoyuz: base file was not found, will be created new one");
-                return done;
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            } finally {
-                disconnect(ftpClient);
+                boolean done = ftpClient.storeFile(ftpPath.remoteFile, inputStream);
+                inputStream.close();
+                if (!done) {
+                    processTransactionLogger.error(String.format("BelCoopSoyuz: Failed writing file to %s", path));
+                    throw new RuntimeException("BelCoopSoyuz: Some error occurred while writing file to ftp");
+                }
+            } else {
+                throw new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed");
             }
-        } else {
-            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
+        } finally {
+            disconnect(ftpClient);
+        }
+    }
+
+    private static void configureFTPClient(FTPClient ftpClient, FTPPath ftpPath) throws IOException {
+        if (ftpPath.passiveMode) {
+            ftpClient.enterLocalPassiveMode();
+        }
+        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+        if (ftpPath.binaryTransferMode) {
+            ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
+        }
+    }
+
+    private boolean copyFTPToFile(String path, File file) {
+        FTPPath ftpPath = parseFTPPath(path);
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(3600000);
+        ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+        try {
+
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            ftpClient.login(ftpPath.username, ftpPath.password);
+            configureFTPClient(ftpClient, ftpPath);
+
+            OutputStream outputStream = new FileOutputStream(file);
+            ftpClient.setDataTimeout(3600000);
+            boolean done = ftpClient.retrieveFile(ftpPath.remoteFile, outputStream);
+            outputStream.close();
+            if (!done)
+                processTransactionLogger.info("BelCoopSoyuz: base file was not found, will be created new one");
+            return done;
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            disconnect(ftpClient);
         }
     }
 
     private boolean existsFTPFile(String path) {
-        List<Object> properties = parseFTPPath(path, 21);
-        if (properties != null) {
-            String username = (String) properties.get(0);
-            String password = (String) properties.get(1);
-            String server = (String) properties.get(2);
-            Integer port = (Integer) properties.get(3);
-            String remoteFile = (String) properties.get(4);
-            FTPClient ftpClient = new FTPClient();
-            ftpClient.setDefaultTimeout(60000);
-            ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
-            try {
+        FTPPath ftpPath = parseFTPPath(path);
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(60000);
+        ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+        try {
 
-                ftpClient.connect(server, port);
-                ftpClient.login(username, password);
-                ftpClient.setBufferSize(1024 * 1024);
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            ftpClient.login(ftpPath.username, ftpPath.password);
+            ftpClient.setBufferSize(1024 * 1024);
+            configureFTPClient(ftpClient, ftpPath);
 
-                ftpClient.setDataTimeout(60000);
-                InputStream stream = ftpClient.retrieveFileStream(remoteFile);
-                int returnCode = ftpClient.getReplyCode();
-                return !(stream == null || returnCode == 550);
+            ftpClient.setDataTimeout(60000);
+            InputStream stream = ftpClient.retrieveFileStream(ftpPath.remoteFile);
+            int returnCode = ftpClient.getReplyCode();
+            return !(stream == null || returnCode == 550);
 
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            } finally {
-                disconnect(ftpClient);
-            }
-        } else {
-            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
-        }
-    }
-
-    private boolean backupFTPFile(String path, String from, String to) {
-        List<Object> properties = parseFTPPath(path, 21);
-        if (properties != null) {
-            String username = (String) properties.get(0);
-            String password = (String) properties.get(1);
-            String server = (String) properties.get(2);
-            Integer port = (Integer) properties.get(3);
-            String remoteDir = (String) properties.get(4);
-            FTPClient ftpClient = new FTPClient();
-            ftpClient.setDefaultTimeout(3600000);
-            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
-            try {
-
-                ftpClient.connect(server, port);
-                ftpClient.login(username, password);
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-                ftpClient.makeDirectory("/" + remoteDir + "/backup");
-                ftpClient.setDataTimeout(3600000);
-                return ftpClient.rename("/" + remoteDir + "/" + from, "/" + remoteDir + "/" + to) &&
-                        ftpClient.rename("/" + remoteDir + "/" + to, "/" + remoteDir + "/backup/" + to);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            } finally {
-                disconnect(ftpClient);
-            }
-        } else {
-            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
-        }
-    }
-
-    private List<Object> parseFTPPath(String path, Integer defaultPort) {
-        /*sftp|ftp://username:password@host:port/path_to_file*/
-        Pattern connectionStringPattern = Pattern.compile("s?ftp:\\/\\/(.*):(.*)@([^\\/:]*)(?::([^\\/]*))?(?:\\/(.*))?");
-        Matcher connectionStringMatcher = connectionStringPattern.matcher(path);
-        if (connectionStringMatcher.matches()) {
-            String username = connectionStringMatcher.group(1); //lstradeby
-            String password = connectionStringMatcher.group(2); //12345
-            String server = connectionStringMatcher.group(3); //ftp.harmony.neolocation.net
-            boolean noPort = connectionStringMatcher.groupCount() == 4;
-            Integer port = noPort || connectionStringMatcher.group(4) == null ? defaultPort : Integer.parseInt(connectionStringMatcher.group(4)); //21
-            String remoteFile = connectionStringMatcher.group(noPort ? 4 : 5);
-            return Arrays.asList(username, password, server, port, remoteFile);
-        } else return null;
-    }
-
-    public static void storeFileToFTP(String path, File file) throws IOException {
-        /*ftp://username:password@host:port/path_to_file*/
-        Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@([^\\/:]*)(?::([^\\/]*))?(?:\\/(.*))?");
-        Matcher connectionStringMatcher = connectionStringPattern.matcher(path);
-        if (connectionStringMatcher.matches()) {
-            String username = connectionStringMatcher.group(1); //lstradeby
-            String password = connectionStringMatcher.group(2); //12345
-            String server = connectionStringMatcher.group(3); //ftp.harmony.neolocation.net
-            boolean noPort = connectionStringMatcher.group(4) == null;
-            Integer port = noPort ? 21 : Integer.parseInt(connectionStringMatcher.group(4)); //21
-            String remoteFile = connectionStringMatcher.group(5);
-            FTPClient ftpClient = new FTPClient();
-            ftpClient.setDefaultTimeout(3600000);
-            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
-            try {
-
-                ftpClient.connect(server, port);
-                if (ftpClient.login(username, password)) {
-                    ftpClient.enterLocalPassiveMode();
-                    ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-
-                    InputStream inputStream = new FileInputStream(file);
-                    ftpClient.setDataTimeout(3600000);
-                    boolean done = ftpClient.storeFile(remoteFile, inputStream);
-                    inputStream.close();
-                    if(!done) {
-                        processTransactionLogger.error(String.format("BelCoopSoyuz: Failed writing file to %s", path));
-                        throw new RuntimeException("BelCoopSoyuz: Some error occurred while writing file to ftp");
-                    }
-                } else {
-                    throw new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed");
-                }
-            } finally {
-                disconnect(ftpClient);
-            }
-        } else {
-            throw new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file");
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            disconnect(ftpClient);
         }
     }
 
@@ -620,33 +552,25 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                 new BelCoopSoyuzSalesBatch(salesInfoList, filePathMap);
     }
 
-    private boolean deleteFTPFile(String path) {
-        List<Object> properties = parseFTPPath(path, 21);
-        if (properties != null) {
-            String username = (String) properties.get(0);
-            String password = (String) properties.get(1);
-            String server = (String) properties.get(2);
-            Integer port = (Integer) properties.get(3);
-            String remoteFile = (String) properties.get(4);
-            FTPClient ftpClient = new FTPClient();
-            ftpClient.setDefaultTimeout(60000);
-            ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
-            try {
+    private boolean backupFTPFile(String path, String from, String to) {
+        FTPPath ftpPath = parseFTPPath(path);
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(3600000);
+        ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+        try {
 
-                ftpClient.connect(server, port);
-                ftpClient.login(username, password);
-                ftpClient.enterLocalPassiveMode();
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
-
-                ftpClient.setDataTimeout(60000);
-                return ftpClient.deleteFile(remoteFile);
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
-            } finally {
-                disconnect(ftpClient);
-            }
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            ftpClient.login(ftpPath.username, ftpPath.password);
+            configureFTPClient(ftpClient, ftpPath);
+            ftpClient.makeDirectory("/" + ftpPath.remoteFile + "/backup");
+            ftpClient.setDataTimeout(3600000);
+            return ftpClient.rename("/" + ftpPath.remoteFile + "/" + from, "/" + ftpPath.remoteFile + "/" + to) &&
+                    ftpClient.rename("/" + ftpPath.remoteFile + "/" + to, "/" + ftpPath.remoteFile + "/backup/" + to);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            disconnect(ftpClient);
         }
-        return true;
     }
 
     //используем jdbf, а не xbasej, т.к. xbasej не умеет работать с foxpro файлами
@@ -844,6 +768,26 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
         if (file != null && file.exists() && !file.delete()) {
             file.deleteOnExit();
             logger.info(String.format("BelCoopSoyuz: cannot delete file %s, will try to deleteOnExit", file.getAbsolutePath()));
+        }
+    }
+
+    private boolean deleteFTPFile(String path) {
+        FTPPath ftpPath = parseFTPPath(path);
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(60000);
+        ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+        try {
+
+            ftpClient.connect(ftpPath.server, ftpPath.port);
+            ftpClient.login(ftpPath.username, ftpPath.password);
+            configureFTPClient(ftpClient, ftpPath);
+
+            ftpClient.setDataTimeout(60000);
+            return ftpClient.deleteFile(ftpPath.remoteFile);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            disconnect(ftpClient);
         }
     }
 }
