@@ -138,10 +138,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                 if (ftpPath.charset != null) ftpClient.setControlEncoding(ftpPath.charset);
                 ftpClient.connect(ftpPath.server, ftpPath.port);
                 ftpClient.login(ftpPath.username, ftpPath.password);
-                if (ftpPath.passiveMode) {
-                    ftpClient.enterLocalPassiveMode();
-                }
-                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                configureFTPClient(ftpClient, ftpPath);
 
                 if (ftpPath.remoteFile == null || ftpPath.remoteFile.isEmpty() || ftpClient.changeWorkingDirectory(ftpPath.remoteFile)) {
 
@@ -205,10 +202,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
             if (ftpPath.charset != null) ftpClient.setControlEncoding(ftpPath.charset);
             ftpClient.connect(ftpPath.server, ftpPath.port);
             ftpClient.login(ftpPath.username, ftpPath.password);
-            if (ftpPath.passiveMode) {
-                ftpClient.enterLocalPassiveMode();
-            }
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+            configureFTPClient(ftpClient, ftpPath);
 
             if (ftpPath.remoteFile == null || ftpPath.remoteFile.isEmpty() || ftpClient.changeWorkingDirectory(ftpPath.remoteFile)) {
                 if (!ftpClient.rename(name, renamed)) {
@@ -222,6 +216,16 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                 ftpClient.logout();
                 ftpClient.disconnect();
             }
+        }
+    }
+
+    private void configureFTPClient(FTPClient ftpClient, FTPPath ftpPath) throws IOException {
+        if (ftpPath.passiveMode) {
+            ftpClient.enterLocalPassiveMode();
+        }
+        ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+        if (ftpPath.binaryTransferMode) {
+            ftpClient.setFileTransferMode(FTP.BINARY_FILE_TYPE);
         }
     }
 }
