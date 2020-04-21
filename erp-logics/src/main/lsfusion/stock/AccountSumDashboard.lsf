@@ -14,7 +14,7 @@ fillSum 'Заполнить данные' (DATE d)  {
     sumLedgerA (Stock st) <- sumAccountADocumentLedger(st, d);
     sumSkuA (Sku sk, Stock st) <- sumA(sk, st, d);
     sumSkuA (Stock st) <- GROUP SUM sumA(Sku sk, st, d);
-    sumAccountA (Sku sk, Stock st) <-  balanceA(sk, st, d) * prevAccountPriceA(sk, st, DATETIME (d));
+    sumAccountA (Sku sk, Stock st) <-  balanceA(sk, st, d) * prevAccountPriceB(sk, st, DATETIME (sum(d, 1)));
     sumAccountA (Stock st) <- GROUP SUM sumAccountA(Sku sk, st);
 }
 
@@ -61,6 +61,8 @@ FORM stockSumCompare 'Суммы остатков'
     TREE itemGroupTree ig = ItemGroup PARENT parent(ig)
     PROPERTIES READONLY name(ig), sumSkuA(ig, st), diff(ig, st) BACKGROUND backgroundPercent(percentDiff(ig, st)), 
                         percentDiff(ig, st) BACKGROUND backgroundPercent(percentDiff(ig, st)), sumAccountA(ig, st)
+    ORDER name(ig)                      
+                       
     
     OBJECTS sk = Item
     PROPERTIES READONLY id(sk), idBarcode(sk), nameAttribute(sk), sumSkuA(sk, st), 
