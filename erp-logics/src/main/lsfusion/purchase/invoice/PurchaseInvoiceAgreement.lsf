@@ -33,12 +33,12 @@ percDeviationDownQuantityAgreement '% отклонения по количест
 percDeviationUpQuantityAgreement '% отклонения по количеству вверх' (OrderDetail d) = percDeviationUpQuantity(agreement(d));
 
 
-maxDeviationQuantity 'Макс. кол-во' (OrderDetail d) = (100.0 + percDeviationUpQuantityAgreement(d)) * 
+maxDeviationQuantity 'Макс. кол-во' (OrderDetail d) = NUMERIC[29,11]((100.0 + percDeviationUpQuantityAgreement(d)) * 
                                                         quantity(d) /
-                                                        100.0;
-minDeviationQuantity 'Мин. кол-во' (OrderDetail d) = (100.0 - percDeviationDownQuantityAgreement(d)) *
+                                                        100.0);
+minDeviationQuantity 'Мин. кол-во' (OrderDetail d) = NUMERIC[29,11]((100.0 - percDeviationDownQuantityAgreement(d)) *
                                                         quantity(d) /
-                                                        100.0;
+                                                        100.0);
    
 CONSTRAINT SETCHANGED(shipped(OrderDetail d)) AND isPosted(d) AND shipped(d) > maxDeviationQuantity(d)    
   MESSAGE 'Для заказа превышен максимальный допустимый процент отклонения по количеству';    
@@ -144,24 +144,24 @@ agreementsPrice 'Цена из соглашения' (OrderDetail d) =  IF   use
 percDeviationUpPriceAgreement '% отклонения по цене вверх' (OrderDetail d) = percDeviationUpPrice(agreement(d), sku(d));
 percDeviationDownPriceAgreement '% отклонения по цене вниз' (OrderDetail d) = percDeviationDownPrice(agreement(d), sku(d));
 
-maxDeviationPrice 'Макс. цена' (OrderDetail d) = (100.0 + percDeviationUpPriceAgreement(d)) * 
+maxDeviationPrice 'Макс. цена' (OrderDetail d) = NUMERIC[28,9]((100.0 + percDeviationUpPriceAgreement(d)) * 
                                                         price(d) /
-                                                        100.0;
-minDeviationPrice 'Мин. цена' (OrderDetail d) = (100.0 - percDeviationDownPriceAgreement(d)) *
+                                                        100.0);
+minDeviationPrice 'Мин. цена' (OrderDetail d) = NUMERIC[28,9]((100.0 - percDeviationDownPriceAgreement(d)) *
                                                         price(d) /
-                                                        100.0;      
+                                                        100.0);      
 
 //skipAgreementsPrice = ABSTRACT VALUE BOOLEAN (OrderDetail);
 //
 //CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d))) AND isPosted(d) AND (price(d) != agreementsPrice(d)) AND NOT skipAgreementsPrice(d)   
 //    MESSAGE 'Для строки заказа цена не совпадает с ценой из соглашения';   
  
-maxDeviationPriceAgreement 'Макс. цена из соглашения' (OrderDetail d) = (100.0 + percDeviationUpPriceAgreement(d)) * 
+maxDeviationPriceAgreement 'Макс. цена из соглашения' (OrderDetail d) = NUMERIC[28,9]((100.0 + percDeviationUpPriceAgreement(d)) * 
                                                         agreementsPrice(d) /
-                                                        100.0;   
-minDeviationPriceAgreement 'Мин. цена из соглашения' (OrderDetail d) = (100.0 - percDeviationDownPriceAgreement(d)) *
+                                                        100.0);   
+minDeviationPriceAgreement 'Мин. цена из соглашения' (OrderDetail d) = NUMERIC[28,9]((100.0 - percDeviationDownPriceAgreement(d)) *
                                                         agreementsPrice(d) /
-                                                        100.0;    
+                                                        100.0);    
 
 CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(agreement(d))) AND isPosted(d) AND (price(d) < minDeviationPriceAgreement(d)) 
     MESSAGE 'Для строки заказа превышен минимальный допустимый процент отклонения по цене';    
