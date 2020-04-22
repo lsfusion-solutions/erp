@@ -8,7 +8,6 @@ import equ.api.terminal.*;
 import equ.clt.handler.HandlerUtils;
 import equ.clt.handler.NumField2;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.xBaseJ.DBF;
 import org.xBaseJ.fields.CharField;
@@ -19,14 +18,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import static equ.clt.EquipmentServer.sqlDateToLocalDate;
-import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.DBFUtils.*;
 
 public class InventoryTechHandler extends TerminalHandler {
@@ -204,9 +202,9 @@ public class InventoryTechHandler extends TerminalHandler {
                                         String idTerminalHandbookType2 = (String) docEntry.get(2);
                                         BigDecimal quantityDocument = (BigDecimal) docEntry.get(3);
                                         String idDocumentType = (String) docEntry.get(4);
-                                        Timestamp dateTime = (Timestamp) docEntry.get(5);
-                                        Date date = dateTime == null ? null : new Date(dateTime.getTime());
-                                        Time time = dateTime == null ? null : new Time(dateTime.getTime());
+                                        LocalDateTime dateTime = (LocalDateTime) docEntry.get(5);
+                                        LocalDate date = dateTime != null ? dateTime.toLocalDate() : null;
+                                        LocalTime time = dateTime != null ? dateTime.toLocalTime() : null;
 
                                         TerminalInfo terminal = directoryMachineryMap.get(directory);
                                         Integer numberGroup = terminal == null ? null : terminal.numberGroup;
@@ -220,7 +218,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                         String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
                                         String idDocumentDetail = idDocument + "/" + i;
                                         count++;
-                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, sqlDateToLocalDate(date), sqlTimeToLocalTime(time),
+                                        terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, title, date, time,
                                                 null, directory, idTerminalHandbookType1, idTerminalHandbookType2, idDocumentType,
                                                 quantityDocument, idDocumentDetail, number, idBarcode, name, price, quantity, sum));
                                     }
@@ -269,7 +267,7 @@ public class InventoryTechHandler extends TerminalHandler {
                 String idDoc = getDBFFieldValue(dbfFile, "IDDOC", charset);
                 String title = getDBFFieldValue(dbfFile, "TITLE", charset);
                 String dateTimeValue = getDBFFieldValue(dbfFile, "CRE_DTST", charset);
-                Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, "yyyyMMddHHmmss").getTime());
+                LocalDateTime dateTime = dateTimeValue == null ? null : LocalDateTime.parse(dateTimeValue, DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                 String idTerminalHandbookType1 = getDBFFieldValue(dbfFile, "CSPR1", charset);
                 String idTerminalHandbookType2 = getDBFFieldValue(dbfFile, "CSPR2", charset);
                 BigDecimal quantityDocument = getDBFBigDecimalFieldValue(dbfFile, "QUANDOC", charset);
