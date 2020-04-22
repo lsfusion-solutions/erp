@@ -823,14 +823,21 @@ calcCost 'Себестоимость расчетная' (ProductDetail d)= IF c
 
 //-- Подсчет цены изделия с учетом замен
 //recPricePercentProductSkuOrder (product, sku, order) = recPricePercentProductSkuDate (product, sku, dateOrder(order));
-roundPrice = ABSTRACT INTEGER (ProductDetail);       
-calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) =
-    IF roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
-        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
-                                               roundCondition(calcPriceListType(productDetail), sku(productDetail))))
+roundPrice = ABSTRACT INTEGER (ProductDetail);     
+calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) = CASE
+    WHEN roundPrice(productDetail)  THEN NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), roundPrice(productDetail)))
+    WHEN roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), roundCondition(calcPriceListType(productDetail), sku(productDetail))))
     ELSE
-        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
-                                         currency(productDetail)));        
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail), currency(productDetail)));
+  
+//calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) =
+//    IF roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
+//        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
+//                                               roundCondition(calcPriceListType(productDetail), sku(productDetail))))
+//    ELSE
+//        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
+//                                         currency(productDetail)));        
                                          
 // Изменение надбавок при вводе пользователем процента
 
