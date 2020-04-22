@@ -1,0 +1,120 @@
+MODULE SupermagDisparity;
+
+REQUIRE SupermagIntegration, SupermagFormMeta, Utils, TaxItem, Disparity, DisparityOperation;
+
+NAMESPACE Disparity;
+
+EXTEND FORM operation
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
+;
+DESIGN operation{
+    propertyContainer {
+        NEW supermag {
+            MOVE PROPERTY(docTypeSupermag(o));
+            MOVE PROPERTY(opcodeSupermag(o));
+            MOVE PROPERTY(useropSupermag(o));
+            MOVE PROPERTY(nameSuperMag(o));
+        }       
+    }
+}
+
+EXTEND FORM operations
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
+;
+
+@overCheckDocStatusSupermag(disparity);
+
+@exportFilds(disparity, disparityDetail); 
+
+
+@exportFormWI(exportDisparityWI, disparity, disparityDetail, 'документ изменения остатков');
+EXTEND FORM exportDisparityWI
+    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
+    FILTERS quantity(docd)  > 0
+    FILTERS quantity(docd2) > 0    
+    FILTERS quantity(docd3) > 0    
+    FILTERS quantity(docd4) > 0    
+;                
+
+@exportFormWO(exportDisparityWO, disparity, disparityDetail, 'документ изменения остатков');
+
+EXTEND FORM exportDisparityWO
+    PROPERTIES = indexMinus(docd) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd2) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd3) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd4) EXTID 'SPECITEM'
+    FILTERS quantity(docd) < 0
+    FILTERS quantity(docd2) < 0
+    FILTERS quantity(docd3) < 0
+    FILTERS quantity(docd4) < 0
+;                
+
+exportDisparityMag 'Экспорт в супермаг' (Disparity i) {
+    inc(Disparity ii) <- NULL;
+    IF docTypeSupermag(operation(i)) AND opcodeSupermag(operation(i)) AND idSupermag(stock(i)) THEN {        
+        LOCAL NESTED dt = DATETIME();
+        dt () <- currentDateTime();
+        inc(i) <- TRUE;
+        FOR iterate(INTEGER n, 1, wordCount(docTypeSupermag(operation(i)),';')) DO {
+                doctype(i) <- STRING[10] (getWord(docTypeSupermag(operation(i)),';',n));
+                opcode(i) <- STRING[10] (getWord(opcodeSupermag(operation(i)),';',n));
+                userop(i) <- STRING[10] (getWord(useropSupermag(operation(i)),';',n));
+                clientIndex(i) <- id(contragentSupermag(stockGroup(stock(i))));
+                priceWithTax(DisparityDetail ad) <- price(ad) WHERE disparity(ad) = i;
+                valueTax(DisparityDetail ad) <- valueVAT(sku(ad)) WHERE disparity(ad) = i;
+                priceNoTax(DisparityDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE disparity(ad) = i;
+                sumWithTax(DisparityDetail ad) <- abs(sum(ad)) WHERE disparity(ad) = i;
+                sumNoTax(DisparityDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE disparity(ad) = i;
+                sumTax(DisparityDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE disparity(ad) = i;
+                sumWithTaxCurr(DisparityDetail ad) <-round(sumWithTax(ad)/curRate(i),2) WHERE disparity(ad) = i;
+                locationFrom(i) <- stock(i);
+                locationTo(i) <- stock(i);
+                location(i)  <- stock(i);                 
+                CASE WHEN doctype(i) = 'WI' THEN {
+                        id(i) <- 'Ф' + seriesNumber(i);
+                        sumWithTax(i) <- GROUP SUM abs(sumWithTax(DisparityDetail add)) IF (disparity(add) = i AND sum(add) > 0);                
+                        sumWithTaxCurr(i) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF (disparity(add) = i AND sum(add) > 0);                                
+                     }
+                     WHEN doctype(i) = 'WO' THEN {
+                        id(i) <- 'Ф' + seriesNumber(i);
+                        sumWithTax(i) <- GROUP SUM abs(sumWithTax(DisparityDetail add)) IF (disparity(add) = i AND sum(add) < 0);                
+                        sumWithTaxCurr(i) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF (disparity(add) = i AND sum(add) < 0);                                
+                     }
+           TRY {                
+                CASE WHEN doctype(i) = 'WI' THEN EXPORT exportDisparityWI XML TO System.exportFile;                 
+                     WHEN doctype(i) = 'WO' THEN EXPORT exportDisparityWO XML TO System.exportFile;
+           } CATCH MESSAGE 'Ошибка формирования файла';
+           
+           TRY {          
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt());
+           } CATCH {
+                MESSAGE 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt())+ '.xml';
+                MESSAGE messageCaughtException();            
+                MESSAGE javaStackTraceCaughtException();            
+                MESSAGE lsfStackTraceCaughtException();            
+           }
+           
+           TRY 
+           {      
+                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                    FOR inc(Disparity ii)  DO NEW log = SupermagLog {
+                        id(log)<- doctype(i) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
+                        dateTime(log) <- currentDateTime();
+                        userLogin(log) <- login(currentUser()); 
+                        nameContact(log) <- STRING[100](name(currentUser()));
+                    }     
+                    APPLY NESTED LOCAL;
+                }             
+                     
+           } CATCH {
+                logToFile('supermag', CONCAT '\n', 'Изменение остатков', 'file://' + exportDirectorySupermag() + '/' + doctype(i) + '_' + STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                MESSAGE 'Файл не найден' + 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt());
+           }
+        } 
+    }       
+    inc(Disparity ii) <- NULL;
+}

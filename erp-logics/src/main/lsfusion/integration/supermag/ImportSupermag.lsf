@@ -1,41 +1,14 @@
 MODULE ImportSupermag;
 
 REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
-        Document, 
+        Document, SupermagIntegration,
         PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
         PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, 
         PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract,
         SaleOrder, SaleOrderStatus,
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
-host 'Хост' = DATA ISTRING[30]();
-base 'База' = DATA ISTRING[100]();
-login 'Логин' = DATA ISTRING[100]();
-password 'Пароль' = DATA ISTRING[100]();
-
-EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password();
-
-DESIGN integrationData {
-    pane {
-        NEW supermagScroll FIRST {
-            type = SCROLL;
-            caption = 'Супермаг';
-            NEW supermag {                
-                fill = 1;
-                NEW supermagParams {
-                    caption = 'Параметры';
-                    MOVE PROPERTY (smhost);
-                    MOVE PROPERTY (base());
-                    MOVE PROPERTY (login());
-                    MOVE PROPERTY (password());
-                }
-                NEW supermagButtons { 
-                    caption = 'Импорт';
-                }
-            }
-        }
-    }
-}
+PRIORITY SupermagIntegration;
 
 idOrder (ItemGroup g) = GROUP CONCAT TEXT (order(ItemGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
 
@@ -43,7 +16,7 @@ importItemGroup 'Импорт товарных групп' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL tree = ISTRING[100] (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[250] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACARDCLASS' TO file;
@@ -80,13 +53,13 @@ importItemGroup 'Импорт товарных групп' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemGroup();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemGroup()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importItemGroup()); } }
 
 importUOM 'Импорт единиц измерений' () {
     
     LOCAL id = INTEGER (INTEGER);
-    LOCAL name = TEXT (INTEGER);
-    LOCAL abb = TEXT (INTEGER);
+    LOCAL name = STRING[50] (INTEGER);
+    LOCAL abb = STRING[100] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME, ABBREV FROM Supermag.SAMEASUREMENT' TO file;
@@ -108,7 +81,7 @@ importUOM 'Импорт единиц измерений' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importUOM();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importUOM()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importUOM()); } }
 
 shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
 
@@ -152,7 +125,7 @@ importItem 'Импорт товаров' () {
     }
    
     FOR Item s = item(id(INTEGER i)) DO {    
-        caption(s) <- replace(name(i), '\t', ' ');
+        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
         shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
         itemGroup(s) <- itemGroup(TEXT (idClass(i)));
@@ -207,7 +180,7 @@ importItem 'Импорт товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItem();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItem()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importItem()); } }
 
 idItem = DATA LOCAL ISTRING[50] (INTEGER);
 property = DATA LOCAL ISTRING[50] (INTEGER);
@@ -382,7 +355,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW items {
             type = CONTAINERH;
             MOVE PROPERTY (importItem());
@@ -397,7 +370,7 @@ importSupplierGroup 'Импорт групп поставщиков' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL tree = ISTRING[100] (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[100] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SASUPPLIERCLASS' TO file;
@@ -424,14 +397,14 @@ importSupplierGroup 'Импорт групп поставщиков' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSupplierGroup();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSupplierGroup()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importSupplierGroup()); } }
 
 
 importCustomerGroup 'Импорт групп покупателей' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL tree = ISTRING[100] (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[100] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACLIENTCLASS' TO file;
@@ -459,7 +432,7 @@ importCustomerGroup 'Импорт групп покупателей' () {
 
 EXTEND FORM integrationData PROPERTIES importCustomerGroup();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW groups {
             type = CONTAINERH;
             MOVE PROPERTY (importSupplierGroup());
@@ -510,7 +483,7 @@ importLegalEntity 'Импорт организаций' () {
     FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
         fullName(s) <- ISTRING[200] (OVERRIDE shortName(i), name(i));
         name(s) <- ISTRING[150] (name(i));
-        UNP(s) <- left(inn(i), 9);
+        UNP(s) <- STRING[9](left(inn(i), 9));
         
         IF NOT address(s, currentDate()) == address(i) THEN {
             dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
@@ -533,7 +506,7 @@ importLegalEntity 'Импорт организаций' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importLegalEntity();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importLegalEntity()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importLegalEntity()); } }
 
 importStore 'Импорт магазинов' () {
     
@@ -551,13 +524,13 @@ importStore 'Импорт магазинов' () {
     }
     
     FOR Store g = store(TEXT (id(INTEGER i))) DO {
-        name(g) <- name(i);
+        name(g) <- STRING[100](name(i));
     }
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importStore();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importStore()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importStore()); } }
 
 storeTypeInSupermag = DATA INTEGER (StoreType);
 
@@ -583,7 +556,7 @@ importStoreType 'Импорт форматов магазинов' () {
     }
     
     FOR StoreType g = storeType('T' + id(INTEGER i)) DO {
-        name(g) <- name(i);
+        name(g) <- STRING[100](name(i));
     }
     
     overImportStoreType();
@@ -593,7 +566,7 @@ importStoreType 'Импорт форматов магазинов' () {
 
 EXTEND FORM integrationData PROPERTIES importStoreType();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW stores {
             type = CONTAINERH;
             MOVE PROPERTY (importStore());
@@ -620,7 +593,7 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
  //   LOCAL idParentStock = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT ID, NAME, IDCLASS, ADDRESS, FORMATID, l.CLIENTID AS COMPANYID, PARENTLOC FROM Supermag.SVGRANTEDLOCS g, Supermag.SMOWNCLIENTLOCS l WHERE g.ID = l.LOCID' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idParentStock;
@@ -660,7 +633,7 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
 }
 
 EXTEND FORM integrationData PROPERTIES importDepartmentStore(), idGroupWarehouseInSuperMag();
-DESIGN integrationData { supermagButtons {
+DESIGN integrationData { supermagImportButtons {
     NEW importStore {
         type = CONTAINERH;
         MOVE PROPERTY (importDepartmentStore());
@@ -690,7 +663,7 @@ importSkuLists 'Импорт списков товаров' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL tree = ISTRING[100] (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL name = ISTRING[250] (INTEGER);
     
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACardAssort' TO file;
@@ -749,7 +722,7 @@ importSkuLists 'Импорт списков товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSkuLists();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importSkuLists()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importSkuLists()); } }
 
 defaultCompany = DATA LegalEntity();
 nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
@@ -821,7 +794,7 @@ importAccount 'Импорт счетов' () {
 
 EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW accounts {
             type = CONTAINERH;
             MOVE PROPERTY (importBank());
@@ -916,7 +889,7 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
 }
 
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importCalcPriceListType()); MOVE PROPERTY (importCalcExrtaCharge()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importCalcPriceListType()); MOVE PROPERTY (importCalcExrtaCharge()); } }
 
 
 //---------------------------------------------------------------------------------------------Договоры
@@ -946,7 +919,7 @@ overfieldDateSupplierPriceList () = OVERRIDE fieldDateSupplierPriceList(), 'ENDS
 numberSupplierContract 'Номер контракта поставщика' = DATA STRING[20] ();
 
 EXTEND FORM integrationData PROPERTIES () daysSupplier, numberSupplierContract;
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
     NEW contractData {
         type = CONTAINERH;
         NEW contractButtons { };
@@ -1068,7 +1041,7 @@ importContract 'Импорт из контрактов с поставщикам
     LOCAL idStock = INTEGER (INTEGER);    
     LOCAL idDoc = ISTRING[50] (INTEGER);    
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT cc.ID, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO idDoc, idStock;
@@ -1087,7 +1060,7 @@ importContract 'Импорт из контрактов с поставщикам
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT cc.DOCTYPE, cc.ID, cc.CREATEDAT, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPrice FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cc.doctype=\'CO\' AND cd.docid=cc.id AND cd.doctype=\'CO\' AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, date, specItem, idItem, packSize, price;
@@ -1231,7 +1204,7 @@ importSeparation 'Импорт признаков разделения' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () importSeparation, dateFromSeparation;
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
         contractButtons {
             MOVE PROPERTY (importSeparation()) { caption ='Импорт признаков разделения';};
         } 
@@ -1270,7 +1243,7 @@ importScheduleOrder 'Импорт графиков заказов' () {
     IF length(numberSupplierContract()) > 0 THEN
        filterSql() <- 'cc.id = \'' + numberSupplierContract() + '\''; 
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT d.ID, d.DOCTID, q.docco, cc.CLIENTINDEX, ao.client, ao.weekday, q.deliverydays, q.BEGINSAT, q.ENDSAT, ao.dayinterval, dl.valstr FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.scautoorderdoc d, Supermag.scautoorder ao, Supermag.SVDocLabels dl WHERE q.docco = cc.ID AND d.DOCTID = q.ID AND ao.id = d.id AND dl.docid(+) = q.docco AND dl.name(+) = \'товар\' AND ' + filterSql() TO file;
         
     IMPORT TABLE FROM file() TO id, docId, idSep, idSupplier, idCustomer, orderDOW, shipmentDOW, startDate, endDate, days, note;
@@ -1314,7 +1287,7 @@ importScheduleOrder 'Импорт графиков заказов' () {
 //            imported(d) <- TRUE;            
 //    }
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT qd.id, q.ID AS DOCID, cl.locationid FROM Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl, Supermag.scautoorderdoc qd WHERE q.docco = cc.id AND q.id = cl.id AND qd.DOCTID = q.ID AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO id, docId, idStock;
@@ -1338,7 +1311,7 @@ importScheduleOrder 'Импорт графиков заказов' () {
 } 
 
 EXTEND FORM integrationData PROPERTIES () importScheduleOrder;
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
         contractButtons {
             MOVE PROPERTY (importScheduleOrder()) { caption = 'Импорт графиков заказов';};
         } 
@@ -1379,7 +1352,7 @@ importRepricingRetail 'Импорт актов переоценки' () {
        filterSql() <- 'd.id = \'' + numberSupplierContract() + '\''; 
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AC\' AND a.Id = d.Id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO id, dateTime, reason, docstate, idStore, comment;
@@ -1420,7 +1393,7 @@ importRepricingRetail 'Импорт актов переоценки' () {
     LOCAL imported = BOOLEAN (UserRepricingDetail);
     LOCAL skip = BOOLEAN (INTEGER);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT d.DocType, d.Id, dd.SpecItem, dd.Article, dd.ItemPrice,  ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AC\' AND a.Id = d.Id AND dd.DocId = d.Id AND dd.DocType = \'AC\' AND ad.DocId = d.Id AND ad.DocType = \'AC\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
        
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, price, oldPrice, quantity, actReason, priceType;
@@ -1456,7 +1429,7 @@ importRepricingRetail 'Импорт актов переоценки' () {
     LOCAL baseId = ISTRING[50] (INTEGER);
     LOCAL baseType = ISTRING[50] (INTEGER);
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
     EXEC 'Select d.ID, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql() TO file;
         
     IMPORT TABLE FROM file() TO id, baseId, baseType;
@@ -1471,7 +1444,7 @@ importRepricingRetail 'Импорт актов переоценки' () {
 
 EXTEND FORM integrationData PROPERTIES () importRepricingRetail, daysRepricing;
 
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
         NEW supermagRepricing {
             type = CONTAINERH;
             MOVE PROPERTY (importRepricingRetail());
@@ -1506,7 +1479,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL file = FILE ();
     
     filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromPriceList()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
         EXEC 'SELECT d.ID, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id = d.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO id, dateTime, reason, status, comment, idPricetype;
@@ -1546,7 +1519,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL imported = BOOLEAN (UserRepricingDetail);
     LOCAL skip = BOOLEAN (INTEGER);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
             EXEC 'SELECT d.DOCTYPE, d.ID, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND dd.DocType = \'AB\' AND ad.docid = dd.docid AND ad.DocType = \'AB\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, price, idItem, aReason, idPricetype;
@@ -1575,7 +1548,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () importPriceListRetail, daysPriceList, withoutPrice;
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
         NEW supermagPriceList {
             type = CONTAINERH;
             MOVE PROPERTY (importPriceListRetail());
@@ -1638,7 +1611,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL imported = BOOLEAN (UserPriceListDetail);
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
             EXEC 'SELECT DOCID, SPECITEM, ARTICLE, ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO idDoc, specItem, idItem, price;
@@ -1678,7 +1651,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importPriceListPromotion(), daysPromotion();
-DESIGN integrationData { supermagButtons { 
+DESIGN integrationData { supermagImportButtons { 
         NEW supermagPromotion {
             type = CONTAINERH;
             MOVE PROPERTY (importPriceListPromotion());
@@ -1746,7 +1719,7 @@ importRange 'Импорт ассортиментных матриц' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importRange();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importRange()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importRange()); } }
 
 rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
 
@@ -1879,7 +1852,8 @@ DESIGN integrationData {
             type = CONTAINERH;
             NEW supermagLeft {
                 MOVE supermagParams { fill = 1; }
-                MOVE supermagButtons { fill = 1; }
+                MOVE supermagExportButtons { fill = 1; }
+                MOVE supermagImportButtons { fill = 1; }
             }
             NEW supermagRight {
                 fill = 1;
@@ -2006,7 +1980,7 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
 
 EXTEND FORM integrationData PROPERTIES importPurchaseOrder(), daysOrder(), numberOrder();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW importOrders {
             type = CONTAINERV;
             MOVE PROPERTY (importPurchaseOrder());
@@ -2039,7 +2013,7 @@ importStockOrder 'Импорт заказов (складских требова
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
                    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
     EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;   
@@ -2083,7 +2057,7 @@ importStockOrder 'Импорт заказов (складских требова
     LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
             EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
@@ -2111,7 +2085,7 @@ importStockOrder 'Импорт заказов (складских требова
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
                    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
     EXEC 'Select D.ID, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd where DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, idCustomerStock, comment, deliveryDate, deliveryTime, idSupplierStock;   
@@ -2156,7 +2130,7 @@ importStockOrder 'Импорт заказов (складских требова
     //импорт спецификаций
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
             EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
@@ -2182,7 +2156,7 @@ importStockOrder 'Импорт заказов (складских требова
 
 EXTEND FORM integrationData PROPERTIES importStockOrder();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         importOrders {
             MOVE PROPERTY (importStockOrder()) AFTER PROPERTY (importPurchaseOrder());
         } 
@@ -2218,7 +2192,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
         filterSql() <- 'b.DocType(+)= D.DocType AND D.DocType = \'IW\' AND b.id = d.id AND d.id = \'' + ImportSupermag.numberOrder() + '\''; 
        
    // MESSAGE 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql();               
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
     EXEC 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql() TO file;   
     
     IMPORT TABLE FROM file() TO id, docstate, date, opercode, idSupplierStock, idCustomerStock, comment;   
@@ -2266,7 +2240,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
     LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL imported = BOOLEAN (Sale.UserInvoiceDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
             EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMInternalWayBills b, Supermag.SMSpec ds WHERE ds.DocType = \'IW\' AND ds.DOCID = d.id  AND ' + filterSql() TO file;
     
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
@@ -2292,7 +2266,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
 
 EXTEND FORM integrationData PROPERTIES importStockInternalInvoice();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW importInvoicess {
             MOVE PROPERTY (importStockInternalInvoice());
         } 
@@ -2318,7 +2292,7 @@ importSaleOrder 'Импорт заказов (продажа)' () {
     IF length(ImportSupermag.numberOrder()) > 0 THEN 
         filterSql() <- 'd.id = \'' + ImportSupermag.numberOrder() + '\''; 
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
     EXEC 'Select D.ID, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO file;   
 
     IMPORT TABLE FROM file() TO id, docstate, idCustomer, idSupplierStock, comment, date, supplyDate, supplyTime;
@@ -2353,7 +2327,7 @@ importSaleOrder 'Импорт заказов (продажа)' () {
     LOCAL idItem = ISTRING[50](INTEGER);
     LOCAL imported = BOOLEAN (Sale.UserOrderDetail);
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + ImportSupermag.login() + '/' + ImportSupermag.password() + '@//'+ ImportSupermag.host() + '/' + ImportSupermag.base()  
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
             EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
@@ -2379,7 +2353,7 @@ importSaleOrder 'Импорт заказов (продажа)' () {
 
 EXTEND FORM integrationData PROPERTIES importSaleOrder();
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         importOrders {
             MOVE PROPERTY (importSaleOrder()) AFTER PROPERTY (importPurchaseOrder());
         } 
@@ -2564,7 +2538,7 @@ importBufferApsAd 'Импорт рекламных кампаний' () {
 
 EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover, importBufferApsAd;
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW bufferAps {
             type = CONTAINERH;
             MOVE PROPERTY (importShelfReserve());
@@ -2617,7 +2591,7 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importBalanceShipment();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importBalanceShipment()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importBalanceShipment()); } }
 
 importReserveDays 'Импорт страхового запаса в днях' () {
     
@@ -2634,7 +2608,7 @@ importReserveDays 'Импорт страхового запаса в днях' (
 }
 
 EXTEND FORM integrationData PROPERTIES importReserveDays();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importReserveDays()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importReserveDays()); } }
 
 dateFromPurchase 'Дата перемещения' = DATA DATE (Store);
 
@@ -2728,7 +2702,7 @@ importPurchaseStore 'Импорт документов перемещения' (
 
 EXTEND FORM integrationData PROPERTIES () importPurchaseStore;
 DESIGN integrationData { 
-    supermagButtons { 
+    supermagImportButtons { 
         NEW saleWarehouse {
             MOVE PROPERTY (importPurchaseStore());
         } 
@@ -2767,4 +2741,4 @@ importItemPart 'Импорт комплектов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemPart();
-DESIGN integrationData { supermagButtons { MOVE PROPERTY (importItemPart()); } }
+DESIGN integrationData { supermagImportButtons { MOVE PROPERTY (importItemPart()); } }

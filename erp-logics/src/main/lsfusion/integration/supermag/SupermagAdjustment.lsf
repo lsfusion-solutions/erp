@@ -1,0 +1,139 @@
+MODULE SupermagAdjustment;
+
+REQUIRE  SupermagIntegration, SupermagFormMeta, Utils, TaxItem, StockAdjustment;
+
+NAMESPACE Stock;
+
+EXTEND FORM operation
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
+;
+DESIGN operation{
+    propertyContainer {
+        NEW supermag {
+            MOVE PROPERTY(docTypeSupermag(o));
+            MOVE PROPERTY(opcodeSupermag(o));
+            MOVE PROPERTY(useropSupermag(o));
+            MOVE PROPERTY(nameSuperMag(o));
+        }       
+    }
+}
+
+EXTEND FORM operations
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
+;
+
+@overCheckDocStatusSupermag(adjustment);
+
+@exportFilds(adjustment, adjustmentDetail);
+
+@exportFormWI(exportAdjustmentWI, adjustment, adjustmentDetail, 'документ изменения остатков');
+EXTEND FORM exportAdjustmentWI
+    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
+    FILTERS quantity(docd)  > 0
+    FILTERS quantity(docd2) > 0    
+    FILTERS quantity(docd3) > 0    
+    FILTERS quantity(docd4) > 0    
+;                
+
+@exportFormWO(exportAdjustmentWO, adjustment, adjustmentDetail, 'документ изменения остатков');
+
+EXTEND FORM exportAdjustmentWO
+    PROPERTIES = indexMinus(docd) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd2) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd3) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd4) EXTID 'SPECITEM'
+    FILTERS quantity(docd) < 0
+    FILTERS quantity(docd2) < 0
+    FILTERS quantity(docd3) < 0
+    FILTERS quantity(docd4) < 0
+;                
+
+@exportFormLA(exportAdjustmentLA, adjustment, adjustmentDetail, 'документ изменения остатков');   
+EXTEND FORM exportAdjustmentLA
+    PROPERTIES = indexMinus(docd) EXTID 'SPECITEM'
+    FILTERS quantity(docd) < 0
+;                
+
+@exportFormFA(exportAdjustmentFA, adjustment, adjustmentDetail, 'документ изменения остатков');   
+EXTEND FORM exportAdjustmentFA
+    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
+    FILTERS quantity(docd) > 0
+;                
+
+exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
+    inc(Adjustment ii) <- NULL;
+    IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) AND idSupermag(stock(doc)) THEN {        
+        LOCAL NESTED dt = DATETIME();
+        dt () <- currentDateTime();
+        inc(doc) <- TRUE;
+        FOR iterate(INTEGER n, 1, wordCount(docTypeSupermag(operation(doc)),';')) DO {
+                doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
+                userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                docstate(doc) <- IF isPosted(doc) THEN 3 ELSE 2;
+                clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
+                locationFrom(doc) <- stock(doc);
+                locationTo(doc) <- stock(doc);
+                location(doc)  <- stock(doc);                 
+                priceWithTax(AdjustmentDetail ad) <- price(ad) WHERE adjustment(ad) = doc;
+                valueTax(AdjustmentDetail ad) <- valueVAT(sku(ad)) WHERE adjustment(ad) = doc;
+                priceNoTax(AdjustmentDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE adjustment(ad) = doc;
+                sumWithTax(AdjustmentDetail ad) <- abs(sum(ad)) WHERE adjustment(ad) = doc;
+                sumNoTax(AdjustmentDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE adjustment(ad) = doc;
+                sumTax(AdjustmentDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE adjustment(ad) = doc;
+                sumWithTaxCurr(AdjustmentDetail ad) <-round(sumWithTax(ad)/curRate(doc),2) WHERE adjustment(ad) = doc;
+                IF doctype(doc) = 'WI' OR doctype(doc) = 'FA' THEN {
+                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail add)) IF (adjustment(add) = doc AND sum(add) > 0);                
+                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail add) IF (adjustment(add) = doc AND sum(add) > 0);                                
+                }  
+                IF doctype(doc) = 'WO' OR doctype(doc) = 'LA' THEN {
+                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail add)) IF (adjustment(add) = doc AND sum(add) < 0);                
+                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail add) IF (adjustment(add) = doc AND sum(add) < 0);                                
+                }
+                // пока не убираем CASE, могут появиться требования у заказчика к нумерации 
+                CASE WHEN doctype(doc) = 'WI' THEN id(doc) <- 'Ф' + seriesNumber(doc);                 
+                     WHEN doctype(doc) = 'WO' THEN id(doc) <- 'Ф' + seriesNumber(doc);
+                     WHEN doctype(doc) = 'LA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
+                     WHEN doctype(doc) = 'FA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
+                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
+           TRY {                
+                CASE WHEN doctype(doc) = 'WI' THEN EXPORT exportAdjustmentWI XML TO System.exportFile;                 
+                     WHEN doctype(doc) = 'WO' THEN EXPORT exportAdjustmentWO XML TO System.exportFile;
+                     WHEN doctype(doc) = 'LA' THEN EXPORT exportAdjustmentLA XML TO System.exportFile;
+                     WHEN doctype(doc) = 'FA' THEN EXPORT exportAdjustmentFA XML TO System.exportFile;
+           } CATCH // MESSAGE 'Ошибка формирования файла';
+           
+           TRY {          
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+           } CATCH {
+//                MESSAGE 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt())+ '.xml';
+//                MESSAGE messageCaughtException();            
+//                MESSAGE javaStackTraceCaughtException();            
+//                MESSAGE lsfStackTraceCaughtException();            
+           }
+           
+           TRY 
+           {      
+                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                    FOR inc(Adjustment ii)  DO NEW log = SupermagLog {
+                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
+                        dateTime(log) <- currentDateTime();
+                        userLogin(log) <- login(currentUser()); 
+                        nameContact(log) <- STRING[100](name(currentUser()));
+                    }     
+                    APPLY NESTED LOCAL;
+                }             
+                     
+           } CATCH {
+                logToFile('supermag', CONCAT '\n', 'Изменение остатков', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+//                MESSAGE 'Файл не найден' + 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+           }
+        } 
+    }       
+    inc(Adjustment ii) <- NULL;
+    APPLY;
+}
