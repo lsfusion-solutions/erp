@@ -1967,12 +1967,17 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     FOR Purchase.UserOrderDetail d = Purchase.userOrderDetail(id(INTEGER i)) DO {
         sku(d) <- item(idItem(i));
         quantity(d) <- quantity(i);
-        price(d) <- NUMERIC[16,4](price(i));
-        sum(d) <- NUMERIC[16,4](totalPrice(i));
+        price (d) <- NUMERIC[16,4](price(i));
+        invoicePrice(d) <- NUMERIC[16,4](price(i));
+        invoiceSum(d) <- NUMERIC[16,4](totalPrice(i));        
         dataIndex(d) <- specItem(i);
         imported(d) <- TRUE;
     }
-    
+
+    VAT(Purchase.UserOrderDetail d) <- VAT(Purchase.sku[Purchase.UserOrderDetail](d), country(supplierStock(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);
+    valueVAT(Purchase.UserOrderDetail d) <- valueRate(VAT(d), date(d)) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);
+    price (Purchase.UserOrderDetail d) <- round2(invoicePrice(d) * 100/(100 + calcValueVAT(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);         
+
     overImportPurchaseOrder();
     
     APPLY;       
