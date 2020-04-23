@@ -142,13 +142,14 @@ exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                         locationTo(doc) <- customerStock(doc);                
                         location(doc)  <- NULL IF doc IS Invoice;                                                     
                     }                
-                priceWithTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
+                priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
-                priceNoTax(InvoiceDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE invoice(docd) = doc;
-                sumWithTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
-                sumNoTax(InvoiceDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE invoice(docd) = doc;
-                sumTax(InvoiceDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE invoice(docd) = doc;
+                priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
+                sumWithTax(InvoiceDetail docd) <- abs(invoiceSum(docd)) WHERE invoice(docd) = doc;
+                sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
+                sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
+                priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc;                                
            TRY {                
