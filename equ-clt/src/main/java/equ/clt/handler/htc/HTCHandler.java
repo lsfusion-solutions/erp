@@ -1,7 +1,10 @@
 package equ.clt.handler.htc;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
+import equ.api.MachineryInfo;
+import equ.api.RequestExchange;
+import equ.api.SalesInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
@@ -23,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -34,7 +36,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
@@ -721,9 +724,9 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 String idDiscountCard = receiptEntry == null ? null : (String) receiptEntry.get(2);
 
                                 String idEmployee = getDBFFieldValue(salesDBFFile, "CASHIER", charset);
-                                Date dateReceipt = getDBFDateFieldValue(salesDBFFile, "DATE", charset);
+                                LocalDate dateReceipt = sqlDateToLocalDate(getDBFDateFieldValue(salesDBFFile, "DATE", charset));
                                 if (dateReceipt != null) {
-                                    Time timeReceipt = new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), "HH:mm", "HH:mm:ss").getTime());
+                                    LocalTime timeReceipt = sqlTimeToLocalTime(new Time(DateUtils.parseDate(getDBFFieldValue(salesDBFFile, "TIME", charset), "HH:mm", "HH:mm:ss").getTime()));
 
                                     String codeItem = getDBFFieldValue(salesDBFFile, "CODE", charset);
                                     String barcodeItem = getDBFFieldValue(salesDBFFile, "BAR_CODE", charset);
@@ -745,10 +748,10 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
                                     numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
                                     numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
-                                    String numberZReport = new SimpleDateFormat("ddMMyy").format(dateReceipt) + "/" + nppGroupMachinery + "/" + nppMachinery;
+                                    String numberZReport = dateReceipt.format(DateTimeFormatter.ofPattern("ddMMyy")) + "/" + nppGroupMachinery + "/" + nppMachinery;
 
-                                    salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), numberReceipt,
-                                            sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, null, sumCard, sumCash, null, barcodeItem, null, null, null, quantityReceiptDetail,
+                                    salesInfoList.add(getSalesInfo(nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt,
+                                            dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, barcodeItem, null, null, null, quantityReceiptDetail,
                                             priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, numberReceiptDetail,
                                             nameSalesFile, null, null, cashRegister));
                                 }
@@ -919,16 +922,15 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
                 try {
                     String requestResult = null;
-                    Calendar cal = Calendar.getInstance();
-                    cal.setTime(localDateToSqlDate(requestExchange.dateFrom));
-                    while (cal.getTime().compareTo(localDateToSqlDate(requestExchange.dateTo)) <= 0) {
+                    LocalDate dateFrom = requestExchange.dateFrom;
+                    while (dateFrom.compareTo(requestExchange.dateTo) <= 0) {
                         if (failed) {
                             requestResult = requestResult == null ? String.format("Previous query to directory %s failed", directory) : requestResult;
                         } else {
                             boolean skip = false;
                             if(useDataDirectory) {
-                                File receiptFile = new File(new File(directory).getParent() + "/Data/jc" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
-                                File salesFile = new File(new File(directory).getParent() + "/Data/js" + new SimpleDateFormat("yyMMdd").format(cal.getTime()) + ".dbf");
+                                File receiptFile = new File(new File(directory).getParent() + "/Data/jc" + dateFrom.format(DateTimeFormatter.ofPattern("yyMMdd")) + ".dbf");
+                                File salesFile = new File(new File(directory).getParent() + "/Data/js" + dateFrom.format(DateTimeFormatter.ofPattern("yyMMdd")) + ".dbf");
                                 if(receiptFile.exists() && salesFile.exists()) {
                                     try {
                                         FileCopyUtils.copy(receiptFile, new File(directory + "/Receipt" + getCurrentTimestamp() + ".dbf"));
@@ -940,12 +942,12 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                 }
                             }
                             if(!skip) {
-                                requestResult = createRequest(cal, directory);
+                                requestResult = createRequest(dateFrom, directory);
                                 if (requestResult != null)
                                     failed = true;
                             }
                         }
-                        cal.add(Calendar.DATE, 1);
+                        dateFrom = dateFrom.plusDays(1);
                     }
                     if (requestResult != null || !result.containsKey(requestExchange.requestExchange))
                         result.put(requestExchange.requestExchange, requestResult);
@@ -956,9 +958,9 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
             return result;
         }
 
-        private String createRequest(Calendar cal, String directory) throws IOException {
+        private String createRequest(LocalDate dateFrom, String directory) throws IOException {
             String result;
-            String date = new SimpleDateFormat("dd.MM.yyyy").format(cal.getTime());
+            String date = dateFrom.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
             sendSalesLogger.info(String.format("HTC: creating request file in %s for date %s", directory, date));
 
             File queryFile = new File(directory + "/" + "sales.qry");
