@@ -7,11 +7,14 @@ EXTEND FORM operation
     PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
 ;
 DESIGN operation{
-    propertyContainer {
-        MOVE PROPERTY(docTypeSupermag(o));
-        MOVE PROPERTY(opcodeSupermag(o));
-        MOVE PROPERTY(useropSupermag(o));
-        MOVE PROPERTY(nameSuperMag(o));
+    headContainer {        
+        NEW supermag {   
+            caption = 'Параметры Супермаг';
+            MOVE PROPERTY(docTypeSupermag(o));
+            MOVE PROPERTY(opcodeSupermag(o));
+            MOVE PROPERTY(useropSupermag(o));
+            MOVE PROPERTY(nameSuperMag(o));
+        }
     }
 }
 
@@ -83,7 +86,7 @@ EXTEND FORM exportPurchaseInvoiceWI FORMEXTID 'PACKAGE'
     PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
     PROPERTIES = id(o) EXTID 'BASEID' 
     FILTERS include(o,doc)                
-    
+
     OBJECTS c = ContractSku EXTID 'SMCOMMONBASES' IN WI 
     PROPERTIES = STRING[100](id(doc)) IF c IS ContractSku EXTID 'ID'   
     PROPERTIES = 'WI' IF c IS ContractSku EXTID 'DOCTYPE'     
@@ -150,6 +153,7 @@ exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                 sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
                 priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
+                priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc;                                
            TRY {                
