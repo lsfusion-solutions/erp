@@ -14,7 +14,6 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.tools.ant.filters.StringInputStream;
 import org.jdom.*;
 import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
@@ -1431,7 +1430,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document xmlStringToDoc(String xml) throws JDOMException, IOException {
-        return new SAXBuilder().build(new StringInputStream(xml, encoding));
+        return new SAXBuilder().build(org.apache.commons.io.IOUtils.toInputStream(xml, encoding));
     }
 
     private String docToXMLString(Document doc) {
