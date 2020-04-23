@@ -17,6 +17,8 @@ public class Kristal10SalesBatch extends SalesBatch<Kristal10SalesBatch> {
     @Override
     public void merge(Kristal10SalesBatch mergeSalesBatch) {
         this.salesInfoList.addAll(mergeSalesBatch.salesInfoList);
-        this.readFiles.addAll(mergeSalesBatch.readFiles);
+        if(this.readFiles != null && mergeSalesBatch.readFiles != null) {
+            this.readFiles.addAll(mergeSalesBatch.readFiles);
+        }
     }
 }

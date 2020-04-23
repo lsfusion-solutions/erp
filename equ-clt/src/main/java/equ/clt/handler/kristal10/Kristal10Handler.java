@@ -3,12 +3,10 @@ package equ.clt.handler.kristal10;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.io.FileUtils;
-import org.jdom.Attribute;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.input.SAXBuilder;
@@ -33,25 +31,19 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.sqlDateToLocalDate;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.*;
 
-public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
-
-    private static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
-
-    String encoding = "utf-8";
-
-    private FileSystemXmlApplicationContext springContext;
+public class Kristal10Handler extends Kristal10DefaultHandler {
 
     public Kristal10Handler(FileSystemXmlApplicationContext springContext) {
-        this.springContext = springContext;
+        super(springContext);
     }
 
     public String getGroupId(TransactionCashRegisterInfo transactionInfo) {
         return "kristal10";
     }
-
 
     protected String getLogPrefix() {
         return "Kristal10: ";
@@ -362,11 +354,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                     File tempFile = File.createTempFile("catalog-goods", "xml");
                     try {
-                        XMLOutputter xmlOutput = new XMLOutputter();
-                        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-                        PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(tempFile), encoding));
-                        xmlOutput.output(doc, fw);
-                        fw.close();
+                        exportXML(doc, tempFile);
 
                         //copy to ftp
                         if(sftpPath != null && sftpDepartmentStoresList.contains(transaction.idDepartmentStoreGroupCashRegister)) {
@@ -397,47 +385,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet, usedDeleteBarcodeTransactionMap);
     }
 
-    protected void safeDelete(File file) {
+    private void safeDelete(File file) {
         if (file != null && file.exists() && !file.delete()) {
             file.deleteOnExit();
         }
-    }
-
-    private String removeZeroes(String value) {
-        if(value != null) {
-            while(value.startsWith("0")) {
-                value = value.substring(1);
-            }
-        }
-        return value;
-    }
-
-    private void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups) {
-        String productType;
-        if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
-            productType = "ProductCiggyEntity";
-        else if (item.passScalesItem)
-            productType = item.splitItem ? "ProductWeightEntity" : "ProductPieceWeightEntity";
-        else
-            productType = (item.flags == null || ((item.flags & 256) == 0)) ? "ProductPieceEntity" : "ProductSpiritsEntity";
-        addStringElement(good, "product-type", productType);
-    }
-
-    private List<String> getTobaccoGroups (String tobaccoGroup) {
-        List<String> tobaccoGroups = new ArrayList<>();
-        if (tobaccoGroup != null)
-            Collections.addAll(tobaccoGroups, tobaccoGroup.split(","));
-        return tobaccoGroups;
-    }
-
-    private Integer getDepartNumber(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useSectionAsDepartNumber) {
-        Integer departNumber;
-        if(useSectionAsDepartNumber && item.section != null) {
-            departNumber = Integer.parseInt(item.section.split(",")[0].split("\\|")[0]);
-        } else {
-            departNumber = transaction.departmentNumberGroupCashRegister;
-        }
-        return departNumber;
     }
 
     private Map<Long, SendTransactionBatch> waitForDeletion(Map<File, Long> filesMap, Map<Long, Exception> failedTransactionMap,
@@ -506,26 +457,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
             file = new File(exchangeDirectory + "//" + "catalog-goods_" + LocalDateTime.now().format(dateFormat) + ".xml");
         }
         return file;
-    }
-
-    private void addStringElement(Element parent, String id, String value) {
-        if (value != null)
-            parent.addContent(new Element(id).setText(value));
-    }
-
-    private void setAttribute(Element element, String id, Object value) {
-        if (value != null)
-            element.setAttribute(new Attribute(id, String.valueOf(value)));
-    }
-
-    private void addHierarchyItemGroup(Element parent, List<ItemGroup> hierarchyItemGroup) {
-        if (!hierarchyItemGroup.isEmpty()) {
-            Element element = new Element("parent-group");
-            setAttribute(element, "id", hierarchyItemGroup.get(0).idItemGroup);
-            addStringElement(element, "name", hierarchyItemGroup.get(0).nameItemGroup);
-            parent.addContent(element);
-            addHierarchyItemGroup(element, hierarchyItemGroup.subList(1, hierarchyItemGroup.size()));
-        }
     }
 
     @Override
@@ -832,33 +763,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 }
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
-                    XMLOutputter xmlOutput = new XMLOutputter();
-                    xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
-
-                    PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeExportFile(exchangeDirectory, "catalog-goods")), encoding));
-                    xmlOutput.output(doc, fw);
-                    fw.close();
+                    exportXML(doc, makeExportFile(exchangeDirectory, "catalog-goods"));
                 }
             }
         }
-    }
-
-    private void addPriceEntryElement(Element parent, Object price, boolean deleted, String beginDate, String endDate, String number, Object departmentNumber) {
-        Element priceEntry = new Element("price-entry");
-        setAttribute(priceEntry, "price", price);
-        setAttribute(priceEntry, "deleted", deleted);
-        addStringElement(priceEntry, "begin-date", beginDate);
-        addStringElement(priceEntry, "end-date", endDate);
-        addStringElement(priceEntry, "number", number);
-
-        if(departmentNumber != null) {
-            //parent: priceEntry
-            Element department = new Element("department");
-            setAttribute(department, "number", departmentNumber);
-            priceEntry.addContent(department);
-        }
-
-        parent.addContent(priceEntry);
     }
 
     @Override
@@ -959,23 +867,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             }
                         }
                     }
-                    exportXML(doc, exchangeDirectory, "catalog-cards");
+                    exportXML(doc, makeExportFile(exchangeDirectory, "catalog-goods"));
                 }
             }
         }
-    }
-
-    private String formatDate(LocalDate date, String format) {
-        return date == null ? null : date.format(DateTimeFormatter.ofPattern(format));
-    }
-
-
-    private String formatDateTime(LocalDateTime dateTime, String format, String defaultValue) {
-        return dateTime == null ? defaultValue : dateTime.format(DateTimeFormatter.ofPattern(format));
-    }
-
-    private String currentDate() {
-        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + "T00:00:00";
     }
 
     @Override
@@ -1309,24 +1204,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 new Kristal10SalesBatch(salesInfoList, filePathList);
     }
 
-    private CashRegisterInfo getCashRegister(Map<String, List<CashRegisterInfo>> cashRegisterMap, String key) {
-        //ищем кассу без disableSales. Если все с disableSales, берём первую
-        CashRegisterInfo cashRegister = null;
-        List<CashRegisterInfo> cashRegisterList = cashRegisterMap.get(key);
-        if(cashRegisterList != null) {
-            for(CashRegisterInfo c : cashRegisterList) {
-                if(!c.disableSales) {
-                    cashRegister = c;
-                    break;
-                }
-            }
-            if(cashRegister == null) {
-                cashRegister = cashRegisterList.get(0);
-            }
-        }
-        return  cashRegister;
-    }
-
     @Override
     public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
@@ -1394,151 +1271,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
         return zReportSumMap.isEmpty() ? null : zReportSumMap;
     }
 
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) {
-
-        StringBuilder message = new StringBuilder();
-        List<String> idZReportList = new ArrayList<>();
-
-        for (Map.Entry<String, List<Object>> kristalEntry : handlerZReportSumMap.entrySet()) {
-
-            String idZReportHandler = kristalEntry.getKey();
-            List<Object> valuesHandler = kristalEntry.getValue();
-            BigDecimal sumHandler = (BigDecimal) valuesHandler.get(0);
-            Integer numberCashRegister = (Integer) valuesHandler.get(1);
-            String numberZReport = (String) valuesHandler.get(2);
-            String idZReport = (String) valuesHandler.get(3);
-
-            BigDecimal sumBase = baseZReportSumMap.get(idZReportHandler);
-
-            if (sumHandler == null || sumBase == null || sumHandler.doubleValue() != sumBase.doubleValue())
-                message.append(String.format("CashRegister %s. \nZReport %s checksum failed: %s(fusion) != %s(kristal);\n",
-                        numberCashRegister, numberZReport, sumBase, sumHandler));
-            else
-                idZReportList.add(idZReport);
-        }
-        return idZReportList.isEmpty() && (message.length() == 0) ? null : new ExtraCheckZReportBatch(idZReportList, message.toString());
-    }
-
-    private File exportXML(Document doc, String exchangeDirectory, String prefix) throws IOException {
-        File file = makeExportFile(exchangeDirectory, prefix);
+    private void exportXML(Document doc, File file) throws IOException {
         XMLOutputter xmlOutput = new XMLOutputter();
         xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
         PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), encoding));
         xmlOutput.output(doc, fw);
         fw.close();
-        return file;
-    }
-
-    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean skipWeightPrefix) {
-        //временное решение для весовых товаров
-        return passScalesItem && idBarcode.length() <= 6 && weightCode != null && !skipWeightPrefix ? (weightCode + idBarcode) : idBarcode;
-    }
-
-    private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {
-        if(idBarcode != null && transformUPCBarcode != null) {
-            if(transformUPCBarcode.equals("13to12") && idBarcode.length() == 13 && idBarcode.startsWith("0"))
-                idBarcode = idBarcode.substring(1);
-            else if(transformUPCBarcode.equals("12to13") && idBarcode.length() == 12)
-                idBarcode += "0";
-
-        }
-        return idBarcode;
-    }
-
-    private String readStringXMLValue(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getChildText(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        return value;
-    }
-
-    private String readStringXMLAttribute(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getAttributeValue(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        return value;
-    }
-
-    private BigDecimal readBigDecimalXMLValue(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getChildText(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        try {
-            return new BigDecimal(value);
-        } catch (Exception e) {
-            sendSalesLogger.error("Kristal10 Error: ", e);
-            return null;
-        }
-    }
-
-    private BigDecimal readBigDecimalXMLAttribute(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getAttributeValue(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        try {
-            return new BigDecimal(value);
-        } catch (Exception e) {
-            sendSalesLogger.error("Kristal10 Error: ", e);
-            return null;
-        }
-    }
-
-    private Integer readIntegerXMLValue(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getChildText(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            sendSalesLogger.error("Kristal10 Error: ", e);
-            return null;
-        }
-    }
-
-    private Integer readIntegerXMLAttribute(Object element, String field) {
-        if (!(element instanceof Element))
-            return null;
-        String value = ((Element) element).getAttributeValue(field);
-        if (value == null || value.isEmpty()) {
-            sendSalesLogger.error("Attribute " + field + " is empty");
-            return null;
-        }
-        try {
-            return Integer.parseInt(value);
-        } catch (Exception e) {
-            sendSalesLogger.error("Kristal10 Error: ", e);
-            return null;
-        }
-    }
-
-    private double parseWeight(String value) {
-        try {
-            return (double) Integer.parseInt(value) / 1000;
-        } catch (Exception e) {
-            return 0.0;
-        }
     }
 
     public static boolean isFileLocked(File file) {
@@ -1571,21 +1309,5 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 }
         }
         return isLocked;
-    }
-
-    protected boolean notNullNorEmpty(String value) {
-        return value != null && !value.isEmpty();
-    }
-
-    private class DeleteBarcode {
-        Integer nppGroupMachinery;
-        String directory;
-        Set<String> barcodes;
-
-        public DeleteBarcode(Integer nppGroupMachinery, String directory) {
-            this.nppGroupMachinery = nppGroupMachinery;
-            this.directory = directory;
-            this.barcodes = new HashSet<>();
-        }
     }
 }
