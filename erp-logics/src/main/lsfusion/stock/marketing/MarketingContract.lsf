@@ -344,15 +344,17 @@ showSelectLegalEntities (MarketingCondition c)  {
     SHOW dialogLegalEntityStocks OBJECTS c = c;
 }
 
-TABLE marketingConditionDepartmentStore(MarketingCondition, DepartmentStore);
-inStock 'Отм.' = DATA BOOLEAN (MarketingCondition, DepartmentStore);
+TABLE marketingConditionDepartmentStore(MarketingCondition, Stock);
+
+inStock 'Отм.' = DATA BOOLEAN (MarketingCondition, Stock);
 countStocks (MarketingCondition c) = GROUP SUM 1 IF inStock(c, Stock s) MATERIALIZED; 
-stocks 'Склады' (MarketingCondition c) = GROUP CONCAT name(DepartmentStore s), ',' IF inStock(c, s) CHARWIDTH 30;
+stocks 'Склады' (MarketingCondition c) = GROUP CONCAT name(Stock s), ',' IF inStock(c, s) CHARWIDTH 30;
 
 FORM dialogStockMerch 'Склады'
     OBJECTS c = MarketingCondition
-    OBJECTS s = DepartmentStore
+    OBJECTS s = Stock
     PROPERTIES inStock(c, s), name(s) READONLY 
+    FILTERS isCompany(s)
 ;
 
 showSelectStocks (MarketingCondition c)  { 
@@ -368,19 +370,19 @@ in 'Вкл.' = DATA BOOLEAN (MarketingCondition, StockGroupMarketing);
 countStockGroups (MarketingCondition c) = GROUP SUM 1 IF in(c, StockGroupMarketing s) MATERIALIZED; 
 stockGroups 'Группы складов' (MarketingCondition c) = GROUP CONCAT name(StockGroupMarketing s), ',' IF in(c, s) CHARWIDTH 30;
 
-in 'Вкл.' = DATA BOOLEAN (DepartmentStore, StockGroupMarketing);
-countStockGroups (DepartmentStore c) = GROUP SUM 1 IF in(c, StockGroupMarketing s) MATERIALIZED; 
-stockGroups 'Группы складов (маркетинг)' (DepartmentStore c) = GROUP CONCAT name(StockGroupMarketing s), ',' IF in(c, s) CHARWIDTH 30;
+in 'Вкл.' = DATA BOOLEAN (Stock, StockGroupMarketing);
+countStockGroups (Stock c) = GROUP SUM 1 IF in(c, StockGroupMarketing s) MATERIALIZED; 
+stockGroups 'Группы складов (маркетинг)' (Stock c) = GROUP CONCAT name(StockGroupMarketing s), ',' IF in(c, s) CHARWIDTH 30;
 
-inGroup (MarketingCondition c, DepartmentStore s) = GROUP SUM 1 IF in(c, StockGroupMarketing g) AND in(s, g);
+inGroup (MarketingCondition c, Stock s) = GROUP SUM 1 IF in(c, StockGroupMarketing g) AND in(s, g);
 
 FORM stockGroupMarketing 'Группа складов'
     OBJECTS o = StockGroupMarketing PANEL
     PROPERTIES(o) name
     
-    OBJECTS d = DepartmentStore
+    OBJECTS d = Stock
     PROPERTIES in(d, o), name(d) READONLY 
-    
+    FILTERS isCompany(d)
     EDIT StockGroupMarketing OBJECT o
 ;
 
@@ -397,13 +399,13 @@ FORM dialogStockGroupMarketingCondition 'Группы складов'
 ;
 
 FORM dialogStockGroupStocks 'Группы складов'
-    OBJECTS c = DepartmentStore PANEL 
+    OBJECTS c = Stock PANEL 
     OBJECTS o = StockGroupMarketing
     PROPERTIES in(c, o), name(o) READONLY
 ;
 
-dialogStockGroupsStocks (DepartmentStore d)  { 
-    SHOW dialogStockGroupStocks;
+dialogStockGroupsStocks (Stock d)  { 
+    SHOW dialogStockGroupStocks OBJECTS c = d;
 }
 
 EXTEND FORM departmentStore PROPERTIES stockGroups(d) ON CHANGE dialogStockGroupsStocks(d);
@@ -415,7 +417,7 @@ DESIGN departmentStore {
 }
 
 dialogStockGroupsMarketingCondition (MarketingCondition d)  { 
-    SHOW dialogStockGroupMarketingCondition;
+    SHOW dialogStockGroupMarketingCondition OBJECTS c = d;
 }
 
 FORM calcBases 'Базы расчета'
@@ -656,7 +658,7 @@ copyConditionList 'Копировать' (ConditionList l)  {
             country(nc) <- country(mc);
             weighted(nc) <- weighted(mc);
             region(nc) <- region(mc);
-            inStock(nc, DepartmentStore st) <- inStock(mc, st);
+            inStock(nc, Stock st) <- inStock(mc, st);
             inLegalEntityStock(nc, LegalEntity le) <- inLegalEntityStock(mc, le);
             item(nc) <- item(mc);
             marketingPercent(nc) <- marketingPercent(mc);            
@@ -704,7 +706,7 @@ copyContractMarketing 'Копировать' (ContractMarketing c)  {
                 country(nmc) <- country(mc);
                 weighted(nmc) <- weighted(mc);
                 region(nmc) <- region(mc);
-                inStock(nmc, DepartmentStore st) <- inStock(mc, st);
+                inStock(nmc, Stock st) <- inStock(mc, st);
                 inLegalEntityStock(nmc, LegalEntity le) <- inLegalEntityStock(mc, le);
                 item(nmc) <- item(mc);
                 marketingPercent(nmc) <- marketingPercent(mc);
@@ -753,7 +755,7 @@ importContractMarketings 'Импорт договоров' ()  {
     
     LOCAL groupNumber = INTEGER (INTEGER);
     LOCAL idStock = STRING[10](INTEGER);
-    LOCAL inGroup = BOOLEAN (DepartmentStore, INTEGER);
+    LOCAL inGroup = BOOLEAN (Stock, INTEGER);
     
     LOCAL number = STRING[28](INTEGER);
     LOCAL dfrom = DATE (INTEGER);
@@ -792,7 +794,7 @@ importContractMarketings 'Импорт договоров' ()  {
         IMPORT XLS NOHEADER SHEET 2 FROM f AS EXCELFILE TO groupNumber = A, idStock = B;
         
         FOR imported(INTEGER i) DO {
-            inGroup(DepartmentStore s, INTEGER g) <- id(s) == idStock(i) WHERE (g == (GROUP MAX groupNumber(INTEGER ii) IF ii < i));
+            inGroup(Stock s, INTEGER g) <- id(s) == idStock(i) WHERE (g == (GROUP MAX groupNumber(INTEGER ii) IF ii < i));
         }
         
         IMPORT XLS NOHEADER FROM f AS EXCELFILE TO number, dfrom, dto, name, prolongation, nameSupplier, idSupplier, customer, 
@@ -847,7 +849,7 @@ importContractMarketings 'Импорт договоров' ()  {
                     country(mc) <- countryName(country(i));
                     weighted(mc) <- GROUP LAST Weighted w WHERE name(w) == weight(i);
                     region(mc) <- GROUP LAST Region r WHERE name(r) == upper(region(i));
-                    inStock(mc, DepartmentStore s) <- id(s) == stocks(i) OR inGroup(s, INTEGER (stocks(i)));
+                    inStock(mc, Stock s) <- id(s) == stocks(i) OR inGroup(s, INTEGER (stocks(i)));
                     item(mc) <- GROUP LAST Item it WHERE id(it) == barcode(i);
                     marketingPercent(mc) <- round2(percent(i) * 100.0);
                     isException(mc) <- exeption(i) == 'Исключение';
