@@ -5,6 +5,7 @@ REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
         PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
         PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, 
         PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract,
+        SupermagPurchaseInvoice,
         SaleOrder, SaleOrderStatus,
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
@@ -2179,6 +2180,7 @@ EXTEND FORM Sale.invoices PROPERTIES stateInSuperMag(i);
 importStockInternalInvoice 'Импорт накладные перемещения на магазин' () {
     
     LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL bornIn = ISTRING[100] (INTEGER);
     LOCAL docstate = INTEGER (INTEGER);
     LOCAL opercode = INTEGER (INTEGER);
     LOCAL idCustomerStock = INTEGER (INTEGER);
@@ -2198,9 +2200,9 @@ importStockInternalInvoice 'Импорт накладные перемещени
        
    // MESSAGE 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql();               
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base()  
-    EXEC 'Select D.ID, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql() TO file;   
+    EXEC 'Select D.ID, D.bornin, D.DocState, D.createdat, D.opcode, D.Locationfrom AS supplierStock, D.Locationto, D.Commentary from Supermag.SMDocuments d, Supermag.SMInternalWayBills b where ' + filterSql() TO file;   
     
-    IMPORT TABLE FROM file() TO id, docstate, date, opercode, idSupplierStock, idCustomerStock, comment;   
+    IMPORT TABLE FROM file() TO id, bornIn, docstate, date, opercode, idSupplierStock, idCustomerStock, comment;   
     
     FOR [GROUP SUM 1 BY id(INTEGER i)](STRING[50] id) AND NOT Sale.userInvoice(id) DO NEW o = Sale.UserInvoice {
         id(o) <- id;
@@ -2208,6 +2210,7 @@ importStockInternalInvoice 'Импорт накладные перемещени
     
     FOR Sale.UserInvoice o == Sale.userInvoice(id(INTEGER i)) DO {       
         number[Document](o) <- STRING[28](id(i));
+//        bornin(o) <- bornIn(i);
         isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
         isClosed(o) <- docstate(i) == 3 OR docstate(i) == 0;
         stateInSuperMag(o) <- docstate(i);

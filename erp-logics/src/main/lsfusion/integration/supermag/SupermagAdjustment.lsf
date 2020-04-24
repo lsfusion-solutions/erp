@@ -4,26 +4,11 @@ REQUIRE  SupermagIntegration, SupermagFormMeta, Utils, TaxItem, StockAdjustment;
 
 NAMESPACE Stock;
 
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {
-            caption = 'Параметры Супермаг';
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-        }       
-    }
-}
-
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
+@settingOperationSupermag();
 
 @overCheckDocStatusSupermag(adjustment);
+
+@settingIntegration(adjustment);
 
 @exportFilds(adjustment, adjustmentDetail);
 
@@ -66,7 +51,7 @@ EXTEND FORM exportAdjustmentFA
 
 exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
     inc(Adjustment ii) <- NULL;
-    IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) AND idSupermag(stock(doc)) THEN {        
+    IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
         dt () <- currentDateTime();
         inc(doc) <- TRUE;

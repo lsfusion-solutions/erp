@@ -4,26 +4,11 @@ REQUIRE SupermagIntegration, SupermagFormMeta, Utils, TaxItem, PricingWriteOff;
 
 NAMESPACE WriteOff;
 
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {   
-            caption = 'Параметры Супермаг';
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-        }
-    }
-}
- 
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
+@settingOperationSupermag();
 
 @overCheckDocStatusSupermag(writeOff);
+
+@settingIntegration(writeOff);
 
 @exportFilds(writeOff, writeOffDetail); 
 
@@ -42,7 +27,7 @@ EXTEND FORM exportWriteOffWO
 
 exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
     inc(WriteOff ii) <- NULL;
-    IF docTypeSupermag(operation(i)) AND opcodeSupermag(operation(i)) AND idSupermag(stock(i)) THEN {        
+    IF docTypeSupermag(operation(i)) AND opcodeSupermag(operation(i)) THEN {        
         LOCAL NESTED dt = DATETIME();
         dt () <- currentDateTime();
         inc(i) <- TRUE;

@@ -15,6 +15,39 @@ META overCheckDocStatusSupermag(docMain)
     }    
 END
 
+META settingOperationSupermag(docMain)
+EXTEND FORM operation
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation
+;
+DESIGN operation{
+    headContainer {        
+        NEW supermag {   
+            caption = 'Параметры Супермаг';
+            type = CONTAINERH;
+            MOVE PROPERTY(docTypeSupermag(o));
+            MOVE PROPERTY(opcodeSupermag(o));
+            MOVE PROPERTY(useropSupermag(o));
+            MOVE PROPERTY(nameSuperMag(o));
+            MOVE PROPERTY(createFinobligation(o));
+        }
+    }
+}
+
+EXTEND FORM operations
+    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
+;
+END
+
+META settingIntegration(docMain)
+    dateTimeChange = DATA DATETIME (###docMain);
+    bornin = DATA STRING[100] (###docMain);
+            
+    WHEN SET(isPosted(###docMain doc))  DO {
+        dateTimeChange(doc)<- currentDateTime();  
+    }
+END
+
+
 META exportFilds (docMain, docDetail) 
     doctype = DATA LOCAL STRING[10] (###docMain);
     opcode = DATA LOCAL STRING[10] (###docMain);
@@ -26,7 +59,6 @@ META exportFilds (docMain, docDetail)
     locationFrom = DATA Stock (###docMain);
     locationTo = DATA Stock (###docMain);
     ourSelfClient = DATA LOCAL STRING[100] (###docMain);
-
     inc = DATA LOCAL BOOLEAN (###docMain);
     priceWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     priceNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
@@ -42,7 +74,7 @@ META exportFilds (docMain, docDetail)
     sumNoTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docMain);
-    
+    createFinobligation = DATA LOCAL BOOLEAN (###docMain);
     curRate(###docMain i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS ###docMain));
     
     //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
@@ -68,7 +100,7 @@ FORM formName FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[100](id(doc)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
     PROPERTIES = doctype(doc) IF doc IS ###docMain EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
     PROPERTIES = opcode(doc) IF doc IS ###docMain EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
-    PROPERTIES = idSupermag(location(doc)) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = exportTime(dateTime(doc))  EXTID 'CREATEDAT' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS###typeDoc      
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN SMDOCUMENTS###typeDoc 
@@ -98,6 +130,7 @@ META exportFormWI (formName, docMain, docDetail, commentary)
 
 GROUP SMWAYBILLSIN EXTID 'SMWAYBILLSIN' : WI;
 GROUP SMSPECIOWI EXTID 'SMWSPECIO' : WI;
+
 
 EXTEND FORM formName
     PROPERTIES = userop(doc) IF doc IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSWI        
@@ -144,7 +177,6 @@ EXTEND FORM formName
     PROPERTIES = 0 IF docd5 IS ###docDetail EXTID 'NPACKS'       
     PROPERTIES = 0 IF docd5 IS ###docDetail EXTID 'PACKSIZE'     
     FILTERS ##docMain(docd5)==doc     
-      
     ;
 END
 
@@ -209,3 +241,31 @@ EXTEND FORM formName
     PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTSFA
     ;
 END 
+
+META exportFormFI (formName, docMain, docDetail, commentary)
+GROUP FI;
+GROUP SMFINOBLIGATION :FI;
+
+EXTEND FORM formName
+    OBJECTS doc2 = ###docMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Финансовое обязательство по поставке' IF doc2 IS ###docMain EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF doc2 IS ###docMain EXTID 'action'  
+    PROPERTIES = STRING[100]('FI'+id(doc2)+'\t'+doctype(doc2)) EXTID 'Id'
+    PROPERTIES = id(doc2) EXTID 'DOCID' IN SMFINOBLIGATION   
+    PROPERTIES = doctype(doc2) EXTID 'DOCTYPE' IN SMFINOBLIGATION    
+    PROPERTIES = creditInvoiceSumInvoiceDetail(doc2) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
+    PROPERTIES = invoiceSumInvoiceDetail(doc2) EXTID 'BASESUM' IN SMFINOBLIGATION   
+    PROPERTIES = exportTime(dateTime(doc2)) EXTID 'BEGINDATE' IN SMFINOBLIGATION   
+    PROPERTIES = bornin(doc2) EXTID 'BORNIN' IN SMFINOBLIGATION       
+    PROPERTIES = (OVERRIDE exportTime(dateTime(lastInvoiceContractLedger(doc2))), exportTime(dateTime(doc2)))  EXTID 'CALCENDDATE' IN SMFINOBLIGATION   
+    PROPERTIES = id(supplier(doc2)) EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
+    PROPERTIES = id(supplier(doc2)) EXTID 'FINAGENT' IN SMFINOBLIGATION      
+    PROPERTIES = 0 IF doc2 IS ###docMain  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
+    PROPERTIES = 0 IF doc2 IS ###docMain  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
+    PROPERTIES = IF bankingDays(paymentCondition(doc2)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
+    PROPERTIES = id(customer(doc2))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
+    PROPERTIES = (OVERRIDE countDays(lastPaymentPeriod(paymentCondition(doc2))), 0)  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              
+    PROPERTIES = 1 IF doc2 IS ###docMain  EXTID 'PAYMENTPRTY' IN SMFINOBLIGATION          
+    FILTERS inc(doc2), createFinobligation(doc2)           
+;
+END

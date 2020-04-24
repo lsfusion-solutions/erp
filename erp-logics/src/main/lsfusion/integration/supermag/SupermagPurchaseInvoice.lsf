@@ -3,29 +3,10 @@ MODULE SupermagPurchaseInvoice;
 REQUIRE SupermagIntegration, SupermagFormMeta, PurchaseManufacturingPrice, PricingPurchase, PurchaseCreditNote, PurchaseInvoiceContract, Utils;
 NAMESPACE Purchase;
 
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {   
-            caption = 'Параметры Супермаг';
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-        }
-    }
-}
-
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
+@settingOperationSupermag();
 
 @overCheckDocStatusSupermag(invoice);
 
-GROUP FI;
-GROUP SMFINOBLIGATION :FI;
 
 //-- предполагаем, что дата оплаты для накладной только одна
 lastInvoiceContractLedger 'Дата оплаты' = GROUP LAST Purchase.InvoiceContractLedger l
@@ -35,8 +16,9 @@ lastPaymentPeriod = GROUP MAX PaymentPeriod p BY paymentCondition(p);
 
 //curRate(Purchase.InvoiceDetail d) = curRate(Purchase.invoice(d));
 
-dateTimeChange = DATA DATETIME (Invoice);
-dateTimeChange[StockDocumentLedger](InvoiceShipment i) += dateTimeChange(invoice(i));
+@settingIntegration(invoice);
+dateTimeChange[StockDocumentLedger](InvoiceShipment doc) += dateTimeChange(invoice(doc));
+bornin[StockDocumentLedger](InvoiceShipment doc) += bornin(invoice(doc));
 
 //changeDoc(Invoice d) = CHANGED(seriesNumber(d)) OR CHANGED(supplier(d))  OR CHANGED(supplierStock(d))  OR CHANGED(customer(d))  OR CHANGED(customerStock(d))  
 //    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED (creditInvoiceSumInvoiceDetail(d)) OR CHANGED(curRate(d)) OR CHANGED(isPosted(d)) OR CHANGED (invoiceShipment(d));
@@ -49,9 +31,6 @@ dateTimeChange[StockDocumentLedger](InvoiceShipment i) += dateTimeChange(invoice
 //    dateTimeChange(i)<- currentDateTime();  
 //}
 
-WHEN SET(isPosted(Invoice i))  DO {
-    dateTimeChange(i)<- currentDateTime();  
-}
 
 @exportFilds(invoice, invoiceDetail);
 
@@ -93,31 +72,9 @@ EXTEND FORM exportPurchaseInvoiceWI FORMEXTID 'PACKAGE'
     PROPERTIES = 'CO' IF c IS ContractSku EXTID 'BASEDOCTYPE'                    
     PROPERTIES = id(c) EXTID 'BASEID' 
     FILTERS c=contractSku(doc)                
-    
-//    OBJECTS doc2 = Invoice EXTID 'POSTOBJECT'
-//    PROPERTIES ATTR = 'Финансовое обязательство по поставке' IF doc2 IS Purchase.Invoice EXTID 'description'  
-//    PROPERTIES ATTR = 'normal' IF doc2 IS Purchase.Invoice EXTID 'action'  
-//        
-//    PROPERTIES = STRING[100]('FI'+seriesNumber(doc2)+'\tWI') EXTID 'Id'
-//    PROPERTIES = STRING[100](seriesNumber(doc2)) EXTID 'DOCID' IN SMFINOBLIGATION   
-//    PROPERTIES = 'WI' IF doc2 IS Purchase.Invoice  EXTID 'DOCTYPE' IN SMFINOBLIGATION    
-//    PROPERTIES = creditInvoiceSumInvoiceDetail(doc2) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
-//    PROPERTIES = invoiceSumInvoiceDetail(doc2)  EXTID 'BASESUM' IN SMFINOBLIGATION   
-//    PROPERTIES = exportTime(dateTime(doc2))  EXTID 'BEGINDATE' IN SMFINOBLIGATION   
-//    PROPERTIES = idSupermag(customerStock(doc2)) EXTID 'BORNIN' IN SMFINOBLIGATION       
-//    PROPERTIES = (OVERRIDE exportTime(dateTime(lastInvoiceContractLedger(doc2))), exportTime(dateTime(doc2)))  EXTID 'CALCENDDATE' IN SMFINOBLIGATION   
-//    PROPERTIES = id(supplier(doc2))  EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
-//    PROPERTIES = id(supplier(doc2))  EXTID 'FINAGENT' IN SMFINOBLIGATION      
-//    PROPERTIES = 0 IF doc2 IS Purchase.Invoice  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
-//    PROPERTIES = 0 IF doc2 IS Purchase.Invoice  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
-//    PROPERTIES = IF bankingDays(paymentCondition(doc2)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
-//    PROPERTIES = id(customer(doc2))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
-//    PROPERTIES = (OVERRIDE countDays(lastPaymentPeriod(paymentCondition(doc2))), 0)  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              
-//    PROPERTIES = 1 IF doc2 IS Purchase.Invoice  EXTID 'PAYMENTPRTY' IN SMFINOBLIGATION          
-//    FILTERS inc(doc2)
 ; 
 
-//                manufactPrice(AdjustmentDetail ad) <- price(ad) WHERE adjustment(ad) = doc;
+@exportFormFI(exportPurchaseInvoiceWI, invoice, invoiceDetail, 'Накладная (закупка)');
 
 exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
     inc(Invoice ii) <- NULL;
@@ -133,6 +90,7 @@ exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                 docstate(doc) <- IF isPosted(doc) THEN 3 ELSE 2;
                 id(doc) <- 'Ф' + seriesNumber(doc);                 
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
+                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
                 CASE WHEN doctype(doc) = 'WI' THEN {
                         clientIndex(doc) <- id(supplier(doc));
                         locationFrom(doc) <- NULL IF doc IS Invoice;
@@ -155,13 +113,15 @@ exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                 priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
                 priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
-                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc;                                
+                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
+                createFinobligation(doc)  <- createFinobligation(operation(doc));                               
            TRY {                
                 EXPORT exportPurchaseInvoiceWI XML TO System.exportFile;                 
            } CATCH logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {          
                 WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
            } CATCH {
                 logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
            }

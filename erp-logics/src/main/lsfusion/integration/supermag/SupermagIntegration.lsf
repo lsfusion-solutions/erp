@@ -32,21 +32,24 @@ DESIGN integrationData {
                 }
 }   }   }   }
 
-exportDirectorySupermag 'Путь для экспорта файлов в супермаг' = DATA STRING[500] ();
-exportDirectorySupermagReturn 'Путь для ответов о состояни загрузки в супермаг' = DATA STRING[500] ();
+exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[500] ();
+importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[500] ();
+baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[100] ();
 
 EXTEND FORM integrationData 
-    PROPERTIES() exportDirectorySupermag, exportDirectorySupermagReturn
+    PROPERTIES() exportDirectorySupermag, importDirectorySupermag, baseIDSupermag
 ;
 
 DESIGN integrationData {
         supermagParams {
             MOVE PROPERTY (exportDirectorySupermag());  
-            MOVE PROPERTY (exportDirectorySupermagReturn());      
+            MOVE PROPERTY (importDirectorySupermag());     
+            MOVE PROPERTY (baseIDSupermag());
         }
 }
 
 dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
+bornin 'ИД базы создателя' = ABSTRACT STRING[100] (StockDocumentLedger);
 exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
 exportTime (DATETIME dt)=  [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
 formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
@@ -67,7 +70,7 @@ docTypeSupermag 'Вид документа в супермаг' = DATA STRING[10
 opcodeSupermag 'Код в супермаг' = DATA STRING[10] (Operation.Operation); 
 useropSupermag 'Доп код в супермаг' = DATA STRING[10] (Operation.Operation); 
 nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operation.Operation);  
-idSupermag 'Код в супермаг (BORNIN)' = DATA STRING[100] (Stock); // base64
+createFinobligation 'Фин.обязательство' = DATA BOOLEAN (Operation.Operation);  
 
 contragentSupermag 'Контрагент для инвентаризаций с супермаг' = DATA LegalEntity (StockGroup);
 nameContragentSupermag 'Контрагент для инвентаризаций с супермаг' (StockGroup sg) = name(contragentSupermag(sg));
@@ -204,11 +207,11 @@ OBJECTS ERROR1 = INTEGER EXTID 'ERROR' IN TOTALPACKAGE
 PROPERTIES(ERROR1) ERROR1 EXTID 'value';
 
 importAnswer 'Импорт ответов из супермаг'()  { 
-    IF   exportDirectorySupermagReturn() THEN {  
+    IF   importDirectorySupermag() THEN {  
         LOCAL importName = ISTRING[100] (INTEGER ); 
         
         fileName(INTEGER i)<- NULL;    
-        listFiles('file://' + exportDirectorySupermagReturn());
+        listFiles('file://' + importDirectorySupermag());
         
         fileName(INTEGER i)<- NULL WHERE fileName(i) AND NOT isISubstring(fileName(i),'.Reply');    
         importName(INTEGER i)<- ISTRING[100](replace(replace(upper(fileName(i)),'.REPLY',''), '.XML','')) WHERE fileName(i) ;    
@@ -221,7 +224,7 @@ importAnswer 'Импорт ответов из супермаг'()  {
             LOCAL importFile = XMLFILE (); 
             
             TRY {
-                READ 'file://' + exportDirectorySupermagReturn() + '/' + fileName(j) TO importFile;
+                READ 'file://' + importDirectorySupermag() + '/' + fileName(j) TO importFile;
                 IMPORT REPLY XML FROM importFile();
             } CATCH {
                 dateTimeAnswer(log)<- currentDateTime();
@@ -238,7 +241,7 @@ importAnswer 'Импорт ответов из супермаг'()  {
             } 
             APPLY NESTED (fileName[INTEGER], importName[INTEGER]); 
           
-            delete('file://' + exportDirectorySupermagReturn() + '/' + fileName(j));
+            delete('file://' + importDirectorySupermag() + '/' + fileName(j));
             fileName(j) <- NULL;
             importName(j) <- NULL;                
             

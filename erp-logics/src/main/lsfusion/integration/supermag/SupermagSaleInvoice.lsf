@@ -1,24 +1,11 @@
 MODULE SupermagSaleInvoice;
 
-REQUIRE SupermagIntegration, SupermagFormMeta, PurchaseManufacturingPrice, PricingPurchase, PurchaseCreditNote, PurchaseInvoiceContract, Utils;
+REQUIRE SupermagIntegration, SupermagFormMeta, PurchaseManufacturingPrice, PricingPurchase, SaleCreditNote, SaleInvoiceContract, Utils;
 
 NAMESPACE Sale;
 
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {   
-            caption = 'Параметры Супермаг';
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-        }
-    }
-}
+@settingOperationSupermag();
 
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
+@settingIntegration(invoice);
+dateTimeChange[StockDocumentLedger](InvoiceShipment doc) += dateTimeChange(invoice(doc));
+bornin[StockDocumentLedger](InvoiceShipment doc) += bornin(invoice(doc));
