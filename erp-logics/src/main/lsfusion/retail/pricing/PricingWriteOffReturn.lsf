@@ -220,10 +220,15 @@ show[PricingDetail](WriteOffPricingDetail d) + {  show(writeOffDetail(d)); }
 
 // Автоматически проставляем цены поставщика и розничные
 
-WHEN LOCAL CHANGED(sku(UserWriteOffDetail detail)) OR
+skipChangePrice = ABSTRACT CASE BOOLEAN (UserWriteOffDetail);
+
+//не пересчитываем розничную цену при объединении товаров и замене товара у партии
+skipChangePrice (UserWriteOffDetail detail) += WHEN retailPrice(detail) AND allowReplaceItem() THEN TRUE;
+
+WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-     CHANGED(batch(detail)) DO 
+     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) DO 
     supplierPrice (detail)  <- IF batch(detail)
     
                                                     THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
@@ -235,10 +240,10 @@ WHEN LOCAL CHANGED(sku(UserWriteOffDetail detail)) OR
                                                                                                  stock(detail),
                                                                                                  dateTime(detail));
 
-WHEN LOCAL CHANGED(sku(UserWriteOffDetail detail)) OR
+WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-     CHANGED(batch(detail)) DO
+     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) DO
      retailPrice (detail)  <- IF batch(detail)
     
                                                      THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
