@@ -36,19 +36,29 @@ DESIGN operation{
 EXTEND FORM operations
     PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
 ;
+
+code1Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag(op),';',1), getWord(opcodeSupermag(op),';',1), getWord(useropSupermag(op),';',1)), id(op));  
+code2Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag(op),';',2), getWord(opcodeSupermag(op),';',2), getWord(useropSupermag(op),';',2)), id(op));  
+operation1Supermag (STRING code) = GROUP MAX docMain.Operation op BY code1Supermag(op);
+operation2Supermag (STRING code) = GROUP MAX docMain.Operation op BY code2Supermag(op);
+
 END
 
-META settingIntegration(docMain)
+META settingIntegration(docMain, docDetail)
     dateTimeChange = DATA DATETIME (###docMain);
     bornin = DATA STRING[100] (###docMain);
             
     WHEN SET(isPosted(###docMain doc))  DO {
         dateTimeChange(doc)<- currentDateTime();  
     }
+    
+    lastVersion = DATA STRING (###docMain);
+    lastVersion = DATA STRING (###docDetail);
 END
 
 
 META exportFilds (docMain, docDetail) 
+    docid = DATA LOCAL STRING[50] (###docMain);
     doctype = DATA LOCAL STRING[10] (###docMain);
     opcode = DATA LOCAL STRING[10] (###docMain);
     userop = DATA LOCAL STRING[10] (###docMain);
@@ -70,7 +80,7 @@ META exportFilds (docMain, docDetail)
     sumWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docDetail);
  //   docId = DATA LOCAL STRING[100] (###docMain);
-    docId (###docDetail dd) = id(##docMain(dd)); 
+    docId (###docDetail dd) = docid(##docMain(dd)); 
     sumNoTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTax = DATA LOCAL NUMERIC[18,4] (###docMain);
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docMain);
@@ -96,8 +106,8 @@ FORM formName FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF doc IS ###docMain EXTID 'action'      
     PROPERTIES ATTR = opname(doc) IF doc IS ###docMain EXTID 'description'  
     
-    PROPERTIES = STRING[100](doctype(doc)+id(doc)) EXTID 'Id'
-    PROPERTIES = STRING[100](id(doc)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SMDOCUMENTS###typeDoc
     PROPERTIES = doctype(doc) IF doc IS ###docMain EXTID 'DOCTYPE' IN SMDOCUMENTS###typeDoc
     PROPERTIES = opcode(doc) IF doc IS ###docMain EXTID 'OPCODE' IN SMDOCUMENTS###typeDoc
     PROPERTIES = bornin(doc) EXTID 'BORNIN' IN SMDOCUMENTS###typeDoc    
@@ -137,7 +147,7 @@ EXTEND FORM formName
     PROPERTIES = clientIndex(doc) IF doc IS ###docMain EXTID 'CLIENTINDEX' IN SMDOCUMENTSWI        
     PROPERTIES = id(locationTo(doc)) EXTID 'LOCATIONTO' IN SMDOCUMENTSWI
     
-    PROPERTIES = STRING[100](id(doc)) EXTID 'ID' IN SMWAYBILLSIN      
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SMWAYBILLSIN      
     PROPERTIES = 'WI' IF doc IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSIN 
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
     PROPERTIES = id(legalEntity(locationTo(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
@@ -191,10 +201,10 @@ EXTEND FORM formName
     PROPERTIES = clientIndex(doc) IF doc IS ###docMain EXTID 'CLIENTINDEX' IN SMDOCUMENTSWO        
     PROPERTIES = id(locationFrom(doc)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSWO
     
-    PROPERTIES = STRING[100](id(doc))  EXTID 'ID' IN SMWAYBILLSOUT      
+    PROPERTIES = STRING[100](docid(doc))  EXTID 'ID' IN SMWAYBILLSOUT      
     PROPERTIES = 'WO' IF doc IS ###docMain EXTID 'DOCTYPE' IN SMWAYBILLSOUT
     PROPERTIES = id(legalEntity(locationFrom(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSOUT
-    PROPERTIES = STRING[100](id(doc))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
+    PROPERTIES = STRING[100](docid(doc))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSOUT      
     
     PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
@@ -223,6 +233,14 @@ EXTEND FORM formName
     PROPERTIES = priceRetail(docd4) EXTID 'RETAILPRICE'       
     PROPERTIES = 0 IF docd4 IS ###docDetail EXTID 'STATEREGULATION'                           
     FILTERS ##docMain(docd4)==doc    
+    
+    OBJECTS docd5 = ###docDetail EXTID 'SLSPECPACKS' IN WO
+    PROPERTIES = docId(docd5) EXTID 'DOCID'    
+    PROPERTIES = 'WO' IF docd5 IS ###docDetail EXTID 'DOCTYPE'      
+    PROPERTIES = -1 IF docd5 IS ###docDetail EXTID 'PACKNUM'        
+    PROPERTIES = 0 IF docd5 IS ###docDetail EXTID 'NPACKS'       
+    PROPERTIES = 0 IF docd5 IS ###docDetail EXTID 'PACKSIZE'     
+    FILTERS ##docMain(docd5)==doc     
     ;
 END
 
@@ -250,10 +268,39 @@ EXTEND FORM formName
     OBJECTS doc2 = ###docMain EXTID 'POSTOBJECT'
     PROPERTIES ATTR = 'Финансовое обязательство по поставке' IF doc2 IS ###docMain EXTID 'description'  
     PROPERTIES ATTR = 'normal' IF doc2 IS ###docMain EXTID 'action'  
-    PROPERTIES = STRING[100]('FI'+id(doc2)+'\t'+doctype(doc2)) EXTID 'Id'
-    PROPERTIES = id(doc2) EXTID 'DOCID' IN SMFINOBLIGATION   
+    PROPERTIES = STRING[100]('FI'+docid(doc2)+'\t'+doctype(doc2)) EXTID 'Id'
+    PROPERTIES = docid(doc2) EXTID 'DOCID' IN SMFINOBLIGATION   
     PROPERTIES = doctype(doc2) EXTID 'DOCTYPE' IN SMFINOBLIGATION    
     PROPERTIES = creditInvoiceSumInvoiceDetail(doc2) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
+    PROPERTIES = invoiceSumInvoiceDetail(doc2) EXTID 'BASESUM' IN SMFINOBLIGATION   
+    PROPERTIES = exportTime(dateTime(doc2)) EXTID 'BEGINDATE' IN SMFINOBLIGATION   
+    PROPERTIES = bornin(doc2) EXTID 'BORNIN' IN SMFINOBLIGATION       
+    PROPERTIES = (OVERRIDE exportTime(dateTime(lastInvoiceContractLedger(doc2))), exportTime(dateTime(doc2)))  EXTID 'CALCENDDATE' IN SMFINOBLIGATION   
+    PROPERTIES = id(supplier(doc2)) EXTID 'CLIENTINDEX' IN SMFINOBLIGATION  
+    PROPERTIES = id(supplier(doc2)) EXTID 'FINAGENT' IN SMFINOBLIGATION      
+    PROPERTIES = 0 IF doc2 IS ###docMain  EXTID 'FINEPERCENT' IN SMFINOBLIGATION  
+    PROPERTIES = 0 IF doc2 IS ###docMain  EXTID 'ISADMITTED' IN SMFINOBLIGATION 
+    PROPERTIES = IF bankingDays(paymentCondition(doc2)) THEN 0 ELSE 1  EXTID 'ISCALENDARDELAY' IN SMFINOBLIGATION     
+    PROPERTIES = id(customer(doc2))  EXTID 'OURSELFCLIENT' IN SMFINOBLIGATION 
+    PROPERTIES = (OVERRIDE countDays(lastPaymentPeriod(paymentCondition(doc2))), 0)  EXTID 'PAYMENTDELAY' IN SMFINOBLIGATION              
+    PROPERTIES = 1 IF doc2 IS ###docMain  EXTID 'PAYMENTPRTY' IN SMFINOBLIGATION          
+    FILTERS inc(doc2), createFinobligation(doc2)           
+;
+END
+
+
+META exportFormFO (formName, docMain, docDetail, commentary)
+GROUP FO;
+GROUP SMFINOBLIGATION :FO;
+
+EXTEND FORM formName
+    OBJECTS doc2 = ###docMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Финансовое обязательство по поставке' IF doc2 IS ###docMain EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF doc2 IS ###docMain EXTID 'action'  
+    PROPERTIES = STRING[100]('FO'+docid(doc2)+'\t'+doctype(doc2)) EXTID 'Id'
+    PROPERTIES = docid(doc2) EXTID 'DOCID' IN SMFINOBLIGATION   
+    PROPERTIES = doctype(doc2) EXTID 'DOCTYPE' IN SMFINOBLIGATION    
+ //   PROPERTIES = creditInvoiceSumInvoiceDetail(doc2) EXTID 'ACCEPTSUM' IN SMFINOBLIGATION   
     PROPERTIES = invoiceSumInvoiceDetail(doc2) EXTID 'BASESUM' IN SMFINOBLIGATION   
     PROPERTIES = exportTime(dateTime(doc2)) EXTID 'BEGINDATE' IN SMFINOBLIGATION   
     PROPERTIES = bornin(doc2) EXTID 'BORNIN' IN SMFINOBLIGATION       

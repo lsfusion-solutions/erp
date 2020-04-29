@@ -1,11 +1,325 @@
 MODULE SupermagSaleInvoice;
 
-REQUIRE SupermagIntegration, SupermagFormMeta, PurchaseManufacturingPrice, PricingPurchase, SaleCreditNote, SaleInvoiceContract, Utils;
+REQUIRE SupermagIntegration, SupermagFormMeta, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils;
 
 NAMESPACE Sale;
 
-@settingOperationSupermag();
+@settingOperationSupermag(Sale);
 
-@settingIntegration(invoice);
+@settingIntegration(invoice, invoiceDetail);
+
 dateTimeChange[StockDocumentLedger](InvoiceShipment doc) += dateTimeChange(invoice(doc));
 bornin[StockDocumentLedger](InvoiceShipment doc) += bornin(invoice(doc));
+
+@overCheckDocStatusSupermag(invoice);
+
+
+//-- предполагаем, что дата оплаты для накладной только одна
+lastInvoiceContractLedger 'Дата оплаты' = GROUP LAST Sale.InvoiceContractLedger l
+                            ORDER date(l),l
+                            BY inContractLedger(l);// MATERIALIZED;
+lastPaymentPeriod = GROUP MAX PaymentPeriod p BY paymentCondition(p);                            
+
+//curRate(Purchase.InvoiceDetail d) = curRate(Purchase.invoice(d));
+
+//changeDoc(Invoice d) = CHANGED(seriesNumber(d)) OR CHANGED(supplier(d))  OR CHANGED(supplierStock(d))  OR CHANGED(customer(d))  OR CHANGED(customerStock(d))  
+//    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED (creditInvoiceSumInvoiceDetail(d)) OR CHANGED(curRate(d)) OR CHANGED(isPosted(d)) OR CHANGED (invoiceShipment(d));
+//
+//changeDoc(InvoiceDetail d) = CHANGED(quantity( d)) OR CHANGED(sku(d)) OR CHANGED(price(d)) OR CHANGED(invoicePrice(d))  OR CHANGED (valueVAT(d))
+//    OR CHANGED(retailPrice(d)) OR CHANGED(creditQuantity(d)) OR CHANGED(creditInvoiceSum(d)) OR CHANGED(creditSum(d)) OR CHANGED(manufacturingPrice(d));
+//changeDocDetail(Invoice i) = GROUP SUM 1 IF changeDoc(InvoiceDetail d) AND invoice(d)==i;
+
+//WHEN SET(changeDoc(Invoice i)) OR SET (changeDocDetail(i)) DO {
+//    dateTimeChange(i)<- currentDateTime();  
+//}
+
+
+@exportFilds(invoice, invoiceDetail);
+
+@exportFormWO(exportSaleInvoiceWO, invoice, invoiceDetail, 'Накладная (продажа)');
+
+EXTEND FORM exportSaleInvoiceWO FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'                                             
+            
+    //-- сама накладная
+  //  PROPERTIES i2 = creditInvoiceSumInvoiceDetail(doc) EXTID 'SUPPLDOCSUM' IN SMWAYBILLSIN 
+    PROPERTIES = (CONCAT '',series(doc),number(doc)) EXTID 'SUPPLIERDOC' IN SMWAYBILLSOUT        
+    PROPERTIES = exportTime(dateTime(doc))  EXTID 'SUPPLIERDOCCREATE' IN SMWAYBILLSOUT
+    
+    PROPERTIES = exportTime(toDateTime(expiryDate(docd5))) EXTID 'VALIDDATE'                
+    
+    OBJECTS docd6= InvoiceDetail EXTID 'SLSPECQMISMATCH' IN WO
+    PROPERTIES = docId(docd6) EXTID 'DOCID'    
+    PROPERTIES = 'WI' IF docd6 IS InvoiceDetail EXTID 'DOCTYPE'      
+    PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
+    FILTERS invoice(docd6)==doc     
+    
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES = index(docd2) EXTID 'SPECITEM'
+    PROPERTIES = index(docd3) EXTID 'SPECITEM'
+    PROPERTIES = index(docd4) EXTID 'SPECITEM'
+    PROPERTIES = index(docd5) EXTID 'SPECITEM'
+    PROPERTIES = index(docd6) EXTID 'SPECITEM'
+        
+    OBJECTS o = Order EXTID 'SMCOMMONBASES' IN WO 
+    PROPERTIES = STRING[100](docid(doc)) IF o IS Order EXTID 'ID'  
+    PROPERTIES = 'WO' IF o IS Order EXTID 'DOCTYPE'     
+    PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = seriesNumber(o) EXTID 'BASEID' 
+    FILTERS include(o,doc)                
+
+    OBJECTS c = ContractSku EXTID 'SMCOMMONBASES' IN WO 
+    PROPERTIES = STRING[100](docid(doc)) IF c IS ContractSku EXTID 'ID'   
+    PROPERTIES = 'WO' IF c IS ContractSku EXTID 'DOCTYPE'     
+    PROPERTIES = 'CO' IF c IS ContractSku EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = seriesNumber(c) EXTID 'BASEID' 
+    FILTERS c=contractSku(doc)                
+; 
+
+@exportFormFO(exportSaleInvoiceWO, invoice, invoiceDetail, 'Накладная (продажа)');
+
+exportSaleInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
+    inc(Invoice ii) <- NULL;
+    IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
+        LOCAL NESTED dt = DATETIME();
+        dt () <- currentDateTime();
+        inc(doc) <- TRUE;
+        // для накладной берем первые параметры, для возврата вторые
+        FOR iterate(INTEGER n, 1, 1) DO {
+                doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
+                userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                docstate(doc) <- CASE WHEN createShipment(doc) THEN 3 
+                                      WHEN isPosted(doc) THEN 2 
+                                      WHEN isClosed(doc) THEN 0 ELSE 1;
+                docid(doc) <- seriesNumber(doc);                 
+                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
+                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
+                bornin(doc) <- baseIDSupermag();
+                CASE WHEN doctype(doc) = 'WI' THEN {
+                        clientIndex(doc) <- id(supplier(doc));
+                        locationFrom(doc) <- NULL IF doc IS Invoice;
+                        locationTo(doc) <- customerStock(doc);                
+                        location(doc)  <- NULL IF doc IS Invoice;                             
+                    }                 
+                    WHEN doctype(doc) = 'IW' THEN {
+                        clientIndex(doc) <- NULL IF doc IS Invoice;
+                        locationFrom(doc) <- supplierStock(doc);
+                        locationTo(doc) <- customerStock(doc);                
+                        location(doc)  <- NULL IF doc IS Invoice;                                                     
+                    }                
+                id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
+                priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
+                valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
+                priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
+                sumWithTax(InvoiceDetail docd) <- abs(invoiceSum(docd)) WHERE invoice(docd) = doc;
+                sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
+                sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
+                sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
+            //    priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
+            //    priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
+                sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
+                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
+                createFinobligation(doc)  <- createFinobligation(operation(doc));                               
+           TRY {                
+                EXPORT exportSaleInvoiceWO XML TO System.exportFile;                 
+           } CATCH logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+           
+           TRY {          
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+           } CATCH {
+                logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
+           }
+           
+           TRY 
+           {      
+                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
+                    FOR inc(Invoice ii)  DO NEW log = SupermagLog {
+                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
+                        dateTime(log) <- currentDateTime();
+                        userLogin(log) <- login(currentUser()); 
+                        nameContact(log) <- STRING[100](name(currentUser()));
+                        stockDocumentLedger(log) <- invoiceShipment(ii);
+                    }     
+                    APPLY NESTED LOCAL;
+                }             
+                     
+           } CATCH {
+                logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+           }
+        } 
+    }       
+    inc(Invoice ii) <- NULL;
+    APPLY;
+}
+
+exportSupermag(InvoiceShipment s) +{
+    exportSaleInvoiceMag(invoice(s));
+}
+
+exportSupermagAll() +{
+//здесь нужна проверка того что выгружать
+  //  FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND opcodeSupermag(operation(s)) DO {
+  //      exportPurchaseInvoiceMag(s);
+  //  }
+}
+
+EXTEND FORM Sale.invoices
+    PROPERTIES (i) exportSaleInvoiceMag TOOLBAR 
+;
+DESIGN Sale.invoices {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportSaleInvoiceMag(i));
+        }        
+    }
+}
+
+stateInSuperMag 'Статус в супермаг' = DATA INTEGER (Sale.UserInvoice);
+EXTEND FORM Sale.invoices PROPERTIES stateInSuperMag(i);
+
+overImportSaleInvoice ABSTRACT LIST ();
+
+id = DATA LOCAL ISTRING[50] (INTEGER);
+idDoc = DATA LOCAL ISTRING[50] (INTEGER);
+idDet = DATA LOCAL ISTRING[50] (INTEGER);
+docType = DATA LOCAL ISTRING[100] (INTEGER);
+docNumber = DATA LOCAL ISTRING[50] (INTEGER);
+operCode = DATA LOCAL INTEGER (INTEGER);
+userOp = DATA LOCAL INTEGER (INTEGER);
+bornIn = DATA LOCAL STRING[100] (INTEGER);
+createDate = DATA LOCAL DATETIME (INTEGER);
+docState = DATA LOCAL INTEGER (INTEGER);
+clientIndex = DATA LOCAL INTEGER (INTEGER);
+locationTo = DATA LOCAL INTEGER (INTEGER);
+locationFrom = DATA LOCAL INTEGER (INTEGER);
+comment = DATA LOCAL ISTRING[255] (INTEGER);
+suppldocSum = DATA LOCAL NUMERIC[16,4] (INTEGER);
+currentVersion = DATA LOCAL STRING (INTEGER);
+codeOperation = DATA LOCAL STRING (INTEGER);
+imported = DATA LOCAL BOOLEAN (Sale.UserInvoice);
+
+importSaleInvoice 'Импорт накладные (продажа)' () {
+
+  //  LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL filterSql = TEXT ();
+    LOCAL file = FILE ();
+       
+    filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id = d.id AND d.locationfrom IN ('+ stocks() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberStockDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id = d.id AND d.id = \'' + numberStockDocument() + '\''; 
+       
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagIntegration.login() + '/' + SupermagIntegration.password() + '@//'+ SupermagIntegration.host() + '/' + SupermagIntegration.base()  
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, b.suppldocsum from Supermag.SMDocuments d, Supermag.SMWayBillsIn b where ' + filterSql() TO file;   
+    
+    IMPORT TABLE FROM file() TO docNumber, docType, operCode, userOp, bornIn, createDate, docState, clientIndex, locationFrom, comment, suppldocSum ;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i)), STRING(createDate(i)), STRING(docState(i)), STRING(clientIndex(i)), STRING(locationFrom(i)), STRING(comment(i)), STRING(suppldocSum(i)) ) IF idDoc(i);                 
+//    currentVersion (INTEGER i) <- ( (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i))) + (CONCAT '~', STRING(createDate(i)), STRING(docState(i)), STRING(clientIndex(i)), STRING(locationTo(i)), STRING(comment(i)), STRING(suppldocSum(i))) ) IF idDoc(i);                 
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+    
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF operation1Supermag(codeOperation(i))](STRING[50] id) AND NOT userInvoice(id) DO NEW o = UserInvoice {
+        id(o) <- id;
+        MESSAGE id;
+    }
+
+    IF length(numberStockDocument()) > 0 THEN { //для отладки
+        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationto, d.Commentary, b.suppldocsum from Supermag.SMDocuments d, Supermag.SMWayBillsIn b where ' + filterSql();
+        MESSAGE idDoc(0);
+        MESSAGE currentVersion(0);
+        MESSAGE name(operation1Supermag(codeOperation(0)));
+    }
+      
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND NOT Sale.currentVersion(i) = Sale.lastVersion[Invoice](doc) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        isPosted(doc) <- docState(i) == 2 OR docState(i) == 3;
+        createShipment(doc) <- docState(i) == 3; 
+        stateInSuperMag[UserInvoice](doc) <- docState(i);
+        supplier(doc) <- legalEntity(STRING(clientIndex(i)));
+//        supplierStock(doc) <- stock(ISTRING[100] (idSupplierStock(i)));
+        customer(doc) <- legalEntity(stock(ISTRING[100] (locationTo(i))));
+        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        date(doc) <- DATE (createDate(i));  
+        time(doc) <- 00:00;
+        imported(doc) <- TRUE;
+        lastVersion[Invoice](doc) <- currentVersion(i);
+    }  
+    
+    overImportSaleInvoice();
+//        эта часть нужна когда у нас будут различные улсловия накладных для склада и магазинов, т.к. в Супермаг это все одна операци то надо делить здесь
+//    FOR UserInvoice o == userInvoice(id(INTEGER i)) DO {       
+//       operation(o) <- CASE 
+//            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseWarehouse')
+//            WHEN     id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreWarehouse')
+//            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleWarehouseStore')
+//            WHEN NOT id(stockGroup(customerStock(o))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(o))) = STRING (idGroupWarehouseInSuperMag()) THEN Sale.operation('saleStoreStore')
+//            ELSE Sale.operation('saleStoreStore');
+//    } 
+
+    //импорт спецификаций
+    LOCAL specItem = INTEGER (INTEGER);
+    LOCAL itemPrice = NUMERIC[19,4](INTEGER);
+    LOCAL itemPriceNoTax = NUMERIC[19,4](INTEGER);
+    LOCAL totalPrice = NUMERIC[19,4](INTEGER);
+    LOCAL totalPriceNoTax = NUMERIC[19,4](INTEGER);
+    LOCAL taxSum = NUMERIC[18,4](INTEGER);
+    LOCAL taxRate = NUMERIC[10,5](INTEGER);
+    LOCAL quantity = NUMERIC[14,3](INTEGER);
+    LOCAL idItem = ISTRING[50](INTEGER);
+    LOCAL imported = BOOLEAN (Sale.UserInvoiceDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagIntegration.login() + '/' + SupermagIntegration.password() + '@//'+ SupermagIntegration.host() + '/' + SupermagIntegration.base()  
+        EXEC 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = \'WI\' AND ds.DOCID = d.id AND dt.DocType = \'WI\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql() TO file;
+
+    IMPORT TABLE FROM file() TO docNumber, docType, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum;
+
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
+                                                STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i)),  
+                                                STRING(taxSum(i)), STRING(taxRate(i)) ) IF idDet(i);                  
+//    currentVersion (INTEGER i) <- ( (CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i))) + '~' + 
+//                                              (CONCAT '~', STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i))) + '~' +  
+//                                              (CONCAT '~', STRING(taxSum(i)), STRING(taxRate(i))) ) IF idDet(i);                  
+
+    IF length(numberStockDocument()) > 0 THEN { //для отладки
+        MESSAGE 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = \'WI\' AND ds.DOCID = d.id AND dt.DocType = \'WI\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql();
+        MESSAGE idDet(0);
+        MESSAGE currentVersion(0);        
+    }
+
+    FOR Sale.userInvoice(idDoc(INTEGER i)) AND NOT Sale.userInvoiceDetail(idDet(i)) DO NEW d = Sale.UserInvoiceDetail {
+        id(d) <- idDet(i);
+        Sale.userInvoice(d) <- Sale.userInvoice(idDoc(i));
+    }
+
+    FOR Sale.UserInvoiceDetail det = Sale.userInvoiceDetail(idDet(INTEGER i)) AND NOT Sale.currentVersion(i) = Sale.lastVersion[InvoiceDetail](det) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+        invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
+        price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
+        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
+        sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
+        VATSum(det) <- taxSum(i);
+        valueVAT(det) <- taxRate(i);
+        dataIndex(det) <- specItem(i);
+        imported(det) <- TRUE;
+        lastVersion[InvoiceDetail](det) <- currentVersion(i);
+   }
+   
+    APPLY;           
+}
+
+EXTEND FORM integrationData PROPERTIES importSaleInvoice();
+DESIGN integrationData { 
+    stockDocuments {
+        MOVE PROPERTY (importSaleInvoice());
+    } 
+}
+
+

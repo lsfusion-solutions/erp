@@ -2,13 +2,6 @@ MODULE SupermagIntegration;
 
 REQUIRE StockDocument, LogTools, Store;
 
-host 'Хост' = DATA ISTRING[30]();
-base 'База' = DATA ISTRING[100]();
-login 'Логин' = DATA ISTRING[100]();
-password 'Пароль' = DATA ISTRING[100]();
-
-EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password();
-
 DESIGN integrationData {
     pane {
         NEW supermagScroll FIRST {
@@ -16,36 +9,70 @@ DESIGN integrationData {
             caption = 'Супермаг';
             NEW supermag {                
                 fill = 1;
-                
-                NEW supermagParams {
-                    caption = 'Параметры';
-                    MOVE PROPERTY (smhost);
-                    MOVE PROPERTY (base());
-                    MOVE PROPERTY (login());
-                    MOVE PROPERTY (password());
-                }
-                NEW supermagExportButtons { 
-                    caption = 'Экспорт';
-                }               
-                NEW supermagImportButtons { 
-                    caption = 'Импорт';
-                }
-}   }   }   }
+                type = CONTAINERH;
+                NEW supermag1 {
+                    type = CONTAINERH;
+                    fill = 1;
+                    NEW supermagLeft {                
+                        fill = 1;
+                        NEW supermagParams { caption = 'Параметры подключения'; }
+                        NEW integrationSettings { caption = 'Настройки интеграции'; }
+                        NEW supermagExportButtons { fill = 1; caption = 'Экспорт'; }               
+                        NEW supermagImportButtons { fill = 1; caption = 'Импорт'; }
+                    }
+                    NEW supermagRight { fill = 1;  }    
+}   }   }   }   }   
 
+
+host 'Хост' = DATA ISTRING[30]();
+base 'База' = DATA ISTRING[100]();
+login 'Логин' = DATA ISTRING[100]();
+password 'Пароль' = DATA ISTRING[100]();
 exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[500] ();
 importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[500] ();
 baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[100] ();
 
+EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag();
+
+DESIGN integrationData {
+    supermagParams {
+        MOVE PROPERTY (smhost);
+        MOVE PROPERTY (base());
+        MOVE PROPERTY (login());
+        MOVE PROPERTY (password());
+        MOVE PROPERTY (exportDirectorySupermag());  
+        MOVE PROPERTY (importDirectorySupermag());     
+        MOVE PROPERTY (baseIDSupermag());
+    }
+}
+
+in 'Отм.' = DATA BOOLEAN (Stock);
+stocks 'Склады для синхронизации' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
+
+FORM dialogDepartmentStores 'Склады'
+    OBJECTS d = Stock
+    PROPERTIES (d) in
+    PROPERTIES (d) READONLY id, name, nameStore
+    FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
+    FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' in(d)
+    ORDER nameStore(d), name(d)
+;
+
+DESIGN dialogDepartmentStores {
+    size = (600, 600);
+}
+
 EXTEND FORM integrationData 
-    PROPERTIES() exportDirectorySupermag, importDirectorySupermag, baseIDSupermag
+    PROPERTIES() stocks ON CHANGE { SHOW dialogDepartmentStores; }
 ;
 
 DESIGN integrationData {
-        supermagParams {
-            MOVE PROPERTY (exportDirectorySupermag());  
-            MOVE PROPERTY (importDirectorySupermag());     
-            MOVE PROPERTY (baseIDSupermag());
-        }
+    supermag {
+        integrationSettings {
+            MOVE PROPERTY (stocks()) { caption = ''; alignment = STRETCH; }
+        }        
+    }
 }
 
 dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
@@ -81,6 +108,33 @@ DESIGN store {  headerExtraParams{
         MOVE PROPERTY (nameContragentSupermag(s));
 }}
 
+daysOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
+dateFromOrder () = sum(currentDate(), -daysOrder());
+numberOrder 'Номер заказа' = DATA STRING[20] ();
+
+daysStockDocument 'Дней для синхронизации товарных документов' = DATA INTEGER ();
+dateFromStockDocument () = sum(currentDate(), -daysStockDocument());
+numberStockDocument 'Номер товарного документа' = DATA STRING[20] ();
+
+EXTEND FORM integrationData PROPERTIES daysOrder(), numberOrder(), daysStockDocument(), numberStockDocument();
+DESIGN integrationData { 
+    supermagImportButtons { 
+        NEW orders {
+            type = CONTAINERV;
+            MOVE PROPERTY (daysOrder()) { alignment = CENTER; }
+            MOVE PROPERTY (numberOrder()) { alignment = CENTER; }            
+        } 
+        NEW stockDocuments {
+            type = CONTAINERV;
+            MOVE PROPERTY (daysStockDocument()) { alignment = CENTER; }
+            MOVE PROPERTY (numberStockDocument()) { alignment = CENTER; }            
+        } 
+    } 
+}
+
+//hashing (TEXT text, TEXT type2, TEXT type3) = FORMULA TEXT PG 'encode(digest($1,$2),$3)';
+//hashing (TEXT text, TEXT key, TEXT type1, TEXT type2) = FORMULA TEXT PG 'encode(hmac($1,$2,$3),$4)';
+
 CLASS SupermagLog 'История' ;
 TABLE supermagLog (SupermagLog);
 id 'Код' = DATA STRING[100] (SupermagLog);
@@ -88,6 +142,7 @@ dateTime 'Дата/время' = DATA DATETIME (SupermagLog);
 userLogin 'Логин пользователя' = DATA STRING[100] (SupermagLog) CHARWIDTH 15; 
 nameContact 'Имя пользователя' =  DATA STRING[100] (SupermagLog) IN id CHARWIDTH 15;
 stockDocumentLedger 'Документ' = DATA StockDocumentLedger (SupermagLog);
+action 'Действие' = DATA STRING[20] (SupermagLog);
 dateTimeAnswer 'Дата/время ответа' = DATA DATETIME (SupermagLog);
 errorAnswerFile 'Ошибка файла' = DATA BOOLEAN (SupermagLog);
 errorAnswer 'Ошибка обработки' = DATA BOOLEAN (SupermagLog);
