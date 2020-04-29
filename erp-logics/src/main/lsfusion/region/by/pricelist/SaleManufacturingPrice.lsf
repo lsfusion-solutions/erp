@@ -17,20 +17,25 @@ manufacturingPrice[Order.OrderDetail](OrderDetail d) += manufacturingPrice(d);
 includeVAT(UserOrderDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
 
-manufacturingPrice (UserOrderDetail detail)  <- round2(IF batch(detail)
+WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail)))
+            AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
+    manufacturingPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                      batch(detail),
+                                                      supplierStock(detail),
+                                                      dateTime(detail)));
+}
 
-                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                               batch(detail),
-                                                                                               supplierStock(detail),
-                                                                                               dateTime(detail))
-                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                             sku(detail),
-                                                                                             supplierStock(detail),
-                                                                                             dateTime(detail)))
-                                                WHEN DO CHANGED(sku(detail)) OR
-                                                     CHANGED(supplierStock(detail)) OR
-                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                                                     CHANGED(batch(detail));
+WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail)) OR CHANGED(sku(detail)))
+            AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
+    manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                     sku(detail),
+                                                     supplierStock(detail),
+                                                     dateTime(detail)));
+}
 
 wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (OrderDetail detail) = NUMERIC[17,5](round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0)));
 wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserOrderDetail detail) = round2([ ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0 ));
@@ -86,24 +91,29 @@ updateManufacturingPrice 'Изменить цену изготовителя' = 
 updateManufacturingPrice = updateManufacturingPrice(userInvoice(UserInvoiceDetail d));
 
 disableUpdateManufacturingPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
-              ((CHANGED(supplierStock(detail)) OR
-                CHANGED(dateTime(detail))) AND NOT isPosted(detail)) OR
-              CHANGED(batch(detail)) OR
-              CHANGED(updateManufacturingPrice(detail))) AND NOT CHANGED(manufacturingPrice (detail)) AND NOT disableUpdateManufacturingPrice(detail) DO 
-    manufacturingPrice (detail)  <-
-                                            IF updateManufacturingPrice(detail) THEN
-                                                price(detail)
-                                            ELSE
-                                                round2(IF batch(detail) THEN 
-                                                            prevPriceB[LedgerPriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                              batch(detail),
-                                                                                              supplierStock(detail),
-                                                                                              dateTime(detail))
-                                                            ELSE prevPriceB[LedgerPriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                              sku(detail),
-                                                                                              supplierStock(detail),
-                                                                                              dateTime(detail)));
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail)) OR DROPPED(updateManufacturingPrice(detail)))
+            AND NOT updateManufacturingPrice(detail) AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                     batch(detail),
+                                                     supplierStock(detail),
+                                                     dateTime(detail)));
+}
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail)) OR DROPPED(updateManufacturingPrice(detail)) OR CHANGED(sku(detail)))
+            AND NOT updateManufacturingPrice(detail) AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                     sku(detail),
+                                                     supplierStock(detail),
+                                                     dateTime(detail)));
+}
+
+WHEN LOCAL SETCHANGED(updateManufacturingPrice(UserInvoiceDetail detail)) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail) <- price(detail);
+}
                                                                                           
 @defineOperationProperty(updateManufacturingPrice, 'Изменять цену изготовителя', showContainer);
 @deriveDocumentOperationProperty(UserInvoice, updateManufacturingPrice);

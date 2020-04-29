@@ -15,24 +15,30 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
-disableUpdateManufacturingPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
-WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR
-            CHANGED(supplierStock(detail)) OR
-            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-            CHANGED(batch(detail)) OR
-            CHANGED(invoiceDetail(detail))) AND NOT disableUpdateManufacturingPrice(detail) DO {
+disableUpdateManufacturingPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 
-    manufacturingPrice (detail)  <- round2(IF invoiceDetail(detail) THEN manufacturingPrice(invoiceDetail(detail)) ELSE 
-                                                (IF batch(detail)
-    
-                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                                   batch(detail),
-                                                                                                   supplierStock(detail),
-                                                                                                   dateTime(detail))
-                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                                                                                                 sku(detail),
-                                                                                                 supplierStock(detail),
-                                                                                                 dateTime(detail))));
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            CHANGED(batch(detail)) OR DROPPED(invoiceDetail(detail)))
+            AND NOT invoiceDetail(detail) AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                      batch(detail),
+                                                      supplierStock(detail),
+                                                      dateTime(detail)));
+}
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+            DROPPED(batch(detail)) OR DROPPED(invoiceDetail(detail)) OR CHANGED(sku(detail)))
+            AND NOT invoiceDetail(detail) AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                     sku(detail),
+                                                     supplierStock(detail),
+                                                     dateTime(detail)));
+}
+
+WHEN LOCAL SETCHANGED(invoiceDetail(UserInvoiceDetail detail)) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
+    manufacturingPrice (detail) <- round2(manufacturingPrice(invoiceDetail(detail)));
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
