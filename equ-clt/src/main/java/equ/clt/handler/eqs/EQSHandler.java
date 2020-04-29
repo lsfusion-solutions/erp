@@ -13,9 +13,7 @@ import lsfusion.base.BaseUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.*;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -611,11 +609,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                        Calendar cal = Calendar.getInstance();
-                        cal.setTime(localDateToSqlDate(entry.dateTo));
-                        cal.add(Calendar.DATE, 1);
-                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
-                        String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                        String dateTo = entry.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         machineryExchangeLogger.info(String.format(logPrefix + "RequestSalesInfo: from %s to %s", dateFrom, entry.dateTo));
 
                         statement = conn.createStatement();
