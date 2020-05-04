@@ -37,3 +37,11 @@ WHEN LOCAL FORMS userInvoice, invoices (CHANGED(quantity(UserInvoiceDetail d)) O
     VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));
     sum(d) <- invoiceSum(d) (-) VATSum(d); 
 }
+
+storeSale(UserInvoiceDetail d) = (VAT(userInvoice(d)) OR useReverseVAT(operation(d))) AND includeVAT(priceListType(d));
+
+WHEN LOCAL FORMS userInvoice, invoices GOAFTER price[UserInvoiceDetail], valueVAT[UserInvoiceDetail] DROPPED(storeSale(UserInvoiceDetail d)) AND d IS UserInvoiceDetail DO {
+    sum(d) <- calcSum(d);
+    VATSum(d) <- OVERRIDE overCalcVATSum(d), round((sum(d) * calcValueVAT (d) / 100), currency(d));
+    invoiceSum(d) <- OVERRIDE overCalcInvoiceSum(d), (sum(d) (+) VATSum(d)); 
+}
