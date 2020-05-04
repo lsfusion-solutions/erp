@@ -888,9 +888,6 @@ DESIGN userContractSku { params {
 
 userContractSku = GROUP MAX UserContractSku c BY supplier(c), customer(c);
 
-paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
-    AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
-
 regExp = '.*((3[01]|[12][0-9]|0[1-9])\\.(1[012]|0[1-9])\\.((?:19|20)\\d\{2\})).*';
 dateFromString = FORMULA NULL STRING PG 'SELECT (regexp_match($1, $2))[1]';
 
@@ -1866,7 +1863,9 @@ overImportPurchaseOrder ABSTRACT LIST ();
 
 importPurchaseOrder 'Импорт заказов (закупка)' () {
     
-    LOCAL id = ISTRING[50] (INTEGER);
+    LOCAL docNumber = ISTRING[50] (INTEGER);
+    LOCAL idDoc = ISTRING[50] (INTEGER);
+    LOCAL docType = ISTRING[50] (INTEGER);
     LOCAL docstate = INTEGER (INTEGER);
     LOCAL idSupplier = INTEGER (INTEGER);
     LOCAL idStock = INTEGER (INTEGER);
@@ -1884,16 +1883,18 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         filterSql() <- 'd.id = \'' + numberOrder() + '\''; 
            
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-    EXEC 'Select d.ID, d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO file;   
+    EXEC 'Select d.ID, d.DocType, d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO file;   
    
-    IMPORT TABLE FROM file() TO id, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
+    IMPORT TABLE FROM file() TO docNumber, docType, docstate, idSupplier, idStock, comment, date, supplyDate, supplyTimeMin, supplyTimeTillMin;
     
-    FOR [GROUP SUM 1 BY id(INTEGER i)](STRING[50] id) AND NOT Purchase.userOrder(id) DO NEW o = Purchase.UserOrder {
-        id(o) <- id;
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW o = Purchase.UserOrder {
+        id(o) <- newId;
     }
     
-    FOR Purchase.UserOrder o == Purchase.userOrder(id(INTEGER i)) DO {       
-        number[Document](o) <- STRING[28](id(i));
+    FOR Purchase.UserOrder o == Purchase.userOrder(idDoc(INTEGER i)) DO {       
+        number[Document](o) <- STRING[28](docNumber(i));
         operation(o) <- Purchase.operation('purchaseStoreSupplier');
         isPosted(o) <- docstate(i) == 2 OR docstate(i) == 3;
         isRejected(o) <- docstate(i) == 0;
@@ -1910,8 +1911,6 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     }  
     
     //импорт спецификаций
-    LOCAL type = ISTRING[2](INTEGER);
-    LOCAL idDoc = ISTRING[50](INTEGER);
     LOCAL specItem = INTEGER (INTEGER);
     LOCAL price = NUMERIC[19,4](INTEGER);
     LOCAL totalPrice = NUMERIC[19,4](INTEGER);
@@ -1922,16 +1921,18 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
             EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO file;
     
-    IMPORT TABLE FROM file() TO type, idDoc, specItem, idItem, quantity, price, totalPrice;
+    IMPORT TABLE FROM file() TO docType, docNumber, specItem, idItem, quantity, price, totalPrice;
     
-    id(INTEGER i) <- CONCAT '', 'O', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+//    docNumber(INTEGER i) <- CONCAT '', 'O', type(i), idDoc(i), specItem(i) WHERE imported(i); 
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
 
-    FOR Purchase.userOrder(idDoc(INTEGER i)) AND NOT Purchase.userOrderDetail(id(i)) DO NEW d = Purchase.UserOrderDetail {
-        id(d) <- id(i);
+    FOR Purchase.userOrder(idDoc(INTEGER i)) AND NOT Purchase.userOrderDetail(idDet(i)) DO NEW d = Purchase.UserOrderDetail {
+        id(d) <- idDet(i);
         userOrder(d) <- Purchase.userOrder(idDoc(i));
     }
     
-    FOR Purchase.UserOrderDetail d = Purchase.userOrderDetail(id(INTEGER i)) DO {
+    FOR Purchase.UserOrderDetail d = Purchase.userOrderDetail(idDet(INTEGER i)) DO {
         sku(d) <- item(idItem(i));
         quantity(d) <- quantity(i);
         price (d) <- NUMERIC[16,4](price(i));
@@ -1941,9 +1942,9 @@ importPurchaseOrder 'Импорт заказов (закупка)' () {
         imported(d) <- TRUE;
     }
 
-    VAT(Purchase.UserOrderDetail d) <- VAT(Purchase.sku[Purchase.UserOrderDetail](d), country(supplierStock(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);
-    valueVAT(Purchase.UserOrderDetail d) <- valueRate(VAT(d), date(d)) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);
-    price (Purchase.UserOrderDetail d) <- round2(invoicePrice(d) * 100/(100 + calcValueVAT(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(id(INTEGER i))](d);         
+    VAT(Purchase.UserOrderDetail d) <- VAT(Purchase.sku[Purchase.UserOrderDetail](d), country(supplierStock(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(idDet(INTEGER i))](d);
+    valueVAT(Purchase.UserOrderDetail d) <- valueRate(VAT(d), date(d)) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(idDet(INTEGER i))](d);
+    price (Purchase.UserOrderDetail d) <- round2(invoicePrice(d) * 100/(100 + calcValueVAT(d))) WHERE [GROUP SUM 1 BY Purchase.userOrderDetail(idDet(INTEGER i))](d);         
 
     overImportPurchaseOrder();
     
