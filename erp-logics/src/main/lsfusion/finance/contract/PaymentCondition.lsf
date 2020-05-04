@@ -82,9 +82,6 @@ sumPercent(paymentCondition) = GROUP SUM percent(PaymentPeriod paymentPeriod) BY
 CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 CHECKED BY sumPercent[PaymentCondition]
     MESSAGE 'Сумма процентов рассрочки должна быть равна 100';
 
-paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
-    AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
-
 showPaymentPeriod = ABSTRACT VALUE BOOLEAN (PaymentCondition);
 showPaymentPeriod (PaymentCondition pc) += type(pc) == AgreementPaymentType.prepayment OR type(pc) == AgreementPaymentType.advancePayment;
 FORM paymentCondition 'Условие оплаты'
