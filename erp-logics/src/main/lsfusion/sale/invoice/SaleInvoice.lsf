@@ -270,16 +270,3 @@ CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(series(i))) AND isSeriesInvo
         MESSAGE 'Для накладной должна быть задана серия';
 
 @defineMergeDocumentDetails(invoice, userInvoice, i);
-select = DATA LOCAL NUMERIC[18,5] ( Sale.UserInvoiceDetail);
-FORM test
-
-OBJECTS d = Sale.UserInvoiceDetail
-PROPERTIES (d) READONLY date, time, series, number, index, nameSku, idSku, nameSupplierStock, nameCustomerStock, price, sum, calcSum, select
-
-FILTERS select(d)
-;
-run(){
-select ( Sale.UserInvoiceDetail d) <- NULL;
-select ( Sale.UserInvoiceDetail d) <- (sum(d) (-) calcSum(d)) WHERE date(d)>=2020_01_01 AND  isPosted(d) AND id(operation(d))=='by_default_sale_invoice_internal' AND (sum(d) (-) calcSum(d)); 
-SHOW test DOCKED;
-}
