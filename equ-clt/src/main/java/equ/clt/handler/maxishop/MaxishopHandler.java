@@ -16,16 +16,15 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Time;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 import static equ.clt.handler.HandlerUtils.safeSubtract;
 
@@ -136,7 +135,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
     }
 
     @Override
-    public MaxishopSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public MaxishopSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
         Map<Integer, CashRegisterInfo> cashRegisterMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
             if (cashRegister.directory != null) {
@@ -169,7 +168,7 @@ public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBat
                                     if ("P".equals(postType)) {
                                         String zReportNumber = new String(importFile.getField("JFZNO").getBytes(), "Cp1251").trim();
                                         Integer receiptNumber = new Integer(new String(importFile.getField("JFCHECKNO").getBytes(), "Cp1251").trim());
-                                        LocalDate date = sqlDateToLocalDate(new java.sql.Date(new SimpleDateFormat("yyyymmdd").parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim()).getTime()));
+                                        LocalDate date = LocalDate.parse(new String(importFile.getField("JFDATE").getBytes(), "Cp1251").trim(), DateTimeFormatter.ofPattern("yyyyMMdd"));
                                         String timeString = new String(importFile.getField("JFTIME").getBytes(), "Cp1251").trim();
                                         LocalTime time = sqlTimeToLocalTime(Time.valueOf(timeString.substring(0, 2) + ":" + timeString.substring(2, 4) + ":" + timeString.substring(4, 6)));
                                         BigDecimal sumCash = new BigDecimal(new String(importFile.getField("JFTOTSUM").getBytes(), "Cp1251").trim());
