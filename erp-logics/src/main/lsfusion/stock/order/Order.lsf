@@ -394,6 +394,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
     
     backgroundQuantity 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
+    backgroundPrice 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
     backgroundName 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
     
     backgroundCustomer 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrder);
@@ -403,6 +404,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     editSku 'Редактировать SKU' (UserOrderDetail d)  { NEWSESSION { edit(sku(d)); } }
     
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
+    backgroundPriceParam = OVERRIDE backgroundPrice(OrderDetail d), backgroundParam(d);; 
     backgroundQuantityParam = OVERRIDE backgroundQuantity(OrderDetail d), backgroundParam(d);
     disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
     overPrePost 'Провести' (UserOrder o)  { 
@@ -430,7 +432,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundSku(d) idBarcodeSku, 
                        idSku, nameSku BACKGROUND backgroundName(d), shortNameUOMSku
         PROPERTIES (d) quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSku(d),
-                       price ON CHANGE changePrice(d) BACKGROUND backgroundParam(d), sum BACKGROUND backgroundSku(d),
+                       price ON CHANGE changePrice(d) BACKGROUND backgroundPriceParam(d), sum BACKGROUND backgroundSku(d),
                        numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundSku(d),
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d),
                        invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d),
@@ -722,8 +724,8 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         OBJECTS d=OrderDetail
         PROPERTIES (d) READONLY index BACKGROUND backgroundSkuDetail(d), idBarcodeSku BACKGROUND backgroundSkuDetail(d), 
                        idSku BACKGROUND backgroundSkuDetail(d), nameSku, shortNameUOMSku BACKGROUND backgroundSkuDetail(d)
-        PROPERTIES (d) READONLY quantity BACKGROUND backgroundParam(d), namePriceListType BACKGROUND backgroundSkuDetail(d), 
-                       price BACKGROUND backgroundParam(d), sum BACKGROUND backgroundSkuDetail(d),
+        PROPERTIES (d) READONLY quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSkuDetail(d), 
+                       price BACKGROUND backgroundPriceParam(d), sum BACKGROUND backgroundSkuDetail(d),
                        numberVAT BACKGROUND backgroundSkuDetail(d), valueVAT BACKGROUND backgroundSkuDetail(d), 
                        VATSum BACKGROUND backgroundSkuDetail(d), invoiceSum BACKGROUND backgroundSkuDetail(d),
                        name###stockProp##Stock, shipmentDate BACKGROUND backgroundSkuDetail(d), shipmentTime BACKGROUND backgroundSkuDetail(d)
