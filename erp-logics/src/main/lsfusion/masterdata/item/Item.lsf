@@ -1976,10 +1976,19 @@ TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);
 
 assignCustomGroupItems 'Назначить всем товарам группы' (ItemGroup group)  { 
 	NEWSESSION {
-	    customGroup(CustomGroupType t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);
+	    FOR CustomGroupType t IS CustomGroupType  DO {
+            IF customGroup(t, group) 
+                THEN customGroup(t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);
+                ELSE {
+                    ASK 'Для типа классификатора '+ name(t)+ ' не задана группа. Очистить значение этого классификатора для всех товаров группы?' DO {
+                                        customGroup(t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);    
+                                    }    
+                }        
+	    }
 	    apply();
 	}
 } TOOLBAR CONFIRM;
+
 assignCustomGroupItems 'Назначить всем товарам группы' (ItemGroup group, CustomGroupType t)  { 
 	NEWSESSION {
         customGroup(t, Item i) <- customGroup(t, itemGroup(i)) WHERE isParent(group, i);
