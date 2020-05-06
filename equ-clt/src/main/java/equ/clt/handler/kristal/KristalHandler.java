@@ -24,10 +24,9 @@ import java.math.RoundingMode;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
 import java.sql.Date;
+import java.sql.*;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -331,11 +330,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 machineryExchangeLogger.info("Kristal: creating request files for directory : " + directory);
 
                 String dateFrom = entry.dateFrom.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(localDateToSqlDate(entry.dateTo));
-                cal.add(Calendar.DATE, 1);
-                String dateTo = new SimpleDateFormat("yyyyMMdd").format(cal.getTime());
+                String dateTo = entry.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
                 String exchangeDirectory = directory + (exportPrefixPath == null ? "/Export" : exportPrefixPath) + "/request/";
 
@@ -712,9 +707,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     Statement statement = conn.createStatement();
                     String queryString = "SELECT Ck_Number, Ck_Date, Ck_Summa, CashNumber, Ck_NSmena FROM OperGangMoney WHERE Taken='1'";
                     if (lastDaysCashDocument != null) {
-                        Calendar c = Calendar.getInstance();
-                        c.add(Calendar.DATE, -lastDaysCashDocument);
-                        queryString += " AND Ck_Date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
+                        queryString += " AND Ck_Date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
                     while (rs.next()) {
