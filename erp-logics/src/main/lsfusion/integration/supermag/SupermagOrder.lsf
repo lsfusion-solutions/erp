@@ -1,0 +1,262 @@
+MODULE SupermagOrder;
+
+REQUIRE SupermagSettings, SupermagFormMeta, PurchaseOrder, PurchaseOrderStatus, SaleOrder, SaleOrderStatus;
+
+@settingIntegration(Purchase.UserOrder, Purchase.UserOrderDetail);
+EXTEND FORM Purchase.orders PROPERTIES lastStatusSupermag(o);
+
+//-----------------------------------------------------------------------------------------------------------заказы закупка
+daysSupplierOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
+dateFromSupplierOrder () = sum(currentDate(), -daysSupplierOrder());
+numberSupplierOrder 'Номер заказа' = DATA STRING[20] ();
+
+overImportPurchaseOrder ABSTRACT LIST ();
+
+importSupplierOrder 'Импорт заказов (закупка)' () {
+    
+    LOCAL supplyDate = DATETIME (INTEGER);
+    LOCAL supplyTimeMin = INTEGER (INTEGER);
+    LOCAL supplyTimeTillMin = INTEGER (INTEGER);
+    
+    imported(Purchase.UserOrder doc)  <- NULL IF doc IS Purchase.UserOrder;
+    imported(Purchase.UserOrderDetail det)  <- NULL IF det IS Purchase.UserOrderDetail;
+    
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') AND dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromSupplierOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberOrder()) > 0 THEN filterSql() <- 'd.id = \'' + numberSupplierOrder() + '\''; 
+           
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
+    EXEC 'Select d.ID, d.DocType, d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO SupermagSettings.file;   
+   
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docState, clientIndex, location, comment, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin;
+       
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+                                                STRING(clientIndex(i)), STRING(location(i)),  STRING(supplyDate(i)), STRING(supplyTimeMin(i)), STRING(supplyTimeTillMin(i))) IF idDoc(i);                 
+       
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW doc = Purchase.UserOrder {
+        id(doc) <- newId;
+    }
+    
+    FOR Purchase.UserOrder doc == Purchase.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        operation(doc) <- Purchase.operation('purchaseStoreSupplier');
+        isPosted(doc) <- docState(i) == 3;
+        isRejected(doc) <- docState(i) == 0;
+        lastStatusSupermag(doc) <- docState(i);
+        supplier(doc) <- legalEntity(ISTRING[100] (clientIndex(i)));
+        supplierStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
+        customerStock(doc) <- stock(ISTRING[100] (location(i)));
+        customer(doc) <- legalEntity(stock(ISTRING[100] (location(i))));
+        date(doc) <- DATE (docDate(i));
+        time(doc) <- 00:00;
+        shipmentDate(doc) <- DATE (supplyDate(i));
+        shipmentTime(doc) <- sumMinutes(00:00, supplyTimeMin(i));
+        imported(doc) <- TRUE;
+        lastVersion(doc) <- currentVersion(i);
+    }  
+    
+    //импорт спецификаций
+    LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
+            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO docType, docNumber, specItem, idItem, quantity, itemPrice, totalPrice;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), STRING(itemPrice(i)), STRING(totalPrice(i)) ) IF idDet(i);                  
+
+    FOR NOT Purchase.userOrderDetail(idDet(INTEGER i)) AND Purchase.userOrder(idDoc(i)) DO NEW d = Purchase.UserOrderDetail {
+        id(d) <- idDet(i);
+        userOrder(d) <- Purchase.userOrder(idDoc(i));
+    }
+    
+    FOR Purchase.UserOrderDetail det = Purchase.userOrderDetail(idDet(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+        price (det) <- NUMERIC[16,4](itemPrice(i));
+        invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
+        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));        
+        dataIndex(det) <- specItem(i);
+        imported(det) <- TRUE;
+        lastVersion(det) <- currentVersion(i);
+    }
+
+    VAT(Purchase.UserOrderDetail det) <- VAT(Purchase.sku[Purchase.UserOrderDetail](det), country(supplierStock(det))) WHERE imported(det);
+    valueVAT(Purchase.UserOrderDetail det) <- valueRate(VAT(det), date(det)) WHERE imported(det);
+    price (Purchase.UserOrderDetail det) <- round2(invoicePrice(det) * 100/(100 + calcValueVAT(det))) WHERE imported(det);         
+
+    overImportPurchaseOrder();
+    
+    APPLY;       
+}
+
+EXTEND FORM integrationData PROPERTIES importSupplierOrder(), daysSupplierOrder(), numberSupplierOrder();
+
+//------------------------------------------------------------------------------------заказы складские требования
+daysInternalOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
+dateFromInternalOrder () = sum(currentDate(), -daysInternalOrder());
+numberInternalOrder 'Номер заказа' = DATA STRING[20] ();
+
+importInternalOrder 'Импорт заказов (складских требования)' () {
+    
+    LOCAL deliveryDate = DATETIME (INTEGER);
+    LOCAL deliveryTime = INTEGER (INTEGER);
+    
+    imported(Purchase.UserOrder doc)  <- NULL IF doc IS Purchase.UserOrder;
+    imported(Purchase.UserOrderDetail det)  <- NULL IF det IS Purchase.UserOrderDetail;
+    
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND (d.location IN ('+ stocks() + ') OR dd.location IN ('+ stocks() + ') ) AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromInternalOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberInternalOrder()) > 0 THEN filterSql() <- 'd.id = \'' + numberInternalOrder() + '\''; 
+                   
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+    EXEC 'Select D.ID, D.DOCTYPE, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docState, docDate, locationTo, comment, deliveryDate, deliveryTime, locationFrom;   
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+                                                STRING(locationTo(i)), STRING(locationFrom(i)),  STRING(deliveryDate(i)), STRING(deliveryTime(i))) IF idDoc(i);                 
+    
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW doc = Purchase.UserOrder {
+        id(doc) <- newId;
+    }
+    
+    FOR Purchase.UserOrder doc == Purchase.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
+        number(doc) <- STRING[28](docNumber(i));
+        isPosted(doc) <- docState(i) == 3;
+        isRejected(doc) <- docState(i) == 0;     
+        lastStatusSupermag(doc) <- docState(i);
+        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
+        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
+        customer(doc) <- legalEntity(stock(ISTRING[100] (locationTo(i))));
+        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- 00:00;
+        shipmentDate(doc) <- DATE (deliveryDate(i));
+        shipmentTime(doc) <- sumMinutes(00:00, deliveryTime(i));
+        imported(doc) <- TRUE;
+        lastVersion(doc) <- currentVersion(i);
+    }  
+
+    FOR imported(Purchase.UserOrder doc) DO {       
+       operation(doc) <- CASE 
+            WHEN     id(stockGroup(customerStock(doc))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(doc))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseWarehouseWarehouse')
+            WHEN     id(stockGroup(customerStock(doc))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(doc))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseWarehouseStore')
+            WHEN NOT id(stockGroup(customerStock(doc))) = STRING (idGroupWarehouseInSuperMag()) AND     id(stockGroup(supplierStock(doc))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseStoreWarehouse')
+            WHEN NOT id(stockGroup(customerStock(doc))) = STRING (idGroupWarehouseInSuperMag()) AND NOT id(stockGroup(supplierStock(doc))) = STRING (idGroupWarehouseInSuperMag()) THEN Purchase.operation('purchaseStoreStore')
+            ELSE Purchase.operation('purchaseStoreStore');
+    } 
+    
+    //импорт спецификаций
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+            EXEC 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO docType, docNumber, specItem, idItem, quantity, itemPrice, totalPrice;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), STRING(itemPrice(i)), STRING(totalPrice(i)) ) IF idDet(i);                  
+
+    FOR NOT Purchase.userOrderDetail(idDet(INTEGER i)) AND Purchase.userOrder(idDoc(i)) DO NEW det = Purchase.UserOrderDetail {
+        id(det) <- idDet(i);
+        userOrder(det) <- Purchase.userOrder(idDoc(i));
+    }
+    
+    FOR Purchase.UserOrderDetail det = Purchase.userOrderDetail(idDoc(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+        price(det) <- NUMERIC[16,4](itemPrice(i));
+        sum(det) <- NUMERIC[16,4](totalPrice(i));
+        dataIndex(det) <- specItem(i);
+        imported(det) <- TRUE;
+        lastVersion(det) <- currentVersion(i);
+    }
+    
+    APPLY;           
+}
+
+EXTEND FORM integrationData PROPERTIES importInternalOrder(), daysInternalOrder(), numberInternalOrder();
+
+//-----------------------------------------------------------------------------------------------------------------------------заказы продажа
+@settingIntegration(Sale.UserOrder, Sale.UserOrderDetail);
+EXTEND FORM Sale.orders PROPERTIES lastStatusSupermag(o);
+
+daysCustomerOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
+dateFromCustomerOrder () = sum(currentDate(), -daysCustomerOrder());
+numberCustomerOrder 'Номер заказа' = DATA STRING[20] ();
+
+importCustomerOrder 'Импорт заказов (продажа)' () {
+    
+    LOCAL supplyDate = DATETIME (INTEGER);
+    LOCAL supplyTime = INTEGER (INTEGER);
+
+    imported(Sale.UserOrder doc)  <- NULL IF doc IS Sale.UserOrder;
+    imported(Sale.UserOrderDetail det)  <- NULL IF det IS Sale.UserOrderDetail;
+
+    filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocks() + ') and dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromCustomerOrder()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberCustomerOrder()) > 0 THEN filterSql() <- 'd.id = \'' + numberCustomerOrder() + '\''; 
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
+    EXEC 'Select D.ID, D.DOCTYPE, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docState, clientIndex, location, comment, docDate, supplyDate, supplyTime;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+                                                STRING(clientIndex(i)), STRING(location(i)),  STRING(supplyDate(i)), STRING(supplyTime(i)) ) IF idDoc(i);                 
+
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Sale.userOrder(newId) DO NEW doc = Sale.UserOrder {
+        id(doc) <- newId;
+    }
+
+    FOR Sale.UserOrder doc == Sale.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
+        number(doc) <- STRING[28](docNumber(i));
+        operation(doc) <- Sale.operation('saleStoreCustomer');
+        isPosted(doc) <- docState(i) == 3;
+        isConfirmed(doc) <- docState(i) == 3;
+        lastStatusSupermag(doc) <- docState(i);
+        supplier(doc) <- legalEntity(stock(ISTRING[100] (location(i))));
+        supplierStock(doc) <- stock(ISTRING[100] (location(i)));
+        customer(doc) <- legalEntity(stock(ISTRING[100] (clientIndex(i))));
+        customerStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- 00:00;
+        shipmentDate(doc) <- DATE(supplyDate(i));
+        shipmentTime(doc) <- sumMinutes(00:00, supplyTime(i));
+        imported(doc) <- TRUE ;
+        lastVersion(doc) <- currentVersion(i);
+    }  
+
+    //импорт спецификаций
+
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+            EXEC 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, quantity, itemPrice, totalPrice;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), STRING(itemPrice(i)), STRING(totalPrice(i)) ) IF idDet(i);                  
+
+    FOR NOT Sale.userOrderDetail(idDet(INTEGER i)) AND Sale.userOrder(idDoc(i)) DO NEW det = Sale.UserOrderDetail {
+        id(det) <- idDet(i);
+        userOrder(det) <- Sale.userOrder(idDoc(i));
+    }
+
+    FOR Sale.UserOrderDetail det = Sale.userOrderDetail(id(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+        price(det) <- NUMERIC[16,4](itemPrice(i));
+        sum(det) <- NUMERIC[16,4](totalPrice(i));
+        dataIndex(det) <- specItem(i);
+        imported(det) <- TRUE;
+        lastVersion(det) <- currentVersion(i);
+    }
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importCustomerOrder(), daysCustomerOrder(), numberCustomerOrder();

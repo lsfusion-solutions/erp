@@ -1,4 +1,4 @@
-MODULE SupermagIntegration;
+MODULE SupermagSettings;
 
 REQUIRE StockDocument, LogTools, Store, PaymentCondition;
 
@@ -31,6 +31,7 @@ password 'Пароль' = DATA ISTRING[100]();
 exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[500] ();
 importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[500] ();
 baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[100] ();
+idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
 
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag();
 
@@ -243,6 +244,49 @@ NAVIGATOR {
 paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
     AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
 
+
+id = DATA LOCAL ISTRING[50] (INTEGER);
+idDoc = DATA LOCAL ISTRING[50] (INTEGER);
+idDet = DATA LOCAL ISTRING[50] (INTEGER);
+docType = DATA LOCAL ISTRING[100] (INTEGER);
+docNumber = DATA LOCAL ISTRING[50] (INTEGER);
+operCode = DATA LOCAL INTEGER (INTEGER);
+userOp = DATA LOCAL INTEGER (INTEGER);
+bornIn = DATA LOCAL STRING[100] (INTEGER);
+docDate = DATA LOCAL DATETIME (INTEGER);
+dateFrom  = DATA LOCAL DATETIME (INTEGER);
+dateTo  = DATA LOCAL DATETIME (INTEGER);
+docState = DATA LOCAL INTEGER (INTEGER);
+clientIndex = DATA LOCAL INTEGER (INTEGER);
+locationTo = DATA LOCAL INTEGER (INTEGER);
+locationFrom = DATA LOCAL INTEGER (INTEGER);
+location = DATA LOCAL INTEGER (INTEGER);
+paymentDelay = DATA LOCAL INTEGER (INTEGER);
+isCalendarDelay = DATA LOCAL ISTRING[1] (INTEGER);
+isBankDays = DATA LOCAL INTEGER (INTEGER);
+comment = DATA LOCAL ISTRING[255] (INTEGER);
+suppldocSum = DATA LOCAL NUMERIC[16,4] (INTEGER);
+currentVersion = DATA LOCAL STRING (INTEGER);
+codeOperation = DATA LOCAL STRING (INTEGER);
+idBase = DATA LOCAL STRING (INTEGER);
+baseNumber = DATA LOCAL STRING[50] (INTEGER);
+baseDoctype = DATA LOCAL STRING (INTEGER);
+
+specItem = DATA LOCAL INTEGER (INTEGER);
+itemPrice = DATA LOCAL NUMERIC[19,4](INTEGER);
+itemPriceNoTax = DATA LOCAL NUMERIC[19,4](INTEGER);
+totalPrice = DATA LOCAL NUMERIC[19,4](INTEGER);
+totalPriceNoTax = DATA LOCAL NUMERIC[19,4](INTEGER);
+taxSum = DATA LOCAL NUMERIC[18,4](INTEGER);
+taxRate = DATA LOCAL NUMERIC[10,5](INTEGER);
+quantity = DATA LOCAL NUMERIC[14,3](INTEGER);
+idItem = DATA LOCAL ISTRING[50](INTEGER);
+priceManufacturer = DATA LOCAL NUMERIC[16,4] (INTEGER);
+retailPrice = DATA LOCAL NUMERIC[16,4] (INTEGER); 
+
+filterSql = DATA LOCAL TEXT ();
+file = DATA LOCAL FILE ();
+
 GROUP POSTOBJECT;
 GROUP TOTALPACKAGE;
 
@@ -343,7 +387,7 @@ checkDocStatusSupermag 'Контроль статусов документов �
     LOCAL filterSql = TEXT ();
     LOCAL file = FILE ();           
               
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagIntegration.login() + '/' + SupermagIntegration.password() + '@//'+ SupermagIntegration.host() + '/' + SupermagIntegration.base() 
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
     EXEC 'SELECT d.ID, d.DOCTYPE, d.OPCODE, d.USEROP, d.DOCSTATE, d.LOCATIONFROM FROM Supermag.SMDocuments d WHERE d.CREATEDAT >= TO_DATE(\'' + toDateISO(dateFromStatus()) + '\',\'YYYY-MM-DD\')' TO file;
     
     IMPORT TABLE FROM file() TO docStatusId, docStatusType, docStatusOpcode, docStatusUserop, docStatusState, docLocationFrom;
