@@ -1,7 +1,10 @@
 package equ.clt.handler.atol;
 
 import com.google.common.base.Throwables;
-import equ.api.*;
+import equ.api.ItemGroup;
+import equ.api.RequestExchange;
+import equ.api.SalesInfo;
+import equ.api.SendTransactionBatch;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
@@ -15,7 +18,6 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;

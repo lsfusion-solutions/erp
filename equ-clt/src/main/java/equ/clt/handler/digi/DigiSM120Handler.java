@@ -3,16 +3,14 @@ package equ.clt.handler.digi;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
-import equ.clt.EquipmentServer;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
 
@@ -123,7 +121,7 @@ public class DigiSM120Handler extends DigiHandler {
             String barcodeTypeOfEANData = "0"; //0: EAN 9: ITF
             String rightSideDataOfEANData = "1"; //0: Price 1: Weight 2: QTY 3: Original price 4: Weight/QTY 5: U.P. 6: U.P. after discount
 
-            Integer daysExpiry = item.expiryDate != null ? getDifferenceDaysFromToday(EquipmentServer.localDateToSqlDate(item.expiryDate)) : item.daysExpiry != null ? item.daysExpiry : 0;
+            Integer daysExpiry = item.expiryDate != null ? getDifferenceDaysFromToday(item.expiryDate) : item.daysExpiry != null ? item.daysExpiry : 0;
             Integer cellByDate = 0;//daysExpiry * 24; //days * 24
             String cellByTime = fillLeadingZeroes(item.hoursExpiry == null ? 0 : item.hoursExpiry, 2) + "00";//HHmm //не отображается
 
@@ -247,14 +245,8 @@ public class DigiSM120Handler extends DigiHandler {
             return "\"" + line.replace("\"", "\"\"") + "\"";
         }
 
-        private int getDifferenceDaysFromToday(Date date) {
-            Calendar cal = Calendar.getInstance();
-            cal.set(Calendar.HOUR, 0);
-            cal.set(Calendar.MINUTE, 0);
-            cal.set(Calendar.SECOND, 0);
-            cal.set(Calendar.MILLISECOND, 0);
-            long diff = date.getTime() - cal.getTime().getTime();
-            return Math.max(0, (int) TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS));
+        private int getDifferenceDaysFromToday(LocalDate date) {
+            return (int) Math.max(0, Duration.between(date, LocalDate.now()).toDays());
         }
     }
 }
