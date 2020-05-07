@@ -82,6 +82,10 @@ statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
 
 overImportItem ABSTRACT LIST ();
 
+lastVersion = DATA STRING (Item);
+imported = DATA LOCAL BOOLEAN (Item);
+imported = DATA LOCAL BOOLEAN (Barcode);
+
 importItem 'Импорт товаров' () {
     
     LOCAL id = TEXT (INTEGER);
@@ -95,11 +99,8 @@ importItem 'Импорт товаров' () {
     LOCAL width = NUMERIC[14,3] (INTEGER);
     LOCAL length = NUMERIC[14,3] (INTEGER);
     LOCAL height = NUMERIC[14,3] (INTEGER);
-    LOCAL vat = NUMERIC[8,4] (INTEGER);
-    
-    LOCAL imported = BOOLEAN (Item);
-    LOCAL imported = BOOLEAN (Barcode);
-    
+    LOCAL vat = NUMERIC[8,4] (INTEGER);   
+   
     EXTERNAL SQL connectionString()    
         EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3  AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = card.article)' TO SupermagSettings.file;
     
@@ -107,13 +108,15 @@ importItem 'Импорт товаров' () {
     
     IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
     
+    currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i), 
+                                            TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (vat(i));
     logToFile('importSupermag', 'importItem_2');
        
     FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](ISTRING[100] id) DO NEW s = Item {
         id(s) <- id;
     }
    
-    FOR Item s = item(id(INTEGER i)) DO {    
+    FOR Item s = item(id(INTEGER i)) AND NOT lastVersion(s) = currentVersion(i) DO {    
         caption(s) <- STRING[255](replace(name(i), '\t', ' '));
         shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
@@ -132,7 +135,7 @@ importItem 'Импорт товаров' () {
     EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO name, id;
-    
+        
     name(INTEGER i) <- left(name(i), 15);
     //весовой товар 
     name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22' AND length(name(i)) = 7; 
@@ -159,8 +162,8 @@ importItem 'Импорт товаров' () {
     
     logToFile('importSupermag', 'importItem_6');
     
-    inactive(Item i ) <- TRUE WHERE i IS Item AND NOT imported(i);
-    statusInSuperMag(Item i ) <- 2 WHERE i IS Item AND NOT imported(i);
+  //  inactive(Item i ) <- TRUE WHERE i IS Item AND NOT imported(i);
+  //  statusInSuperMag(Item i ) <- 2 WHERE i IS Item AND NOT imported(i);
 //    DELETE Item i WHERE i IS Item AND NOT imported(i);
 //    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
     overImportItem();

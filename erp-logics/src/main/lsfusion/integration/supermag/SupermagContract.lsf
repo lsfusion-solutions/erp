@@ -38,8 +38,6 @@ overImportSupplierPrice ABSTRACT LIST ();
 
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
-    LOCAL id = ISTRING[50] (INTEGER);
-    LOCAL agrId = ISTRING[50] (INTEGER);
     LOCAL idCompany = INTEGER (INTEGER);
     LOCAL title = ISTRING[255] (INTEGER);
     LOCAL contractType = INTEGER (INTEGER);
@@ -90,6 +88,9 @@ importContract 'Импорт из контрактов с поставщикам
         lastVersion(doc) <- currentVersion(i);         
     }
 
+    SupermagPricelist.imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
+    SupermagPricelist.imported(UserPriceListDetail det) <- NULL IF det IS UserPriceListDetail;
+
     // создаем новые ПСЦ
     FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {  id[UserPriceList](doc) <- idDoc(i);  }
     // обновляем ПСЦ
@@ -125,8 +126,6 @@ importContract 'Импорт из контрактов с поставщикам
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
         dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
     }     
-    
-    overImportSupplierPrice();
 
     //загружаем спецификаци    
     LOCAL packSize = NUMERIC[14,3](INTEGER);
@@ -153,6 +152,8 @@ importContract 'Импорт из контрактов с поставщикам
         lastVersion(det) <- currentVersion(i);
     }
 
+    overImportSupplierPrice();
+    
     APPLY;
 }
 

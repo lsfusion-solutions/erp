@@ -95,11 +95,14 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
 
 //---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
+overImportPriceListRetail ABSTRACT LIST ();
+
 importPriceListRetail 'Импорт розничных прайсов' () {
+    imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
+    imported(UserPriceListDetail det) <- NULL IF det IS UserPriceListDetail;
 
     LOCAL reason = INTEGER (INTEGER);
     LOCAL idStore = INTEGER (INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceList);
     LOCAL idPricetype = INTEGER (INTEGER);
     
     filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
@@ -162,20 +165,25 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         dataIndex(det) <- specItem(i);
         lastVersion(det) <- currentVersion(i);
     }
-
+    
+    overImportPriceListRetail();
+    
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES () importPriceListRetail;
 
 //----------------------------------------------маркетинговые (акционные) прайслисты
+overImportPriceListPromotion ABSTRACT LIST ();
+
 importPriceListPromotion 'Импорт акционных прайсов' () {
+    imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
+    imported(UserPriceListDetail det) <- NULL IF det IS UserPriceListDetail;
     
     LOCAL date = DATETIME (INTEGER);
     LOCAL begin = DATETIME (INTEGER);
     LOCAL end = DATETIME (INTEGER);
     LOCAL name = ISTRING[255] (INTEGER);
-    LOCAL imported = BOOLEAN (UserPriceList);  
     
     filterSql() <- 'DATEEND >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ma.DOCSTATE IN (0,2,3)';
       
@@ -209,9 +217,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);
     }
-    
-    LOCAL imported = BOOLEAN (UserPriceListDetail);
-    
+       
     EXTERNAL SQL connectionString() 
             EXEC 'SELECT ma.DOCID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO SupermagSettings.file;
     
@@ -221,7 +227,6 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), 
                                                 STRING(itemPrice(i)) ) IF idDet(i);                  
-
 
     FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(idDet(i)) DO NEW det = UserPriceListDetail {
             id(det) <- idDet(i);
@@ -248,6 +253,8 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         dataIn(doc, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](doc, s);
     }
         
+    overImportPriceListPromotion();
+    
     APPLY;
 }
 
