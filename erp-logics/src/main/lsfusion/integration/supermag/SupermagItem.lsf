@@ -1,0 +1,434 @@
+MODULE SupermagItem;
+
+REQUIRE Item, ItemSize, PurchaseDemandItem, ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize,
+        SupermagSettings;
+
+
+idOrder (ItemGroup g) = GROUP CONCAT TEXT (order(ItemGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
+
+importItemGroup 'Импорт товарных групп' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[250] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACARDCLASS' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, tree, name;
+    
+    IF NOT itemGroup('all') THEN NEW g = ItemGroup {
+        id(g) <- 'all';
+        name(g) <- 'Все';
+    }
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT itemGroup(TEXT (id(i))) DO NEW g = ItemGroup {
+        id(g) <- ISTRING[100] (id(i));
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    LOCAL idOrder = ISTRING[20](ItemGroup);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        idOrder(g) <- tree(i);
+    }
+    FOR level(INTEGER i) AND ItemGroup g = itemGroup(TEXT (id(i))) ORDER level(i) DO {
+        
+        parent(g) <- OVERRIDE (GROUP MAX ItemGroup gg IF idOrder(gg) == parent(i)), itemGroup('all');
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemGroup();
+
+importUOM 'Импорт единиц измерений' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = STRING[50] (INTEGER);
+    LOCAL abb = STRING[100] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, NAME, ABBREV FROM Supermag.SAMEASUREMENT' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name, abb;
+    
+    FOR id(INTEGER i) AND NOT UOM(TEXT (id(i))) DO NEW u = UOM {
+        id(u) <- ISTRING[100] (id(i));
+    }
+    
+    FOR UOM u = UOM(TEXT (id(INTEGER i))) DO {
+        id(u) <- ISTRING[100] (id(i));
+        name(u) <- name(i);
+        shortName(u) <- abb(i);
+        factor(u) <- 1;
+        base(u) <- u;
+    }
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importUOM();
+
+shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
+
+@defineItemAttribute(shortName, , 'Краткое наименование', itemBase);
+@implementItemAttribute(shortName, 'Краткое наименование', String, itemShortName);
+
+statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
+
+overImportItem ABSTRACT LIST ();
+
+importItem 'Импорт товаров' () {
+    
+    LOCAL id = TEXT (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL shortName = ISTRING[250] (INTEGER);
+    LOCAL idMeasurement = INTEGER (INTEGER);
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL country = TEXT (INTEGER);
+    LOCAL accepted = INTEGER (INTEGER);
+    LOCAL scale = STRING[1] (INTEGER);
+    LOCAL width = NUMERIC[14,3] (INTEGER);
+    LOCAL length = NUMERIC[14,3] (INTEGER);
+    LOCAL height = NUMERIC[14,3] (INTEGER);
+    LOCAL vat = NUMERIC[8,4] (INTEGER);
+    
+    LOCAL imported = BOOLEAN (Item);
+    LOCAL imported = BOOLEAN (Barcode);
+    
+    EXTERNAL SQL connectionString()    
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3  AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = card.article)' TO SupermagSettings.file;
+    
+    logToFile('importSupermag', 'importItem_1');
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, vat;
+    
+    logToFile('importSupermag', 'importItem_2');
+       
+    FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](ISTRING[100] id) DO NEW s = Item {
+        id(s) <- id;
+    }
+   
+    FOR Item s = item(id(INTEGER i)) DO {    
+        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
+        shortName(s) <- shortName(i);
+        UOM(s) <- UOM(TEXT (idMeasurement(i)));
+        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
+        Item.country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
+        width(s) <- max(min(width(i), 99999), -99999);
+        length(s) <- max(min(length(i), 99999), -99999);
+        height(s) <- max(min(height(i), 99999), -99999);
+        inactive(s) <- accepted(i) != 1;
+        passScales(s) <- scale(i) == '1';
+        imported(s) <- TRUE;
+        statusInSuperMag(s) <- accepted(i);
+        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == vat(i) AND c = defaultCountry();        
+    }
+       
+    EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO name, id;
+    
+    name(INTEGER i) <- left(name(i), 15);
+    //весовой товар 
+    name(INTEGER i) <- substrFrom(name(i),3) WHERE substr(name(i),1,2) = '22' AND length(name(i)) = 7; 
+     
+    FOR imported(INTEGER i) AND NOT barcode(name(i)) DO NEW b = Barcode {
+        id(b) <- ISTRING[15] (name(i));
+    }
+    FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
+        sku(b) <- s;
+        transportPack(b) <- NULL;
+        dataAmount(b) <- NULL;
+        barcode(s) <- b;
+        imported(b) <- TRUE;
+    }
+    
+    // следующие 2 действия нужны, если штрих-код, который был упаковкой становится обычным штрих-кодом
+    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.packBarcode(Sku s) = b DO {
+        Purchase.packBarcode(s) <- NULL; 
+    }
+
+    FOR Barcode b = barcode(name(INTEGER i)) AND Purchase.barcodePack(Purchase.UserOrderDetail d) = b DO {
+        Purchase.barcodePack(d) <- NULL;
+    }
+    
+    logToFile('importSupermag', 'importItem_6');
+    
+    inactive(Item i ) <- TRUE WHERE i IS Item AND NOT imported(i);
+    statusInSuperMag(Item i ) <- 2 WHERE i IS Item AND NOT imported(i);
+//    DELETE Item i WHERE i IS Item AND NOT imported(i);
+//    DELETE Barcode b WHERE b IS Barcode AND NOT transportPack(b) AND NOT imported(b);
+    overImportItem();
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItem();
+
+property = DATA LOCAL ISTRING[50] (INTEGER);
+
+overImportItemAttribute ABSTRACT LIST ();
+
+importItemAttribute 'Импорт доп. свойств товаров' () {
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')' TO SupermagSettings.file;
+    // пока не импортируем, так как там ерунда - \'packbarcode\',         
+    
+    logToFile('importSupermag', 'importItemAttribute_1');
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO idItem, property, value;
+    
+    logToFile('importSupermag', 'importItemAttribute_2');
+
+    FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
+        transportPack(b) <- TransportPack.outpack;
+    }
+
+    FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) AND Item s = item(idItem(i)) DO {
+        Purchase.packBarcode(s) <- b;
+        amount(b) <- NUMERIC[14,3](trim(value(i)));
+   }
+    
+    logToFile('importSupermag', 'importItemAttribute_3');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == '1' BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
+        name(b) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == '1' DO {
+        brand(Item s) <- brandName(value(i)) WHERE s == item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_4');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manufacturer' BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
+        name(m) <- ISTRING[200] (name);
+    }
+    FOR property(INTEGER i) == 'manufacturer' DO {
+        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_5');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
+        name(c) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 'manCountry' DO {
+        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_6');
+    
+    FOR property(INTEGER i) == '17' AND Item s = item(idItem(i)) DO {
+        netWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
+        grossWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_7');
+    
+    FOR property(INTEGER i) == 'expDate' DO {
+        expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(idItem(i));
+        expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_8');
+    
+    LOCAL condition = ISTRING[100](Item);
+    
+    FOR property(INTEGER i) == 'storeTemperature' DO {
+        condition(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_9');
+    
+    FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
+        AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
+        conditionsText(Item s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+    }
+    
+    overImportItemAttribute();
+    
+    logToFile('importSupermag', 'importItemAttribute_10');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'packType' BY value(i)](TEXT name) AND name != '' AND NOT packTypeName(name) DO NEW t = PackType {
+        name(t) <- ISTRING[200] (name);
+    }
+    FOR property(INTEGER i) == 'packType' DO {
+        packType(Item s) <- packTypeName(value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_11');
+    
+    FOR property(INTEGER i) == 'supName' DO {
+        originalCaption(Item s) <- ISTRING[100](value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_12');
+    
+    FOR [GROUP SUM 1 IF property(INTEGER i) == 'alcoPercent' BY value(i)](TEXT name) AND name != '' AND NOT alcoholName(name) DO NEW a = Alcohol {
+        name(a) <- ISTRING[50] (name);
+    }
+    FOR property(INTEGER i) == 'alcoPercent' DO {
+        alcohol(Item s) <- alcoholName(value(i)) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_13');
+    
+    FOR property(INTEGER i) == 'Sys.Composition' DO {
+        description(Item s) <- value(i) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_20');
+    
+    FOR property(INTEGER i) == 'packsize' DO {
+        MOQ(Item s) <- NUMERIC[15,4](value(i)) WHERE s = item(idItem(i));
+    }
+    FOR property(INTEGER i) == 'volume' DO {
+        volume(Item s) <- NUMERIC[9,3](toNumeric(value(i))) WHERE s = item(idItem(i));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_14');
+    
+    FOR property(INTEGER i) == 'packbarcode' AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
+        transportPack(b) <- TransportPack.outpack;
+    }
+    FOR property(INTEGER i) == 'packbarcode' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        id(b) <- STRING[15](value(i));
+    }
+    logToFile('importSupermag', 'importItemAttribute_15');
+
+    id(Barcode b) <- NULL WHERE transportPack(b) = TransportPack.outpack AND NOT [GROUP SUM 1 IF property(INTEGER i) = 'packbarcode' BY idItem(i)](id(sku(b))); 
+
+    logToFile('importSupermag', 'importItemAttribute_15_1');
+    
+    FOR property(INTEGER i) == 'bruttoPack' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        weight(b) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_16');
+    FOR property(INTEGER i) == 'pack_height' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        height(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_17');
+    FOR property(INTEGER i) == 'pack_length' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        length(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_18');
+    FOR property(INTEGER i) == 'pack_width' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
+        width(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
+    }
+    logToFile('importSupermag', 'importItemAttribute_19');
+    
+    FOR property(INTEGER i) == 'pack_pallet' AND NUMERIC[14,3](replace(trim(value(i)), ',', '.')) > 0 AND NOT barcode(item(idItem(i)), TransportPack.oppl) DO NEW b = Barcode {
+        sku(b) <- item(idItem(i));
+        transportPack(b) <- TransportPack.oppl;
+    }
+    FOR property(INTEGER i) == 'pack_pallet' AND NUMERIC[14,3](replace(trim(value(i)), ',', '.')) > 0 AND Barcode b == barcode(item(idItem(i)), TransportPack.oppl) DO {
+        amount(b) <- NUMERIC[14,3](replace(trim(value(i)), ',', '.'));
+    }
+    
+    logToFile('importSupermag', 'importItemAttribute_21');
+    APPLY;
+    logToFile('importSupermag', 'importItemAttribute_22');
+}
+
+EXTEND FORM integrationData PROPERTIES importItemAttribute();
+
+//---------------------------------------------------------------------------------------------------------------------импорт списков товаров
+importSkuLists 'Импорт списков товаров' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL tree = ISTRING[100] (INTEGER);
+    LOCAL name = ISTRING[250] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACardAssort' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, tree, name;
+    
+    IF NOT list('all') THEN NEW g = List {
+        id(g) <- 'all';
+        name(g) <- 'Все';
+    }
+    
+    FOR id(INTEGER i) AND id(i) != 0 AND NOT list(TEXT (id(i))) DO NEW g = List {
+        id(g) <- ISTRING[100] (id(i));
+    }
+    
+    LOCAL level = INTEGER (INTEGER);
+    LOCAL parent = TEXT (INTEGER);
+    LOCAL idOrder = ISTRING[20](List);
+    
+    level(INTEGER i) <- wordCount(tree(i), '.') (-) 1 WHERE imported(i);
+    parent(INTEGER i) <- left(tree(i), length(tree(i)) - length((getWord(tree(i), '.', level(i))) + '.')) WHERE imported(i);
+    
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) DO {
+    
+        name(g) <- name(i);
+        order(g) <- INTEGER (getWord(tree(i), '.', level(i)));
+        idOrder(g) <- tree(i);
+    }
+    FOR level(INTEGER i) AND List g = list(TEXT (id(i))) ORDER level(i) DO {
+        
+        parent(g) <- OVERRIDE (GROUP MAX List gg IF idOrder(gg) == parent(i)), list('all');
+    }
+    
+    APPLY;
+    
+    LOCAL idList = INTEGER (INTEGER);
+    LOCAL idItem = ISTRING[100] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT IDASSORT, ARTICLE FROM Supermag.SMCardAssort' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO idList, idItem;
+    
+    LOCAL imported = BOOLEAN (ListDetail);
+    
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND NOT listDetail(s, l) DO NEW d = ListDetail {
+        list(d) <- l;
+        sku(d) <- s;
+    }
+    FOR Item s == item(idItem(INTEGER i)) AND List l = list(TEXT (idList(i))) AND ListDetail d = listDetail(s, l) DO {
+        imported(d) <- TRUE;
+    }
+    
+    DELETE ListDetail d WHERE d IS ListDetail AND NOT imported(d);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importSkuLists();
+
+part (Item set, Item item) = GROUP MAX Part p BY set(p), item(p);
+
+importItemPart 'Импорт комплектов' () {
+
+    LOCAL idSet = ISTRING[50] (INTEGER);
+    LOCAL quantity = NUMERIC[16,3] (INTEGER);
+    LOCAL percent = NUMERIC[16,2] (INTEGER);
+
+    EXTERNAL SQL connectionString() 
+        EXEC 'select ca.ComplexArticle,ca.Article,ca.Amount,ca.PricePercent from Supermag.SVComplexCompositeArt ca' TO SupermagSettings.file;
+        
+    IMPORT TABLE FROM SupermagSettings.file() TO idSet, idItem, quantity, percent;
+    
+    FOR [GROUP SUM 1 BY sku(idSet(INTEGER i)), sku(idItem(i))](Item set, Item item) AND NOT part(set, item) DO NEW p = Part {
+        set(p) <- set;
+        item(p) <- item;
+        skuType(set) <- SkuType.skuTypeSet;
+    }
+    
+    FOR Part p = part(sku(idSet(INTEGER i)), sku(idItem(i))) DO {
+        quantity(p) <- quantity(i);
+        percent(p) <- percent(i);
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importItemPart();

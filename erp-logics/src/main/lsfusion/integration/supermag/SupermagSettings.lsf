@@ -2,50 +2,18 @@ MODULE SupermagSettings;
 
 REQUIRE StockDocument, LogTools, Store, PaymentCondition;
 
-DESIGN integrationData {
-    pane {
-        NEW supermagScroll FIRST {
-            type = SCROLL;
-            caption = 'Супермаг';
-            NEW supermag {                
-                fill = 1;
-                type = CONTAINERH;
-                NEW supermag1 {
-                    type = CONTAINERH;
-                    fill = 1;
-                    NEW supermagLeft {                
-                        fill = 1;
-                        NEW supermagParams { caption = 'Параметры подключения'; }
-                        NEW integrationSettings { caption = 'Настройки интеграции'; }
-                        NEW supermagExportButtons { fill = 1; caption = 'Экспорт'; }               
-                        NEW supermagImportButtons { fill = 1; caption = 'Импорт'; }
-                    }
-                    NEW supermagRight { fill = 1;  }    
-}   }   }   }   }   
-
-
 host 'Хост' = DATA ISTRING[30]();
-base 'База' = DATA ISTRING[100]();
-login 'Логин' = DATA ISTRING[100]();
-password 'Пароль' = DATA ISTRING[100]();
-exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[500] ();
-importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[500] ();
-baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[100] ();
+base 'База' = DATA ISTRING[30]();
+login 'Логин' = DATA ISTRING[30]();
+password 'Пароль' = DATA ISTRING[30]();
+
+connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base();
+exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[50] ();
+importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[50] ();
+baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[50] ();
 idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
 
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag();
-
-DESIGN integrationData {
-    supermagParams {
-        MOVE PROPERTY (smhost);
-        MOVE PROPERTY (base());
-        MOVE PROPERTY (login());
-        MOVE PROPERTY (password());
-        MOVE PROPERTY (exportDirectorySupermag());  
-        MOVE PROPERTY (importDirectorySupermag());     
-        MOVE PROPERTY (baseIDSupermag());
-    }
-}
 
 in 'Отм.' = DATA BOOLEAN (Stock);
 stocks 'Склады для синхронизации' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
@@ -68,31 +36,21 @@ EXTEND FORM integrationData
     PROPERTIES() stocks ON CHANGE { SHOW dialogDepartmentStores; }
 ;
 
-DESIGN integrationData {
-    supermag {
-        integrationSettings {
-            MOVE PROPERTY (stocks()) { caption = ''; alignment = STRETCH; }
-        }        
-    }
-}
 
 dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
 bornin 'ИД базы создателя' = ABSTRACT STRING[100] (StockDocumentLedger);
-exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
+//exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
 exportTime (DATETIME dt)=  [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
 formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
-
 exportSupermagAll 'Экспорт в супермаг' ABSTRACT LIST ();
-
 EXTEND FORM integrationData 
     PROPERTIES()  exportSupermagAll
 ;
 
-DESIGN integrationData {
-    pane {
-        supermagExportButtons {
-            MOVE PROPERTY (exportSupermagAll());   
-}   }   }
+daysImportDocument 'дней синхронизации документов' = DATA INTEGER ();
+dateFromImportDocument () = sum(currentDate(), -daysImportDocument());
+numberImportDocument ' или номер документа' = DATA STRING ();
+EXTEND FORM integrationData PROPERTIES daysImportDocument(), numberImportDocument();
 
 docTypeSupermag 'Вид документа в супермаг' = DATA STRING[10] (Operation.Operation);
 opcodeSupermag 'Код в супермаг' = DATA STRING[10] (Operation.Operation); 
@@ -108,30 +66,6 @@ EXTEND FORM store   PROPERTIES nameContragentSupermag(s);
 DESIGN store {  headerExtraParams{
         MOVE PROPERTY (nameContragentSupermag(s));
 }}
-
-daysOrder 'Дней для синхронизации заказов' = DATA INTEGER ();
-dateFromOrder () = sum(currentDate(), -daysOrder());
-numberOrder 'Номер заказа' = DATA STRING[20] ();
-
-daysStockDocument 'Дней для синхронизации товарных документов' = DATA INTEGER ();
-dateFromStockDocument () = sum(currentDate(), -daysStockDocument());
-numberStockDocument 'Номер товарного документа' = DATA STRING[20] ();
-
-EXTEND FORM integrationData PROPERTIES daysOrder(), numberOrder(), daysStockDocument(), numberStockDocument();
-DESIGN integrationData { 
-    supermagImportButtons { 
-        NEW orders {
-            type = CONTAINERV;
-            MOVE PROPERTY (daysOrder()) { alignment = CENTER; }
-            MOVE PROPERTY (numberOrder()) { alignment = CENTER; }            
-        } 
-        NEW stockDocuments {
-            type = CONTAINERV;
-            MOVE PROPERTY (daysStockDocument()) { alignment = CENTER; }
-            MOVE PROPERTY (numberStockDocument()) { alignment = CENTER; }            
-        } 
-    } 
-}
 
 //hashing (TEXT text, TEXT type2, TEXT type3) = FORMULA TEXT PG 'encode(digest($1,$2),$3)';
 //hashing (TEXT text, TEXT key, TEXT type1, TEXT type2) = FORMULA TEXT PG 'encode(hmac($1,$2,$3),$4)';
@@ -212,7 +146,7 @@ exportSupermag 'Экспорт в супермаг' () {
         forExport(StockDocumentLedger d) <- NULL;   
         forExport(StockDocumentLedger d) <- TRUE WHERE dateTimeChange(d) >= currentDateTime();   
         FOR forExport(StockDocumentLedger d) DO {
-            exportSupermag(d);
+     //       exportSupermag(d);
         }
     } ELSE {
         MESSAGE 'Не задан путь для экспорта файлов в супермаг' NOWAIT;
@@ -223,7 +157,7 @@ exportSupermag 'Экспорт в супермаг' () {
 exportSupermagFilter 'Экспорт в супермаг (фильтр)'() {
     IF exportDirectorySupermag() THEN {
         FOR [ FILTER exportSupermag.ol](StockDocumentLedger l) DO {
-            exportSupermag(l);
+            //exportSupermag(l);
         }
     } ELSE {
         MESSAGE 'Не задан путь для экспорта файлов в супермаг';
@@ -231,7 +165,7 @@ exportSupermagFilter 'Экспорт в супермаг (фильтр)'() {
 }
 
 EXTEND FORM exportSupermag
-    PROPERTIES (ol) exportSupermag TOOLBAR 
+//    PROPERTIES (ol) exportSupermag TOOLBAR 
     PROPERTIES () exportSupermagFilter TOOLBAR DRAW ol
 ;
 
@@ -244,8 +178,6 @@ NAVIGATOR {
 paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
     AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
 
-
-id = DATA LOCAL ISTRING[50] (INTEGER);
 idDoc = DATA LOCAL ISTRING[50] (INTEGER);
 idDet = DATA LOCAL ISTRING[50] (INTEGER);
 docType = DATA LOCAL ISTRING[100] (INTEGER);
@@ -271,6 +203,8 @@ codeOperation = DATA LOCAL STRING (INTEGER);
 idBase = DATA LOCAL STRING (INTEGER);
 baseNumber = DATA LOCAL STRING[50] (INTEGER);
 baseDoctype = DATA LOCAL STRING (INTEGER);
+
+value = DATA LOCAL TEXT (INTEGER); 
 
 specItem = DATA LOCAL INTEGER (INTEGER);
 itemPrice = DATA LOCAL NUMERIC[19,4](INTEGER);
@@ -359,43 +293,5 @@ EXTEND FORM exportSupermag
 EXTEND FORM integrationData 
     PROPERTIES() importAnswer, banDroppedExport
 ;
-DESIGN integrationData {
-    supermagExportButtons {    
-        MOVE PROPERTY (importAnswer());       
-        MOVE PROPERTY (banDroppedExport());         
-    }    
-}
 
 @defineLogRotate(supermag, 5, weekly);
-
-// контроль статусов документов в супермаге
-daysStatus 'Дней для синхронизации заказов' = DATA INTEGER ();
-dateFromStatus () = sum(currentDate(), -daysStatus());
-
-overCheckDocStatusSupermag ABSTRACT LIST();
-
-docStatusId = DATA LOCAL ISTRING[50] (INTEGER);
-docStatusType = DATA LOCAL ISTRING[20] (INTEGER);
-docStatusOpcode = DATA LOCAL INTEGER (INTEGER);
-docStatusUserop = DATA LOCAL INTEGER (INTEGER);
-docStatusBornin = DATA LOCAL ISTRING[100] (INTEGER);
-docLocationFrom = DATA LOCAL INTEGER (INTEGER);
-docStatusState = DATA LOCAL INTEGER (INTEGER);
-maxDocStatusState = DATA LOCAL INTEGER (STRING);
-
-checkDocStatusSupermag 'Контроль статусов документов в Супермаг' () { 
-    LOCAL filterSql = TEXT ();
-    LOCAL file = FILE ();           
-              
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
-    EXEC 'SELECT d.ID, d.DOCTYPE, d.OPCODE, d.USEROP, d.DOCSTATE, d.LOCATIONFROM FROM Supermag.SMDocuments d WHERE d.CREATEDAT >= TO_DATE(\'' + toDateISO(dateFromStatus()) + '\',\'YYYY-MM-DD\')' TO file;
-    
-    IMPORT TABLE FROM file() TO docStatusId, docStatusType, docStatusOpcode, docStatusUserop, docStatusState, docLocationFrom;
-    
-    maxDocStatusState(STRING idDoc) <- [GROUP MAX docStatusState(INTEGER i) BY docStatusId(i)](idDoc);
-    
-    overCheckDocStatusSupermag();
-    
-    APPLY;
-}
-

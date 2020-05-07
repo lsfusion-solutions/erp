@@ -1,0 +1,254 @@
+MODULE SupermagPricelist;
+
+REQUIRE SupermagSettings, Time, PriceListOperation, Store, PriceListStore, Repricing, PriceListBefore, SupermagFormMeta;
+
+id = DATA ISTRING[100](UserPriceListDetail) INDEXED;
+userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListDetail BY id(d);
+
+@settingIntegration(UserPriceList, UserPriceListDetail);
+
+//---------------------------------------------------------------------------------------расчетные виды цен
+importCalcPriceListType 'Импорт видов цен' () {
+    
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = ISTRING[50] (INTEGER);
+    LOCAL formatid = INTEGER (INTEGER); 
+    
+    EXTERNAL SQL connectionString()
+        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name, formatid;
+    
+    FOR id(INTEGER i) AND NOT dataPriceListType('D' + TEXT (id(i))) DO NEW s = DataPriceListType {
+        id(s) <- 'D' + ISTRING[100] (id(i));
+    }
+    
+    FOR DataPriceListType t = dataPriceListType('D' + TEXT (id(INTEGER i))) DO {       
+        name(t) <- name(i);
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
+        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+    }
+    
+    FOR StoreType t = storeType('T' + TEXT (formatid(INTEGER i))) DO {
+        retailPriceListType(t) <- priceListType('D' + TEXT (id(i)));
+    }   
+       
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name;
+    
+    FOR id(INTEGER i) AND NOT calcPriceListType('C' + TEXT (id(i))) DO NEW s = CalcPriceListType {
+        id(s) <- 'C' + ISTRING[100] (id(i));
+    }
+    
+    FOR CalcPriceListType t = calcPriceListType('C' +TEXT (id(INTEGER i))) DO {        
+        name(t) <- name(i);
+        includeVAT(t) <- TRUE;
+        currency(t) <- defaultCurrency();
+        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+        groupType(t) <- SystemGroupType.skuGroupType;  
+    }  
+    
+    APPLY;
+}
+
+importCalcExrtaCharge 'Импорт надбавок по расчетным видам цен' () {
+    LOCAL file = FILE ();
+    
+    LOCAL idGroup = INTEGER (INTEGER);
+    LOCAL markup = NUMERIC[8,4] (INTEGER);
+    LOCAL idType = INTEGER (INTEGER);
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idGroup, markup;
+    
+    LOCAL idItemGroup = STRING[100](INTEGER);
+    
+    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
+    
+    FOR idType(INTEGER i) AND CalcPriceListType t = calcPriceListType('C' + TEXT (idType(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+        dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    
+    LOCAL idItem = STRING[15] (INTEGER);
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL' TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idItem, markup;
+    
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType('C' + TEXT (idType(i))) DO {
+        dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
+    }
+    
+    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
+
+//---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
+importPriceListRetail 'Импорт розничных прайсов' () {
+
+    LOCAL reason = INTEGER (INTEGER);
+    LOCAL idStore = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);
+    LOCAL idPricetype = INTEGER (INTEGER);
+    
+    filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
+    IF numberImportDocument() THEN filterSql() <- 'd.id = '+numberImportDocument();
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, d.DOCSTATE, REASON, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id(+) = d.id AND a.doctype(+) = d.doctype AND ' + filterSql() TO SupermagSettings.file;
+ 
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, dateFrom, docState, reason, comment, idPricetype;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(dateFrom(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(idPricetype(i)) ) IF idDoc(i);                 
+     
+    // создаем новые прайслисты 
+    FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {
+            id(doc) <- idDoc(i);
+    }
+
+    FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) AND NOT currentVersion(i) = lastVersion(doc) DO {       
+        operation(doc) <- PriceList.operation('retail');
+        number(doc) <- ISTRING[28] (docNumber(i));
+        date(doc) <- DATE (dateFrom(i));
+        time(doc) <- TIME (dateFrom(i));
+        fromDate(doc) <- DATE (dateFrom(i));
+        fromTime(doc) <- TIME (IF reason(i) = 5 THEN sumSeconds(dateFrom(i), 1) ELSE dateFrom(i));
+        isPosted(doc) <- docState(i) = 3;
+        note(doc) <- comment(i);
+        in(doc, DataPriceListType t) <- id(t) == 'D' + TEXT (idPricetype(i));
+        dataIn(doc, StockGroup s) <- NULL;
+        dataIn(doc, Stock s) <- NULL;
+        allStocks(doc) <- NULL;
+        dataIn(doc, StockGroup s) <- id(retailPriceListType[StoreType](s)) == 'D' + TEXT (idPricetype(i));       
+        imported(doc) <- TRUE;
+        lastVersion(doc) <- currentVersion(i);        
+    } 
+      
+    // спецификации
+    LOCAL aReason = INTEGER (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    LOCAL skip = BOOLEAN (INTEGER);
+
+    EXTERNAL SQL connectionString() 
+            EXEC 'SELECT d.ID, d.DOCTYPE, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND dd.DocType = \'AB\' AND ad.docid = dd.docid AND ad.DocType = \'AB\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, itemPrice, idItem, aReason, idPricetype;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '~', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(aReason(i)), STRING(idPricetype(i)), STRING(specItem(i)), STRING(idItem(i)), 
+                                                STRING(itemPrice(i)) ) IF idDet(i);                  
+
+    FOR NOT userPriceListDetail(idDet(INTEGER i)) AND NOT skip(i) DO NEW det = UserPriceListDetail {
+            id(det) <- idDet(i);
+            userPriceList(det) <- userPriceList(idDoc(i));
+    }
+
+    FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = lastVersion(det) AND NOT skip(i) DO {
+        sku(det) <- item(idItem(i));
+        price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType('D' + TEXT (idPricetype(i)));
+        imported(det) <- TRUE;
+        dataIndex(det) <- specItem(i);
+        lastVersion(det) <- currentVersion(i);
+    }
+
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES () importPriceListRetail;
+
+//----------------------------------------------маркетинговые (акционные) прайслисты
+importPriceListPromotion 'Импорт акционных прайсов' () {
+    
+    LOCAL date = DATETIME (INTEGER);
+    LOCAL begin = DATETIME (INTEGER);
+    LOCAL end = DATETIME (INTEGER);
+    LOCAL name = ISTRING[255] (INTEGER);
+    LOCAL imported = BOOLEAN (UserPriceList);  
+    
+    filterSql() <- 'DATEEND >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ma.DOCSTATE IN (0,2,3)';
+      
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT ma.ID, ma.DOCTYPE, ma.CREATEDAT, ma.DATEBEGIN, ma.DATEEND, ma.DOCSTATE, NAME FROM Supermag.SVDocumentsMA ma WHERE ' + filterSql() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docDate, dateFrom, dateTo, docState, name;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(dateFrom(i)), STRING(dateTo(i)), STRING(comment(i)) ) IF idDoc(i);                 
+    
+    FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {
+        id(doc) <- idDoc(i);
+    }
+    
+    FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) AND NOT currentVersion(i) = lastVersion(doc) DO {       
+        operation(doc) <- PriceList.operation('promotion');
+        number(doc) <- ISTRING[28] (docNumber(i));
+        date(doc) <- DATE (date(i));
+        time(doc) <- 00:00;
+        isPosted(doc) <- docState(i) = 3;
+        fromDate(doc) <- DATE (begin(i));
+        fromTime(doc) <- TIME (begin(i));
+        toDate(doc) <- DATE (end(i));
+        toTime(doc) <- TIME (end(i));
+        note(doc) <- name(i);
+        fromPriceBeforeDate(doc) <- sum(DATE (begin(i)), -1);
+        fromPriceBeforeTime(doc) <- 00:00;
+        toPriceBeforeDate(doc) <- sum(DATE (end(i)), 1);
+        allStocks(doc) <- NULL;
+        imported(doc) <- TRUE;
+        lastVersion(doc) <- currentVersion(i);
+    }
+    
+    LOCAL imported = BOOLEAN (UserPriceListDetail);
+    
+    EXTERNAL SQL connectionString() 
+            EXEC 'SELECT ma.DOCID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, itemPrice;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '~', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), 
+                                                STRING(itemPrice(i)) ) IF idDet(i);                  
+
+
+    FOR userPriceList(idDoc(INTEGER i)) AND NOT userPriceListDetail(idDet(i)) DO NEW det = UserPriceListDetail {
+            id(det) <- idDet(i);
+            userPriceList(det) <- userPriceList(idDoc(i));
+    }
+
+    FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = lastVersion(det) DO {
+        sku(det) <- item(idItem(i));
+        priceBefore(det) <- OVERRIDE (GROUP MAX prevPriceA(dataPriceListType('retail'), item(idItem(i)), Stock st, fromDateTime(userPriceList(idDoc(i)))) IF in(userPriceList(idDoc(i)), st)), 0.0;
+        price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType('promotion');
+        imported(det) <- TRUE;
+        dataIndex(det) <- specItem(i);
+        lastVersion(det) <- currentVersion(i);
+    }   
+   
+    LOCAL idStock = INTEGER (INTEGER);
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA ma WHERE a.AUCID = ma.id AND ' + filterSql()  TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, idStock;
+       
+    FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
+        dataIn(doc, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](doc, s);
+    }
+        
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importPriceListPromotion();
