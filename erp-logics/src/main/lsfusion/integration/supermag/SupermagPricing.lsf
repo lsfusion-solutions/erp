@@ -2,8 +2,10 @@ MODULE SupermagPricing;
 
 REQUIRE SupermagSettings, Time,  Store, Repricing, SupermagFormMeta, PriceList;
 
-//---------------------------------------------------------------------------------------------------------акты переоценки
 
+
+
+//---------------------------------------------------------------------------------------------------------импорт
 imported 'Импортируемая' = DATA BOOLEAN (Repricing.Operation);
 
 EXTEND FORM Repricing.operation PROPERTIES imported(o);
@@ -37,7 +39,7 @@ importRepricing 'Импорт актов переоценки' () {
         imported(o) <- TRUE;
     }
     
-    idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(location(i)) ) IF idDoc(i);                 
     
     FOR idDoc(INTEGER i) AND NOT Repricing.userRepricing(idDoc(i)) DO NEW doc = Repricing.UserRepricing {
@@ -68,7 +70,7 @@ importRepricing 'Импорт актов переоценки' () {
        
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, itemPrice, oldPrice, quantity, actReason, priceType;
     
-    idDoc(INTEGER i) <- STRING[50](CONCAT '~', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDet(i)), STRING(idItem(i)), STRING(actReason(i)), STRING(priceType(i)), STRING(itemPrice(i)), STRING(oldPrice(i)) ) IF idDet(i);                  
 
@@ -88,19 +90,20 @@ importRepricing 'Импорт актов переоценки' () {
     }
    
     // импорт документов оснований
-    LOCAL baseId = ISTRING[50] (INTEGER);
     LOCAL baseType = ISTRING[50] (INTEGER);
     
     EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql() TO SupermagSettings.file;
+    EXEC 'Select d.ID, d.doctype, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql() TO SupermagSettings.file;
         
-    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, baseId, baseType;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, baseNumber, baseType;
     
-    FOR idDoc(INTEGER i) AND (baseType(i) = 'AB' OR baseType(i) = 'MA') DO {  
-        basisDoc(Repricing.UserRepricing o, Document d) <- NULL WHERE o = Repricing.userRepricing(idDoc(i));
-        basisDoc(Repricing.UserRepricing o, Document d) <- TRUE WHERE o = Repricing.userRepricing(idDoc(i)) AND d = userPriceList(baseId(i)); 
-    }
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseType(i)), STRING(baseNumber(i)));
 
+    FOR Repricing.UserRepricing doc == Repricing.userRepricing(idDoc(INTEGER i)) AND (baseType(i) = 'AB' OR baseType(i) = 'MA') DO {    
+        basisDoc(doc, Document d) <- TRUE IF d = userPriceList(idBase(i)); 
+    }    
+    
     APPLY;       
 }
 

@@ -77,12 +77,12 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                     sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail add)) IF (adjustment(add) = doc AND sum(add) < 0);                
                     sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail add) IF (adjustment(add) = doc AND sum(add) < 0);                                
                 }
-                // пока не убираем CASE, могут появиться требования у заказчика к нумерации 
-                CASE WHEN doctype(doc) = 'WI' THEN id(doc) <- 'Ф' + seriesNumber(doc);                 
-                     WHEN doctype(doc) = 'WO' THEN id(doc) <- 'Ф' + seriesNumber(doc);
-                     WHEN doctype(doc) = 'LA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
-                     WHEN doctype(doc) = 'FA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
-                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
+                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);
+//                // пока не убираем CASE, могут появиться требования у заказчика к нумерации 
+//                CASE WHEN doctype(doc) = 'WI' THEN id(doc) <- 'Ф' + seriesNumber(doc);                 
+//                     WHEN doctype(doc) = 'WO' THEN id(doc) <- 'Ф' + seriesNumber(doc);
+//                     WHEN doctype(doc) = 'LA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
+//                     WHEN doctype(doc) = 'FA' THEN id(doc) <- 'Ф' + seriesNumber(doc);
            TRY {                
                 CASE WHEN doctype(doc) = 'WI' THEN EXPORT exportAdjustmentWI XML TO System.exportFile;                 
                      WHEN doctype(doc) = 'WO' THEN EXPORT exportAdjustmentWO XML TO System.exportFile;
