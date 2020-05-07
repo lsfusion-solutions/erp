@@ -7,9 +7,9 @@ PRIORITY SupermagSettings;
 NAMESPACE Sale;
 
 
-@exportFormIW(exportInternalWay, invoice, invoiceDetail, 'Накладная (продажа)');
+@exportFormIW(exportSaleInvoiceIW, invoice, invoiceDetail, 'Накладная (продажа)');
 
-EXTEND FORM exportInternalWay FORMEXTID 'PACKAGE'  
+EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'                                                        
     
     OBJECTS docd6= InvoiceDetail EXTID 'SLSPECQMISMATCH' IN WO
@@ -29,7 +29,7 @@ EXTEND FORM exportInternalWay FORMEXTID 'PACKAGE'
     FILTERS include(o,doc)                
 ; 
 
-exportInternalWayMag 'Экспорт в супермаг' (Invoice doc) {
+exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
     inc(Invoice ii) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
@@ -47,18 +47,10 @@ exportInternalWayMag 'Экспорт в супермаг' (Invoice doc) {
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
                 bornin(doc) <- baseIDSupermag();
-                CASE WHEN doctype(doc) = 'WO' THEN {
-                        clientIndex(doc) <- id(customer(doc));
-                        locationFrom(doc) <- supplierStock(doc);
-                        locationTo(doc) <- NULL IF doc IS Invoice;                
-                        location(doc)  <- NULL IF doc IS Invoice;                             
-                    }                 
-                    WHEN doctype(doc) = 'IW' THEN {
-                        clientIndex(doc) <- NULL IF doc IS Invoice;
-                        locationFrom(doc) <- supplierStock(doc);
-                        locationTo(doc) <- customerStock(doc);                
-                        location(doc)  <- NULL IF doc IS Invoice;                                                     
-                    }                
+                clientIndex(doc) <- NULL IF doc IS Invoice;
+                locationFrom(doc) <- supplierStock(doc);
+                locationTo(doc) <- customerStock(doc);                
+                location(doc)  <- NULL IF doc IS Invoice;                                                     
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
@@ -73,8 +65,7 @@ exportInternalWayMag 'Экспорт в супермаг' (Invoice doc) {
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
                 createFinobligation(doc)  <- createFinobligation(operation(doc));                               
            TRY {                
-                CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportSaleInvoiceWO XML TO System.exportFile;
-                     WHEN doctype(doc) = 'IW' THEN EXPORT exportSaleInvoiceWO XML TO System.exportFile;                  
+                EXPORT exportSaleInvoiceIW XML TO System.exportFile;                  
            } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {          
@@ -107,17 +98,11 @@ exportInternalWayMag 'Экспорт в супермаг' (Invoice doc) {
     APPLY;
 }
 
-//exportSupermag(InvoiceShipment s) +{
-//    exportSaleInvoiceMag(invoice(s));
-//}
-
-exportSupermagAll() +{
-//здесь нужна проверка того что выгружать
-  //  FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND opcodeSupermag(operation(s)) DO {
-  //      exportPurchaseInvoiceMag(s);
-  //  }
+exportSaleInvoice (Sale.UserInvoice doc) + {
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' THEN exportSaleInvoiceIW(doc);
 }
 
+//-----------------------------------------------------------------------------------------------------импорт
 overImportInternalWay ABSTRACT LIST ();
 
 importInternalWay 'Импорт накладные перемещение' () {     

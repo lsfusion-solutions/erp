@@ -6,6 +6,32 @@ NAMESPACE Sale;
 
 @settingOperationSupermag(Sale);
 
+exportSaleInvoice ABSTRACT LIST (Sale.Invoice);
+
+EXTEND FORM Sale.invoices
+    PROPERTIES (i) exportSaleInvoice TOOLBAR 
+;
+DESIGN Sale.invoices {
+    actionContainer{
+        NEW mag { caption = 'Супермаг'; MOVE PROPERTY (exportSaleInvoice(i)); }        
+    }
+}
+
+userInvoiceApply 'Сохранить ' (UserInvoice doc) {
+    exportSaleInvoice(doc);
+    APPLY;
+}
+
+EXTEND FORM userInvoice  PROPERTIES userInvoiceApply(i) TOOLBAR;
+
+DESIGN userInvoice {
+    TOOLBARRIGHT {
+        MOVE PROPERTY (userInvoiceApply(i)) BEFORE PROPERTY (formClose()) { imagePath = 'apply.png';} 
+        PROPERTY (formOk()) { hide = TRUE; }
+        PROPERTY (formApply()) { hide = TRUE; }
+    }
+}
+
 //-- предполагаем, что дата оплаты для накладной только одна
 lastInvoiceContractLedger 'Дата оплаты' = GROUP LAST Sale.InvoiceContractLedger l ORDER date(l),l BY inContractLedger(l);// MATERIALIZED;
 lastPaymentPeriod = GROUP MAX PaymentPeriod p BY paymentCondition(p);                            
@@ -14,18 +40,6 @@ lastPaymentPeriod = GROUP MAX PaymentPeriod p BY paymentCondition(p);
 
 dateTimeChange[StockDocumentLedger](InvoiceShipment doc) += dateTimeChange(invoice(doc));
 bornin[StockDocumentLedger](InvoiceShipment doc) += bornin(invoice(doc));
-
-//changeDoc(Invoice d) = CHANGED(seriesNumber(d)) OR CHANGED(supplier(d))  OR CHANGED(supplierStock(d))  OR CHANGED(customer(d))  OR CHANGED(customerStock(d))  
-//    OR CHANGED(dateTime(d)) OR CHANGED(operation(d)) OR CHANGED (creditInvoiceSumInvoiceDetail(d)) OR CHANGED(curRate(d)) OR CHANGED(isPosted(d)) OR CHANGED (invoiceShipment(d));
-//
-//changeDoc(InvoiceDetail d) = CHANGED(quantity( d)) OR CHANGED(sku(d)) OR CHANGED(price(d)) OR CHANGED(invoicePrice(d))  OR CHANGED (valueVAT(d))
-//    OR CHANGED(retailPrice(d)) OR CHANGED(creditQuantity(d)) OR CHANGED(creditInvoiceSum(d)) OR CHANGED(creditSum(d)) OR CHANGED(manufacturingPrice(d));
-//changeDocDetail(Invoice i) = GROUP SUM 1 IF changeDoc(InvoiceDetail d) AND invoice(d)==i;
-
-//WHEN SET(changeDoc(Invoice i)) OR SET (changeDocDetail(i)) DO {
-//    dateTimeChange(i)<- currentDateTime();  
-//}
-
 
 @exportFilds(invoice, invoiceDetail);
 
@@ -71,7 +85,7 @@ EXTEND FORM exportSaleInvoiceWO FORMEXTID 'PACKAGE'
 
 @exportFormFO(exportSaleInvoiceWO, invoice, invoiceDetail, 'Накладная (продажа)');
 
-exportSaleInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
+exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
     inc(Invoice ii) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
@@ -86,21 +100,13 @@ exportSaleInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                                       WHEN createShipment(doc) THEN 2 
                                       WHEN isClosed(doc) THEN 0 ELSE 1;
                 docid(doc) <- seriesNumber(doc);                 
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
+                id(doc) <- CONCAT '~', doctype(doc), seriesNumber(doc);                 
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
                 bornin(doc) <- baseIDSupermag();
-                CASE WHEN doctype(doc) = 'WO' THEN {
-                        clientIndex(doc) <- id(customer(doc));
-                        locationFrom(doc) <- supplierStock(doc);
-                        locationTo(doc) <- NULL IF doc IS Invoice;                
-                        location(doc)  <- NULL IF doc IS Invoice;                             
-                    }                 
-                    WHEN doctype(doc) = 'IW' THEN {
-                        clientIndex(doc) <- NULL IF doc IS Invoice;
-                        locationFrom(doc) <- supplierStock(doc);
-                        locationTo(doc) <- customerStock(doc);                
-                        location(doc)  <- NULL IF doc IS Invoice;                                                     
-                    }                
+                clientIndex(doc) <- id(customer(doc));
+                locationFrom(doc) <- supplierStock(doc);
+                locationTo(doc) <- NULL IF doc IS Invoice;                
+                location(doc)  <- NULL IF doc IS Invoice;                             
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
@@ -115,8 +121,7 @@ exportSaleInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
                 createFinobligation(doc)  <- createFinobligation(operation(doc));                               
            TRY {                
-                CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportSaleInvoiceWO XML TO System.exportFile;
-                     WHEN doctype(doc) = 'IW' THEN EXPORT exportSaleInvoiceWO XML TO System.exportFile;                  
+                EXPORT exportSaleInvoiceWO XML TO System.exportFile;
            } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {          
@@ -149,29 +154,11 @@ exportSaleInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
     APPLY;
 }
 
-//exportSupermag(InvoiceShipment s) +{
-//    exportSaleInvoiceMag(invoice(s));
-//}
-
-exportSupermagAll() +{
-//здесь нужна проверка того что выгружать
-  //  FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND opcodeSupermag(operation(s)) DO {
-  //      exportPurchaseInvoiceMag(s);
-  //  }
+exportSaleInvoice (Sale.UserInvoice doc) + {
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WO' THEN exportSaleInvoiceWO(doc);
 }
 
-EXTEND FORM Sale.invoices
-    PROPERTIES (i) exportSaleInvoiceMag TOOLBAR 
-;
-DESIGN Sale.invoices {
-    actionContainer{
-        NEW mag {
-            caption = 'Супермаг';
-            MOVE PROPERTY (exportSaleInvoiceMag(i));
-        }        
-    }
-}
-
+//-------------------------------------------------------------------------------------------------------------------импорт
 overImportSaleInvoice ABSTRACT LIST ();
 
 importSaleInvoiceWO 'Импорт накладные (продажа)' () {
@@ -265,4 +252,3 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSaleInvoiceWO();
-
