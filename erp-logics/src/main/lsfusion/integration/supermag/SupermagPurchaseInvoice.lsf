@@ -71,7 +71,7 @@ EXTEND FORM exportPurchaseInvoiceWI FORMEXTID 'PACKAGE'
 
 @exportFormFI(exportPurchaseInvoiceWI, invoice, invoiceDetail, 'Накладная (закупка)');
 
-exportPurchaseInvoiceMag 'Экспорт в супермаг' (Invoice doc) {
+exportPurchaseInvoice 'Экспорт в супермаг' (Invoice doc) {
     inc(Invoice ii) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
@@ -158,18 +158,6 @@ exportSupermagAll() +{
   //  FOR date(Invoice s AS Invoice) > sum(currentDate(),-countDaysExportData()) AND dateTimeChange(s) AND NOT (dateTimeChange(s) <lastDateTimeSupermagLog(invoiceShipment(s))) AND opcodeSupermag(operation(s)) DO {
   //      exportPurchaseInvoiceMag(s);
   //  }
-}
-
-EXTEND FORM Purchase.invoices
-    PROPERTIES (i) exportPurchaseInvoiceMag TOOLBAR 
-;
-DESIGN Purchase.invoices {
-    actionContainer{
-        NEW mag {
-            caption = 'Супермаг';
-            MOVE PROPERTY (exportPurchaseInvoiceMag(i));
-        }        
-    }
 }
 
 overImportPurchaseInvoice ABSTRACT LIST ();
@@ -284,4 +272,33 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importPurchaseInvoice();
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES (i) exportPurchaseInvoice TOOLBAR 
+;
+DESIGN Purchase.invoices {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportPurchaseInvoice(i));
+        }        
+    }
+}
+
+userPurchaseInvoiceApply 'Сохранить ' (UserInvoice doc) {
+    IF isPosted(doc) THEN exportPurchaseInvoice(doc);
+    APPLY;
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES userPurchaseInvoiceApply(i) TOOLBAR    
+;
+
+DESIGN userInvoice {
+    TOOLBARRIGHT {
+        MOVE PROPERTY (userPurchaseInvoiceApply(i)) BEFORE PROPERTY (formClose()) { imagePath = 'apply.png';} 
+        PROPERTY (formOk()) { hide = TRUE; }
+        PROPERTY (formApply()) { hide = TRUE; }
+    }
+}
 
