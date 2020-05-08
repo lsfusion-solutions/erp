@@ -200,6 +200,14 @@ CLASS UserPricingDetail 'Строка акта расценки (польз.)' :
 @defineDocumentInterfaceCurrency(pricing);
 @deriveDocumentCurrency(userPricing, departmentStore);
 
+@defineExternalizable(userPricing, STRING[100]);
+
+// Основание
+descriptionDocument 'Документы-основания' = ABSTRACT STRING[255] (Pricing) MATERIALIZED;
+//документы основания
+basisDoc 'Документы основания' = ABSTRACT BOOLEAN (Pricing, Document) MATERIALIZED;
+basisDoc 'Документы основания' = ABSTRACT BOOLEAN (PricingDetail, Document) MATERIALIZED;
+
 // Sku
 @defineDocumentInterfaceDetailSku(pricing, sku);
 
@@ -293,12 +301,6 @@ DESIGN options {
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
 @changeDocumentDetailMarkupCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
 @changeDocumentDetailPriceCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
-
-// Основание
-descriptionDocument 'Документы-основания' = ABSTRACT STRING[255] (Pricing) MATERIALIZED;
-//документы основания для множеств
-basisDoc 'Документы основания' = ABSTRACT BOOLEAN (Pricing, Document) MATERIALIZED;
-basisDoc 'Документы основания' = ABSTRACT BOOLEAN (PricingDetail, Document) MATERIALIZED;
 
 @defineMovementSku(pricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
 @defineMovementSku(userPricingDetail, departmentStore); //-- показываем по нажатию правой клавиши движение товара
