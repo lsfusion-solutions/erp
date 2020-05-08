@@ -127,6 +127,8 @@ importContract 'Импорт из контрактов с поставщикам
         dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
     }     
 
+    overImportSupplierPrice();
+
     //загружаем спецификаци    
     LOCAL packSize = NUMERIC[14,3](INTEGER);
 
@@ -143,16 +145,19 @@ importContract 'Импорт из контрактов с поставщикам
         SupermagPricelist.id(det) <- idDet(i);
         userPriceList(det) <- userPriceList(idDoc(i));
     }
-
+    
+    LOCAL dataPriceListType = LedgerPriceListType(INTEGER);
+    dataPriceListType(INTEGER i) <- dataPriceListType(id(operation(userPriceList(idDoc(i)))));
+    
+   // MESSAGE id(operation(userPriceList(idDoc(0))));
+    
     FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) DO {
         sku(det) <- item(idItem(i));  
-        price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType(id(operation(userPriceList(det))));
+        price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType(i);// dataPriceListType(id(operation(userPriceList(det))));
         SupermagPricelist.imported(det) <- TRUE;
         dataIndex(det) <- specItem(i);
         lastVersion(det) <- currentVersion(i);
     }
-
-    overImportSupplierPrice();
     
     APPLY;
 }
