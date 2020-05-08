@@ -183,11 +183,15 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                         if(numberDoc == null)
                             error += String.format("EVAT %s: Не задан номер условия поставки", documentNumber);
                         rootElement.addContent(createSenderReceiverElement(context, evatObject, addressSupplier, addressCustomer, namespace));
-                        rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, namespace));
+                        rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, false, namespace));
                     }
                     rootElement.addContent(createRosterElement(context, evatObject, namespace, allowZeroVAT));
                     break;
                 case "additional":
+                    String numberDoc = trim((String) findProperty("numberDoc[EVAT]").read(context, evatObject));
+                    if(numberDoc == null)
+                        error += String.format("EVAT %s: Не задан номер условия поставки", documentNumber);
+                    rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, true, namespace));
                     rootElement.addContent(createRosterElement(context, evatObject, namespace, allowZeroVAT));
                 case "cancelled":
                     break;
@@ -413,7 +417,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     }
 
     //parent: rootElement
-    private Element createDeliveryConditionElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String numberDoc, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createDeliveryConditionElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String numberDoc, boolean additional, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate(getLocalDate(findProperty("dateContract[EVAT]").read(context, evatObject)));
@@ -436,6 +440,10 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         addStringElement(namespace, documentElement, "blankCode", blankCode);
         addStringElement(namespace, documentElement, "seria", series);
         addStringElement(namespace, documentElement, "number", numberDoc);
+        if(additional) {
+            boolean refund = findProperty("refund[EVAT]").read(context, evatObject) != null;
+            addBooleanElement(namespace, documentElement, "refund", refund);
+        }
         documentsElement.addContent(documentElement);
         contractElement.addContent(documentsElement);
         deliveryConditionElement.addContent(contractElement);
