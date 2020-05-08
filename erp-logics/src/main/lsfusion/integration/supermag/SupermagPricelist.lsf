@@ -97,8 +97,6 @@ EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrt
 //---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
 overImportPriceListRetail ABSTRACT LIST ();
 
-
-
 importPriceListRetail 'Импорт розничных прайсов' () {
 
     imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
@@ -139,11 +137,11 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         dataIn(doc, StockGroup s) <- NULL;
         dataIn(doc, Stock s) <- NULL;
         allStocks(doc) <- NULL;
-        dataIn(doc, StockGroup s) <- TRUE IF id(retailPriceListType[StoreType](s)) == 'D' + TEXT (idPricetype(i));       
+    	dataIn(doc, StockGroup s) <- TRUE IF id(retailPriceListType[StoreType](s)) = 'D' + TEXT (idPricetype(i));
         imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);        
     } 
-      
+          
     // спецификации
     LOCAL aReason = INTEGER (INTEGER);
     LOCAL skip = BOOLEAN (INTEGER);
@@ -171,7 +169,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
         lastVersion(det) <- currentVersion(i);
     }
         
-    overImportPriceListRetail();
+  //  overImportPriceListRetail();
     
     APPLY;
 }
@@ -220,7 +218,7 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         allStocks(doc) <- NULL;
         imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);
-    }
+    }  
        
     EXTERNAL SQL connectionString() 
             EXEC 'SELECT ma.ID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO SupermagSettings.file;
@@ -249,10 +247,12 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL idStock = INTEGER (INTEGER);
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT a.AUCID, a.LOCID FROM Supermag.SVAuctionAtoms a, Supermag.SVDocumentsMA ma WHERE a.AUCID = ma.id AND ' + filterSql()  TO SupermagSettings.file;
+        EXEC 'SELECT ma.DOCTYPE, ma.id, a.LOCID FROM Supermag.SVDocumentsMA ma, Supermag.SVAuctionAtoms a WHERE a.AUCID = ma.id AND ' + filterSql()  TO SupermagSettings.file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, idStock;
+    IMPORT TABLE FROM SupermagSettings.file() TO docType,  docNumber, idStock;
        
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
         dataIn(doc, DepartmentStore s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), departmentStore(TEXT (idStock(i)))](doc, s);
     }
