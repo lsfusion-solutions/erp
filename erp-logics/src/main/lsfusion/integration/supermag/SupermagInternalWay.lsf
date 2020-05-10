@@ -122,7 +122,7 @@ importInternalWay 'Импорт накладные перемещение' () {
     FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF operation1Supermag(codeOperation(i))](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
         id(o) <- newId;
     }
-
+    
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
         MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql();
         MESSAGE idDoc(0);
@@ -150,7 +150,7 @@ importInternalWay 'Импорт накладные перемещение' () {
 
     //импорт спецификаций
     EXTERNAL SQL connectionString()  
-        EXEC 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = \'WO\' AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
 
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum;
     
@@ -161,7 +161,7 @@ importInternalWay 'Импорт накладные перемещение' () {
                                                 STRING(taxSum(i)), STRING(taxRate(i)) ) IF idDet(i);                  
 
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
-        MESSAGE 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = \'WO\' AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql();
+        MESSAGE 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND ' + filterSql();
         MESSAGE idDet(0);
         MESSAGE currentVersion(0);        
     }
@@ -183,8 +183,10 @@ importInternalWay 'Импорт накладные перемещение' () {
         dataIndex(det) <- specItem(i);
      //   priceListType(det) <- priceListType(stock(ISTRING[100] (locationTo(i))));
         retailPrice(det) <- retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
-        retailVAT(det) <- VAT(sku(det));         
-        shipmentPrice(det) <- retailPrice(det); 
+        retailVAT(det) <- VAT(sku(det));
+        valueRetailVAT(det) <- taxRate(i);                 
+        shipmentPrice(det) <- NUMERIC[16,4](itemPrice(i));
+        shipmentSum(det) <- NUMERIC[16,4](totalPrice(i)); 
         imported(det) <- TRUE;
         lastVersion[InvoiceDetail](det) <- currentVersion(i);
    }
