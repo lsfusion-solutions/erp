@@ -69,6 +69,7 @@ META exportFilds (docMain, docDetail)
     locationTo = DATA Stock (###docMain);
     ourSelfClient = DATA LOCAL STRING[100] (###docMain);
     inc = DATA LOCAL BOOLEAN (###docMain);
+    priceRoundMode = DATA LOCAL INTEGER (###docMain);
     priceWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     priceNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     priceManufacturer = DATA LOCAL NUMERIC[18,4] (###docDetail);
@@ -116,7 +117,7 @@ FORM formName FORMEXTID 'PACKAGE'
     PROPERTIES = 1 IF doc IS ###docMain EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
     PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
     PROPERTIES = 1 IF doc IS ###docMain  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
-    PROPERTIES = 4 IF doc IS ###docMain  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
+    PROPERTIES = priceRoundMode(doc) EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
     PROPERTIES = sumWithTax(doc) IF doc IS ###docMain EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = sumWithTaxCurr(doc) IF doc IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = note(doc) IF doc IS ###docMain EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
@@ -317,4 +318,16 @@ END
 
 META exportFormIW (formName, docMain, docDetail, commentary)   
 @exportFormDoc(IW,formName, docMain, docDetail, commentary);
+
+EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE' 
+    PROPERTIES = userop(doc) IF doc IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSIW        
+    PROPERTIES = id(locationTo(doc)) EXTID 'LOCATIONTO' IN SMDOCUMENTSIW        
+    PROPERTIES = id(locationFrom(doc)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSIW
+    
+    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
+    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
+    
+;
 END

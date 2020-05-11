@@ -6,6 +6,35 @@ NAMESPACE WriteOff;
 
 @settingOperationSupermag(WriteOff);
 
+exportWriteOff ABSTRACT LIST (WriteOff);
+
+EXTEND FORM writeOffs
+    PROPERTIES (w) exportWriteOff TOOLBAR 
+;
+DESIGN writeOffs {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportWriteOff(w));
+        }        
+    }
+}
+
+userWriteOffApply 'Сохранить ' (WriteOff doc) {
+    exportWriteOff(doc);
+    formApply();
+}
+
+EXTEND FORM userWriteOff  PROPERTIES userWriteOffApply(w) TOOLBAR;
+
+DESIGN userWriteOff {
+    TOOLBARRIGHT {
+        MOVE PROPERTY (userWriteOffApply(w)) BEFORE PROPERTY (formClose()) { imagePath = 'apply.png';} 
+        PROPERTY (formOk()) { hide = TRUE; }
+        PROPERTY (formApply()) { hide = TRUE; }
+    }
+}
+
 @settingIntegration(WriteOff, WriteOffDetail);
 
 @exportFilds(writeOff, writeOffDetail); 
@@ -13,66 +42,64 @@ NAMESPACE WriteOff;
 @exportFormWO(exportWriteOffWO, writeOff, writeOffDetail, 'документ списания');
 
 EXTEND FORM exportWriteOffWO
-    PROPERTIES = indexMinus(docd) EXTID 'SPECITEM'
-    PROPERTIES = indexMinus(docd2) EXTID 'SPECITEM'
-    PROPERTIES = indexMinus(docd3) EXTID 'SPECITEM'
-    PROPERTIES = indexMinus(docd4) EXTID 'SPECITEM'
-    FILTERS quantity(docd) < 0
-    FILTERS quantity(docd2) < 0
-    FILTERS quantity(docd3) < 0
-    FILTERS quantity(docd4) < 0
+    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd5) EXTID 'SPECITEM'
+    FILTERS quantity(docd) > 0
+    FILTERS quantity(docd2) > 0
+    FILTERS quantity(docd3) > 0
+    FILTERS quantity(docd4) > 0
+    FILTERS quantity(docd5) > 0
 ;                
 
-exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
+exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
     inc(WriteOff ii) <- NULL;
-    IF docTypeSupermag(operation(i)) AND opcodeSupermag(operation(i)) THEN {        
+    IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
         dt () <- currentDateTime();
-        inc(i) <- TRUE;
-        FOR iterate(INTEGER n, 1, wordCount(docTypeSupermag(operation(i)),';')) DO {
-                doctype(i) <- STRING[10] (getWord(docTypeSupermag(operation(i)),';',n));
-                opcode(i) <- STRING[10] (getWord(opcodeSupermag(operation(i)),';',n));
-                userop(i) <- STRING[10] (getWord(useropSupermag(operation(i)),';',n));
-                clientIndex(i) <- id(contragentSupermag(stockGroup(stock(i))));
-                priceWithTax(WriteOffDetail ad) <- price(ad) WHERE writeOff(ad) = i;
-                valueTax(WriteOffDetail ad) <- valueVAT(sku(ad)) WHERE writeOff(ad) = i;
-                priceNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = i;
-                sumWithTax(WriteOffDetail ad) <- abs(sum(ad)) WHERE writeOff(ad) = i;
-                sumNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = i;
-                sumTax(WriteOffDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE writeOff(ad) = i;
-                sumWithTaxCurr(WriteOffDetail ad) <-round(sumWithTax(ad)/curRate(i),2) WHERE writeOff(ad) = i;
-                locationFrom(i) <- stock(i);
-                locationTo(i) <- stock(i);
-                location(i)  <- stock(i);                 
-                CASE WHEN doctype(i) = 'WI' THEN {
-                        id(i) <- 'WI' + seriesNumber(i);
-                        sumWithTax(i) <- GROUP SUM abs(sumWithTax(WriteOffDetail add)) IF (writeOff(add) = i AND sum(add) > 0);                
-                        sumWithTaxCurr(i) <- GROUP SUM sumWithTaxCurr(WriteOffDetail add) IF (writeOff(add) = i AND sum(add) > 0);                                
-                     }
-                     WHEN doctype(i) = 'WO' THEN {
-                        id(i) <- 'WO' + seriesNumber(i);
-                        sumWithTax(i) <- GROUP SUM abs(sumWithTax(WriteOffDetail add)) IF (writeOff(add) = i AND sum(add) < 0);                
-                        sumWithTaxCurr(i) <- GROUP SUM sumWithTaxCurr(WriteOffDetail add) IF (writeOff(add) = i AND sum(add) < 0);                                
-                     }
+        inc(doc) <- TRUE;
+        FOR iterate(INTEGER n, 1, wordCount(docTypeSupermag(operation(doc)),';')) DO {
+                docid(doc) <- seriesNumber(doc);                 
+                doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
+                userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                bornin(doc) <- baseIDSupermag();
+                locationFrom(doc) <- stock(doc);
+                locationTo(doc) <- stock(doc);
+                location(doc)  <- stock(doc);                 
+                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);
+                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 WHEN isClosed(doc) THEN 0 ELSE 1;
+                clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
+                priceWithTax(WriteOffDetail ad) <- price(ad) WHERE writeOff(ad) = doc;
+                priceRoundMode(doc) <- 4 IF doc IS WriteOff;                                                
+                valueTax(WriteOffDetail ad) <- valueVAT(sku(ad)) WHERE writeOff(ad) = doc;
+                priceNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = doc;
+                sumWithTax(WriteOffDetail ad) <- abs(sum(ad)) WHERE writeOff(ad) = doc;
+                sumNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = doc;
+                sumTax(WriteOffDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE writeOff(ad) = doc;
+                sumWithTaxCurr(WriteOffDetail ad) <-round(sumWithTax(ad)/curRate(doc),2) WHERE writeOff(ad) = doc;
+                sumWithTax(doc) <- GROUP SUM sumWithTax(WriteOffDetail add) IF writeOff(add) = doc;                
+                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(WriteOffDetail add) IF writeOff(add) = doc;                                
            TRY {                
-                CASE WHEN doctype(i) = 'WI' THEN EXPORT exportWriteOffWO XML TO System.exportFile;                 
-           } CATCH MESSAGE 'Ошибка формирования файла';
+                CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportWriteOffWO XML TO System.exportFile;                 
+           } CATCH 
+                logToFile('supermag', CONCAT '\n', 'Списание ' + id(doc),'Ошибка формирования формы', ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {          
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt());
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
            } CATCH {
-                MESSAGE 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt())+ '.xml';
-                MESSAGE messageCaughtException();            
-                MESSAGE javaStackTraceCaughtException();            
-                MESSAGE lsfStackTraceCaughtException();            
+                logToFile('supermag', CONCAT '\n', 'Списание ' + id(doc), 'Ошибка записи в файл','file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }
            
            TRY 
            {      
-                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
                 IF fileExists()  THEN NEWSESSION NESTED LOCAL {
                     FOR inc(WriteOff ii)  DO NEW log = SupermagLog {
-                        id(log)<- doctype(i) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
+                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
                         dateTime(log) <- currentDateTime();
                         userLogin(log) <- login(currentUser()); 
                         nameContact(log) <- STRING[100](name(currentUser()));
@@ -81,12 +108,54 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff i) {
                 }             
                      
            } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Изменение остатков', 'file://' + exportDirectorySupermag() + '/' + doctype(i) + '_' + STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-                MESSAGE 'Файл не найден' + 'file://' + exportDirectorySupermag() + '/' + doctype(i) +'_' +STRING[30](LONG(i))+'_'+(OVERRIDE id(i), '')+'_'+ formulaDateT(dt());
+                logToFile('supermag', CONCAT '\n', 'Списание ' + id(doc), 'Ошибка чтения файла' , 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }
         } 
     }       
     inc(WriteOff ii) <- NULL;
+    APPLY;
 }
 
-EXTEND FORM writeOffs PROPERTIES exportWriteOffMag(w) DRAW w TOOLBAR;
+exportWriteOff (WriteOff doc) + {
+    IF isPosted(doc) THEN exportWriteOffMag(doc);
+}
+
+importWriteOff 'Списания' () {
+    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocks() + ')  OR d.locationfrom IN ('+ stocks() + ') OR locationto IN ('+ stocks() + ')   ) AND ( ' ;
+    LOCAL filterDoc = STRING ();
+    LOCAL operDoc = STRING ();
+    filterDoc() <-'';
+    FOR Operation op IF op IS Operation AND getWord(docTypeSupermag(op),';',1) DO {
+       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',1) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',1)), ('d.USEROP = ' + getWord(useropSupermag(op),';',1)) ; 
+       filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
+    }
+      
+//  чтобы не путаться осталяем только 1 документ
+//    FOR Operation op IF op IS Operation AND getWord(docTypeSupermag(op),';',2) DO {
+//       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',2) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',2)), ('d.USEROP = ' + getWord(useropSupermag(op),';',2)) ; 
+//       filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
+//    }  
+    
+    filterDoc() <- substrFrom(filterDoc(),4);
+    filterSql() <- CONCAT '', filterSql(), filterDoc(),')'; 
+       
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, d.createdat, d.docstate from Supermag.SMDocuments d where ' + filterSql() TO SupermagSettings.file;   
+
+   // MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, d.createdat, d.docstate from Supermag.SMDocuments d where ' + filterSql();     
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, docDate, docState;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(docDate(i)), STRING(docState(i)) ) IF idDoc(i);                 
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+
+    FOR UserWriteOff doc == userWriteOff(idDoc(INTEGER i)) AND NOT lastVersion[WriteOff](doc) = currentVersion(i) DO {
+        isPosted(doc) <- TRUE IF docState(i) = 3;
+        isClosed(doc) <- TRUE IF docState(i) = 0;      
+        lastVersion[WriteOff](doc) <- currentVersion(i);        
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importWriteOff();

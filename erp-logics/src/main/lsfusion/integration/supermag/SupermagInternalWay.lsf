@@ -1,18 +1,18 @@
 MODULE SupermagInternalWay;
 
-REQUIRE SupermagSaleInvoice;
+REQUIRE SupermagSaleInvoice, PricingSalePurchase;
 
 PRIORITY SupermagSettings;
 
 NAMESPACE Sale;
 
 
-@exportFormIW(exportSaleInvoiceIW, invoice, invoiceDetail, 'Накладная (продажа)');
+@exportFormIW(exportSaleInvoiceIW, invoice, invoiceDetail, 'Накладная (перемещение)');
 
 EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'                                                        
     
-    OBJECTS docd6= InvoiceDetail EXTID 'SLSPECQMISMATCH' IN WO
+    OBJECTS docd6= InvoiceDetail EXTID 'SLSPECQMISMATCH' IN IW
     PROPERTIES = docId(docd6) EXTID 'DOCID'    
     PROPERTIES = 'IW' IF docd6 IS InvoiceDetail EXTID 'DOCTYPE'      
     PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
@@ -21,7 +21,7 @@ EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE'
     PROPERTIES = index(docd) EXTID 'SPECITEM'
     PROPERTIES = index(docd6) EXTID 'SPECITEM'
         
-    OBJECTS o = Order EXTID 'SMCOMMONBASES' IN WO 
+    OBJECTS o = Order EXTID 'SMCOMMONBASES' IN IW 
     PROPERTIES = STRING[100](docid(doc)) IF o IS Order EXTID 'ID'  
     PROPERTIES = 'IW' IF o IS Order EXTID 'DOCTYPE'     
     PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
@@ -50,7 +50,8 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 clientIndex(doc) <- NULL IF doc IS Invoice;
                 locationFrom(doc) <- supplierStock(doc);
                 locationTo(doc) <- customerStock(doc);                
-                location(doc)  <- NULL IF doc IS Invoice;                                                     
+                location(doc)  <- NULL IF doc IS Invoice;     
+                priceRoundMode(doc) <- 0 IF doc IS Invoice;                                                
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
@@ -182,9 +183,12 @@ importInternalWay 'Импорт накладные перемещение' () {
         valueVAT(det) <- taxRate(i);
         dataIndex(det) <- specItem(i);
      //   priceListType(det) <- priceListType(stock(ISTRING[100] (locationTo(i))));
-        retailPrice(det) <- retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
+        retailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationFrom(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));       
         retailVAT(det) <- VAT(sku(det));
         valueRetailVAT(det) <- taxRate(i);                 
+        purchaseRetailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));
+        purchaseRetailVAT(det) <- VAT(sku(det));
+        valuePurchaseRetailVAT(det) <- taxRate(i);       
         shipmentPrice(det) <- NUMERIC[16,4](itemPrice(i));
         shipmentSum(det) <- NUMERIC[16,4](totalPrice(i)); 
         imported(det) <- TRUE;

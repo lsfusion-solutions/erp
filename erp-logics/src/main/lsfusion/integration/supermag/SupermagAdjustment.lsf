@@ -6,6 +6,35 @@ NAMESPACE Stock;
 
 @settingOperationSupermag(Stock);
 
+exportAdjustment 'Экспорт в Супермаг' ABSTRACT LIST (Adjustment);
+
+EXTEND FORM adjustments
+    PROPERTIES (i) exportAdjustment TOOLBAR 
+;
+DESIGN adjustments {
+    actionContainer{
+        NEW mag {
+            caption = 'Супермаг';
+            MOVE PROPERTY (exportAdjustment(i));
+        }        
+    }
+}
+
+userAdjustmentApply 'Сохранить ' (Adjustment doc) {
+    exportAdjustment(doc);
+    formApply();
+}
+
+EXTEND FORM userAdjustment  PROPERTIES userAdjustmentApply(i) TOOLBAR;
+
+DESIGN userAdjustment {
+    TOOLBARRIGHT {
+        MOVE PROPERTY (userAdjustmentApply(i)) BEFORE PROPERTY (formClose()) { imagePath = 'apply.png';} 
+        PROPERTY (formOk()) { hide = TRUE; }
+        PROPERTY (formApply()) { hide = TRUE; }
+    }
+}
+
 @settingIntegration(Adjustment, AdjustmentDetail);
 
 @exportFilds(adjustment, adjustmentDetail);
@@ -16,10 +45,12 @@ EXTEND FORM exportAdjustmentWI
     PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
     PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
     PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
+    PROPERTIES = indexPlus(docd5) EXTID 'SPECITEM'
     FILTERS quantity(docd)  > 0
     FILTERS quantity(docd2) > 0    
     FILTERS quantity(docd3) > 0    
     FILTERS quantity(docd4) > 0    
+    FILTERS quantity(docd5) > 0    
 ;                
 
 @exportFormWO(exportAdjustmentWO, adjustment, adjustmentDetail, 'документ изменения остатков');
@@ -29,10 +60,12 @@ EXTEND FORM exportAdjustmentWO
     PROPERTIES = indexMinus(docd2) EXTID 'SPECITEM'
     PROPERTIES = indexMinus(docd3) EXTID 'SPECITEM'
     PROPERTIES = indexMinus(docd4) EXTID 'SPECITEM'
+    PROPERTIES = indexMinus(docd5) EXTID 'SPECITEM'
     FILTERS quantity(docd) < 0
     FILTERS quantity(docd2) < 0
     FILTERS quantity(docd3) < 0
     FILTERS quantity(docd4) < 0
+    FILTERS quantity(docd5) < 0    
 ;                
 
 @exportFormLA(exportAdjustmentLA, adjustment, adjustmentDetail, 'документ изменения остатков');   
@@ -45,23 +78,26 @@ EXTEND FORM exportAdjustmentLA
 EXTEND FORM exportAdjustmentFA
     PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
     FILTERS quantity(docd) > 0
-;                
-
+;        
+        
 exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
-    inc(Adjustment ii) <- NULL;
+    inc(Adjustment ii) <- NULL;   
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
         dt () <- currentDateTime();
         inc(doc) <- TRUE;
-        FOR iterate(INTEGER n, 1, wordCount(docTypeSupermag(operation(doc)),';')) DO {
+        FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 1) DO {
+                docid(doc) <- seriesNumber(doc);                 
                 doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
                 opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
                 userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
-                docstate(doc) <- IF isPosted(doc) THEN 3 ELSE 2;
+                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 WHEN isClosed(doc) THEN 0 ELSE 1;
+                bornin(doc) <- baseIDSupermag();
                 clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
                 locationFrom(doc) <- stock(doc);
                 locationTo(doc) <- stock(doc);
-                location(doc)  <- stock(doc);                 
+                location(doc)  <- stock(doc);     
+                priceRoundMode(doc) <- CASE WHEN doctype(doc) = 'FA' OR doctype(doc) = 'LA' THEN 0 ELSE 4;                                                                            
                 priceWithTax(AdjustmentDetail ad) <- price(ad) WHERE adjustment(ad) = doc;
                 valueTax(AdjustmentDetail ad) <- valueVAT(sku(ad)) WHERE adjustment(ad) = doc;
                 priceNoTax(AdjustmentDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE adjustment(ad) = doc;
@@ -88,15 +124,14 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                      WHEN doctype(doc) = 'WO' THEN EXPORT exportAdjustmentWO XML TO System.exportFile;
                      WHEN doctype(doc) = 'LA' THEN EXPORT exportAdjustmentLA XML TO System.exportFile;
                      WHEN doctype(doc) = 'FA' THEN EXPORT exportAdjustmentFA XML TO System.exportFile;
-           } CATCH // MESSAGE 'Ошибка формирования файла';
-           
+           } CATCH {
+                logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(doc), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+           }
            TRY {          
                 WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
            } CATCH {
-//                MESSAGE 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt())+ '.xml';
-//                MESSAGE messageCaughtException();            
-//                MESSAGE javaStackTraceCaughtException();            
-//                MESSAGE lsfStackTraceCaughtException();            
+                logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(doc), 'Ошибка записи в файл' ,'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }
            
            TRY 
@@ -113,11 +148,54 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                 }             
                      
            } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Изменение остатков', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-//                MESSAGE 'Файл не найден' + 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(doc), 'Ошибка чтения файла', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }
         } 
     }       
     inc(Adjustment ii) <- NULL;
     APPLY;
 }
+
+exportAdjustment (Adjustment doc) + {
+    IF isPosted(doc) THEN exportAdjustmentMag(doc);
+}
+
+importAdjustment 'Изменение остатков' () {
+    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocks() + ')  OR d.locationfrom IN ('+ stocks() + ') OR locationto IN ('+ stocks() + ')   ) AND ( ' ;
+    LOCAL filterDoc = STRING ();
+    LOCAL operDoc = STRING ();
+    filterDoc() <-'';
+    FOR Operation op IF op IS Operation AND getWord(docTypeSupermag(op),';',1) DO {
+       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',1) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',1)), ('d.USEROP = ' + getWord(useropSupermag(op),';',1)) ; 
+       filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
+    }
+      
+//  чтобы не путаться осталяем только 1 документ
+//    FOR Operation op IF op IS Operation AND getWord(docTypeSupermag(op),';',2) DO {
+//       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',2) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',2)), ('d.USEROP = ' + getWord(useropSupermag(op),';',2)) ; 
+//       filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
+//    }  
+    
+    filterDoc() <- substrFrom(filterDoc(),4);
+    filterSql() <- CONCAT '', filterSql(), filterDoc(),')'; 
+       
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, d.createdat, d.docstate from Supermag.SMDocuments d where ' + filterSql() TO SupermagSettings.file;   
+
+    MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, d.createdat, d.docstate from Supermag.SMDocuments d where ' + filterSql();     
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, docDate, docState;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(docDate(i)), STRING(docState(i)) ) IF idDoc(i);                 
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+
+    FOR UserAdjustment doc == userAdjustment(idDoc(INTEGER i)) AND NOT lastVersion[Adjustment](doc) = currentVersion(i) DO {
+        isPosted(doc) <- TRUE IF docState(i) = 3;
+        isClosed(doc) <- TRUE IF docState(i) = 0;      
+        lastVersion[Adjustment](doc) <- currentVersion(i);        
+    }
+    
+    APPLY;
+}
+
+EXTEND FORM integrationData PROPERTIES importAdjustment();
