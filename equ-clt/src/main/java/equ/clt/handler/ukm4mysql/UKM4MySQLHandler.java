@@ -14,7 +14,6 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -782,9 +781,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     Statement statement = conn.createStatement();
                     String queryString = "select m.cash_id, m.id, m.date, m.type, m.amount, m.shift_number, s.id, s.date from moneyoperation m join shift s on m.shift_number = s.number AND m.cash_id = s.cash_id";
                     if (lastDaysCashDocument != null) {
-                        Calendar c = Calendar.getInstance();
-                        c.add(Calendar.DATE, -lastDaysCashDocument);
-                        queryString += " where m.date >='" + new SimpleDateFormat("yyyyMMdd").format(c.getTime()) + "'";
+                        queryString += " where m.date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
                     Time midnight = new Time(23, 59, 59);
@@ -1263,11 +1260,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Class.forName("com.mysql.jdbc.Driver");
                         conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                         String dateFrom = requestExchange.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                        Calendar cal = Calendar.getInstance();
-                        cal.setTime(localDateToSqlDate(requestExchange.dateTo));
-                        cal.add(Calendar.DATE, 1);
-                        machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: dateTo is " + cal.getTime());
-                        String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+                        String dateTo = requestExchange.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
                         Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, false);
                         StringBuilder cashIdWhere = null;
