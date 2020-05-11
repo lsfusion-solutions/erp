@@ -1,0 +1,13 @@
+MODULE AdjustmentSum;
+
+REQUIRE StockAdjustment, SkuLedgerSum, SkuLedgerTax;
+
+costSum[SkuLedger](OutAdjustmentSkuDetail ledger) += IF quantity(ledger)>0.0 AND NOT batch(ledger)
+    THEN Stock.costSum(ledger)
+    ELSE -Stock.costSum(ledger);
+costSumVAT[SkuLedger](OutAdjustmentSkuDetail ledger) += IF quantity(ledger)>0.0 AND NOT batch(ledger)
+    THEN NUMERIC[18,4]((GROUP SUM costSum(ledger, Batch batch)*Stock.valueVAT(batch)/100))
+    ELSE -NUMERIC[18,4]((GROUP SUM costSum(ledger, Batch batch)*Stock.valueVAT(batch)/100));
+
+sum[SkuLedger](OutAdjustmentSkuDetail ledger) += sum(ledger);
+quantity[SkuLedger](OutAdjustmentSkuDetail ledger) += quantity(ledger);
