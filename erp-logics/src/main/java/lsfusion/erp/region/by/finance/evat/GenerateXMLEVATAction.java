@@ -183,7 +183,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                         if(numberDoc == null)
                             error += String.format("EVAT %s: Не задан номер условия поставки", documentNumber);
                         rootElement.addContent(createSenderReceiverElement(context, evatObject, addressSupplier, addressCustomer, namespace));
-                        rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, false, namespace));
+                        boolean additional = status.equals("additionalNoRef");
+                        rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, additional, namespace));
                     }
                     rootElement.addContent(createRosterElement(context, evatObject, namespace, allowZeroVAT));
                     break;
