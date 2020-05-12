@@ -157,10 +157,13 @@ EXTEND FORM invoices
 
 calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
-overFillExtraCharge ABSTRACT(Invoice);
+beforeFillExtraCharge ABSTRACT(Invoice);
+afterFillExtraCharge ABSTRACT(Invoice);
 
 fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  { 
     IF currency(i) THEN {    
+        beforeFillExtraCharge(i);
+        
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
                 PARTITION UNGROUP calcChargeSum
@@ -178,7 +181,7 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  {
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }
         
-        overFillExtraCharge(i);
+        afterFillExtraCharge(i);
     } ELSE {
         MESSAGE 'Для инвойса не задана валюта.';
     }
