@@ -50,6 +50,9 @@ importContract 'Импорт из контрактов с поставщикам
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docDate, docState, dateFrom, dateTo, clientIndex, idCompany, title, paymentDelay, isCalendarDelay, contractType;
 
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(dateFrom(i)), STRING(dateTo(i)), STRING(clientIndex(i)), 
+                                                STRING(idCompany(i)), STRING(title(i)), STRING(paymentDelay(i)), STRING(isCalendarDelay(i)), STRING(contractType(i)) ) IF idDoc(i);                 
     //  дополняем базу условиями отсрочки
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);    
     FOR [GROUP SUM 1 IF imported(INTEGER i) BY paymentDelay(i), isBankDays(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
@@ -62,12 +65,9 @@ importContract 'Импорт из контрактов с поставщикам
         }
     }
 
-    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(dateFrom(i)), STRING(dateTo(i)), STRING(clientIndex(i)), 
-                                                STRING(idCompany(i)), STRING(title(i)), STRING(paymentDelay(i)), STRING(isCalendarDelay(i)), STRING(contractType(i)) ) IF idDoc(i);                 
     
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN {
-        MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
+        MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), isCalendarDelay(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
     }
     
     // создаем новые договоры

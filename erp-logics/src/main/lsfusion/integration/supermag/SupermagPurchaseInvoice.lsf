@@ -10,7 +10,9 @@ exportPurchaseInvoice ABSTRACT LIST (Purchase.Invoice);
 
 EXTEND FORM Purchase.invoices
     PROPERTIES (i) exportPurchaseInvoice TOOLBAR 
+    PROPERTIES (i) id SHOWIF showIDs()
 ;
+
 DESIGN Purchase.invoices {
     actionContainer{
         NEW mag {
@@ -192,7 +194,7 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
     
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);   
     
-    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF operation1Supermag(codeOperation(i))](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) AND NOT docState(i) = 1](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
         id(o) <- newId;
     }
 

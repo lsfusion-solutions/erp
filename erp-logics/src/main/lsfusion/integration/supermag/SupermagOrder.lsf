@@ -99,7 +99,7 @@ importInternalOrder 'Импорт заказов (складских требо�
     imported(Purchase.UserOrder doc)  <- NULL IF doc IS Purchase.UserOrder;
     imported(Purchase.UserOrderDetail det)  <- NULL IF det IS Purchase.UserOrderDetail;
     
-    filterSql() <- 'd.docstate IN (0, 2, 3) AND (d.location IN ('+ stocks() + ') OR dd.location IN ('+ stocks() + ') ) AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'd.docstate IN (0, 1, 2, 3) AND (d.location IN ('+ stocks() + ') OR dd.location IN ('+ stocks() + ') ) AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(SupermagSettings.numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + SupermagSettings.numberImportDocument() + '\''; 
                                       
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
@@ -116,7 +116,7 @@ importInternalOrder 'Импорт заказов (складских требо�
         MESSAGE currentVersion(0);
     }
     
-    FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW doc = Purchase.UserOrder {
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF NOT docState(i) = 1](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW doc = Purchase.UserOrder {
         id(doc) <- newId;
     }
     

@@ -10,6 +10,7 @@ exportSaleInvoice 'Экспорт с Супермаг' ABSTRACT LIST (Sale.Invoi
 
 EXTEND FORM Sale.invoices
     PROPERTIES (i) exportSaleInvoice TOOLBAR 
+    PROPERTIES (i) id SHOWIF showIDs()
 ;
 DESIGN Sale.invoices {
     actionContainer{
@@ -178,7 +179,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(clientIndex(i)), STRING(locationFrom(i)), STRING(comment(i)) ) IF idDoc(i);                 
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     
-    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF Sale.operation1Supermag(codeOperation(i))](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF Sale.operation1Supermag(codeOperation(i)) AND NOT docState(i) = 1](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
         id(o) <- newId;
     }
 
