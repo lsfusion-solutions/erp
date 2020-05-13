@@ -46,7 +46,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 docid(doc) <- seriesNumber(doc);                 
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- baseIDSupermag();
+                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
                 clientIndex(doc) <- NULL IF doc IS Invoice;
                 locationFrom(doc) <- supplierStock(doc);
                 locationTo(doc) <- customerStock(doc);                
@@ -54,11 +54,11 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 priceRoundMode(doc) <- 0 IF doc IS Invoice;                                                
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
-                valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
+//                valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
                 priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
                 sumWithTax(InvoiceDetail docd) <- abs(invoiceSum(docd)) WHERE invoice(docd) = doc;
                 sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
-                sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
+//                sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
             //    priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
             //    priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
@@ -99,8 +99,8 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
     APPLY;
 }
 
-exportSaleInvoice (Sale.UserInvoice doc) + {
-    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' THEN exportSaleInvoiceIW(doc);
+overApplySaleInvoice (Sale.UserInvoice doc) + {
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' AND (isPosted(doc) OR createShipment(doc)) THEN exportSaleInvoiceIW(doc);
 }
 
 //-----------------------------------------------------------------------------------------------------импорт
@@ -112,7 +112,7 @@ importInternalWay 'Импорт накладные перемещение' () {
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'd.DocType = \'IW\' AND d.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
        
     EXTERNAL SQL connectionString()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql() TO SupermagSettings.file;   
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, locationTo, locationFrom, comment;
     
@@ -125,7 +125,7 @@ importInternalWay 'Импорт накладные перемещение' () {
     }
     
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql();
+        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql();
         MESSAGE idDoc(0);
         MESSAGE currentVersion(0);
         MESSAGE name(operation1Supermag(codeOperation(0)));
@@ -135,7 +135,9 @@ importInternalWay 'Импорт накладные перемещение' () {
         number[Document](doc) <- STRING[28](docNumber(i));
         operation(doc) <- operation1Supermag(codeOperation(i));
         isPosted(doc) <- docState(i) == 3;
+        bornin(doc) <- bornIn(i);
         createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
+        isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag[UserInvoice](doc) <- docState(i);
         supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
         supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));

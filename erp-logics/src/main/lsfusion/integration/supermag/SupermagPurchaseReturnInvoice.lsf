@@ -20,6 +20,7 @@ DESIGN PurchaseReturn.invoices {
 
 userInvoiceApply 'Сохранить ' (UserInvoice doc) {
     formApply();
+    IF series(doc) THEN { number(doc) <- seriesNumber(doc); series(doc) <- NULL;} 
     exportPurchaseReturnInvoice(doc);
 }
 
@@ -130,11 +131,11 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
                 priceRoundMode(doc) <- 4 IF doc IS Invoice;                                                
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- baseIDSupermag();
+                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
                 CASE WHEN doctype(doc) = 'WO' THEN {
                         clientIndex(doc) <- id(supplier(doc));
-                        locationFrom(doc) <- NULL IF doc IS Invoice;
-                        locationTo(doc) <- customerStock(doc);                
+                        locationTo(doc) <- NULL IF doc IS Invoice;
+                        locationFrom(doc) <- customerStock(doc);                
                         location(doc)  <- NULL IF doc IS Invoice;                             
                     }                 
                     WHEN doctype(doc) = 'IW' THEN {
@@ -205,7 +206,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND d.id = \'' + numberImportDocument() + '\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id'; 
        
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' TO SupermagSettings.file;   
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' TO SupermagSettings.file;   
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationFrom, comment, paymentDelay, isCalendarDelay;
     
@@ -220,7 +221,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     }
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationto, d.Commentary, b.suppldocsum, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' ;
+        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationto, d.Commentary, b.suppldocsum, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' ;
         MESSAGE currentVersion(0);
         MESSAGE codeOperation(0);
     }
@@ -231,6 +232,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         operation(doc) <- Purchase.operation1Supermag(codeOperation(i));
         isPosted(doc) <- docState(i) == 3;
         createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
+        isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag(doc) <- docState(i);
         supplier(doc) <- legalEntity(STRING(clientIndex(i)));
         supplierStock(doc) <- stock(STRING[100] (clientIndex(i)));

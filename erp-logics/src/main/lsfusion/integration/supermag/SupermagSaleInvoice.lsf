@@ -6,21 +6,22 @@ NAMESPACE Sale;
 
 @settingOperationSupermag(Sale);
 
-exportSaleInvoice 'Экспорт с Супермаг' ABSTRACT LIST (Sale.Invoice);
+overApplySaleInvoice 'Экспорт с Супермаг' ABSTRACT LIST (Sale.Invoice);
 
 EXTEND FORM Sale.invoices
-    PROPERTIES (i) exportSaleInvoice TOOLBAR 
+    PROPERTIES (i) overApplySaleInvoice TOOLBAR 
     PROPERTIES (i) id SHOWIF showIDs()
 ;
 DESIGN Sale.invoices {
     actionContainer{
-        NEW mag { caption = 'Супермаг'; MOVE PROPERTY (exportSaleInvoice(i)); }        
+        NEW mag { caption = 'Супермаг'; MOVE PROPERTY (overApplySaleInvoice(i)); }        
     }
 }
 
 userInvoiceApply 'Сохранить ' (UserInvoice doc) {
     formApply();
-    exportSaleInvoice(doc);
+    IF series(doc) THEN { number(doc) <- seriesNumber(doc); series(doc) <- NULL;} 
+    overApplySaleInvoice(doc);
 }
 
 EXTEND FORM userInvoice  PROPERTIES userInvoiceApply(i) TOOLBAR;
@@ -103,7 +104,7 @@ exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
                 docid(doc) <- seriesNumber(doc);                 
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- baseIDSupermag();
+                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
                 clientIndex(doc) <- id(customer(doc));
                 locationFrom(doc) <- supplierStock(doc);
                 locationTo(doc) <- NULL IF doc IS Invoice;                
@@ -156,8 +157,8 @@ exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
     APPLY;
 }
 
-exportSaleInvoice (Sale.UserInvoice doc) + {
-    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WO' THEN exportSaleInvoiceWO(doc);
+overApplySaleInvoice (Sale.UserInvoice doc) + {
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WO' AND (isPosted(doc) OR createShipment(doc)) THEN exportSaleInvoiceWO(doc);
 }
 
 //-------------------------------------------------------------------------------------------------------------------импорт
@@ -171,7 +172,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.id = \'' + numberImportDocument() + '\''; 
        
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql() TO SupermagSettings.file;   
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationFrom, comment;
     
@@ -184,7 +185,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
     }
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, RAWTOHEX(d.bornin), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql();
+        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql();
         MESSAGE idDoc(0);
         MESSAGE currentVersion(0);
         MESSAGE name(Sale.operation1Supermag(codeOperation(0)));
@@ -196,6 +197,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
         operation(doc) <- Sale.operation1Supermag(codeOperation(i));
         isPosted(doc) <- docState(i) == 3;
         createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
+        isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag[UserInvoice](doc) <- docState(i);
         supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
         supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));

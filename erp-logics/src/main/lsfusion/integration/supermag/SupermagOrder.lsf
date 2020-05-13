@@ -21,12 +21,12 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\''; 
            
     EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, d.DocType, d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select d.ID, d.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO SupermagSettings.file;   
    
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docState, clientIndex, location, comment, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, clientIndex, location, comment, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin;
        
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
                                                 STRING(clientIndex(i)), STRING(location(i)),  STRING(supplyDate(i)), STRING(supplyTimeMin(i)), STRING(supplyTimeTillMin(i))) IF idDoc(i);                 
        
     FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Purchase.userOrder(newId) DO NEW doc = Purchase.UserOrder {
@@ -36,6 +36,7 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     FOR Purchase.UserOrder doc == Purchase.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
         number[Document](doc) <- STRING[28](docNumber(i));
         operation(doc) <- Purchase.operation('purchaseStoreSupplier');
+        bornin(doc) <- bornIn(i);
         isPosted(doc) <- docState(i) == 3;
         isRejected(doc) <- docState(i) == 0;
         lastStatusSupermag(doc) <- docState(i);
@@ -103,16 +104,16 @@ importInternalOrder 'Импорт заказов (складских требо�
     IF length(SupermagSettings.numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + SupermagSettings.numberImportDocument() + '\''; 
                                       
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select D.ID, D.DOCTYPE, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(D.bornin)), D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docState, docDate, locationTo, comment, deliveryDate, deliveryTime, locationFrom;   
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, docDate, locationTo, comment, deliveryDate, deliveryTime, locationFrom;   
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
                                                 STRING(locationTo(i)), STRING(locationFrom(i)),  STRING(deliveryDate(i)), STRING(deliveryTime(i))) IF idDoc(i);                 
 
     IF length(SupermagSettings.numberImportDocument()) > 0 THEN { 
-        MESSAGE 'Select D.ID, D.DOCTYPE, D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql(); 
+        MESSAGE 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND DD.ID(+)= D.ID AND ' + filterSql(); 
         MESSAGE currentVersion(0);
     }
     
@@ -122,7 +123,8 @@ importInternalOrder 'Импорт заказов (складских требо�
     
     FOR Purchase.UserOrder doc == Purchase.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
         number(doc) <- STRING[28](docNumber(i));
-        operation(doc) <- Purchase.operation('purchaseStoreStore'); 
+        operation(doc) <- Purchase.operation('purchaseStoreStore');
+        bornin(doc) <- bornIn(i); 
         isPosted(doc) <- docState(i) == 3;
         isRejected(doc) <- docState(i) == 0;     
         lastStatusSupermag(doc) <- docState(i);
@@ -184,12 +186,12 @@ importCustomerOrder 'Импорт заказов (продажа)' () {
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'd.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
 
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
-    EXEC 'Select D.ID, D.DOCTYPE, D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docState, clientIndex, location, comment, docDate, supplyDate, supplyTime;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, clientIndex, location, comment, docDate, supplyDate, supplyTime;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
                                                 STRING(clientIndex(i)), STRING(location(i)),  STRING(supplyDate(i)), STRING(supplyTime(i)) ) IF idDoc(i);                 
 
     FOR [GROUP SUM 1 BY idDoc(INTEGER i)](STRING[50] newId) AND NOT Sale.userOrder(newId) DO NEW doc = Sale.UserOrder {
@@ -199,6 +201,7 @@ importCustomerOrder 'Импорт заказов (продажа)' () {
     FOR Sale.UserOrder doc == Sale.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
         number(doc) <- STRING[28](docNumber(i));
         operation(doc) <- Sale.operation('saleStoreCustomer');
+        bornin(doc) <- bornIn(i);
         isPosted(doc) <- docState(i) == 3;
         isConfirmed(doc) <- docState(i) == 3;
         lastStatusSupermag(doc) <- docState(i);

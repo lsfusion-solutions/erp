@@ -109,12 +109,12 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\'';
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, d.DOCSTATE, REASON, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id(+) = d.id AND a.doctype(+) = d.doctype AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.ID, d.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, d.DOCSTATE, REASON, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id(+) = d.id AND a.doctype(+) = d.doctype AND ' + filterSql() TO SupermagSettings.file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, dateFrom, docState, reason, comment, idPricetype;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, dateFrom, docState, reason, comment, idPricetype;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(dateFrom(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(idPricetype(i)) ) IF idDoc(i);                 
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(dateFrom(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(idPricetype(i)) ) IF idDoc(i);                 
     
     IF length(numberImportDocument()) > 0 THEN 
         MESSAGE currentVersion(0);
@@ -127,6 +127,7 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
         operation(doc) <- PriceList.operation('retail');
         number(doc) <- ISTRING[28] (docNumber(i));
+        bornin(doc) <- bornIn(i);
         date(doc) <- DATE (dateFrom(i));
         time(doc) <- TIME (dateFrom(i));
         fromDate(doc) <- DATE (dateFrom(i));
