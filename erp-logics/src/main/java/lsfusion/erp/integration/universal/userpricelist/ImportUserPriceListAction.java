@@ -119,8 +119,8 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         
         List<UserPriceListDetail> userPriceListDetailList;
         
-        LocalDate dateDocument = getLocalDate(findProperty("date[UserPriceList]").read(context, userPriceListObject));
-        LocalDate dateFrom = getLocalDate((findProperty("fromDate[UserPriceList]").read(context, userPriceListObject)));
+        LocalDate dateDocument = (LocalDate) findProperty("date[UserPriceList]").read(context, userPriceListObject);
+        LocalDate dateFrom = (LocalDate) findProperty("fromDate[UserPriceList]").read(context, userPriceListObject);
         Date dateFromDocument = localDateToSqlDate(dateFrom == null ? (dateDocument == null ? LocalDate.now() : dateDocument) : dateFrom);
         String fileExtension = settings.getFileExtension();
 

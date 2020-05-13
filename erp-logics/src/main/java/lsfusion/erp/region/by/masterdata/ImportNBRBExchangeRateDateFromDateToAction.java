@@ -34,8 +34,8 @@ public class ImportNBRBExchangeRateDateFromDateToAction extends ImportNBRBExchan
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
             String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, currencyObject);
-            LocalDate nbrbDateFrom = getLocalDate(findProperty("importNBRBExchangeRateDateFrom[]").read(context));
-            LocalDate nbrbDateTo = getLocalDate(findProperty("importNBRBExchangeRateDateTo[]").read(context));
+            LocalDate nbrbDateFrom = (LocalDate) findProperty("importNBRBExchangeRateDateFrom[]").read(context);
+            LocalDate nbrbDateTo = (LocalDate) findProperty("importNBRBExchangeRateDateTo[]").read(context);
 
             if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null) {
                 importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context);

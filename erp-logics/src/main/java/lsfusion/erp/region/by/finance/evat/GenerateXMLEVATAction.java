@@ -134,7 +134,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
 //                error += String.format("EVAT %s: Не задан пункт отгрузки\n", number);
 
             String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
-            String dateCancelled = formatDate(getLocalDate(findProperty("dateCancelled[EVAT]").read(context, evatObject)));
+            String dateCancelled = formatDate((LocalDate) findProperty("dateCancelled[EVAT]").read(context, evatObject));
             boolean allowZeroVAT = findProperty("allowZeroVAT[EVAT]").read(context, evatObject) != null;
             boolean exportProviderTaxes = findProperty("exportProviderTaxes[EVAT]").read(context, evatObject) != null;
 
@@ -268,7 +268,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         Element generalElement = new Element("general");
 
         String dateIssuance = formatDate(LocalDate.now());
-        String dateTransaction = formatDate(getLocalDate(findProperty("date[EVAT]").read(context, evatObject)));
+        String dateTransaction = formatDate((LocalDate) findProperty("date[EVAT]").read(context, evatObject));
 
         switch (status) {
             case "original":
@@ -328,10 +328,10 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         //String dateInvoicePrincipal = formatDate((Date) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
         //String numberInvoiceVendor = trim((String) findProperty("numberInvoiceVendor[EVAT]").read(context, evatObject));
         //String dateInvoiceVendor = formatDate((Date) findProperty("dateInvoiceVendor[EVAT]").read(context, evatObject));
-        String dateRelease = formatDate(getLocalDate(findProperty("dateReleaseSupplier[EVAT]").read(context, evatObject)));
-        String dateActualExport = formatDate(getLocalDate(findProperty("dateActualExportSupplier[EVAT]").read(context, evatObject)));
+        String dateRelease = formatDate((LocalDate) findProperty("dateReleaseSupplier[EVAT]").read(context, evatObject));
+        String dateActualExport = formatDate((LocalDate) findProperty("dateActualExportSupplier[EVAT]").read(context, evatObject));
         String numberTaxes = trim((String) findProperty("numberTaxesSupplier[EVAT]").read(context, evatObject));
-        String dateTaxes = formatDate(getLocalDate(findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject)));
+        String dateTaxes = formatDate((LocalDate) findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject));
 
         Element providerElement = new Element("provider");
         addStringElement(namespace, providerElement, "providerStatus",  getProviderStatus(legalEntityStatus, "SELLER"));
@@ -372,8 +372,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String branchCodeCustomer = (String) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
         String numberTaxes = trim((String) findProperty("numberTaxesCustomer[EVAT]").read(context, evatObject));
-        String dateTaxes = formatDate(getLocalDate(findProperty("dateTaxesCustomer[EVAT]").read(context, evatObject)));
-        String dateImport = formatDate(getLocalDate(findProperty("dateImportCustomer[EVAT]").read(context, evatObject)));
+        String dateTaxes = formatDate((LocalDate) findProperty("dateTaxesCustomer[EVAT]").read(context, evatObject));
+        String dateImport = formatDate((LocalDate) findProperty("dateImportCustomer[EVAT]").read(context, evatObject));
 
         Element recipientElement = new Element("recipient");
         addStringElement(namespace, recipientElement, "recipientStatus", getProviderStatus(legalEntityStatus, "CUSTOMER"));
@@ -421,8 +421,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
     private Element createDeliveryConditionElement(ExecutionContext<ClassPropertyInterface> context, DataObject evatObject, String numberDoc, boolean additional, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
-        String contractDate = formatDate(getLocalDate(findProperty("dateContract[EVAT]").read(context, evatObject)));
-        String date = formatDate(getLocalDate(findProperty("dateDoc[EVAT]").read(context, evatObject)));
+        String contractDate = formatDate((LocalDate) findProperty("dateContract[EVAT]").read(context, evatObject));
+        String date = formatDate((LocalDate) findProperty("dateDoc[EVAT]").read(context, evatObject));
         Integer codeDocType = (Integer) findProperty("codeDocType[EVAT]").read(context, evatObject);
         String valueDocType = trim((String) findProperty("valueDocType[EVAT]").read(context, evatObject));
         String blankCode = trim((String) findProperty("blankCodeDoc[EVAT]").read(context, evatObject));

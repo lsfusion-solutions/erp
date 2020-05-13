@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalDate;
 import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportCBRFExchangeRateAction extends InternalAction {
@@ -50,8 +49,8 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
             String extraSIDCurrency = (String) findProperty("extraSID[Currency]").read(context, currencyObject);
-            LocalDate cbrfDateFrom = getLocalDate(findProperty("importCBRFExchangeRateDateFrom[]").read(context));
-            LocalDate cbrfDateTo = getLocalDate(findProperty("importCBRFExchangeRateDateTo[]").read(context));
+            LocalDate cbrfDateFrom = (LocalDate) findProperty("importCBRFExchangeRateDateFrom[]").read(context);
+            LocalDate cbrfDateTo = (LocalDate) findProperty("importCBRFExchangeRateDateTo[]").read(context);
 
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);

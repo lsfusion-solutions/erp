@@ -218,8 +218,8 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             Date dateFrom;
             Date dateTo;
             if(useGiftCardDates) {
-                dateFrom = localDateToSqlDate(getLocalDate(resultValues.get("dateSold")));
-                dateTo = localDateToSqlDate(getLocalDate(resultValues.get("expireDate")));
+                dateFrom = localDateToSqlDate((LocalDate) resultValues.get("dateSold"));
+                dateTo = localDateToSqlDate((LocalDate) resultValues.get("expireDate"));
             } else {
                 Calendar calendar = Calendar.getInstance();
                 dateFrom = new Date(calendar.getTime().getTime());

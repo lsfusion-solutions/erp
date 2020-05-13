@@ -149,7 +149,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
             ImMap<Object, ObjectValue> resultValues = generalLedgerResult.getValue(i);
 
-            LocalDate dateGeneralLedger = getLocalDate(resultValues.get("dateGeneralLedger").getValue()); //D_VV
+            LocalDate dateGeneralLedger = (LocalDate) resultValues.get("dateGeneralLedger").getValue(); //D_VV
             String numberGeneralLedger = trim((String) resultValues.get("numberGLDocument").getValue(), 8); //DOK
             String seriesGeneralLedger = trim((String) resultValues.get("seriesGLDocument").getValue(), 2); //SER_P
 

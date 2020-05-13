@@ -17,6 +17,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Iterator;
 
 import static lsfusion.erp.integration.DefaultIntegrationAction.*;
@@ -56,7 +57,7 @@ public class UploadImageArticleFromDirectoryAction extends InternalAction {
                     if (!imageFile.exists())
                         imageFile = new File(pathImageArticles + "//" + idUImage);
                     if (imageFile.exists()) {
-                        Timestamp timeChangedImageArticle = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("timeChangedImage[Article]").read(context, articleObject)));
+                        Timestamp timeChangedImageArticle = localDateTimeToSqlTimestamp((LocalDateTime) findProperty("timeChangedImage[Article]").read(context, articleObject));
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
                             findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
                             findProperty("timeChangedImage[Article]").change(new DataObject(getWriteDateTime(new Timestamp(imageFile.lastModified())), DateTimeClass.instance), context, articleObject);

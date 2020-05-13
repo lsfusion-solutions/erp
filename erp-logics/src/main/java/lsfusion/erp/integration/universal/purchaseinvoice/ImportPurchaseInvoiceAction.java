@@ -222,8 +222,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     Object dateDocument = detail.getFieldValue("dateDocument");
                     String idStock = (String) detail.getFieldValue("idCustomerStock");
                     LocalDate documentsClosedDate = idStock != null ?
-                            getLocalDate(findProperty("documentsClosedDate[ISTRING[100]]").read(context, new DataObject(idStock))) :
-                            getLocalDate(findProperty("documentsClosedDate[Stock]").read(context, customerStockObject));
+                            (LocalDate) findProperty("documentsClosedDate[ISTRING[100]]").read(context, new DataObject(idStock)) :
+                            (LocalDate) findProperty("documentsClosedDate[Stock]").read(context, customerStockObject);
                     if (overDocumentsClosedDate(sqlDateToLocalDate((Date) dateDocument), documentsClosedDate, ignoreInvoicesAfterDocumentsClosedDate)) {
                         skip = true;
                     }

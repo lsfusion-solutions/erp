@@ -120,7 +120,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         String UNPLegalEntityDeclaration = (String) findProperty("UNPLegalEntity[Declaration]").read(context, declarationObject);  //G141
         String fullNameLegalEntityDeclaration = (String) findProperty("fullNameLegalEntity[Declaration]").read(context, declarationObject); //G142
         String addressLegalEntityDeclaration = (String) findProperty("addressLegalEntity[Declaration]").read(context, declarationObject); //G143
-        LocalDate dateDeclaration = getLocalDate(findProperty("date[Declaration]").read(context, declarationObject));          //G542
+        LocalDate dateDeclaration = (LocalDate) findProperty("date[Declaration]").read(context, declarationObject);          //G542
 
         String[] exportNames = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
@@ -230,7 +230,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
             Integer orderCustomsDocument = (Integer) resultValues.get("orderCustomsDocument");
             String idCustomsDocument = (String) resultValues.get("idCustomsDocument");
             String nameCustomsDocument = (String) resultValues.get("nameCustomsDocument");
-            LocalDate dateCustomsDocument = getLocalDate(resultValues.get("dateCustomsDocument"));
+            LocalDate dateCustomsDocument = (LocalDate) resultValues.get("dateCustomsDocument");
             Boolean isVATCustomsExceptionCustomsDocument = (Boolean) resultValues.get("isVATCustomsExceptionCustomsDocument");
             String typePaymentCustomsDocument = (String) resultValues.get("typePaymentCustomsDocument");
             String refDocCustomsDocument = (String) resultValues.get("refDocCustomsDocument");
@@ -266,11 +266,11 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
             Integer numberDeclarationDetail = (Integer) resultValues.get("numberDeclarationDetail");
             String seriesNumberCompliance = (String) resultValues.get("seriesNumberCompliance");
-            LocalDate dateCompliance = getLocalDate(resultValues.get("dateCompliance"));
-            LocalDate fromDateCompliance = getLocalDate(resultValues.get("fromDateCompliance"));
-            LocalDate toDateCompliance = (getLocalDate(resultValues.get("toDateCompliance")));
+            LocalDate dateCompliance = (LocalDate) resultValues.get("dateCompliance");
+            LocalDate fromDateCompliance = (LocalDate) resultValues.get("fromDateCompliance");
+            LocalDate toDateCompliance = (LocalDate) resultValues.get("toDateCompliance");
             String numberDeclarationCompliance = (String) resultValues.get("numberDeclarationCompliance");
-            LocalDate dateDeclarationCompliance = getLocalDate(resultValues.get("dateDeclarationCompliance"));
+            LocalDate dateDeclarationCompliance = (LocalDate) resultValues.get("dateDeclarationCompliance");
 
             complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, "01191", seriesNumberCompliance,
                     dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));

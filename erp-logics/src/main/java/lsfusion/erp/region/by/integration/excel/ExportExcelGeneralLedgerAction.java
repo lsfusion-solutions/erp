@@ -90,7 +90,7 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
 
                 LocalDate date = getLocalDate(generalLedgerValue.get("dateGeneralLedger"));
 
-                if ((dateFromObject.object == null || getLocalDate(dateFromObject.object).compareTo(date) <= 0) && (dateToObject.object == null || getLocalDate(dateToObject.object).compareTo(date) >= 0)) {
+                if ((dateFromObject.object == null || ((LocalDate) dateFromObject.object).compareTo(date) <= 0) && (dateToObject.object == null || ((LocalDate) dateToObject.object).compareTo(date) >= 0)) {
 
                     String isPostedGeneralLedger = generalLedgerValue.get("isPostedGeneralLedger") == null ? "FALSE" : "TRUE";
                     String dateGeneralLedger = date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
