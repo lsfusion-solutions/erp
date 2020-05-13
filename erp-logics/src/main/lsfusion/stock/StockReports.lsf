@@ -129,11 +129,12 @@ fillReportBalanceData 'Рассчитать'(GroupType gt, DATETIME dt)  {
 
     IF (GROUP SUM 1 IF inBackSheet(Stock st)) == 1 THEN
     {
-        balanceB(Sku sk) <- balanceB(sk, (GROUP MIN Stock st IF inBackSheet(st)), dt) IF inGroup(gt,sk);
-        sumB(Sku sk) <- sumB(sk, (GROUP MIN Stock st IF inBackSheet(st)), dt) IF inGroup(gt,sk);
-        
-        IF fillBatch() THEN {
-            balanceB(Batch batch) <- balanceB(batch, (GROUP MIN Stock st IF inBackSheet(st)), dt) IF inGroup(gt,sku(batch));
+        FOR Stock st = (GROUP MIN Stock sst IF inBackSheet(sst)) NOINLINE DO {
+            balanceB(Sku sk) <- balanceB(sk, st, dt) IF inGroup(gt,sk);
+            sumB(Sku sk) <- sumB(sk, st, dt) IF inGroup(gt,sk);
+            IF fillBatch() THEN {
+                balanceB(Batch batch) <- balanceB(batch, st, dt) IF inGroup(gt,sku(batch));
+            }
         }
     }  
     ELSE
