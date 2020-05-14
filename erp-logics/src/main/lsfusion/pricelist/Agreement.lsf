@@ -665,11 +665,15 @@ END
 
 
 META deriveDocumentDetailPriceListTypeAgreement (object, detail, prefix)
+    priceListTypeCustom = ABSTRACT PriceListType(###detail);
+    changedPriceListTypeCustom = ABSTRACT VALUE BOOLEAN (###detail);
     WHEN LOCAL
         (CHANGED(agreement(object(###detail d))) OR
          CHANGED(priceListType(object(d))) OR
-         CHANGED(sku(d))) AND NOT CHANGED(priceListType(d)) DO {
-            priceListType(d) <- OVERRIDE prefix###priceListType(agreement(object(d)), sku(d)),
+         CHANGED(sku(d)) OR 
+         changedPriceListTypeCustom(d)) AND NOT CHANGED(priceListType(d)) DO {
+            priceListType(d) <- OVERRIDE priceListTypeCustom(d),
+                                         prefix###priceListType(agreement(object(d)), sku(d)),
                                          priceListType(object(d));                                         
         }
 END
