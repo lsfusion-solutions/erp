@@ -90,7 +90,7 @@ public class SendSalesEquipmentServer {
                             null, (String) row.get("handlerModelGroupMachinery"), trim((String) row.get("portMachinery")),
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
-                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), getLocalDate(row.get("documentsClosedDate")));
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (LocalDate) row.get("documentsClosedDate"));
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -300,7 +300,7 @@ public class SendSalesEquipmentServer {
                     String numberZReport = trim((String) entry.get("numberZReport"));
                     Integer numberCashRegisterZReport = (Integer) entry.get("numberCashRegisterZReport");
                     BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport");
-                    LocalDate dateZReport = getLocalDate(entry.get("dateZReport"));
+                    LocalDate dateZReport = (LocalDate) entry.get("dateZReport");
                     String nameDepartmentStore = (String) entry.get("nameDepartmentStore");
                     zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList(sumZReport, dateZReport, nameDepartmentStore));
                 }

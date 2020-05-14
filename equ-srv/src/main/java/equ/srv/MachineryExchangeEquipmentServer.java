@@ -86,9 +86,9 @@ public class MachineryExchangeEquipmentServer {
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 
                     DataObject requestExchangeObject = requestExchangeResult.getKey(i).get("requestExchange");
-                    LocalDate dateFromRequestExchange = getLocalDate(requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue());
-                    LocalDate dateToRequestExchange = getLocalDate(requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue());
-                    LocalDate startDateRequestExchange = machineryPriceTransactionDiscountCardLM != null ? getLocalDate(requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue()) : null;
+                    LocalDate dateFromRequestExchange = (LocalDate) requestExchangeResult.getValue(i).get("dateFromRequestExchange").getValue();
+                    LocalDate dateToRequestExchange = (LocalDate) requestExchangeResult.getValue(i).get("dateToRequestExchange").getValue();
+                    LocalDate startDateRequestExchange = machineryPriceTransactionDiscountCardLM != null ? (LocalDate) requestExchangeResult.getValue(i).get("startDateRequestExchange").getValue() : null;
                     String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
                     //terminalOrder - единственный тип запроса для ТСД. Все остальные - только для касс
@@ -304,14 +304,14 @@ public class MachineryExchangeEquipmentServer {
                     String nameDiscountCard = getRowValue(row, "nameDiscountCard");
                     BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
                     BigDecimal initialSumDiscountCard = (BigDecimal) row.get("initialSumDiscountCard");
-                    LocalDate dateFromDiscountCard = getLocalDate(row.get("dateDiscountCard"));
-                    LocalDate dateToDiscountCard = getLocalDate(row.get("dateToDiscountCard"));
+                    LocalDate dateFromDiscountCard = (LocalDate) row.get("dateDiscountCard");
+                    LocalDate dateToDiscountCard = (LocalDate) row.get("dateToDiscountCard");
                     String idDiscountCardType = (String) row.get("idDiscountCardType");
                     String nameDiscountCardType = (String) row.get("nameDiscountCardType");
                     String firstNameContact = (String) row.get("firstNameContact");
                     String lastNameContact = (String) row.get("lastNameContact");
                     String middleNameContact = (String) row.get("middleNameContact");
-                    LocalDate birthdayContact = getLocalDate(row.get("birthdayContact"));
+                    LocalDate birthdayContact = (LocalDate) row.get("birthdayContact");
                     Integer sexContact = (Integer) row.get("sexContact");
                     String extInfo = (String) row.get("extInfo");
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
@@ -400,7 +400,7 @@ public class MachineryExchangeEquipmentServer {
                 orderQuery.and(purchaseInvoiceAgreementLM.findProperty("idBarcodeSku[Purchase.OrderDetail]").getExpr(orderDetailExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
-                    LocalDate dateOrder = getLocalDate(entry.get("dateOrder"));
+                    LocalDate dateOrder = (LocalDate) entry.get("dateOrder");
                     String numberOrder = trim((String) entry.get("numberOrder"));
                     String idSupplier = trim((String) entry.get("idSupplierOrder"));
                     String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));

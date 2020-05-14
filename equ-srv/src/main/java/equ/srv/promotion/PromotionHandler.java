@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static lsfusion.base.BaseUtils.trim;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getLocalTime;
 
 public class PromotionHandler extends RmiServer implements PromotionInterface, InitializingBean {
 
@@ -71,8 +70,8 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                         boolean isStopHTCPromotionTime = entryValue.get("isStopHTCPromotionTime") != null;
                         String captionDayHTCPromotionTime = trim((String) entryValue.get("captionDayHTCPromotionTime"));
                         Integer numberDayHTCPromotionTime = (Integer) entryValue.get("numberDayHTCPromotionTime");
-                        LocalTime beginTimeHTCPromotionTime = getLocalTime(entryValue.get("beginTimeHTCPromotionTime"));
-                        LocalTime endTimeHTCPromotionTime = getLocalTime(entryValue.get("endTimeHTCPromotionTime"));
+                        LocalTime beginTimeHTCPromotionTime = (LocalTime) entryValue.get("beginTimeHTCPromotionTime");
+                        LocalTime endTimeHTCPromotionTime = (LocalTime) entryValue.get("endTimeHTCPromotionTime");
                         BigDecimal percentHTCPromotionTime = (BigDecimal) entryValue.get("percentHTCPromotionTime");
                         htcPromotionTimeList.add(new PromotionTime(isStopHTCPromotionTime, null, captionDayHTCPromotionTime,
                                 numberDayHTCPromotionTime, beginTimeHTCPromotionTime, endTimeHTCPromotionTime, percentHTCPromotionTime));

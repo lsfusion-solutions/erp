@@ -83,7 +83,7 @@ public class TerminalEquipmentServer {
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
-                    LocalDate dateOrder = getLocalDate(entry.get("dateOrder"));
+                    LocalDate dateOrder = (LocalDate) entry.get("dateOrder");
                     String numberOrder = trim((String) entry.get("numberOrder"));
                     String idSupplier = trim((String) entry.get("idSupplierOrder"));
                     String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
@@ -105,8 +105,8 @@ public class TerminalEquipmentServer {
                     String posField1 = (String) entry.get("posField1");
                     String posField2 = (String) entry.get("posField2");
                     String posField3 = (String) entry.get("posField3");
-                    String minDeviationDate = formatDate(getLocalDate(entry.get("minDeviationDate")));
-                    String maxDeviationDate = formatDate(getLocalDate(entry.get("maxDeviationDate")));
+                    String minDeviationDate = formatDate((LocalDate) entry.get("minDeviationDate"));
+                    String maxDeviationDate = formatDate((LocalDate) entry.get("maxDeviationDate"));
                     String vop = (String) entry.get("vop");
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);

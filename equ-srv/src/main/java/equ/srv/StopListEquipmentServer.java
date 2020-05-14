@@ -86,10 +86,10 @@ public class StopListEquipmentServer {
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
                     String numberStopList = trim((String) slEntry.get("numberStopList").getValue());
                     boolean excludeStopList = slEntry.get("excludeStopList").getValue() != null;
-                    LocalDate dateFrom = getLocalDate(slEntry.get("fromDateStopList").getValue());
-                    LocalDate dateTo = getLocalDate(slEntry.get("toDateStopList").getValue());
-                    LocalTime timeFrom = getLocalTime(slEntry.get("fromTimeStopList").getValue());
-                    LocalTime timeTo = getLocalTime(slEntry.get("toTimeStopList").getValue());
+                    LocalDate dateFrom = (LocalDate) slEntry.get("fromDateStopList").getValue();
+                    LocalDate dateTo = (LocalDate) slEntry.get("toDateStopList").getValue();
+                    LocalTime timeFrom = (LocalTime) slEntry.get("fromTimeStopList").getValue();
+                    LocalTime timeTo = (LocalTime) slEntry.get("toTimeStopList").getValue();
 
                     Set<String> idStockSet = new HashSet<>();
                     Map<String, Set<MachineryInfo>> handlerMachineryMap = new HashMap<>();

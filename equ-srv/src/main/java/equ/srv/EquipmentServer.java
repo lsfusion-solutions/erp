@@ -240,7 +240,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             LocalDateTime minTime = LocalDateTime.now().minusMinutes(minutes);
             for (ImMap<Object, Object> row : groupMachineryResult.valueIt()) {
                 Integer npp = (Integer) row.get("npp");
-                LocalDateTime lastErrorTime = getLocalDateTime(row.get("lastErrorTime"));
+                LocalDateTime lastErrorTime = (LocalDateTime) row.get("lastErrorTime");
                 if (lastErrorTime != null && lastErrorTime.compareTo(minTime) <= 0)
                     result.add(npp);
             }
@@ -2017,10 +2017,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     DataObject transactionObject = result.getKey(i).singleValue();
                     boolean snapshotMPT = value.get("snapshotMachineryPriceTransaction") instanceof DataObject;
                     String descriptionMPT = (String) value.get("descriptionMachineryPriceTransaction").getValue();
-                    LocalDateTime lastErrorDate = getLocalDateTime(value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue());
+                    LocalDateTime lastErrorDate = (LocalDateTime) value.get("lastDateMachineryPriceTransactionErrorMachineryPriceTransaction").getValue();
                     String infoMPT = (String) value.get("infoMPT").getValue();
                     transactionObjects.add(new Object[]{groupMachineryMPT, nppGroupMachineryMPT, nameGroupMachineryMPT, transactionObject,
-                            dateTimeCode(getLocalDateTime(dateTimeMPT.getValue())), getLocalDateTime(dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
+                            dateTimeCode((LocalDateTime) dateTimeMPT.getValue()), ((LocalDateTime) dateTimeMPT.getValue()).toLocalDate(), snapshotMPT, descriptionMPT, lastErrorDate, infoMPT});
                 }
             }
 
@@ -2160,7 +2160,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 if (isCashRegisterPriceTransaction) {
 
-                    LocalDate startDateGroupCashRegister = getLocalDate(cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject));
+                    LocalDate startDateGroupCashRegister = (LocalDate) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
                     boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
                     Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
                     String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idStock[GroupCashRegister]").read(session, groupMachineryObject);
@@ -2216,7 +2216,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
+                        LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         String idUOM = (String) row.get("idUOMMachineryPriceTransactionBarcode");
@@ -2238,9 +2238,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String section = machineryPriceTransactionSectionLM == null ? null : (String) row.get("sectionMachineryPriceTransactionBarcode");
                         String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
                         BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
-                        LocalDateTime balanceDate = machineryPriceTransactionBalanceLM == null ? null : getLocalDateTime(row.get("balanceDateMachineryPriceTransactionBarcode"));
+                        LocalDateTime balanceDate = machineryPriceTransactionBalanceLM == null ? null : (LocalDateTime) row.get("balanceDateMachineryPriceTransactionBarcode");
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
-                        LocalDateTime restrictionToDateTime = getLocalDateTime(row.get("restrictionToDateTimeMachineryPriceTransactionBarcode"));
+                        LocalDateTime restrictionToDateTime = (LocalDateTime) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, info, itemGroupObject, description, idBrand, nameBrand,
@@ -2312,7 +2312,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
-                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
+                        LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
                         Integer hoursExpiry = (Integer) row.get("hoursExpiryMachineryPriceTransactionBarcode");
@@ -2377,7 +2377,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
+                        LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
                         BigDecimal valueVAT = machineryPriceTransactionStockTaxLM == null ? null : (BigDecimal) row.get("VATMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
@@ -2436,7 +2436,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         BigDecimal price = (BigDecimal) row.get("priceMachineryPriceTransactionBarcode");
                         boolean split = row.get("splitMachineryPriceTransactionBarcode") != null;
                         Integer daysExpiry = (Integer) row.get("expiryDaysMachineryPriceTransactionBarcode");
-                        LocalDate expiryDate = getLocalDate(row.get("expiryDateMachineryPriceTransactionBarcode"));
+                        LocalDate expiryDate = (LocalDate) row.get("expiryDateMachineryPriceTransactionBarcode");
                         Integer pluNumber = (Integer) row.get("pluNumberMachineryPriceTransactionBarcode");
                         Integer flags = (Integer) row.get("flagsMachineryPriceTransactionBarcode");
                         boolean passScales = row.get("passScalesMachineryPriceTransactionBarcode") != null;
@@ -2534,8 +2534,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             try (DataSession session = createSession()) {
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
-                    LocalTime timeFrom = getLocalTime(equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject));
-                    LocalTime timeTo = getLocalTime(equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject));
+                    LocalTime timeFrom = (LocalTime) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
+                    LocalTime timeTo = (LocalTime) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
                     Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
                     return new EquipmentServerSettings(timeFrom, timeTo, delay, sendSalesDelay);

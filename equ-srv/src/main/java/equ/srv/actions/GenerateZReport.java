@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
@@ -50,9 +51,9 @@ public class GenerateZReport extends DefaultIntegrationAction {
                 Integer receiptDetailCount = (Integer) findProperty("averageReceiptDetailCountGenerateZReport[]").read(context);
                 ObjectValue stockObject = findProperty("departmentStoreGenerateZReport[]").readClasses(context);
 
-                Timestamp dateFrom = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("dateFromGenerateZReport[]").read(context)));
+                Timestamp dateFrom = localDateTimeToSqlTimestamp((LocalDateTime) findProperty("dateFromGenerateZReport[]").read(context));
                 dateFrom = dateFrom == null ? new Timestamp(System.currentTimeMillis()) : dateFrom;
-                Timestamp dateTo = localDateTimeToSqlTimestamp(getLocalDateTime(findProperty("dateToGenerateZReport[]").read(context)));
+                Timestamp dateTo = localDateTimeToSqlTimestamp((LocalDateTime) findProperty("dateToGenerateZReport[]").read(context));
                 dateTo = dateTo == null ? new Timestamp(System.currentTimeMillis()) : dateTo;
 
                 KeyExpr departmentStoreExpr = new KeyExpr("departmentStore");
