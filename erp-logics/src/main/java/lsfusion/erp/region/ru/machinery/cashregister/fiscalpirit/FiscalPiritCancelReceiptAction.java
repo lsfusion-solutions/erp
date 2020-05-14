@@ -34,7 +34,7 @@ public class FiscalPiritCancelReceiptAction extends InternalAction {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-                String cashier = (String) findProperty("currentUserName[]").read(context);
+                String cashier = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);
 
                 String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 4));
                 if (result != null) {

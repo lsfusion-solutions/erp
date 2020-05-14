@@ -56,7 +56,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 boolean isUnix = findProperty("isUnix[]").read(context) != null;
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-                String cashier = (String) findProperty("currentUserName[]").read(context);
+                String cashier = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
 
