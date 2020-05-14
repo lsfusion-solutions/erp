@@ -128,7 +128,7 @@ public class FiscalPirit {
         closeDocumentCommand(serialPort);
     }
 
-    private static void openZReportIfClosed(SerialPort serialPort, String cashier) {
+    public static void openZReportIfClosed(SerialPort serialPort, String cashier) {
         if(!getStatusFlag(serialPort, 1, 2)) { // 1-ый байт, 2 бит - открыта ли смена
             openZReportCommand(serialPort, cashier);
         }

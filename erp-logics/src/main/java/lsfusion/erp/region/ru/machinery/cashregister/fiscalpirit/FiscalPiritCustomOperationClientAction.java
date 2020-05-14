@@ -29,6 +29,8 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
                 case 4:
                     FiscalPirit.cancelDocument(serialPort);
                     break;
+                case 5:
+                    FiscalPirit.openZReportIfClosed(serialPort, cashier);
                 default:
                     break;
             }
