@@ -366,11 +366,11 @@ nameOperationToClosePriceList 'Вид цен для исключения из р
 closePriceLists 'Исключить прайсы с компанией из регистра до даты' () {
     NEWSESSION {
         FOR fromDate(UserPriceListDetail d) < subtract(currentDate(), daysToClosePriceList()) AND in(d, priceListTypeToClosePriceList()) AND company(d)
-                AND NOT exclude(d)  ORDER d DO {
+                AND NOT exclude(d)  ORDER fromDateTime(d), d DO {
             
             LOCAL notSkip = BOOLEAN ();
             FOR in(priceList(d), Stock s) AND in(d, DataPriceListType t) DO {
-                IF priceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
+                IF prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
                     notSkip() <- TRUE;
                     logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
                     BREAK;
@@ -401,7 +401,7 @@ closePriceListsNotCompany 'Исключить прайсы без компани
             
             LOCAL notSkip = BOOLEAN ();
             FOR in(priceList(d), Stock s) AND in(d, DataPriceListType t) DO {
-                IF priceListLedgerA(t, sku(d), s, 2040_01_01_00:00) == d THEN {
+                IF prevPriceListLedgerB(t, sku(d), s, 2040_01_01_00:00) == d THEN {
                     notSkip() <- TRUE;
                     logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), idBarcodeSku(d), name(s), name(t));
                     BREAK;
