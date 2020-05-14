@@ -19,7 +19,9 @@ DESIGN legalEntity {
 }
 
 creditNote = DATA CreditNote(ECreditNote) INDEXED;
+creditNoteDetail = DATA CreditNoteDetail(ECreditNoteDetail);
 eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY creditNote(ec);
+eCreditNoteDetail = GROUP LAST ECreditNoteDetail ecd IF NOT isCancel(eCreditNote(ecd)) ORDER dateTime(eCreditNote(ecd)), ecd BY creditNoteDetail(ecd);
 numberCreditNote 'Номер акта приемки EDI (расход)' (ECreditNote c) = number(creditNote(c));
 
 EXTEND FORM eCreditNotes
@@ -76,6 +78,8 @@ copyData(ECreditNote ec, CreditNote c)  {
     
     FOR eCreditNote(ECreditNoteDetail ecd) == eCreditNote(c) NEW cd = UserCreditNoteDetail DO {
         userCreditNote(cd) <- c;
+        creditNoteDetail(ECreditNoteDetail d) <- NULL WHERE creditNoteDetail(d) == cd AND NOT isCancel(eCreditNote(d));
+        creditNoteDetail(ecd) <- cd;
         sku(cd) <- OVERRIDE sku(lineItemBuyerID(ecd)), skuGTIN(lineItemID(ecd)), sku(lineItemID(ecd));
         invoiceDetail(cd) <- OVERRIDE (GROUP MIN InvoiceDetail d IF invoice(d) == invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec))) AND index(d) == lineItemNumber(ecd) AND sku(d) == sku(cd)), (GROUP MIN InvoiceDetail d IF invoice(d) == invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec))) AND sku(d) == sku(cd));
         quantity(cd) <- quantityOrdered(ecd) (-) quantityReceived(ecd);

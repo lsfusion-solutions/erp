@@ -142,6 +142,7 @@ WHEN SET(EInvoice ei IS EInvoice) AND createPurchaseInvoiceFromEInvoice() DO {
 creditNote = DATA CreditNote (ECreditNote);
 creditNoteDetail = DATA CreditNoteDetail(ECreditNoteDetail);
 eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY creditNote(ec);
+eCreditNoteDetail = GROUP LAST ECreditNoteDetail ecd IF NOT isCancel(eCreditNote(ecd)) ORDER dateTime(eCreditNote(ecd)), ecd BY creditNoteDetail(ecd);
 numberCreditNote 'Номер акта приемки EDI' (ECreditNote c) = number(creditNote(c));
 EXTEND FORM eCreditNotes
     PROPERTIES (c) READONLY numberCreditNote
@@ -169,6 +170,11 @@ cancelSignAndSendCustomerCreditNoteEDII 'Отменить (покупатель)
         IF (GROUP SUM 1 IF exportedCustomer(ECreditNote e) AND in(e)) THEN APPLY;
     }
 }
+
+overCreate ABSTRACT LIST(ECreditNote, CreditNote);
+overCreate ABSTRACT LIST(ECreditNoteDetail, CreditNoteDetail);
+
+hideCreateECreditNote = ABSTRACT BOOLEAN (CreditNote);
 
 createECreditNote 'Создать электронный акт приемки' (CreditNote c)  { 
     IF NOT eCreditNote(c) THEN NEWSESSION {
@@ -202,7 +208,10 @@ createECreditNote 'Создать электронный акт приемки' 
                 amountReceived(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
                 //amountReceived(ed) <- NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) (+)
                                       //round((NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) * calcValueVAT(invoiceDetail(d)) / 100), currency(invoiceDetail(d)));
+                overCreate(ed,d);
             }
+            
+            overCreate(ec,c);
         }
         APPLY;
     }
@@ -210,7 +219,7 @@ createECreditNote 'Создать электронный акт приемки' 
 
 EXTEND FORM creditNotes
         PROPERTIES READONLY PANEL numberECreditNote(c)
-        PROPERTIES(c) createECreditNote SHOWIF (NOT eCreditNote(c)),// statusDescription SHOWIF eInvoice(i) PANEL, 
+        PROPERTIES(c) createECreditNote SHOWIF (NOT eCreditNote(c) AND NOT hideCreateECreditNote(c)),// statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendCustomerCreditNoteEDI SHOWIF (eCreditNote(c) AND NOT exportedCustomer(eCreditNote(c))), 
                       cancelSignAndSendCustomerCreditNoteEDII SHOWIF (eCreditNote(c) AND exportedCustomer(eCreditNote(c)))
 ;
@@ -250,7 +259,7 @@ createECreditNote 'Создать электронный акт приемки' 
 
 EXTEND FORM invoices
         PROPERTIES READONLY PANEL numberECreditNote(i) SHOWIF invoiceCreditNote(i)
-        PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND NOT eCreditNote(invoiceCreditNote(i))),// statusDescription SHOWIF eInvoice(i) PANEL, 
+        PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND NOT eCreditNote(invoiceCreditNote(i)) AND NOT hideCreateECreditNote(invoiceCreditNote(i))),// statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendCustomerCreditNoteEDI SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND NOT exportedCustomer(eCreditNote(invoiceCreditNote(i)))), 
                       cancelSignAndSendCustomerCreditNoteEDII SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND exportedCustomer(eCreditNote(invoiceCreditNote(i))))
 ;

@@ -78,6 +78,7 @@ lineItemBuyerID 'Код товара в ERP системе покупателя 
 lineItemSupplierID 'Код товара в ERP системе поставщика (грузоотправителя)'= DATA STRING[100] (ECreditNoteDetail);
 lineItemName 'Наименование товара' = DATA STRING[500] (ECreditNoteDetail);
 lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA STRING[3] (ECreditNoteDetail);
+additionalInformation 'Примечание, дополнительная информация о товаре' = DATA STRING[512] (ECreditNoteDetail);
 
 quantityOrdered 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
 quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
@@ -125,6 +126,8 @@ CLASS ECreditNoteMessageType 'Тип сообщения по накладной 
 type 'Тип' = DATA ECreditNoteMessageType (ECreditNoteMessage);
 nameType 'Тип' (ECreditNoteMessage o) = staticCaption(type(o));
 
+background = ABSTRACT CASE COLOR (ECreditNoteDetail);
+
 FORM eCreditNotes 'Электронные акты приемки EDI'
     OBJECTS c = ECreditNote
     PROPERTIES(c) in
@@ -134,8 +137,8 @@ FORM eCreditNotes 'Электронные акты приемки EDI'
     FILTERGROUP notExported
     
     OBJECTS d = ECreditNoteDetail
-    PROPERTIES(d) READONLY lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT BACKGROUND backgroundVAT(d),
-     lineItemPrice, amountOrdered, amountReceived, lineItemQuantityUOM
+    PROPERTIES(d) READONLY BACKGROUND background(d) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT BACKGROUND backgroundVAT(d),
+     lineItemPrice, amountOrdered, amountReceived, lineItemQuantityUOM, additionalInformation
 
     FILTERS eCreditNote(d) == c
 
@@ -173,8 +176,8 @@ FORM eCreditNote 'Электронный акт приемки EDI'
                   dateTimeCreated, contractDate, contractId, currency 
     
     OBJECTS ed = ECreditNoteDetail
-    PROPERTIES (ed) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT, lineItemPrice, 
-                    amountOrdered, amountReceived, lineItemQuantityUOM
+    PROPERTIES(ed) BACKGROUND background(ed) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT, lineItemPrice, 
+                    amountOrdered, amountReceived, lineItemQuantityUOM, additionalInformation
      FILTERS eCreditNote(ed) == c
 ;
 
