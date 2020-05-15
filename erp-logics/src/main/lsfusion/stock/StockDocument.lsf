@@ -520,8 +520,9 @@ DESIGN options {
         MOVE PROPERTY (checkClosedDate());
     }
 } 
-CONSTRAINT  CHANGED(date(StockDocumentLedger d)) AND PREV(active(d))
-            AND (PREV(date(d)) < documentsClosedDate(stock(d))) 
+prevDateActive (StockDocumentLedger d) = PREV(date(d) IF active(d));
+CONSTRAINT  CHANGED(date(StockDocumentLedger d)) 
+            AND (prevDateActive(d) < documentsClosedDate(stock(d))) 
             AND NOT allowChangeStockDocumentClosed(currentUser())
             AND checkClosedDate()
     MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
