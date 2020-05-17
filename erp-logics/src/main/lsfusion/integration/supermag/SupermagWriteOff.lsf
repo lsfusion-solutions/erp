@@ -73,16 +73,17 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);
                 docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 WHEN isClosed(doc) THEN 0 ELSE 1;
                 clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
-                priceWithTax(WriteOffDetail ad) <- price(ad) WHERE writeOff(ad) = doc;
+                priceWithTax(WriteOffDetail docd) <- price(docd) WHERE writeOff(docd) = doc;
                 priceRoundMode(doc) <- 4 IF doc IS WriteOff;                                                
-                valueTax(WriteOffDetail ad) <- valueVAT(sku(ad)) WHERE writeOff(ad) = doc;
-                priceNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = doc;
-                sumWithTax(WriteOffDetail ad) <- abs(sum(ad)) WHERE writeOff(ad) = doc;
-                sumNoTax(WriteOffDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE writeOff(ad) = doc;
-                sumTax(WriteOffDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE writeOff(ad) = doc;
-                sumWithTaxCurr(WriteOffDetail ad) <-round(sumWithTax(ad)/curRate(doc),2) WHERE writeOff(ad) = doc;
-                sumWithTax(doc) <- GROUP SUM sumWithTax(WriteOffDetail add) IF writeOff(add) = doc;                
-                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(WriteOffDetail add) IF writeOff(add) = doc;                                
+                quantityExp(WriteOffDetail docd) <- quantity(docd);
+                valueTax(WriteOffDetail docd) <- valueVAT(sku(docd)) WHERE writeOff(docd) = doc;
+                priceNoTax(WriteOffDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE writeOff(docd) = doc;
+                sumWithTax(WriteOffDetail docd) <- abs(sum(docd)) WHERE writeOff(docd) = doc;
+                sumNoTax(WriteOffDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE writeOff(docd) = doc;
+                sumTax(WriteOffDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE writeOff(docd) = doc;
+                sumWithTaxCurr(WriteOffDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE writeOff(docd) = doc;
+                sumWithTax(doc) <- GROUP SUM sumWithTax(WriteOffDetail docd) IF writeOff(docd) = doc;                
+                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(WriteOffDetail docd) IF writeOff(docd) = doc;                                
            TRY {                
                 CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportWriteOffWO XML TO System.exportFile;                 
            } CATCH 

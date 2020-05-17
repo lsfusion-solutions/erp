@@ -30,11 +30,10 @@ importRepricing 'Импорт актов переоценки' () {
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docDate, reason, docState, location, comment;
 
-    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Repricing.operation(TEXT (i)) DO NEW o = Repricing.Operation {
-        id(o) <- ISTRING[100](i);
-        name(o) <- ISTRING[100](i);
+    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Repricing.operation(TEXT (reason(i))) DO NEW o = Repricing.Operation {
+        id(o) <- ISTRING[100](reason(i));
+        name(o) <- ISTRING[100](reason(i));
         allRoles(o) <- TRUE;
-        imported(o) <- TRUE;
     }
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -45,7 +44,7 @@ importRepricing 'Импорт актов переоценки' () {
     }
         
     FOR Repricing.UserRepricing rep == Repricing.userRepricing(idDoc(INTEGER i)) AND NOT lastVersion(rep) = currentVersion(i) DO {       
-        operation(rep) <- Repricing.operation(TEXT (location(i)));
+        operation(rep) <- Repricing.operation(TEXT (reason(i)));
         number(rep) <- ISTRING[28] (docNumber(i));
         date(rep) <- DATE (docDate(i));
         time(rep) <- TIME (docDate(i));

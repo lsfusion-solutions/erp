@@ -123,12 +123,13 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                         location(doc)  <- NULL IF doc IS Invoice;                                                     
                     }                
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
+                quantityExp(InvoiceDetail docd) <- OVERRIDE creditQuantity(docd), quantity(docd);
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
                 priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
-                sumWithTax(InvoiceDetail docd) <- abs(invoiceSum(docd)) WHERE invoice(docd) = doc;
-                sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
-                sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
+                sumWithTax(InvoiceDetail docd) <- OVERRIDE abs(creditInvoiceSum(docd)), abs(invoiceSum(docd)) WHERE invoice(docd) = doc;
+                sumNoTax(InvoiceDetail docd) <- OVERRIDE abs(creditSum(docd)), abs(sum(docd)) WHERE invoice(docd) = doc;
+                sumTax(InvoiceDetail docd) <- OVERRIDE creditVATSum(docd), VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
                 priceManufacturer(InvoiceDetail docd) <- (OVERRIDE manufacturingPrice(docd), 0) WHERE invoice(docd) = doc;
                 priceRetail(InvoiceDetail docd) <- (OVERRIDE retailPrice(docd), 0) WHERE invoice(docd) = doc;

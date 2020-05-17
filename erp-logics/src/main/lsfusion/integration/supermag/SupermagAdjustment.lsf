@@ -99,20 +99,21 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                 locationTo(doc) <- stock(doc);
                 location(doc)  <- stock(doc);     
                 priceRoundMode(doc) <- CASE WHEN doctype(doc) = 'FA' OR doctype(doc) = 'LA' THEN 0 ELSE 4;                                                                            
-                priceWithTax(AdjustmentDetail ad) <- price(ad) WHERE adjustment(ad) = doc;
-                valueTax(AdjustmentDetail ad) <- valueVAT(sku(ad)) WHERE adjustment(ad) = doc;
-                priceNoTax(AdjustmentDetail ad) <- NUMERIC[18,4] ( abs(round( priceWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE adjustment(ad) = doc;
-                sumWithTax(AdjustmentDetail ad) <- abs(sum(ad)) WHERE adjustment(ad) = doc;
-                sumNoTax(AdjustmentDetail ad) <- NUMERIC[18,4] ( abs(round( sumWithTax(ad) / (1 + valueTax(ad)/100),2))) WHERE adjustment(ad) = doc;
-                sumTax(AdjustmentDetail ad) <- sumWithTax(ad) - sumNoTax(ad) WHERE adjustment(ad) = doc;
-                sumWithTaxCurr(AdjustmentDetail ad) <-round(sumWithTax(ad)/curRate(doc),2) WHERE adjustment(ad) = doc;
+                quantityExp(AdjustmentDetail docd) <- quantity(docd);
+                priceWithTax(AdjustmentDetail docd) <- price(docd) WHERE adjustment(docd) = doc;
+                valueTax(AdjustmentDetail docd) <- valueVAT(sku(docd)) WHERE adjustment(docd) = doc;
+                priceNoTax(AdjustmentDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE adjustment(docd) = doc;
+                sumWithTax(AdjustmentDetail docd) <- abs(sum(docd)) WHERE adjustment(docd) = doc;
+                sumNoTax(AdjustmentDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE adjustment(docd) = doc;
+                sumTax(AdjustmentDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE adjustment(docd) = doc;
+                sumWithTaxCurr(AdjustmentDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE adjustment(docd) = doc;
                 IF doctype(doc) = 'WI' OR doctype(doc) = 'FA' THEN {
-                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail add)) IF (adjustment(add) = doc AND sum(add) > 0);                
-                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail add) IF (adjustment(add) = doc AND sum(add) > 0);                                
+                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail docd)) IF (adjustment(docd) = doc AND sum(docd) > 0);                
+                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail docd) IF (adjustment(docd) = doc AND sum(docd) > 0);                                
                 }  
                 IF doctype(doc) = 'WO' OR doctype(doc) = 'LA' THEN {
-                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail add)) IF (adjustment(add) = doc AND sum(add) < 0);                
-                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail add) IF (adjustment(add) = doc AND sum(add) < 0);                                
+                    sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail docd)) IF (adjustment(docd) = doc AND sum(docd) < 0);                
+                    sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail docd) IF (adjustment(docd) = doc AND sum(docd) < 0);                                
                 }
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);
 //                // пока не убираем CASE, могут появиться требования у заказчика к нумерации 
