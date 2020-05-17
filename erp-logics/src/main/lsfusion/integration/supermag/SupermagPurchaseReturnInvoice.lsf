@@ -1,6 +1,6 @@
 MODULE SupermagPurchaseReturnInvoice;
 
-REQUIRE SupermagSettings, SupermagFormMeta, PurchaseReturnCreditNote, PurchaseReturnManufacturingPrice, PricingPurchaseReturn, PurchaseInvoiceContract, Utils, SupermagPurchaseInvoice;
+REQUIRE SupermagSettings, SupermagFormMeta, PurchaseReturnCreditNote, PurchaseReturnManufacturingPrice, PricingPurchaseReturn, PurchaseInvoiceContract, Utils, SupermagPurchaseInvoice, OrderManufacturingPrice;
 
 NAMESPACE PurchaseReturn;
 
@@ -153,7 +153,8 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                 sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
                 sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
-                priceManufacturer(InvoiceDetail docd) <- (OVERRIDE manufacturingPrice(docd), price(docd)) WHERE invoice(docd) = doc;
+                priceManufacturer(InvoiceDetail docd) <- (OVERRIDE -manufacturingPrice(docd), price(docd)) WHERE invoice(docd) = doc;
+                extracharge(InvoiceDetail docd) <-(OVERRIDE round2([ ((X*100.0)/Y-100.0)](priceNoTax(docd),priceManufacturer(docd) IF priceManufacturer(docd) != 0.0 )),0) WHERE invoice(docd) = doc;
                 priceRetail(InvoiceDetail docd) <- (OVERRIDE retailPrice(docd), 0) WHERE invoice(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
@@ -298,7 +299,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         VATSum(det) <- taxSum(i);
         valueVAT(det) <- taxRate(i);
         dataIndex(det) <- specItem(i);
-        manufacturingPrice(det) <- priceManufacturer(i);
+        manufacturingPrice(det) <- -priceManufacturer(i);
    //     retailPriceListType(det) <- retailPriceListType(stock(ISTRING[100] (locationTo(i))));
         retailPrice(det) <- retailPrice(i);
         imported(det) <- TRUE;

@@ -1,6 +1,6 @@
 MODULE SupermagSaleInvoice;
 
-REQUIRE SupermagSettings, SupermagFormMeta, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger;
+REQUIRE SupermagSettings, SupermagFormMeta, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger, SaleManufacturingPrice;
 
 NAMESPACE Sale;
 
@@ -119,7 +119,8 @@ exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
                 sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
                 sumTax(InvoiceDetail docd) <- VATSum(docd) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
-            //    priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
+                priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
+                extracharge(InvoiceDetail docd) <- (OVERRIDE wholesaleMarkup(docd), 0) WHERE invoice(docd) = doc;
             //    priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
@@ -214,18 +215,18 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
 
     //импорт спецификаций
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-        EXEC 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
                                                 STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i)),  
-                                                STRING(taxSum(i)), STRING(taxRate(i)) ) IF idDet(i);                  
+                                                STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)) ) IF idDet(i);                  
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND ' + filterSql();
+        MESSAGE 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType = \'WO\' AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql();
         MESSAGE idDet(0);
         MESSAGE currentVersion(0);        
     }
@@ -248,7 +249,8 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
      //   priceListType(det) <- priceListType(stock(ISTRING[100] (locationTo(i))));
         retailPrice(det) <- retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
         retailVAT(det) <- VAT(sku(det));         
-        shipmentPrice(det) <- retailPrice(det); 
+        shipmentPrice(det) <- retailPrice(det);
+        manufacturingPrice(det) <- priceManufacturer(i); 
         imported(det) <- TRUE;
         lastVersion[InvoiceDetail](det) <- currentVersion(i);
    }
