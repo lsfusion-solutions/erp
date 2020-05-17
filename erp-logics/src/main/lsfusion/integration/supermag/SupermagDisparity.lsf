@@ -92,21 +92,21 @@ exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
                                                                                
                 CASE WHEN doctype(doc) = 'WI' THEN {
                         quantityExp(DisparityDetail docd) <- quantity(docd);
-                        priceWithTax(DisparityDetail docd) <- price(docd) WHERE disparity(docd) = doc;
                         valueTax(DisparityDetail docd) <- valueVAT(sku(docd)) WHERE disparity(docd) = doc;
-                        priceNoTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc;
-                        sumWithTax(DisparityDetail docd) <- abs(sum(docd)) WHERE disparity(docd) = doc;
-                        sumNoTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc;
+                        priceNoTax(DisparityDetail docd) <- price(docd) WHERE disparity(docd) = doc;
+                        priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
+                        sumNoTax(DisparityDetail docd) <- abs(sum(docd)) WHERE disparity(docd) = doc;
+                        sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
                         sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                         sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
                      }
                      WHEN doctype(doc) = 'WO' THEN {
                         quantityExp(DisparityDetail docd) <- quantity(docd);
-                        priceWithTax(DisparityDetail docd) <- inputPrice(docd) WHERE disparity(docd) = doc;
                         valueTax(DisparityDetail docd) <- valueVAT(sku(docd)) WHERE disparity(docd) = doc;
-                        priceNoTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc;
-                        sumWithTax(DisparityDetail docd) <- abs(inputSum(docd)) WHERE disparity(docd) = doc;
-                        sumNoTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc;
+                        priceNoTax(DisparityDetail docd) <- inputPrice(docd) WHERE disparity(docd) = doc;
+                        priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
+                        sumNoTax(DisparityDetail docd) <- abs(inputSum(docd)) WHERE disparity(docd) = doc;
+                        sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
                         sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                         sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
                      }
