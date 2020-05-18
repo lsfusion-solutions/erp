@@ -31,11 +31,14 @@ EXTEND FORM groupTerminalDocumentTypes
 
 countDocuments = GROUP SUM 1 IF NOT used(TerminalDocument td) AND NOT isClosed(td) AND inPurchase((terminalDocumentType(td))) BY stock(td);
 
+overAddDialogTerminalUserInvoice  ABSTRACT LIST (Purchase.Order);
+    
 beforeCreateInvoice(Purchase.Order o) + { 
 
     IF countDocuments(customerStock(o)) AND PurchaseUseTerminalDocumentDialog() AND NOT invoiceCreated(o) THEN {
         in(TerminalDocumentType t) <- inPurchase(t);
         filterStock() <- customerStock(o);
+        overAddDialogTerminalUserInvoice(o);
         DIALOG terminalDocuments OBJECTS td INPUT DO {
             NEW i = Purchase.UserInvoice {
                 fillHeader(i, o);
