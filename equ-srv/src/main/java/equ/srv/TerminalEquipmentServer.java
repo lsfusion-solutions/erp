@@ -138,7 +138,7 @@ public class TerminalEquipmentServer {
         ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
         if (machineryPriceTransactionLM != null) {
 
-            DataObject currentDateTimeObject = new DataObject(getWriteDateTime(LocalDateTime.now()), DateTimeClass.instance);
+            DataObject currentDateTimeObject = new DataObject(LocalDateTime.now(), DateTimeClass.instance);
 
             KeyExpr skuExpr = new KeyExpr("Sku");
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");

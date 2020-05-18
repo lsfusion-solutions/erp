@@ -275,7 +275,7 @@ public class StopListEquipmentServer {
                 ObjectValue stopListObject = stopListLM.findProperty("stopList[BPSTRING[18]]").readClasses(session, new DataObject(numberStopList));
                 stopListLM.findProperty("stopList[StopListError]").change(stopListObject, session, errorObject);
                 stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
-                stopListLM.findProperty("date[StopListError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
+                stopListLM.findProperty("date[StopListError]").change(LocalDateTime.now(), session, errorObject);
                 OutputStream os = new ByteArrayOutputStream();
                 e.printStackTrace(new PrintStream(os));
                 stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);

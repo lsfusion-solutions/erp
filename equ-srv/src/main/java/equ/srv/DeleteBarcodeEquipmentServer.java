@@ -3,24 +3,23 @@ package equ.srv;
 import com.google.common.base.Throwables;
 import equ.api.DeleteBarcodeInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
-import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.server.data.expr.key.KeyExpr;
+import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.language.property.LP;
-import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.action.controller.stack.ExecutionStack;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.data.expr.key.KeyExpr;
-import lsfusion.server.data.query.build.QueryBuilder;
-import lsfusion.server.logics.*;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.language.property.LP;
+import lsfusion.server.logics.BusinessLogics;
+import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.io.ByteArrayOutputStream;
@@ -32,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import static lsfusion.base.BaseUtils.trim;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
 
 class DeleteBarcodeEquipmentServer {
 
@@ -107,7 +105,7 @@ class DeleteBarcodeEquipmentServer {
             ObjectValue groupMachineryObject = deleteBarcodeLM.findProperty("groupMachineryNpp[INTEGER]").readClasses(session, new DataObject(nppGroupMachinery));
             deleteBarcodeLM.findProperty("groupMachinery[DeleteBarcodeError]").change(groupMachineryObject, session, errorObject);
             deleteBarcodeLM.findProperty("data[DeleteBarcodeError]").change(exception.toString(), session, errorObject);
-            deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
+            deleteBarcodeLM.findProperty("date[DeleteBarcodeError]").change(LocalDateTime.now(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             exception.printStackTrace(new PrintStream(os));
             deleteBarcodeLM.findProperty("errorTrace[DeleteBarcodeError]").change(os.toString(), session, errorObject);

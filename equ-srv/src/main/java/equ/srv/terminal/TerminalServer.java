@@ -33,8 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import static lsfusion.base.BaseUtils.trimToNull;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
+import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 
 public class TerminalServer extends MonitorServer {
 
@@ -223,7 +222,7 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing timestamp failed: " + value, e);
             timestamp = null;
         }
-        return getWriteDateTime(timestamp);
+        return sqlTimestampToLocalDateTime(timestamp);
     }
 
     private LocalDate parseDate(String value) {
@@ -234,7 +233,7 @@ public class TerminalServer extends MonitorServer {
             logger.error("Parsing date failed: " + value, e);
             date = null;
         }
-        return getWriteDate(date);
+        return sqlDateToLocalDate(date);
     }
 
 

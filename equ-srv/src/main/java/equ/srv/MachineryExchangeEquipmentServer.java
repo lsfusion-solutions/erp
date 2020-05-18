@@ -227,7 +227,7 @@ public class MachineryExchangeEquipmentServer {
 
     private static void errorRequestExchange(DataSession session, Long requestExchange, Throwable t) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
-        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getWriteDateTime(LocalDateTime.now()), session, errorObject);
+        machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(LocalDateTime.now(), session, errorObject);
         OutputStream os = new ByteArrayOutputStream();
         t.printStackTrace(new PrintStream(os));
         machineryPriceTransactionLM.findProperty("erTrace[RequestExchangeError]").change(os.toString(), session, errorObject);
@@ -240,7 +240,7 @@ public class MachineryExchangeEquipmentServer {
                 for (Long request : succeededRequestsSet) {
                     DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
                     machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getWriteDateTime(LocalDateTime.now()), session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(LocalDateTime.now(), session, requestExchangeObject);
                 }
                 session.applyException(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -285,7 +285,7 @@ public class MachineryExchangeEquipmentServer {
                     discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
 
                 if(requestExchange.startDate != null)
-                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(getWriteDate(requestExchange.startDate), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("date[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(requestExchange.startDate, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
 
                 ObjectValue requestExchangeType = machineryPriceTransactionDiscountCardLM.findProperty("discountCardType[RequestExchange]").readClasses(session, requestExchangeObject);
                 if(requestExchangeType instanceof DataObject) {
@@ -387,10 +387,10 @@ public class MachineryExchangeEquipmentServer {
                 }
                 if (requestExchange.dateFrom != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(getWriteDate(requestExchange.dateFrom), DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                            new DataObject(requestExchange.dateFrom, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
                 if (requestExchange.dateTo != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
-                            new DataObject(getWriteDate(requestExchange.dateTo), DateClass.instance).getExpr(), Compare.LESS_EQUALS));
+                            new DataObject(requestExchange.dateTo, DateClass.instance).getExpr(), Compare.LESS_EQUALS));
                 if (requestExchange.idStock != null)
                     orderQuery.and(purchaseInvoiceAgreementLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
                             purchaseInvoiceAgreementLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));

@@ -11,8 +11,6 @@ import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 
 import java.time.LocalDateTime;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDateTime;
-
 public class ProcessMonitorEquipmentServer {
 
     static ScriptingLogicsModule equLM;
@@ -37,7 +35,7 @@ public class ProcessMonitorEquipmentServer {
                 DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
                 equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject.getValue(), session, logObject);
                 equLM.findProperty("data[EquipmentServerLog]").change(data, session, logObject);
-                equLM.findProperty("date[EquipmentServerLog]").change(getWriteDateTime(LocalDateTime.now()), session, logObject);
+                equLM.findProperty("date[EquipmentServerLog]").change(LocalDateTime.now(), session, logObject);
 
                 equLM.findProperty("needLogProcesses[EquipmentServer]").change((Object) null, session, (DataObject) equipmentServerObject);
                 session.applyException(BL, stack);
