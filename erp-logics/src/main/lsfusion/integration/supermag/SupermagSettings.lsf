@@ -15,25 +15,48 @@ idGroupWarehouseInSuperMag 'ид группы складов (вне магаз�
 
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag();
 
-in 'Отм.' = DATA BOOLEAN (Stock);
-stocks 'Склады для синхронизации' () = GROUP CONCAT id(Stock st) IF in(st), ',' ORDER id(st) CHARWIDTH 50;
+inImport 'Отм.' = DATA BOOLEAN (Stock);
+stocksImport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inImport(st), ',' ORDER id(st) CHARWIDTH 50;
 
-FORM dialogDepartmentStores 'Склады'
+
+FORM dialogDepartmentStoresImport 'Склады'
     OBJECTS d = Stock
-    PROPERTIES (d) in
+    PROPERTIES (d) inImport
     PROPERTIES (d) READONLY id, name, nameStore
     FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
-    FILTERGROUP in FILTER 'Отмеченные' in(d)
+    FILTERGROUP in FILTER 'Отмеченные' inImport(d)
     ORDER nameStore(d), name(d)
 ;
 
-DESIGN dialogDepartmentStores {
+DESIGN dialogDepartmentStoresImport {
     size = (600, 600);
 }
 
 EXTEND FORM integrationData 
-    PROPERTIES() stocks ON CHANGE { SHOW dialogDepartmentStores; }
+    PROPERTIES() stocksImport ON CHANGE { SHOW dialogDepartmentStoresImport; }
+;
+
+inExport 'Отм.' = DATA BOOLEAN (Stock);
+stocksExport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inExport(st), ',' ORDER id(st) CHARWIDTH 50;
+
+
+FORM dialogDepartmentStoresExport 'Склады'
+    OBJECTS d = Stock
+    PROPERTIES (d) inExport
+    PROPERTIES (d) READONLY id, name, nameStore
+    FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
+    FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' inExport(d)
+    ORDER nameStore(d), name(d)
+;
+
+DESIGN dialogDepartmentStoresExport {
+    size = (600, 600);
+}
+
+EXTEND FORM integrationData 
+    PROPERTIES() stocksExport ON CHANGE { SHOW dialogDepartmentStoresExport; }
 ;
 
 

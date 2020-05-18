@@ -26,7 +26,7 @@ EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[100](docid(doc)) IF o IS Order EXTID 'ID'  
     PROPERTIES = 'IW' IF o IS Order EXTID 'DOCTYPE'     
     PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
-    PROPERTIES = id(o) EXTID 'BASEID' 
+    PROPERTIES = seriesNumber(o) EXTID 'BASEID' 
     FILTERS include(o,doc)                
 ; 
 
@@ -54,9 +54,11 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 location(doc)  <- NULL IF doc IS Invoice;     
                 priceRoundMode(doc) <- 0 IF doc IS Invoice;                                                
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
+                skuId(InvoiceDetail docd) <- id(sku(docd));                                                                           
                 quantityExp(InvoiceDetail docd) <- quantity(docd);
                 priceWithTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
                 priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
+                priceWithTaxCurr(InvoiceDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE invoice(docd) = doc;
                 sumWithTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
                 sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
                 sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
@@ -101,15 +103,16 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
 }
 
 overApplySaleInvoice (Sale.UserInvoice doc) + {
-    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' AND (isPosted(doc) OR createShipment(doc)) THEN exportSaleInvoiceIW(doc);
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) THEN exportSaleInvoiceIW(doc);
 }
 
 //-----------------------------------------------------------------------------------------------------импорт
 overImportInternalWay ABSTRACT LIST ();
+overImportInternalWay2 ABSTRACT LIST ();
 
 importInternalWay 'Импорт накладные перемещение' () {     
    
-    filterSql() <- 'd.DocType = \'IW\' AND (d.locationfrom IN ('+ stocks() + ') OR d.locationto IN ('+ stocks() + ') ) AND d.CreateDat >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'd.DocType = \'IW\' AND (d.locationfrom IN ('+ stocksImport() + ') OR d.locationto IN ('+ stocksImport() + ') ) AND d.CreateDat >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'd.DocType = \'IW\' AND d.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
        
     EXTERNAL SQL connectionString()  
@@ -152,6 +155,25 @@ importInternalWay 'Импорт накладные перемещение' () {
     }  
     
     overImportInternalWay();
+    
+    //импорт оснований для накладных
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype' TO SupermagSettings.file;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, baseNumber, baseDoctype ;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));
+    
+    IF length(numberImportDocument()) > 0 THEN { //для отладки
+        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';
+        MESSAGE idDoc(0) +  ' ' + idBase(0);
+    }
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND userContractSku(idBase(i)) DO {    
+        contractSku(doc) <- userContractSku(idBase(i));        
+    }        
+    
+    overImportInternalWay2();
 
     //импорт спецификаций
     EXTERNAL SQL connectionString()  

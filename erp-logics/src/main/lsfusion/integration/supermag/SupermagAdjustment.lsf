@@ -98,15 +98,17 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                 locationFrom(doc) <- stock(doc);
                 locationTo(doc) <- stock(doc);
                 location(doc)  <- stock(doc);     
-                priceRoundMode(doc) <- CASE WHEN doctype(doc) = 'FA' OR doctype(doc) = 'LA' THEN 0 ELSE 4;                                                                            
+                priceRoundMode(doc) <- CASE WHEN doctype(doc) = 'FA' OR doctype(doc) = 'LA' THEN 0 ELSE 3; 
+                skuId(AdjustmentDetail docd) <- id(sku(docd));                                                                           
                 quantityExp(AdjustmentDetail docd) <- quantity(docd);
                 priceWithTax(AdjustmentDetail docd) <- price(docd) WHERE adjustment(docd) = doc;
                 valueTax(AdjustmentDetail docd) <- valueVAT(sku(docd)) WHERE adjustment(docd) = doc;
                 priceNoTax(AdjustmentDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE adjustment(docd) = doc;
+                priceWithTaxCurr(AdjustmentDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE adjustment(docd) = doc;
                 sumWithTax(AdjustmentDetail docd) <- abs(sum(docd)) WHERE adjustment(docd) = doc;
+                sumWithTaxCurr(AdjustmentDetail docd) <- round(sumWithTax(docd)/curRate(doc),4) WHERE adjustment(docd) = doc;
                 sumNoTax(AdjustmentDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE adjustment(docd) = doc;
                 sumTax(AdjustmentDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE adjustment(docd) = doc;
-                sumWithTaxCurr(AdjustmentDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE adjustment(docd) = doc;
                 IF doctype(doc) = 'WI' OR doctype(doc) = 'FA' THEN {
                     sumWithTax(doc) <- GROUP SUM abs(sumWithTax(AdjustmentDetail docd)) IF (adjustment(docd) = doc AND sum(docd) > 0);                
                     sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(AdjustmentDetail docd) IF (adjustment(docd) = doc AND sum(docd) > 0);                                
@@ -159,11 +161,11 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
 }
 
 exportAdjustment (Adjustment doc) + {
-    IF isPosted(doc) THEN exportAdjustmentMag(doc);
+    IF inExport(stock(doc)) AND isPosted(doc) THEN exportAdjustmentMag(doc);
 }
 
 importAdjustment 'Изменение остатков' () {
-    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocks() + ')  OR d.locationfrom IN ('+ stocks() + ') OR locationto IN ('+ stocks() + ')   ) AND ( ' ;
+    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocksImport() + ')  OR d.locationfrom IN ('+ stocksImport() + ') OR locationto IN ('+ stocksImport() + ')   ) AND ( ' ;
     LOCAL filterDoc = STRING ();
     LOCAL operDoc = STRING ();
     filterDoc() <-'';

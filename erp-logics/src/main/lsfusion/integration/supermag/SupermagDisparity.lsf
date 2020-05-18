@@ -90,25 +90,29 @@ exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
                 location(doc)  <- stock(doc);  
                 id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                              
                                                                                
-                CASE WHEN doctype(doc) = 'WI' THEN {
+                CASE WHEN doctype(doc) = 'WO' THEN {
+                        skuId(DisparityDetail docd) <- id(sku(docd));                                                                           
                         quantityExp(DisparityDetail docd) <- quantity(docd);
                         valueTax(DisparityDetail docd) <- valueVAT(sku(docd)) WHERE disparity(docd) = doc;
                         priceNoTax(DisparityDetail docd) <- price(docd) WHERE disparity(docd) = doc;
                         priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
+                        priceWithTaxCurr(DisparityDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE disparity(docd) = doc;
                         sumNoTax(DisparityDetail docd) <- abs(sum(docd)) WHERE disparity(docd) = doc;
                         sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
                         sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                         sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
                      }
-                     WHEN doctype(doc) = 'WO' THEN {
-                        quantityExp(DisparityDetail docd) <- quantity(docd);
-                        valueTax(DisparityDetail docd) <- valueVAT(sku(docd)) WHERE disparity(docd) = doc;
+                     WHEN doctype(doc) = 'WI' THEN {
+                        skuId(DisparityDetail docd) <- id(inputSku(docd));                                                                           
+                        quantityExp(DisparityDetail docd) <- inputQuantity(docd);
+                        valueTax(DisparityDetail docd) <- valueVAT(inputSku(docd)) WHERE disparity(docd) = doc;
                         priceNoTax(DisparityDetail docd) <- inputPrice(docd) WHERE disparity(docd) = doc;
                         priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
+                        priceWithTaxCurr(DisparityDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE disparity(docd) = doc;
                         sumNoTax(DisparityDetail docd) <- abs(inputSum(docd)) WHERE disparity(docd) = doc;
                         sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
-                        sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                         sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
+                        sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                      }
                      sumWithTax(doc) <- GROUP SUM sumWithTax(DisparityDetail add) IF disparity(add) = doc;                
                      sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF disparity(add) = doc;                                
@@ -148,11 +152,11 @@ exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
 }
 
 exportDisparity (Disparity doc) + {
-    IF isPosted(doc) THEN exportDisparityMag(doc);
+    IF inExport(stock(doc)) AND isPosted(doc) THEN exportDisparityMag(doc);
 }
 
 importDisparity 'Изменение сортности' () {
-    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocks() + ')  OR d.locationfrom IN ('+ stocks() + ') OR locationto IN ('+ stocks() + ')   ) AND ( ' ;
+    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocksImport() + ')  OR d.locationfrom IN ('+ stocksImport() + ') OR locationto IN ('+ stocksImport() + ')   ) AND ( ' ;
     LOCAL filterDoc = STRING ();
     LOCAL operDoc = STRING ();
     filterDoc() <-'';

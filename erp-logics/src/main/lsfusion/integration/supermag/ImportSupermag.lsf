@@ -426,7 +426,7 @@ importInit 'Импорт остатков' ()  {
     
     logToFile('importSupermag', 'importInit_0');
     
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocks()) TO file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocksImport()) TO file;
     
     logToFile('importSupermag', 'importInit_1');
     
@@ -524,14 +524,14 @@ checkBalance 'Сверить остатки' () {
     LOCAL quantity = NUMERIC[19,4](INTEGER);
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-            EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
+            EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocksImport() + ')' TO file;
 
     IMPORT TABLE FROM file() TO idItem, idStock, quantity;
     
     LOCAL balanceB = NUMERIC[16,5](Sku, Stock);
     LOCAL balanceS = NUMERIC[16,5](Sku, Stock);
     
-    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance()) WHERE in(st);
+    balanceB(Sku sk, Stock st) <-  balanceB(sk, st, dateCheckBalance()) WHERE inImport(st);
     balanceS(Sku sk, Stock st) <-  [GROUP MAX quantity(INTEGER i) BY item(idItem(i)), stock(TEXT (idStock(i)))](sk, st);
     
     FOR (balanceB(Sku sk, Stock st) OR balanceS(sk, st)) AND NOT (OVERRIDE balanceB(sk, st), 0.0) == balanceS(sk, st) DO {
@@ -676,7 +676,7 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
     LOCAL file = FILE ();
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocks() + ')' TO file;
+        EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocksImport() + ')' TO file;
         
     IMPORT TABLE FROM file() TO idItem, idStock, balance;
     
@@ -711,7 +711,7 @@ EXTEND FORM integrationData PROPERTIES importBalanceShipment();
 importReserveDays 'Импорт страхового запаса в днях' () {   
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
-        EXEC 'SELECT ARTICLE, STORELOC, MINDAYS FROM Supermag.SMStockLevels WHERE STORELOC IN(' + stocks() + ')' TO file;
+        EXEC 'SELECT ARTICLE, STORELOC, MINDAYS FROM Supermag.SMStockLevels WHERE STORELOC IN(' + stocksImport() + ')' TO file;
         
     IMPORT TABLE FROM file() TO idItem, idStock, quantity;
     

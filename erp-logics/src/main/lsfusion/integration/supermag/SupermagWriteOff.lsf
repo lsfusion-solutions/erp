@@ -75,6 +75,7 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
                 clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
                 priceWithTax(WriteOffDetail docd) <- price(docd) WHERE writeOff(docd) = doc;
                 priceRoundMode(doc) <- 4 IF doc IS WriteOff;                                                
+                skuId(WriteOffDetail docd) <- id(sku(docd));                                                                           
                 quantityExp(WriteOffDetail docd) <- quantity(docd);
                 valueTax(WriteOffDetail docd) <- valueVAT(sku(docd)) WHERE writeOff(docd) = doc;
                 priceNoTax(WriteOffDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE writeOff(docd) = doc;
@@ -119,11 +120,11 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
 }
 
 exportWriteOff (WriteOff doc) + {
-    IF isPosted(doc) THEN exportWriteOffMag(doc);
+    IF inExport(stock(doc)) AND isPosted(doc) THEN exportWriteOffMag(doc);
 }
 
 importWriteOff 'Списания' () {
-    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocks() + ')  OR d.locationfrom IN ('+ stocks() + ') OR locationto IN ('+ stocks() + ')   ) AND ( ' ;
+    filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocksImport() + ')  OR d.locationfrom IN ('+ stocksImport() + ') OR locationto IN ('+ stocksImport() + ')   ) AND ( ' ;
     LOCAL filterDoc = STRING ();
     LOCAL operDoc = STRING ();
     filterDoc() <-'';

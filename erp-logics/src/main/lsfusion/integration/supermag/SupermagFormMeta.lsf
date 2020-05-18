@@ -69,9 +69,11 @@ META exportFilds (docMain, docDetail)
     locationTo = DATA Stock (###docMain);
     ourSelfClient = DATA LOCAL STRING[100] (###docMain);
     inc = DATA LOCAL BOOLEAN (###docMain);
+    skuId = DATA LOCAL STRING[100] (###docDetail);
     quantityExp = DATA LOCAL NUMERIC[16,5] (###docDetail);
     priceRoundMode = DATA LOCAL INTEGER (###docMain);
     priceWithTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
+    priceWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docDetail);    
     priceNoTax = DATA LOCAL NUMERIC[18,4] (###docDetail);
     priceManufacturer = DATA LOCAL NUMERIC[18,4] (###docDetail);
     extracharge =  DATA LOCAL NUMERIC[18,4] (###docDetail);
@@ -119,19 +121,23 @@ FORM formName FORMEXTID 'PACKAGE'
     PROPERTIES = 1 IF doc IS ###docMain EXTID 'CURRENCYTYPE' IN SMDOCUMENTS###typeDoc        
     PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN SMDOCUMENTS###typeDoc           
     PROPERTIES = 1 IF doc IS ###docMain  EXTID 'ISROUBLES' IN SMDOCUMENTS###typeDoc      
-    PROPERTIES = priceRoundMode(doc) EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
-    PROPERTIES = sumWithTax(doc) IF doc IS ###docMain EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
-    PROPERTIES = sumWithTaxCurr(doc) IF doc IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS###typeDoc       
+    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN SMDOCUMENTS###typeDoc    
+    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 IF doc IS ###docMain EXTID 'TOTALSUMCUR' IN SMDOCUMENTS###typeDoc    
     PROPERTIES = note(doc) IF doc IS ###docMain EXTID 'COMMENTARY' IN SMDOCUMENTS###typeDoc     
                                                             
     OBJECTS docd = ###docDetail EXTID 'SMSPEC' IN ###typeDoc 
     PROPERTIES = docId(docd) EXTID 'DOCID'    
     PROPERTIES = doctype(##docMain(docd)) IF docd IS ###docDetail EXTID 'DOCTYPE'      
-    PROPERTIES = idSku(docd) EXTID 'ARTICLE'                          
-    PROPERTIES d1= index(docd) EXTID 'DISPLAYITEM'
-    PROPERTIES = abs(quantityExp(docd)) EXTID 'QUANTITY'
-    PROPERTIES = priceWithTax(docd) EXTID 'ITEMPRICE'     
-    PROPERTIES d2 = NUMERIC[18,4](price(docd)/curRate(doc)) EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = OVERRIDE abs(quantityExp(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceWithTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS ##docMain(docd)==doc,
             inc(doc)  
     ;                                                
@@ -153,12 +159,7 @@ EXTEND FORM formName
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
     PROPERTIES = id(legalEntity(locationTo(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSIN      
-
-    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
-    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
-    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
-       
+      
     OBJECTS docd2 = ###docDetail EXTID 'SMSPECIO' IN WI 
     PROPERTIES = docId(docd2) EXTID 'DOCID'   
     PROPERTIES = 'WI' IF docd2 IS ###docDetail EXTID 'DOCTYPE'     
@@ -208,11 +209,6 @@ EXTEND FORM formName
     PROPERTIES = STRING[100](seriesNumber(doc))  EXTID 'INVOICE' IN SMWAYBILLSOUT             
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSOUT      
     
-    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
-    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
-    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
-                
     OBJECTS docd2 = ###docDetail EXTID 'SMSPECIO' IN WO 
     PROPERTIES = docId(docd2) EXTID 'DOCID'   
     PROPERTIES = 'WO' IF docd2 IS ###docDetail EXTID 'DOCTYPE'     
@@ -324,12 +320,7 @@ META exportFormIW (formName, docMain, docDetail, commentary)
 EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE' 
     PROPERTIES = userop(doc) IF doc IS ###docMain EXTID 'USEROP' IN SMDOCUMENTSIW        
     PROPERTIES = id(locationTo(doc)) EXTID 'LOCATIONTO' IN SMDOCUMENTSIW        
-    PROPERTIES = id(locationFrom(doc)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSIW
-    
-    PROPERTIES = priceNoTax(docd) IF docd IS ###docDetail EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = sumWithTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICE'  
-    PROPERTIES = sumWithTaxCurr(docd) IF docd IS ###docDetail EXTID 'TOTALPRICECUR'      
-    PROPERTIES = sumNoTax(docd) IF docd IS ###docDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = id(locationFrom(doc)) EXTID 'LOCATIONFROM' IN SMDOCUMENTSIW   
 
     OBJECTS docd4 = ###docDetail EXTID 'SMSPECBY' IN IW
     PROPERTIES = docId(docd4) EXTID 'DOCID'    

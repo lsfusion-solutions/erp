@@ -74,14 +74,14 @@ EXTEND FORM exportPurchaseReturnInvoiceWO FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[100](docid(doc)) IF o IS Order EXTID 'ID'  
     PROPERTIES = 'WO' IF o IS Order EXTID 'DOCTYPE'     
     PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
-    PROPERTIES = id(o) EXTID 'BASEID' 
+    PROPERTIES = seriesNumber(o) EXTID 'BASEID' 
     FILTERS include(o,doc)                
 
     OBJECTS c = ContractSku EXTID 'SMCOMMONBASES' IN WO 
     PROPERTIES = STRING[100](docid(doc)) IF c IS ContractSku EXTID 'ID'   
     PROPERTIES = 'WO' IF c IS ContractSku EXTID 'DOCTYPE'     
     PROPERTIES = 'CO' IF c IS ContractSku EXTID 'BASEDOCTYPE'                    
-    PROPERTIES = id(c) EXTID 'BASEID' 
+    PROPERTIES = seriesNumber(c) EXTID 'BASEID' 
     FILTERS c=contractSku(doc)                
 ; 
 
@@ -145,6 +145,7 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                         location(doc)  <- NULL IF doc IS Invoice;                                                     
                     }                
                 id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
+                skuId(InvoiceDetail docd) <- id(sku(docd));                                                                           
                 quantityExp(InvoiceDetail docd) <- quantity(docd);
                 priceWithTax(InvoiceDetail docd) <- invoicePrice(docd) WHERE invoice(docd) = doc;
                 valueTax(InvoiceDetail docd) <- valueVAT(sku(docd)) WHERE invoice(docd) = doc;
@@ -204,7 +205,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
 
    LOCAL paymentCondition = PaymentCondition (STRING);
     
-    filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.locationfrom IN ('+ stocks() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
+    filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.locationfrom IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND d.id = \'' + numberImportDocument() + '\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id'; 
        
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
