@@ -114,8 +114,16 @@ toDateTime 'Дата/время по'(UserPriceList userPriceList) = dateTimeToD
 
 toDate(UserPriceList userPriceList) += toDate(userPriceList);
 toTime(UserPriceList userPriceList) += toTime(userPriceList);
-
-@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, to);
+skipChangeToTime = ABSTRACT  BOOLEAN (UserPriceList);
+WHEN LOCAL CHANGED(toDate(UserPriceList o)) AND NOT toTime(o) AND NOT skipChangeToTime(o)  DO {
+    toTime(o) <- 23:59;
+} 
+//
+//@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, to){
+//    WHEN LOCAL CHANGED(toDate(UserPriceList o)) AND NOT toTime(o) DO {
+//        toTime(o) <- 23:59;
+//    } 
+//};
 
 @defineDocumentInterfaceNumber(priceList);
 @defineNumeratedDefault(UserPriceList, 'Прайсы', 'ПЛ');
