@@ -16,7 +16,7 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.sqlDateToLocalDate;
 
 public class FillDaysOffAction extends InternalAction {
 
@@ -71,6 +71,6 @@ public class FillDaysOffAction extends InternalAction {
     }
 
     private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataObject countryObject, long timeInMillis) throws SQLException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        context.getBL().getModule("Country").findProperty("isDayOff[Country,DATE]").change(true, context, countryObject, new DataObject(getWriteDate(new java.sql.Date(timeInMillis)), DateClass.instance));
+        context.getBL().getModule("Country").findProperty("isDayOff[Country,DATE]").change(true, context, countryObject, new DataObject(sqlDateToLocalDate(new java.sql.Date(timeInMillis)), DateClass.instance));
     }
 }

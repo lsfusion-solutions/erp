@@ -1,18 +1,18 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.logics.classes.user.CustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
-import lsfusion.server.logics.classes.data.time.DateClass;
-import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.data.StringClass;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.time.DateClass;
+import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
+import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
@@ -25,8 +25,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportTNVEDClassifierAction extends InternalAction {
 
@@ -85,7 +83,7 @@ public class ImportTNVEDClassifierAction extends InternalAction {
                     groupID = "-" + i;
                     hasCode = null;
                 }
-                data.add(Arrays.asList(groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, getWriteDate(defaultDate)));
+                data.add(Arrays.asList(groupID, name + extraName, i, "БЕЛАРУСЬ", hasCode, defaultVAT, defaultDate));
             }
         } finally {
             if(dbfFile != null)

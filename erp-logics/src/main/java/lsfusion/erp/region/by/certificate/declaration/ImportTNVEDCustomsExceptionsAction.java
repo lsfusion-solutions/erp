@@ -19,19 +19,16 @@ import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.physics.dev.integration.service.*;
-import org.apache.commons.lang3.time.DateUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
 
 public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
     private static final String charset = "Cp866";
@@ -51,12 +48,12 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
                 importVATException(context, (RawFileData) objectValue.getValue());
             }
 
-        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
+        } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    private void importVATException(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, ParseException, SQLHandledException {
+    private void importVATException(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = importVATExceptionFromDBF(context, fileBytes);
 
@@ -107,7 +104,7 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
         }
     }
 
-    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<Object>> importVATExceptionFromDBF(ExecutionContext<ClassPropertyInterface> context, RawFileData fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         List<List<Object>> data = new ArrayList<>();
         Map<String, List<Object>> dataVATMap = new HashMap<>();
@@ -132,13 +129,13 @@ public class ImportTNVEDCustomsExceptionsAction extends InternalAction {
                 String dateFromValue = new String(dbfFile.getField("DATE1").getBytes(), charset).trim();
                 String dateToValue = new String(dbfFile.getField("DATE2").getBytes(), charset).trim();
                 if(!dateFromValue.isEmpty() && !dateToValue.isEmpty()) {
-                    Date dateFrom = new Date(DateUtils.parseDate(dateFromValue, "yyyyMMdd").getTime());
-                    Date dateTo = new Date(DateUtils.parseDate(dateToValue, "yyyyMMdd").getTime());
+                    LocalDate dateFrom = LocalDate.parse(dateFromValue, DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    LocalDate dateTo = LocalDate.parse(dateToValue, DateTimeFormatter.ofPattern("yyyyMMdd"));
                     if (type.equals(4)) {
                         if (codeCustomsGroup.length() == 10)
-                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, getWriteDate(dateFrom), getWriteDate(dateTo)));
+                            data.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
                         else
-                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, getWriteDate(dateFrom), getWriteDate(dateTo)));
+                            dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo + name, name, stav1, dateFrom, dateTo));
                     }
                 }
             }

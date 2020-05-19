@@ -60,7 +60,7 @@ public class UploadImageArticleFromDirectoryAction extends InternalAction {
                         Timestamp timeChangedImageArticle = localDateTimeToSqlTimestamp((LocalDateTime) findProperty("timeChangedImage[Article]").read(context, articleObject));
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
                             findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
-                            findProperty("timeChangedImage[Article]").change(new DataObject(getWriteDateTime(new Timestamp(imageFile.lastModified())), DateTimeClass.instance), context, articleObject);
+                            findProperty("timeChangedImage[Article]").change(new DataObject(sqlTimestampToLocalDateTime(new Timestamp(imageFile.lastModified())), DateTimeClass.instance), context, articleObject);
                         }
                     }
                 }

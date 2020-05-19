@@ -75,7 +75,7 @@ public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
                     Double sum = Double.valueOf(node.getChildText("CustomsCost", gns));
                     Integer number = Integer.valueOf(node.getChildText("GoodsNumeric", gns));
 
-                    data.add(Arrays.asList(1, number, getWriteDate(registryDate), duty, vat, sum));
+                    data.add(Arrays.asList(1, number, sqlDateToLocalDate(registryDate), duty, vat, sum));
                 }
 
                 List<ImportProperty<?>> properties = new ArrayList<>();

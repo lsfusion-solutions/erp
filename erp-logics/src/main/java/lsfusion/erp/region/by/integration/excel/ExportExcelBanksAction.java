@@ -54,7 +54,7 @@ public class ExportExcelBanksAction extends ExportExcelAction {
             for (int i = 0; i < bankProperties.length; i++) {
                 bankQuery.addProperty(bankNames[i], bankProperties[i].getExpr(context.getModifier(), bankExpr));
             }
-            bankQuery.addProperty("dataAddressBankDate", findProperty("dataAddress[Bank,DATE]").getExpr(context.getModifier(), bankExpr, new DataObject(getWriteDate(LocalDate.now()), DateClass.instance).getExpr()));
+            bankQuery.addProperty("dataAddressBankDate", findProperty("dataAddress[Bank,DATE]").getExpr(context.getModifier(), bankExpr, new DataObject(LocalDate.now(), DateClass.instance).getExpr()));
 
             bankQuery.and(findProperty("name[Bank]").getExpr(context.getModifier(), bankExpr).getWhere());
 

@@ -115,7 +115,7 @@ public class ExportExcelItemsAction extends ExportExcelAction {
                 BigDecimal vatWare = wareItemObject == null || countryItemObject == null ? null : (BigDecimal) findProperty("valueVAT[Ware,Country]").read(context, wareItemObject, countryItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
-                DataObject dateObject = new DataObject(getWriteDate(LocalDate.now()), DateClass.instance);
+                DataObject dateObject = new DataObject(LocalDate.now(), DateClass.instance);
                 BigDecimal vatItem = (BigDecimal) findProperty("valueVAT[Item,Country,DATE]").read(context, itemObject, countryItemObject, dateObject);
                 String nameCountry = trim((String) findProperty("name[Country]").read(context, countryItemObject), "");
 

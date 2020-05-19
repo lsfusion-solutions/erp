@@ -31,7 +31,7 @@ import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.*;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
+import static lsfusion.erp.integration.DefaultIntegrationAction.sqlDateToLocalDate;
 
 public class ImportTNVEDCustomsRatesAction extends InternalAction {
 
@@ -202,10 +202,10 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
                             registrationMap.put(codeCustomsGroup, stav_a);
                         break;
                     case 2:
-                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */getWriteDate(dateFrom), getWriteDate(dateTo)));
+                        dataDuty.add(Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, registrationMap.get(codeCustomsGroup.substring(0, 2)), stav_a, stav_s, /*null, */sqlDateToLocalDate(dateFrom), sqlDateToLocalDate(dateTo)));
                         break;
                     case 4:
-                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, null, null, null, stav_a, getWriteDate(dateFrom), getWriteDate(dateTo)));
+                        dataVATMap.put(codeCustomsGroup, Arrays.asList(codeCustomsGroup, codeCustomsGroup + dateTo, null, null, null, stav_a, sqlDateToLocalDate(dateFrom), sqlDateToLocalDate(dateTo)));
                         break;
                 }
             }
@@ -222,7 +222,7 @@ public class ImportTNVEDCustomsRatesAction extends InternalAction {
         for (String tnved : tnvedSet) {
             List<Object> entry = dataVATMap.get(tnved);
             dataVAT.add(Arrays.asList(tnved, entry == null ? tnved + defaultDateTo : entry.get(1), entry == null ? BigDecimal.valueOf(20) : entry.get(5),
-                    entry == null ? defaultDateFrom : entry.get(6), getWriteDate(entry == null ? defaultDateTo : entry.get(7))));
+                    entry == null ? defaultDateFrom : entry.get(6), entry == null ? defaultDateTo : entry.get(7)));
         }
         return Arrays.asList(dataDuty, dataVAT);
     }

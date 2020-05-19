@@ -40,7 +40,7 @@ public class UploadImageArticleFromURLAction extends DefaultImageArticleAction {
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
                 findProperty("image[Article]").change(new DataObject(new RawFileData(new FileInputStream(imageFile)), ImageClass.get()), context, articleObject);
-                findProperty("timeChangedImage[Article]").change(new DataObject(getWriteDateTime(LocalDateTime.now()), DateTimeClass.instance), context, articleObject);
+                findProperty("timeChangedImage[Article]").change(new DataObject(LocalDateTime.now(), DateTimeClass.instance), context, articleObject);
                 if(!imageFile.delete())
                     imageFile.deleteOnExit();
 

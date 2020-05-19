@@ -29,8 +29,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.getWriteDate;
-
 public class ImportCBRFExchangeRateAction extends InternalAction {
     private final ClassPropertyInterface currencyInterface;
 
@@ -100,7 +98,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
         List<List<Object>> data = new ArrayList<>();
         for (Exchange e : exchangesList) {
-            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), getWriteDate(e.date)));
+            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
         }
         ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
                 homeCurrencyField, rateField, foreignRateField, dateField), data);
