@@ -35,6 +35,7 @@ isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
     imported = DATA LOCAL BOOLEAN (UserContractSku);         
 
 overImportSupplierPrice ABSTRACT LIST ();
+overImportSupplierPrice2 ABSTRACT LIST ();
 
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
@@ -118,6 +119,8 @@ importContract 'Импорт из контрактов с поставщикам
         SupermagPricelist.imported(doc) <- TRUE;        
         lastVersion(doc) <- currentVersion(i);
     }   
+
+    overImportSupplierPrice();
      
      // указываем какие магазины входят в ПСЦ            
     EXTERNAL SQL connectionString() 
@@ -129,13 +132,13 @@ importContract 'Импорт из контрактов с поставщикам
 
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
         dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
-    }     
-
-    FOR [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i))](UserContractSku doc) DO {
-        inCustomer(Stock s, doc) <- TRUE IF [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
-    }     
-
-    overImportSupplierPrice();
+    }
+         
+//   постоянно лезут ошибки особенно из-за тестового магазина, всю информацию можно брать из пройс-листов выше, она идентична   
+//    FOR [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i))](UserContractSku doc) DO {
+//        inCustomer(Stock s, doc) <- TRUE IF [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
+//    }     
+    overImportSupplierPrice2();
 
     //загружаем спецификаци    
     LOCAL packSize = NUMERIC[14,3](INTEGER);
