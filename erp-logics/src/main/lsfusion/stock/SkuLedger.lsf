@@ -675,7 +675,7 @@ FORM batches 'Партии'
 
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           bt=Batch
@@ -683,7 +683,7 @@ FORM batches 'Партии'
                                name, nameStock, shippedQuantity, cost, expiryDate, currentBalance
     PROPERTIES(bt)    EDIT SHOWIF allowedEdit(bt) NEWSESSION, show SHOWIF allowedShow(bt)
     FILTERS           isParent(sk, bt)
-    ORDER          dateTime(bt)
+    ORDERS          dateTime(bt)
 
     FILTERGROUP filterBalance
         FILTER 'Партии пришедшие за последний 1 день' date(bt) >= subtract(currentDate(), 1) 'F10'
@@ -722,7 +722,7 @@ FORM dialogBatch 'Партии'
                     nameSku, name, id SHOWIF showIDs(), shippedQuantity, cost, expiryDate
     FILTERS sku(bt) == sk
 
-    ORDER dateTime(bt)
+    ORDERS dateTime(bt)
 ;
 
 FORM dialogBatchStockOut 'Партии (расход)'
@@ -735,7 +735,7 @@ FORM dialogBatchStockOut 'Партии (расход)'
     PROPERTIES  READONLY balanceB(bt, st, t)
     PROPERTIES  READONLY currentBalance(bt, st)
     FILTERS sku(bt) == sk
-    ORDER dateTime(bt)
+    ORDERS dateTime(bt)
     
     FILTERGROUP ledger
         FILTER 'С движением по складу' skuLedger(bt, st) == sk 'F6' DEFAULT 
@@ -765,7 +765,7 @@ FORM dialogBatchStockIn 'Партии (приход)'
     PROPERTIES  READONLY balanceB(bt, st, t)
     PROPERTIES  READONLY currentBalance(bt, st)
     FILTERS sku(bt) == sk
-    ORDER dateTime(bt, st)
+    ORDERS dateTime(bt, st)
     
     FILTERGROUP ledger
         FILTER 'С движением по складу' skuLedger(bt, st) == sk 'F6' 
@@ -909,7 +909,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
     PROPERTIES(bil)          resetCost GRID
     PROPERTIES(bil)          EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)
     FILTERS active(bil), dateTime(bil) >= DATETIME(dFrom), dateTime(bil) < DATETIME(sum(dTo,1)) 
-    ORDER dateTime(bil)
+    ORDERS dateTime(bil)
 
     FILTERGROUP needToCostDataSkuLedger
         FILTER 'Нерасписанные строки' needToCost(bil) 'F9'
@@ -918,7 +918,7 @@ FORM costSkuLedger 'Себестоимость (операции)'
     PROPERTIES(bt) READONLY number, series, dateTime, nameSupplier, name, shippedQuantity, cost, currentBalance
     PROPERTIES(bil, bt)   cost, currentBalance, countLedger
     FILTERS sku(bt) == sku(bil)
-    ORDER dateTime(bt) DESC
+    ORDERS dateTime(bt) DESC
 
     FILTERGROUP inSkuLedgerBatch
         FILTER 'Только расписанные партии' cost (bil, bt) 'F10' DEFAULT
@@ -965,7 +965,7 @@ FORM costSkuBatchLedger 'Себестоимость (партии)'
     PROPERTIES(bil) READONLY dateTime, description, nameStock,
                              quantity, costed
 //    PROPERTIES(bil)          resetCostSkuLedger
-    ORDER dateTime(bil)
+    ORDERS dateTime(bil)
 
     FILTERGROUP needToCostSkuLedger
         FILTER 'Нерасписанные строки' needToCost(bil) 'F9'
@@ -975,7 +975,7 @@ FORM costSkuBatchLedger 'Себестоимость (партии)'
     FILTERS sku(bt) == i,
             sku(bil) == i
 
-    ORDER dateTime(bt) DESC
+    ORDERS dateTime(bt) DESC
 
     FILTERGROUP inSkuLedgerBatch
         FILTER 'Только расписанные партии' cost (bil, bt) 'F10' DEFAULT
@@ -1027,7 +1027,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
     PROPERTIES SHOWIF multipleStores() READONLY VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-    ORDER sgTreeName
+    ORDERS sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroup(ts) == sg,
             isCompany(ts)
@@ -1035,7 +1035,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
@@ -1048,7 +1048,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
                       ELSE 
                         st == ss,
                       isCompany(st) OR NOT multipleStores()
-    ORDER          name(s)
+    ORDERS          name(s)
     FILTERGROUP inactiveStock 
         FILTER 'Активный' (active(st) OR NOT multipleStores()) AND active(s) 'ctrl F10' DEFAULT
         FILTER 'Неактивный' inactive(s) 'shift F10'
@@ -1071,7 +1071,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
                     signedQuantity, signedPrice, signedSum, balanceA, priceA, sumA, skip
                     
     FILTERS isPosted(bil) AND sku(bil)==s AND stock(bil)==st
-    ORDER dateTime(bil) DESC
+    ORDERS dateTime(bil) DESC
 
     OBJECTS bt=Batch
     PROPERTIES(bt) READONLY      number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
@@ -1080,7 +1080,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
             sku(bt) == s,
             countLedger(bt, st)
     
-    ORDER dateTime(bt) DESC
+    ORDERS dateTime(bt) DESC
 ;
 
 DESIGN currentBalanceSkuStock {
@@ -1155,14 +1155,14 @@ FORM balanceSkuStock 'Остатки на дату'
 
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
     PROPERTIES READONLY SHOWIF multipleStores() VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-    ORDER sgTreeName
+    ORDERS sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroup(ts) == sg,
             isCompany(ts)
     FILTERGROUP sginactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
@@ -1196,7 +1196,7 @@ FORM balanceSkuStock 'Остатки на дату'
     PROPERTIES(bil) READONLY dateTime, description, nameBatch,
                     signedQuantity, signedPrice, signedSum, skip
     FILTERS isPosted(bil) AND sku(bil)==s AND stock(bil)==st
-    ORDER dateTime(bil) DESC
+    ORDERS dateTime(bil) DESC
 
     OBJECTS bt=Batch
     PROPERTIES(bt) READONLY      number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost
@@ -1204,7 +1204,7 @@ FORM balanceSkuStock 'Остатки на дату'
     FILTERS isPosted(bt),
             sku(bt) == s,
             countLedger(bt, st)
-    ORDER dateTime(bt) DESC
+    ORDERS dateTime(bt) DESC
 ;
 
 DESIGN balanceSkuStock {
@@ -1270,14 +1270,14 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
 
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
     PROPERTIES READONLY SHOWIF multipleStores() VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-    ORDER sgTreeName
+    ORDERS sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroup(ts) == sg,
             isCompany(ts)
     FILTERGROUP sginactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
        
     OBJECTS           stb=(st=Stock, bt=Batch)
@@ -1292,14 +1292,14 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
 //                      st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts,
                       isCompany(st) OR NOT multipleStores()
     FILTERGROUP inactiveStock FILTER 'Активный' active(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
-    ORDER          dateTime(bt)
+    ORDERS          dateTime(bt)
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY dateTime, description,
                     signedQuantity, signedPrice, signedSum, skip
     PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
     FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
-    ORDER dateTime(bil) DESC
+    ORDERS dateTime(bil) DESC
     FILTERGROUP container 
         FILTER 'Товар' isItem(bt) 
         FILTER 'Тара' isContainer(bt)
@@ -1379,14 +1379,14 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
     PROPERTIES READONLY SHOWIF multipleStores() VALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
-    ORDER sgTreeName
+    ORDERS sgTreeName
     FILTERS stringEqualsAll(a),
             stockGroup(ts) == sg,
             isCompany(ts)
     FILTERGROUP sginactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           stb=(st=Stock, bt=Batch)
@@ -1400,7 +1400,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
                             st == ss,    
                       isCompany(st) OR NOT multipleStores()
     FILTERGROUP inactiveStock FILTER 'Активный' active(st) OR NOT multipleStores() 'ctrl F10' DEFAULT
-    ORDER          dateTime(bt)
+    ORDERS          dateTime(bt)
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY dateTime, description,
@@ -1408,7 +1408,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
     FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==st,
             dateTime(bil) < t
-    ORDER dateTime(bil) DESC
+    ORDERS dateTime(bil) DESC
     FILTERGROUP container 
         FILTER 'Товар' isItem(bt) 
         FILTER 'Тара' isContainer(bt)
@@ -1489,7 +1489,7 @@ FORM skuLedger 'Регистр движений'
     PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock,
                            signedQuantity, signedPrice, signedSum, costSum
     PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
-    ORDER date(s) DESC
+    ORDERS date(s) DESC
     FILTERS isPosted(s)
 
     FILTERS date(s) >= dFrom, date(s) <= dTo

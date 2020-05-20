@@ -107,7 +107,7 @@ FORM printListPurchasesReport 'Отчет по поступлениям'
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTime, nameSupplier, nameSku, description,
                            quantity, sumVAT, sum, averagePrice
-    ORDER nameSku(p)
+    ORDERS nameSku(p)
     FILTERS active(p),
             inPurchaseReport(stock(p)),
             date(p) >= df,
@@ -148,7 +148,7 @@ FORM printListSkuPurchasesReport 'Отчет по поступлениям'
     PROPERTIES(s) READONLY name
     PROPERTIES(s, df, dt) READONLY quantityPurchasesStock, sumVATPurchasesStock,
                                        sumPurchasesStock
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS inSession(group(gt, s)),
             quantityPurchasesStock(s, df, dt) OR sumVATPurchasesStock(s, df, dt) OR
             sumPurchasesStock(s, df, dt)
@@ -173,7 +173,7 @@ FORM printPurchasesReport 'Отчет по поступлениям'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk, df, dt) READONLY sumVATPurchasesStock, sumPurchasesSkuStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt
@@ -182,7 +182,7 @@ FORM printPurchasesReport 'Отчет по поступлениям'
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTime, nameSupplier, nameSku, description,
                            quantity, sumVAT, sum, averagePrice
-    ORDER nameSku(p)
+    ORDERS nameSku(p)
     FILTERS active(p),
             inPurchaseReport(stock(p)),
             date(p) >= df,
@@ -209,7 +209,7 @@ FORM printSkuPurchasesReport 'Отчет по поступлениям'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk, df, dt) READONLY sumVATPurchasesStock, sumPurchasesSkuStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt
@@ -219,7 +219,7 @@ FORM printSkuPurchasesReport 'Отчет по поступлениям'
     PROPERTIES(s) READONLY name
     PROPERTIES(s, df, dt) READONLY quantityPurchasesStock, sumVATPurchasesStock,
                                        sumPurchasesStock
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS group(gt, s) == sk,
             quantityPurchasesStock(s, df, dt) OR sumVATPurchasesStock(s, df, dt) OR
             sumPurchasesStock(s, df, dt)
@@ -244,7 +244,7 @@ FORM printGroupPurchasesReport 'Отчет по поступлениям'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk, df, dt) READONLY sumVATPurchasesStock, sumPurchasesSkuStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt,
@@ -270,7 +270,7 @@ FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY sumVATPurchasesStock, sumPurchasesStock
     FILTERS isSeller(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
@@ -278,7 +278,7 @@ FORM printGroupSupplierPurchasesReport 'Отчет по поступлениям
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTime, nameSupplier, nameSku, description,
                            quantity, sumVAT, sum, averagePrice
-    ORDER nameSku(p)
+    ORDERS nameSku(p)
     FILTERS active(p),
             inSession(group(gt, sku(p))),
             inPurchaseReport(stock(p)),
@@ -319,7 +319,7 @@ FORM printGroupSupplierSkuPurchasesReport 'Отчет по поступлени�
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY sumVATPurchasesStock, sumPurchasesStock
     FILTERS isSeller(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
@@ -327,7 +327,7 @@ FORM printGroupSupplierSkuPurchasesReport 'Отчет по поступлени�
     PROPERTIES(s) READONLY name
     PROPERTIES(s, l, df, dt) READONLY quantityPurchasesStock, sumVATPurchasesStock,
                                           sumPurchasesStock
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS inSession(group(gt, s)),
             quantityPurchasesStock(s, l, df, dt) OR sumVATPurchasesStock(s, l, df, dt) OR
             sumPurchasesStock(s, l, df, dt)
@@ -352,7 +352,7 @@ FORM printSupplierPurchasesReport 'Отчет по поступлениям'
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY sumVATPurchasesStock, sumPurchasesStock
     FILTERS isSeller(l),
             sumVATPurchasesStock(gt, l, df, dt) OR sumPurchasesStock(gt, l, df, dt)
@@ -367,13 +367,13 @@ FORM dialogStocksPurchaseReport 'Выбор складов'
 
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
     PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER name(sg)
+    ORDERS name(sg)
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, name
     PROPERTIES (s) inPurchaseReport
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)
@@ -439,7 +439,7 @@ FORM purchasesReport 'Отчет по поступлениям'
     PROPERTIES inSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     PROPERTIES(sk, df, dt) READONLY sumRecPurchasesSkuStock
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
     
@@ -455,7 +455,7 @@ FORM purchasesReport 'Отчет по поступлениям'
     OBJECTS p = PurchaseLedger
     PROPERTIES(p) READONLY dateTime, nameSupplier, nameSku, description,
                            quantity, sumVAT, sum, averagePrice
-    ORDER nameSku(p)
+    ORDERS nameSku(p)
     FILTERS isParent(sk, sku(p)),
             active(p),
             inPurchaseReport(stock(p)),

@@ -93,34 +93,34 @@ CONSTRAINT sku(ListDetail d1) == sku(ListDetail d2) AND list(d1) == list(d2) AND
 FORM list 'Список SKU'
     OBJECTS l = List PANEL
     PROPERTIES (l) name, nameParent, order, id SHOWIF showIDs()
-    ORDER name(l)
+    ORDERS name(l)
     
     OBJECTS d = ListDetail
     PROPERTIES(d) idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku, NEW, deleteE = DELETE 
     FILTERS list(d) == l
-    ORDER nameSku(d)
+    ORDERS nameSku(d)
     
     TREE stockTree a = BPSTRING[3], sg = StockGroup  PARENT parent(sg)
     PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
-    ORDER sgTreeName
+    ORDERS sgTreeName
     FILTERS stringEqualsAll(a)
     PROPERTIES(l,sg) access
 
     OBJECTS s = Stock GRID
     PROPERTIES(s) READONLY id 
     PROPERTIES(s) READONLY stockName = name, nameLegalEntity
-    ORDER stockName
+    ORDERS stockName
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
     PROPERTIES(l,s) access
     
     OBJECTS r = UserRole
     PROPERTIES access(l, r), name(r) READONLY
-    ORDER name(r)
+    ORDERS name(r)
     
     TREE skuTree skg = SkuGroup PARENT parent(skg)
     PROPERTIES READONLY order(skg), skuTreeName = name(skg)
-    ORDER order(skg), skuTreeName
+    ORDERS order(skg), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(skg) 'F5' DEFAULT
 
     OBJECTS sk = Sku
@@ -128,7 +128,7 @@ FORM list 'Список SKU'
     PROPERTIES (sk) READONLY id, idBarcode, name, shortNameUOM, canonicalNameSkuGroup, nameBrand, nameCountry, nameManufacturer
     FILTERGROUP in FILTER 'Отмеченные' in(l, sk)
     FILTERS isParent(skg, sk)
-    ORDER name(sk)
+    ORDERS name(sk)
     
     EDIT List OBJECT l
 ;
@@ -173,11 +173,11 @@ FORM lists 'Списки SKU'
     OBJECTS o = List
     PROPERTIES (o) READONLY canonicalName
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
-    ORDER canonicalName(o)
+    ORDERS canonicalName(o)
     
     OBJECTS d = ListDetail
     PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
-    ORDER nameSku(d)
+    ORDERS nameSku(d)
     FILTERS list(d) == o
     
     TREE treeGroups g=List PARENT parent(g)
@@ -185,11 +185,11 @@ FORM lists 'Списки SKU'
     PROPERTIES (g) READONLYIF isReadonly() order, id SHOWIF showIDs(), name, canonicalName
     PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE 
     FILTERS inIFilterName(g) OR NOT filterNameList()
-    ORDER order(g), canonicalName(g)
+    ORDERS order(g), canonicalName(g)
     
     OBJECTS dd = ListDetail
     PROPERTIES(dd) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
-    ORDER nameSku(dd)
+    ORDERS nameSku(dd)
     FILTERS isParent(list(dd), g)
 ;
 
@@ -215,11 +215,11 @@ DESIGN lists {
 FORM dialogLists 'Списки SKU'
     TREE treeGroups tg=List PARENT parent(tg)
     PROPERTIES READONLY order(tg), id(tg) SHOWIF showIDs(), name(tg)
-    ORDER order(tg), name(tg)
+    ORDERS order(tg), name(tg)
 
     OBJECTS g=List
     PROPERTIES(g) READONLY order, id SHOWIF showIDs(), name, canonicalName 
-    ORDER order(g), canonicalName(g)
+    ORDERS order(g), canonicalName(g)
 
     FILTERS isParent(g, tg)
 
@@ -255,11 +255,11 @@ NAVIGATOR {
 FORM dialogAddLists 'Списки SKU'
     OBJECTS o = List
     PROPERTIES(o) in, name READONLY 
-    ORDER name(o)
+    ORDERS name(o)
     
     OBJECTS d = ListDetail
     PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, nameBrandSku, nameCountrySku, nameManufacturerSku
-    ORDER nameSku(d)
+    ORDERS nameSku(d)
     FILTERS list(d) == o
 ;
 

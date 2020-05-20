@@ -296,7 +296,7 @@ FORM printListSalesReport 'Отчет по продажам'
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameSku, description,
                            quantity, costSum, markupSum, sumVAT, sum, averagePrice
-    ORDER nameSku(s)
+    ORDERS nameSku(s)
     FILTERS active(s),
             inSaleReport(stock(s)),
             date(s) >= df,
@@ -347,7 +347,7 @@ FORM printListSkuSalesReport 'Отчет по продажам'
     PROPERTIES(s) READONLY name
     PROPERTIES(s) READONLY quantityStock, costSumStock, markupSumStock,
                                        sumVATStock, sumStock
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS inSession(group(gt, s)),
             inReport(s) AND dt IS DATE AND df IS DATE
 ;
@@ -381,7 +381,7 @@ FORM printSalesReport 'Отчет по продажам'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk) READONLY costSumStock, markupSumStock, sumVATStock, sumStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt
@@ -390,7 +390,7 @@ FORM printSalesReport 'Отчет по продажам'
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameSku, description,
                            quantity, costSum, markupSum, sumVAT, sum, averagePrice
-    ORDER nameSku(s)
+    ORDERS nameSku(s)
     FILTERS active(s),
             inSaleReport(stock(s)),
             date(s) >= df,
@@ -417,7 +417,7 @@ FORM printSkuSalesReport 'Отчет по продажам'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk) READONLY costSumStock, markupSumStock, sumVATStock, sumStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt
@@ -426,7 +426,7 @@ FORM printSkuSalesReport 'Отчет по продажам'
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name
     PROPERTIES(s) READONLY quantityStock, costSumStock, markupSumStock, sumVATStock, sumStock
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS group(gt, s) == sk,
             filterStock(s) AND dt IS DATE AND df IS DATE
 ;
@@ -450,7 +450,7 @@ FORM printGroupSalesReport 'Отчет по продажам'
 
     OBJECTS sk = Group
     PROPERTIES READONLY canonicalName(sk)
-    ORDER canonicalName(sk)
+    ORDERS canonicalName(sk)
     PROPERTIES(sk) READONLY costSumStock, markupSumStock, sumVATStock, sumStock
     FILTERS inSession(sk) AND countSku(sk, gt),
             groupType(sk) == gt,
@@ -477,7 +477,7 @@ FORM printGroupCustomerSalesReport 'Отчет по продажам'
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock,
                                            sumVATSalesStock, sumSalesStock
     FILTERS isBuyer(l)
@@ -486,7 +486,7 @@ FORM printGroupCustomerSalesReport 'Отчет по продажам'
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameSku, description,
                            quantity, costSum, markupSum, sumVAT, sum, averagePrice
-    ORDER nameSku(s)
+    ORDERS nameSku(s)
     FILTERS active(s),
             inSession(group(gt, sku(s))),
             inSaleReport(stock(s)),
@@ -508,13 +508,13 @@ FORM dialogCustomerStocksSaleReport 'Выбор складов (не обяза�
         
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
     PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER name(sg)
+    ORDERS name(sg)
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, name
     PROPERTIES (s) inCustomerStockSaleReport
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isBuyer(s),
             countCompanyStock(sg) OR countCustomerStock(sg)
@@ -564,7 +564,7 @@ FORM printGroupCustomerStockSalesReport 'Отчет по продажам'
 
     OBJECTS l = Stock
     PROPERTIES READONLY name(l), nameLegalEntity(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock, sumVATSalesStock, sumSalesStock
     FILTERS isBuyer(l),
             (inCustomerStockSaleReport(l) AND countInCustomerStockSaleReport()) OR (l IS Stock AND NOT countInCustomerStockSaleReport())
@@ -574,7 +574,7 @@ FORM printGroupCustomerStockSalesReport 'Отчет по продажам'
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameSku, description,
                            quantity, costSum, markupSum, sumVAT, sum, averagePrice
-    ORDER nameSku(s)
+    ORDERS nameSku(s)
     FILTERS active(s),
             inSession(group(gt, sku(s))),
             inSaleReport(stock(s)),
@@ -633,7 +633,7 @@ FORM printGroupCustomerSkuSalesReport 'Отчет по продажам'
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock,
                                            sumVATSalesStock, sumSalesStock
     FILTERS isBuyer(l)
@@ -643,7 +643,7 @@ FORM printGroupCustomerSkuSalesReport 'Отчет по продажам'
     PROPERTIES(s) READONLY name
     PROPERTIES(s, l, df, dt) READONLY quantitySold, costSumSold, markupSumSold,
                                           sumVATSold, sumSold
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS inSession(group(gt, s)),
             quantitySold(s, l, df, dt) OR costSumSold(s, l, df, dt) OR
             markupSumSold(s, l, df, dt) OR sumVATSold(s, l, df, dt) OR
@@ -669,7 +669,7 @@ FORM printCustomerSalesReport 'Отчет по продажам'
 
     OBJECTS l = LegalEntity
     PROPERTIES READONLY name(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock,
                                            sumVATSalesStock, sumSalesStock
     FILTERS isBuyer(l),
@@ -697,7 +697,7 @@ FORM printCustomerStockSalesReport 'Отчет по продажам'
 
     OBJECTS l = Stock
     PROPERTIES READONLY name(l), nameLegalEntity(l)
-    ORDER name(l)
+    ORDERS name(l)
     PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock, sumVATSalesStock, sumSalesStock
     FILTERS isBuyer(l),
             (inCustomerStockSaleReport(l) AND countInCustomerStockSaleReport()) OR (l IS Stock AND NOT countInCustomerStockSaleReport()),    
@@ -726,13 +726,13 @@ FORM dialogStocksSaleReport 'Выбор складов'
 
     TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
     PROPERTIES READONLY VALUE(a), name(sg)
-    ORDER name(sg)
+    ORDERS name(sg)
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
     PROPERTIES(s) READONLY id, name
     PROPERTIES (s) inSaleReportDialog
-    ORDER name(s)
+    ORDERS name(s)
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
             isCompany(s),
             countCompanyStock(sg)
@@ -816,14 +816,14 @@ FORM salesReport 'Отчет по продажам'
                    recMarkupSumStockCompare AFTER recMarkupSumStock(sk) BACKGROUND recMarkupSumStockColor(sk), recSumVATStockCompare AFTER recSumVATStock(sk),
                    recSumStockCompare AFTER recSumStock(sk) BACKGROUND recSumStockColor(sk)
                                             
-    ORDER order(sk), skuTreeName
+    ORDERS order(sk), skuTreeName
     FILTERS groupType(sk) == gt
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS s = SaleLedger
     PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameCustomerStock, nameSku, idSku SHOWIF showIDs(), description,
                            quantity, costSum, markupSum, sumVAT, sum, averagePrice
-    ORDER nameSku(s)
+    ORDERS nameSku(s)
     FILTERS isParent(sk, sku(s)),
             active(s),
             inSaleReport(stock(s)),
@@ -1011,7 +1011,7 @@ FORM saleReportGroupTree 'Отчет по продажам'
     
     OBJECTS g = Group
     PROPERTIES (g) nameLevel4, recQuantityStock, recCostSumStock, recMarkupSumStock, recSumVATStock, recSumStock, canonicalOrderSort
-    ORDER canonicalOrderSort(g)
+    ORDERS canonicalOrderSort(g)
     
     FILTERS groupType(g) == gt
 ;
