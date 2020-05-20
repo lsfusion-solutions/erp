@@ -36,7 +36,7 @@ legalEntity = ABSTRACT LegalEntity(Node);
 nameLegalEntity 'Юр. лицо' (Node node) = name(legalEntity(node));
 
 TABLE nodeRoute(Node, Route);
-in 'Вкючен' = DATA BOOLEAN(Node, Route);
+in 'Включен' = DATA BOOLEAN(Node, Route);
 number 'Порядковый номер' = DATA INTEGER(Node, Route);
 
 EXTEND CLASS Stock : Node;
@@ -48,20 +48,22 @@ address(Stock stock) += Stock.address(stock) IF stock IS Stock;
 
 legalEntity(Stock stock) += Stock.legalEntity(stock);
 
+skipShowNode = ABSTRACT BOOLEAN (Route);
+showNode (Route r) = r IS Route AND NOT skipShowNode(r);
 
 //nameNode(supplier) += name(supplier) IF supplier IS Supplier;
 
 EXTEND FORM route
 
     OBJECTS n=Node
-    PROPERTIES (n) READONLY name, address
-    PROPERTIES (n, r) in, number
+    PROPERTIES (n) READONLY SHOWIF showNode(r) name, address
+    PROPERTIES (n, r) SHOWIF showNode(r) in, number
 ;
 
 EXTEND FORM routes
     OBJECTS n=Node
-    PROPERTIES (n) READONLY name, address
-    PROPERTIES(n, r) READONLY number
+    PROPERTIES (n) READONLY SHOWIF showNode(r) name, address
+    PROPERTIES(n, r) READONLY SHOWIF showNode(r) number 
     FILTERS in(n, r)
 ;
 
