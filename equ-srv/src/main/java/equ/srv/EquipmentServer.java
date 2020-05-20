@@ -107,7 +107,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     private boolean started = false;
 
-    private int skipTroubleCounter = 1;
+    private Map<String, Integer> skipTroubleCounter = new HashMap<>();
 
     public void setLogicsInstance(LogicsInstance logicsInstance) {
         this.logicsInstance = logicsInstance;
@@ -2026,11 +2026,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
             List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
-            boolean skipTroubleMachineryGroups = skipTroubles != null && skipTroubleCounter < skipTroubles;
+            Integer skipCounter = skipTroubleCounter.get(sidEquipmentServer);
+            if (skipCounter == null) skipCounter = 1;
+            logger.info("skip problem transactions counter for " + sidEquipmentServer + " : " + skipCounter);
+            boolean skipTroubleMachineryGroups = skipTroubles != null && skipCounter < skipTroubles;
             if (skipTroubleMachineryGroups)
-                skipTroubleCounter++;
+                skipTroubleCounter.put(sidEquipmentServer, skipCounter + 1);
             else
-                skipTroubleCounter = 1;
+                skipTroubleCounter.put(sidEquipmentServer, 1);
 
             logger.info("" + transactionObjects.size() + " transactions read");
             int count = 0;
