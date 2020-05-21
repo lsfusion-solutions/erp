@@ -46,12 +46,12 @@ public abstract class CreateExcelTemplateAction extends InternalAction {
 
             workbook.write();
             workbook.close();
+            return Pair.create(fileName, new RawFileData(file));
         } finally {
             if (file != null && !file.delete()) {
                 file.deleteOnExit();
             }
         }
-        return Pair.create(fileName, new RawFileData(file));
     }
 
     public CreateExcelTemplateAction(ScriptingLogicsModule LM) {
