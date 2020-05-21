@@ -391,12 +391,24 @@ META deriveDocumentDetailPriceBatchPriceListType (object, stockProp)
 END
 
 notUseRound2 'Не использовать округление до двух знаков при расчете цены' = DATA BOOLEAN ();
+defaultPriceRound 'Округление цен в накладных и заказах (обязательно заполнено)' = DATA INTEGER ();
 EXTEND FORM options 
-    PROPERTIES notUseRound2()
+    PROPERTIES notUseRound2(), defaultPriceRound();
 ;
 DESIGN options {
     price {
         MOVE PROPERTY (notUseRound2());
+        MOVE PROPERTY (defaultPriceRound());        
+    }
+}
+
+migratedPriceRound= DATA BOOLEAN (); 
+
+onStarted() + {
+    IF NOT migratedPriceRound() THEN NEWSESSION {
+        defaultPriceRound()<- 2;
+        migratedPriceRound() <- TRUE;
+        APPLY;
     }
 }
 
@@ -415,20 +427,20 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                                                                      dateTimeProp(detail));
 
     prevListMVAT (PriceListType priceListType, ###detail detail) =
-        round2(
-        IF includeVAT(priceListType)
+        round(
+        (IF includeVAT(priceListType)
             THEN
                 prevList(priceListType, detail) * 100.0 /(100.0 (+) calcValueVAT(detail))
             ELSE
-                prevList(priceListType, detail));
+                prevList(priceListType, detail)),defaultPriceRound());
 
     prevListPVAT (PriceListType priceListType, ###detail detail) =
-        round2(
-        IF includeVAT(priceListType)
+        round(
+        (IF includeVAT(priceListType)
             THEN
                 prevList(priceListType, detail)
             ELSE
-                prevList(priceListType, detail) * (100.0 (+) calcValueVAT(detail)) / 100.0);
+                prevList(priceListType, detail) * (100.0 (+) calcValueVAT(detail)) / 100.0), defaultPriceRound());
                 
     disableUpdateInvoicePrice = ABSTRACT VALUE BOOLEAN (###detail);
     
@@ -440,8 +452,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
-        price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));
-        invoicePrice(d) <- round2(prevList(pt, d));
+        price(d) <- round((prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d))), defaultPriceRound());
+        invoicePrice(d) <- round(prevList(pt, d), defaultPriceRound());
     }
 
     WHEN LOCAL FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
@@ -452,8 +464,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
-        price(d) <- round2(prevList(pt, d));
-        invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
+        price(d) <- round(prevList(pt, d), defaultPriceRound());
+        invoicePrice(d) <- round((prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0), defaultPriceRound());
     }
     overRecalculatePrice###detail  ABSTRACT LIST ( );
     
@@ -463,8 +475,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                  price(d) <-prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d));
                  invoicePrice(d) <- prevList(pt, d);           
             } ELSE {
-                price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
-                invoicePrice(d) <- round2(prevList(pt, d));
+                price(d) <- round((prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d))), defaultPriceRound());
+                invoicePrice(d) <- round(prevList(pt, d), defaultPriceRound());
             }    
         }
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND NOT disableUpdateInvoicePrice(d) AND [ FILTER form.d](d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
@@ -472,8 +484,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
                 price(d) <- prevList(pt, d);
                 invoicePrice(d) <- prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0;            
             } ELSE {        
-                price(d) <- round2(prevList(pt, d));
-                invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
+                price(d) <- round(prevList(pt, d), defaultPriceRound());
+                invoicePrice(d) <- round((prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0), defaultPriceRound());
             }    
         }
         overRecalculatePrice###detail();
