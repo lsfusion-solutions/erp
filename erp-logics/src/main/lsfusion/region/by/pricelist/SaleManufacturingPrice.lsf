@@ -19,7 +19,7 @@ includeVAT(UserOrderDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-            CHANGED(batch(detail)))
+            CHANGED(batch(detail)) OR SET(showManufacturingPrice(detail)))
             AND batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
     manufacturingPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                       batch(detail),
@@ -29,7 +29,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-            DROPPED(batch(detail)) OR CHANGED(sku(detail)))
+            DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showManufacturingPrice(detail)))
             AND NOT batch(detail) AND NOT CHANGED(manufacturingPrice(detail)) DO {
     manufacturingPrice (detail) <- round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                      sku(detail),
