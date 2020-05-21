@@ -115,7 +115,8 @@ exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
                         sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
                      }
                      sumWithTax(doc) <- GROUP SUM sumWithTax(DisparityDetail add) IF disparity(add) = doc;                
-                     sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF disparity(add) = doc;                                
+                     sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF disparity(add) = doc;    
+                     countSpec(doc) <- GROUP SUM 1 IF disparity(DisparityDetail docd) = doc;                            
            TRY {                
                 CASE WHEN doctype(doc) = 'WI' THEN EXPORT exportDisparityWI XML TO System.exportFile;                 
                      WHEN doctype(doc) = 'WO' THEN EXPORT exportDisparityWO XML TO System.exportFile;
@@ -123,8 +124,10 @@ exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
                 logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка формы',  'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }
            TRY {          
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                IF countSpec(doc) >0 THEN {
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                }
            } CATCH {
                 logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка записи в файл',  'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }

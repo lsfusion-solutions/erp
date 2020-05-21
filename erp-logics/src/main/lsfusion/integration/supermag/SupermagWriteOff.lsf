@@ -85,14 +85,17 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
                 sumWithTaxCurr(WriteOffDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE writeOff(docd) = doc;
                 sumWithTax(doc) <- GROUP SUM sumWithTax(WriteOffDetail docd) IF writeOff(docd) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(WriteOffDetail docd) IF writeOff(docd) = doc;                                
+                countSpec(doc) <- GROUP SUM 1 IF writeOff(WriteOffDetail docd) = doc;
            TRY {                
                 CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportWriteOffWO XML TO System.exportFile;                 
            } CATCH 
                 logToFile('supermag', CONCAT '\n', 'Списание ' + id(doc),'Ошибка формирования формы', ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
-           TRY {          
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+           TRY {       
+                IF countSpec(doc) > 0 THEN {   
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                }
            } CATCH {
                 logToFile('supermag', CONCAT '\n', 'Списание ' + id(doc), 'Ошибка записи в файл','file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            }

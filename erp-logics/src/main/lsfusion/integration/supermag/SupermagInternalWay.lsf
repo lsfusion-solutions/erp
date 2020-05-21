@@ -68,13 +68,16 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
                 createFinobligation(doc)  <- createFinobligation(operation(doc));                               
+                countSpec(doc) <- GROUP SUM 1 IF invoice(InvoiceDetail docd) = doc;
            TRY {                
                 EXPORT exportSaleInvoiceIW XML TO System.exportFile;                  
            } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {          
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                IF countSpec(doc) > 0 THEN {
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                }
            } CATCH {
                 logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
            }
@@ -200,6 +203,8 @@ importInternalWay 'Импорт накладные перемещение' () {
 
     FOR Sale.UserInvoiceDetail det = Sale.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = Sale.lastVersion[InvoiceDetail](det) DO {
         sku(det) <- item(idItem(i));
+//        shipmentQuantity(det) <- quantity(i);
+//        pricingQuantity(det) <- quantity(i);
         quantity(det) <- quantity(i);
         invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
         price(det) <- NUMERIC[16,4](itemPriceNoTax(i));

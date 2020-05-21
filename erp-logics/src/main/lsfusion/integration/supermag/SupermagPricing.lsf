@@ -18,15 +18,22 @@ userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingD
 
 @settingIntegration(Repricing, RepricingDetail);
 
+overImportRepricing ABSTRACT LIST();
+
 importRepricing 'Импорт актов переоценки' () {   
                         
     LOCAL reason = INTEGER (INTEGER);
+    LOCAL propDocType = ISTRING[50] (INTEGER);
+    LOCAL propDocId = ISTRING[50] (INTEGER);
                                                                                                                                                                                   // a.Reason = 0 переоценка по приходу, у нас акт расценки               
-    filterSql () <- 'd.location IN ('+ stocksImport() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0';
-    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\''; 
+    filterSql () <- 'd.DocType = \'AC\' AND d.location IN ('+ stocksImport() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0 AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.DocType = \'AC\' AND d.id = \'' + numberImportDocument() + '\' AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';    
+    
+    IF length(numberImportDocument()) > 0 THEN 
+        MESSAGE 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql();    
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AC\' AND a.Id(+) = d.Id AND a.DOCTYPE(+) = d.DOCTYPE ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql() TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docDate, reason, docState, location, comment;
 
@@ -55,6 +62,8 @@ importRepricing 'Импорт актов переоценки' () {
         lastStatusSupermag(rep) <- docState(i);
         lastVersion(rep) <- currentVersion(i);
     }
+    
+    overImportRepricing();   
     
     LOCAL oldPrice = NUMERIC[16,4](INTEGER);
     LOCAL actReason = INTEGER (INTEGER);
@@ -100,7 +109,7 @@ importRepricing 'Импорт актов переоценки' () {
     FOR Repricing.UserRepricing doc == Repricing.userRepricing(idDoc(INTEGER i)) AND (baseType(i) = 'AB' OR baseType(i) = 'MA') DO {    
         basisDoc(doc, Document d) <- TRUE IF d = userPriceList(idBase(i)); 
     }    
-    
+       
     APPLY;       
 }
 

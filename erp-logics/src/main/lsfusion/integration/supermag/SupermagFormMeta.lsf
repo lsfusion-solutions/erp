@@ -68,6 +68,10 @@ META exportFilds (docMain, docDetail)
     locationFrom = DATA Stock (###docMain);
     locationTo = DATA Stock (###docMain);
     ourSelfClient = DATA LOCAL STRING[100] (###docMain);
+    invoiceDocNumber = DATA LOCAL STRING[100] (###docMain);
+    overInvoiceDocSum = ABSTRACT NUMERIC[18,4] (###docMain);
+    invoiceDocSum = DATA LOCAL NUMERIC[18,4] (###docMain);
+    invoiceDocCreate = DATA DATETIME (###docMain);
     inc = DATA LOCAL BOOLEAN (###docMain);
     skuId = DATA LOCAL STRING[100] (###docDetail);
     quantityExp = DATA LOCAL NUMERIC[16,5] (###docDetail);
@@ -90,7 +94,8 @@ META exportFilds (docMain, docDetail)
     sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (###docMain);
     createFinobligation = DATA LOCAL BOOLEAN (###docMain);
     curRate(###docMain i) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date(i)),(1.0 IF i IS ###docMain));
-    
+       
+    countSpec = DATA LOCAL INTEGER (###docMain);       
     //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
     indexPlus (###docDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY ##docMain(ad) CHARWIDTH 4;
     indexMinus (###docDetail ad) = PARTITION SUM 1 IF quantity(ad)<0 ORDER ad BY ##docMain(ad) CHARWIDTH 4;
@@ -159,6 +164,9 @@ EXTEND FORM formName
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'GOODSOWNER' IN SMWAYBILLSIN                        
     PROPERTIES = id(legalEntity(locationTo(doc))) EXTID 'OURSELFCLIENT' IN SMWAYBILLSIN    
     PROPERTIES = 0 IF doc IS ###docMain EXTID 'PAYCASH' IN SMWAYBILLSIN      
+    PROPERTIES = invoiceDocNumber(doc) EXTID 'SUPPLIERDOC' IN SMWAYBILLSIN      
+    PROPERTIES = exportTime(invoiceDocCreate(doc)) EXTID 'SUPPLIERDOCCREATE' IN SMWAYBILLSIN      
+    PROPERTIES = invoiceDocSum(doc) EXTID 'SUPPLDOCSUM' IN SMWAYBILLSIN      
       
     OBJECTS docd2 = ###docDetail EXTID 'SMSPECIO' IN WI 
     PROPERTIES = docId(docd2) EXTID 'DOCID'   
