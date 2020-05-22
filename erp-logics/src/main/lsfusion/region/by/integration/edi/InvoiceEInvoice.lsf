@@ -14,8 +14,11 @@ EXTEND FORM eInvoices
     PROPERTIES (e) READONLY PurchaseNumberInvoice = numberInvoice
 ;
 
-currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m BY invoice(eInvoice(m));
-statusDescription 'Статус отправки EDI'(Invoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
+currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m WHERE type(m) == EInvoiceMessageType.blrapn_blrwbr BY invoice(eInvoice(m));
+statusDescription 'Статус отправки EDI'(Invoice o) = CASE 
+    WHEN code(currentOrderMessage(o)) == '2550' THEN 'Подтверждено получение ответа на электронную накладную'
+    WHEN exportedCustomer(eInvoice(o)) AND NOT currentOrderMessage(o) THEN 'Отправлен ответ на электронную накладную'
+    ELSE CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 backgroundStatusDescription (Invoice i) = RGB(255,238,238) IF currentOrderMessage(i) AND NOT good(currentOrderMessage(i));
 
 receiver = ABSTRACT Employee (Invoice);
