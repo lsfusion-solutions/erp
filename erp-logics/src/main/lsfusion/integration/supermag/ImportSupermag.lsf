@@ -415,6 +415,7 @@ idSku 'Код товара'= DATA LOCAL STRING[100](INTEGER);
 
 quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
 price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
+sum 'Цена' = DATA LOCAL NUMERIC[18,4](INTEGER);
 retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
@@ -423,16 +424,11 @@ skipSetContractSku(Purchase.UserInvoice i) += idOperation(i) == 'initial';
 deleteInvoiceDetails 'Удалять строки, которых нет в импорте' = DATA BOOLEAN ();
 
 importInit 'Импорт остатков' ()  {
-    
-    logToFile('importSupermag', 'importInit_0');
-    
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocksImport()) TO file;
-    
-    logToFile('importSupermag', 'importInit_1');
-    
+        
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO SupermagSettings.file;
+        
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
-    logToFile('importSupermag', 'importInit_2');
     
     idSupplier(INTEGER r) <- OVERRIDE ISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
     idCustomerStock(INTEGER r) <- ISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
@@ -463,9 +459,7 @@ importInit 'Импорт остатков' ()  {
         createPricing(i) <- createPricing(Purchase.operation('initial')); 
         isClosed(i) <- TRUE;
     }
-    
-    logToFile('importSupermag', 'importInit_3');
-    
+        
     //строки
     FOR imported(INTEGER r) AND NOT Purchase.userInvoiceDetail(idDetail(r)) NEW d = Purchase.UserInvoiceDetail DO {
         id(d) <- idDetail(r);
@@ -486,9 +480,7 @@ importInit 'Импорт остатков' ()  {
         incl(d) <- TRUE;
         dataIndex(d) <- spec(r);
     }
-    
-    logToFile('importSupermag', 'importInit_4');
-    
+        
     FOR [GROUP SUM 1 IF imported(INTEGER in) BY idCustomerStock(in)](id(Stock st)) DO {
         
         IF NOT  deleteInvoiceDetails() THEN {
@@ -504,12 +496,25 @@ importInit 'Импорт остатков' ()  {
         setNoCancelInTransaction();             
     }     
     
-    logToFile('importSupermag', 'importInit_5');
     APPLY; 
-    logToFile('importSupermag', 'importInit_6');
 } 
 
 EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, deleteInvoiceDetails;
+
+
+importInitTest 'Импорт остатков' ()  {
+        
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO SupermagSettings.file;
+        
+    IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;      
+
+    LOCAL sumImport = NUMERIC[18,4] ();
+    sumImport() <- GROUP SUM (price(INTEGER i) * quantity(i));      
+    MESSAGE sumImport(); 
+} 
+
+
+
 
 //-------------------------------------------------------------------------------------------------------------------сверка остатков
 dateCheckBalance 'Дата сверки' = DATA DATE ();
