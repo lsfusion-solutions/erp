@@ -1,0 +1,30 @@
+MODULE ZReportEMoney;
+
+REQUIRE ZReport;
+
+NAMESPACE ZReport;
+
+EXTEND CLASS PaymentMeans {
+    eMoney 'Электронные деньги'
+}
+
+sumEMoneyPayment 'Сумма продажа (Оплати)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.eMoney BY receipt(payment);
+sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (Receipt receipt) =  sumEMoneyPayment (receipt) IF sumEMoneyPayment(receipt) >= 0.0 IN documentSum;
+sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (Receipt receipt) =  sumEMoneyPayment(receipt) IF sumEMoneyPayment(receipt) < 0.0 IN documentSum;
+
+sumEMoney 'Сумма по Оплати Z-отчета' (zReport) = GROUP SUM sumEMoneyPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
+sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (zReport) = GROUP SUM sumPositiveEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
+sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (zReport) = GROUP SUM sumNegativeEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
+
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY sumPositiveEMoneyPayment BEFORE sumPositiveCashPayment(z), 
+                           sumNegativeEMoneyPayment BEFORE sumNegativeCashPayment(z)
+    PROPERTIES(b) sumEMoneyPayment BEFORE sumCashPayment(b)
+;
+
+EXTEND FORM zReport
+    PROPERTIES(z) sumPositiveEMoneyPayment, 
+                  sumNegativeEMoneyPayment
+    PROPERTIES(b) sumEMoneyPayment BEFORE sumCashPayment(b)
+;
