@@ -320,13 +320,19 @@ inParent (SkuGroup group) = TRUE IF levelParent(group);
 
 inSession 'Отм.' (SkuGroup group) = OVERRIDE
     dataInSession(group),
-    inParent(group);
+    inParent(group);   
 
 sessionConcatSkuGroups 'Группы' () =
     GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' CHARWIDTH 30;
     
     
 countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
+
+backgroundInSession 'Цвет' (SkuGroup g) = CASE 
+    WHEN dataInSession(g) THEN RGB(0,0,0)
+    WHEN levelParent(g) THEN RGB(230,248,250) 
+    WHEN (GROUP SUM 1 IF dataInSession(SkuGroup gg) AND isParent(gg,g)) THEN RGB(203,203,203);  
+    
 resetSelectedGroups  'Сбросить отмеченные'()  { 
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
