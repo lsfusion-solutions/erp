@@ -55,6 +55,8 @@ EXTEND FORM exportWriteOffWO
     FILTERS quantity(docd5) > 0
 ;                
 
+overExportWriteOff ABSTRACT LIST (WriteOff); 
+
 exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
     inc(WriteOff ii) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
@@ -88,6 +90,7 @@ exportWriteOffMag 'Экспорт в супермаг' (WriteOff doc) {
                 sumWithTax(doc) <- GROUP SUM sumWithTax(WriteOffDetail docd) IF writeOff(docd) = doc;                
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(WriteOffDetail docd) IF writeOff(docd) = doc;                                
                 countSpec(doc) <- GROUP SUM 1 IF writeOff(WriteOffDetail docd) = doc;
+                overExportWriteOff(doc);
            TRY {                
                 CASE WHEN doctype(doc) = 'WO' THEN EXPORT exportWriteOffWO XML TO System.exportFile;                 
            } CATCH 
