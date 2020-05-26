@@ -28,10 +28,7 @@ importRepricing 'Импорт актов переоценки' () {
                                                                                                                                                                                   // a.Reason = 0 переоценка по приходу, у нас акт расценки               
     filterSql () <- 'd.DocType = \'AC\' AND d.location IN ('+ stocksImport() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0 AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.DocType = \'AC\' AND d.id = \'' + numberImportDocument() + '\' AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';    
-    
-    IF length(numberImportDocument()) > 0 THEN 
-        MESSAGE 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql();    
-    
+        
     EXTERNAL SQL connectionString() 
         EXEC 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql() TO SupermagSettings.file;
     
@@ -46,11 +43,16 @@ importRepricing 'Импорт актов переоценки' () {
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(location(i)) ) IF idDoc(i);                 
     
+    IF length(numberImportDocument()) > 0 THEN {
+        MESSAGE 'SELECT d.ID, d.DOCTYPE, nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql();
+        MESSAGE currentVersion(0);
+    }    
+    
     FOR idDoc(INTEGER i) AND NOT Repricing.userRepricing(idDoc(i)) DO NEW doc = Repricing.UserRepricing {
         id(doc) <- idDoc(i);
     }
         
-    FOR Repricing.UserRepricing rep == Repricing.userRepricing(idDoc(INTEGER i)) AND NOT lastVersion(rep) = currentVersion(i) DO {       
+    FOR Repricing.UserRepricing rep == Repricing.userRepricing(idDoc(INTEGER i)) AND (NOT lastVersion(rep) = currentVersion(i) OR length(numberImportDocument()) > 0) DO {       
         operation(rep) <- Repricing.operation(TEXT (reason(i)));
         number(rep) <- ISTRING[28] (docNumber(i));
         date(rep) <- DATE (docDate(i));
@@ -70,15 +72,20 @@ importRepricing 'Импорт актов переоценки' () {
     LOCAL priceType = INTEGER (INTEGER);
 
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.Id, d.DocType, dd.SpecItem, dd.Article, dd.ItemPrice, ad.OldPrice, dd.Quantity, a.Reason, a.PriceType ' + 
-             'FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad ' + 
-             'WHERE d.DocType = \'AC\' AND a.Id(+) = d.Id AND dd.DocId = d.Id AND dd.DocType = d.DOCTYPE AND ad.DocId(+) = dd.DOCID AND ad.DocType(+) = dd.DOCTYPE AND ad.SpecItem(+) = dd.SpecItem AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.Id, d.DocType, dd.SpecItem, dd.Article, dd.ItemPrice, ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad ' + 
+             'WHERE ' + filterSql()+' AND dd.DocId = d.Id AND dd.DocType = d.DOCTYPE AND ad.DocId(+) = dd.DOCID AND ad.DocType(+) = dd.DOCTYPE AND ad.SpecItem(+) = dd.SpecItem' TO SupermagSettings.file;
        
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, itemPrice, oldPrice, quantity, actReason, priceType;
-    
+        
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDet(i)), STRING(idItem(i)), STRING(actReason(i)), STRING(priceType(i)), STRING(itemPrice(i)), STRING(oldPrice(i)) ) IF idDet(i);                  
+
+    IF length(numberImportDocument()) > 0 THEN {
+        MESSAGE 'SELECT d.Id, d.DocType, dd.SpecItem, dd.Article, dd.ItemPrice, ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad ' + 
+                             'WHERE ' + filterSql()+' AND dd.DocId = d.Id AND dd.DocType = d.DOCTYPE AND ad.DocId(+) = dd.DOCID AND ad.DocType(+) = dd.DOCTYPE AND ad.SpecItem(+) = dd.SpecItem';
+        MESSAGE currentVersion(0);
+    }    
 
     FOR NOT userRepricingDetail(idDet(INTEGER i)) AND userRepricing(idDoc(i)) DO NEW det = UserRepricingDetail {
         id(det) <- idDet(i);
