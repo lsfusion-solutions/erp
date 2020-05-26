@@ -1,13 +1,13 @@
 package lsfusion.erp.integration;
 
 import com.google.common.base.Throwables;
+import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.Settings;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.language.ScriptingLogicsModule;
 import org.apache.commons.lang3.time.DateUtils;
 
 import java.io.File;
@@ -15,12 +15,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.DateFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.*;
@@ -238,54 +238,6 @@ public class DefaultIntegrationAction extends InternalAction {
     protected void safeFileDelete(File file) {
         if (file != null && !file.delete()) {
             file.deleteOnExit();
-        }
-    }
-
-    public static LocalDate getLocalDate(Object value) {
-        if(value instanceof LocalDate) {
-            return (LocalDate) value;
-        } else {
-            return sqlDateToLocalDate((Date) value);
-        }
-    }
-
-    public static LocalDate getWriteDate(Object value) {
-        if(value instanceof LocalDate) {
-            return (LocalDate) value;
-        } else {
-            return sqlDateToLocalDate((Date) value);
-        }
-    }
-
-    public static LocalTime getLocalTime(Object value) {
-        if(value instanceof LocalTime) {
-            return (LocalTime) value;
-        } else {
-            return sqlTimeToLocalTime((Time) value);
-        }
-    }
-
-    public static LocalTime getWriteTime(Object value) {
-        if(value instanceof LocalTime) {
-            return (LocalTime) value;
-        } else {
-            return sqlTimeToLocalTime((Time) value);
-        }
-    }
-
-    public static LocalDateTime getLocalDateTime(Object value) {
-        if(value instanceof LocalDateTime) {
-            return (LocalDateTime) value;
-        } else {
-            return sqlTimestampToLocalDateTime((Timestamp) value);
-        }
-    }
-
-    public static LocalDateTime getWriteDateTime(Object value) {
-        if(value instanceof LocalDateTime) {
-            return (LocalDateTime) value;
-        } else {
-            return sqlTimestampToLocalDateTime((Timestamp) value);
         }
     }
 

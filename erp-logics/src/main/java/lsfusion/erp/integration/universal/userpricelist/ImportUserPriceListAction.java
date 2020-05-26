@@ -413,14 +413,14 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateUserPriceList));
+                    data.get(i).add(sqlDateToLocalDate(userPriceListDetailList.get(i).dateUserPriceList));
 
                 ImportField timeUserPriceListField = new ImportField(findProperty("time[UserPriceList]"));
                 props.add(new ImportProperty(timeUserPriceListField, findProperty("time[UserPriceList]").getMapping(userPriceListObject)));
                 props.add(new ImportProperty(timeUserPriceListField, findProperty("fromTime[UserPriceList]").getMapping(userPriceListObject)));
                 fields.add(timeUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(getWriteTime(LocalTime.MIN));
+                    data.get(i).add(LocalTime.MIN);
             }
 
             if (showField(userPriceListDetailList, "isPosted")) {
@@ -436,7 +436,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateFromUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateFrom")));
                 fields.add(dateFromUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateFrom));
+                    data.get(i).add(sqlDateToLocalDate(userPriceListDetailList.get(i).dateFrom));
             }
 
             if (showField(userPriceListDetailList, "dateTo")) {
@@ -444,7 +444,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateToUserPriceListField, findProperty("toDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateTo")));
                 fields.add(dateToUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).getFieldValue("dateTo")));
+                    data.get(i).add(sqlDateToLocalDate((Date) userPriceListDetailList.get(i).getFieldValue("dateTo")));
             }
 
             if (showField(userPriceListDetailList, "valueVAT")) {
@@ -460,7 +460,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey), true));
                 fields.add(dateField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(getWriteDate(userPriceListDetailList.get(i).dateVAT));
+                    data.get(i).add(sqlDateToLocalDate(userPriceListDetailList.get(i).dateVAT));
 
                 ImportField countryVATField = new ImportField(findProperty("name[Country]"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
@@ -651,13 +651,13 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 props.add(new ImportProperty(dateUserAdjustmentField, stockAdjustmentLM.findProperty("date[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(dateUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
-                    data.get(i).add(getWriteDate(dataAdjustment.get(i).dateUserPriceList));
+                    data.get(i).add(sqlDateToLocalDate(dataAdjustment.get(i).dateUserPriceList));
 
                 ImportField timeUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("time[UserAdjustment]"));
                 props.add(new ImportProperty(timeUserAdjustmentField, stockAdjustmentLM.findProperty("time[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(timeUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
-                    data.get(i).add(getWriteTime(LocalTime.MIN));
+                    data.get(i).add(LocalTime.MIN);
             }
 
             ImportField isPostedAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("isPosted[Adjustment]"));

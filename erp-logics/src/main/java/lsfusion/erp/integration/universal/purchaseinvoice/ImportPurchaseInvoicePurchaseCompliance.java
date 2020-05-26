@@ -10,6 +10,7 @@ import lsfusion.server.physics.dev.integration.service.ImportField;
 import lsfusion.server.physics.dev.integration.service.ImportKey;
 import lsfusion.server.physics.dev.integration.service.ImportProperty;
 
+import java.sql.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -41,11 +42,11 @@ public class ImportPurchaseInvoicePurchaseCompliance extends ImportDefaultPurcha
                 if (showField(userInvoiceDetailsList, "dateCompliance")) {
                     addDataField(props, fields, defaultColumns, LM.findProperty("date[Compliance]"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(getWriteDate(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance")));
+                        data.get(i).add(sqlDateToLocalDate((Date) userInvoiceDetailsList.get(i).getFieldValue("dateCompliance")));
 
                     addDataField(props, fields, defaultColumns, LM.findProperty("fromDate[Compliance]"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(getWriteDate(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance")));
+                        data.get(i).add(sqlDateToLocalDate((Date) userInvoiceDetailsList.get(i).getFieldValue("dateCompliance")));
                 }
             }
             

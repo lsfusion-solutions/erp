@@ -88,7 +88,7 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
 
             for (ImMap<Object, Object> generalLedgerValue : generalLedgerResult.values()) {
 
-                LocalDate date = getLocalDate(generalLedgerValue.get("dateGeneralLedger"));
+                LocalDate date = (LocalDate) generalLedgerValue.get("dateGeneralLedger");
 
                 if ((dateFromObject.object == null || ((LocalDate) dateFromObject.object).compareTo(date) <= 0) && (dateToObject.object == null || ((LocalDate) dateToObject.object).compareTo(date) >= 0)) {
 

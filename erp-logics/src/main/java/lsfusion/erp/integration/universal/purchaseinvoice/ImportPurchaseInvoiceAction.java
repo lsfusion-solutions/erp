@@ -47,6 +47,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -272,13 +273,13 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                 if (showField(userInvoiceDetailsList, "dateDocument")) {
                     addDataField(props, fields, defaultColumns, findProperty("date[UserInvoice]"), "dateDocument", invoiceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(getWriteDate(userInvoiceDetailsList.get(i).getFieldValue("dateDocument")));
+                        data.get(i).add(sqlDateToLocalDate((Date) userInvoiceDetailsList.get(i).getFieldValue("dateDocument")));
                 }
 
                 if (showField(userInvoiceDetailsList, "timeDocument")) {
                     addDataField(props, fields, defaultColumns, findProperty("time[UserInvoice]"), "timeDocument", invoiceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                        data.get(i).add(getWriteTime(userInvoiceDetailsList.get(i).getFieldValue("timeDocument")));
+                        data.get(i).add(sqlTimeToLocalTime((Time) userInvoiceDetailsList.get(i).getFieldValue("timeDocument")));
                 }
 
                 if (showField(userInvoiceDetailsList, "currencyDocument")) {

@@ -801,7 +801,7 @@ public class ImportAction extends DefaultImportAction {
                 props.add(new ImportProperty(timeUserInvoiceField, findProperty("time[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(timeUserInvoiceField);
                 for (int i = 0; i < dataUserInvoiceDetail.size(); i++)
-                    data.get(i).add(getWriteTime(LocalTime.NOON));
+                    data.get(i).add(LocalTime.NOON);
 
 
                 ImportField idItemField = new ImportField(findProperty("id[Item]"));

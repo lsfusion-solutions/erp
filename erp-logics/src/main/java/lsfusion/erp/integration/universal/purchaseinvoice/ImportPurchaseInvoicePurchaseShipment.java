@@ -9,6 +9,7 @@ import lsfusion.server.physics.dev.integration.service.ImportField;
 import lsfusion.server.physics.dev.integration.service.ImportKey;
 import lsfusion.server.physics.dev.integration.service.ImportProperty;
 
+import java.sql.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -27,13 +28,13 @@ public class ImportPurchaseInvoicePurchaseShipment extends ImportDefaultPurchase
             if (showField(userInvoiceDetailsList, "expiryDate")) {
                 addDataField(props, fields, defaultColumns, LM.findProperty("expiryDate[UserInvoiceDetail]"), "expiryDate", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(getWriteDate(userInvoiceDetailsList.get(i).getFieldValue("expiryDate")));
+                    data.get(i).add(sqlDateToLocalDate((Date) userInvoiceDetailsList.get(i).getFieldValue("expiryDate")));
             }
 
             if (showField(userInvoiceDetailsList, "manufactureDate")) {
                 addDataField(props, fields, defaultColumns, LM.findProperty("manufactureDate[UserInvoiceDetail]"), "manufactureDate", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(getWriteDate(userInvoiceDetailsList.get(i).getFieldValue("manufactureDate")));
+                    data.get(i).add(sqlDateToLocalDate((Date) userInvoiceDetailsList.get(i).getFieldValue("manufactureDate")));
             }
 
             if (showField(userInvoiceDetailsList, "shipmentPrice")) {

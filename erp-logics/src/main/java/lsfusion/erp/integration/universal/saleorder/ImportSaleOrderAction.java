@@ -156,7 +156,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
             if (showField(orderDetailsList, "dateDocument")) {
                 addDataField(props, fields, importColumns, findProperty("date[UserOrder]"), "dateDocument", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
-                    data.get(i).add(getWriteDate(orderDetailsList.get(i).getFieldValue("dateDocument")));
+                    data.get(i).add(sqlDateToLocalDate((java.sql.Date) orderDetailsList.get(i).getFieldValue("dateDocument")));
             }
 
             ImportField idUserOrderDetailField = new ImportField(findProperty("id[UserOrderDetail]"));
