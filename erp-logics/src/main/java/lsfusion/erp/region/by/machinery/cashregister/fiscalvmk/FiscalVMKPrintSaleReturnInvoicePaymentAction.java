@@ -46,7 +46,7 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
         try {
             ObjectValue invoiceObject = context.getKeyValue(invoiceInterface);
             ObjectValue paymentObject = context.getKeyValue(paymentInterface);
-            boolean detail = context.getKeyValue(detailInterface) != null;
+            boolean detail = context.getKeyValue(detailInterface).getValue() != null;
 
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context);
