@@ -195,12 +195,8 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         EXEC 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'alcoYear\', \'alcoSugar\', \'alcoColor\', \'ekon_si\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\', \'DoPrice\')' TO SupermagSettings.file;
     // пока не импортируем, так как там ерунда - \'packbarcode\',         
     
-    logToFile('importSupermag', 'importItemAttribute_1');
-    
     IMPORT TABLE FROM SupermagSettings.file() TO idItem, property, value;
     
-    logToFile('importSupermag', 'importItemAttribute_2');
-
     FOR property(INTEGER i) == 'packsize2' AND NUMERIC[14,3](trim(value(i))) > 0 AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
         sku(b) <- item(idItem(i));
         transportPack(b) <- TransportPack.outpack;
@@ -211,16 +207,12 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         amount(b) <- NUMERIC[14,3](trim(value(i)));
    }
     
-    logToFile('importSupermag', 'importItemAttribute_3');
-    
     FOR [GROUP SUM 1 IF property(INTEGER i) == '1' BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
         name(b) <- ISTRING[50] (name);
     }
     FOR property(INTEGER i) == '1' DO {
         brand(Item s) <- brandName(value(i)) WHERE s == item(idItem(i));
     }
-    
-    logToFile('importSupermag', 'importItemAttribute_4');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manufacturer' BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
         name(m) <- ISTRING[200] (name);
@@ -229,8 +221,6 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_5');
-    
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
         name(c) <- ISTRING[50] (name);
     }
@@ -238,21 +228,15 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_6');
-    
     FOR property(INTEGER i) == '17' AND Item s = item(idItem(i)) DO {
         netWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
         grossWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_7');
-    
     FOR property(INTEGER i) == 'expDate' DO {
         expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(idItem(i));
         expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
-    
-    logToFile('importSupermag', 'importItemAttribute_8');
     
     LOCAL condition = ISTRING[100](Item);
     
@@ -260,16 +244,10 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         condition(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_9');
-    
     FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
         AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
         conditionsText(Item s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(idItem(i));
     }
-    
-    overImportItemAttribute();
-    
-    logToFile('importSupermag', 'importItemAttribute_10');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'packType' BY value(i)](TEXT name) AND name != '' AND NOT packTypeName(name) DO NEW t = PackType {
         name(t) <- ISTRING[200] (name);
@@ -278,13 +256,9 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         packType(Item s) <- packTypeName(value(i)) WHERE s = item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_11');
-    
     FOR property(INTEGER i) == 'supName' DO {
         originalCaption(Item s) <- ISTRING[100](value(i)) WHERE s = item(idItem(i));
     }
-    
-    logToFile('importSupermag', 'importItemAttribute_12');
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'alcoPercent' BY value(i)](TEXT name) AND name != '' AND NOT alcoholName(name) DO NEW a = Alcohol {
         name(a) <- ISTRING[50] (name);
@@ -293,13 +267,9 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         alcohol(Item s) <- alcoholName(value(i)) WHERE s = item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_13');
-    
     FOR property(INTEGER i) == 'Sys.Composition' DO {
         description(Item s) <- value(i) WHERE s = item(idItem(i));
     }
-    
-    logToFile('importSupermag', 'importItemAttribute_20');
     
     FOR property(INTEGER i) == 'packsize' DO {
         MOQ(Item s) <- NUMERIC[15,4](value(i)) WHERE s = item(idItem(i));
@@ -309,8 +279,6 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         volume(Item s) <- NUMERIC[9,3](toNumeric(value(i))) WHERE s = item(idItem(i));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_14');
-    
     FOR property(INTEGER i) == 'packbarcode' AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
         sku(b) <- item(idItem(i));
         transportPack(b) <- TransportPack.outpack;
@@ -318,28 +286,24 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     FOR property(INTEGER i) == 'packbarcode' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
         id(b) <- STRING[15](value(i));
     }
-    logToFile('importSupermag', 'importItemAttribute_15');
 
     id(Barcode b) <- NULL WHERE transportPack(b) = TransportPack.outpack AND NOT [GROUP SUM 1 IF property(INTEGER i) = 'packbarcode' BY idItem(i)](id(sku(b))); 
-
-    logToFile('importSupermag', 'importItemAttribute_15_1');
     
     FOR property(INTEGER i) == 'bruttoPack' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
         weight(b) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
     }
-    logToFile('importSupermag', 'importItemAttribute_16');
+
     FOR property(INTEGER i) == 'pack_height' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
         height(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
     }
-    logToFile('importSupermag', 'importItemAttribute_17');
+
     FOR property(INTEGER i) == 'pack_length' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
         length(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
     }
-    logToFile('importSupermag', 'importItemAttribute_18');
+
     FOR property(INTEGER i) == 'pack_width' AND Barcode b == barcode(item(idItem(i)), TransportPack.outpack) DO {
         width(b) <- NUMERIC[8,2](replace(trim(value(i)), ',', '.'));
     }
-    logToFile('importSupermag', 'importItemAttribute_19');
     
     FOR property(INTEGER i) == 'pack_pallet' AND NUMERIC[14,3](replace(trim(value(i)), ',', '.')) > 0 AND NOT barcode(item(idItem(i)), TransportPack.oppl) DO NEW b = Barcode {
         sku(b) <- item(idItem(i));
@@ -349,9 +313,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         amount(b) <- NUMERIC[14,3](replace(trim(value(i)), ',', '.'));
     }
     
-    logToFile('importSupermag', 'importItemAttribute_21');
     APPLY;
-    logToFile('importSupermag', 'importItemAttribute_22');
 }
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
