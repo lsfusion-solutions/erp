@@ -9,6 +9,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
@@ -43,8 +44,8 @@ public class FiscalVMKPrintReturnInvoicePaymentAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
-            DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
-            DataObject paymentObject = context.getDataKeyValue(paymentInterface);
+            ObjectValue invoiceObject = context.getKeyValue(invoiceInterface);
+            ObjectValue paymentObject = context.getKeyValue(paymentInterface);
             boolean detail = context.getKeyValue(detailInterface) != null;
 
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
@@ -99,6 +100,10 @@ public class FiscalVMKPrintReturnInvoicePaymentAction extends InternalAction {
             throw Throwables.propagate(e);
         }
 
+    }
 
+    @Override
+    protected boolean allowNulls() {
+        return true;
     }
 }

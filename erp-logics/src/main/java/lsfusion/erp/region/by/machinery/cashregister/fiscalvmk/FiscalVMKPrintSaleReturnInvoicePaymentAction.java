@@ -11,6 +11,7 @@ import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
@@ -43,8 +44,8 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
 
         try {
-            DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
-            DataObject paymentObject = context.getDataKeyValue(paymentInterface);
+            ObjectValue invoiceObject = context.getKeyValue(invoiceInterface);
+            ObjectValue paymentObject = context.getKeyValue(paymentInterface);
             boolean detail = context.getKeyValue(detailInterface) != null;
 
             String logPath = (String) findProperty("logPathCurrentCashRegister[]").read(context);
@@ -99,6 +100,10 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
             throw Throwables.propagate(e);
         }
 
+    }
 
+    @Override
+    protected boolean allowNulls() {
+        return true;
     }
 }
