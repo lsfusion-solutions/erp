@@ -23,7 +23,6 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 
 public class ExportGiftCardsAction extends DefaultExportAction {
@@ -215,23 +214,22 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             String overIdSkuGroup = (String) resultValues.get("overIdSkuGroup");
             boolean allowReturn = resultValues.get("allowReturn") != null;
             boolean allowReturnPayment = resultValues.get("allowReturnPayment") != null;
-            Date dateFrom;
-            Date dateTo;
+            LocalDate dateFrom;
+            LocalDate dateTo;
             if(useGiftCardDates) {
-                dateFrom = localDateToSqlDate((LocalDate) resultValues.get("dateSold"));
-                dateTo = localDateToSqlDate((LocalDate) resultValues.get("expireDate"));
+                dateFrom = (LocalDate) resultValues.get("dateSold");
+                dateTo = (LocalDate) resultValues.get("expireDate");
             } else {
-                Calendar calendar = Calendar.getInstance();
-                dateFrom = new Date(calendar.getTime().getTime());
+                dateFrom = LocalDate.now();
+                dateTo = LocalDate.now();
                 if (defect)
-                    calendar.add(Calendar.DATE, -1);
+                    dateTo = dateTo.minusDays(1);
                 else if (expiryDays != null)
-                    calendar.add(Calendar.DATE, expiryDays);
-                dateTo = new Date(calendar.getTime().getTime());
+                    dateTo = dateTo.plusDays(expiryDays);
             }
             Integer id = getId(idBarcode);
             if (id != null) {
-                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? sqlDateToLocalDate(dateFrom) : null, active || defect ? sqlDateToLocalDate(dateTo) : null,
+                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
                 context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
