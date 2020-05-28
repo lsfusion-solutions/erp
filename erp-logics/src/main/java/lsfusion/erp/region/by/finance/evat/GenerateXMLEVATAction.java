@@ -324,8 +324,8 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         String name = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
         String branchCodeSupplier = (String) findProperty("branchCodeSupplier[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressSupplier[EVAT]").read(context, evatObject));
-        //String numberInvoicePrincipal = trim((String) findProperty("numberInvoicePrincipal[EVAT]").read(context, evatObject));
-        //String dateInvoicePrincipal = formatDate((Date) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
+        String numberInvoicePrincipal = trim((String) findProperty("numberInvoicePrincipal[EVAT]").read(context, evatObject));
+        String dateInvoicePrincipal = formatDate((LocalDate) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
         //String numberInvoiceVendor = trim((String) findProperty("numberInvoiceVendor[EVAT]").read(context, evatObject));
         //String dateInvoiceVendor = formatDate((Date) findProperty("dateInvoiceVendor[EVAT]").read(context, evatObject));
         String dateRelease = formatDate((LocalDate) findProperty("dateReleaseSupplier[EVAT]").read(context, evatObject));
@@ -344,8 +344,11 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
         addStringElement(namespace, providerElement, "branchCode", branchCodeSupplier);
         addStringElement(namespace, providerElement, "name", name);
         addStringElement(namespace, providerElement, "address", address);
+
+        if(isCommissionaire(legalEntityStatus)) {
+            providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal, namespace));
+        }
         //с ними не проходит
-        //providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal, namespace));
         //providerElement.addContent(createNumberDateElement("vendor", numberInvoiceVendor, dateInvoiceVendor, namespace));
         addStringElement(namespace, providerElement, "declaration", declaration);
         addStringElement(namespace, providerElement, "dateRelease", dateRelease);
@@ -578,6 +581,10 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 result = "CALCULATED";
         }
         return result;
+    }
+
+    private boolean isCommissionaire(String status) {
+        return status != null && status.endsWith("commissionaire");
     }
 
     private String getProviderStatus(String status, String defaultStatus) {
