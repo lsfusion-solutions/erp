@@ -22,7 +22,10 @@ description (ZReportCash ledger) += description(ledger);
 number(ZReportCash ledger) += number(zReport(ledger));
 
 sumCashNotSku (ZReport z) = GROUP SUM negMin(sumCashPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d) MATERIALIZED;
-sumCashSku 'Сумма наличных по товарам Z-отчета' (ZReport z) = sumCash(z) - OVERRIDE sumCashNotSku(z), 0.0; 
+
+overSumCashSku = ABSTRACT NUMERIC[18,4] (ZReport);
+
+sumCashSku 'Сумма наличных по товарам Z-отчета' (ZReport z) = OVERRIDE overSumCashSku(z), (sumCash(z) - OVERRIDE sumCashNotSku(z), 0.0); 
 
 type(ZReportCash l) += 'Продажа наличные' IF l IS ZReportCash;
 sumItem (ZReportCash ledger) += sumCashSku(zReport(ledger));
@@ -50,7 +53,10 @@ description (ZReportCard ledger) += description(ledger);
 number(ZReportCard ledger) += number(zReport(ledger));
 
 sumCardNotSku (ZReport z) = GROUP SUM negMin(sumCardPayment(ReceiptDetail d), sum(d)) IF NOT sku(d) BY zReport(d) MATERIALIZED;
-sumCardSku 'Сумма по карточкам по товарам Z-отчета' (ZReport z) = sumCard(z) - OVERRIDE sumCardNotSku(z), 0.0; 
+
+overSumCardSku = ABSTRACT NUMERIC[18,4] (ZReport);
+
+sumCardSku 'Сумма по карточкам по товарам Z-отчета' (ZReport z) = OVERRIDE overSumCardSku(z), (sumCard(z) - OVERRIDE sumCardNotSku(z), 0.0); 
 
 type(ZReportCard l) += 'Продажа безнал' IF l IS ZReportCard;
 sumItem (ZReportCard ledger) += sumCardSku(zReport(ledger));
