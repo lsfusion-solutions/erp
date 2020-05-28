@@ -236,7 +236,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         PROPERTIES (c) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer                        
 
-        PROPERTIES (c) NEWSESSION NEW[UserCreditNote], EDIT SHOWIF isOpened(c), deletec=DELETE SHOWIF isUserOpened(c)
+        PROPERTIES (c) NEWSESSION NEW[UserCreditNote], editC = EDIT SHOWIF isOpened(c), deletec=DELETE SHOWIF isUserOpened(c)
         PROPERTIES (c) close[UserCreditNote] SHOWIF isOpened[UserCreditNote](c), open SHOWIF isClosed[UserCreditNote](c)
 
         OBJECTS d = CreditNoteDetail
@@ -296,6 +296,27 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @extendFormEditable(creditNotes);
     @defineFilterIsOpened (creditNote, creditNotes, c); 
     edit(UserCreditNoteDetail d) + {  DIALOG userCreditNote OBJECTS c = userCreditNote(d), d = d DOCKED; }
+    
+    show 'Просмотреть'  ABSTRACT LIST ( CreditNoteDetail) TOOLBAR;
+    show(UserCreditNoteDetail d)  { 
+        NEWSESSION {
+            SHOW userCreditNote OBJECTS c = userCreditNote(d), d = d DOCKED READONLY;
+        }
+    }
+    show(UserCreditNoteDetail d) + {  show(d); }
+    
+    show 'Просмотреть' (UserCreditNote i)   { 
+        NEWSESSION{
+            SHOW userCreditNote OBJECTS c = i DOCKED READONLY;
+        }
+        
+    }TOOLBAR;
+        
+    showToShow (UserCreditNote i) = is(i);// AND NOT overShowEdit(i);
+    EXTEND FORM creditNotes 
+        PROPERTIES show(c) SHOWIF showToShow(c) BEFORE editC
+    
+    ;
     
 //--  Связь акта и накладной
     invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) MATERIALIZED INDEXED;
@@ -557,8 +578,8 @@ META defineCreditNoteBatch(legalEntityProp, stockProp)
     @showDocumentInterfaceDetailBatch(creditNote);
     @defineDocumentInterfaceDetailBatch(creditNote, batch);
 
-    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch AFTER shortNameUOMSku(d);
-    EXTEND FORM creditNotes PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
+//    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch AFTER shortNameUOMSku(d);
+//    EXTEND FORM creditNotes PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
 
 
     batch (UserCreditNoteDetail detail)  <- batch(invoiceDetail(detail))
@@ -575,6 +596,34 @@ META defineCreditNoteBatch(legalEntityProp, stockProp)
     
     @defineDocumentBatchStockPriceListTypeSystemLedger(userCreditNote, stockProp);
     @extendFormDocumentBatchStock(userCreditNote, userCreditNote, c, legalEntityProp, stockProp);
+END
+
+// Партии с диалогом по складам
+META defineCreditNoteBatchDialogStock(stockProp, dialog)
+
+    changeBatch(UserCreditNoteDetail d)  { 
+        DIALOG dialogBatchStock##dialog OBJECTS 
+                                    st = stockProp(d),
+                                    t = dateTime(d),
+                                    sk = sku(d),
+                                    bt = batch(d) INPUT NULL NEWSESSION DO {
+            batch(d) <- bt;                            
+        }
+    }
+    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d);
+    EXTEND FORM creditNotes PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
+END
+
+META defineCreditNoteBatchDialog(dumb)
+
+    changeBatch(UserCreditNoteDetail userCreditNoteDetail)  { 
+        DIALOG dialogBatch OBJECTS sk = sku(userCreditNoteDetail), bt = batch(userCreditNoteDetail) INPUT NULL NEWSESSION DO
+            batch(userCreditNoteDetail) <- bt;
+    }
+
+    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d);
+    EXTEND FORM creditNotes PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
+
 END
 
 META defineCreditNotePaymentCondition (sign)
