@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -246,7 +247,7 @@ public class DigiSM120Handler extends DigiHandler {
         }
 
         private int getDifferenceDaysFromToday(LocalDate date) {
-            return (int) Math.max(0, Duration.between(date, LocalDate.now()).toDays());
+            return (int) Math.max(0, Duration.between(date.atStartOfDay(), LocalDateTime.now()).toDays());
         }
     }
 }
