@@ -121,7 +121,7 @@ public class DigiSM120Handler extends DigiHandler {
             String barcodeTypeOfEANData = "0"; //0: EAN 9: ITF
             String rightSideDataOfEANData = "1"; //0: Price 1: Weight 2: QTY 3: Original price 4: Weight/QTY 5: U.P. 6: U.P. after discount
 
-            Integer daysExpiry = item.expiryDate != null ? getDifferenceDaysFromToday(item.expiryDate) : item.daysExpiry != null ? item.daysExpiry : 0;
+            //Integer daysExpiry = item.expiryDate != null ? getDifferenceDaysFromToday(item.expiryDate) : item.daysExpiry != null ? item.daysExpiry : 0;
             Integer cellByDate = 0;//daysExpiry * 24; //days * 24
             String cellByTime = fillLeadingZeroes(item.hoursExpiry == null ? 0 : item.hoursExpiry, 2) + "00";//HHmm //не отображается
 
