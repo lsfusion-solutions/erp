@@ -1,6 +1,6 @@
 MODULE SupermagPurchaseInvoice;
 
-REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseManufacturingPrice, PurchaseInvoiceConsignmentBy, PricingPurchase, PurchaseCreditNote, PurchaseInvoiceContract, Utils, SupermagPricing;
+REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseManufacturingPrice, PurchaseInvoiceConsignmentBy, PricingPurchase, PricingSumPurchase, PurchaseCreditNote, PurchaseInvoiceContract, Utils, SupermagPricing;
 
 NAMESPACE Purchase;
 
@@ -54,7 +54,7 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain d) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
         LOCAL NESTED dt = DATETIME();
-            NEW expMain = DocMain {
+        NEW expMain = DocMain {
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',1));
                 id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
@@ -74,7 +74,7 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                 priceRoundMode(expMain) <- 4 IF doc IS Invoice;                                                
                 createFinobligation(expMain)  <- createFinobligation(operation(doc));                               
                 clientIndex(expMain) <- id(supplier(doc));
-                locationTo(expMain) <- customerStock(doc);
+                locationTo(expMain) <- id(customerStock(doc));
                 ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
                                                 
                 FOR invoice(InvoiceDetail docd) = doc DO {
@@ -139,39 +139,86 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                             WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
                         }
                     CATCH logToFile('supermag', CONCAT '\n', 'Финансовое обязательство', 'file://' + exportDirectorySupermag() + '/' + 'FI_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-                                        
-                               
-                } 
-               
-               
-//               TRY 
-//               {      
-//                    fileExists('file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + '.xml'); 
-//                    IF fileExists()  THEN NEWSESSION NESTED LOCAL {
-//                        FOR inc(Invoice ii)  DO NEW log = SupermagLog {
-//                            id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
-//                            dateTime(log) <- currentDateTime();
-//                            userLogin(log) <- login(currentUser()); 
-//                            nameContact(log) <- STRING[100](name(currentUser()));
-//                            stockDocumentLedger(log) <- invoiceShipment(ii);
-//                        }     
-//                        APPLY NESTED LOCAL;
-//                    }             
-//                         
-//               } CATCH {
-//                    logToFile('supermag', CONCAT '\n', 'Приходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-//               }
-            }   
-            
-            
-            
-    }       
-    inc(DocMain expMain) <- NULL;
+                }                
+                inc(expMain) <- NULL;
+        }         
+    }
     APPLY;
 }
 
 exportPurchaseInvoice (Purchase.Invoice doc) + {
     IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WI' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) THEN exportPurchaseInvoiceWI(doc);    
+}
+
+exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
+    inc(DocMain d) <- NULL;
+    IF createPricing(doc) THEN {   
+        LOCAL NESTED dt = DATETIME();
+        NEW expMain = DocMain {
+                inc(expMain) <- TRUE;
+                doctype(expMain) <- 'AC';
+                docid(expMain) <- seriesNumber(doc);                 
+                id(expMain) <- CONCAT '', doctype(expMain), seriesNumber(doc);                 
+                opcode(expMain) <- '-1';
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
+                                      WHEN isClosed(doc) THEN 0 ELSE 2;
+                creatdate(expMain) <- shipmentDateTime(doc);
+                execDate(expMain) <- postedTime(doc);
+                execTime(expMain) <- postedTime(doc);                
+                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(customerStock(doc))),'D',''));
+                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(expMain); 
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                location(expMain)  <- id(customerStock(doc));
+                reasonPricing(expMain) <- '0';     
+                priceRoundMode(expMain) <- 0;
+                FOR invoice(InvoiceDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- pricingQuantity(docd);
+                        valueTax(expDet) <- valueRetailVAT(docd);
+                        priceWithTax(expDet) <- retailPrice(docd);
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueTax(expDet)/100),4)));
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- retailSum(docd);
+                        sumNoTax(expDet) <- NUMERIC[18,4] ( abs(round( sumWithTax(expDet) / (1 + valueTax(expDet)/100),2)));
+                        sumWithTaxCurr(expDet) <-round(sumWithTax(expDet)/curRate(expMain),4);
+                        sumTax(expDet) <- VATSum(docd);
+                        oldPrice(expDet) <- retailPriceB(docd);
+                        flags(expDet) <- '0';
+                        revalSum(expDet) <- 0.00;
+                        revalOperQuantity(expDet) <- 0.00;
+                    }
+                }    
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;                
+                
+                NEW b = DocBase {
+                    basisDoc(expMain, b) <- TRUE;
+                    docid(b) <- seriesNumber(doc);
+                    doctype(b) <- 'WI';
+                }
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportAC XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Расценка на приходе', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +  '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Расценка на приходе', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }    
+                inc(expMain) <- NULL;
+        }                                    
+    }       
+    APPLY;    
+}
+
+exportPurchaseInvoice (Purchase.Invoice doc) + {
+    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WI' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) AND createPricing(doc) THEN exportPurchaseInvoiceAC(doc);    
 }
 
 //--------------------------------------------------------------------------------------------импорт--------------------------------------------------------------

@@ -43,7 +43,7 @@ GROUP SMDOCUMENTSAC EXTID 'SMDOCUMENTS': AC;
 GROUP SMCOMMONBASESAC EXTID 'SMCOMMONBASES': AC;
 GROUP SMSPECAC EXTID 'SMSPEC': AC;
 
-FORM exportAC FORMEXTID 'PACKAGE' 
+FORM exportAC2 FORMEXTID 'PACKAGE' 
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 
     OBJECTS doc = Repricing EXTID 'POSTOBJECT'
@@ -82,14 +82,14 @@ FORM exportAC FORMEXTID 'PACKAGE'
     FILTERS inc(doc)  
 ;                                                
 
-EXTEND FORM exportAC
+EXTEND FORM exportAC2
     PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTSAC
 ;
 
 GROUP SMACTS EXTID 'SMACTS' : AC;
 GROUP SMSPECACTS EXTID 'SMSPECACTS' : AC;
 
-EXTEND FORM exportAC
+EXTEND FORM exportAC2
     PROPERTIES = 'AC' IF doc IS Repricing EXTID 'DOCTYPE' IN SMACTS
     PROPERTIES = STRING[100](docid(doc))  EXTID 'ID' IN SMACTS
     PROPERTIES = priceType(doc) EXTID 'PRICETYPE' IN SMACTS
@@ -120,7 +120,7 @@ EXTEND FORM exportAC
     FILTERS repricing(docd3)==doc       
 ;
 
-EXTEND FORM exportAC
+EXTEND FORM exportAC2
     PROPERTIES = index(docd) EXTID 'SPECITEM'
     PROPERTIES = index(docd2) EXTID 'SPECITEM'    
     PROPERTIES = index(docd3) EXTID 'SPECITEM'    
@@ -166,7 +166,7 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(RepricingDetail add) IF repricing(add) = doc; 
                 countSpec(doc) <- GROUP SUM 1 IF repricing(RepricingDetail docd) = doc;
            TRY {                
-                EXPORT exportAC XML TO System.exportFile;
+                EXPORT exportAC2 XML TO System.exportFile;
            } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {    
@@ -383,7 +383,7 @@ exportPricingAC 'Экспорт в супермаг' (Pricing doc) {
                 sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(PricingDetail add) IF pricing(add) = doc; 
                 countSpec(doc) <- GROUP SUM 1 IF pricing(PricingDetail docd) = doc;
            TRY {                
-                EXPORT exportAC XML TO System.exportFile;
+                EXPORT exportAC2 XML TO System.exportFile;
            } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
            TRY {    

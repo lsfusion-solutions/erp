@@ -1,6 +1,6 @@
 MODULE SupermagOrder;
 
-REQUIRE SupermagSettings, SupermagFormMeta, PurchaseOrder, PurchaseOrderStatus, PurchaseManufacturingPrice, SaleOrder, SaleOrderStatus, OrderInvoice, SupermagPurchaseInvoice, PurchaseShipment;
+REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseOrder, PurchaseOrderStatus, PurchaseManufacturingPrice, SaleOrder, SaleOrderStatus, OrderInvoice, SupermagPurchaseInvoice, PurchaseShipment;
 
 @settingIntegration(Purchase.UserOrder, Purchase.UserOrderDetail);
 EXTEND FORM Purchase.orders PROPERTIES lastStatusSupermag(o);
@@ -121,60 +121,33 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
 
 EXTEND FORM integrationData PROPERTIES importSupplierOrder();
 
-
-docid = DATA LOCAL STRING[50] (Purchase.Order );
-doctype = DATA LOCAL STRING[10] (Purchase.Order );
-docstate = DATA LOCAL INTEGER (Purchase.Order );
-inc = DATA LOCAL BOOLEAN (Purchase.Order);
-clientIndex = DATA LOCAL STRING[100] (Purchase.Order);
-location = DATA Stock (Purchase.Order);
-
-GROUP ORD EXTID 'OR';
-GROUP SMDOCUMENTS EXTID 'SMDOCUMENTS': ORD;
-
-FORM exportRurchaseOrderOR FORMEXTID 'PACKAGE'  
-    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
-
-    OBJECTS doc = Purchase.Order EXTID 'POSTOBJECT'
-    PROPERTIES ATTR = 'Заказ поставщику' IF doc IS Purchase.Order EXTID 'description'  
-    PROPERTIES ATTR = 'normal' IF doc IS Purchase.Order EXTID 'action'  
-    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
-    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SMDOCUMENTS
-    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN SMDOCUMENTS    
-    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN SMDOCUMENTS       
-    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN SMDOCUMENTS   
-    PROPERTIES = clientIndex(doc) EXTID 'CLIENTINDEX' IN SMDOCUMENTS        
-    PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTS
-    FILTERS inc(doc)        
-;    
-
 exportPurchaseOrderOR 'Экспорт в супермаг' (Purchase.Order doc) {
-    inc(Purchase.Order ii) <- NULL;
-        LOCAL NESTED dt = DATETIME();
-        dt () <- currentDateTime();
-        inc(doc) <- TRUE;
-                doctype(doc) <- 'OR';
-                docstate(doc) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
-                                      WHEN isPosted(doc) THEN 2                                        
-                                      WHEN isClosed(doc) THEN 0 ELSE 1;
-                docid(doc) <- seriesNumber(doc);                 
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
-                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
-                clientIndex(doc) <- id(supplier(doc));
-                location(doc) <- customerStock(doc);                                
-           TRY {                
-                EXPORT exportRurchaseOrderOR XML TO System.exportFile;
-           } 
-           CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'OR_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+    inc(DocMain ii) <- NULL;
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    NEW expMain = DocMain {
+        inc(expMain) <- TRUE;
+        doctype(expMain) <- 'OR';
+        docstate(expMain) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
+                                  WHEN isPosted(doc) THEN 2                                        
+                                  WHEN isClosed(doc) THEN 0 ELSE 1;
+        docid(expMain) <- seriesNumber(doc);                 
+        id(expMain) <- CONCAT '', doctype(expMain), seriesNumber(doc);                 
+        bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+        clientIndex(expMain) <- id(supplier(doc));
+        location(expMain) <- id(customerStock(doc));                                
+        TRY {                
+                EXPORT exportOR XML TO System.exportFile;
+        } 
+        CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'OR_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
-           TRY {    
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());                
-           } 
-           CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
-           }           
-    inc(Purchase.Order ii) <- NULL;
+        TRY {    
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());                
+        } 
+        CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
+    }     
+    inc(DocMain expMain) <- NULL;
     APPLY;
 }
  
