@@ -162,7 +162,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
         bytes.putShort((short) 0); //produced date
         bytes.putShort((short) 0); //packed date
         bytes.put((byte) 0); //packed time
-        bytes.putInt(item.daysExpiry != null ? item.daysExpiry : 0); //sell by date
+        bytes.putInt(item.daysExpiry != null ? item.daysExpiry + 1 : 0); //sell by date
         bytes.put((byte) (item.hoursExpiry != null ? item.hoursExpiry : 0)); //sell by time
         bytes.putShort((short) 0); //message number
         bytes.putShort((short) 0); //reserved 1
