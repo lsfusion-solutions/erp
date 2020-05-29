@@ -1,0 +1,264 @@
+MODULE SupermagExportForms;
+
+REQUIRE SupermagFormMeta, SupermagSettings;
+
+CLASS DocMain;
+CLASS DocDetail;
+CLASS DocBase;
+CLASS SMActs;
+
+inc = DATA LOCAL BOOLEAN (DocMain);
+id  = DATA LOCAL STRING[100] (DocMain);
+docid = DATA LOCAL STRING[50] (DocMain);
+doctype = DATA LOCAL STRING[10] (DocMain);
+bornin = DATA STRING[100] (DocMain);
+opcode = DATA LOCAL STRING[10] (DocMain);
+userop = DATA LOCAL STRING[10] (DocMain);
+docstate = DATA LOCAL INTEGER (DocMain);
+creatdate = DATA LOCAL DATETIME (DocMain);
+posteddate =  DATA LOCAL DATETIME (DocMain);
+opname =  DATA LOCAL STRING[100] (DocMain);
+clientIndex = DATA LOCAL STRING[100] (DocMain);
+location = DATA Stock (DocMain);
+locationFrom = DATA Stock (DocMain);
+locationTo = DATA Stock (DocMain);
+invoiceDocNumber = DATA LOCAL STRING[100] (DocMain);
+overInvoiceDocSum = ABSTRACT NUMERIC[18,4] (DocMain);
+invoiceDocSum = DATA LOCAL NUMERIC[18,4] (DocMain);
+invoiceDocCreate = DATA DATETIME (DocMain);
+execTime = DATA LOCAL DATETIME (DocMain);
+execDate = DATA LOCAL DATETIME (DocMain);
+priceType = DATA LOCAL STRING[10] (DocMain);
+reasonPricing = DATA LOCAL STRING[100] (DocMain);
+note = DATA LOCAL ISTRING[500] (DocMain);
+sumNoTax = DATA LOCAL NUMERIC[18,4] (DocMain);
+sumWithTax = DATA LOCAL NUMERIC[18,4] (DocMain);
+sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocMain);
+createFinobligation = DATA LOCAL BOOLEAN (DocMain);
+curRate(DocMain doc) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),DATE (creatdate(doc))),(1.0 IF doc IS DocMain));
+countSpec = DATA LOCAL INTEGER (DocMain);       
+acceptsum = DATA LOCAL NUMERIC[18,4] (DocMain);
+basesum = DATA LOCAL NUMERIC[18,4] (DocMain);
+calcenddate = DATA LOCAL DATETIME (DocMain);
+paymentdelay = DATA LOCAL INTEGER (DocMain);
+finagent = DATA LOCAL STRING[100] (DocMain);
+iscalendardelay = DATA LOCAL STRING[1] (DocMain);
+ourselfclient = DATA LOCAL STRING[100] (DocMain);
+
+docMain = DATA DocMain (DocDetail) NONULL DELETE;
+id = DATA LOCAL STRING[50] (DocDetail);
+docid(DocDetail det) = docid(docMain(det));
+doctype(DocDetail det) = doctype(docMain(det));
+index = DATA LOCAL INTEGER (DocDetail);
+skuId = DATA LOCAL STRING[100] (DocDetail);
+quantity = DATA LOCAL NUMERIC[16,5] (DocDetail);
+priceRoundMode = DATA LOCAL INTEGER (DocMain);
+priceWithTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
+priceWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);    
+priceNoTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
+priceManufacturer = DATA LOCAL NUMERIC[18,4] (DocDetail);
+extracharge =  DATA LOCAL NUMERIC[18,4] (DocDetail);
+priceRetail = DATA LOCAL NUMERIC[18,4] (DocDetail);
+valueTax = DATA LOCAL NUMERIC[10,5] (DocDetail);
+sumTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
+sumNoTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
+sumWithTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
+sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);
+expiryDate = DATA LOCAL DATE (DocDetail);
+oldPrice = DATA LOCAL NUMERIC[18,4] (DocDetail);
+flags = DATA LOCAL STRING[10] (DocDetail);
+revalSum =DATA LOCAL NUMERIC[18,4] (DocDetail);
+revalOperQuantity = DATA LOCAL NUMERIC[18,5] (DocDetail); 
+
+docid = DATA LOCAL STRING[50] (DocBase);
+doctype = DATA LOCAL STRING[10] (DocBase);
+basisDoc 'Документы основания' = DATA LOCAL BOOLEAN (DocMain, DocBase);      
+       
+       //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
+//indexPlus (DocDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY SMDocuments(ad) CHARWIDTH 4;
+//indexMinus (DocDetail ad) = PARTITION SUM 1 IF quantity(ad)<0 ORDER ad BY SMDocuments(ad) CHARWIDTH 4;
+
+GROUP WI;
+GROUP WI_SMDOCUMENTS EXTID 'SMDOCUMENTS': WI;
+GROUP WI_SMCOMMONBASES EXTID 'SMCOMMONBASES': WI;
+GROUP WI_SMSPEC EXTID 'SMSPEC': WI;
+GROUP WI_SMWAYBILLSIN EXTID 'SMWAYBILLSIN' : WI;
+GROUP WI_SMSPECIO EXTID 'SMWSPECIO' : WI;
+
+FORM exportWI FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'            
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = opname(doc) IF doc IS DocMain EXTID 'description'  
+    
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN WI_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN WI_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN WI_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN WI_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN WI_SMDOCUMENTS           
+    PROPERTIES = opcode(doc) EXTID 'OPCODE' IN WI_SMDOCUMENTS
+    PROPERTIES = userop(doc) EXTID 'USEROP' IN WI_SMDOCUMENTS        
+    PROPERTIES = clientIndex(doc) EXTID 'CLIENTINDEX' IN WI_SMDOCUMENTS        
+    PROPERTIES = id(locationTo(doc)) EXTID 'LOCATIONTO' IN WI_SMDOCUMENTS   
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN WI_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN WI_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN WI_SMDOCUMENTS      
+    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN WI_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN WI_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN WI_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN WI_SMDOCUMENTS      
+    PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN WI_SMDOCUMENTS     
+                                                               
+    FILTERS inc(doc)                                                      
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN WI 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = STRING[10](doctype(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceWithTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)==doc
+
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN WI_SMWAYBILLSIN      
+    PROPERTIES = STRING[50](doctype(doc)) EXTID 'DOCTYPE' IN WI_SMWAYBILLSIN 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'GOODSOWNER' IN WI_SMWAYBILLSIN                        
+    PROPERTIES = ourselfclient(doc) EXTID 'OURSELFCLIENT' IN WI_SMWAYBILLSIN    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PAYCASH' IN WI_SMWAYBILLSIN      
+    PROPERTIES = invoiceDocNumber(doc) EXTID 'SUPPLIERDOC' IN WI_SMWAYBILLSIN      
+    PROPERTIES = exportTime(invoiceDocCreate(doc)) EXTID 'SUPPLIERDOCCREATE' IN WI_SMWAYBILLSIN      
+    PROPERTIES = invoiceDocSum(doc) EXTID 'SUPPLDOCSUM' IN WI_SMWAYBILLSIN      
+
+          
+    OBJECTS docd2 = DocDetail EXTID 'SMSPECIO' IN WI 
+    PROPERTIES = docid(docd2) EXTID 'DOCID'   
+    PROPERTIES = STRING[10](doctype(docd2)) EXTID 'DOCTYPE'     
+    PROPERTIES = index(docd2) EXTID 'SPECITEM'
+    FILTERS docMain(docd2)==doc    
+    
+    OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN WI
+    PROPERTIES = docid(docd3) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd3) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd3) EXTID 'SPECITEM'
+    PROPERTIES = 0 IF docd3 IS DocDetail  EXTID 'TAXID'        
+    PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
+    PROPERTIES = sumTax(docd3) EXTID 'TAXSUM'            
+    FILTERS docMain(docd3)==doc   
+
+    OBJECTS docd4 = DocDetail EXTID 'SMSPECBY' IN WI
+    PROPERTIES = docid(docd4) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd4) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd4) EXTID 'SPECITEM'
+    PROPERTIES = extracharge(docd4) EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceManufacturer(docd4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = priceRetail(docd4) EXTID 'RETAILPRICE'       
+    PROPERTIES = 0 IF docd4 IS DocDetail EXTID 'STATEREGULATION'                           
+    FILTERS docMain(docd4)==doc  
+    
+    OBJECTS docd5 = DocDetail EXTID 'SLSPECPACKS' IN WI
+    PROPERTIES = docid(docd5) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd5) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd5) EXTID 'SPECITEM'
+    PROPERTIES = -1 IF docd5 IS DocDetail EXTID 'PACKNUM'        
+    PROPERTIES = 0 IF docd5 IS DocDetail EXTID 'NPACKS'       
+    PROPERTIES = 0 IF docd5 IS DocDetail EXTID 'PACKSIZE'     
+    PROPERTIES = exportTime(toDateTime[DATE](expiryDate(docd5))) EXTID 'VALIDDATE'                
+    FILTERS docMain(docd5)==doc
+    
+    OBJECTS docd6 = DocDetail EXTID 'SLSPECQMISMATCH' IN WI
+    PROPERTIES = docid(docd6) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd6) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd6) EXTID 'SPECITEM'
+    PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
+    FILTERS docMain(docd6)==doc     
+                  
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WI 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b)               
+; 
+
+GROUP FI;
+GROUP FI_SMFINOBLIGATION EXTID 'SMFINOBLIGATION' : FI;
+
+FORM exportFI FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+    
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Финансовое обязательство по поставке' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'  
+    PROPERTIES = STRING[100]('FI'+docid(doc)+'\t'+doctype(doc)) EXTID 'Id'
+    PROPERTIES = docid(doc) EXTID 'DOCID' IN FI_SMFINOBLIGATION   
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN FI_SMFINOBLIGATION    
+    PROPERTIES = acceptsum(doc) EXTID 'ACCEPTSUM' IN FI_SMFINOBLIGATION   
+    PROPERTIES = basesum(doc) EXTID 'BASESUM' IN FI_SMFINOBLIGATION   
+    PROPERTIES = exportTime(creatdate(doc)) EXTID 'BEGINDATE' IN FI_SMFINOBLIGATION   
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN FI_SMFINOBLIGATION       
+    PROPERTIES = exportTime(calcenddate(doc)) EXTID 'CALCENDDATE' IN FI_SMFINOBLIGATION   
+    PROPERTIES = clientIndex(doc) EXTID 'CLIENTINDEX' IN FI_SMFINOBLIGATION  
+    PROPERTIES = finagent(doc) EXTID 'FINAGENT' IN FI_SMFINOBLIGATION      
+    PROPERTIES = 0 IF doc IS DocMain  EXTID 'FINEPERCENT' IN FI_SMFINOBLIGATION  
+    PROPERTIES = 0 IF doc IS DocMain  EXTID 'ISADMITTED' IN FI_SMFINOBLIGATION 
+    PROPERTIES = iscalendardelay(doc) EXTID 'ISCALENDARDELAY' IN FI_SMFINOBLIGATION     
+    PROPERTIES = ourselfclient(doc)  EXTID 'OURSELFCLIENT' IN FI_SMFINOBLIGATION 
+    PROPERTIES = (OVERRIDE paymentdelay(doc), 0)  EXTID 'PAYMENTDELAY' IN FI_SMFINOBLIGATION              
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'PAYMENTPRTY' IN FI_SMFINOBLIGATION          
+    FILTERS inc(doc), createFinobligation(doc)           
+;
+
+
+GROUP AC;
+GROUP AC_SMDOCUMENTS EXTID 'SMDOCUMENTS': AC;
+GROUP AC_SMCOMMONBASES EXTID 'SMCOMMONBASES': AC;
+GROUP AC_SMSPEC EXTID 'SMSPEC': AC;
+
+FORM exportAC FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = opname(doc) EXTID 'description'  
+    
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN AC_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN AC_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN AC_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN AC_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN AC_SMDOCUMENTS           
+    PROPERTIES = opcode(doc) IF doc IS DocMain EXTID 'OPCODE' IN AC_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN AC_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN AC_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN AC_SMDOCUMENTS      
+    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN AC_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 IF doc IS DocMain EXTID 'TOTALSUMCUR' IN AC_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN AC_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN AC_SMDOCUMENTS      
+    PROPERTIES = note(doc) IF doc IS DocMain EXTID 'COMMENTARY' IN AC_SMDOCUMENTS
+    FILTERS inc(doc)      
+                                                            
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN AC 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) IF docd IS DocDetail EXTID 'DOCTYPE'      
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceWithTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)==doc
+;                                                
+
+
