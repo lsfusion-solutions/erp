@@ -175,13 +175,15 @@ isMulti (Dispatch d) = communicationChannel(d) == CommunicationChannel.viber_sms
 
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (Dispatch);//DATA STRING[1000] (Dispatch);
-CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
-    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(Dispatch dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
+lengthMessageViber 'К-во символов' (Dispatch d) = length (messageViber(d));
+//CONSTRAINT SETCHANGED(messageViber(Dispatch d)) AND length(messageViber(d)) > 1000
+//    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(Dispatch dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
 CONSTRAINT isViber(Dispatch d) AND NOT messageViber(d)
     MESSAGE 'Не задан текст сообщения Viber';
 messageSMS 'Текст сообщения SMS' = DATA TEXT (Dispatch);//DATA STRING[71] (Dispatch);
-CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND length(messageSMS(d)) > 142
-    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(Dispatch dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
+lengthMessageSMS 'К-во символов' (Dispatch d) = length (messageSMS(d));
+//CONSTRAINT SETCHANGED(messageSMS(Dispatch d)) AND length(messageSMS(d)) > 142
+ //   MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(Dispatch dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
 CONSTRAINT isSMS(Dispatch d) AND NOT messageSMS(d)
     MESSAGE 'Не задан текст сообщения SMS';
 
@@ -224,8 +226,8 @@ fillFromSubscriberBase 'Заполнить по базе абонентов' (Di
 FORM dispatch 'Рассылка'
     OBJECTS d = Dispatch PANEL
     PROPERTIES(d) isSend, name, nameCommunicationChannel, date, timeFrom, timeTo
-    PROPERTIES(d) SHOWIF isViber(d) messageViber, lifetime, image, caption, action
-    PROPERTIES(d) SHOWIF isSMS(d) messageSMS
+    PROPERTIES(d) SHOWIF isViber(d) messageViber, lengthMessageViber READONLY, lifetime, image, caption, action
+    PROPERTIES(d) SHOWIF isSMS(d) messageSMS, lengthMessageSMS READONLY
     
     OBJECTS c = DiscountCard
     PROPERTIES(d,c) in
@@ -258,6 +260,7 @@ DESIGN dispatch {
                 type = CONTAINERV;
                 caption = 'Viber';
                 MOVE PROPERTY(messageViber(d));
+                MOVE PROPERTY(lengthMessageViber(d));
                 MOVE PROPERTY(lifetime(d));
                 MOVE PROPERTY(image(d));
                 MOVE PROPERTY(caption(d));
@@ -268,6 +271,7 @@ DESIGN dispatch {
                 MOVE PROPERTY(messageSMS(d)) {
                     charWidth = 55;
                 };
+                MOVE PROPERTY(lengthMessageSMS(d));
                 fill = 1;
             }
         }
@@ -658,11 +662,13 @@ TABLE dispatchTemplate (DispatchTemplate);
 useTransaction 'Использовать транзакционный канал' = DATA BOOLEAN (DispatchTemplate);
 
 messageViber 'Текст сообщения Viber' = DATA TEXT (DispatchTemplate);
-CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
-    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(DispatchTemplate dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
+lengthMessageViber 'К-во символов' (DispatchTemplate d) = length (messageViber(d));
+//CONSTRAINT SETCHANGED(messageViber(DispatchTemplate d)) AND length(messageViber(d)) > 1000
+//    MESSAGE (GROUP CONCAT 'Сообщение для Viber не должно превышать 1000 символов (сейчас ' + length(messageViber(DispatchTemplate dd)) + ')' IF SETCHANGED(messageViber(dd)) AND length(messageViber(dd)) > 1000, '\n');
 messageSMS 'Текст сообщения SMS' = DATA TEXT (DispatchTemplate);
-CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 142
-    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(DispatchTemplate dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
+lengthMessageSMS 'К-во символов' (DispatchTemplate d) = length (messageSMS(d));
+//CONSTRAINT SETCHANGED(messageSMS(DispatchTemplate d)) AND length(messageSMS(d)) > 142
+//    MESSAGE (GROUP CONCAT 'Сообщение для SMS не должно превышать 142 символа (сейчас ' + length(messageSMS(DispatchTemplate dd)) + ')' IF SETCHANGED(messageSMS(dd)) AND length(messageSMS(dd)) > 142, '\n');
 
 lifetime 'Срок жизни сообщения (сек)' = DATA INTEGER (DispatchTemplate);
 CONSTRAINT SETCHANGED(lifetime(DispatchTemplate d)) AND NOT (lifetime(d) >= 120 AND lifetime(d) <= 86400)
@@ -682,8 +688,8 @@ timeTo 'Время по' = DATA TIME (DispatchTemplate);
 FORM dispatchTemplate 'Шаблон рассылки'
     OBJECTS d = DispatchTemplate PANEL
     PROPERTIES(d) id, useTransaction
-    PROPERTIES(d) messageViber, lifetime, image, caption, action, timeFrom, timeTo
-    PROPERTIES(d) messageSMS
+    PROPERTIES(d) messageViber, lengthMessageViber READONLY, lifetime, image, caption, action, timeFrom, timeTo
+    PROPERTIES(d) messageSMS, lengthMessageSMS READONLY
     
     EDIT DispatchTemplate OBJECT d
 ;
@@ -703,6 +709,7 @@ DESIGN dispatchTemplate {
             type = CONTAINERV;
             caption = 'Viber';
             MOVE PROPERTY(messageViber(d));
+            MOVE PROPERTY(lengthMessageViber(d));
             MOVE PROPERTY(lifetime(d));
             MOVE PROPERTY(image(d));
             MOVE PROPERTY(caption(d));
@@ -713,6 +720,7 @@ DESIGN dispatchTemplate {
             MOVE PROPERTY(messageSMS(d)) {
                 charWidth = 55;
             };
+            MOVE PROPERTY(lengthMessageSMS(d));
             fill = 1;
         }
     }
