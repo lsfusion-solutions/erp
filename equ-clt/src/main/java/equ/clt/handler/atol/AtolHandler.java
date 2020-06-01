@@ -8,23 +8,17 @@ import equ.api.SendTransactionBatch;
 import equ.api.cashregister.*;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-
-import static equ.clt.EquipmentServer.*;
 
 public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
@@ -254,13 +248,13 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                 String[] entry = scanner.nextLine().split(";");
                                 String date = getStringValue(entry, 1);
                                 String time = getStringValue(entry, 2);
-                                Timestamp dateTime = new Timestamp(DateUtils.parseDate((date + " " + time), "dd.MM.yyyy HH:mm:ss").getTime());
+                                LocalDateTime dateTime = LocalDateTime.parse(date + " " + time, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
                                 String entryType = getStringValue(entry, 3);
                                 boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
                                 String documentType = getStringValue(entry, 22);
                                 String numberSoftCheck = getStringValue(entry, 18);
                                 if (isSale && documentType != null && documentType.equals("2000001"))
-                                    result.put(numberSoftCheck, sqlTimestampToLocalDateTime(dateTime));
+                                    result.put(numberSoftCheck, dateTime);
                             }
                             scanner.close();
 
@@ -272,7 +266,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                     else
                         softCheckLogger.info(String.format("Atol: found %s soft check(s)", result.size()));
                 }
-            } catch (FileNotFoundException | ParseException e) {
+            } catch (FileNotFoundException e) {
                 throw Throwables.propagate(e);
             }
         }
@@ -331,13 +325,13 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                 if (isCancelDocument) {
                                     cancelCashDocumentSet.add(numberCashDocument);
                                 } else if (isInputCashDocument || isOutputCashDocument) {
-                                    Date dateReceipt = getDateValue(entry, 1);
-                                    Time timeReceipt = getTimeValue(entry, 2);
+                                    LocalDate dateReceipt = getDateValue(entry, 1);
+                                    LocalTime timeReceipt = getTimeValue(entry, 2);
                                     Integer numberCashRegister = getIntValue(entry, 4);
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     BigDecimal sumCashDocument = isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
-                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt),
+                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
                                             nppGroupMachinery, numberCashRegister, null, sumCashDocument));
 
                                 }
@@ -360,7 +354,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
             else
                 sendSalesLogger.info(String.format("Atol: found %s CashDocument(s)", result.size()));
             return new CashDocumentBatch(result, null);
-        } catch (FileNotFoundException | ParseException e) {
+        } catch (FileNotFoundException e) {
             throw Throwables.propagate(e);
         }
     }
@@ -437,8 +431,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                         } else if (isSale && documentType != null && documentType.equals("2000001")) {
                             //nothing to do: it's soft check
                         } else if (isSale || isReturn) {
-                            LocalDate dateReceipt = sqlDateToLocalDate(getDateValue(entry, 1));
-                            LocalTime timeReceipt = sqlTimeToLocalTime(getTimeValue(entry, 2));
+                            LocalDate dateReceipt = getDateValue(entry, 1);
+                            LocalTime timeReceipt = getTimeValue(entry, 2);
                             Integer numberCashRegister = getIntValue(entry, 4);
 
                             CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
@@ -530,11 +524,11 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
         return entry.length >= (index + 1) ? new BigDecimal(entry[index]) : null;
     }
 
-    private Date getDateValue(String[] entry, int index) throws ParseException {
-        return entry.length >= (index + 1) ? new Date(DateUtils.parseDate(entry[index], "dd.MM.yyyy").getTime()) : null;
+    private LocalDate getDateValue(String[] entry, int index) {
+        return entry.length >= (index + 1) ? LocalDate.parse(entry[index], DateTimeFormatter.ofPattern("dd.MM.yyyy")) : null;
     }
 
-    private Time getTimeValue(String[] entry, int index) throws ParseException {
-        return entry.length >= (index + 1) ? new Time(DateUtils.parseDate(entry[index], "HH:mm:ss").getTime()) : null;
+    private LocalTime getTimeValue(String[] entry, int index) {
+        return entry.length >= (index + 1) ? LocalTime.parse(entry[index], DateTimeFormatter.ofPattern("HH:mm:ss")) : null;
     }
 }
