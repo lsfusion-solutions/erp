@@ -2,17 +2,15 @@ package lsfusion.erp.integration;
 
 import jxl.*;
 import lsfusion.base.file.RawFileData;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,12 +53,6 @@ public class DefaultImportXLSAction extends DefaultImportAction {
         return result;
     }
 
-    protected Integer getXLSIntegerFieldValue(Sheet sheet, Integer row, Integer column) {
-        BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
-        return value == null ? null : value.intValue();
-    }
-
-
     protected BigDecimal getXLSBigDecimalFieldValue(Sheet sheet, Integer row, Integer column) {
         return getXLSBigDecimalFieldValue(sheet, row, column, null);
     }
@@ -84,26 +76,13 @@ public class DefaultImportXLSAction extends DefaultImportAction {
         }
     }
 
-    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, Integer column) {
-        return getXLSDateFieldValue(sheet, row, column, null);
-    }
-    
-    protected Date getXLSDateFieldValue(Sheet sheet, Integer row, Integer column, Date defaultValue) {
-        if (row == null || column == null) return defaultValue;
-        try {
-            return parseDate(getXLSFieldValue(sheet, row, column));
-        } catch (ParseException e) {
-            return defaultValue;
-        }
-    }
-
     protected Map<String, RawFileData> getXLSImageMap(Sheet sheet) {
         Map<String, RawFileData> imageMap = new HashMap<>();
         int count = sheet.getNumberOfImages();
         for (int i = 0; i < count; i++) {
             Image image = sheet.getDrawing(i); 
             try {
-            imageMap.put(String.valueOf((int) image.getRow() + "-" + (int) image.getColumn()), new RawFileData(image.getImageData()));
+            imageMap.put((int) image.getRow() + "-" + (int) image.getColumn(), new RawFileData(image.getImageData()));
             } catch (ArrayIndexOutOfBoundsException ignored) {               
             }
         }

@@ -1,21 +1,18 @@
 package lsfusion.erp.integration;
 
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.CellType;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.ParseException;
 
 public class DefaultImportXLSPOIAction extends DefaultImportAction {
 
@@ -76,34 +73,5 @@ public class DefaultImportXLSPOIAction extends DefaultImportAction {
         if (hssfRow == null) return defaultValue;
         HSSFCell hssfCell = hssfRow.getCell(cell);
         return (hssfCell == null || hssfCell.getCellTypeEnum() != CellType.NUMERIC) ? defaultValue : BigDecimal.valueOf(hssfCell.getNumericCellValue());
-    }
-
-    protected Integer getXLSIntegerFieldValue(HSSFSheet sheet, Integer row, Integer column) {
-        BigDecimal value = getXLSBigDecimalFieldValue(sheet, row, column, null);
-        return value == null ? null : value.setScale(0, RoundingMode.HALF_UP).intValue();
-    }
-
-    protected BigDecimal getXLSStrictBigDecimalFieldValue(HSSFSheet sheet, Integer row, Integer column) {
-        Integer value = getXLSIntegerFieldValue(sheet, row, column);
-        return value == null ? null : new BigDecimal(value);
-    }
-
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column) throws ParseException {
-        return getXLSDateFieldValue(sheet, row, column, null);
-    }
-
-    protected Date getXLSDateFieldValue(HSSFSheet sheet, Integer row, Integer column, Date defaultValue) throws ParseException {
-        if (row == null || column == null) return defaultValue;
-        try {
-            HSSFRow hssfRow = sheet.getRow(row);
-            if (hssfRow == null) return defaultValue;
-            HSSFCell hssfCell = hssfRow.getCell(column);
-            if (hssfCell == null) return defaultValue;
-            if (hssfCell.getCellTypeEnum() == CellType.NUMERIC)
-                return new Date(hssfCell.getDateCellValue().getTime());
-            return parseDate(getXLSFieldValue(sheet, row, column));
-        } catch (Exception e) {
-            return parseDate(getXLSFieldValue(sheet, row, column), defaultValue);
-        }
     }
 }

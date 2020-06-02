@@ -35,23 +35,9 @@ public class DefaultExportXMLAction extends DefaultExportAction {
             element.setAttribute(new Attribute(id, String.valueOf(value)));
     }
 
-    protected void setAttribute(Element element, String id, Object value, Namespace namespace) {
-        if (value != null)
-            element.setAttribute(id, String.valueOf(value), namespace);
-    }
-
-    protected void addBigDecimalElement(Element parent, String id, BigDecimal value) {
-        if (value != null)
-            parent.addContent(new Element(id).setText(String.valueOf(value)));
-    }
-
     protected void addBigDecimalElement(Namespace namespace, Element parent, String id, BigDecimal value) {
         if (value != null)
             parent.addContent(new Element(id, namespace).setText(String.valueOf(value)));
-    }
-
-    protected void addBooleanElement(Element parent, String id, boolean value) {
-        parent.addContent(new Element(id).setText(String.valueOf(value)));
     }
 
     protected void addBooleanElement(Namespace namespace, Element parent, String id, boolean value) {
@@ -96,26 +82,6 @@ public class DefaultExportXMLAction extends DefaultExportAction {
         if (outputDir != null) {
             try {
                 FileUtils.writeStringToFile(new File(outputDir + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS")) + ".xml"), xml);
-            } catch (Exception e) {
-                ERPLoggers.importLogger.error("Export Error: ", e);
-            }
-        }
-        return xml;
-    }
-
-    //новый метод, который заменит все остальные
-    protected String outputXMLString(Document doc, String encoding, String outputDir, String prefix, boolean escapeEntities) {
-        XMLOutputter xmlOutputter = escapeEntities ? new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)) {
-            @Override
-            public String escapeElementEntities(String str) {
-                return str;
-            }
-        } : new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding));
-        String xml = xmlOutputter.outputString(doc);
-        if (outputDir != null) {
-            try {
-                FileUtils.writeStringToFile(new File(outputDir + "/" + (prefix != null ? prefix : "") +
-                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS")) + ".xml"), xml);
             } catch (Exception e) {
                 ERPLoggers.importLogger.error("Export Error: ", e);
             }
