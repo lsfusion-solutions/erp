@@ -79,11 +79,13 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                                                 
                 FOR invoice(InvoiceDetail docd) = doc DO {
                     NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
                         index(expDet) <- index(docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
-                        quantity(expDet) <- OVERRIDE creditQuantity(docd), quantity(docd);
+                        quantity(expDet) <- OVERRIDE creditQuantity(docd), 0; //quantity(docd);
                         priceWithTax(expDet) <- invoicePrice(docd);
                         valueTax(expDet) <- valueVAT(sku(docd));
                         priceNoTax(expDet) <- price(docd);
