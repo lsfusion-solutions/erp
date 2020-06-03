@@ -111,7 +111,7 @@ importItem 'Импорт товаров' () {
     IMPORT TABLE FROM SupermagSettings.file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
 
     EXTERNAL SQL connectionString()    
-        EXEC 'SELECT card.ARTICLE, taxrate.TAXPERCENT AS VAT FROM Supermag.SMCARD card, SUPERMAG.SMTAXIDENTITY taxident, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate, SUPERMAG.SMCARDTAX cardtax WHERE taxident.IDENTID = 0 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = taxident.TAXID AND taxrate.TAXID = taxident.TAXID AND taxrate.RATEID = taxgr.RATEID AND cardtax.ARTICLE = card.article AND cardtax.RGNID = 3  AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = card.article)' TO SupermagSettings.file;
+        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)' TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO taxArticle, vat;
     
