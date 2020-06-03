@@ -1,0 +1,28 @@
+MODULE PurchaseSalePickingOrder;
+
+REQUIRE OrderInvoicePickingOrder, PurchaseSaleOrder, SaleInvoice, PurchaseBin, SalePickingOrder;
+
+NAMESPACE Purchase;
+
+@defineDocumentInterfaceProperty (order, createSalePickingOrder, 'Создать заказ на комплектацию (продажа)');
+
+@defineOperationProperty(createSalePickingOrder, 'Заказ на комплектацию (продажа)', createContainer);
+
+@deriveDocumentOperationProperty(UserOrder, createSalePickingOrder);
+
+EXTEND FORM userOrder
+    PROPERTIES(o) createSalePickingOrder
+;
+DESIGN userOrder {
+    headerCreateDocuments {
+        NEW headerPicking {
+            type = CONTAINERH;
+            caption = 'Заказ на комплектацию';          
+            MOVE PROPERTY(createSalePickingOrder(o));
+
+        }
+    }
+}
+    
+createPickingOrder(SaleOrder o) += createSalePickingOrder(order(o));
+pickingNumber(SaleOrderDetail d) +=  1 IF d IS SaleOrderDetail;
