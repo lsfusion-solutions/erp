@@ -26,32 +26,12 @@ EXTEND FORM userInvoice
     PROPERTIES(d) descriptionInternetOrderDetail
 ;
 
-quantityUserInvoiceDetail (internetOrderDetail, UserInvoice invoice) = 
-    GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail), invoice(invoiceDetail);
-
-countUserInvoiceDetail(internetOrderDetail, invoice) = 
-    GROUP SUM 1 BY internetOrderDetail(UserInvoiceDetail invoiceDetail), invoice(invoiceDetail);
-
-internetOrders 'Интернет-заказы' (Invoice invoice) = GROUP
-                                             CONCAT STRING[255](description(InternetOrderDetail internetOrderDetail)) IF countUserInvoiceDetail(internetOrderDetail, invoice) , ', '
-                                             ORDER internetOrderDetail CHARWIDTH 30 MATERIALIZED;
-                                             
-invoices 'Накладные' (internetOrder) = GROUP CONCAT STRING[255](description(UserInvoice invoice)) IF countUserInvoiceDetail(InternetOrderDetail internetOrderDetail, invoice) , ', '
-                                             ORDER invoice
-                                             BY internetOrder(internetOrderDetail) CHARWIDTH 30;     
-                                                                                     
-invoices 'Накладные' (internetOrderDetail) = GROUP CONCAT STRING[255](description(UserInvoiceDetail detail)) IF internetOrderDetail(detail), ', '
-                                             BY internetOrderDetail(detail) CHARWIDTH 30;                                                                                       
-
 invoiced 'Кол-во (выписано)' (InternetOrderDetail internetOrderDetail) =
     GROUP SUM quantity(UserInvoiceDetail invoiceDetail) BY internetOrderDetail(invoiceDetail);
 invoicedInternetOrderDetail 'Кол-во (выписано)' (internetOrder) = 
     GROUP SUM invoiced(InternetOrderDetail internetOrderDetail) BY internetOrder(internetOrderDetail) IN documentSum;
 
 toInvoice 'Не выписано' (InternetOrderDetail internetOrderDetail) = quantity(internetOrderDetail) (-) invoiced(internetOrderDetail);
-prevToInvoice (InternetOrderDetail internetOrderDetail) = PREV(toInvoice(internetOrderDetail));
-toInvoice (InternetOrder internetOrder) = 
-    GROUP SUM toInvoice(InternetOrderDetail internetOrderDetail) IF toInvoice(internetOrderDetail) >0 BY internetOrder(internetOrderDetail);
     
 EXTEND FORM internetOrders
     PROPERTIES(o) READONLY invoicedInternetOrderDetail 
