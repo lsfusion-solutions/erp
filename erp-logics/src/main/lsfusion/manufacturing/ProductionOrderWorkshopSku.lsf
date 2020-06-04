@@ -20,6 +20,25 @@ WHEN LOCAL CHANGED(workshopStock(Order o)) AND NOT (GROUP SUM 1 IF CHANGED (inWo
 }
 
 showWorkshopGroup (Order o) = workshopStock(o) AND (id(operation(o))=='storeProduction');
+
+toWorkshopStock 'Записать группы в цех' (Order o) {
+    IF workshopStock(o) THEN {
+        LOCAL NESTED st = Stock();
+        LOCAL NESTED incl = BOOLEAN (ItemGroup);
+            st() <- workshopStock(o);
+            incl(ItemGroup g)<- TRUE IF inWorkshop(g,o);
+        NEWSESSION {
+            inWorkshop(ItemGroup g, st()) <- TRUE IF  incl(g);      
+            APPLY;
+            IF NOT canceled() THEN {
+                MESSAGE 'Группы записаны' NOWAIT;    
+            }
+        }
+    } ELSE {
+        MESSAGE 'Не задан цех';
+    }
+}
+
 EXTEND FORM order
     PROPERTIES nameInWorkshopGroups(o)
     TREE skuTree22 sk22 = SkuGroup PARENT parent(sk22)
@@ -27,6 +46,7 @@ EXTEND FORM order
     PROPERTIES inWorkshop(sk22,o)
     ORDERS order(sk22), name(sk22)
     PROPERTIES (o) resetInWorkshopGroups TOOLBAR DRAW sk22 SHOWIF countInWorkshopGroups(o)
+    PROPERTIES toWorkshopStock(o) TOOLBAR DRAW sk22 SHOWIF countInWorkshopGroups(o)
     FILTERGROUP inactive2 FILTER 'Активные' active(sk22) 'F5' DEFAULT     
 ;
 DESIGN order {
