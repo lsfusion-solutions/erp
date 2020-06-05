@@ -6,103 +6,94 @@ PRIORITY SupermagSettings;
 
 NAMESPACE Sale;
 
-
-@exportFormIW(exportSaleInvoiceIW, invoice, invoiceDetail, 'Накладная (перемещение)');
-
-EXTEND FORM exportSaleInvoiceIW FORMEXTID 'PACKAGE'  
-    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'                                                        
-    
-    OBJECTS docd6= InvoiceDetail EXTID 'SLSPECQMISMATCH' IN IW
-    PROPERTIES = docId(docd6) EXTID 'DOCID'    
-    PROPERTIES = 'IW' IF docd6 IS InvoiceDetail EXTID 'DOCTYPE'      
-    PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
-    FILTERS invoice(docd6)==doc     
-    
-    PROPERTIES = index(docd) EXTID 'SPECITEM'
-    PROPERTIES = index(docd4) EXTID 'SPECITEM'
-    PROPERTIES = index(docd6) EXTID 'SPECITEM'
-        
-    OBJECTS o = Order EXTID 'SMCOMMONBASES' IN IW 
-    PROPERTIES = STRING[100](docid(doc)) IF o IS Order EXTID 'ID'  
-    PROPERTIES = 'IW' IF o IS Order EXTID 'DOCTYPE'     
-    PROPERTIES = 'OR' IF o IS Order EXTID 'BASEDOCTYPE'                    
-    PROPERTIES = seriesNumber(o) EXTID 'BASEID' 
-    FILTERS include(o,doc)                
-; 
-
 exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
-    inc(Invoice ii) <- NULL;
+    inc(DocMain expMain) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
-        LOCAL NESTED dt = DATETIME();
-        dt () <- currentDateTime();
-        inc(doc) <- TRUE;
-        // для накладной берем первые параметры, для возврата вторые
-        FOR iterate(INTEGER n, 1, 1) DO {
-                doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
-                opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
-                userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
-                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 
+        LOCAL NESTED dt = DATETIME();        
+        NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',1));
+                id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- seriesNumber(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',1));
+                userop(expMain) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',1));
+                creatdate(expMain) <- shipmentDateTime(doc);                
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
                                       WHEN createShipment(doc) THEN 2 
                                       WHEN isClosed(doc) THEN 0 ELSE 1;
-                docid(doc) <- seriesNumber(doc);                 
-                creatdat(doc) <- shipmentDateTime(doc);
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
-                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
-                clientIndex(doc) <- NULL IF doc IS Invoice;
-                locationFrom(doc) <- supplierStock(doc);
-                locationTo(doc) <- customerStock(doc);                
-                location(doc)  <- NULL IF doc IS Invoice;     
-                priceRoundMode(doc) <- 0 IF doc IS Invoice;                                                
-                id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;
-                skuId(InvoiceDetail docd) <- id(sku(docd));                                                                           
-                quantityExp(InvoiceDetail docd) <- quantity(docd);
-                priceWithTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
-                priceNoTax(InvoiceDetail docd) <- price(docd) WHERE invoice(docd) = doc;
-                priceWithTaxCurr(InvoiceDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE invoice(docd) = doc;
-                sumWithTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
-                sumNoTax(InvoiceDetail docd) <- abs(sum(docd)) WHERE invoice(docd) = doc;
-                sumWithTaxCurr(InvoiceDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE invoice(docd) = doc;
-                priceManufacturer(InvoiceDetail docd) <- manufacturingPrice(docd) WHERE invoice(docd) = doc;
-                extracharge(InvoiceDetail docd) <- (OVERRIDE wholesaleMarkup(docd), 0) WHERE invoice(docd) = doc;
-            //    priceRetail(InvoiceDetail docd) <- retailPrice(docd) WHERE invoice(docd) = doc;
-                sumWithTax(doc) <- GROUP SUM abs(sumWithTax(InvoiceDetail add)) IF invoice(add) = doc;                
-                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(InvoiceDetail add) IF invoice(add) = doc; 
-                createFinobligation(doc)  <- createFinobligation(operation(doc));                               
-                countSpec(doc) <- GROUP SUM 1 IF invoice(InvoiceDetail docd) = doc;
-           TRY {                
-                EXPORT exportSaleInvoiceIW XML TO System.exportFile;                  
-           } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           
-           TRY {          
-                IF countSpec(doc) > 0 THEN {
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(expMain); 
+                invoiceDocCreate(expMain) <- dateTime(doc);
+                invoiceDocSum(expMain) <- OVERRIDE overInvoiceDocSum(doc), sumInvoiceConsignmentDetail(doc);
+                invoiceDocNumber(expMain) <- CONCAT ' ', invoiceNumber(doc), invoiceSeries(doc); //OVERRIDE  (CONCAT ' ', invoiceNumber(doc), invoiceSeries(doc)), seriesNumber(doc);      
+                priceRoundMode(expMain) <- 4 IF doc IS Invoice;                                                
+                createFinobligation(expMain)  <- createFinobligation(operation(doc));                               
+                locationFrom(expMain) <- id(supplierStock(doc));
+                locationTo(expMain) <- id(customerStock(doc));
+                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));                   
+                                                           
+                FOR invoice(InvoiceDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE quantity(docd), 0;
+                        blankquantity(expDet) <- OVERRIDE quantityOrder(docd), quantity(docd), 0;
+                        priceWithTax(expDet) <- invoicePrice(docd);
+                        valueTax(expDet) <- valueVAT(docd);
+                        priceNoTax(expDet) <- price(docd);
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- OVERRIDE abs(invoiceSum(docd)), 0;
+                        sumNoTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
+                        sumTax(expDet) <- OVERRIDE VATSum(docd), 0;
+                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
+                        extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
+                     //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
+                    }
+                    
+                }           
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                
+                FOR include(Order o, doc) DO NEW b = DocBase {
+                    basisDoc(expMain, b) <- TRUE;
+                    docid(b) <- seriesNumber(o);
+                    doctype(b) <- 'OR';
                 }
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
-           }
-           
-           TRY 
-           {      
-                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
-                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
-                    FOR inc(Invoice ii)  DO NEW log = SupermagLog {
-                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
-                        dateTime(log) <- currentDateTime();
-                        userLogin(log) <- login(currentUser()); 
-                        nameContact(log) <- STRING[100](name(currentUser()));
-                        stockDocumentLedger(log) <- invoiceShipment(ii);
-                    }     
-                    APPLY NESTED LOCAL;
-                }             
-                     
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
-        } 
+                
+                FOR ContractSku c = contractSku(doc) DO NEW b = DocBase {
+                    basisDoc(expMain, b) <- TRUE;
+                    docid(b) <- seriesNumber(c);
+                    doctype(b) <- 'CO';
+                }                                
+                
+         //       acceptsum(expMain)  <- creditInvoiceSumInvoiceDetail(doc);
+                basesum(expMain) <- invoiceSumInvoiceDetail(doc);
+                calcenddate(expMain) <- OVERRIDE dateTime(lastInvoiceContractLedger(doc)), shipmentDateTime(doc);
+                paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
+                finagent(expMain) <- id(supplier(doc)); 
+                iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
+                
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportIW XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + 'IW_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }                
+                inc(expMain) <- NULL;
+        }                        
     }       
-    inc(Invoice ii) <- NULL;
+    inc(DocMain expMain) <- NULL;
     APPLY;
 }
 
