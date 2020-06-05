@@ -56,6 +56,7 @@ doctype(DocDetail det) = doctype(docMain(det));
 index = DATA LOCAL INTEGER (DocDetail);
 skuId = DATA LOCAL STRING[100] (DocDetail);
 quantity = DATA LOCAL NUMERIC[16,5] (DocDetail);
+blankquantity = DATA LOCAL NUMERIC[16,5] (DocDetail);
 priceRoundMode = DATA LOCAL INTEGER (DocMain);
 priceWithTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
 priceWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);    
@@ -179,7 +180,7 @@ FORM exportWI FORMEXTID 'PACKAGE'
     PROPERTIES = docid(docd6) EXTID 'DOCID'    
     PROPERTIES = doctype(docd6) EXTID 'DOCTYPE'      
     PROPERTIES = index(docd6) EXTID 'SPECITEM'
-    PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
+    PROPERTIES = blankquantity(docd6) EXTID 'QUANTBYDOC'                  
     FILTERS docMain(docd6)==doc     
                   
     OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WI 
@@ -323,6 +324,96 @@ FORM exportWO FORMEXTID 'PACKAGE'
     FILTERS basisDoc(doc, b)               
 ; 
 
+GROUP IW;
+GROUP IW_SMDOCUMENTS EXTID 'SMDOCUMENTS': IW;
+GROUP IW_SMCOMMONBASES EXTID 'SMCOMMONBASES': IW;
+GROUP IW_SMSPEC EXTID 'SMSPEC': IW;
+
+FORM exportIW FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = opname(doc)  EXTID 'description'      
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN IW_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN IW_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN IW_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN IW_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN IW_SMDOCUMENTS           
+    PROPERTIES = opcode(doc) EXTID 'OPCODE' IN IW_SMDOCUMENTS
+    PROPERTIES = userop(doc) EXTID 'USEROP' IN IW_SMDOCUMENTS        
+    PROPERTIES = locationTo(doc) EXTID 'LOCATIONTO' IN IW_SMDOCUMENTS        
+    PROPERTIES = locationFrom(doc) EXTID 'LOCATIONFROM' IN IW_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN IW_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN IW_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN IW_SMDOCUMENTS      
+    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN IW_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN IW_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN IW_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN IW_SMDOCUMENTS      
+    PROPERTIES = note(doc) EXTID 'COMMENTARY' IN IW_SMDOCUMENTS     
+    FILTERS inc(doc)                 
+             
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN IW 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceWithTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)==doc
+
+    OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN WO
+    PROPERTIES = docid(docd3) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd3) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd3) EXTID 'SPECITEM'
+    PROPERTIES = 0 IF docd3 IS DocDetail  EXTID 'TAXID'        
+    PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
+    PROPERTIES = sumTax(docd3) EXTID 'TAXSUM'            
+    FILTERS docMain(docd3)==doc   
+             
+    OBJECTS docd4 = DocDetail EXTID 'SMSPECBY' IN IW
+    PROPERTIES = docid(docd4) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd4) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd4) EXTID 'SPECITEM'
+    PROPERTIES = extracharge(docd4) EXTID 'EXTRACHARGE'  
+    PROPERTIES = priceManufacturer(docd4) EXTID 'MANUFACTURERSPRICE'     
+    PROPERTIES = priceRetail(docd4) EXTID 'RETAILPRICE'       
+    PROPERTIES = 0 IF docd4 IS DocDetail EXTID 'STATEREGULATION'                           
+    FILTERS docMain(docd4)==doc    
+           
+    OBJECTS docd5 = DocDetail EXTID 'SLSPECPACKS' IN WO
+    PROPERTIES = docid(docd5) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd5) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd5) EXTID 'SPECITEM'
+    PROPERTIES = -1 IF docd5 IS DocDetail EXTID 'PACKNUM'        
+    PROPERTIES = 0 IF docd5 IS DocDetail EXTID 'NPACKS'       
+    PROPERTIES = 0 IF docd5 IS DocDetail EXTID 'PACKSIZE'     
+    PROPERTIES = exportTime(toDateTime(expiryDate(docd5))) EXTID 'VALIDDATE'                
+    FILTERS docMain(docd5)==doc    
+    
+    OBJECTS docd6 = DocDetail EXTID 'SLSPECQMISMATCH' IN WO
+    PROPERTIES = docid(docd6) EXTID 'DOCID'    
+    PROPERTIES = doctype(docd6) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd6) EXTID 'SPECITEM'
+    PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
+    FILTERS docMain(docd6)==doc        
+        
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WI 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b)               
+; 
+
 GROUP AC;
 GROUP AC_SMDOCUMENTS EXTID 'SMDOCUMENTS': AC;
 GROUP AC_SMSPEC EXTID 'SMSPEC': AC;
@@ -409,7 +500,6 @@ FORM exportAC FORMEXTID 'PACKAGE'
     PROPERTIES = docid(b) EXTID 'BASEID'    
     FILTERS basisDoc(doc, b)                       
 ;                                                
-
 
 GROUP ORD EXTID 'OR';
 GROUP OR_SMDOCUMENTS EXTID 'SMDOCUMENTS': ORD;
