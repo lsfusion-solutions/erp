@@ -20,9 +20,12 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocksImport() + ') AND dd.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\''; 
            
-    EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, d.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() TO SupermagSettings.file;   
-   
+    sqlString() <- 'Select d.ID, d.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказов (закупка)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+           
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, clientIndex, location, comment, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin;
        
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -30,7 +33,7 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
                                                 STRING(clientIndex(i)), STRING(location(i)),  STRING(supplyDate(i)), STRING(supplyTimeMin(i)), STRING(supplyTimeTillMin(i))) IF idDoc(i);                 
        
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.DocState, d.ClientIndex, d.Location, d.Commentary, dd.OrderDate, dd.SupplyDate, dd.SupplyTime as SupplyTimeMinutes, DD.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments d, Supermag.SMDocOR dd WHERE dd.DocType(+) = d.DocType AND d.DocType = \'OR\' AND dd.ID(+) = d.ID AND ' + filterSql() ;
+        MESSAGE sqlString();
         MESSAGE currentVersion(0);
     }
        
@@ -56,10 +59,13 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
         imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);
     }  
-       
-    EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, d.DOCTYPE, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMDocOR dd, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND cb.ID(+) = d.ID AND cb.DOCTYPE(+) = d.DOCTYPE AND ' + filterSql() TO SupermagSettings.file;
-     
+
+    sqlString() <- 'Select d.ID, d.DOCTYPE, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMDocOR dd, Supermag.SMCommonBases cb where DD.DocType(+)= D.DocType and DD.ID(+)= D.ID AND cb.ID(+) = d.ID AND cb.DOCTYPE(+) = d.DOCTYPE AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказов (закупка)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+            
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, baseNumber, baseDoctype;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -79,9 +85,12 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     //импорт спецификаций
     LOCAL imported = BOOLEAN (Purchase.UserOrderDetail);
 
-    EXTERNAL SQL connectionString() 
-            EXEC 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+    sqlString() <- 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказов (закупка)', sqlString());
     
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+
     IMPORT TABLE FROM SupermagSettings.file() TO docType, docNumber, specItem, idItem, quantity, itemPrice, totalPrice;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -89,7 +98,7 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), STRING(itemPrice(i)), STRING(totalPrice(i)) ) IF idDet(i);                  
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'SELECT d.DOCTYPE, ds.DOCID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMSpecOR ds, Supermag.SMDocOR dd, Supermag.SMDocuments d WHERE dd.DocType(+)= d.DocType AND d.DocType = \'OR\' AND ds.DocType = \'OR\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql();
+        MESSAGE sqlString();
     }
 
     FOR NOT Purchase.userOrderDetail(idDet(INTEGER i)) AND Purchase.userOrder(idDoc(i)) DO NEW d = Purchase.UserOrderDetail {
@@ -172,10 +181,13 @@ importInternalOrder 'Импорт заказов (складских требо�
     
     filterSql() <- 'D.DocType = \'SO\' AND DD.DocType(+)= D.DocType AND DD.ID(+)= D.ID AND d.docstate IN (0, 1, 2, 3) AND (d.location IN ('+ stocksImport() + ') OR dd.location IN ('+ stocksImport() + ') ) AND dd.DeliveryDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(SupermagSettings.numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + SupermagSettings.numberImportDocument() + '\''; 
-                                      
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(D.bornin)), D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE ' + filterSql() TO SupermagSettings.file;   
+ 
+    sqlString() <- 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(D.bornin)), D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт складские требования', sqlString());
     
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+                                      
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, docDate, locationTo, comment, deliveryDate, deliveryTime, locationFrom;   
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -183,7 +195,7 @@ importInternalOrder 'Импорт заказов (складских требо�
                                                 STRING(locationTo(i)), STRING(locationFrom(i)),  STRING(deliveryDate(i)), STRING(deliveryTime(i))) IF idDoc(i);                 
 
     IF length(SupermagSettings.numberImportDocument()) > 0 THEN { 
-        MESSAGE 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), D.DocState, D.createdat, D.Location, D.Commentary, DD.DeliveryDate, DD.DeliveryTime, DD.location AS supplierStock from Supermag.SMDocuments d, Supermag.SMStoreOrders dd WHERE ' + filterSql(); 
+        MESSAGE sqlString(); 
         MESSAGE currentVersion(0);
     }
     
@@ -210,9 +222,11 @@ importInternalOrder 'Импорт заказов (складских требо�
         lastVersion(doc) <- currentVersion(i);
     }  
    
-   
-    EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, d.DOCTYPE, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMCommonBases cb where cb.ID(+) = d.ID AND cb.DOCTYPE(+) = d.DOCTYPE AND ' + filterSql() TO SupermagSettings.file;
+    sqlString() <- 'Select d.ID, d.DOCTYPE, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMCommonBases cb where cb.ID(+) = d.ID AND cb.DOCTYPE(+) = d.DOCTYPE AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт складские требования', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
      
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, baseNumber, baseDoctype;
 
@@ -220,7 +234,7 @@ importInternalOrder 'Импорт заказов (складских требо�
     idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));    
        
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.DOCTYPE, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMCommonBases cb where cb.ID(+) = d.ID AND cb.DOCTYPE(+) = d.DOCTYPE AND ' + filterSql();
+        MESSAGE sqlString();
         MESSAGE idDoc(0)  +  ' ' + idBase(0);
     }
        
@@ -231,13 +245,16 @@ importInternalOrder 'Импорт заказов (складских требо�
     overImportInternalOrder2();
    
     //импорт спецификаций
-    EXTERNAL SQL connectionString()  
-            EXEC 'SELECT d.DOCTYPE, d.ID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+    sqlString() <- 'SELECT d.DOCTYPE, d.ID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт складские требования', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO docType, docNumber, specItem, idItem, quantity, itemPrice, totalPrice;
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'SELECT d.DOCTYPE, d.ID, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMStoreOrders dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType AND D.DocType = \'SO\' AND ds.DocType = \'SO\' AND ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql();
+        MESSAGE sqlString();
     }
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -279,8 +296,11 @@ importCustomerOrder 'Импорт заказов (продажа)' () {
     filterSql() <- 'd.docstate IN (0, 2, 3) AND d.location IN ('+ stocksImport() + ') and dd.SupplyDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'd.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
 
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() 
-    EXEC 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql() TO SupermagSettings.file;   
+    sqlString() <- 'Select D.ID, D.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), D.DocState, D.ClientIndex, D.Location, D.Commentary, DD.OrderDate, DD.SupplyDate, DD.SupplyTime from Supermag.SMDocuments D, Supermag.SMDocOc DD where DD.DocType(+)= D.DocType and D.DocType = \'OC\' and DD.ID(+)= D.ID AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказы (продажа)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, clientIndex, location, comment, docDate, supplyDate, supplyTime;
 
@@ -312,8 +332,11 @@ importCustomerOrder 'Импорт заказов (продажа)' () {
     }  
 
     //импорт спецификаций
-    EXTERNAL SQL connectionString()  
-            EXEC 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql() TO SupermagSettings.file;
+    sqlString() <- 'SELECT ds.DOCID, d.DOCTYPE, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.TOTALPRICE FROM Supermag.SMDocuments d, Supermag.SMDocOc dd, Supermag.SMSpec ds WHERE DD.DocType(+)= D.DocType and D.DocType = \'OC\' and ds.DocType = \'OC\' and ds.DOCID = dd.id AND dd.id = d.id AND ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказы (продажа)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, quantity, itemPrice, totalPrice;
 
