@@ -12,7 +12,8 @@ CLASS DataPriceListType 'Пользовательский вид цены' : Led
 id (DataPriceListType p) += id(p);
 
 batchLedger 'Использовать для партий свои цены' = DATA BOOLEAN (DataPriceListType);
-batch (DataPriceListType priceListType, Stock stock) += WHEN priceListType IS DataPriceListType AND isCompany(stock)
+externalStocksBatchLedger 'Использовать для партий свои цены и для чужих складов' = ABSTRACT BOOLEAN (DataPriceListType);
+batch (DataPriceListType priceListType, Stock stock) += WHEN priceListType IS DataPriceListType AND (isCompany(stock) OR (stock IS Stock AND externalStocksBatchLedger(priceListType)))
                                                         THEN batchLedger(priceListType);
 
 name 'Наименование' = DATA ISTRING[50](DataPriceListType);
