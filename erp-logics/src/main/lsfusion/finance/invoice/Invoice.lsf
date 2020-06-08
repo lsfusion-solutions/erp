@@ -413,7 +413,9 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentInterfaceHeaderItemCount(invoice);    
     @defineDocumentHeaderSkuQuantity(invoice, sku);
     @defineDocumentHeaderSkuQuantity(userInvoice, sku);
-    @defineDocumentInterfaceHeaderSum(invoice);
+
+    sumInvoiceDetail '{document.sum.of}' = GROUP SUM sum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED;
+    sumUserInvoiceDetail '{document.sum.of}' = GROUP SUM sum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
 
     @defineDocumentInterfaceHeaderItemSum (invoice, VAT, VAT); //-- сумма НДС поставщика (с разбивкой по таре, товару...)
     @defineDocumentInterfaceHeaderItemSum (invoice, , ); //-- сумма поставщика (с разбивкой по таре, товару...)
