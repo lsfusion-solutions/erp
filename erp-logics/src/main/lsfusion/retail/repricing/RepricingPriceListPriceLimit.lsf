@@ -5,12 +5,17 @@ REQUIRE RepricingPriceList, PriceLimit;
 NAMESPACE Repricing;
 
 skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
+
+overLimitBasePrice = ABSTRACT NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
+limitBasePrice(Sku s, DepartmentStore d, DATETIME  dt) = round2(OVERRIDE overLimitBasePrice(s,d,dt), 
+                                                                         prevPriceA(basePriceListType(priceLimitPriceListType(d)), s, d, dt));
+
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
 
     limitPrice(Sku sku) <- IF markup(priceLimitPriceListType(d), sku) > 1 THEN
                                 round([ X*(Y+100.0)*(Z+100.0)/10000.0](
-                                      prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+                                      limitBasePrice(sku, d, dt),
                                       markup(priceLimitPriceListType(d), sku),
                                       valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku))
                            ELSE
@@ -18,7 +23,7 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
                                     markup(priceLimitPriceListType(d), sku)
                                 ELSE
                                     round([ (X+Y)*(Z+100.0)/100.0](
-                                        prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+                                        limitBasePrice(sku, d, dt),
                                         markup(priceLimitPriceListType(d), sku),
                                         valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
 
