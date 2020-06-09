@@ -1,6 +1,6 @@
 MODULE SupermagPricing;
 
-REQUIRE SupermagSettings, Time,  Store, Repricing, Pricing, SupermagFormMeta, PriceList, PurchaseInvoice, SaleInvoice;
+REQUIRE SupermagSettings, SupermagExportForms, Time,  Store, Repricing, Pricing, SupermagFormMeta, PriceList, PriceListOperation, PurchaseInvoice, SaleInvoice;
 
 
 //---------------------------------------------------------------------------------------------------------импорт
@@ -35,174 +35,105 @@ DESIGN repricings {
     }
 }
 
-
-@exportFilds(repricing, repricingDetail);
-
-GROUP AC;
-GROUP SMDOCUMENTSAC EXTID 'SMDOCUMENTS': AC;
-GROUP SMCOMMONBASESAC EXTID 'SMCOMMONBASES': AC;
-GROUP SMSPECAC EXTID 'SMSPEC': AC;
-
-FORM exportAC2 FORMEXTID 'PACKAGE' 
-    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
-
-    OBJECTS doc = Repricing EXTID 'POSTOBJECT'
-    PROPERTIES ATTR = 'normal' IF doc IS Repricing EXTID 'action'      
-    PROPERTIES ATTR = opname(doc) IF doc IS Repricing EXTID 'description'  
-    
-    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
-    PROPERTIES = doctype(doc) IF doc IS Repricing EXTID 'DOCTYPE' IN SMDOCUMENTSAC
-    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SMDOCUMENTSAC
-    PROPERTIES = exportTime(creatdat(doc))  EXTID 'CREATEDAT' IN SMDOCUMENTSAC    
-    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN SMDOCUMENTSAC    
-    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN SMDOCUMENTSAC           
-    PROPERTIES = opcode(doc) IF doc IS Repricing EXTID 'OPCODE' IN SMDOCUMENTSAC
-    PROPERTIES = 0 IF doc IS Repricing EXTID 'CURRENCYTYPE' IN SMDOCUMENTSAC        
-    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN SMDOCUMENTSAC 
-    PROPERTIES = 0 IF doc IS Repricing EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTSAC      
-    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN SMDOCUMENTSAC    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 IF doc IS Repricing EXTID 'TOTALSUMCUR' IN SMDOCUMENTSAC    
-    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN SMDOCUMENTSAC       
-    PROPERTIES = 1 IF doc IS Repricing  EXTID 'ISROUBLES' IN SMDOCUMENTSAC      
-    PROPERTIES = note(doc) IF doc IS Repricing EXTID 'COMMENTARY' IN SMDOCUMENTSAC     
-                                                            
-    OBJECTS docd = RepricingDetail EXTID 'SMSPEC' IN AC 
-    PROPERTIES = doctype(repricing(docd)) IF docd IS RepricingDetail EXTID 'DOCTYPE'      
-    PROPERTIES = docId(docd) EXTID 'DOCID'    
-    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
-    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
-    PROPERTIES = OVERRIDE abs(quantityExp(docd)), 0 EXTID 'QUANTITY'
-    PROPERTIES = OVERRIDE priceWithTax(docd), 0 EXTID 'ITEMPRICE'     
-    PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
-    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
-    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
-    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
-    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
-    FILTERS repricing(docd)==doc
-    FILTERS inc(doc)  
-;                                                
-
-EXTEND FORM exportAC2
-    PROPERTIES = id(location(doc)) EXTID 'LOCATION' IN SMDOCUMENTSAC
-;
-
-GROUP SMACTS EXTID 'SMACTS' : AC;
-GROUP SMSPECACTS EXTID 'SMSPECACTS' : AC;
-
-EXTEND FORM exportAC2
-    PROPERTIES = 'AC' IF doc IS Repricing EXTID 'DOCTYPE' IN SMACTS
-    PROPERTIES = STRING[100](docid(doc))  EXTID 'ID' IN SMACTS
-    PROPERTIES = priceType(doc) EXTID 'PRICETYPE' IN SMACTS
-    PROPERTIES = exportTime(execDate(doc)) EXTID 'EXECDATE' IN SMACTS     
-    PROPERTIES = exportTime(execTime(doc)) EXTID 'EXECTIME' IN SMACTS     
-    PROPERTIES = 0 IF doc IS Repricing EXTID 'EXECIF' IN SMACTS      
-    PROPERTIES = reasonPricing(doc)EXTID 'REASON' IN SMACTS      
-    PROPERTIES = '0' IF doc IS Repricing EXTID 'LABELSPRINTED' IN SMACTS      
-    PROPERTIES = '0' IF doc IS Repricing EXTID 'CHARGEFULLPRICE' IN SMACTS      
-    PROPERTIES = 0 IF doc IS Repricing EXTID 'UTCOFFSET' IN SMACTS      
-    PROPERTIES = '0' IF doc IS Repricing EXTID 'SUMMERTIME' IN SMACTS      
-
-    OBJECTS docd2 = RepricingDetail EXTID 'SMSPECACTS' IN AC 
-    PROPERTIES = 'AC' IF docd2 IS RepricingDetail EXTID 'DOCTYPE'     
-    PROPERTIES = docId(docd2) EXTID 'DOCID'   
-    PROPERTIES = oldPrice(docd2) EXTID 'OLDPRICE'
-    PROPERTIES = flags(docd2) EXTID 'FLAGS'
-    PROPERTIES = revalSum(docd2) EXTID 'REVALSUM'
-    PROPERTIES = revalOperQuantity(docd2) EXTID 'REVALOPERQUANTITY'
-    FILTERS repricing(docd2)==doc
-    
-    OBJECTS docd3 = RepricingDetail EXTID 'SMSPECTAX' IN AC
-    PROPERTIES = docId(docd3) EXTID 'DOCID'    
-    PROPERTIES = 'AC' IF docd3 IS RepricingDetail EXTID 'DOCTYPE'      
-    PROPERTIES = 0 IF docd3 IS RepricingDetail  EXTID 'TAXID'        
-    PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
-    PROPERTIES = sumTax(docd3) EXTID 'TAXSUM'            
-    FILTERS repricing(docd3)==doc       
-;
-
-EXTEND FORM exportAC2
-    PROPERTIES = index(docd) EXTID 'SPECITEM'
-    PROPERTIES = index(docd2) EXTID 'SPECITEM'    
-    PROPERTIES = index(docd3) EXTID 'SPECITEM'    
-;
-
 exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
-    inc(Repricing ii) <- NULL;
+
+    inc(DocMain expMain) <- NULL;
         LOCAL NESTED dt = DATETIME();
-        dt () <- currentDateTime();
-        inc(doc) <- TRUE;
-                doctype(doc) <- 'AC';
-                docid(doc) <- seriesNumber(doc);                 
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
-                opcode(doc) <- '-1';
-                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 
+        NEW expMain = DocMain {                       
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- 'AC';
+                id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- seriesNumber(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- '-1';
+                creatdate(expMain) <- shipmentDateTime(doc);                
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
                                       WHEN isClosed(doc) THEN 0 ELSE 2;
-                creatdat(doc) <- shipmentDateTime(doc);
-                execDate(doc) <- postedTime(doc);
-                execTime(doc) <- postedTime(doc);                
-                priceType(doc) <- STRING[10](replace(id(retailPriceListType(stock(doc))),'D',''));
-                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
-                location(doc)  <- stock(doc);                        
-                reasonPricing(doc) <- id(operation(doc));     
-                priceRoundMode(doc) <- 0;                                                
-                id(RepricingDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE repricing(docd) = doc;
-                skuId(RepricingDetail docd) <- id(sku(docd));                                                                           
-                quantityExp(RepricingDetail docd) <- quantity(docd);
-                valueTax(RepricingDetail docd) <- valueVAT(docd) WHERE repricing(docd) = doc;
-                priceWithTax(RepricingDetail docd) <- retailPrice(docd) WHERE repricing(docd) = doc;
-                priceNoTax(RepricingDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),4))) WHERE repricing(docd) = doc;
-                priceWithTaxCurr(RepricingDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE repricing(docd) = doc;
-                sumWithTax(RepricingDetail docd) <- retailSum(docd) WHERE repricing(docd) = doc;
-                sumNoTax(RepricingDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE repricing(docd) = doc;
-                sumWithTaxCurr(RepricingDetail docd) <-round(sumWithTax(docd)/curRate(doc),4) WHERE repricing(docd) = doc;
-                sumTax(RepricingDetail docd) <- VATSum(docd) WHERE repricing(docd) = doc;
-                oldPrice(RepricingDetail docd) <- curRetailPrice(docd) WHERE repricing(docd) = doc;
-                flags(RepricingDetail docd) <- '0' WHERE repricing(docd) = doc;
-                revalSum(RepricingDetail docd) <- 0.00 WHERE repricing(docd) = doc;
-                revalOperQuantity(RepricingDetail docd) <- 0.00 WHERE repricing(docd) = doc;
-                 
-                sumWithTax(doc) <- GROUP SUM abs(sumWithTax(RepricingDetail add)) IF repricing(add) = doc;                
-                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(RepricingDetail add) IF repricing(add) = doc; 
-                countSpec(doc) <- GROUP SUM 1 IF repricing(RepricingDetail docd) = doc;
-           TRY {                
-                EXPORT exportAC2 XML TO System.exportFile;
-           } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           
-           TRY {    
-                IF countSpec(doc) > 0 THEN {      
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                execDate(expMain) <- postedTime(doc);
+                execTime(expMain) <- postedTime(doc);                
+                priceRoundMode(expMain) <- 0 IF doc IS Repricing;                                                
+                reasonPricing(expMain) <- id(operation(doc));     
+                location(expMain)  <- id(stock(doc));                        
+                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
+                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(stock(doc))),'D',''));
+                
+                FOR repricing(RepricingDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(docd) <- (CONCAT '~',id(expMain),index(expDet));
+                        id(expDet) <- STRING[50](id(docd));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE quantity(docd), 0;
+                        
+                        priceWithTax(expDet) <- retailPrice(docd);
+                        valueTax(expDet) <- valueVAT(docd);
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round(priceWithTax(expDet) / (1 + valueTax(expDet)/100),4)));
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- retailSum(docd);
+                        sumNoTax(expDet) <- NUMERIC[18,4] ( abs(round( sumWithTax(expDet) / (1 + valueTax(expDet)/100),2)));
+                        sumTax(expDet) <- VATSum(docd);
+                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);
+                        oldPrice(expDet) <- curRetailPrice(docd);
+                        flags(expDet) <- '0';
+                        revalSum(expDet) <- 0.00;
+                        revalOperQuantity(expDet) <- 0.00;                                            
+                    }
+                }                                              
+                         
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                                                                                
+                FOR basisDoc(doc, Document base) DO {
+                    IF base IS PriceList THEN NEW b = DocBase {
+                        basisDoc(expMain, b) <- TRUE;
+                        docid(b) <- seriesNumber[UserPriceList](base);
+                        doctype(b) <- CASE WHEN id(operation[UserPriceList](base)) = 'promotion' THEN 'МА'
+                                           WHEN id(operation[UserPriceList](base)) = 'retail' THEN 'АB';
+                    }    
                 }
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
-           }
+                
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportWI XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Акт переоценки', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
-           TRY 
-           {      
-                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
+                    TRY {    
+                        WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                        WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
+                    }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Акт переоценки', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());                     
+           
+//                   TRY 
+//                   {      
+//                        fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
 //                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
 //                    FOR inc(Repricing ii)  DO NEW log = SupermagLog {
 //                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
 //                        dateTime(log) <- currentDateTime();
 //                        userLogin(log) <- login(currentUser()); 
 //                        nameContact(log) <- STRING[100](name(currentUser()));
-////                        stockDocumentLedger(log) <- invoiceShipment(ii);
+//                        stockDocumentLedger(log) <- invoiceShipment(ii);
 //                    }     
 //                    APPLY NESTED LOCAL;
 //                }             
                      
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
-    inc(Repricing ii) <- NULL;
-    APPLY;
+//                   } CATCH {
+//                        logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+//                   }
+                }
+        }        
+        inc(DocMain expMain) <- NULL;
+        APPLY;
 }
 
 exportRepricing (Repricing doc) + {
     exportRepricingAC(doc);
 }
-
 
 overImportRepricing ABSTRACT LIST();
 
@@ -222,12 +153,13 @@ importRepricing 'Импорт актов переоценки' () {
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docDate, reason, docState, location, comment;
-
-    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Repricing.operation(TEXT (reason(i))) DO NEW o = Repricing.Operation {
-        id(o) <- ISTRING[100](reason(i));
-        name(o) <- ISTRING[100](reason(i));
-        allRoles(o) <- TRUE;
-    }
+    
+    // добавляет пустые операции надо проверить
+//    FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Repricing.operation(TEXT (reason(i))) DO NEW o = Repricing.Operation {
+//        id(o) <- ISTRING[100](reason(i));
+//        name(o) <- ISTRING[100](reason(i));
+//        allRoles(o) <- TRUE;
+//    }
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(location(i)) ) IF idDoc(i);                 
@@ -308,7 +240,7 @@ importRepricing 'Импорт актов переоценки' () {
     idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseType(i)), STRING(baseNumber(i)));
 
     FOR Repricing.UserRepricing doc == Repricing.userRepricing(idDoc(INTEGER i)) AND (baseType(i) = 'AB' OR baseType(i) = 'MA') DO {    
-        basisDoc(doc, Document d) <- TRUE IF d = userPriceList(idBase(i)); 
+        basisDoc(doc, Document base) <- TRUE IF base = userPriceList(idBase(i)); 
     }    
        
     APPLY;       
@@ -334,6 +266,8 @@ DESIGN pricings {
     }
 }
 
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 imported 'Импортируемая' = DATA BOOLEAN (Pricing.Operation);
 
 EXTEND FORM Pricing.operation PROPERTIES imported(o);
@@ -348,78 +282,66 @@ userPricingDetail = GROUP AGGR UserPricingDetail d WHERE d IS UserPricingDetail 
 
 @settingIntegration(Pricing, PricingDetail);
 
-@exportFilds(pricing, pricingDetail);
-//--------------------------------------------------------------------------------------------------------------------------------------------------
 exportPricingAC 'Экспорт в супермаг' (Pricing doc) {
-    inc(Pricing ii) <- NULL;
-        LOCAL NESTED dt = DATETIME();
-        dt () <- currentDateTime();
-        inc(doc) <- TRUE;
-                doctype(doc) <- 'AC';
-                docid(doc) <- seriesNumber(doc);                 
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                 
-                opcode(doc) <- '-1';
-                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 
+    inc(DocMain expMain) <- NULL IF expMain IS DocMain ;    
+    LOCAL NESTED dt = DATETIME();
+    NEW expMain = DocMain {
+                inc(expMain) <- TRUE;
+                doctype(expMain) <- 'AC';
+                docid(expMain) <- seriesNumber(doc);                 
+                id(doc) <- CONCAT '', doctype(expMain), docid(expMain);
+                id(expMain) <- id(doc);                  
+                opcode(expMain) <- '-1';
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
                                       WHEN isClosed(doc) THEN 0 ELSE 2;
-                creatdat(doc) <- dateTime(doc);
-                execDate(doc) <- postedTime(doc);
-                execTime(doc) <- postedTime(doc);                
-                priceType(doc) <- STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
-                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(doc); 
-                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
-                location(doc)  <- departmentStore(doc);                        
-                reasonPricing(doc) <- id(operation(doc));     
-                priceRoundMode(doc) <- 0;                                                
-                id(PricingDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE pricing(docd) = doc;
-                skuId(PricingDetail docd) <- id(sku(docd));                                                                           
-                quantityExp(PricingDetail docd) <- quantity(docd);
-                valueTax(PricingDetail docd) <- valueRetailVAT(docd) WHERE pricing(docd) = doc;
-                priceWithTax(PricingDetail docd) <- retailPrice(docd) WHERE pricing(docd) = doc;
-                priceNoTax(PricingDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) / (1 + valueTax(docd)/100),4))) WHERE pricing(docd) = doc;
-                priceWithTaxCurr(PricingDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE pricing(docd) = doc;
-                sumWithTax(PricingDetail docd) <- retailSum(docd) WHERE pricing(docd) = doc;
-                sumNoTax(PricingDetail docd) <- NUMERIC[18,4] ( abs(round( sumWithTax(docd) / (1 + valueTax(docd)/100),2))) WHERE pricing(docd) = doc;
-                sumWithTaxCurr(PricingDetail docd) <-round(sumWithTax(docd)/curRate(doc),4) WHERE pricing(docd) = doc;
-                sumTax(PricingDetail docd) <- retailVATSum(docd) WHERE pricing(docd) = doc;
-                oldPrice(PricingDetail docd) <- prevRetailPricingPriceB(sku(docd), departmentStore(docd), dateTime(docd))  WHERE pricing(docd) = doc;
-                flags(PricingDetail docd) <- '0' WHERE pricing(docd) = doc;
-                revalSum(PricingDetail docd) <- 0.00 WHERE pricing(docd) = doc;
-                revalOperQuantity(PricingDetail docd) <- 0.00 WHERE pricing(docd) = doc;
-                 
-                sumWithTax(doc) <- GROUP SUM abs(sumWithTax(PricingDetail add)) IF pricing(add) = doc;                
-                sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(PricingDetail add) IF pricing(add) = doc; 
-                countSpec(doc) <- GROUP SUM 1 IF pricing(PricingDetail docd) = doc;
-           TRY {                
-                EXPORT exportAC2 XML TO System.exportFile;
-           } CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           
-           TRY {    
-                IF countSpec(doc) > 0 THEN {      
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                }
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
-           }
-           
-           TRY 
-           {      
-                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
-//                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
-//                    FOR inc(Repricing ii)  DO NEW log = SupermagLog {
-//                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
-//                        dateTime(log) <- currentDateTime();
-//                        userLogin(log) <- login(currentUser()); 
-//                        nameContact(log) <- STRING[100](name(currentUser()));
-////                        stockDocumentLedger(log) <- invoiceShipment(ii);
-//                    }     
-//                    APPLY NESTED LOCAL;
-//                }             
-                     
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
-    inc(Pricing ii) <- NULL;
+                creatdate(expMain) <- dateTime(doc);
+                execDate(expMain) <- postedTime(doc);
+                execTime(expMain) <- postedTime(doc);                
+                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
+                lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(expMain); 
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                location(expMain)  <- id(departmentStore(doc));
+                reasonPricing(expMain) <- id(operation(doc));;     
+                priceRoundMode(expMain) <- 0;
+                FOR pricing(PricingDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(docd) <- (CONCAT '~',id(expMain),index(expDet));
+                        id(expDet) <- STRING[50](id(docd));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- quantity(docd);
+                        valueTax(expDet) <- valueRetailVAT(docd);
+                        priceWithTax(expDet) <- retailPrice(docd);
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueTax(expDet)/100),4)));
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- retailSum(docd);
+                        sumNoTax(expDet) <- NUMERIC[18,4] ( abs(round( sumWithTax(expDet) / (1 + valueTax(expDet)/100),2)));
+                        sumWithTaxCurr(expDet) <-round(sumWithTax(expDet)/curRate(expMain),4);
+                        sumTax(expDet) <- retailVATSum(docd);
+                        oldPrice(expDet) <- prevRetailPricingPriceB(sku(docd), departmentStore(docd), dateTime(docd));
+                        flags(expDet) <- '0';
+                        revalSum(expDet) <- 0.00;
+                        revalOperQuantity(expDet) <- 0.00;
+                    }
+                }    
+
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportAC XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', name(operation(doc)), 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +  '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', name(operation(doc)), 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }    
+                inc(expMain) <- NULL;
+    }                        
+    inc(DocMain expMain) <- NULL IF expMain IS DocMain ;    
     APPLY;
 }
 
