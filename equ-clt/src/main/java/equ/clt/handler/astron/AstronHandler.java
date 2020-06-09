@@ -9,7 +9,6 @@ import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -19,15 +18,13 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.*;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static equ.clt.EquipmentServer.sqlDateToLocalDate;
-import static equ.clt.EquipmentServer.sqlTimeToLocalTime;
 import static equ.clt.handler.HandlerUtils.*;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
@@ -1164,13 +1161,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
                     uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
 
-                    long sessStart = DateUtils.parseDate(rs.getString("SESSSTART"), "yyyyMMddHHmmss").getTime();
-                    Date dateZReport = new Date(sessStart);
-                    Time timeZReport = new Time(sessStart);
+                    LocalDateTime sessStart = LocalDateTime.parse(rs.getString("SESSSTART"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                    LocalDate dateZReport = sessStart.toLocalDate();
+                    LocalTime timeZReport = sessStart.toLocalTime();
 
-                    long salesTime = DateUtils.parseDate(rs.getString("SALESTIME"), "yyyyMMddHHmmss").getTime();
-                    Date dateReceipt = new Date(salesTime);
-                    Time timeReceipt = new Time(salesTime);
+                    LocalDateTime salesTime = LocalDateTime.parse(rs.getString("SALESTIME"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                    LocalDate dateReceipt = salesTime.toLocalDate();
+                    LocalTime timeReceipt = salesTime.toLocalTime();
 
                     String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
                     String nameEmployee = rs.getString("CASHIERNAME");
@@ -1201,8 +1198,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
                             totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                             sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-                            curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport),
-                                    numberReceipt, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
+                            curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
+                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, idBarcode, idItem,
                                     null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
                                     salesNum, null, null, receiptDetailExtraFields, cashRegister));
                             curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
@@ -1282,7 +1279,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             if (salesInfoList.size() > 0)
                 sendSalesLogger.info(logPrefix + String.format("found %s records", salesInfoList.size()));
-        } catch (SQLException | ParseException e) {
+        } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
         return new AstronSalesBatch(salesInfoList, recordList, directory);
