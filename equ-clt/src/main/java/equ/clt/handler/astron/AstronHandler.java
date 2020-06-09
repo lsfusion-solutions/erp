@@ -498,7 +498,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     if(params.pgsql) {
                         setObject(ps, packId, 1); //PACKID
                         setObject(ps, idItem, 2); //ARTID
-                        setObject(ps, item.passScalesItem || item.splitItem ? "1000" : "1", 3); //PACKQUANT
+                        setObject(ps, item.passScalesItem || item.splitItem ? 1000 : 1, 3); //PACKQUANT
                         setObject(ps, 0, 4); //PACKSHELFLIFE
                         if (idItems.contains(idItem)) {
                             setObject(ps, false, 5); //ISDEFAULT
@@ -506,7 +506,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, true, 5); //ISDEFAULT
                             idItems.add(idItem);
                         }
-                        setObject(ps, "0", 6); //UNITID
+                        setObject(ps, 0, 6); //UNITID
                         setObject(ps, null, 7); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 8); //PACKDTYPE
                         setObject(ps, trim(item.name, "", 50), 9); //PACKNAME
