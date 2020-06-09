@@ -507,7 +507,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             idItems.add(idItem);
                         }
                         setObject(ps, 0, 6); //UNITID
-                        setObject(ps, null, 7); //QUANTMASK
+                        setObject(ps, 0, 7); //QUANTMASK
                         setObject(ps, item.passScalesItem ? 0 : 1, 8); //PACKDTYPE
                         setObject(ps, trim(item.name, "", 50), 9); //PACKNAME
                         setObject(ps, 1, 10); //DELFLAG
