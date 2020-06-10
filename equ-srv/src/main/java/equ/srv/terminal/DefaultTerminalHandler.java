@@ -110,11 +110,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String nameManufacturer = trimToEmpty((String) terminalHandlerLM.findProperty("nameManufacturer[Barcode]").read(session, barcodeObject));
 
                 String fld3 = (String) terminalHandlerLM.findProperty("fld3[Barcode, Stock]").read(session, barcodeObject, stockObject);
+                String fld4 = (String) terminalHandlerLM.findProperty("fld4[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 String ticket_data = (String) terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String flags = terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, "", "", isWeight,
+                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, fld4, "", isWeight,
                         mainBarcode, color, ticket_data, flags);
             } else return null;
 
@@ -283,6 +284,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 if(stockObject instanceof DataObject && !allItems)
@@ -322,10 +324,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String color = formatColor((Color) entry.get("color"));
                     String extInfo = trim((String) entry.get("extInfo"));
                     String fld3 = trim((String) entry.get("fld3"));
+                    String fld4 = trim((String) entry.get("fld4"));
                     boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, needManufacturingDate));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, needManufacturingDate));
 
                 }
             }
@@ -463,7 +466,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, '', '', '', ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -475,11 +478,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(5, formatValue(barcode.idSkuBarcode)); //idItem, fld1
                         statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer, fld2
                         statement.setObject(7, formatValue(barcode.fld3)); //fld3
-                        statement.setObject(8, formatValue(barcode.isWeight)); //weight
-                        statement.setObject(9, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(10, formatValue(barcode.color)); //color
-                        statement.setObject(11, formatValue(barcode.extInfo)); //ticket_data
-                        statement.setObject(12, barcode.needManufacturingDate ? 1 : 0); //flags
+                        statement.setObject(8, formatValue(barcode.fld4)); //fld4
+                        statement.setObject(9, formatValue(barcode.isWeight)); //weight
+                        statement.setObject(10, formatValue(barcode.mainBarcode)); //main_barcode
+                        statement.setObject(11, formatValue(barcode.color)); //color
+                        statement.setObject(12, formatValue(barcode.extInfo)); //ticket_data
+                        statement.setObject(13, barcode.needManufacturingDate ? 1 : 0); //flags
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -497,10 +501,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                     statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
                                     statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                     statement.setObject(7, ""); //fld3
-                                    statement.setObject(8, formatValue(order.weight)); //weight
-                                    statement.setObject(9, formatValue(order.barcode)); //main_barcode
-                                    statement.setObject(10, ""); //color
-                                    statement.setObject(11, ""); //ticket_data
+                                    statement.setObject(8, ""); //fld4
+                                    statement.setObject(9, formatValue(order.weight)); //weight
+                                    statement.setObject(10, formatValue(order.barcode)); //main_barcode
+                                    statement.setObject(11, ""); //color
+                                    statement.setObject(12, ""); //ticket_data
                                     statement.addBatch();
                                 }
                             }
@@ -513,10 +518,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                                 statement.setObject(5, formatValue(order.idItem)); //idItem, fld1
                                 statement.setObject(6, formatValue(order.manufacturer)); //manufacturer, fld2
                                 statement.setObject(7, ""); //fld3
-                                statement.setObject(8, formatValue(order.weight)); //weight
-                                statement.setObject(9, formatValue(order.barcode)); //main_barcode
-                                statement.setObject(10, ""); //color
-                                statement.setObject(11, ""); //ticket_data
+                                statement.setObject(8, ""); //fld4
+                                statement.setObject(9, formatValue(order.weight)); //weight
+                                statement.setObject(10, formatValue(order.barcode)); //main_barcode
+                                statement.setObject(11, ""); //color
+                                statement.setObject(12, ""); //ticket_data
                                 statement.addBatch();
                             }
                         }
@@ -908,11 +914,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String color;
         String extInfo;
         String fld3;
+        String fld4;
         boolean needManufacturingDate;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color,
-                               String extInfo, String fld3, boolean needManufacturingDate) {
+                               String extInfo, String fld3, String fld4, boolean needManufacturingDate) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -924,6 +931,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.color = color;
             this.extInfo = extInfo;
             this.fld3 = fld3;
+            this.fld4 = fld4;
             this.needManufacturingDate = needManufacturingDate;
         }
     }
