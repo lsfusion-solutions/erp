@@ -35,6 +35,8 @@ DESIGN repricings {
     }
 }
 
+overExportRepricingAC ABSTRACT LIST (Repricing, DocMain);
+
 exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
 
     inc(DocMain expMain) <- NULL;
@@ -55,8 +57,8 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 priceRoundMode(expMain) <- 0 IF doc IS Repricing;                                                
                 reasonPricing(expMain) <- id(operation(doc));     
                 location(expMain)  <- id(stock(doc));                        
-                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
                 priceType(expMain) <- STRING[10](replace(id(retailPriceListType(stock(doc))),'D',''));
+                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
                 
                 FOR repricing(RepricingDetail docd) = doc DO {
                     NEW expDet = DocDetail {
@@ -83,7 +85,7 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                         revalOperQuantity(expDet) <- 0.00;                                            
                     }
                 }                                              
-                         
+                                                  
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
@@ -92,10 +94,12 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                     IF base IS PriceList THEN NEW b = DocBase {
                         basisDoc(expMain, b) <- TRUE;
                         docid(b) <- seriesNumber[UserPriceList](base);
-                        doctype(b) <- CASE WHEN id(operation[UserPriceList](base)) = 'promotion' THEN 'МА'
-                                           WHEN id(operation[UserPriceList](base)) = 'retail' THEN 'АB';
+                        doctype(b) <- CASE WHEN id(operation[UserPriceList](base)) = 'promotion' THEN 'MA'
+                                           WHEN id(operation[UserPriceList](base)) = 'retail' THEN 'AB';
                     }    
                 }
+                
+                overExportRepricingAC(doc,expMain);
                 
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
@@ -143,10 +147,10 @@ importRepricing 'Импорт актов переоценки' () {
     LOCAL propDocType = ISTRING[50] (INTEGER);
     LOCAL propDocId = ISTRING[50] (INTEGER);   
                                                                                                                                                                                   // a.Reason = 0 переоценка по приходу, у нас акт расценки               
-    filterSql () <- 'd.DocType = \'AC\' AND d.location IN ('+ stocksImport() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,2,3) AND a.Reason > 0 AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';
-    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.DocType = \'AC\' AND d.id = \'' + numberImportDocument() + '\' AND a.Id = d.Id AND a.DOCTYPE = d.DOCTYPE';    
+    filterSql () <- 'doc.DOCTYPE = \'AC\' AND  act.ID = doc.ID AND act.DOCTYPE = doc.DOCTYPE AND doc.location IN ('+ stocksImport() + ') AND TRUNC(nvl(act.ExecTime,act.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND doc.DocState IN (0,2,3) AND act.Reason > 0';
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'doc.DOCTYPE = \'AC\' AND act.ID = doc.ID AND act.DOCTYPE = doc.DOCTYPE AND doc.ID = \'' + numberImportDocument() + '\'';    
     
-    sqlString() <- 'SELECT d.ID, d.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE ' + filterSql();    
+    sqlString() <- 'SELECT doc.ID, doc.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), nvl(act.EXECTIME,act.EXECDATE) AS EXECDATE, act.REASON, doc.DOCSTATE, doc.LOCATION, doc.COMMENTARY FROM Supermag.SMActs act, Supermag.SMDocuments doc WHERE ' + filterSql();    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
             
@@ -193,8 +197,9 @@ importRepricing 'Импорт актов переоценки' () {
     LOCAL actReason = INTEGER (INTEGER);
     LOCAL priceType = INTEGER (INTEGER);
 
-    sqlString() <- 'SELECT d.Id, d.DocType, dd.SpecItem, dd.Article, dd.ItemPrice, ad.OldPrice, dd.Quantity, a.Reason, a.PriceType FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad ' + 
-                   'WHERE ' + filterSql()+' AND dd.DocId = d.Id AND dd.DocType = d.DOCTYPE AND ad.DocId(+) = dd.DOCID AND ad.DocType(+) = dd.DOCTYPE AND ad.SpecItem(+) = dd.SpecItem';    
+    sqlString() <- 'SELECT spec.DOCID, spec.DOCTYPE, spec.SpecItem, spec.Article, spec.ItemPrice, speca.OldPrice, spec.Quantity, act.Reason, act.PriceType FROM Supermag.SMDocuments doc, Supermag.SMActs act, Supermag.SMSpec spec, Supermag.SMSpecActs speca ' + 
+                   'WHERE ' + filterSql() + ' AND spec.DOCID = doc.ID AND spec.DOCTYPE = doc.DOCTYPE AND speca.DOCID(+) = spec.DOCID AND speca.DOCTYPE(+) = spec.DOCTYPE AND speca.SpecItem(+) = spec.SpecItem';
+                       
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
 
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
@@ -228,7 +233,7 @@ importRepricing 'Импорт актов переоценки' () {
     // импорт документов оснований
     LOCAL baseType = ISTRING[50] (INTEGER);
     
-    sqlString() <- 'Select d.ID, d.doctype, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql();    
+    sqlString() <- 'Select bas.ID, bas.DOCTYPE, bas.BASEID, bas.BASEDOCTYPE from Supermag.SMDocuments doc, Supermag.SMActs act, Supermag.SMCommonBases bas where ' + filterSql() + ' AND bas.ID = doc.ID AND bas.DOCTYPE = doc.DOCTYPE';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
     
@@ -353,12 +358,15 @@ importPricing 'Импорт актов расценки' () {
                         
     LOCAL reason = INTEGER (INTEGER);
                                                                                                                                                                                   // a.Reason = 0 переоценка по приходу, у нас акт расценки               
-    filterSql () <- 'd.location IN ('+ stocksImport() + ') AND TRUNC(nvl(a.ExecTime,a.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.DocState IN (0,1,2,3) AND a.Reason = 0';
-    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\''; 
-    
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.ID, d.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, a.REASON, d.DOCSTATE, d.LOCATION, d.COMMENTARY FROM Supermag.SMActs a, Supermag.SMDocuments d WHERE d.DocType = \'AC\' AND a.Id(+) = d.Id AND a.DOCTYPE(+) = d.DOCTYPE ' + filterSql() TO SupermagSettings.file;
-    
+    filterSql () <- 'doc.DOCTYPE = \'AC\' AND act.Id = doc.Id AND act.DOCTYPE = doc.DOCTYPE AND doc.location IN ('+ stocksImport() + ') AND TRUNC(nvl(act.ExecTime,act.ExecDate)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND doc.DocState IN (0,1,2,3) AND act.Reason = 0';
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'doc.DOCTYPE = \'AC\' AND act.Id = doc.Id AND act.DOCTYPE = doc.DOCTYPE AND doc.ID = \'' + numberImportDocument() + '\''; 
+
+    sqlString() <- 'SELECT doc.ID, doc.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), nvl(act.EXECTIME,act.EXECDATE) AS EXECDATE, act.REASON, doc.DOCSTATE, doc.LOCATION, doc.COMMENTARY FROM Supermag.SMActs act, Supermag.SMDocuments doc WHERE ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов расценки', sqlString());
+            
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+        
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docDate, reason, docState, location, comment;
 
     FOR [GROUP SUM 1 BY reason(INTEGER i)](INTEGER i) AND NOT Pricing.operation(TEXT (i)) DO NEW o = Pricing.Operation {
@@ -393,10 +401,13 @@ importPricing 'Импорт актов расценки' () {
     LOCAL actReason = INTEGER (INTEGER);
     LOCAL priceType = INTEGER (INTEGER);
 
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.Id, d.DocType, dd.SpecItem, dd.Article, dd.ItemPrice, ad.OldPrice, dd.Quantity, a.Reason, a.PriceType ' + 
-             'FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad ' + 
-             'WHERE d.DocType = \'AC\' AND a.Id(+) = d.Id AND dd.DocId = d.Id AND dd.DocType = d.DOCTYPE AND ad.DocId(+) = dd.DOCID AND ad.DocType(+) = dd.DOCTYPE AND ad.SpecItem(+) = dd.SpecItem AND ' + filterSql() TO SupermagSettings.file;
+    sqlString() <- 'SELECT spec.DOCID, spec.DOCTYPE, spec.SpecItem, spec.Article, spec.ItemPrice, speca.OldPrice, spec.Quantity, act.Reason, act.PriceType ' + 
+                   'FROM Supermag.SMDocuments doc, Supermag.SMActs act, Supermag.SMSpec spec, Supermag.SMSpecActs speca ' + 
+                   'WHERE ' + filterSql() + ' AND spec.DOCTYPE = doc.DOCTYPE AND spec.DOCID = doc.ID AND speca.DOCID(+) = spec.DOCID AND speca.DOCTYPE(+) = spec.DOCTYPE AND speca.SPECITEM(+) = spec.SPECITEM';    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов расценки', sqlString());
+            
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
        
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, itemPrice, oldPrice, quantity, actReason, priceType;
     
@@ -422,9 +433,12 @@ importPricing 'Импорт актов расценки' () {
     // импорт документов оснований
     LOCAL baseType = ISTRING[50] (INTEGER);
     
-    EXTERNAL SQL connectionString() 
-    EXEC 'Select d.ID, d.doctype, cb.BASEID, cb.BASEDOCTYPE from Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMCommonBases cb where a.DocType(+)= D.DocType and a.ID(+)= D.ID AND cb.ID(+) = a.ID AND ' + filterSql() TO SupermagSettings.file;
-        
+    sqlString() <- 'Select bas.ID, bas.DOCTYPE, bas.BASEID, bas.BASEDOCTYPE from Supermag.SMDocuments doc, Supermag.SMActs act, Supermag.SMCommonBases bas where ' + filterSql() + ' AND bas.ID = doc.ID AND bas.DOCTYPE = doc.DOCTYPE';    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов расценки', sqlString());
+            
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+            
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, baseNumber, baseType;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));

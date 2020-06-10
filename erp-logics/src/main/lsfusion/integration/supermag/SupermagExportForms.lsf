@@ -4,7 +4,6 @@ REQUIRE SupermagFormMeta, SupermagSettings;
 
 CLASS DocMain;
 CLASS DocDetail;
-CLASS DocBase;
 CLASS SMActs;
 
 inc = DATA LOCAL BOOLEAN (DocMain);
@@ -75,10 +74,16 @@ flags = DATA LOCAL STRING[10] (DocDetail);
 revalSum =DATA LOCAL NUMERIC[18,4] (DocDetail);
 revalOperQuantity = DATA LOCAL NUMERIC[18,5] (DocDetail); 
 
+CLASS DocBase;
 docid = DATA LOCAL STRING[50] (DocBase);
 doctype = DATA LOCAL STRING[10] (DocBase);
 basisDoc 'Документы основания' = DATA LOCAL BOOLEAN (DocMain, DocBase);      
-       
+  
+CLASS DocProp;
+docMain = DATA LOCAL DocMain (DocProp);
+paramname = DATA LOCAL STRING[50] (DocProp);
+paramvalue = DATA LOCAL STRING[100] (DocProp);
+     
        //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
 //indexPlus (DocDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY SMDocuments(ad) CHARWIDTH 4;
 //indexMinus (DocDetail ad) = PARTITION SUM 1 IF quantity(ad)<0 ORDER ad BY SMDocuments(ad) CHARWIDTH 4;
@@ -316,7 +321,7 @@ FORM exportWO FORMEXTID 'PACKAGE'
     PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
     FILTERS docMain(docd6)==doc        
         
-    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WI 
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WO 
     PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
     PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
     PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
@@ -370,7 +375,7 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS docMain(docd)==doc
 
-    OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN WO
+    OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN IW
     PROPERTIES = docid(docd3) EXTID 'DOCID'    
     PROPERTIES = doctype(docd3) EXTID 'DOCTYPE'      
     PROPERTIES = index(docd3) EXTID 'SPECITEM'
@@ -389,7 +394,7 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF docd4 IS DocDetail EXTID 'STATEREGULATION'                           
     FILTERS docMain(docd4)==doc    
            
-    OBJECTS docd5 = DocDetail EXTID 'SLSPECPACKS' IN WO
+    OBJECTS docd5 = DocDetail EXTID 'SLSPECPACKS' IN IW
     PROPERTIES = docid(docd5) EXTID 'DOCID'    
     PROPERTIES = doctype(docd5) EXTID 'DOCTYPE'      
     PROPERTIES = index(docd5) EXTID 'SPECITEM'
@@ -399,14 +404,14 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = exportTime(toDateTime(expiryDate(docd5))) EXTID 'VALIDDATE'                
     FILTERS docMain(docd5)==doc    
     
-    OBJECTS docd6 = DocDetail EXTID 'SLSPECQMISMATCH' IN WO
+    OBJECTS docd6 = DocDetail EXTID 'SLSPECQMISMATCH' IN IW
     PROPERTIES = docid(docd6) EXTID 'DOCID'    
     PROPERTIES = doctype(docd6) EXTID 'DOCTYPE'      
     PROPERTIES = index(docd6) EXTID 'SPECITEM'
     PROPERTIES = quantity(docd6) EXTID 'QUANTBYDOC'                  
     FILTERS docMain(docd6)==doc        
         
-    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN WI 
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN IW 
     PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
     PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
     PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
@@ -498,7 +503,14 @@ FORM exportAC FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
     PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
     PROPERTIES = docid(b) EXTID 'BASEID'    
-    FILTERS basisDoc(doc, b)                       
+    FILTERS basisDoc(doc, b) 
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN AC 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc                
 ;                                                
 
 GROUP ORD EXTID 'OR';

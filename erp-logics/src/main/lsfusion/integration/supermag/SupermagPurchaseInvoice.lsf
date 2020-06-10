@@ -247,12 +247,12 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.DocType = \'WI\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.id = \'' + numberImportDocument() + '\''; 
        
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationto, d.Commentary, b.suppldocsum, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' TO SupermagSettings.file;
+    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationto, d.Commentary, b.suppldocsum, b.SUPPLIERDOC, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsIn b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype' TO SupermagSettings.file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationTo, comment, suppldocSum, paymentDelay, isCalendarDelay ;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationTo, comment, suppldocSum, suppldocNumber, paymentDelay, isCalendarDelay ;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(clientIndex(i)), STRING(locationTo(i)), STRING(comment(i)), STRING(suppldocSum(i)), STRING(paymentDelay(i)), STRING(isCalendarDelay(i)) ) IF idDoc(i);                 
+    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(operCode(i)), STRING(userOp(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(clientIndex(i)), STRING(locationTo(i)), STRING(comment(i)), STRING(suppldocSum(i)), STRING(suppldocNumber(i)), STRING(paymentDelay(i)), STRING(isCalendarDelay(i)) ) IF idDoc(i);                 
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);   
@@ -279,6 +279,8 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         supplierStock(doc) <- stock(STRING[100] (clientIndex(i)));
         customer(doc) <- legalEntity(stock(ISTRING[100] (locationTo(i))));
         customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        invoiceNumber(doc) <- STRING[28](getWord(suppldocNumber(i),' ',1));
+        invoiceSeries(doc) <- STRING[2](getWord(suppldocNumber(i),' ',2));        
         date(doc) <- DATE (docDate(i));  
         time(doc) <- 00:00;
         imported(doc) <- TRUE;
