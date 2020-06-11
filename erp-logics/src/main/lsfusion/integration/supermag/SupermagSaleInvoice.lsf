@@ -45,6 +45,8 @@ bornin[StockDocumentLedger](InvoiceShipment doc) += bornin(invoice(doc));
 
 overInvoiceDocSum = ABSTRACT NUMERIC[18,4] (Invoice);
 
+overExportSaleInvoiceWO ABSTRACT LIST(Invoice, DocMain);
+
 exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain d) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
@@ -117,6 +119,8 @@ exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
                 paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
                 finagent(expMain) <- id(supplier(doc)); 
                 iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
+                
+                overExportSaleInvoiceWO(doc, expMain);
                 
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        

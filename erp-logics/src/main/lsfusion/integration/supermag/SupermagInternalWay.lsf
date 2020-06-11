@@ -6,6 +6,8 @@ PRIORITY SupermagSettings;
 
 NAMESPACE Sale;
 
+overExportSaleInvoiceIW ABSTRACT LIST (Invoice, DocMain);
+
 exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain expMain) <- NULL;
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
@@ -79,6 +81,8 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
                 finagent(expMain) <- id(supplier(doc)); 
                 iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
+                
+                overExportSaleInvoiceIW(doc, expMain);
                 
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
