@@ -379,8 +379,9 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     
     skipShowShipmentQuantity = ABSTRACT BOOLEAN (Invoice);
     showShipmentQuantity = createShipment(Invoice invoice) AND NOT skipShowShipmentQuantity(invoice);
+    readonlyShipmentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
 
-        EXTEND FORM userInvoice
+    EXTEND FORM userInvoice
         PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
         PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentSumUserInvoiceDetail,
                       shipmentDate, shipmentTime
@@ -388,7 +389,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
                       manufactureDate, expiryDate, shipmentSum
         PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShipped(i) shipmentPrice
         PROPERTIES(d) READONLY shipped AFTER quantity(d) SHOWIF showShipment(i) BACKGROUND backgroundShipped(i)
-        PROPERTIES(d) shipmentQuantity AFTER quantity(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(d) READONLYIF readonlyShipmentQuantity(d) shipmentQuantity AFTER quantity(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
     ;
     DESIGN userInvoice {
         headerCreateDocuments {
