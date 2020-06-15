@@ -78,8 +78,11 @@ importCustomerGroup 'Импорт групп покупателей' () {
 
 EXTEND FORM integrationData PROPERTIES importCustomerGroup();
 
+overImportLegalEntity ABSTRACT LIST ();
+
+idOrg = DATA LOCAL INTEGER (INTEGER);
+
 importLegalEntity 'Импорт организаций' () {    
-    LOCAL id = INTEGER (INTEGER);
     LOCAL name = ISTRING[255] (INTEGER);
     LOCAL juname = ISTRING[255] (INTEGER);
     LOCAL shortName = ISTRING[255] (INTEGER);
@@ -98,25 +101,27 @@ importLegalEntity 'Импорт организаций' () {
     LOCAL supplierClass = INTEGER (INTEGER);
     LOCAL status = INTEGER (INTEGER);
     
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
-        EXEC 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS, ACCEPTED FROM Supermag.SVCOMPANIES' TO file;
-
-    IMPORT TABLE FROM file() TO id, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass, status;
+    sqlString() <- 'SELECT ID, NAME, SHORTNAME, INN, ADDRESS, FADDRESS, nvl(TEL,FTEL) AS TEL, nvl(FAX, FFAX) AS FAX, nvl(EMAIL, FEMAIL) AS EMAIL, OKPO, KPP, COMMENTARY, GLN, OWNCLIENT, CLIENTCLASS, SUPPLIERCLASS, ACCEPTED, PAYMENTDELAY FROM Supermag.SVCOMPANIES'; 
     
-    FOR id(INTEGER i) AND NOT legalEntity(TEXT (id(i))) DO NEW s = LegalEntity {
-        id(s) <- ISTRING[100] (id(i));
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт организаций', sqlString());
+            
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM file() TO idOrg, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass, status, paymentDelay;
+    
+    FOR idOrg(INTEGER i) AND NOT legalEntity(TEXT (idOrg(i))) DO NEW s = LegalEntity {
+        id(s) <- ISTRING[100] (idOrg(i));
         
         NEW w = Warehouse {
             name(w) <- ISTRING[150](shortName(i));
             address(w) <- ISTRING[150](faddress(i));
-            id(w) <- ISTRING[100](id(i));
+            id(w) <- ISTRING[100](idOrg(i));
             legalEntity(w) <- s;
             stockGroup(w) <- warehouseGroup('external');
         }
     }
     
-    FOR LegalEntity s = legalEntity(TEXT (id(INTEGER i))) DO {
+    FOR LegalEntity s = legalEntity(TEXT (idOrg(INTEGER i))) DO {
         fullName(s) <- ISTRING[200] (OVERRIDE shortName(i), name(i));
         name(s) <- ISTRING[150] (name(i));
         UNP(s) <- STRING[9](left(inn(i), 9));
@@ -138,6 +143,9 @@ importLegalEntity 'Импорт организаций' () {
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup('companies') IF own(i) == '1', legalEntityGroup('S' + supplierClass(i)), legalEntityGroup('C' + clientClass(i));
         inactive(s) <- status(i) == 2;
     }
+    
+    overImportLegalEntity();
+    
     APPLY;
 }
 
