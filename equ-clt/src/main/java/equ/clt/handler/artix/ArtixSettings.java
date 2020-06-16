@@ -55,6 +55,9 @@ public class ArtixSettings implements Serializable{
     //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 180 секунд
     private Integer timeout;
 
+    //тип заполнения поля externalSum. 0 (по умолчанию) = sumGain, 1 = sumProtectedEnd - sumProtectedBeg – sumBack
+    private int externalSumType;
+
     public ArtixSettings() {
     }
 
@@ -192,5 +195,13 @@ public class ArtixSettings implements Serializable{
 
     public void setTimeout(Integer timeout) {
         this.timeout = timeout;
+    }
+
+    public int getExternalSumType() {
+        return externalSumType;
+    }
+
+    public void setExternalSumType(int externalSumType) {
+        this.externalSumType = externalSumType;
     }
 }

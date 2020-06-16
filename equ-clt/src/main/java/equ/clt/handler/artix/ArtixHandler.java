@@ -988,6 +988,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Set<Integer> cashPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCashPayments());
         Set<Integer> cardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCardPayments());
         Set<Integer> giftCardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getGiftCardPayments());
+        int externalSumType = artixSettings == null ? 0 : artixSettings.getExternalSumType();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1047,11 +1048,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
 
                                     JSONArray kkms = documentObject.getJSONArray("kkms");
                                     BigDecimal sumCashEnd = null;
+                                    BigDecimal sumProtectedBeg = null;
                                     BigDecimal sumProtectedEnd = null;
                                     BigDecimal sumBack = null;
                                     for (int i = 0; i < kkms.length(); i++) {
                                         JSONObject kkmsObject = kkms.getJSONObject(i);
                                         sumCashEnd = getBigDecimal(kkmsObject, "sumCashEnd");
+                                        sumProtectedBeg = getBigDecimal(kkmsObject, "sumProtectedBeg");
                                         sumProtectedEnd = getBigDecimal(kkmsObject, "sumProtectedEnd");
                                         sumBack = getBigDecimal(kkmsObject, "sumBack");
                                     }
@@ -1063,7 +1066,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         zReportExtraFields.put("sumCashEnd", sumCashEnd);
                                         zReportExtraFields.put("sumProtectedEnd", sumProtectedEnd);
                                         zReportExtraFields.put("sumBack", sumBack);
-                                        zReportExtraFields.put("externalSum", sumGain);
+                                        BigDecimal externalSum = externalSumType == 0 ? sumGain : safeSubtract(safeSubtract(sumProtectedEnd, sumProtectedBeg), sumBack);
+                                        zReportExtraFields.put("externalSum", externalSum);
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
                                         shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
                                     }
