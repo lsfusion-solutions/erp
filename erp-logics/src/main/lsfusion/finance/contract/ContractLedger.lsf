@@ -84,13 +84,14 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
                                                                            date(object(l)),
                                                                            countDays(paymentPeriod(l)));
                                                                            
+    overBankingPaymentDate = ABSTRACT DATE (classPrefix##ContractLedger);
     overCalendarPaymentDateTime = ABSTRACT DATETIME (classPrefix##ContractLedger);
     calendarPaymentDateTime (###object##ContractLedger l) = sumDay(dateTime(object(l)),
                                                                countDays(paymentPeriod(l)));
 
     isPosted(###object##ContractLedger l) += isPosted(object(l));
     dateTime(###object##ContractLedger l) += IF bankingDays(paymentCondition(paymentPeriod(l))) THEN
-                                                      toDateTime(bankingPaymentDate(l)) ELSE
+                                                      (OVERRIDE toDateTime(overBankingPaymentDate(l)),toDateTime(bankingPaymentDate(l))) ELSE
                                                       OVERRIDE overCalendarPaymentDateTime(l), calendarPaymentDateTime(l);
     contract(###object##ContractLedger object##ContractLedger) += contractProp(object(object##ContractLedger));
     description(###object##ContractLedger object##ContractLedger) += description(object(object##ContractLedger));
