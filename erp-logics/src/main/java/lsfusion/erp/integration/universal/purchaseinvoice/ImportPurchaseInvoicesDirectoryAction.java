@@ -87,27 +87,25 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
                             String name = fileEntry.getKey();
                             File file = fileEntry.getValue();
                             if (file.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
+                                Integer importResult = null;
                                 try (ExecutionContext.NewSession<ClassPropertyInterface> newContext = context.newSession()) {
                                     DataObject invoiceObject = multipleDocuments ? null : newContext.addObject((ConcreteCustomClass) findClass("Purchase.UserInvoice"));
                                     try {
 
                                         findAction("executeLocalEvents[TEXT]").execute(newContext, new DataObject("Purchase.UserInvoice"));
 
-                                        int importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
-
-                                        if (importResult != IMPORT_RESULT_ERROR) {
-                                            if(ftp) {
-                                                renameImportedFTP(context, directory, name, "." + fileExtension);
-                                            } else {
-                                                renameImportedFile(context, file.getAbsolutePath(), "." + fileExtension);
-                                            }
-                                        }
-
+                                        importResult = makeImport(newContext, invoiceObject, importTypeObject, file, fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN);
                                     } catch (Exception e) {
                                         ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                     }
 
-                                    newContext.apply();
+                                    if (newContext.apply() && importResult != null && importResult != IMPORT_RESULT_ERROR) {
+                                        if (ftp) {
+                                            renameImportedFTP(context, directory, name, "." + fileExtension);
+                                        } else {
+                                            renameImportedFile(context, file.getAbsolutePath(), "." + fileExtension);
+                                        }
+                                    }
                                 }
                             }
                         }
