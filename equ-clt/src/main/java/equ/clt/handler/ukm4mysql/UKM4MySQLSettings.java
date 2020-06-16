@@ -55,6 +55,10 @@ public class UKM4MySQLSettings implements Serializable{
     //Если true, то для весовых товаров отправляем кол-во 0
     private Boolean sendZeroQuantityForWeightItems;
 
+    //Список через запятую extId групп товаров, которые экспортируются в classif при каждой выгрузке
+    private String forceGroups;
+    private List<String> forceGroupsList = new ArrayList<>();
+
     public UKM4MySQLSettings() {
     }
 
@@ -186,5 +190,14 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSendZeroQuantityForWeightItems(Boolean sendZeroQuantityForWeightItems) {
         this.sendZeroQuantityForWeightItems = sendZeroQuantityForWeightItems;
+    }
+
+    public List<String> getForceGroupsList() {
+        return forceGroupsList;
+    }
+
+    public void setForceGroups(String forceGroups) {
+        this.forceGroups = forceGroups;
+        this.forceGroupsList.addAll(Arrays.asList(forceGroups.split(",\\s?")));
     }
 }

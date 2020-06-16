@@ -63,6 +63,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
                 boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSendZeroQuantityForWeightItems() != null && ukm4MySQLSettings.getSendZeroQuantityForWeightItems();
+                List<String> forceGroups = ukm4MySQLSettings == null ? new ArrayList<>() : ukm4MySQLSettings.getForceGroupsList();
 
                 Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -131,7 +132,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                                         if (!skipClassif) {
                                             processTransactionLogger.info(logPrefix + String.format("transaction %s, table classif", transaction.id));
-                                            exportClassif(conn, transaction, version);
+                                            exportClassif(conn, transaction, forceGroups, version);
                                         }
 
                                         if (exportTaxes) {
@@ -224,9 +225,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return version;
     }
 
-    private void exportClassif(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-
-        if (transaction.itemsList != null) {
+    private void exportClassif(Connection conn, TransactionCashRegisterInfo transaction, List<String> forceGroups, int version) throws SQLException {
+        if (transaction.itemsList != null || !forceGroups.isEmpty()) {
 
             Set<String> usedGroups = new HashSet<>();
 
@@ -234,7 +234,28 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO classif (id, owner, name, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE owner=VALUES(owner), name=VALUES(name), deleted=VALUES(deleted)")) {
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
+                    forceGroups.remove(item.extIdItemGroup);
                     List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(item.extIdItemGroup);
+                    if (itemGroupList != null) {
+                        for (ItemGroup itemGroup : itemGroupList) {
+                            if (!usedGroups.contains(itemGroup.extIdItemGroup)) {
+                                usedGroups.add(itemGroup.extIdItemGroup);
+                                String idItemGroup = parseGroup(itemGroup.extIdItemGroup);
+                                if (!idItemGroup.equals("0")) {
+                                    ps.setString(1, idItemGroup); //id
+                                    ps.setString(2, parseGroup(itemGroup.idParentItemGroup)); //owner
+                                    ps.setString(3, trim(itemGroup.nameItemGroup, "", 80)); //name
+                                    ps.setInt(4, version); //version
+                                    ps.setInt(5, 0); //deleted
+                                    ps.addBatch();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (String forceGroup : forceGroups) {
+                    List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(forceGroup);
                     if (itemGroupList != null) {
                         for (ItemGroup itemGroup : itemGroupList) {
                             if (!usedGroups.contains(itemGroup.extIdItemGroup)) {
