@@ -213,22 +213,22 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
     FOR [GROUP SUM 1 IF property(INTEGER i) == '1' BY value(i)](TEXT name) AND name != '' AND NOT brandName(name) DO NEW b = Brand {
         name(b) <- ISTRING[50] (name);
     }
-    FOR property(INTEGER i) == '1' DO {
-        brand(Item s) <- brandName(value(i)) WHERE s == item(idItem(i));
+    FOR property(INTEGER i) == '1' AND Item s = item(idItem(i)) DO {
+        brand(s) <- brandName(value(i));
     }
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manufacturer' BY value(i)](TEXT name) AND name != '' AND NOT manufacturerName(name) DO NEW m = Manufacturer {
         name(m) <- ISTRING[200] (name);
     }
-    FOR property(INTEGER i) == 'manufacturer' DO {
-        manufacturer(Item s) <- manufacturerName(value(i)) WHERE s == item(idItem(i));
+    FOR property(INTEGER i) == 'manufacturer' AND Item s = item(idItem(i)) DO {
+        manufacturer(s) <- manufacturerName(value(i));
     }
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY upper(value(i))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
         name(c) <- ISTRING[50] (name);
     }
-    FOR property(INTEGER i) == 'manCountry' DO {
-        country(Item s) <- (GROUP MAX Country c IF upper(name(c)) == upper(value(i))) WHERE s == item(idItem(i));
+    FOR property(INTEGER i) == 'manCountry' AND Item s = item(idItem(i)) DO {
+        country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(value(i));
     }
     
     FOR property(INTEGER i) == '17' AND Item s = item(idItem(i)) DO {
@@ -236,51 +236,51 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         grossWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
     }
     
-    FOR property(INTEGER i) == 'expDate' DO {
-        expiryDays(Item s) <- INTEGER (getWord(value(i), ' ', 1)) WHERE s == item(idItem(i));
-        expiryText(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'expDate' AND Item s = item(idItem(i)) DO {
+        expiryDays(s) <- INTEGER (getWord(value(i), ' ', 1));
+        expiryText(s) <- ISTRING[100] (value(i));
     }
     
     LOCAL condition = ISTRING[100](Item);
     
-    FOR property(INTEGER i) == 'storeTemperature' DO {
-        condition(Item s) <- ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'storeTemperature' AND Item s = item(idItem(i)) DO {
+        condition(s) <- ISTRING[100] (value(i));
     }
     
-    FOR property(INTEGER i) == 'storeWetness' AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
+    FOR property(INTEGER i) == 'storeWetness' AND Item s = item(idItem(i)) AND NOT value(i) == 'не обусловлено' AND NOT value(i) == 'не обусловлен' AND NOT value(i) == 'нет' AND NOT value(i) == ','
         AND NOT value(i) == '-' AND NOT value(i) == '"-"' AND NOT value(i) == '_' AND NOT value(i) == '/' AND NOT value(i) == '.' AND NOT value(i) == '--' DO {
-        conditionsText(Item s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i)) WHERE s = item(idItem(i));
+        conditionsText(s) <- CONCAT '', condition(s), ', влажность: ' + ISTRING[100] (value(i));
     }
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'packType' BY value(i)](TEXT name) AND name != '' AND NOT packTypeName(name) DO NEW t = PackType {
         name(t) <- ISTRING[200] (name);
     }
-    FOR property(INTEGER i) == 'packType' DO {
-        packType(Item s) <- packTypeName(value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'packType' AND Item s = item(idItem(i)) DO {
+        packType(s) <- packTypeName(value(i));
     }
     
-    FOR property(INTEGER i) == 'supName' DO {
-        originalCaption(Item s) <- ISTRING[100](value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'supName' AND Item s = item(idItem(i)) DO {
+        originalCaption(s) <- ISTRING[100](value(i));
     }
     
     FOR [GROUP SUM 1 IF property(INTEGER i) == 'alcoPercent' BY value(i)](TEXT name) AND name != '' AND NOT alcoholName(name) DO NEW a = Alcohol {
         name(a) <- ISTRING[50] (name);
     }
-    FOR property(INTEGER i) == 'alcoPercent' DO {
-        alcohol(Item s) <- alcoholName(value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'alcoPercent' AND Item s = item(idItem(i)) DO {
+        alcohol(s) <- alcoholName(value(i));
     }
     
-    FOR property(INTEGER i) == 'Sys.Composition' DO {
-        description(Item s) <- value(i) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'Sys.Composition' AND Item s = item(idItem(i)) DO {
+        description(s) <- value(i);
     }
     
-    FOR property(INTEGER i) == 'packsize' DO {
-        MOQ(Item s) <- NUMERIC[15,4](value(i)) WHERE s = item(idItem(i));
+    FOR property(INTEGER i) == 'packsize' AND Item s = item(idItem(i)) DO {
+        MOQ(s) <- NUMERIC[15,4](value(i));
     }
     
-    FOR property(INTEGER i) == 'volume' DO {
-        volume(Item s) <- NUMERIC[9,3](toNumeric(value(i))) WHERE s = item(idItem(i));
-    }
+    FOR property(INTEGER i) == 'volume' AND Item s = item(idItem(i)) DO {
+        volume(s) <- NUMERIC[9,3](toNumeric(value(i)));
+    }   
     
     FOR property(INTEGER i) == 'packbarcode' AND NOT barcode(item(idItem(i)), TransportPack.outpack) DO NEW b = Barcode {
         sku(b) <- item(idItem(i));
