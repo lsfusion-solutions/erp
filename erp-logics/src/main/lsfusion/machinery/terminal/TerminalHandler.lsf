@@ -43,8 +43,9 @@ EXTEND FORM groupsTerminal
 
 
 hostTerminalServer 'Хост' = DATA STRING[30] ();
-portTerminalServer 'Порт' = DATA INTEGER ();    
+portTerminalServer 'Порт' = DATA INTEGER ();
 
+enableStatusOrderTerminal 'Включить обмен статусами для заказов' = DATA BOOLEAN ();
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN ();
 sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN ();
@@ -69,9 +70,10 @@ namePriceListTypeTerminal 'Вид цен (фильтр ассортимента 
 
 checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
+changeStatusTerminalOrder ABSTRACT (STRING, STRING);
 
 EXTEND FORM options
-    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
+    PROPERTIES() hostTerminalServer, portTerminalServer, enableStatusOrderTerminal, useCurrentPriceInTerminal, sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
     namePriceListTypeTerminal, skipGoodsInReadBase
 ;
 DESIGN options {
@@ -87,6 +89,7 @@ DESIGN options {
                 MOVE PROPERTY(sendOnlyActiveItems());
             }
             MOVE PROPERTY(useCurrentQuantityInTerminal());
+            MOVE PROPERTY(enableStatusOrderTerminal());
             MOVE PROPERTY(filterCurrentQuantityInTerminal());
             MOVE PROPERTY(namePriceListTypeTerminal());
             MOVE PROPERTY(skipGoodsInReadBase());
@@ -117,13 +120,14 @@ CLASS TerminalFlags {
     FLG_VOP_QUANTZAKAZ 'Подставлять количество из заказа при добавлении позиции',  //  19  // 524288  
     FLG_VOP_PLACE 'Запрос места хранения',  //  20  // 1048576  
     FLG_VOP_DATE1_REQUIRED 'Обязательное поле "Дата1"',  //  21  // 2097152   
-    FLG_VOP_DATE2_REQUIRED 'Обязательное поле "Дата2',  //  22  // 4194304   
+    FLG_VOP_DATE2_REQUIRED 'Обязательное поле "Дата2"',  //  22  // 4194304   
     FLG_VOP_FIELD1_REQUIRED 'Обязательное поле 1',  //  23  // 8388608   
     FLG_VOP_FIELD2_REQUIRED 'Обязательное поле 2',  //  24  // 16777216  
     FLG_VOP_FIELD3_REQUIRED 'Обязательное поле 3',  //  25  // 33554432
     FLG_VOP_DATE1_NOEXPIRED 'Запрет ввода даты "Дата1" меньше текущей',  // 26  // 67108864   
     FLG_VOP_DATE2_NOEXPIRED 'Запрет ввода даты "Дата2" меньше текущей',  // 27
-    FLG_VOP_EXTRA_QUANT 'Запрос дополнительного количества'   // 28   
+    FLG_VOP_EXTRA_QUANT 'Запрос дополнительного количества',   // 28   
+    FLG_VOP_DISABLE_EDIT_QUANT 'Запрет радактирования количества в документе'   // 29
 }
 TABLE terminalFlags (TerminalFlags);
 
@@ -156,7 +160,8 @@ order(TerminalFlags f) = CASE
     WHEN f = TerminalFlags.FLG_VOP_FIELD3_REQUIRED THEN 25  // 33554432 
     WHEN f = TerminalFlags.FLG_VOP_DATE1_NOEXPIRED THEN 26  // 67108864
     WHEN f = TerminalFlags.FLG_VOP_DATE2_NOEXPIRED THEN 27 // 134217728
-    WHEN f = TerminalFlags.FLG_VOP_EXTRA_QUANT THEN 28 MATERIALIZED;
+    WHEN f = TerminalFlags.FLG_VOP_EXTRA_QUANT THEN 28
+    WHEN f = TerminalFlags.FLG_VOP_DISABLE_EDIT_QUANT THEN 29 MATERIALIZED;
     
 flag 'Число'(TerminalFlags f) = INTEGER(power(2, order(f)));
 
