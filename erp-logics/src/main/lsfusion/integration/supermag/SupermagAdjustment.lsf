@@ -89,6 +89,8 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                
+                dt () <- currentDateTime();                        
                 TRY {                
                     CASE WHEN doctype(expMain) = 'WI' THEN EXPORT exportWI XML TO System.exportFile;                 
                          WHEN doctype(expMain) = 'FA' THEN EXPORT exportFA XML TO System.exportFile;
@@ -136,9 +138,11 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                
+                dt () <- currentDateTime();        
                 TRY {                
-                    CASE WHEN doctype(expMain) = 'WO' THEN EXPORT exportWI XML TO System.exportFile;                 
-                         WHEN doctype(expMain) = 'LA' THEN EXPORT exportFA XML TO System.exportFile;
+                    CASE WHEN doctype(expMain) = 'WO' THEN EXPORT exportWO XML TO System.exportFile;                 
+                         WHEN doctype(expMain) = 'LA' THEN EXPORT exportLA XML TO System.exportFile;
                 } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 
                 TRY { 
