@@ -99,7 +99,7 @@ FORM exportWI FORMEXTID 'PACKAGE'
 
     OBJECTS doc = DocMain EXTID 'POSTOBJECT'
     PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
-    PROPERTIES ATTR = opname(doc) IF doc IS DocMain EXTID 'description'  
+    PROPERTIES ATTR = 'Приходная накладная' IF doc IS DocMain EXTID 'description'  
     
     PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
     PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN WI_SMDOCUMENTS
@@ -200,7 +200,7 @@ FORM exportWI FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
-    FILTERS docMain(p) = doc                           
+    FILTERS docMain(p) = doc AND paramvalue(p)                             
 ; 
 
 GROUP FI;
@@ -242,7 +242,7 @@ FORM exportWO FORMEXTID 'PACKAGE'
 
     OBJECTS doc = DocMain EXTID 'POSTOBJECT'
     PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
-    PROPERTIES ATTR = opname(doc)  EXTID 'description'      
+    PROPERTIES ATTR = 'Расходная накладная' EXTID 'description'      
     PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
     PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN WO_SMDOCUMENTS
     PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN WO_SMDOCUMENTS
@@ -340,7 +340,7 @@ FORM exportWO FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
-    FILTERS docMain(p) = doc                
+    FILTERS docMain(p) = doc  AND paramvalue(p)              
              
 ; 
 
@@ -373,7 +373,7 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN IW_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN IW_SMDOCUMENTS      
     PROPERTIES = note(doc) EXTID 'COMMENTARY' IN IW_SMDOCUMENTS     
-    FILTERS inc(doc)                 
+    FILTERS inc(doc)                                          
              
     OBJECTS docd = DocDetail EXTID 'SMSPEC' IN IW 
     PROPERTIES = docid(docd) EXTID 'DOCID'    
@@ -438,7 +438,7 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
-    FILTERS docMain(p) = doc                
+    FILTERS docMain(p) = doc  AND paramvalue(p)             
      
 ; 
 
@@ -533,7 +533,7 @@ FORM exportAC FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
-    FILTERS docMain(p) = doc                
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
 ;                                                
 
 GROUP ORD EXTID 'OR';
@@ -577,6 +577,123 @@ FORM exportOR FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
-    FILTERS docMain(p) = doc                           
-           
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
 ;    
+
+GROUP LA;
+GROUP LA_SMDOCUMENTS EXTID 'SMDOCUMENTS': LA;
+GROUP LA_SMCOMMONBASES EXTID 'SMCOMMONBASES': LA;
+GROUP LA_SMSPEC EXTID 'SMSPEC': LA;
+
+FORM exportLA FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = 'Акт потерь' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN LA_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN LA_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN LA_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN LA_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN LA_SMDOCUMENTS           
+    PROPERTIES = opcode(doc) EXTID 'OPCODE' IN LA_SMDOCUMENTS
+    PROPERTIES = userop(doc) EXTID 'USEROP' IN LA_SMDOCUMENTS        
+    PROPERTIES = location(doc) EXTID 'LOCATION' IN LA_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN LA_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN LA_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN LA_SMDOCUMENTS      
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'TOTALSUM' IN LA_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'TOTALSUMCUR' IN LA_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEROUNDMODE' IN LA_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN LA_SMDOCUMENTS      
+    PROPERTIES = note(doc) EXTID 'COMMENTARY' IN LA_SMDOCUMENTS     
+    FILTERS inc(doc)                                              
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN LA 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICE'     
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)=doc     
+    
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN LA 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b) 
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN LA 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
+;
+
+GROUP FA;
+GROUP FA_SMDOCUMENTS EXTID 'SMDOCUMENTS': FA;
+
+FORM exportFA FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = 'Акт потерь' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN FA_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN FA_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN FA_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN FA_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN FA_SMDOCUMENTS           
+    PROPERTIES = opcode(doc) EXTID 'OPCODE' IN FA_SMDOCUMENTS
+    PROPERTIES = userop(doc) EXTID 'USEROP' IN FA_SMDOCUMENTS        
+    PROPERTIES = location(doc) EXTID 'LOCATION' IN FA_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN FA_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN FA_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN FA_SMDOCUMENTS      
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'TOTALSUM' IN FA_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'TOTALSUMCUR' IN FA_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEROUNDMODE' IN FA_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN FA_SMDOCUMENTS      
+    PROPERTIES = note(doc) EXTID 'COMMENTARY' IN FA_SMDOCUMENTS     
+    FILTERS inc(doc)                                              
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN FA 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICE'     
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)=doc     
+    
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN FA 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b) 
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN FA 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                          
+;
+
