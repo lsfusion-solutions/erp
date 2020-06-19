@@ -1,6 +1,6 @@
 MODULE SupermagDisparity;
 
-REQUIRE SupermagSettings, SupermagFormMeta, Utils, TaxItem, Disparity, DisparityOperation;
+REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, Utils, TaxItem, Disparity, DisparityOperation, RepricingDisparity;
 
 NAMESPACE Disparity;
 
@@ -38,120 +38,100 @@ DESIGN disparity {
 
 @settingIntegration(Disparity, DisparityDetail);
 
-@exportFilds(disparity, disparityDetail); 
-
-
-@exportFormWI(exportDisparityWI, disparity, disparityDetail, 'документ изменения остатков');
-EXTEND FORM exportDisparityWI
-    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd5) EXTID 'SPECITEM'
-    FILTERS quantity(docd)  > 0
-    FILTERS quantity(docd2) > 0    
-    FILTERS quantity(docd3) > 0    
-    FILTERS quantity(docd4) > 0    
-    FILTERS quantity(docd5) > 0    
-;                
-
-@exportFormWO(exportDisparityWO, disparity, disparityDetail, 'документ изменения остатков');
-
-EXTEND FORM exportDisparityWO
-    PROPERTIES = indexPlus(docd) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd3) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd4) EXTID 'SPECITEM'
-    PROPERTIES = indexPlus(docd5) EXTID 'SPECITEM'
-    FILTERS quantity(docd) > 0
-    FILTERS quantity(docd2) > 0
-    FILTERS quantity(docd3) > 0
-    FILTERS quantity(docd4) > 0
-    FILTERS quantity(docd5) > 0
-;                
-
 exportDisparityMag 'Экспорт в супермаг' (Disparity doc) {
-    inc(Disparity ii) <- NULL;
+    LOCAL NESTED dt = DATETIME();
     IF docTypeSupermag(operation(doc)) AND opcodeSupermag(operation(doc)) THEN {        
-        LOCAL NESTED dt = DATETIME();
-        dt () <- currentDateTime();
-        inc(doc) <- TRUE;
         FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 1) DO {
-                docid(doc) <- seriesNumber(doc);                 
-                doctype(doc) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
-                opcode(doc) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
-                userop(doc) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
-                creatdat(doc) <- dateTime(doc);
-                bornin(doc) <- OVERRIDE bornin(doc), baseIDSupermag();
-                docstate(doc) <- CASE WHEN isPosted(doc) THEN 3 WHEN isClosed(doc) THEN 0 ELSE 1;
-                clientIndex(doc) <- id(contragentSupermag(stockGroup(stock(doc))));
-                priceRoundMode(doc) <- 4 IF doc IS Disparity; 
-                locationFrom(doc) <- stock(doc);
-                locationTo(doc) <- stock(doc);
-                location(doc)  <- stock(doc);  
-                id(doc) <- CONCAT '', doctype(doc), seriesNumber(doc);                              
-                                                                               
-                CASE WHEN doctype(doc) = 'WO' THEN {
-                        skuId(DisparityDetail docd) <- id(sku(docd));                                                                           
-                        quantityExp(DisparityDetail docd) <- quantity(docd);
-                        valueTax(DisparityDetail docd) <- valueVAT(sku(docd)) WHERE disparity(docd) = doc;
-                        priceNoTax(DisparityDetail docd) <- price(docd) WHERE disparity(docd) = doc;
-                        priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
-                        priceWithTaxCurr(DisparityDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE disparity(docd) = doc;
-                        sumNoTax(DisparityDetail docd) <- abs(sum(docd)) WHERE disparity(docd) = doc;
-                        sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
-                        sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
-                        sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
-                     }
-                     WHEN doctype(doc) = 'WI' THEN {
-                        skuId(DisparityDetail docd) <- id(inputSku(docd));                                                                           
-                        quantityExp(DisparityDetail docd) <- inputQuantity(docd);
-                        valueTax(DisparityDetail docd) <- valueVAT(inputSku(docd)) WHERE disparity(docd) = doc;
-                        priceNoTax(DisparityDetail docd) <- inputPrice(docd) WHERE disparity(docd) = doc;
-                        priceWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceNoTax(docd) * (1 + valueTax(docd)/100),2))) WHERE disparity(docd) = doc; 
-                        priceWithTaxCurr(DisparityDetail docd) <- round(priceWithTax(docd)/curRate(doc),4) WHERE disparity(docd) = doc;
-                        sumNoTax(DisparityDetail docd) <- abs(inputSum(docd)) WHERE disparity(docd) = doc;
-                        sumWithTax(DisparityDetail docd) <- NUMERIC[18,4] ( abs(round( priceWithTax(docd) * quantityExp(docd),2))) WHERE disparity(docd) = doc;
-                        sumWithTaxCurr(DisparityDetail docd) <-round(sumWithTax(docd)/curRate(doc),2) WHERE disparity(docd) = doc;
-                        sumTax(DisparityDetail docd) <- sumWithTax(docd) - sumNoTax(docd) WHERE disparity(docd) = doc;
-                     }
-                     sumWithTax(doc) <- GROUP SUM sumWithTax(DisparityDetail add) IF disparity(add) = doc;                
-                     sumWithTaxCurr(doc) <- GROUP SUM sumWithTaxCurr(DisparityDetail add) IF disparity(add) = doc;    
-                     countSpec(doc) <- GROUP SUM 1 IF disparity(DisparityDetail docd) = doc;                            
-           TRY {                
-                CASE WHEN doctype(doc) = 'WI' THEN EXPORT exportDisparityWI XML TO System.exportFile;                 
-                     WHEN doctype(doc) = 'WO' THEN EXPORT exportDisparityWO XML TO System.exportFile;
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка формы',  'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
-           TRY {          
-                IF countSpec(doc) >0 THEN {
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                }
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка записи в файл',  'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
+            inc(DocMain expmain) <- NULL;
+            DELETE DocDetail expDet WHERE expDet IS DocDetail;        
+            DELETE DocMain expmain WHERE expmain IS DocMain;
+            NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- seriesNumber(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
+                userop(expMain) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                creatdate(expMain) <- dateTime(doc);                
+                docstate(expMain) <- CASE WHEN isPosted(doc) AND (doctype(expMain) = 'FA' OR doctype(expMain) = 'LA') THEN 2
+                                          WHEN isPosted(doc) AND (doctype(expMain) = 'WI' OR doctype(expMain) = 'WO') THEN 3 
+                                          WHEN isClosed(doc) THEN 0 ELSE 1;
+                priceRoundMode(expMain) <- CASE WHEN (doctype(expMain) = 'FA' OR doctype(expMain) = 'LA') THEN 0 ELSE 4; 
+                clientIndex(expMain) <- id(contragentSupermag(stockGroup(stock(doc))));
+                locationFrom(expMain) <- id(stock(doc));
+                locationTo(expMain) <- id(stock(doc));
+                location(expMain)  <- id(stock(doc));     
+                ourselfclient(expMain) <- id(legalEntity(stock(doc)));                                              
+
+                FOR disparity(DisparityDetail docd) = doc AND doctype(expMain) = 'WO' DO NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        priceNoTax(expDet) <- curInputPrice(docd);
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
+                        valueTax(expDet) <-  valueVAT(sku(docd));
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceNoTax(expDet) * (1 + valueTax(expDet)/100),4)));
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- price(docd);
+                        sumNoTax(expDet) <- OVERRIDE abs(curInputSum(docd)), 0;
+                        sumWithTax(expDet) <- OVERRIDE NUMERIC[18,4] ( abs(round( sumNoTax(expDet) * (1 + valueTax(expDet)/100),2))), 0;
+                        sumTax(expDet) <- OVERRIDE (sumWithTax(expDet) - sumNoTax(expDet)), 0;
+                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                     //     priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
+                     //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                                        
+                }           
+                
+
+                FOR disparity(DisparityDetail docd) = doc AND doctype(expMain) = 'WI' DO NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(inputSku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(inputQuantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        priceNoTax(expDet) <- afterInputPrice(docd);
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
+                        valueTax(expDet) <-  valueVAT(inputSku(docd));
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceNoTax(expDet) * (1 + valueTax(expDet)/100),4)));
+                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- afterInputRetailPrice(docd);
+                        sumNoTax(expDet) <- OVERRIDE abs(afterInputSum(docd)), 0;
+                        sumWithTax(expDet) <- OVERRIDE NUMERIC[18,4] ( abs(round( sumNoTax(expDet) * (1 + valueTax(expDet)/100),2))), 0;
+                        sumTax(expDet) <- OVERRIDE (sumWithTax(expDet) - sumNoTax(expDet)), 0;
+                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                     //     priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
+                     //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                                        
+                }           
+                
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+               
+                dt () <- currentDateTime();                                                  
+                TRY {                
+                    CASE WHEN doctype(expMain) = 'WI' THEN EXPORT exportWI XML TO System.exportFile;                 
+                         WHEN doctype(expMain) = 'WO' THEN EXPORT exportWO XML TO System.exportFile;
+                } CATCH logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка формы',  'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
            
-           TRY 
-           {      
-                fileExists('file://' + exportDirectorySupermag() + '/' + doctype(doc) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + '.xml'); 
-                IF fileExists()  THEN NEWSESSION NESTED LOCAL {
-                    FOR inc(Disparity ii)  DO NEW log = SupermagLog {
-                        id(log)<- doctype(doc) + '_' +STRING[30](LONG(ii))+'_'+(OVERRIDE id(ii), '')+'_'+ formulaDateT(dt());  
-                        dateTime(log) <- currentDateTime();
-                        userLogin(log) <- login(currentUser()); 
-                        nameContact(log) <- STRING[100](name(currentUser()));
-                    }     
-                    APPLY NESTED LOCAL;
-                }             
-                     
-           } CATCH {
-                logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка чтения файла',  'file://' + exportDirectorySupermag() + '/' + doctype(doc) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           }
+                TRY {          
+                    IF countSpec(expMain) >0 THEN {
+                        WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                    }
+                } CATCH logToFile('supermag', CONCAT '\n', 'Изменение сортности ' + id(doc), 'Ошибка записи в файл',  'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            }
         } 
     }       
-    inc(Disparity ii) <- NULL;
+    inc(DocMain expmain) <- NULL;
     APPLY;
 }
 
