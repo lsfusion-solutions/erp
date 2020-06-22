@@ -68,6 +68,14 @@ defaultPriceListTypeTerminal = ABSTRACT LedgerPriceListType();
 priceListTypeTerminal = OVERRIDE dataPriceListTypeTerminal(), defaultPriceListTypeTerminal();
 namePriceListTypeTerminal 'Вид цен (фильтр ассортимента поставщика)' = name(priceListTypeTerminal());
 
+
+price 'Цена' (Sku sku, Stock stock, LegalEntity le ) = prevPriceA(priceListTypeTerminal(), sku, stock, le, currentDateTime()) ; 
+maxDeviationPrice 'Макс. цена' = ABSTRACT NUMERIC[29,10] (Sku, Stock, LegalEntity); 
+minDeviationPrice 'Мин. цена' = ABSTRACT NUMERIC[29,10] (Sku, Stock, LegalEntity);
+
+skipAssort = ABSTRACT BOOLEAN (Sku, Stock, LegalEntity);
+filterAssortment  (Sku sku, Stock stock, LegalEntity le ) = price(sku, stock, le) AND NOT skipAssort(sku, stock, le);
+
 checkOrderResult = DATA LOCAL STRING();
 checkOrder ABSTRACT (STRING);
 changeStatusTerminalOrder ABSTRACT (STRING, STRING);
