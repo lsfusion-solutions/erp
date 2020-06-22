@@ -217,9 +217,10 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         toPriceBeforeDate(doc) <- sum(DATE (dateTo(i)), 1);
         toPriceBeforeTime(doc) <- 23:59;        
         allStocks(doc) <- NULL;
-        imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);
     }  
+    
+    FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) DO imported(doc) <- TRUE;
        
     EXTERNAL SQL connectionString() 
             EXEC 'SELECT ma.ID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO SupermagSettings.file;
@@ -240,10 +241,14 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
         sku(det) <- item(idItem(i));
         priceBefore(det) <- OVERRIDE (GROUP MAX prevPriceA(dataPriceListType('retail'), item(idItem(i)), Stock st, fromDateTime(userPriceList(idDoc(i)))) IF in(userPriceList(idDoc(i)), st)), 0.0;
         price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType('promotion');
-        imported(det) <- TRUE;
+        //imported(det) <- TRUE;
         dataIndex(det) <- specItem(i);
         lastVersion(det) <- currentVersion(i);
     }   
+      
+    FOR imported(userPriceList(UserPriceListDetail det)) = TRUE AND NOT id(det) = idDet(INTEGER i) DO {
+        DELETE det;
+    }
    
     LOCAL idStock = INTEGER (INTEGER);
     
