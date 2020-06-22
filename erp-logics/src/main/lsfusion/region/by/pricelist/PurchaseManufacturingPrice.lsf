@@ -82,9 +82,15 @@ costManufacturingPrice(UserInvoiceDetail d) += costManufacturingPrice(d);
 @defineDocumentInterfaceProperty (invoice, reverseManufacturingPrice, 'Обратный расчет цены изг.');
 @defineOperationProperty(reverseManufacturingPrice, 'Обратный расчет цены изг.', priceContainer);
 
+@defineDocumentInterfaceProperty (invoice, calcManufacturingMarkupFromPrices, 'Расчет опт. надбавки от цен поставщика и изготовителя');
+
+@defineOperationProperty(calcManufacturingMarkupFromPrices, 'Расчет опт. надбавки от цен поставщика и изготовителя', priceContainer);
+
 // -- Операция
 @deriveDocumentOperationProperty(UserInvoice, showManufacturingPrice);
 @deriveDocumentOperationProperty(UserInvoice, reverseManufacturingPrice);
+
+@deriveDocumentOperationProperty(UserInvoice, calcManufacturingMarkupFromPrices);
 
 manufacturingPrice 'Цена изготовителя' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 manufacturingPrice 'Цена изготовителя' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7 ;
@@ -123,7 +129,7 @@ manufacturingMarkup(UserInvoiceDetail detail) <- markup(manufacturingCalcPriceLi
          CHANGED(sku(detail));
 
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) addCostPriceToManufacturingPrice, nameManufacturingCalcPriceListType
+    PROPERTIES(o) addCostPriceToManufacturingPrice, nameManufacturingCalcPriceListType 
 ;
 
 DESIGN Purchase.operation{
@@ -136,6 +142,7 @@ DESIGN Purchase.operation{
             MOVE PROPERTY(addCostPriceToManufacturingPrice(o));
             MOVE PROPERTY(nameManufacturingCalcPriceListType(o));
             MOVE PROPERTY(reverseManufacturingPrice(o));
+            MOVE PROPERTY(calcManufacturingMarkupFromPrices(o));            
         }
     }
 }
@@ -155,20 +162,20 @@ calcReversePrice(UserInvoiceDetail d) =
     round(NUMERIC[16,4](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
 
 updateManufacturingPrice(UserInvoiceDetail d)  { 
-    IF reverseManufacturingPrice(d) THEN {
-        price(d) <- calcReversePrice(d);
-    } ELSE {
-        manufacturingPrice(d) <- 
-            IF roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d)) THEN
-                NUMERIC[16,4](Utils.round(baseManufacturingPrice(d), priceRound(roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d)))))
-            ELSE
-                NUMERIC[16,4](baseManufacturingPrice(d));    
-    }
+    CASE WHEN calcManufacturingMarkupFromPrices(d) THEN manufacturingMarkup(d) <- NUMERIC[8,3]( (calcBaseManufacturingPrice(d) / manufacturingPrice(d) - 1) *100); 
+         WHEN reverseManufacturingPrice(d) THEN price(d) <- calcReversePrice(d);
+         ELSE
+            manufacturingPrice(d) <- 
+                IF roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d)) THEN
+                    NUMERIC[16,4](Utils.round(baseManufacturingPrice(d), priceRound(roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d)))))
+                ELSE
+                    NUMERIC[16,4](baseManufacturingPrice(d));    
+         
 }
-overChangePrice (UserInvoiceDetail d) + { 
-    IF reverseManufacturingPrice(d) THEN {
-        manufacturingPrice(d)<- baseReverseManufacturingPrice(d);    
-    }
+overChangePrice (UserInvoiceDetail d) + {
+    CASE WHEN calcManufacturingMarkupFromPrices(d) THEN manufacturingMarkup(d) <- NUMERIC[8,3]( (calcBaseManufacturingPrice(d) / manufacturingPrice(d) - 1) *100);
+         WHEN reverseManufacturingPrice(d) THEN manufacturingPrice(d) <- baseReverseManufacturingPrice(d);                
+    
 }
 
 ON LOCAL FORMS userInvoice {
@@ -185,12 +192,11 @@ calcManufacturingMarkup(UserInvoiceDetail d) =
 overChangeManufacturingPrice  ABSTRACT LIST ( UserInvoiceDetail);
 changeManufacturingPrice(UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[16,4] DO {
-        manufacturingPrice(d) <- n;      
-        IF reverseManufacturingPrice(d) THEN {
-            price(d) <- calcReversePrice(d);  // пока не учитываем доп. расходы
-        } ELSE {
-            manufacturingMarkup(d) <- calcManufacturingMarkup(d);        
-        } 
+        manufacturingPrice(d) <- n;
+        CASE WHEN calcManufacturingMarkupFromPrices(d) THEN manufacturingMarkup(d) <- NUMERIC[8,3]( (calcBaseManufacturingPrice(d) / manufacturingPrice(d) - 1) *100);      
+             WHEN reverseManufacturingPrice(d) THEN price(d) <- calcReversePrice(d);  // пока не учитываем доп. расходы
+             ELSE  manufacturingMarkup(d) <- calcManufacturingMarkup(d);        
+         
         invoicePrice(d) <- round2(price(d) * (100 (+) calcValueVAT(d))/100);
         overChangeManufacturingPrice(d);
     }
@@ -240,7 +246,7 @@ backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPrice BACKGROUND backgroundManufacturing(i)
     PROPERTIES(i) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(i) addCostPriceToManufacturingPrice,
-                  nameManufacturingCalcPriceListType, reverseManufacturingPrice
+                  nameManufacturingCalcPriceListType, reverseManufacturingPrice, calcManufacturingMarkupFromPrices
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(i) dateManufacturingRateExchange, rateManufacturingExchange
     PROPERTIES(d) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(d) AFTER invoiceSum(d) 
                   manufacturingMarkup,
@@ -263,6 +269,7 @@ DESIGN userInvoice {
             MOVE PROPERTY(addCostPriceToManufacturingPrice(i));
             MOVE PROPERTY(nameManufacturingCalcPriceListType(i));
             MOVE PROPERTY(reverseManufacturingPrice(i));
+            MOVE PROPERTY(calcManufacturingMarkupFromPrices(i));                        
             MOVE PROPERTY(dateManufacturingRateExchange(i));
             MOVE PROPERTY(rateManufacturingExchange(i));
         }
