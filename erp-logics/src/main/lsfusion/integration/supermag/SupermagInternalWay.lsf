@@ -112,11 +112,11 @@ overImportInternalWay2 ABSTRACT LIST ();
 
 importInternalWay 'Импорт накладные перемещение' () {     
    
-    filterSql() <- 'd.DocType = \'IW\' AND (d.locationfrom IN ('+ stocksImport() + ') OR d.locationto IN ('+ stocksImport() + ') ) AND d.CreateDat >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'd.DocType = \'IW\' AND d.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
+    filterSql() <- 'doc.DocType = \'IW\' AND (doc.locationfrom IN ('+ stocksImport() + ') OR doc.locationto IN ('+ stocksImport() + ') ) AND doc.CreateDat >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'doc.DocType = \'IW\' AND doc.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
        
     EXTERNAL SQL connectionString()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql() TO SupermagSettings.file;   
+    EXEC 'Select doc.ID, doc.doctype, doc.opcode, doc.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.createdat, doc.docstate, doc.locationto, doc.locationfrom, doc.Commentary from Supermag.SMDocuments doc where ' + filterSql() TO SupermagSettings.file;   
     
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, locationTo, locationFrom, comment;
     
@@ -129,7 +129,7 @@ importInternalWay 'Импорт накладные перемещение' () {
     }
     
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.locationto, d.locationfrom, d.Commentary from Supermag.SMDocuments d where ' + filterSql();
+        MESSAGE 'Select doc.ID, doc.doctype, doc.opcode, doc.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.createdat, doc.docstate, doc.locationto, doc.locationfrom, doc.Commentary from Supermag.SMDocuments doc where ' + filterSql();
         MESSAGE idDoc(0);
         MESSAGE currentVersion(0);
         MESSAGE name(operation1Supermag(codeOperation(0)));
@@ -158,14 +158,14 @@ importInternalWay 'Импорт накладные перемещение' () {
     
     //импорт оснований для накладных
     EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base()  
-    EXEC 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype' TO SupermagSettings.file;
+    EXEC 'Select doc.ID, doc.doctype, doc.opcode, doc.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments doc, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=doc.id AND bs.doctype(+)=doc.doctype' TO SupermagSettings.file;
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, baseNumber, baseDoctype ;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));
     
     IF length(numberImportDocument()) > 0 THEN { //для отладки
-        MESSAGE 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';
+        MESSAGE 'Select doc.ID, doc.doctype, doc.opcode, doc.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments doc, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=doc.id AND bs.doctype(+)=doc.doctype';
         MESSAGE idDoc(0) +  ' ' + idBase(0);
     }
 
@@ -177,7 +177,7 @@ importInternalWay 'Импорт накладные перемещение' () {
 
     //импорт спецификаций
     EXTERNAL SQL connectionString()  
-        EXEC 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments d, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT doc.ID, doc.DOCTYPE, doc.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments doc, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = doc.DOCTYPE AND ds.DOCID = doc.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() TO SupermagSettings.file;
 
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer;
     
@@ -188,7 +188,7 @@ importInternalWay 'Импорт накладные перемещение' () {
                                                 STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)) ) IF idDet(i);                  
 
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
-        MESSAGE 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments d, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql();
+        MESSAGE 'SELECT doc.ID, doc.DOCTYPE, doc.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments doc, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = doc.DOCTYPE AND ds.DOCID = doc.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql();
         MESSAGE idDet(0);
         MESSAGE currentVersion(0);        
     }
