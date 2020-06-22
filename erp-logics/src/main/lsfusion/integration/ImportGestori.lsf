@@ -1,7 +1,7 @@
 MODULE ImportGestori;
 
 REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode, Disparity, WareItem;
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode, Disparity, WareItem, SalePack;
 
 @defineLogRotate(importGestori_init, 5, weekly);
 @defineLogRotate(importGestori, 5, weekly);
@@ -395,8 +395,8 @@ importItems1 'Импорт товаров' () {
     
     IMPORT TABLE FROM file() TO idItem, name, name2, idUOM, idGroup1, idGroup2, idGroup3, idLegalEntity, passScales, netWeight, volume, article, dateCreated, userCreated;
     
-    FOR idItem(INTEGER i) AND NOT item(TEXT (idItem(i))) DO NEW s = Item {
-        id(s) <- STRING[100](idItem(i));
+    FOR idItem(INTEGER i) AND NOT item(trim(STRING[100] (idItem(i)))) DO NEW s = Item {
+        id(s) <- trim(STRING[100](idItem(i)));
     }
     
     FOR Item s = item(TEXT (idItem(INTEGER i))) DO {
@@ -642,12 +642,16 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         banPurchase(Item s) <- TRUE WHERE s = item(TEXT (idItem(i)));
     }
     
-    FOR property(INTEGER i) == 16 AND NOT packBarcode(item(TEXT (idItem(i)))) DO NEW b = Barcode {
+    FOR property(INTEGER i) == 16 AND NOT Purchase.packBarcode(item(TEXT (idItem(i)))) DO NEW b = Barcode {
         sku(b) <- item(TEXT (idItem(i)));
-        packBarcode(Item s) <- b WHERE s = item(TEXT (idItem(i)));
+        Purchase.packBarcode(Item s) <- b WHERE s = item(TEXT (idItem(i)));
     }
     
-    FOR property(INTEGER i) == 16 AND Barcode b = packBarcode(item(TEXT (idItem(i)))) DO {
+    FOR property(INTEGER i) == 16 AND Purchase.packBarcode(item(TEXT (idItem(i)))) AND NOT Sale.packBarcode(item(TEXT (idItem(i)))) DO {
+        Sale.packBarcode(Item s) <- Purchase.packBarcode(s) WHERE s = item(TEXT (idItem(i)));
+    }
+    
+    FOR property(INTEGER i) == 16 AND Barcode b = Purchase.packBarcode(item(TEXT (idItem(i)))) DO {
         amount(b) <- NUMERIC[14,3](value(i));
     }
     
