@@ -170,16 +170,28 @@ skipTruck 'Пропустить проверку автомобиля' = ABSTRAC
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
 
+overChangeTruck  ABSTRACT ( Consignment);
+
+customSelectTruck = ABSTRACT BOOLEAN (Consignment);
+overSelectTruck ABSTRACT (Consignment);
+
 changeTruck (Consignment consignment)  {    
     IF notUseDriverTruck(consignment) THEN {
         INPUT s = dataNameTruck(consignment) DO {
             dataNameTruck(consignment) <- s;
         }
     } ELSE {
-        DIALOG trucks OBJECTS t = dataTruck(consignment) INPUT NULL DO {
-            dataTruck(consignment) <- t;
+        IF customSelectTruck(consignment) THEN {
+            overSelectTruck(consignment);
+        } ELSE {
+            DIALOG trucks OBJECTS t = dataTruck(consignment) INPUT NULL DO {
+                dataTruck(consignment) <- t;
+            }
         }
+        
+        
     }        
+    overChangeTruck(consignment);
 }
 
 pickTuck 'Выбрать автомобиль из справочника' (Consignment consignment)  { 
@@ -365,20 +377,29 @@ dataIssuanceAllowed = DATA STRING[100](Consignment);
 overIssuanceAllowed (consignment) = DATA Employee (Consignment);
 issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
 nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE dataIssuanceAllowed(consignment),
+
                                                                                               positionShortName(issuanceAllowed(consignment)), // для агрегированных объектов (накладная на основании накладной)
                                                                                               positionShortName(overIssuanceAllowed(consignment)) IN issuanceConsignment CHARWIDTH 20;
+overChangeIssuanceAllowed ABSTRACT (Consignment);
+
+customSelectIssuanceAllowed = ABSTRACT BOOLEAN (Consignment);
+overSelectIssuanceAllowed ABSTRACT (Consignment);
+
 changeIssuanceAllowed(Consignment consignment)  {    
     IF notUseIssuanceAllowed(consignment) THEN {
         INPUT s = dataIssuanceAllowed(consignment) DO {
             dataIssuanceAllowed(consignment) <- s;  
         }               
-    } ELSE {
-        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceAllowed(consignment) INPUT NULL DO {
-            issuanceAllowed(consignment) <- e;
-            IF NOT issuanceAllowed(consignment) THEN {
-                overIssuanceAllowed(consignment) <- e;
+    } ELSE
+        IF customSelectIssuanceAllowed(consignment) THEN {
+            overSelectIssuanceAllowed(consignment);
+        } ELSE {
+            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceAllowed(consignment) INPUT NULL DO {
+                issuanceAllowed(consignment) <- e;
+                IF NOT issuanceAllowed(consignment) THEN {
+                    overIssuanceAllowed(consignment) <- e;
+                }
             }
-        }
 //        IF formResult() == FormResult.ok THEN {
 //            issuanceAllowed(consignment) <- requestedObject();
 //            IF NOT issuanceAllowed(consignment) THEN {
@@ -389,6 +410,7 @@ changeIssuanceAllowed(Consignment consignment)  {
 //            overIssuanceAllowed(consignment) <- NULL;
 //        }
     }        
+    overChangeIssuanceAllowed(consignment);
 }
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
 dataIssuanceExecuted = DATA STRING[100](Consignment);
@@ -397,20 +419,29 @@ issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
 nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE  dataIssuanceExecuted(consignment),
                                                                                                 positionShortName(issuanceExecuted(consignment)),
                                                                                                 positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;
+overChangeIssuanceExecuted ABSTRACT (Consignment);
+
+customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Consignment);
+overSelectIssuanceExecuted ABSTRACT (Consignment);
+
 changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = dataIssuanceExecuted(consignment) DO {
             dataIssuanceExecuted(consignment) <- s;
         } 
         
-    } ELSE {
-        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
-            issuanceExecuted(consignment) <- e;
-            IF NOT issuanceExecuted(consignment) THEN {
-                overIssuanceExecuted(consignment) <- e;
-            }
-        }               
-    }        
+    } ELSE 
+        IF customSelectIssuanceExecuted(consignment) THEN {
+            overSelectIssuanceExecuted(consignment);
+        } ELSE {
+            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
+                issuanceExecuted(consignment) <- e;
+                IF NOT issuanceExecuted(consignment) THEN {
+                    overIssuanceExecuted(consignment) <- e;
+                }
+            }               
+        }        
+    overChangeIssuanceExecuted(consignment);
 }
 
 //forwarderConsignment 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (consignment) = ABSTRACT STRING[40] (Consignment) IN issuanceConsignment;
