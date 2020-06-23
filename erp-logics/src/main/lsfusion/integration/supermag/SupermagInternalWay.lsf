@@ -29,7 +29,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 invoiceDocCreate(expMain) <- dateTime(doc);
                 invoiceDocSum(expMain) <- OVERRIDE overInvoiceDocSum(doc), sumInvoiceConsignmentDetail(doc);
                 invoiceDocNumber(expMain) <- CONCAT ' ', invoiceNumber(doc), invoiceSeries(doc); //OVERRIDE  (CONCAT ' ', invoiceNumber(doc), invoiceSeries(doc)), seriesNumber(doc);      
-                priceRoundMode(expMain) <- 4 IF doc IS Invoice;                                                
+                priceRoundMode(expMain) <- 0 IF doc IS Invoice;                                                
                 createFinobligation(expMain)  <- createFinobligation(operation(doc));                               
                 locationFrom(expMain) <- id(supplierStock(doc));
                 locationTo(expMain) <- id(customerStock(doc));
@@ -144,10 +144,10 @@ importInternalWay 'Импорт накладные перемещение' () {
         createPurchaseShipment(doc) <- docState(i) == 2 OR docState(i) == 3;
         isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag[UserInvoice](doc) <- docState(i);
-        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
         supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
-        customer(doc) <- legalEntity(STRING(locationTo(i)));
+        supplier(doc) <- legalEntity(supplierStock(doc));
         customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        customer(doc) <- legalEntity(customerStock(doc));
         date(doc) <- DATE (docDate(i));  
         time(doc) <- 00:00;
         imported(doc) <- TRUE;
