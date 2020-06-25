@@ -153,8 +153,24 @@ payer(Consignment c) = OVERRIDE dataPayer(c), overPayer(c);
 UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE extraUNPPayer(consignment), UNP(payer(consignment));
 addressPayer 'Юр. адрес заказчика' (Consignment consignment) =
     address(payer(consignment), date(consignment));
+
+dataFullNamePayer = DATA STRING[200] (Consignment);
 fullNamePayer 'Наим-ие заказчика' (Consignment consignment) =
-    fullName(payer(consignment)) ;
+    OVERRIDE dataFullNamePayer(consignment), fullName(payer(consignment)) ;
+
+overChangePayer ABSTRACT (Consignment);
+
+customSelectPayer = ABSTRACT BOOLEAN (Consignment);
+overSelectPayer ABSTRACT (Consignment);
+
+changePayer (Consignment consignment) {
+    IF customSelectPayer(consignment) THEN {
+        overSelectPayer(consignment);
+    } ELSE {
+        DIALOG LIST LegalEntity = dataPayer(consignment) CHANGE = dataPayer(consignment) NULL;
+    }
+    overChangePayer(consignment);
+}
 
 // ------------------------------------- Атрибуты --------------------------------- //
 
@@ -1173,7 +1189,7 @@ FORM consignment 'Атрибуты накладной'
     PROPERTIES(c)  quantityConsignmentDetail, overPackQuantityConsignmentDetail, grossWeightConsignmentDetail,
                    sumConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                    countConsignmentDetail, note, shortNameCurrency, countPages, additionalDocuments
-    PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer, UNPPayer, addressPayer                 
+    PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer ON CHANGE changePayer(c), UNPPayer, addressPayer                 
 
 
     OBJECTS d=ConsignmentDetail
