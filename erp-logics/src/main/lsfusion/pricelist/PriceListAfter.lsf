@@ -1,0 +1,145 @@
+MODULE PriceListAfter;
+
+REQUIRE PriceList, PriceListOperation;
+
+NAMESPACE PriceList;
+
+inAfter 'Изменять цены (после)' = ABSTRACT BOOLEAN (PriceList, DataPriceListType) MATERIALIZED;
+inAfter 'Изменять цены (после)' = DATA BOOLEAN (UserPriceList, DataPriceListType);
+inAfter (UserPriceList priceList, DataPriceListType dataPriceListType) += inAfter(priceList, dataPriceListType);
+
+countAfterDataPriceListTypes (PriceList p) = GROUP SUM 1 IF inAfter(p,DataPriceListType t);
+countAfterDataPriceListTypes (UserPriceList p) = GROUP SUM 1 IF inAfter(p,DataPriceListType t);
+
+changeAfter 'Изменять цены (после)' = DATA BOOLEAN (DataPriceListType, Operation);
+
+inAfter(UserPriceList priceList, DataPriceListType dataPriceListType) <- changeAfter(dataPriceListType, operation(priceList))
+    WHEN CHANGED(operation(priceList));
+    
+EXTEND FORM operation
+    PROPERTIES(pt, o) changeAfter DRAW pt AFTER orderShow(pt, o)
+    
+;
+
+priceAfter 'Цена до' = ABSTRACT NUMERIC[16,4] (PriceListDetail);
+priceAfter 'Цена до' = DATA NUMERIC[16,4] (UserPriceListDetail);
+priceAfter(UserPriceListDetail d) += priceAfter(d);
+
+priceListTypeAfter 'Вид цены для цены после' = DATA DataPriceListType (UserPriceList);
+
+showPriceAfter 'Цена до' =  ABSTRACT BOOLEAN (PriceList);   
+showPriceAfter 'Цена до' =  DATA BOOLEAN (UserPriceList);  
+showPriceAfter (UserPriceListDetail d) = showPriceAfter(userPriceList(d));
+showPriceAfter(UserPriceList p) += showPriceAfter(p);
+
+EXTEND FORM userPriceList 
+    PROPERTIES(p) showPriceAfter
+    PROPERTIES(p,t)  inAfter[UserPriceList,DataPriceListType] SHOWIF showPriceAfter(p)        
+    PROPERTIES(d) priceAfter SHOWIF showPriceAfter(p) BEFORE viewPrice(d,to)
+    ;
+    
+DESIGN userPriceList {
+    param{
+        MOVE PROPERTY (showPriceAfter(p));
+    }
+}
+
+priceListTypeAfter 'Вид цены для цены после' = DATA DataPriceListType (PriceList.Operation);
+   
+showPriceAfter 'Цена после' = DATA BOOLEAN (PriceList.Operation);
+showPriceAfter(UserPriceList priceList) <- showPriceAfter(operation(priceList))
+    WHEN CHANGED(operation(priceList));
+skipConstraintPriceAfter 'Может быть не задана Цена после' = DATA BOOLEAN (PriceList.Operation);
+    
+EXTEND FORM operation PROPERTIES(o) showPriceAfter, skipConstraintPriceAfter SHOWIF showPriceAfter(o);
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showPriceAfter(o));
+    }
+    constraintContainer {
+        MOVE PROPERTY(skipConstraintPriceAfter(o));
+    }
+}
+
+@defineDocumentInterfaceHeaderTimePrefix(PriceList, fromPriceAfter, ' с (Цена после)');
+WHEN LOCAL SET(UserPriceList o IS UserPriceList) DO {
+    IF o IS UserPriceList AND NOT fromPriceAfterDate(o) THEN fromPriceAfterDate(o) <- currentDate();
+    IF o IS UserPriceList AND NOT fromPriceAfterTime(o) THEN fromPriceAfterTime(o) <- currentTime();
+};
+skipChangeFromPriceAfterTime = ABSTRACT BOOLEAN (PriceList);
+WHEN LOCAL CHANGED(fromPriceAfterDate(UserPriceList o)) AND NOT CHANGED(fromPriceAfterTime(o)) AND NOT skipChangeFromPriceAfterTime(o) DO {
+    fromPriceAfterTime(o) <- IF fromPriceAfterDate(o) > currentDate() THEN 00:00 ELSE currentTime();
+} 
+
+@defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceAfter, ' по (Цена после)');
+@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceAfter);
+
+CONSTRAINT showPriceAfter(UserPriceList p) AND isPosted(p) AND
+            ((fromPriceAfterDateTime(p) >= fromDateTime(p)) OR (toPriceAfterDateTime(p) <= toDateTime(p)))
+    MESSAGE 'Дата с (Цена после) и Дата по (Цена после) не могут быть в интервале самого прайса';
+    
+CONSTRAINT showPriceAfter(UserPriceList p) AND isPosted(p) AND NOT skipConstraintPriceAfter(operation(p)) AND 
+            (NOT fromPriceAfterDateTime(p) OR NOT toPriceAfterDateTime(p)) AND [ GROUP SUM 1 IF priceAfter(UserPriceListDetail d) BY userPriceList(d)](p)
+    MESSAGE 'Дата с (Цена после) и Дата по (Цена после) должны быть заданы для прайса';
+    
+CONSTRAINT showPriceAfter(userPriceList(UserPriceListDetail d)) AND isPosted(userPriceList(d))
+            AND NOT skipConstraintPriceAfter(operation(d)) AND NOT priceAfter(d)
+    MESSAGE 'Цена после должна быть задана для строки прайса.';
+
+backgroundPriceAfterTime = ABSTRACT COLOR (PriceList);
+EXTEND FORM userPriceList
+    PROPERTIES (p) SHOWIF showPriceAfter(p) fromPriceAfterDate, fromPriceAfterTime BACKGROUND backgroundPriceAfterTime(p), toPriceAfterDate, toPriceAfterTime
+;
+
+DESIGN userPriceList{
+    midContainer {
+        type = CONTAINERV;
+        NEW timePriceAfterContainer{
+            caption = 'Период действия (Цена после)';
+            type = CONTAINERH;
+            MOVE PROPERTY (fromPriceAfterDate(p));
+            MOVE PROPERTY (fromPriceAfterTime(p));
+            MOVE PROPERTY (toPriceAfterDate(p));
+            MOVE PROPERTY (toPriceAfterTime(p));
+        }
+    }
+}
+
+CLASS PriceListAfterLedger : PriceListLedger;
+TABLE priceListAfterLedger(PriceListAfterLedger);
+
+needPriceAfter(PriceListDetail d) = priceAfter(d) AND countAfterDataPriceListTypes(priceList(d))
+    AND fromPriceAfterDateTime(priceList(d)) AND toPriceAfterDateTime(priceList(d));
+
+priceListAfterLedger = AGGR PriceListAfterLedger WHERE needPriceAfter(PriceListDetail priceListDetail) MATERIALIZED INDEXED;
+
+in(PriceListAfterLedger l, DataPriceListType t) += inAfter(priceList(priceListDetail(l)), t);
+
+description(PriceListAfterLedger l) += STRING[200](description[UserPriceList](priceList(priceListDetail(l))) + ' (цена после)');
+
+price(PriceListAfterLedger l, DataPriceListType t) += priceAfter(priceListDetail(l)) IF inAfter(priceList(priceListDetail(l)), t);
+
+fromDateTime(PriceListAfterLedger l) += fromPriceAfterDateTime(priceList(priceListDetail(l)));
+toDateTime(PriceListAfterLedger l) += toPriceAfterDateTime(priceList(priceListDetail(l)));
+
+isPosted(PriceListAfterLedger l) += isPosted(priceList(priceListDetail(l)));
+skip(PriceListAfterLedger l) += exclude(priceListDetail(l));
+
+sku(PriceListAfterLedger l) += sku(priceListDetail(l));
+
+operation (PriceListAfterLedger l) += operation(priceListDetail(l));
+
+company(PriceListAfterLedger l) += company(priceList(priceListDetail(l)));
+
+in(PriceListAfterLedger l,Stock st) += in(priceList(priceListDetail(l)),st);
+show[PriceListLedger] (PriceListAfterLedger ledger) + { show(priceListDetail(ledger));};
+
+// Расчет цены после  для склада и sku
+lastAfterPriceListLedger 'Цена' (LedgerPriceListType type, sku, Stock stock, DATETIME dateTime) =
+    GROUP LAST PriceListAfterLedger ledger
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE ledger IS PriceListAfterLedger 
+                AND fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime
+          BY sku(ledger, type, stock);
+
+priceAfter 'Цена после' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dt) = priceAfter(priceListDetail(lastAfterPriceListLedger(type, sku, stock, dt)));
