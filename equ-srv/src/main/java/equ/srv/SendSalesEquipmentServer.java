@@ -61,8 +61,8 @@ public class SendSalesEquipmentServer {
                 ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("groupCashRegister", groupCashRegisterExpr, "cashRegister", cashRegisterExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-                String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
-                LP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]");
+                String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister", "startDate"};
+                LP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]", "startDate[CashRegister]");
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
@@ -91,6 +91,7 @@ public class SendSalesEquipmentServer {
                             trim((String) row.get("overDirectoryMachinery")), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (LocalDate) row.get("documentsClosedDate"));
+                    c.startDate = (LocalDate) row.get("startDate");
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
