@@ -71,7 +71,7 @@ WHEN LOCAL SET(UserPriceList o IS UserPriceList) AND toDateTime(o)  DO {
 };
 skipChangeFromPriceAfterTime = ABSTRACT BOOLEAN (PriceList);
 
-WHEN LOCAL CHANGED(toDate(UserPriceList o)) OR CHANGED(toTime(o)) AND CHANGED(showPriceAfter(o)) DO {
+WHEN LOCAL CHANGED(toDate(UserPriceList o)) OR CHANGED(toTime(o)) OR CHANGED(showPriceAfter(o)) DO {
     LOCAL sec = LONG ();
     sec() <- 1;
     IF o IS UserPriceList THEN fromPriceAfterDate(o) <- DATE(sumSeconds(toDateTime(o),sec()));
@@ -98,8 +98,15 @@ CONSTRAINT showPriceAfter(userPriceList(UserPriceListDetail d)) AND isPosted(use
     MESSAGE 'Цена после должна быть задана для строки прайса.';
 
 backgroundPriceAfterTime = ABSTRACT COLOR (PriceList);
+
+editFromPriceAfter = ABSTRACT BOOLEAN();
+editToPriceAfter = ABSTRACT BOOLEAN();
+showFromPriceAfter = ABSTRACT BOOLEAN();
+showToPriceAfter = ABSTRACT BOOLEAN();
+
 EXTEND FORM userPriceList
-    PROPERTIES (p) SHOWIF showPriceAfter(p) fromPriceAfterDate, fromPriceAfterTime BACKGROUND backgroundPriceAfterTime(p), toPriceAfterDate, toPriceAfterTime
+    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showFromPriceAfter()) READONLYIF NOT editFromPriceAfter() fromPriceAfterDate, fromPriceAfterTime BACKGROUND backgroundPriceAfterTime(p)
+    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showToPriceAfter()) READONLYIF NOT editToPriceAfter() toPriceAfterDate, toPriceAfterTime
 ;
 
 DESIGN userPriceList{
