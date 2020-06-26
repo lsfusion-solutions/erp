@@ -1,6 +1,6 @@
 MODULE PriceListAfter;
 
-REQUIRE PriceList, PriceListOperation;
+REQUIRE PriceList, PriceListOperation, Time;
 
 NAMESPACE PriceList;
 
@@ -21,14 +21,14 @@ EXTEND FORM operation
     
 ;
 
-priceAfter 'Цена до' = ABSTRACT NUMERIC[16,4] (PriceListDetail);
-priceAfter 'Цена до' = DATA NUMERIC[16,4] (UserPriceListDetail);
+priceAfter 'Цена после' = ABSTRACT NUMERIC[16,4] (PriceListDetail);
+priceAfter 'Цена после' = DATA NUMERIC[16,4] (UserPriceListDetail);
 priceAfter(UserPriceListDetail d) += priceAfter(d);
 
 priceListTypeAfter 'Вид цены для цены после' = DATA DataPriceListType (UserPriceList);
 
-showPriceAfter 'Цена до' =  ABSTRACT BOOLEAN (PriceList);   
-showPriceAfter 'Цена до' =  DATA BOOLEAN (UserPriceList);  
+showPriceAfter 'Цена после' =  ABSTRACT BOOLEAN (PriceList);   
+showPriceAfter 'Цена после' =  DATA BOOLEAN (UserPriceList);  
 showPriceAfter (UserPriceListDetail d) = showPriceAfter(userPriceList(d));
 showPriceAfter(UserPriceList p) += showPriceAfter(p);
 
@@ -62,26 +62,37 @@ DESIGN operation {
 }
 
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, fromPriceAfter, ' с (Цена после)');
-WHEN LOCAL SET(UserPriceList o IS UserPriceList) DO {
-    IF o IS UserPriceList AND NOT fromPriceAfterDate(o) THEN fromPriceAfterDate(o) <- currentDate();
-    IF o IS UserPriceList AND NOT fromPriceAfterTime(o) THEN fromPriceAfterTime(o) <- currentTime();
+
+WHEN LOCAL SET(UserPriceList o IS UserPriceList) AND toDateTime(o)  DO {
+    LOCAL sec = LONG ();
+    sec() <- 1;
+    IF o IS UserPriceList THEN fromPriceAfterDate(o) <- DATE(sumSeconds(toDateTime(o),sec()));
+    IF o IS UserPriceList THEN fromPriceAfterTime(o) <- TIME(sumSeconds(toDateTime(o),sec()));
 };
 skipChangeFromPriceAfterTime = ABSTRACT BOOLEAN (PriceList);
-WHEN LOCAL CHANGED(fromPriceAfterDate(UserPriceList o)) AND NOT CHANGED(fromPriceAfterTime(o)) AND NOT skipChangeFromPriceAfterTime(o) DO {
-    fromPriceAfterTime(o) <- IF fromPriceAfterDate(o) > currentDate() THEN 00:00 ELSE currentTime();
+
+WHEN LOCAL CHANGED(toDate(UserPriceList o)) OR CHANGED(toTime(o)) AND CHANGED(showPriceAfter(o)) DO {
+    LOCAL sec = LONG ();
+    sec() <- 1;
+    IF o IS UserPriceList THEN fromPriceAfterDate(o) <- DATE(sumSeconds(toDateTime(o),sec()));
+    IF o IS UserPriceList THEN fromPriceAfterTime(o) <- TIME(sumSeconds(toDateTime(o),sec()));
 } 
 
 @defineDocumentInterfaceHeaderTimePrefix(PriceList, toPriceAfter, ' по (Цена после)');
-@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceAfter);
+//@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, toPriceAfter){
+//    WHEN LOCAL CHANGED(toPriceAfterDate(UserPriceList o)) AND NOT toPriceAfterTime(o) DO {
+//        toPriceAfterTime(o) <- 23:59;
+//    } 
+//};
 
 CONSTRAINT showPriceAfter(UserPriceList p) AND isPosted(p) AND
-            ((fromPriceAfterDateTime(p) >= fromDateTime(p)) OR (toPriceAfterDateTime(p) <= toDateTime(p)))
-    MESSAGE 'Дата с (Цена после) и Дата по (Цена после) не могут быть в интервале самого прайса';
-    
+            ((fromPriceAfterDateTime(p) <= toDateTime(p)) OR (toPriceAfterDateTime(p) <= toDateTime(p)))
+    MESSAGE 'Дата с (Цена после) и Дата по (Цена после) не могут быть раньше времени окончания прайса';
+
 CONSTRAINT showPriceAfter(UserPriceList p) AND isPosted(p) AND NOT skipConstraintPriceAfter(operation(p)) AND 
             (NOT fromPriceAfterDateTime(p) OR NOT toPriceAfterDateTime(p)) AND [ GROUP SUM 1 IF priceAfter(UserPriceListDetail d) BY userPriceList(d)](p)
     MESSAGE 'Дата с (Цена после) и Дата по (Цена после) должны быть заданы для прайса';
-    
+
 CONSTRAINT showPriceAfter(userPriceList(UserPriceListDetail d)) AND isPosted(userPriceList(d))
             AND NOT skipConstraintPriceAfter(operation(d)) AND NOT priceAfter(d)
     MESSAGE 'Цена после должна быть задана для строки прайса.';
