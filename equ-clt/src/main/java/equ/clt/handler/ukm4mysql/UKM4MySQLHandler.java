@@ -995,11 +995,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         UKM4MySQLSalesBatch salesBatch = null;
 
         String weightCode = null;
-        Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
+        Map<String, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (fitHandler(c)) {
-                if (c.number != null && c.numberGroup != null)
-                    machineryMap.put(c.number, c);
+                if (c.section != null && c.number != null)
+                    machineryMap.put(c.section + "/" + c.number, c);
                 if (c.weightCodeGroupCashRegister != null) {
                     weightCode = c.weightCodeGroupCashRegister;
                 }
@@ -1156,7 +1156,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
+    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<String, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
@@ -1181,11 +1181,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList);
             while (rs.next()) {
 
-                //Integer nppGroupMachinery = Integer.parseInt(rs.getString(1)); //i.store
                 //Integer nppMachinery = rs.getInt(2); //i.cash_number
 
+                String store = rs.getString(1); //i.store = при выгрузке цен выгружаем section
                 Integer cash_id = rs.getInt(3); //i.cash_id
-                CashRegisterInfo cashRegister = machineryMap.get(cash_id);
+                CashRegisterInfo cashRegister = machineryMap.get(store + "/" + cash_id);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                 //Integer id = rs.getInt(4); //i.id
