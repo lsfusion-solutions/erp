@@ -40,9 +40,11 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class TerminalEquipmentServer {
 
     static ScriptingLogicsModule terminalOrderLM;
+    static ScriptingLogicsModule terminalHandlerLM;
 
     public static void init(BusinessLogics BL) {
         terminalOrderLM = BL.getModule("TerminalOrder");
+        terminalHandlerLM = BL.getModule("TerminalHandler");
     }
 
     public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws SQLException {
@@ -144,19 +146,42 @@ public class TerminalEquipmentServer {
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                    skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
+            if (terminalHandlerLM != null) {
+                query.addProperty("filterAssortment", terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
+                query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
+                query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
+                query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
+            } else
+                query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+                        skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
             query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
             query.addProperty("idLegalEntity", machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
+
             query.and(machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
             query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
-            query.and(machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+            if (terminalHandlerLM != null) {
+                query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr).getWhere());
+            } else
+                query.and(machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
+
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idLegalEntity));
+                BigDecimal price;
+                if (terminalHandlerLM != null)
+                    price = (BigDecimal) entry.get("price");
+                else
+                    price = (BigDecimal) entry.get("priceALedgerPriceListTypeSkuStockCompanyDateTime");
+
+                BigDecimal maxPrice = null;
+                BigDecimal minPrice = null;
+                if (terminalHandlerLM != null) {
+                    minPrice = (BigDecimal) entry.get("minPrice");
+                    maxPrice = (BigDecimal) entry.get("maxPrice");
+                }
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idLegalEntity, price, minPrice, maxPrice));
             }
         }
         return terminalAssortmentList;

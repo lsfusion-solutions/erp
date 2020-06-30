@@ -252,6 +252,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
+    public String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String result = null;
+        ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        if(terminalHandlerLM != null) {
+            terminalHandlerLM.findAction("changeStatusTerminalOrder[STRING, STRING]").execute(session, stack, new DataObject(status), new DataObject(numberOrder));
+        }
+        return result;
+    }
+
+    @Override
     public String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         ScriptingLogicsModule terminalPreferencesLM = getLogicsInstance().getBusinessLogics().getModule("TerminalPreferences");
@@ -546,6 +556,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String sql = "CREATE TABLE assort " +
                 "(post    TEXT," +
                 " barcode TEXT," +
+                " price REAL," +
+                " minprice REAL," +
+                " maxprice REAL," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX assort_k ON assort (post,barcode);");
@@ -557,12 +570,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?);";
+                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalAssortment assortment : terminalAssortmentList) {
                     if (assortment.idSupplier != null && assortment.idBarcode != null) {
                         statement.setObject(1, formatValue((prefix + assortment.idSupplier)));
                         statement.setObject(2, formatValue(assortment.idBarcode));
+                        statement.setObject(3, formatValue(assortment.price));
+                        statement.setObject(4, formatValue(assortment.minPrice));
+                        statement.setObject(5, formatValue(assortment.maxPrice));
                         statement.addBatch();
                     }
                 }

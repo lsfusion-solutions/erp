@@ -383,6 +383,9 @@ public class LSTerminalHandler extends TerminalHandler {
         String sql = "CREATE TABLE IF NOT EXISTS assort " +
                 "(post    TEXT," +
                 " barcode TEXT," +
+                " price REAL," +
+                " minprice REAL," +
+                " maxprice REAL," +
                 "PRIMARY KEY ( post, barcode))";
         statement.executeUpdate(sql);
         statement.close();
@@ -398,12 +401,15 @@ public class LSTerminalHandler extends TerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?);";
+                String sql = "INSERT OR REPLACE INTO assort VALUES(?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalAssortment assortment : transactionInfo.terminalAssortmentList) {
                     if (assortment.idBarcode != null && assortment.idSupplier != null) {
                         statement.setObject(1, formatValue(("ПС" + assortment.idSupplier)));
                         statement.setObject(2, formatValue(assortment.idBarcode));
+                        statement.setObject(3, formatValue(assortment.price));
+                        statement.setObject(4, formatValue(assortment.minPrice));
+                        statement.setObject(5, formatValue(assortment.maxPrice));
                         statement.addBatch();
                     }
                 }
