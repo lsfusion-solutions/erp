@@ -36,6 +36,8 @@ backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE
     WHEN inData(range, skuGroup) THEN RGB(0,0,0)
     WHEN quantityChildWith (skuGroup,range) != descendantNumber(skuGroup) AND NOT quantityParentWith (skuGroup,range) THEN RGB(203,203,203);    
 
+overIn 'Вкл' (Range r, SkuGroup sg)  = OVERRIDE inData(r, sg), TRUE IF inChild(r, sg) ; 
+
 daysToRevision 'Дней до пересмотра' = DATA INTEGER (Range);
 
 inactive 'Неактивная' = DATA BOOLEAN (Range);
@@ -46,7 +48,7 @@ FORM range 'Ассортиментная матрица'
 
     TREE skuTree sg = SkuGroup PARENT parent(sg)
     PROPERTIES READONLY order(sg), skuGroupName = name(sg)
-    PROPERTIES inData(r, sg) BACKGROUND backgroundIn(r, sg)
+    PROPERTIES overIn(r, sg) BACKGROUND backgroundIn(r, sg)
     ORDERS order(sg), skuGroupName
     
     FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
