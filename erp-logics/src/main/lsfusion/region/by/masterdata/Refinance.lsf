@@ -1,0 +1,41 @@
+MODULE Refinance;
+
+REQUIRE System, Currency;
+        
+refinancingRate 'Ставка рефинансирования' = DATA NUMERIC[10,4] (DATE);
+
+refinancingRateOnDate 'Ставка рефинансирования' (DATE d) = GROUP LAST refinancingRate(DATE d1) ORDER d1
+                                                WHERE d1 <= d IF refinancingRate(d1);
+
+getRefinancingRates 'Получить ставки' () {  
+    NEWSESSION {
+        LOCAL date = DATE (INTEGER);
+        LOCAL refinancingRate = NUMERIC[10,4] (INTEGER);
+
+        LOCAL result = FILE();
+        EXTERNAL HTTP GET 'https://www.nbrb.by/api/refinancingrate' TO result;
+       
+        IMPORT JSON FROM result() TO date = Date, refinancingRate = Value; 
+        
+        FOR (refinancingRate(INTEGER i)) AND NOT refinancingRate(date(i)) DO {
+            refinancingRate(date(i)) <- refinancingRate(i);
+        }
+        
+        APPLY;
+    }
+}
+
+FORM refinancingRates 'Ставки рефинансирования'       
+    OBJECTS r = DATE
+    PROPERTIES (r) VALUE, refinancingRate
+    FILTERS refinancingRate(r)
+    PROPERTIES() getRefinancingRates TOOLBAR 
+;
+
+NAVIGATOR {
+    masterData {
+        currencyNavigator {
+            NEW refinancingRates;
+        }
+    }
+}
