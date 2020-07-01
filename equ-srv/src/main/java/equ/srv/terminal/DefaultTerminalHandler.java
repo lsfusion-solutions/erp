@@ -316,6 +316,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 }
 
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
                 for (ImMap<Object, Object> entry : barcodeResult.values()) {
