@@ -404,7 +404,7 @@ importStatusLC24 'Импортировать статусы' ()  {
         overImportStatusLC24(fileName);
         IF isSubstring(fileName, 'goods_status') AND NOT overImportStatusLC24('goods_status') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, status, statusNote;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO id, status, statusNote;
             
             FOR id(Item it) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
                 status(it) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
@@ -418,7 +418,7 @@ importStatusLC24 'Импортировать статусы' ()  {
         
         IF isSubstring(fileName, 'shk_status') AND NOT overImportStatusLC24('shk_status') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id = D, status = E, statusNote = F;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO id = D, status = E, statusNote = F;
             
             FOR id(Barcode b) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
                 status(b) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
@@ -431,7 +431,7 @@ importStatusLC24 'Импортировать статусы' ()  {
         
         IF isSubstring(fileName, 'trade_status') AND NOT overImportStatusLC24('trade_status') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id = A, status = C, statusNote = D;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO id = A, status = C, statusNote = D;
             
             FOR id(Stock st) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id) DO {
                 status(st) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
@@ -444,7 +444,7 @@ importStatusLC24 'Импортировать статусы' ()  {
         
         IF isSubstring(fileName, 'arrival_status') AND NOT overImportStatusLC24('arrival_status') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, date, type, status = D, statusNote = E;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO id, date, type, status = D, statusNote = E;
             
             FOR seriesNumber(Purchase.Invoice i) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id AND type(r) == 0 AND date(i) == DATE(toDateFormat(date(r),'YYYYMMDDHH24MISS'))) DO {
                 status(i) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
@@ -458,7 +458,7 @@ importStatusLC24 'Импортировать статусы' ()  {
         
         IF isSubstring(fileName, 'dispatch_status') AND NOT overImportStatusLC24('dispatch_status') THEN NEWSESSION {
             READ connectionStringLC24() + outPathLC24() + fileName TO file;
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO id, date, type, status, statusNote;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO id, date, type, status, statusNote;
             
             FOR seriesNumber(Sale.Order o) = STRING[100] id AND (GROUP SUM 1 IF id(INTEGER r) = id AND type(r) == 0 AND date(o) == DATE(toDateFormat(date(r),'YYYYMMDDHH24MISS'))) DO {
                 status(o) <- GROUP LAST status(INTEGER r) IF id(r) = id ORDER r;
@@ -510,7 +510,7 @@ importConditionLC24 'Импортировать состояния (наклад
             LOCAL H8 = STRING[100](INTEGER); //Автомобиль
             LOCAL H9 = STRING[100](INTEGER); //Путевой лист
                 
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9;
             
             IF imported(0) AND (H1(0) OR H2(0)) AND NOT DATE(toDateFormat(H6(0),'YYYYMMDD')) < subtract(currentDate(), countDatesImportConditionLC24()) THEN {
                 LOCAL inv = Sale.UserInvoice();
@@ -557,7 +557,7 @@ importConditionLC24 'Импортировать состояния (наклад
                     LOCAL P9 = INTEGER(INTEGER); //Номер позиции
                     LOCAL P10 = INTEGER(INTEGER); //Количество Мест
                     
-                    IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10;
+                    IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10;
                                         
                     FOR imported(INTEGER r) AND r > 0 ORDER P9(r) NEW d = Sale.UserInvoiceDetail DO {
                         Sale.userInvoice(d) <- inv();
@@ -602,7 +602,7 @@ importConditionLC24 'Импортировать состояния (наклад
             LOCAL H10 = STRING[100](INTEGER); //Номер бумажного документа снятия с ответ.хранения (Водитель)
             LOCAL H11 = STRING[100](INTEGER); //Дата бумажного документа снятия с ответ.хранения (Автомобиль)
             
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9, H10, H11;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO H1, H2, H3, H4, H5, H6, H7, H8, H9, H10, H11;
             
             LOCAL P1 = STRING[100](INTEGER); //Код товара
             LOCAL P2 = STRING[100](INTEGER); //Номер партии
@@ -618,7 +618,7 @@ importConditionLC24 'Импортировать состояния (наклад
             LOCAL P12 = NUMERIC[18,4](INTEGER); //Сумма
             LOCAL P13 = INTEGER(INTEGER); //Состояние товара
 
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13;
             
             LOCAL NESTED ok = BOOLEAN ();
             
@@ -662,7 +662,7 @@ importConditionLC24 'Импортировать состояния (наклад
             LOCAL HA11 = STRING[100](INTEGER); //Номер бумажного документа первого поставщика
             LOCAL HA12 = STRING[100](INTEGER); //Дата бумажного документа первого поставщика 
             
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO HA1, HA2, HA3, HA4, HA5, HA6, HA7, HA8, HA9, HA10, HA11, HA12;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO HA1, HA2, HA3, HA4, HA5, HA6, HA7, HA8, HA9, HA10, HA11, HA12;
             
             LOCAL PA1 = STRING[100](INTEGER); //Код товара
             LOCAL PA2 = STRING[100](INTEGER); //Номер партии
@@ -680,7 +680,7 @@ importConditionLC24 'Импортировать состояния (наклад
             LOCAL PA14 = NUMERIC[10,5](INTEGER); //СтавкаНДС
             LOCAL PA15 = NUMERIC[18,4](INTEGER); //СуммаСНДС
             
-            IMPORT CSV '|' NOHEADER CHARSET  'CP1251' FROM file() TO PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8, PA9, PA10, PA11, PA12, PA13, PA14, PA15;
+            IMPORT CSV '|' NOHEADER NOESCAPE CHARSET  'CP1251' FROM file() TO PA1, PA2, PA3, PA4, PA5, PA6, PA7, PA8, PA9, PA10, PA11, PA12, PA13, PA14, PA15;
             
             LOCAL inv = Purchase.UserInvoice();
             LOCAL ord = Purchase.UserOrder();
