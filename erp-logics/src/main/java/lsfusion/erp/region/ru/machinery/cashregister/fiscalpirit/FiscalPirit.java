@@ -227,7 +227,7 @@ public class FiscalPirit {
         String department = giftCardDepartment != null ? String.valueOf(giftCardDepartment) : "0";
         sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
                 formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, item.articleDiscSum)), "0", "0",
-                department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "BLR", "0"), true);
+                department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0"), true); //112 = Belarus
     }
 
     private static void subtotalCommand(SerialPort serialPort) {
