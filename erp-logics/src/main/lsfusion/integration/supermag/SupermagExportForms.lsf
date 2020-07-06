@@ -32,7 +32,7 @@ reasonPricing = DATA LOCAL STRING[100] (DocMain);
 note = DATA LOCAL ISTRING[500] (DocMain);
 sumNoTax = DATA LOCAL NUMERIC[18,4] (DocMain);
 sumWithTax = DATA LOCAL NUMERIC[18,4] (DocMain);
-sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocMain);
+sumCurr = DATA LOCAL NUMERIC[18,4] (DocMain);
 createFinobligation = DATA LOCAL BOOLEAN (DocMain);
 curRate(DocMain doc) = (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),DATE (creatdate(doc))),(1.0 IF doc IS DocMain));
 countSpec = DATA LOCAL INTEGER (DocMain);       
@@ -46,7 +46,9 @@ ourselfclient = DATA LOCAL STRING[100] (DocMain);
 blanknumber = DATA LOCAL STRING[100] (DocMain);
 blankdate = DATA LOCAL DATETIME (DocMain);
 orderdate = DATA LOCAL DATETIME (DocMain);
-supplydate = DATA LOCAL DATETIME (DocMain);
+supplydate = DATA LOCAL DATE (DocMain);
+deliverydate = DATA LOCAL DATE (DocMain);
+deliverytime = DATA LOCAL TIME (DocMain);
 
 docMain = DATA DocMain (DocDetail) NONULL DELETE;
 id = DATA LOCAL STRING[50] (DocDetail);
@@ -58,7 +60,7 @@ quantity = DATA LOCAL NUMERIC[16,5] (DocDetail);
 blankquantity = DATA LOCAL NUMERIC[16,5] (DocDetail);
 priceRoundMode = DATA LOCAL INTEGER (DocMain);
 priceWithTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
-priceWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);    
+priceCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);    
 priceNoTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
 priceManufacturer = DATA LOCAL NUMERIC[18,4] (DocDetail);
 extracharge =  DATA LOCAL NUMERIC[18,4] (DocDetail);
@@ -67,7 +69,7 @@ valueTax = DATA LOCAL NUMERIC[10,5] (DocDetail);
 sumTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
 sumNoTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
 sumWithTax = DATA LOCAL NUMERIC[18,4] (DocDetail);
-sumWithTaxCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);
+sumCurr = DATA LOCAL NUMERIC[18,4] (DocDetail);
 expiryDate = DATA LOCAL DATE (DocDetail);
 oldPrice = DATA LOCAL NUMERIC[18,4] (DocDetail);
 flags = DATA LOCAL STRING[10] (DocDetail);
@@ -116,7 +118,7 @@ FORM exportWI FORMEXTID 'PACKAGE'
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN WI_SMDOCUMENTS 
     PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN WI_SMDOCUMENTS      
     PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN WI_SMDOCUMENTS    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN WI_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 EXTID 'TOTALSUMCUR' IN WI_SMDOCUMENTS    
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN WI_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN WI_SMDOCUMENTS      
     PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN WI_SMDOCUMENTS     
@@ -134,8 +136,8 @@ FORM exportWI FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
     PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
-    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
-    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS docMain(docd)==doc
 
     PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN WI_SMWAYBILLSIN      
@@ -258,7 +260,7 @@ FORM exportWO FORMEXTID 'PACKAGE'
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN WO_SMDOCUMENTS 
     PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN WO_SMDOCUMENTS      
     PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN WO_SMDOCUMENTS    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN WO_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 EXTID 'TOTALSUMCUR' IN WO_SMDOCUMENTS    
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN WO_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN WO_SMDOCUMENTS      
     PROPERTIES = note(doc) EXTID 'COMMENTARY' IN WO_SMDOCUMENTS     
@@ -275,8 +277,8 @@ FORM exportWO FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
     PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
-    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
-    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS docMain(docd)==doc
    
     PROPERTIES = STRING[100](docid(doc))  EXTID 'ID' IN WO_SMWAYBILLSOUT      
@@ -370,7 +372,7 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN IW_SMDOCUMENTS 
     PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN IW_SMDOCUMENTS      
     PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN IW_SMDOCUMENTS    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN IW_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 EXTID 'TOTALSUMCUR' IN IW_SMDOCUMENTS    
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN IW_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN IW_SMDOCUMENTS      
     PROPERTIES = note(doc) EXTID 'COMMENTARY' IN IW_SMDOCUMENTS     
@@ -387,8 +389,8 @@ FORM exportIW FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
     PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
-    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
-    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS docMain(docd)==doc
 
     OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN IW
@@ -469,7 +471,7 @@ FORM exportAC FORMEXTID 'PACKAGE'
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN AC_SMDOCUMENTS 
     PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN AC_SMDOCUMENTS      
     PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN AC_SMDOCUMENTS    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 IF doc IS DocMain EXTID 'TOTALSUMCUR' IN AC_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 IF doc IS DocMain EXTID 'TOTALSUMCUR' IN AC_SMDOCUMENTS    
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN AC_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN AC_SMDOCUMENTS      
     PROPERTIES = note(doc) EXTID 'COMMENTARY' IN AC_SMDOCUMENTS
@@ -485,8 +487,8 @@ FORM exportAC FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumWithTax(docd), 0 EXTID 'TOTALPRICE'  
     PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICENOTAX'  
     PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
-    PROPERTIES = OVERRIDE priceWithTaxCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
-    PROPERTIES = OVERRIDE sumWithTaxCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
     FILTERS docMain(docd)==doc
     
     PROPERTIES = 'AC' IF doc IS DocMain EXTID 'DOCTYPE' IN AC_SMACTS
@@ -549,18 +551,20 @@ FORM exportOR FORMEXTID 'PACKAGE'
     PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'  
     PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
     PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN OR_SMDOCUMENTS
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN OR_SMDOCUMENTS    
     PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN OR_SMDOCUMENTS    
     PROPERTIES = bornin(doc) EXTID 'BORNIN' IN OR_SMDOCUMENTS       
     PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN OR_SMDOCUMENTS   
+    PROPERTIES = -1 IF doc IS DocMain EXTID 'OPCODE' IN OR_SMDOCUMENTS
     PROPERTIES = clientIndex(doc) EXTID 'CLIENTINDEX' IN OR_SMDOCUMENTS        
     PROPERTIES = location(doc) EXTID 'LOCATION' IN OR_SMDOCUMENTS
     PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN OR_SMDOCUMENTS        
     PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN OR_SMDOCUMENTS 
     PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN OR_SMDOCUMENTS      
-    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN OR_SMDOCUMENTS    
-    PROPERTIES = OVERRIDE sumWithTaxCurr(doc), 0 EXTID 'TOTALSUMCUR' IN OR_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumNoTax(doc), 0 EXTID 'TOTALSUM' IN OR_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 EXTID 'TOTALSUMCUR' IN OR_SMDOCUMENTS    
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN OR_SMDOCUMENTS       
-    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN OR_SMDOCUMENTS      
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'ISROUBLES' IN OR_SMDOCUMENTS      
     PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN OR_SMDOCUMENTS     
     FILTERS inc(doc)     
     
@@ -568,12 +572,96 @@ FORM exportOR FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[50](doctype(doc)) EXTID 'DOCTYPE' IN OR_SMDOCOR 
     PROPERTIES = ourselfclient(doc) EXTID 'OURSELFCLIENT' IN OR_SMDOCOR    
     PROPERTIES = orderdate(doc) EXTID 'ORDERDATE' IN OR_SMDOCOR    
-    PROPERTIES = supplydate(doc) EXTID 'SUPPLYDATE' IN OR_SMDOCOR    
-    PROPERTIES = 0 IF doc IS DocMain EXTID 'SUPPLYTIME' IN OR_SMDOCOR      
+    PROPERTIES = supplydate(doc) EXTID 'SUPPLYDATE' IN OR_SMDOCOR  
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'SUPPLYTIME' IN OR_SMDOCOR  
+    PROPERTIES = 1439 IF doc IS DocMain EXTID 'SUPPLYTIMETILL' IN OR_SMDOCOR  
     PROPERTIES = '1' IF doc IS DocMain EXTID 'USEFORAUTOGEN' IN OR_SMDOCOR      
-    PROPERTIES = 1439 IF doc IS DocMain EXTID 'SUPPLYTIMETILL' IN OR_SMDOCOR      
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN ORD 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'SUGGESTQUANTITY'  
+    FILTERS docMain(docd)=doc     
+    
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN ORD 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b) 
     
     OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN ORD 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
+;    
+
+GROUP SO EXTID 'SO';
+GROUP SO_SMDOCUMENTS EXTID 'SMDOCUMENTS': SO;
+GROUP SO_SMSTOREORDERS EXTID 'SMSTOREORDERS': SO;
+
+FORM exportSO FORMEXTID 'PACKAGE'  
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'Заказ поставщику' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'  
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SO_SMDOCUMENTS
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN SO_SMDOCUMENTS    
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN SO_SMDOCUMENTS    
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN SO_SMDOCUMENTS       
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN SO_SMDOCUMENTS   
+    PROPERTIES = -1 IF doc IS DocMain EXTID 'OPCODE' IN SO_SMDOCUMENTS
+    PROPERTIES = locationTo(doc) EXTID 'LOCATION' IN SO_SMDOCUMENTS
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN SO_SMDOCUMENTS        
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYRATE' IN SO_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN SO_SMDOCUMENTS      
+    PROPERTIES = OVERRIDE sumWithTax(doc), 0 EXTID 'TOTALSUM' IN SO_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE sumCurr(doc), 0 EXTID 'TOTALSUMCUR' IN SO_SMDOCUMENTS    
+    PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN SO_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'ISROUBLES' IN SO_SMDOCUMENTS      
+    PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN SO_SMDOCUMENTS     
+    FILTERS inc(doc)     
+    
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN SO_SMSTOREORDERS      
+    PROPERTIES = STRING[50](doctype(doc)) EXTID 'DOCTYPE' IN SO_SMSTOREORDERS 
+    PROPERTIES = locationFrom(doc) EXTID 'LOCATION' IN SO_SMSTOREORDERS    
+    PROPERTIES = deliverydate(doc) EXTID 'DELIVERYDATE' IN SO_SMSTOREORDERS  
+    PROPERTIES = deliverytime(doc) EXTID 'DELIVETYTIME' IN SO_SMSTOREORDERS  
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN SO 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = OVERRIDE priceNoTax(docd), 0 EXTID 'ITEMPRICE'     
+    PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICE'  
+    PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
+    PROPERTIES = 0 IF docd IS DocDetail EXTID 'SUGGESTQUANTITY'  
+    FILTERS docMain(docd)=doc     
+    
+    OBJECTS b = DocBase EXTID 'SMCOMMONBASES' IN SO 
+    PROPERTIES = STRING[100](docid(doc)) IF b IS DocBase EXTID 'ID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF b IS DocBase EXTID 'DOCTYPE'     
+    PROPERTIES = doctype(b) EXTID 'BASEDOCTYPE'                    
+    PROPERTIES = docid(b) EXTID 'BASEID'    
+    FILTERS basisDoc(doc, b) 
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN SO 
     PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
     PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
     PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    

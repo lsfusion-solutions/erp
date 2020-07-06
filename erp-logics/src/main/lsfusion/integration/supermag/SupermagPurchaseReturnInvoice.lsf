@@ -84,11 +84,11 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                         priceWithTax(expDet) <- invoicePrice(docd);
                         valueTax(expDet) <- valueVAT(docd);
                         priceNoTax(expDet) <- price(docd);
-                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(invoiceSum(docd)), 0;
                         sumNoTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumTax(expDet) <- OVERRIDE VATSum(docd), 0;
-                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
     //                    extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
                         extracharge(expDet) <-(OVERRIDE round2([ ((X*100.0)/Y-100.0)](priceNoTax(expDet),priceManufacturer(expDet) IF priceManufacturer(expDet) != 0.0 )),0);
@@ -99,7 +99,7 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                 }           
 
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
-                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                                                               
                 FOR include(Order o, doc) DO NEW b = DocBase {

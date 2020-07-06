@@ -80,16 +80,16 @@ exportAdjustmentMag 'Экспорт в супермаг' (Adjustment doc) {
                         priceWithTax(expDet) <- price(docd);
                         valueTax(expDet) <-  valueVAT(sku(docd));
                         priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueTax(expDet)/100),4)));
-                        priceWithTaxCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumNoTax(expDet) <- OVERRIDE NUMERIC[18,4] ( abs(round( sumWithTax(expDet) / (1 + valueTax(expDet)/100),2))), 0;
                         sumTax(expDet) <- OVERRIDE (sumWithTax(expDet) - sumNoTax(expDet)), 0;
-                        sumWithTaxCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                      //     priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
                      //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                                        
                 }           
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
-                sumWithTaxCurr(expMain) <- GROUP SUM sumWithTaxCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                 
                 dt () <- currentDateTime();                        

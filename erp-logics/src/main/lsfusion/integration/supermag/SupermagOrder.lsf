@@ -20,13 +20,13 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     filterSql() <- 'doc.DocType = \'OR\' AND ord.DocType = doc.DocType AND ord.ID = doc.ID AND doc.docstate IN (0, 2, 3) AND doc.location IN ('+ stocksImport() + ') AND ord.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'doc.DocType = \'OR\' AND ord.DocType = doc.DocType AND ord.ID = doc.ID AND doc.id = \'' + numberImportDocument() + '\''; 
            
-    sqlString() <- 'Select doc.ID, doc.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.DocState, doc.ClientIndex, doc.Location, doc.Commentary, ord.OrderDate, ord.SupplyDate, ord.SupplyTime as SupplyTimeMinutes, ord.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments doc, Supermag.SMDocOR ord WHERE ' + filterSql();    
+    sqlString() <- 'Select doc.ID, doc.DocType, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.CreateDat, doc.DocState, doc.ClientIndex, doc.Location, doc.Commentary, ord.ourselfclient, ord.OrderDate, ord.SupplyDate, ord.SupplyTime as SupplyTimeMinutes, ord.SupplyTimeTill as SupplyTimeTillMinutes from Supermag.SMDocuments doc, Supermag.SMDocOR ord WHERE ' + filterSql();    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт заказов (закупка)', sqlString());
     
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
            
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, docState, clientIndex, location, comment, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, createDat, docState, clientIndex, location, comment, ourSelfClient, docDate, supplyDate, supplyTimeMin, supplyTimeTillMin, useForAutoGen;
        
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
@@ -44,18 +44,18 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
     FOR Purchase.UserOrder doc == Purchase.userOrder(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {       
         number[Document](doc) <- STRING[28](docNumber(i));
         operation(doc) <- Purchase.operation('purchaseStoreSupplier');
+        date(doc) <- DATE (docDate(i));
+        time(doc) <- 00:00;
         bornin(doc) <- bornIn(i);
         isPosted(doc) <- docState(i) == 3 OR docState(i) == 2;
         isRejected(doc) <- docState(i) == 0;
-        lastStatusSupermag(doc) <- docState(i);
         supplier(doc) <- legalEntity(ISTRING[100] (clientIndex(i)));
         supplierStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
         customerStock(doc) <- stock(ISTRING[100] (location(i)));
         customer(doc) <- legalEntity(stock(ISTRING[100] (location(i))));
-        date(doc) <- DATE (docDate(i));
-        time(doc) <- 00:00;
         shipmentDate(doc) <- DATE (supplyDate(i));
         shipmentTime(doc) <- sumMinutes(00:00, supplyTimeMin(i));
+        note(doc) <- comment(i);
         imported(doc) <- TRUE;
         lastVersion(doc) <- currentVersion(i);
     }  
@@ -130,43 +130,87 @@ importSupplierOrder 'Импорт заказов (закупка)' () {
 
 EXTEND FORM integrationData PROPERTIES importSupplierOrder();
 
+overExportPurchaseOrderOR ABSTRACT LIST(Purchase.Order, DocMain);
+
 exportPurchaseOrderOR 'Экспорт в супермаг' (Purchase.Order doc) {
-    inc(DocMain ii) <- NULL;
-    LOCAL NESTED dt = DATETIME();
-    dt () <- currentDateTime();
-    NEW expMain = DocMain {
-        inc(expMain) <- TRUE;
-        doctype(expMain) <- 'OR';
-        docstate(expMain) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
-                                  WHEN isPosted(doc) THEN 2                                        
-                                  WHEN isClosed(doc) THEN 0 ELSE 1;
-        docid(expMain) <- seriesNumber(doc);                 
-        id(expMain) <- CONCAT '', doctype(expMain), seriesNumber(doc);                 
-        bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
-        clientIndex(expMain) <- id(supplier(doc));
-        location(expMain) <- id(customerStock(doc));                                
-        TRY {                
-                EXPORT exportOR XML TO System.exportFile;
-        } 
-        CATCH logToFile('supermag', CONCAT '\n', 'Заказ (закупка)', 'file://' + exportDirectorySupermag() + '/' + 'OR_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
-           
-        TRY {    
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());
-                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(doc), '')+'_'+ formulaDateT(dt());                
-        } 
-        CATCH logToFile('supermag', CONCAT '\n', 'Заказ (закупка)', 'file://' + exportDirectorySupermag() + '/' + 'WO_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());           
-    }     
-    inc(DocMain expMain) <- NULL;
+    inc(DocMain d) <- NULL;
+    IF id(operation(doc)) = 'purchaseStoreSupplier' THEN {        
+        LOCAL NESTED dt = DATETIME();
+        NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- STRING[10] ('OR');
+                id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- seriesNumber(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- STRING[10] ('-1');
+                userop(expMain) <- NULL;
+                creatdate(expMain) <- createdTime(doc);                
+                docstate(expMain) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
+                                          WHEN isPosted(doc) THEN 2                                        
+                                          WHEN isClosed(doc) THEN 0 ELSE 1;
+                clientIndex(expMain) <- id(supplier(doc));
+                location(expMain) <- id(customerStock(doc));                                
+                priceRoundMode(expMain) <- 0 IF doc IS Purchase.Order;                                                
+                                          
+                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
+                orderdate(expMain) <- dateTime(doc);
+                supplydate(expMain) <- DATE (shipmentDate(doc));
+                                                     
+                FOR Purchase.order(Purchase.OrderDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE quantity(docd), 0; 
+                        priceNoTax(expDet) <- price(docd);
+                        priceCurr(expDet) <- round(priceNoTax(expDet)/curRate(expMain),4);
+                        sumNoTax(expDet) <- abs(sum(docd));
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
+                    }
+                    
+                }           
+                sumNoTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+               
+                FOR ContractSku c = contractSku(doc) DO NEW b = DocBase {
+                    basisDoc(expMain, b) <- TRUE;
+                    docid(b) <- seriesNumber(c);
+                    doctype(b) <- 'CO';
+                }                                
+
+                overExportPurchaseOrderOR(doc, expMain);
+                
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportOR XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Заказ (закупка)', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +  '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Заказ (закупка)', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }    
+                inc(expMain) <- NULL;
+        }
+    }    
+
     APPLY;
 }
  
 exportPurchaseInvoice (Purchase.Invoice doc) + {
-    IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WI' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND isPosted(doc) AND isShipped(doc) THEN {
+    IF id(operation(doc)) = 'purchaseStoreSupplier' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND isPosted(doc) AND isShipped(doc) THEN {
         FOR Purchase.Order or IF include(or, doc) AND shippedOrderDetail(or) DO {     
             exportPurchaseOrderOR(or); 
         }
     }    
 }
+
 
 //------------------------------------------------------------------------------------заказы складские требования
 overImportInternalOrder2 ABSTRACT LIST ();
@@ -280,6 +324,76 @@ importInternalOrder 'Импорт заказов (складских требо�
 }
 
 EXTEND FORM integrationData PROPERTIES importInternalOrder();
+
+overExportPurchaseOrderSO ABSTRACT LIST(Purchase.Order, DocMain);
+
+exportPurchaseOrderSO 'Экспорт в супермаг' (Purchase.Order doc) {
+    inc(DocMain d) <- NULL;
+    IF id(operation(doc)) = 'purchaseStoreStore' THEN {        
+        LOCAL NESTED dt = DATETIME();
+        NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- STRING[10] ('SO');
+                id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- seriesNumber(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- STRING[10] ('-1');
+                userop(expMain) <- NULL;
+                creatdate(expMain) <- createdTime(doc);                
+                docstate(expMain) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
+                                          WHEN isPosted(doc) THEN 2                                        
+                                          WHEN isClosed(doc) THEN 0 ELSE 1;
+                clientIndex(expMain) <- id(supplier(doc));
+                locationTo(expMain) <- id(supplierStock(doc));                                
+                locationFrom(expMain) <- id(customerStock(doc));                                
+                priceRoundMode(expMain) <- 0 IF doc IS Purchase.Order;                                                
+                                          
+                ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
+                orderdate(expMain) <- dateTime(doc);
+                deliverydate(expMain) <- DATE (shipmentDate(doc));
+                deliverytime(expMain) <- TIME (shipmentTime(doc));
+                                                     
+                FOR Purchase.order(Purchase.OrderDetail docd) = doc DO {
+                    NEW expDet = DocDetail {
+                        dataIndex(docd) <- index(docd); 
+                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE quantity(docd), 0; 
+                    }
+                    
+                }           
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+               
+                overExportPurchaseOrderSO(doc, expMain);
+                
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportSO XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Складское требование', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +  '_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Складское требование', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }    
+                inc(expMain) <- NULL;
+        }
+    }    
+
+    APPLY;
+}
+ 
+exportPurchaseInvoice (Purchase.Invoice doc) + {
+    IF id(operation(doc)) = 'purchaseStoreStore' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND isPosted(doc) AND isShipped(doc) THEN {
+        FOR Purchase.Order or IF include(or, doc) AND shippedOrderDetail(or) DO {     
+            exportPurchaseOrderSO(or); 
+        }
+    }    
+}
 
 //-----------------------------------------------------------------------------------------------------------------------------заказы продажа
 @settingIntegration(Sale.UserOrder, Sale.UserOrderDetail);
