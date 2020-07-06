@@ -49,6 +49,7 @@ menuIk 'Проверка цен' = DATA BOOLEAN (TerminalPreferences);
 onlineEnable 'Включить On-line обмена с сервером' = DATA BOOLEAN (TerminalPreferences);
 onlineServer 'Имя/IP-адрес сервера' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 15;
 onlinePort 'Порт сервера' = DATA INTEGER (TerminalPreferences);
+onlineSendOrderStatus 'Передавать статус заказов' = DATA BOOLEAN (TerminalPreferences);
 
 mobCennikEnable 'Включить мобильную печать ценников' = DATA BOOLEAN (TerminalPreferences);
 mobCennikVop 'Код операции для On-line ценника' = DATA STRING[3] (TerminalPreferences);
@@ -101,7 +102,7 @@ FORM terminalPreferences 'Конфигурация ТСД'
     PROPERTIES(t) exchangeFtpPass
     PROPERTIES(t) exchangeFtpDir
     
-    PROPERTIES(t) onlineEnable, onlineServer, onlinePort
+    PROPERTIES(t) onlineEnable, onlineServer, onlinePort, onlineSendOrderStatus
     
     PROPERTIES(t) updateAppStartUp
     PROPERTIES(t) updateAppServer
@@ -163,6 +164,7 @@ getTerminalPreferences(terminalID) {
         json() <- json() + '"OnlineEnable":' + (IF onlineEnable(t) THEN 'true' ELSE 'false') + ',';
         IF onlineServer(t) THEN json() <- json() + '"OnlineServer":"' + onlineServer(t) + '",';
         IF onlinePort(t) THEN json() <- json() + '"OnlinePort":"' + onlinePort(t) + '",';
+        json() <- json() + '"OnlineSendOrderStatus":' + (IF onlineSendOrderStatus(t) THEN 'true' ELSE 'false') + ',';
     
         json() <- json() + '"UpdateAppStartUp":' + (IF updateAppStartUp(t) THEN 'true' ELSE 'false') + ',';
         json() <- json() + '"UpdateAppServer":"' + (OVERRIDE updateAppServer(t), '') + '",';
@@ -176,15 +178,9 @@ getTerminalPreferences(terminalID) {
     terminalPreferencesJSON() <- json();
 }
 
-//actionTest 'Test' (TerminalPreferences tp) {
-//    getTerminalPreferences('');
-//    MESSAGE terminalPreferencesJSON();
-//}
-
 FORM terminalsPreferences 'Конфигурация ТСД'
     OBJECTS t=TerminalPreferences
     PROPERTIES(t) READONLY name, ID
-//    PROPERTIES(t) actionTest TOOLBAR
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE    
 ;
 
@@ -251,6 +247,7 @@ DESIGN terminalPreferences {
                 MOVE PROPERTY(onlineEnable(t));        
                 MOVE PROPERTY(onlineServer(t));
                 MOVE PROPERTY(onlinePort(t));
+                MOVE PROPERTY(onlineSendOrderStatus(t));
             }
             NEW obmen {
                 caption = 'Обмен';

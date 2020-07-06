@@ -76,6 +76,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SAVE_PALLET = 9;
     public static final byte CHECK_ORDER = 10;//0x0A
     public static final byte GET_PREFERENCES = 11;//0x0B
+    public static final byte CHANGE_ORDER_STATUS = 12;//0x0C
 
     private static final Logger logger = EquipmentLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = EquipmentLoggers.priceCheckerLogger;
@@ -324,6 +325,12 @@ public class TerminalServer extends MonitorServer {
     protected String checkOrder(DataObject user, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
             return terminalHandlerInterface.checkOrder(session, getStack(), user, numberOrder);
+        }
+    }
+
+    protected String changeStatusOrder(DataObject user, String status, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandlerInterface.changeStatusOrder(session, getStack(), user, status, numberOrder);
         }
     }
 
@@ -596,6 +603,31 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+                    case CHANGE_ORDER_STATUS:
+                        try {
+                            logger.info("changeOrderStatus");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 3) {
+                                sessionId = params[0];
+                                String status = params[1];
+                                String numberOrder = params[2];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    changeStatusOrder(userInfo.user, status, numberOrder);
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error("CheckOrder Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
                     case GET_PREFERENCES:
                         try {
                             logger.info("getPreferences");
@@ -665,6 +697,7 @@ public class TerminalServer extends MonitorServer {
                         case GET_ITEM_HTML:
                         case SAVE_PALLET:
                         case CHECK_ORDER:
+                        case CHANGE_ORDER_STATUS:
                             if (result != null) {
                                 write(outToClient, result);
                             }
