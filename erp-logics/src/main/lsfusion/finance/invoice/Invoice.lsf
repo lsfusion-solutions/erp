@@ -1021,11 +1021,17 @@ META defineInvoiceBatchDialogStock(stockProp, dialog)
             batch(d) <- bt;                            
         }
     }
+
+    changeWYSBatch(UserInvoiceDetail d)  {
+        INPUT s = STRING DO {
+            batch(d) <- GROUP LAST Batch b ORDER b WHERE sku(b) = sku(d) AND name(b) = s; 
+        } 
+    }
     
     backgroundBatch 'Цвет' (d) = ABSTRACT CASE COLOR (UserInvoiceDetail);
 
     EXTEND FORM userInvoice
-        PROPERTIES (d) SHOWIF showBatch[Invoice](i) AFTER shortNameUOMSku(d) nameBatch BACKGROUND backgroundBatch(d) ON CHANGE changeBatch(d), documentNameBatch ON CHANGE changeBatch(d)  
+        PROPERTIES (d) SHOWIF showBatch[Invoice](i) AFTER shortNameUOMSku(d) nameBatch BACKGROUND backgroundBatch(d) ON CHANGE changeBatch(d) ON CHANGEWYS changeWYSBatch(d), documentNameBatch ON CHANGE changeBatch(d)  
     ;
     EXTEND FORM invoices PROPERTIES (d) READONLY AFTER shortNameUOMSku(d) SHOWIF showBatch(i) nameBatch, documentNameBatch;
 END
