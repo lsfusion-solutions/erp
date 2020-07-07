@@ -1322,8 +1322,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             if (dateWhere.length() > 0) {
                                 statement = conn.createStatement();
                                 String query = params.pgsql ?
-                                        "UPDATE sales SET fusion_processed = 0 WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
-                                        "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
+                                        "UPDATE sales SET fusion_processed = 0 WHERE  AND SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "") :
+                                        "UPDATE [SALES] SET FUSION_PROCESSED = 0 WHERE  AND SALESCANC = 0 AND (" + dateWhere + ")" + (stockWhere.length() > 0 ? (" AND (" + stockWhere + ")") : "");
                                 machineryExchangeLogger.info(logPrefix + "RequestSalesInfo: " + query);
                                 statement.executeUpdate(query);
                                 conn.commit();
