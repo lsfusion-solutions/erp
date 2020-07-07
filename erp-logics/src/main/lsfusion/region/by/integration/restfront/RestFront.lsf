@@ -1,0 +1,592 @@
+MODULE RestFront;
+
+REQUIRE PriceList, Store, ItemDescription, CashRegisterPriceTransaction, LogTools;
+
+@defineLogRotate(RestFront, 5, weekly);
+
+urlAPI 'URL к API' = DATA STRING[255]();
+usernameRestFront 'Пользователь' = DATA STRING[255]();
+passwordRestFront 'Пароль' = DATA STRING[255]() ECHO;
+idMenuRestFront 'Код меню' = DATA INTEGER();
+
+urlAPI 'URL к API' = DATA STRING[255](DepartmentStore);
+usernameRestFront 'Пользователь' = DATA STRING[255](DepartmentStore);
+passwordRestFront 'Пароль' = DATA STRING[255](DepartmentStore) ECHO;
+idMenuRestFront 'Код меню' = DATA INTEGER(DepartmentStore);
+
+groupTypeRestFront 'Классификатор' = DATA CustomGroupType ();
+nameGroupTypeRestFront 'Классификатор' () = name(groupTypeRestFront());
+priceListTypeRestFront 'Вид цен' = DATA PriceListType();
+namePriceListTypeRestFront 'Вид цен' () = name(priceListTypeRestFront());
+stockRestFront 'Магазин' = DATA DepartmentStore();
+nameStockRestFront 'Магазин' () = name(stockRestFront());
+
+EXTEND FORM integrationData
+    PROPERTIES() nameGroupTypeRestFront, namePriceListTypeRestFront
+    OBJECTS ds = DepartmentStore
+    PROPERTIES(ds) name READONLY, urlAPI, usernameRestFront, passwordRestFront, idMenuRestFront
+;
+
+DESIGN integrationData {
+    pane {
+        NEW restFront {
+            caption = 'RestFront';
+            type = CONTAINERV;
+            MOVE PROPERTY(nameGroupTypeRestFront());
+            MOVE PROPERTY(namePriceListTypeRestFront());
+            MOVE BOX(ds);
+        }
+    }
+}
+
+token = DATA LOCAL NESTED STRING[1000]();
+
+getToken (DepartmentStore ds) {
+    LOCAL result = FILE();
+    LOCAL file = TEXT();
+    file() <- '\{"login":"' + usernameRestFront(ds) + '","password":"' + passwordRestFront(ds) + '"\}';
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'POST: ' + urlAPI(ds) + '/api/front/login' + '\n' + file());
+    TRY {
+        EXTERNAL HTTP urlAPI(ds) + '/api/front/login' PARAMS resultFile() TO result;
+        IMPORT JSON FROM result() TO() token = token;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+httpHeaders(TEXT name) = CASE
+    WHEN name == 'Authorization' THEN 'Bearer ' + token();
+
+
+CLASS PrintGroup 'Группа печати';
+TABLE printGroup (PrintGroup);
+
+name 'Наименование' = DATA STRING[100] (PrintGroup);
+printGroup = GROUP AGGR PrintGroup group BY name(group);
+cookingTime 'Время приготовления, сек' = DATA INTEGER (PrintGroup);
+showInQueue 'Отображать на кухонных мониторах' = DATA BOOLEAN (PrintGroup);
+
+FORM printGroups 'Группы печати'
+    OBJECTS g = PrintGroup
+    PROPERTIES(g) name, cookingTime, showInQueue, DELETE GRID
+    PROPERTIES(g) NEWEDIT
+    
+    LIST PrintGroup OBJECT g
+;
+
+dataPrintGroup 'Группа печати' = DATA PrintGroup (CustomGroup);
+dataNamePrintGroup 'Группа печати' (CustomGroup g) = name(dataPrintGroup(g));
+levelParentPrintGroup (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataPrintGroup(p) MATERIALIZED;
+nearestParentPrintGroup (CustomGroup g) = customGroup(g, levelParentPrintGroup(g));
+nearestPrintGroup (CustomGroup g) = dataPrintGroup(nearestParentPrintGroup(g));
+printGroup 'Группа печати' (CustomGroup g) = OVERRIDE dataPrintGroup(g), nearestPrintGroup(g) MATERIALIZED;
+namePrintGroup 'Группа печати' (CustomGroup g) = name(printGroup(g));
+
+dataCookingTime 'Время приготовления, сек' = DATA INTEGER (CustomGroup);
+levelParentCookingTime (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataCookingTime(p) MATERIALIZED;
+nearestParentCookingTime (CustomGroup g) = customGroup(g, levelParentCookingTime(g));
+nearestCookingTime (CustomGroup g) = dataCookingTime(nearestParentCookingTime(g));
+cookingTime 'Время приготовления, сек' (CustomGroup g) = OVERRIDE dataCookingTime(g), nearestCookingTime(g), cookingTime(printGroup(g));
+
+dataImageRestFront 'Изображение для RestFront' = DATA IMAGEFILE (CustomGroup);
+levelParentImageRestFront (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataImageRestFront(p) MATERIALIZED;
+nearestParentImageRestFront (CustomGroup g) = customGroup(g, levelParentImageRestFront(g));
+nearestImageRestFront (CustomGroup g) = dataImageRestFront(nearestParentImageRestFront(g));
+imageRestFront 'Изображение для RestFront' (CustomGroup g) = OVERRIDE dataImageRestFront(g), nearestImageRestFront(g);
+
+loadImageRestFront 'Загрузить изображение для RestFront' (CustomGroup g)  { INPUT = dataImageRestFront(g) CHANGE; }
+nullImageRestFront 'Сбросить изображение для RestFront' (CustomGroup g) { dataImageRestFront(g) <- NULL; }
+
+EXTEND FORM customGroups
+    PROPERTIES(g) READONLY SHOWIF (groupTypeRestFront() == groupType(g)) namePrintGroup, cookingTime, imageRestFront
+;
+EXTEND FORM customGroup
+    PROPERTIES(g) SHOWIF (groupTypeRestFront() == groupType(g)) namePrintGroup, cookingTime, imageRestFront READONLY, loadImageRestFront, nullImageRestFront
+;
+DESIGN customGroup {
+    OBJECTS {
+        NEW image {
+            type = CONTAINERV;
+            caption = 'Изображение для RestFront';
+            MOVE PROPERTY(imageRestFront(g)) {
+                caption = '';
+                fill = 1;
+            }
+            MOVE PROPERTY(loadImageRestFront(g));
+            MOVE PROPERTY(nullImageRestFront(g));
+        }
+    }
+}
+
+dataCookingTime 'Время приготовления, сек' = DATA INTEGER (Item);
+cookingTime 'Время приготовления, сек' (Item i) = OVERRIDE dataCookingTime(i), cookingTime(customGroup(groupTypeRestFront(),i)) IN itemBase;
+
+dataNameRestFront 'Название для RestFront' = DATA STRING[255] (Item);
+nameRestFront 'Название для RestFront' (Item i) = OVERRIDE dataNameRestFront(i), (CONCAT ', ', caption(i), namePack(i)), nameAttribute(i) IN itemBase;
+
+EXTEND FORM item
+    PROPERTIES(i) SHOWIF customGroup(groupTypeRestFront(),i) cookingTime, nameRestFront
+;
+EXTEND FORM items PROPERTIES (i) READONLY nameRestFront;
+
+
+textPrintGroup (PrintGroup g) = '\{"showInQueue":' + (IF showInQueue(g) THEN 'true' ELSE 'false') +
+                                        ',"cookingTime":' + (OVERRIDE cookingTime(g), 0) +
+                                        ',"name":"' + replace(name(g),'"','\\"') + '"\}';
+
+namePrintGroup = DATA LOCAL STRING[100] (INTEGER);
+cookingTimePrintGroup = DATA LOCAL INTEGER (INTEGER);
+showInQueuePrintGroup = DATA LOCAL BOOLEAN (INTEGER);
+
+putPrintGroup (DepartmentStore ds, PrintGroup g) {
+    LOCAL file = TEXT();
+    file() <- textPrintGroup(g);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/printGroup/name?name=' + name(g) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/printGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+    
+}
+
+exportPrintGroup 'Выгрузить группы печати' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/printGroup');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/printGroup' HEADERS httpHeaders TO result;
+        IMPORT JSON FROM result() TO namePrintGroup = name, cookingTimePrintGroup = cookingTime, showInQueuePrintGroup = showInQueue;
+        
+        FOR PrintGroup g == printGroup(namePrintGroup(INTEGER i)) AND NOT (cookingTimePrintGroup(i) == (OVERRIDE cookingTime(g), 0)
+            AND (showInQueuePrintGroup(i) == showInQueue(g) OR (NOT showInQueuePrintGroup(i) AND NOT showInQueue(g)))) DO {
+            putPrintGroup(ds,g);
+        }
+        FOR PrintGroup g IS PrintGroup AND NOT (GROUP SUM 1 IF namePrintGroup(INTEGER i) == name(g)) DO {
+            putPrintGroup(ds,g);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+textGoodGroup (CustomGroup g) = '\{"name":"' + replace(name(g),'"','\\"') + '"' +
+                                  ',"parent":\{"name":"' + (OVERRIDE replace(name(parent(g)),'"','\\"'),'') + '"\}' +
+                                  ',"cookingTime":' + (OVERRIDE cookingTime(g), 0) + '\}';
+
+GROUP parent;
+parentGoodGroup = DATA LOCAL NESTED STRING[250] (INTEGER);
+nameGoodGroup = DATA LOCAL NESTED STRING[250] (INTEGER);
+cookingTimeGoodGroup = DATA LOCAL NESTED INTEGER (INTEGER);
+
+FORM importGoodGroup
+    OBJECTS value = INTEGER
+    PROPERTIES(value) nameGoodGroup EXTID 'name', cookingTimeGoodGroup EXTID 'cookingTime', parentGoodGroup IN parent EXTID 'name'
+;
+
+putGoodGroup (DepartmentStore ds, CustomGroup g) {
+    LOCAL file = TEXT();
+    file() <- textGoodGroup(g);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/goodGroup/name?name=' + name(g) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/goodGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+groupRestFront (STRING[250] name) = GROUP MAX CustomGroup g IF groupType(g) == groupTypeRestFront() BY name(g);
+
+exportGoodGroup 'Выгрузить товарные группы' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/goodGroup');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/goodGroup' HEADERS httpHeaders TO result;
+        IMPORT importGoodGroup JSON FROM result();
+        
+        FOR groupType(CustomGroup g) == groupTypeRestFront() AND NOT (GROUP SUM 1 IF nameGoodGroup(INTEGER i) == name(g)) ORDER level(g), g DO {
+            putGoodGroup(ds,g);
+        }
+        FOR CustomGroup g == groupRestFront(nameGoodGroup(INTEGER i)) AND NOT (parentGoodGroup(i) == (OVERRIDE replace(name(parent(g)),'"','\\"'),'')
+            AND cookingTimeGoodGroup(i) == (OVERRIDE cookingTime(g), 0)) DO {
+            putGoodGroup(ds,g);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+CLASS AdditionGroup 'Группа добавок';
+TABLE additionGroup (PrintGroup);
+
+name 'Наименование' = DATA STRING[100] (AdditionGroup);
+additionGroup = GROUP AGGR AdditionGroup group BY name(group);
+
+FORM AdditionGroups 'Группы добавок'
+    OBJECTS g = AdditionGroup
+    PROPERTIES(g) name, DELETE GRID
+    PROPERTIES(g) NEWEDIT
+    
+    LIST AdditionGroup OBJECT g
+;
+
+dataAdditionGroup 'Группа добавок' = DATA AdditionGroup (CustomGroup);
+dataNameAdditionGroup 'Группа добавок' (CustomGroup g) = name(dataAdditionGroup(g));
+levelParentAdditionGroup (CustomGroup g) = GROUP MIN level(g, CustomGroup p) IF dataAdditionGroup(p) MATERIALIZED;
+nearestParentAdditionGroup (CustomGroup g) = customGroup(g, levelParentAdditionGroup(g));
+nearestAdditionGroup (CustomGroup g) = dataAdditionGroup(nearestParentAdditionGroup(g));
+additionGroup 'Группа добавок' (CustomGroup g) = OVERRIDE dataAdditionGroup(g), nearestAdditionGroup(g) MATERIALIZED;
+nameAdditionGroup 'Группа добавок' (CustomGroup g) = name(additionGroup(g));
+
+EXTEND FORM customGroups
+    PROPERTIES(g) READONLY SHOWIF (groupTypeRestFront() == groupType(g)) nameAdditionGroup
+;
+EXTEND FORM customGroup
+    PROPERTIES(g) SHOWIF (groupTypeRestFront() == groupType(g)) nameAdditionGroup
+;
+
+additionGroup 'Группа добавок' = DATA AdditionGroup (Item);
+nameAdditionGroup 'Группа добавок' (Item i) = name(additionGroup(i)) IN itemBase;
+
+EXTEND FORM item
+    PROPERTIES(i) SHOWIF customGroup(groupTypeRestFront(),i) nameAdditionGroup
+;
+EXTEND FORM items PROPERTIES (i) READONLY nameAdditionGroup;
+
+textAdditionGroup (AdditionGroup g) = '\{"name":"' + replace(name(g),'"','\\"') + '"\}';
+
+nameAdditionGroup = DATA LOCAL STRING[100] (INTEGER);
+
+putAdditionGroup (DepartmentStore ds, AdditionGroup g) {
+    LOCAL file = TEXT();
+    file() <- textAdditionGroup(g);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/additionGroup/name?name=' + name(g) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/additionGroup/name?name=' + name(g) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+exportAdditionGroup 'Выгрузить группы добавок' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/additionGroup');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/additionGroup' HEADERS httpHeaders TO result;
+        IMPORT JSON FROM result() TO nameAdditionGroup = name;
+        
+        //FOR AdditionGroup g == additionGroup(nameAdditionGroup(INTEGER i)) DO {
+            //putAdditionGroup(ds,g);
+        //}
+        FOR AdditionGroup g IS AdditionGroup AND NOT (GROUP SUM 1 IF nameAdditionGroup(INTEGER i) == name(g)) DO {
+            putAdditionGroup(ds,g);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+
+textGood (Item i) = '\{"alias":"' + id(i) + '"' +
+                           (IF idBarcode(i) THEN (',"barcode":"' + idBarcode(i) + '"') ELSE '') +
+                           ',"name":"' + replace(nameRestFront(i),'"','\\"') + '"' +
+                           (IF caption(i) THEN (',"shortName":"' + replace(caption(i),'"','\\"') + '"') ELSE '') +
+                           ',"description":"' + (OVERRIDE replace(composition(i),'"','\\"'),'') + '"' +
+                           ',"group":\{"name":"' + (OVERRIDE replace(name(customGroup(groupTypeRestFront(),i)),'"','\\"'),'') + '"\}' +
+                           (IF printGroup(customGroup(groupTypeRestFront(),i)) THEN (',"printGroup":\{"name":"' + replace(name(printGroup(customGroup(groupTypeRestFront(),i))),'"','\\"') + '"\}') ELSE '') +
+                           (IF additionGroup(customGroup(groupTypeRestFront(),i)) THEN (',"additionGroup":\{"name":"' + replace(name(additionGroup(customGroup(groupTypeRestFront(),i))),'"','\\"') + '"\}') ELSE '') +
+                           ',"cookingTime":' + (OVERRIDE cookingTime(i), 0) + '\}';
+
+aliasGood = DATA LOCAL NESTED STRING[100] (INTEGER);
+barcodeGood = DATA LOCAL NESTED STRING[15] (INTEGER);
+nameGood = DATA LOCAL NESTED STRING[255] (INTEGER);
+shortNameGood = DATA LOCAL NESTED STRING[255] (INTEGER);
+descriptionGood = DATA LOCAL NESTED STRING[255] (INTEGER);
+cookingTimeGood = DATA LOCAL NESTED INTEGER (INTEGER);
+GROUP group;
+nameGroupGood = DATA LOCAL NESTED STRING[250] (INTEGER);
+GROUP printGroup;
+namePrintGroupGood = DATA LOCAL NESTED STRING[100] (INTEGER);
+GROUP additionGroup;
+nameAdditionGroupGood = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+FORM importGood
+    OBJECTS value = INTEGER
+    PROPERTIES(value) aliasGood EXTID 'alias', barcodeGood EXTID 'barcode', nameGood EXTID 'name', shortNameGood EXTID 'shortName',
+                      descriptionGood EXTID 'description', cookingTimeGood EXTID 'cookingTime',
+                      nameGroupGood IN group EXTID 'name', namePrintGroupGood IN printGroup EXTID 'name',
+                      nameAdditionGroupGood IN additionGroup EXTID 'name'
+;
+
+putGood (DepartmentStore ds, Item i) {
+    LOCAL file = TEXT();
+    file() <- textGood(i);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/good/alias?alias=' + id(i) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/good/alias?alias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+exportGood 'Выгрузить товары' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/good');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
+        IMPORT importGood JSON FROM result();
+        
+        FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) DO {
+            putGood(ds,i);
+        }
+        FOR Item i == item(aliasGood(INTEGER j)) AND NOT (barcodeGood(j) == idBarcode(i) AND nameGood(j) == replace(nameRestFront(i),'"','\\"') AND
+            shortNameGood(j) == (OVERRIDE replace(caption(i),'"','\\"'),'') AND descriptionGood(j) == (OVERRIDE replace(composition(i),'"','\\"'),'') AND
+            cookingTimeGood(j) == (OVERRIDE cookingTime(i), 0) AND
+            nameGroupGood(j) == (OVERRIDE replace(name(customGroup(groupTypeRestFront(),i)),'"','\\"'),'')
+            AND namePrintGroupGood(j) == (OVERRIDE replace(name(printGroup(customGroup(groupTypeRestFront(),i))),'"','\\"'),'')
+            AND nameAdditionGroupGood(j) == (OVERRIDE replace(name(additionGroup(customGroup(groupTypeRestFront(),i))),'"','\\"'),'')) DO {
+            putGood(ds,i);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+putImage (DepartmentStore ds, Item i) {    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/good/image/alias?alias=' + id(i));
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/good/image/alias?alias=' + id(i) HEADERS httpHeaders
+                 PARAMS (OVERRIDE image(i), imageRestFront(customGroup(groupTypeRestFront(),i))) TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+exportImage 'Выгрузить изображения' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/good');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
+        IMPORT importGood JSON FROM result();
+        
+        FOR Item i == item(aliasGood(INTEGER j)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+            putImage(ds,i);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+textAddition (Item i) = '\{"good":\{"alias":"' + id(i) + '"\}' +
+                               ',"group":\{"name":"' + replace(name(additionGroup(i)),'"','\\"') + '"\}\}';
+
+GROUP good;
+aliasGoodAddition = DATA LOCAL NESTED STRING[100] (INTEGER);
+nameGroupGoodAddition = DATA LOCAL NESTED STRING[100] (INTEGER);
+
+
+FORM importAddition
+    OBJECTS value = INTEGER
+    PROPERTIES(value) aliasGoodAddition EXTID 'alias' IN good, nameGroupGoodAddition EXTID 'name' IN group
+;
+
+putAddition (DepartmentStore ds, Item i) {
+    LOCAL file = TEXT();
+    file() <- textAddition(i);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/addition/alias?alias=' + id(i) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/addition/alias?alias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+exportAddition 'Выгрузить добавки' (DepartmentStore ds) {
+    getToken(ds);
+    
+    LOCAL result = FILE();
+    logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/addition');
+    TRY {
+        EXTERNAL HTTP GET urlAPI(ds) + '/api/front/addition' HEADERS httpHeaders TO result;
+        IMPORT importAddition JSON FROM result();
+        
+        FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND additionGroup(i) AND NOT (GROUP SUM 1 IF aliasGoodAddition(INTEGER j) == id(i)) DO {
+            putAddition(ds,i);
+        }
+        FOR Item i == item(aliasGoodAddition(INTEGER j)) AND NOT nameGroupGoodAddition(j) == (OVERRIDE replace(name(additionGroup(i)),'"','\\"'),'') DO {
+            putAddition(ds,i);
+        }
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+textMenuLine (DepartmentStore ds, Item i) = '\{"menuKey":' + TEXT(OVERRIDE idMenuRestFront(ds),-1) +
+                                ',"good":\{"alias":"' + id(i) + '"\}' +
+                                ',"costNcu":' + TEXT(OVERRIDE priceA(priceListTypeRestFront(),i,ds,currentDateTime()),0) + 
+                                ',"isNotShow":' + (IF additionGroup(i) THEN 'true' ELSE 'false') + '\}';
+
+idMenuLine = DATA LOCAL NESTED INTEGER (INTEGER);
+aliasGoodMenuLine = DATA LOCAL NESTED STRING[100] (INTEGER);
+costNcuMenuLine = DATA LOCAL NESTED NUMERIC[16,4] (INTEGER);
+isNotShowMenuLine = DATA LOCAL NESTED BOOLEAN (INTEGER);
+
+FORM importMenuLine
+    OBJECTS value = INTEGER
+    PROPERTIES(value) idMenuLine EXTID 'id', aliasGoodMenuLine IN good EXTID 'alias', costNcuMenuLine EXTID 'costNcu',
+    isNotShowMenuLine EXTID 'isNotShow'
+;
+
+deleteMenuLine (DepartmentStore ds, INTEGER id) {
+    logToFile('RestFront', 'DELETE: ' + urlAPI(ds) + '/api/front/menu/line/' + id);
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP DELETE urlAPI(ds) + '/api/front/menu/line/' + id HEADERS httpHeaders TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+putMenuLine (DepartmentStore ds, Item i) {
+    LOCAL file = TEXT();
+    file() <- textMenuLine(ds,i);
+    stringToFile(file(),'UTF-8','json');
+    
+    logToFile('RestFront', 'PUT: ' + urlAPI(ds) + '/api/front/menu/line/goodAlias?goodAlias=' + id(i) + '\n' + file());
+    LOCAL result = FILE();
+    TRY {
+        EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/menu/line/goodAlias?goodAlias=' + id(i) HEADERS httpHeaders PARAMS resultFile() TO result;
+    }
+    CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
+}
+
+exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
+    IF idMenuRestFront(ds) THEN {
+        getToken(ds);
+        
+        LOCAL result = FILE();
+        logToFile('RestFront', 'GET: ' + urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line');
+        TRY {
+            EXTERNAL HTTP GET urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line' HEADERS httpHeaders TO result;
+            IMPORT importMenuLine JSON FROM result();
+            FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+                deleteMenuLine(ds,idMenuLine(i));
+            }
+            FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+                putMenuLine(ds,i);
+            }
+            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) AND NOT
+            (costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND 
+            ((IF isNotShowMenuLine(j) THEN 'true' ELSE 'false') == (IF additionGroup(i) THEN 'true' ELSE 'false'))) DO {
+                putMenuLine(ds,i);
+            }
+        }
+        CATCH {
+            logToFile('RestFront', messageCaughtException());
+            logToFile('RestFront', result());
+        }
+    }
+}
+
+exportAll 'Выгрузить все' (DepartmentStore ds) {
+    exportPrintGroup(ds);
+    exportGoodGroup(ds);
+    exportAdditionGroup(ds);
+    exportGood(ds);
+    exportImage(ds);
+    exportAddition(ds);
+    exportMenuLine(ds);
+} 
+
+EXTEND FORM integrationData
+    PROPERTIES TOOLBAR SHOWIF urlAPI(ds) exportPrintGroup(ds), exportGoodGroup(ds), exportAdditionGroup(ds), exportGood(ds), exportImage(ds), exportAddition(ds), exportMenuLine(ds), exportAll(ds)
+;
+
+//------------ Загрузить в оборудование ----------------
+createAttribute (MachineryPriceTransaction t, Stock s) + {
+    IF t IS CashRegisterPriceTransaction AND urlAPI(s) AND idMenuRestFront(s) THEN {
+        getToken(s);
+                
+        LOCAL result = FILE();
+        logToFile('RestFront', 'GET: ' + urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line');
+        
+        TRY {
+            EXTERNAL HTTP GET urlAPI(s) + '/api/front/menu/' + idMenuRestFront(s) + '/line' HEADERS httpHeaders TO result;
+            IMPORT importMenuLine JSON FROM result();
+            
+            IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
+                FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),s,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+                    deleteMenuLine(s,idMenuLine(i));
+                }
+            } 
+            FOR customGroup(groupTypeRestFront(), Item i) AND in(t, barcode(i)) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+                putMenuLine(s,i);
+            }
+            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND in(t, barcode(i)) AND NOT costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,s,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+                putMenuLine(s,i);
+            }
+        }
+        CATCH {
+            logToFile('RestFront', messageCaughtException());
+            logToFile('RestFront', result());
+        }
+    } 
+}
