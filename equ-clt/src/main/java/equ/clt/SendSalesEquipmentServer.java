@@ -23,7 +23,7 @@ public class SendSalesEquipmentServer {
 
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
-        List<RequestExchange> requestExchangeList = remote.readRequestExchange();
+        List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
 
         Map<String, List<String>> handlerModelDirectoryMap = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {

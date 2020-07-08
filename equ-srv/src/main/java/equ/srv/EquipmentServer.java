@@ -348,8 +348,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<RequestExchange> readRequestExchange() throws SQLException {
-        return MachineryExchangeEquipmentServer.readRequestExchange(this, getBusinessLogics(), getStack());
+    public List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws SQLException {
+        return MachineryExchangeEquipmentServer.readRequestExchange(this, sidEquipmentServer, getBusinessLogics(), getStack());
     }
 
     @Override

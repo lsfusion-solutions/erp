@@ -62,7 +62,7 @@ public class MachineryExchangeEquipmentServer {
         terminalLM = BL.getModule("EquipmentTerminal");
     }
 
-    public static List<RequestExchange> readRequestExchange(EquipmentServer server, BusinessLogics BL, ExecutionStack stack) throws SQLException {
+    public static List<RequestExchange> readRequestExchange(EquipmentServer server, String sidEquipmentServer, BusinessLogics BL, ExecutionStack stack) throws SQLException {
 
         List<RequestExchange> requestExchangeList = new ArrayList();
         if(machineryLM != null && machineryPriceTransactionLM != null) {
@@ -82,6 +82,8 @@ public class MachineryExchangeEquipmentServer {
                     requestExchangeQuery.addProperty("startDateRequestExchange", machineryPriceTransactionDiscountCardLM.findProperty("startDate[RequestExchange]").getExpr(requestExchangeExpr));
                 }
                 requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceeded[RequestExchange]").getExpr(requestExchangeExpr).getWhere());
+                //equ берёт только те запросы, у которых есть хотя бы один Machinery, относящийся к этому equ (возникнут проблемы, если запрос будет относиться к двум параллельно работающим equ)
+                requestExchangeQuery.and(equLM.findProperty("hasMachinery[STRING, RequestExchange]").getExpr(new DataObject(sidEquipmentServer).getExpr(), requestExchangeExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 

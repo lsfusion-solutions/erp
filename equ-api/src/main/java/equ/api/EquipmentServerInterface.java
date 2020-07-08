@@ -41,7 +41,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
 
     //machineryExchange consumer
     List<MachineryInfo> readMachineryInfo(String sidEquipmentServer) throws RemoteException, SQLException;
-    List<RequestExchange> readRequestExchange() throws RemoteException, SQLException;
+    List<RequestExchange> readRequestExchange(String sidEquipmentServer) throws RemoteException, SQLException;
     void finishRequestExchange(Set<Long> succeededRequestsSet) throws RemoteException, SQLException;
     void errorRequestExchange(Map<Long, Throwable> failedRequestsMap) throws RemoteException, SQLException;
     void errorRequestExchange(Long requestExchange, Throwable t) throws RemoteException, SQLException;
