@@ -18,6 +18,8 @@ import java.util.Set;
 
 public interface EquipmentServerInterface extends RmiServerInterface {
 
+    int getEquApiVersion() throws RemoteException, SQLException;
+
     //softCheck
     String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, LocalDateTime> invoiceSet) throws RemoteException, SQLException;
 

@@ -116,6 +116,15 @@ public class EquipmentServer {
 
                             if (remote != null) {
                                 try {
+
+                                    int serverVersion = remote.getEquApiVersion();
+                                    int clientVersion = EquipmentUtils.getEquApiVersion();
+                                    if(serverVersion != clientVersion) {
+                                        equipmentLogger.error(String.format("Versions of the server (%s) and the equ (%s) do not match. Need to update %s. Equ will be stopped.",
+                                                serverVersion, clientVersion, serverVersion < clientVersion ? "server" : "equ"));
+                                        break;
+                                    }
+
                                     equipmentServerSettings = remote.readEquipmentServerSettings(sidEquipmentServer);
                                     if (equipmentServerSettings == null) {
                                         equipmentLogger.error("Equipment Server " + sidEquipmentServer + " not found");

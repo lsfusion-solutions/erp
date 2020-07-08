@@ -212,6 +212,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         super(DAEMON_ORDER);
     }
 
+    @Override
+    public int getEquApiVersion() {
+        return EquipmentUtils.getEquApiVersion();
+    }
+
     private static String getIdZReport(SalesInfo s) {
         return s.nppGroupMachinery + "_" + s.nppMachinery + "_" + s.numberZReport + (s.dateZReport != null ? ("_" + s.dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"))) : "");
     }
