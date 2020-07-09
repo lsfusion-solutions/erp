@@ -994,18 +994,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         UKM4MySQLSalesBatch salesBatch = null;
 
-        String weightCode = null;
-        Map<String, CashRegisterInfo> machineryMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (fitHandler(c)) {
-                if (c.section != null && c.number != null)
-                    machineryMap.put(c.section + "/" + c.number, c);
-                if (c.weightCodeGroupCashRegister != null) {
-                    weightCode = c.weightCodeGroupCashRegister;
-                }
-            }
-        }
-
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
         Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCashPayments());
         Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<>() : parsePayments(ukm4MySQLSettings.getCardPayments());
@@ -1016,8 +1004,21 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
         boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();
         boolean zeroPaymentForZeroSumReceipt = ukm4MySQLSettings != null && ukm4MySQLSettings.isZeroPaymentForZeroSumReceipt();
+        boolean cashRegisterByStoreAndNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isCashRegisterByStoreAndNumber();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
+
+        String weightCode = null;
+        Map<String, CashRegisterInfo> machineryMap = new HashMap<>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (fitHandler(c)) {
+                if (c.number != null)
+                    machineryMap.put(getMachineryKey(c.section, c.number, cashRegisterByStoreAndNumber), c);
+                if (c.weightCodeGroupCashRegister != null) {
+                    weightCode = c.weightCodeGroupCashRegister;
+                }
+            }
+        }
 
         try {
 
@@ -1034,7 +1035,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
-                            giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt, directory);
+                            giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
+                            cashRegisterByStoreAndNumber, directory);
 
                 } finally {
                     if (conn != null)
@@ -1160,7 +1162,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
-                                                     String directory) {
+                                                     boolean cashRegisterByStoreAndNumber, String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1185,7 +1187,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 String store = rs.getString(1); //i.store = при выгрузке цен выгружаем section
                 Integer cash_id = rs.getInt(3); //i.cash_id
-                CashRegisterInfo cashRegister = machineryMap.get(store + "/" + cash_id);
+                CashRegisterInfo cashRegister = machineryMap.get(getMachineryKey(store, cash_id, cashRegisterByStoreAndNumber));
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                 //Integer id = rs.getInt(4); //i.id
@@ -1266,6 +1268,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             throw Throwables.propagate(e);
         }
         return new UKM4MySQLSalesBatch(salesInfoList, receiptSet, directory);
+    }
+
+    private String getMachineryKey(String store, Integer number, boolean cashRegisterByStoreAndNumber) {
+        return cashRegisterByStoreAndNumber ? (store + "/" + number) : String.valueOf(number);
     }
 
     @Override

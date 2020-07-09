@@ -55,6 +55,9 @@ public class UKM4MySQLSettings implements Serializable{
     //Если true, то для весовых товаров отправляем кол-во 0
     private Boolean sendZeroQuantityForWeightItems;
 
+    //Если true, то касса ищется по store и номеру кассы, иначе - только по номеру
+    private boolean cashRegisterByStoreAndNumber;
+
     //Список через запятую extId групп товаров, которые экспортируются в classif при каждой выгрузке
     private String forceGroups;
     private List<String> forceGroupsList = new ArrayList<>();
@@ -199,5 +202,13 @@ public class UKM4MySQLSettings implements Serializable{
     public void setForceGroups(String forceGroups) {
         this.forceGroups = forceGroups;
         this.forceGroupsList.addAll(Arrays.asList(forceGroups.split(",\\s?")));
+    }
+
+    public boolean isCashRegisterByStoreAndNumber() {
+        return cashRegisterByStoreAndNumber;
+    }
+
+    public void setCashRegisterByStoreAndNumber(boolean cashRegisterByStoreAndNumber) {
+        this.cashRegisterByStoreAndNumber = cashRegisterByStoreAndNumber;
     }
 }
