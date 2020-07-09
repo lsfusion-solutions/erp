@@ -1,0 +1,42 @@
+MODULE ImportUserPriceListPromotion;
+
+REQUIRE Store, PriceListOperation, PriceListBefore;
+
+NAMESPACE PriceList;
+// promotion options
+promotionImportPath 'Путь импорта акций' = DATA STRING[255] ();
+promotionCopyPath 'Путь к загруженным акциям' = DATA STRING[255] ();
+
+// store options
+idStockExcelCol 'Колонка xls для импорта' = DATA ISTRING[2] (Store);
+
+sourceFile 'Файл-источник' = DATA EXCELFILE (PriceList);
+
+tempXls = DATA LOCAL EXCELFILE ();
+manager = DATA LOCAL STRING (INTEGER);
+period = DATA LOCAL STRING (INTEGER);
+itemId = DATA LOCAL STRING (INTEGER);
+pricePromotion = DATA LOCAL NUMERIC[16,4] (INTEGER);
+priceBefore = DATA LOCAL NUMERIC[16,4] (INTEGER);
+flag = DATA LOCAL ISTRING[1] (INTEGER);
+
+importPromotions 'Импорт акционного прайс-листа ' ABSTRACT LIST ();
+
+EXTEND FORM options
+    PROPERTIES () promotionImportPath, promotionCopyPath, importPromotions
+    
+    OBJECTS store = Store
+    PROPERTIES (store) name READONLY, idStockExcelCol;
+;
+
+DESIGN options {
+    pane {
+        NEW promotions {
+            caption = 'Акции';
+            MOVE PROPERTY (promotionImportPath());
+            MOVE PROPERTY (promotionCopyPath());
+            MOVE PROPERTY (importPromotions());
+            MOVE BOX (store);
+        }
+    }
+}
