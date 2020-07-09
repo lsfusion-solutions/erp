@@ -382,13 +382,16 @@ activePriceListLedgerA  (LedgerPriceListType type, Batch batch, Stock stock, DAT
         WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
 
+priceBatchB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    GROUP
+        LAST price(PriceListLedger ledger, type, stock, batch)
+        ORDER fromDateTime(ledger, type, stock), ledger
+        WHERE active(ledger, type, stock, batch) AND
+              fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime COMPLEX;
+
 priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
-        (GROUP
-               LAST price(PriceListLedger ledger, type, stock, batch)
-               ORDER fromDateTime(ledger, type, stock), ledger
-               WHERE active(ledger, type, stock, batch) AND
-                     fromDateTime(ledger, type, stock) < dateTime AND NOT toDateTime(ledger, type, stock) < dateTime)
+        priceBatchB(type, batch, stock, dateTime)
     ELSE
         priceB(type, sku(batch), stock, dateTime) COMPLEX;
 
@@ -404,6 +407,8 @@ priceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME 
 
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceB(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceA(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
+
+prevPriceBatchB 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceBatchB(type, batch, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 
 prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceB(type, sku, stock, dateTime)) CHARWIDTH 7 COMPLEX;
 prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceA(type, sku, stock, dateTime)) CHARWIDTH 7 COMPLEX;
