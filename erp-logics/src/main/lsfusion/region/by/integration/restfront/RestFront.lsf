@@ -1,6 +1,6 @@
 MODULE RestFront;
 
-REQUIRE PriceList, Store, ItemDescription, CashRegisterPriceTransaction, LogTools;
+REQUIRE PriceList, Store, ItemDescription, CashRegisterPriceTransaction, LogTools, StopList;
 
 @defineLogRotate(RestFront, 5, weekly);
 
@@ -527,13 +527,13 @@ exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
         TRY {
             EXTERNAL HTTP GET urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line' HEADERS httpHeaders TO result;
             IMPORT importMenuLine JSON FROM result();
-            FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+            FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
                 deleteMenuLine(ds,idMenuLine(i));
             }
-            FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+            FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
                 putMenuLine(ds,i);
             }
-            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) AND NOT
+            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) AND NOT
             (costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND 
             ((IF isNotShowMenuLine(j) THEN 'true' ELSE 'false') == (IF additionGroup(i) THEN 'true' ELSE 'false'))) DO {
                 putMenuLine(ds,i);
@@ -573,7 +573,7 @@ createAttribute (MachineryPriceTransaction t, Stock s) + {
             IMPORT importMenuLine JSON FROM result();
             
             IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
-                FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),s,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+                FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),s,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),s,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
                     deleteMenuLine(s,idMenuLine(i));
                 }
             } 
@@ -589,4 +589,23 @@ createAttribute (MachineryPriceTransaction t, Stock s) + {
             logToFile('RestFront', result());
         }
     } 
+}
+
+// удаление при выгрузке стоп-листа
+WHEN SET(succeeded(Stock st, StopList l)) AND isPosted(l) AND NOT exclude(l) AND idMenuRestFront(st) AND urlAPI(st) DO {
+     getToken(st);
+             
+     LOCAL result = FILE();
+     logToFile('RestFront', 'GET: ' + urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line');
+     TRY {
+         EXTERNAL HTTP GET urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line' HEADERS httpHeaders TO result;
+         IMPORT importMenuLine JSON FROM result();
+         FOR idMenuLine(INTEGER i) AND count(item(aliasGoodMenuLine(i)),l) DO {
+             deleteMenuLine(st,idMenuLine(i));
+         }
+     }
+     CATCH {
+         logToFile('RestFront', messageCaughtException());
+         logToFile('RestFront', result());
+     } 
 }
