@@ -1238,14 +1238,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                 discountSumReceiptDetail = BigDecimal.valueOf(inventPosition.getDouble("disc_abs"));
                                                 for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                     JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
-                                                    BigDecimal discSize;
+                                                    BigDecimal discSize = null;
                                                     String discType = discountPosition.getString("discType");
                                                     if(discType.equals("summ")) {
                                                         //рассчитываем процент вручную
                                                         BigDecimal discSum = BigDecimal.valueOf(discountPosition.getDouble("discSum"));
                                                         BigDecimal checkSum = BigDecimal.valueOf(discountPosition.getDouble("checkSum"));
                                                         discSize = safeMultiply(safeDivide(discSum, checkSum), 100);
-                                                    } else {
+                                                    } else if (!discType.equals("bonus")) {
                                                         discSize = BigDecimal.valueOf(discountPosition.getDouble("discSize"));
                                                     }
                                                     discountPercentReceiptDetail = safeAdd(discountPercentReceiptDetail, discSize);
