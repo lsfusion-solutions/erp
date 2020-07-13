@@ -40,11 +40,16 @@ deleteGroup(INTEGER i)  {
 
 @createGroup(sku, 'По товару', 4);
 
-@createGroup(group, 'По группам товара', 5);
+
+@createGroup(group, 'По подгруппам товара', 5);
 
 @createGroup(date, 'По дате', 6);
 
 @createGroup(legalEntity, 'По организации', 7);
+
+@createGroup(group2, 'По категориям товаров', 8);
+
+@createGroup(group3, 'По группам товара', 9);
 
 inBackSheet 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 inBackSheetStocks 'Склады' () =
@@ -84,6 +89,12 @@ META setNameGroup(number)
         IF order(7) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameLegalEntity(stock(sl)), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
         }
+        IF order(8) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup2((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }
+        IF order(9) == number THEN {
+            nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup3((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+        }        
     }   
 END 
 
@@ -319,7 +330,7 @@ FORM reportGroupOperation 'Отчет по операциям'
     OBJECTS o = Operation.Operation
     PROPERTIES(o) inSession , name READONLY, inReturn, nameReturn READONLY
     
-    PROPERTIES() gDocument, gStock, gOperation, gSku, gGroup, gDate, gLegalEntity
+    PROPERTIES() gDocument, gStock, gOperation, gSku, gGroup3, gGroup2, gGroup, gDate, gLegalEntity
     
     OBJECTS gr = INTEGER 
     PROPERTIES(gr) READONLY order, nameGroup
@@ -387,6 +398,8 @@ DESIGN reportGroupOperation {
                         MOVE PROPERTY(gStock());
                         MOVE PROPERTY(gOperation());
                         MOVE PROPERTY(gSku());
+                        MOVE PROPERTY(gGroup2());
+                        MOVE PROPERTY(gGroup3());
                         MOVE PROPERTY(gGroup());
                         MOVE PROPERTY(gDate());
                         MOVE PROPERTY(gLegalEntity());
