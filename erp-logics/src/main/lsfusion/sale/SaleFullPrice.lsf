@@ -248,11 +248,15 @@ CONSTRAINT agreement(Order o) != agreement(UserInvoice i) AND include(o,i) AND N
     CHECKED BY agreement[UserInvoice] MESSAGE 'Соглашения в заказе и накладной должны совпадать';
 
 overFill (UserInvoice i, Order o) + { 
-    percDiscount(i) <- percDiscount(o);
+    IF NOT notFillPriceInvoiceOrder(operation(o)) THEN {
+        percDiscount(i) <- percDiscount(o);
+    }
 }
 overFill (UserInvoiceDetail id, OrderDetail od) + { 
-    fullPrice(id) <- fullPrice(od);  
-    dataPercDiscount(id) <- dataPercDiscount(od);  
+    IF NOT notFillPriceInvoiceOrder(operation(od)) THEN {
+        fullPrice(id) <- fullPrice(od);
+        dataPercDiscount(id) <- dataPercDiscount(od);  
+    }  
 }
 
 overCopy (UserInvoice i, UserInvoice invoice) + { 
