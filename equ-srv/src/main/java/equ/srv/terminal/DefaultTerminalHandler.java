@@ -95,15 +95,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue skuObject = terminalHandlerLM.findProperty("skuBarcode[BPSTRING[15]]").readClasses(session, new DataObject(barcode));
                 BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").read(session, barcodeObject, stockObject);
                 BigDecimal quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Sku,Stock]").read(session, skuObject, stockObject);
-                String priceValue = null;
-                if(price != null) {
-                    price = price.setScale(2, BigDecimal.ROUND_HALF_UP);
-                    DecimalFormat df = new DecimalFormat();
-                    df.setMaximumFractionDigits(2);
-                    df.setMinimumFractionDigits(0);
-                    df.setGroupingUsed(false);
-                    priceValue = df.format(price).replace(",", ".");
-                }
+                String priceValue = bigDecimalToString(price, 2);
+                String quantityValue = bigDecimalToString(quantity, 3);
+
                 String mainBarcode = (String) terminalHandlerLM.findProperty("idMainBarcode[Barcode]").read(session, barcodeObject);
 
                 String idSkuBarcode = trimToEmpty((String) terminalHandlerLM.findProperty("idSku[Barcode]").read(session, barcodeObject));
@@ -115,13 +109,26 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String ticket_data = (String) terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 String flags = terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").read(session, barcodeObject) != null ? "1" : "0";
                 return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
-                        quantity == null ? "0" : String.valueOf(quantity.longValue()), idSkuBarcode, nameManufacturer, fld3, fld4, "", isWeight,
+                        quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, "", isWeight,
                         mainBarcode, color, ticket_data, flags);
             } else return null;
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private String bigDecimalToString(BigDecimal bd, int fractDigits) {
+        String value = null;
+        if(bd != null) {
+            bd = bd.setScale(fractDigits, BigDecimal.ROUND_HALF_UP);
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(fractDigits);
+            df.setMinimumFractionDigits(0);
+            df.setGroupingUsed(false);
+            value = df.format(bd).replace(",", ".");
+        }
+        return value;
     }
 
     private String formatColor(Color color) {
