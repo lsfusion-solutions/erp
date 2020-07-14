@@ -12,6 +12,8 @@ sumEMoneyPayment 'Сумма продажа (Оплати)' (receipt) = GROUP SU
 sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (Receipt receipt) =  sumEMoneyPayment (receipt) IF sumEMoneyPayment(receipt) >= 0.0 IN documentSum;
 sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (Receipt receipt) =  sumEMoneyPayment(receipt) IF sumEMoneyPayment(receipt) < 0.0 IN documentSum;
 
+sumEMoneyPayment 'Оплати (чек)' (ReceiptDetail detail) = sumEMoneyPayment(receipt(detail));
+
 sumEMoney 'Сумма по Оплати Z-отчета' (zReport) = GROUP SUM sumEMoneyPayment(Receipt receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 sumPositiveEMoneyPayment 'Сумма продажа (Оплати)' (zReport) = GROUP SUM sumPositiveEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) IN documentSum;
 sumNegativeEMoneyPayment 'Сумма возврата (Оплати)' (zReport) = GROUP SUM sumNegativeEMoneyPayment(Receipt r) IF NOT skip(r) BY zReport(r) MATERIALIZED IN documentSum;
