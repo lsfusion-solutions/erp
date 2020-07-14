@@ -54,7 +54,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                         sumTax(expDet) <- OVERRIDE VATSum(docd), 0;
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
-                        extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
+                     //   extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
                         expiryDate(expDet) <- expiryDate(docd); 
                      //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
                     }
@@ -109,6 +109,7 @@ overApplySaleInvoice (Sale.UserInvoice doc) + {
 //-----------------------------------------------------------------------------------------------------импорт
 overImportInternalWay ABSTRACT LIST ();
 overImportInternalWay2 ABSTRACT LIST ();
+overImportInternalWayDet ABSTRACT LIST (Sale.UserInvoiceDetail, INTEGER );
 
 importInternalWay 'Импорт накладные перемещение' () {     
    
@@ -205,22 +206,28 @@ importInternalWay 'Импорт накладные перемещение' () {
         quantity(det) <- quantity(i);
         invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
         price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
-        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
+//        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
         sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
-        VAT(det) <-VAT(sku(det));
-        valueVAT(det) <- valueVAT(sku(det));
+//        VAT(det) <-VAT(sku(det));
+        valueVAT(det) <- 0;//valueVAT(sku(det));
+        VAT(det) <- valueCurrentVAT(countrySupplierStock(det), valueVAT(det));
 //        VATSum(det) <- OVERRIDE taxSum(i), vat(sku(det));
         dataIndex(det) <- specItem(i);
      //   priceListType(det) <- priceListType(stock(ISTRING[100] (locationTo(i))));
-        retailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationFrom(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));       
+//        retailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationFrom(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));       
+        retailPrice(det) <- retailPricingPriceA(sku(det), stock(ISTRING[100] (locationFrom(i))), currentDateTime());       
         retailVAT(det) <- VAT(sku(det));
         valueRetailVAT(det) <- taxRate(i);                 
-        purchaseRetailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));
+//        purchaseRetailPrice(det) <- OVERRIDE retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime()), NUMERIC[16,4](itemPrice(i));
+        purchaseRetailPrice(det) <- retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
         purchaseRetailVAT(det) <- VAT(sku(det));
         valuePurchaseRetailVAT(det) <- taxRate(i);       
         shipmentPrice(det) <- NUMERIC[16,4](itemPrice(i));
         shipmentSum(det) <- NUMERIC[16,4](totalPrice(i)); 
         manufacturingPrice(det) <- priceManufacturer(i);
+        
+        overImportInternalWayDet(det,i);
+        
         imported(det) <- TRUE;
         lastVersion[InvoiceDetail](det) <- currentVersion(i);
    }

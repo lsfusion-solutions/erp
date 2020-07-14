@@ -114,12 +114,12 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                     doctype(b) <- 'CO';
                 }                                
                 
-         //       acceptsum(expMain)  <- creditInvoiceSumInvoiceDetail(doc);
-//                basesum(expMain) <- invoiceSumInvoiceDetail(doc);
-//                calcenddate(expMain) <- OVERRIDE dateTime(lastInvoiceContractLedger(doc)), shipmentDateTime(doc);
-//                paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
-//                finagent(expMain) <- id(supplier(doc)); 
-//                iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
+                acceptsum(expMain)  <- creditInvoiceSumInvoiceDetail(doc);
+                basesum(expMain) <- invoiceSumInvoiceDetail(doc);
+                calcenddate(expMain) <- shipmentDateTime(doc);//OVERRIDE dateTime(lastInvoiceContractLedger(doc)), shipmentDateTime(doc);
+                paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
+                finagent(expMain) <- id(supplier(doc)); 
+                iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
                 
                 overExportPurchaseReturnInvoiceWO(doc, expMain);
                 
@@ -132,6 +132,16 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
                             WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
                         }
                     CATCH logToFile('supermag', CONCAT '\n', 'Расходная накладная', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    
+                    sleep(3000);
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportFI XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Финансовое обязательство', 'file://' + exportDirectorySupermag() + '/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Финансовое обязательство', 'file://' + exportDirectorySupermag() + '/' + 'FI_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 }                
                 inc(expMain) <- NULL;
         }         
