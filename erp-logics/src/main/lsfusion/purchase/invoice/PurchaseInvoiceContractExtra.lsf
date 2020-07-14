@@ -1,0 +1,53 @@
+MODULE PurchaseInvoiceContractExtra;
+
+REQUIRE PurchaseInvoiceContract;
+
+NAMESPACE Purchase;
+
+//-- Делаем несколько леджеров в соответствии с рассрочкой. Начинаем со 2-го периода рассрочки, первым остается сама накладная, просто меняем сумму.
+order(PaymentPeriod pp) = PARTITION SUM 1 ORDER countDays(pp), pp BY paymentCondition(pp) MATERIALIZED;
+minPaymentPeriod = GROUP MIN PaymentPeriod pp IF order(pp)==1 BY paymentCondition(pp) MATERIALIZED;
+
+//TABLE invoiceInPaymentPeriod (Invoice, PaymentPeriod);
+CLASS InvoiceInContractLedger : InContractLedger;
+needToCreateInContractLedger (Invoice invoice, PaymentPeriod paymentPeriod) =
+    isSaleType(contractSku(invoice)) AND
+    isPrepaymentType(paymentCondition(invoice)) AND
+    paymentCondition(invoice) == paymentCondition(paymentPeriod) AND
+    isPosted(invoice) AND order(paymentPeriod)>1 ;
+
+invoiceInContractLedger = AGGR InvoiceInContractLedger WHERE needToCreateInContractLedger(Invoice invoice, PaymentPeriod paymentPeriod) MATERIALIZED INDEXED;
+
+bankingPaymentDate (InvoiceInContractLedger l) = jumpWorkdays(country(customer(invoice(l))),
+                                                                       date(invoice(l)),
+                                                                       countDays(paymentPeriod(l)));
+
+overBankingPaymentDate = ABSTRACT DATE (InvoiceInContractLedger);
+overCalendarPaymentDateTime = ABSTRACT DATETIME (InvoiceInContractLedger);
+calendarPaymentDateTime (InvoiceInContractLedger l) = sumDay(dateTime(invoice(l)),
+                                                           countDays(paymentPeriod(l)));
+
+isPosted[InContractLedger](InvoiceInContractLedger l) += isPosted(invoice(l));
+dateTime[InContractLedger](InvoiceInContractLedger l) += dateTime[ContractLedger](invoiceContractLedger(invoice(l),paymentPeriod(l)));     
+
+contract[InContractLedger](InvoiceInContractLedger l) += contractSku(invoice(l));
+description[InContractLedger](InvoiceInContractLedger l) += STRING[200](CONCAT ', ', description(invoice(l)), 'часть '+order(paymentPeriod(l)));
+sum[InContractLedger](InvoiceInContractLedger l) += sum[ContractLedger](invoiceContractLedger(invoice(l),paymentPeriod(l)));
+
+number[InContractLedger](InvoiceInContractLedger l) += number(invoice(l));
+series[InContractLedger](InvoiceInContractLedger l) += series(invoice(l));    
+customerStock[InContractLedger](InvoiceInContractLedger l) += customerStock(invoice(l));
+supplierStock[InContractLedger](InvoiceInContractLedger l) += supplierStock(invoice(l));
+paymentCondition[InContractLedger](InvoiceInContractLedger l) += paymentCondition(invoice(l));                                       
+
+sumInvoiceInContractLedger = GROUP SUM sum[ContractLedger](invoiceContractLedger(invoice(InvoiceInContractLedger l),paymentPeriod(l))) BY invoice(l);    
+extraSum(Invoice i) += NUMERIC[18,4](sumInvoiceInContractLedger(i));
+
+extraInContractLedger(InvoiceContractLedger l) +=invoiceInContractLedger(invoice(l),paymentPeriod(l));
+
+overLedgerDateTime(Invoice l) += dateTime[ContractLedger](invoiceContractLedger(l,minPaymentPeriod(paymentCondition(l))));  
+
+
+
+
+
