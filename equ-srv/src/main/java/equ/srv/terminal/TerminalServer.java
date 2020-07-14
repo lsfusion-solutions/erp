@@ -328,9 +328,9 @@ public class TerminalServer extends MonitorServer {
         }
     }
 
-    protected String changeStatusOrder(DataObject user, String status, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    protected String changeStatusOrder(DataObject user, String vop, String status, String numberOrder) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = createSession()) {
-            return terminalHandlerInterface.changeStatusOrder(session, getStack(), user, status, numberOrder);
+            return terminalHandlerInterface.changeStatusOrder(session, getStack(), user, vop, status, numberOrder);
         }
     }
 
@@ -607,16 +607,17 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("changeOrderStatus");
                             String[] params = readParams(inFromClient);
-                            if (params.length >= 3) {
+                            if (params.length >= 4) {
                                 sessionId = params[0];
-                                String status = params[1];
-                                String numberOrder = params[2];
+                                String vop = params[1];
+                                String status = params[2];
+                                String numberOrder = params[3];
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    changeStatusOrder(userInfo.user, status, numberOrder);
+                                    changeStatusOrder(userInfo.user, vop, status, numberOrder);
                                 }
                             } else {
                                 errorCode = WRONG_PARAMETER_COUNT;

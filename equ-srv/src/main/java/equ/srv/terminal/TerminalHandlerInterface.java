@@ -26,7 +26,7 @@ public interface TerminalHandlerInterface {
 
     String checkOrder(DataSession session, ExecutionStack stack, DataObject user, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException;
 
-    String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException;
+    String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String vop, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException;
 
     String getPreferences(DataSession session, ExecutionStack stack, String idTerminal) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException;
 

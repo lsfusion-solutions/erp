@@ -252,11 +252,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public String changeStatusOrder(DataSession session, ExecutionStack stack, DataObject user, String vop, String status, String numberOrder) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String result = null;
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
-            terminalHandlerLM.findAction("changeStatusTerminalOrder[STRING, STRING]").execute(session, stack, new DataObject(status), new DataObject(numberOrder));
+            terminalHandlerLM.findAction("changeStatusTerminalOrder[STRING, STRING, STRING]").execute(session, stack, new DataObject(vop), new DataObject(status), new DataObject(numberOrder));
         }
         return result;
     }
