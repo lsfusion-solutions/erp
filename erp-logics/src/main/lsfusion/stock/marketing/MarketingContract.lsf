@@ -24,6 +24,7 @@ dateTo 'Действует (по)' = DATA DATE (ContractMarketing);
 name 'Наименование' = DATA STRING[100](ContractMarketing);
 prolongation 'Пролонгация' = DATA BOOLEAN (ContractMarketing);
 description 'Описание' = ABSTRACT STRING[250](ContractMarketing) CHARWIDTH 30;
+isReverse 'Обратный' = DATA BOOLEAN (ContractMarketing);
 
 supplier = DATA LegalEntity (ContractMarketing);
 nameSupplier 'Поставщик' (ContractMarketing c) = name(supplier(c));
@@ -95,7 +96,7 @@ deleteScanFile 'Удалить' (ContractMarketing c)  { scanFile(c) <- NULL; }
 
 FORM contractMarketing 'Договор маркетинга'
     OBJECTS c = ContractMarketing PANEL 
-    PROPERTIES (c) nameNumerator, number, series, dateFrom, dateTo, name, prolongation, nameSupplier, nameCustomer, paymentDelay, 
+    PROPERTIES (c) nameNumerator, number, series, dateFrom, dateTo, name, prolongation, nameSupplier, nameCustomer, paymentDelay, isReverse,
                    nameContractType, namePeriod, fromCount, fromPayment, personSupplier, basedOnSupplier, inputScanFile, openScanFile, deleteScanFile
     
     EDIT ContractMarketing OBJECT c
@@ -131,6 +132,7 @@ DESIGN contractMarketing {
             MOVE PROPERTY (paymentDelay(c));
             MOVE PROPERTY (fromCount(c));
             MOVE PROPERTY (fromPayment(c));
+            MOVE PROPERTY (isReverse(c));
         }
         NEW person {
             caption = 'Строка для задания и акта';
@@ -875,8 +877,11 @@ importContractMarketings 'Импорт договоров' ()  {
 
 EXTEND FORM contractMarketings PROPERTIES DRAW c TOOLBAR importContractMarketings();
 
-CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(customer(c)) CHECKED BY customer[ContractMarketing] 
+CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(customer(c)) AND NOT isReverse(c) CHECKED BY customer[ContractMarketing] 
     MESSAGE 'Получатель не является компанией';
+
+CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(supplier(c)) AND isReverse(c) CHECKED BY supplier[ContractMarketing] 
+    MESSAGE 'Поставщик не является компанией';
     
 migratedItemCondition = DATA BOOLEAN ();
 onStarted() + { 
