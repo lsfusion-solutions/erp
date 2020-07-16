@@ -1,6 +1,6 @@
 MODULE SupermagInternalWay;
 
-REQUIRE SupermagSaleInvoice, PricingSalePurchase, SalePurchaseInvoiceShipment, SaleManufacturingPrice;
+REQUIRE SupermagSaleInvoice, PricingSalePurchase, SalePurchaseInvoiceShipment, SaleManufacturingPrice, PriceList, Utils;
 
 PRIORITY SupermagSettings;
 
@@ -53,7 +53,8 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                         sumNoTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumTax(expDet) <- OVERRIDE VATSum(docd), 0;
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
-                        priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
+                        priceManufacturer(expDet) <- CASE WHEN manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) 
+                                                          WHEN NOT isSubstring('Розн',namePriceListType(docd)) THEN priceNoTax(expDet);
                      //   extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
                         expiryDate(expDet) <- expiryDate(docd); 
                      //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
