@@ -241,6 +241,8 @@ quantityMarketing(Purchase.UserInvoiceDetail d) = OVERRIDE overQuantityMarketing
 sumMarketing(Purchase.UserInvoiceDetail d) = OVERRIDE overSumMarketing(d), sum(d);
 invoiceSumMarketing(Purchase.UserInvoiceDetail d) = OVERRIDE overInvoiceSumMarketing(d), invoiceSum(d);
 
+createDetailSale ABSTRACT (MarketingInvoice, ContractMarketing, DATE, DATE);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -258,61 +260,62 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         customer(i) <- customer(c);
         dateTime(i) <- currentDateTime();
 
-//        number(i) <- CONCAT '/', extractDay(currentDate()) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c));      
-//        numberAttachment(i) <- CONCAT '/', extractDay(firstDayOfMonth(dt)) + lpad(TEXT (extractMonthNumber(firstDayOfMonth(dt))),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c));                    
-//        numberAgreement(i) <- CONCAT '/', extractDay(currentDate()) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'),  numberLE(nameCustomer(c)), numberCT(nameContractType(c));        
-//        numberProtocol(i) <- CONCAT '/', extractDay(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1)) + lpad(TEXT (extractMonthNumber(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(df), 1), 1))),2,'0'),  numberLE(nameCustomer(c)), numberCT(nameContractType(c));        
         number(i) <-CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         numberAttachment(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         numberAgreement(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         numberProtocol(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         numberTask(i) <- CONCAT '/', extractDay(date(i)) + lpad(TEXT (extractMonthNumber(currentDate())),2,'0'), numberLE(nameCustomer(c)), numberCT(nameContractType(c)); 
         
-        LOCAL in = BOOLEAN (Purchase.UserInvoiceDetail);
-        in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
-
-        LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
-        marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
-
-        LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
-        in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
-        
-        LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
-        marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
-        
-        LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-        quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
-
-        LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
-        quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
-        
-        FOR (quantityPurchase(MarketingCondition mc, Sku sk, Stock st) OR quantityPurchaseReturn(mc, sk, st))
-            AND (calcBase(mc) == CalcBase.supplier 
-            OR calcBase(mc) == CalcBase.supplierVAT)
-            NEW md = MarketingInvoiceDetail DO {
-            marketingInvoice(md) <- i;
-            condition(md) <- mc;
-            conditionTypeMarketing(md) <- conditionType(mc);
-            calcBase(md) <- calcBase(mc);
-            sku(md) <- sk;
-            stock(md) <- st;
-            quantity(md) <- quantityPurchase(mc, sk, st) (-) quantityPurchaseReturn(mc, sk, st);
-            marketingPercent(md) <- marketingPercent(mc);
-            sum (md) <- CASE 
-                            WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                [ GROUP SUM invoiceSumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
-                            WHEN calcBase(mc) == CalcBase.supplier THEN 
-                                [ GROUP SUM sumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
-            returnSum(md) <- CASE 
-                                WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
-                                    [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
-                                WHEN calcBase(mc) == CalcBase.supplier THEN
-                                    [ GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
-                   
-            in(md, Purchase.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);                 
-            in(md, PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+        IF isReverse(c) THEN {        
+            createDetailSale(i, c, df, dt);
         }
-        
+        ELSE {
+            LOCAL in = BOOLEAN (Purchase.UserInvoiceDetail);
+            in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
+    
+            LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
+            marketingCondition (Purchase.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
+    
+            LOCAL in = BOOLEAN (PurchaseReturn.UserInvoiceDetail);
+            in(PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
+            
+            LOCAL marketingCondition = MarketingCondition (PurchaseReturn.UserInvoiceDetail, ConditionType);
+            marketingCondition (PurchaseReturn.UserInvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
+            
+            LOCAL quantityPurchase = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
+            quantityPurchase(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantityMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+    
+            LOCAL quantityPurchaseReturn = NUMERIC[16,5] (MarketingCondition, Sku, Stock);
+            quantityPurchaseReturn(MarketingCondition mc, Sku sk, Stock st) <- [ GROUP SUM quantity(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+            
+            FOR (quantityPurchase(MarketingCondition mc, Sku sk, Stock st) OR quantityPurchaseReturn(mc, sk, st))
+                AND (calcBase(mc) == CalcBase.supplier 
+                OR calcBase(mc) == CalcBase.supplierVAT)
+                NEW md = MarketingInvoiceDetail DO {
+                marketingInvoice(md) <- i;
+                condition(md) <- mc;
+                conditionTypeMarketing(md) <- conditionType(mc);
+                calcBase(md) <- calcBase(mc);
+                sku(md) <- sk;
+                stock(md) <- st;
+                quantity(md) <- quantityPurchase(mc, sk, st) (-) quantityPurchaseReturn(mc, sk, st);
+                marketingPercent(md) <- marketingPercent(mc);
+                sum (md) <- CASE 
+                                WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
+                                    [ GROUP SUM invoiceSumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                WHEN calcBase(mc) == CalcBase.supplier THEN 
+                                    [ GROUP SUM sumMarketing(Purchase.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                returnSum(md) <- CASE 
+                                    WHEN calcBase(mc) == CalcBase.supplierVAT THEN 
+                                        [ GROUP SUM invoiceSum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st)
+                                    WHEN calcBase(mc) == CalcBase.supplier THEN
+                                        [ GROUP SUM sum(PurchaseReturn.UserInvoiceDetail d) BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+                       
+                in(md, Purchase.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);                 
+                in(md, PurchaseReturn.UserInvoiceDetail d) <- TRUE WHERE [GROUP SUM 1 BY marketingCondition(d, ConditionType t), sku(d), customerStock(d)](mc, sk, st);
+            }
+        }
+                
         IF (GROUP SUM 1 IF contractMarketing(MarketingCondition mc) = c AND (calcBase(mc) == CalcBase.turnoverVAT 
                                                                             OR calcBase(mc) == CalcBase.turnover
                                                                             OR calcBase(mc) == CalcBase.turnoverCost
@@ -441,7 +444,7 @@ FORM marketingInvoicesCreate 'Договоры маркетинга'
 ;
 
 createMarketingInvoices 'Создать акты' ()  { 
-        SHOW marketingInvoicesCreate;
+    SHOW marketingInvoicesCreate;
 }
 
 copyMarketingInvoice 'Копировать акт' (MarketingInvoice i)  { 
