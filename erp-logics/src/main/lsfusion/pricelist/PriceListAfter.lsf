@@ -52,10 +52,16 @@ showPriceAfter(UserPriceList priceList) <- showPriceAfter(operation(priceList))
     WHEN CHANGED(operation(priceList));
 skipConstraintPriceAfter 'Может быть не задана Цена после' = DATA BOOLEAN (PriceList.Operation);
     
-EXTEND FORM operation PROPERTIES(o) showPriceAfter, skipConstraintPriceAfter SHOWIF showPriceAfter(o);
+editFromPriceAfter = ABSTRACT BOOLEAN();
+editToPriceAfter = ABSTRACT BOOLEAN();
+showFromPriceAfter = DATA BOOLEAN(PriceList.Operation);
+showToPriceAfter = DATA BOOLEAN(PriceList.Operation);  
+    
+EXTEND FORM operation PROPERTIES(o) showPriceAfter, skipConstraintPriceAfter, showToPriceAfter SHOWIF showPriceAfter(o);
 DESIGN operation {
     showContainer {
         MOVE PROPERTY(showPriceAfter(o));
+        MOVE PROPERTY(showToPriceAfter(o));        
     }
     constraintContainer {
         MOVE PROPERTY(skipConstraintPriceAfter(o));
@@ -84,10 +90,6 @@ WHEN LOCAL CHANGED(toDate(UserPriceList o)) OR CHANGED(toTime(o)) OR CHANGED(sho
 //        toPriceAfterTime(o) <- 23:59;
 //    } 
 //};
-editFromPriceAfter = ABSTRACT BOOLEAN();
-editToPriceAfter = ABSTRACT BOOLEAN();
-showFromPriceAfter = ABSTRACT BOOLEAN();
-showToPriceAfter = ABSTRACT BOOLEAN();
 
 CONSTRAINT showPriceAfter(UserPriceList p) AND isPosted(p) AND
             ((fromPriceAfterDateTime(p) <= toDateTime(p)) OR (toPriceAfterDateTime(p) <= toDateTime(p)))
@@ -108,8 +110,8 @@ CONSTRAINT showPriceAfter(userPriceList(UserPriceListDetail d)) AND isPosted(use
 backgroundPriceAfterTime = ABSTRACT COLOR (PriceList);
 
 EXTEND FORM userPriceList
-    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showFromPriceAfter()) READONLYIF NOT editFromPriceAfter() fromPriceAfterDate, fromPriceAfterTime BACKGROUND backgroundPriceAfterTime(p)
-    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showToPriceAfter()) READONLYIF NOT editToPriceAfter() toPriceAfterDate, toPriceAfterTime
+    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showFromPriceAfter(operation(p))) READONLYIF NOT editFromPriceAfter() fromPriceAfterDate, fromPriceAfterTime BACKGROUND backgroundPriceAfterTime(p)
+    PROPERTIES (p) SHOWIF (showPriceAfter(p) AND showToPriceAfter(operation(p))) READONLYIF NOT editToPriceAfter() toPriceAfterDate, toPriceAfterTime
 ;
 
 DESIGN userPriceList{
