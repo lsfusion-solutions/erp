@@ -76,7 +76,8 @@ NAVIGATOR {
 
 CLASS TypeDirectPrint 'Тип печати'{
     dpl 'DPL',
-    zpl 'ZPL'
+    zpl 'ZPL',
+    tspl 'TSPL'
 };
 TABLE barcodeTypePrint (TypeDirectPrint);
 
@@ -236,17 +237,29 @@ customPrint(LabelTransaction labelTrans) + {
     FOR labelTrans == labelTransaction(LabelTransactionDetail ld) ORDER ld DO {
         formattedText() <- text(ld);
         
-        IF isSubstring(formattedText(),'#EncodeWindows = Yes') THEN {
+        IF isSubstring(formattedText(),'#EncodeWindows = Yes') OR isSubstring(formattedText(),'CODEPAGE 1251') THEN {
             charset() <-  'CP1251';
             formattedText() <- replace(formattedText(), '#EncodeWindows = Yes', '');
         } ELSE charset() <-  'CP866';         
         
         formattedText() <- replace(formattedText(),'@6.18.4@', CONCAT '/', 'руб', lower(shortNameUOMSku(ld)));
         formattedText() <- replace(formattedText(),'@32.1@', CASE 
-            WHEN length(completedIdBarcode(ld)) == 8 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'B8' ELSE 'G'
-            WHEN length(completedIdBarcode(ld)) == 12 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BU' ELSE'B'
-            WHEN length(completedIdBarcode(ld)) == 13 THEN IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BE' ELSE 'F' 
-            ELSE IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BC' ELSE 'E' );
+            WHEN length(completedIdBarcode(ld)) == 8 THEN 
+                CASE WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'B8'
+                     WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.tspl THEN 'EAN8'
+                     ELSE 'G'
+            WHEN length(completedIdBarcode(ld)) == 12 THEN 
+                CASE WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BU'
+                     WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.tspl THEN 'UPCA'
+                     ELSE'B'
+            WHEN length(completedIdBarcode(ld)) == 13 THEN 
+                CASE WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BE'
+                     WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.tspl THEN 'EAN13'
+                     ELSE 'F' 
+            ELSE 
+                CASE WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.zpl THEN 'BC' 
+                     WHEN typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.tspl THEN '39' 
+                ELSE 'E' );
 
         IF completedIdBarcode(ld) THEN {
             formattedText() <- replace(formattedText(),'@31.13.8@', completedIdBarcode(ld));
@@ -254,6 +267,10 @@ customPrint(LabelTransaction labelTrans) + {
         
         formattedText() <- replace(formattedText(),'@11.10.2@', (OVERRIDE overLabelDirectDate(labelTrans), lpad(STRING[10](toDateDDMMYYYYUS(date(labelTrans))), 10,' ')));
       
+        IF typeDirectPrint(labelType(labelTrans)) = TypeDirectPrint.tspl THEN {
+            name(ld) <- replace(name(ld), '"', ' \\["]');
+        }
+        
         IF nameSku(ld) THEN { 
             formattedText() <- replaceFirst(formattedText(),'@10.30.1@', substrToWrap(name(ld), skuNameLineLength()));
             tempName() <- ltrim(replace(name(ld), substrToWrap(name(ld), skuNameLineLength()), ''));
