@@ -117,6 +117,8 @@ exportWriteOff (WriteOff doc) + {
     IF inExport(stock(doc)) AND isPosted(doc) THEN exportWriteOffMag(doc);
 }
 
+overImportWriteOff ABSTRACT LIST();
+
 importWriteOff 'Списания' () {
     filterSql() <- 'd.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( d.location IN ('+ stocksImport() + ')  OR d.locationfrom IN ('+ stocksImport() + ') OR locationto IN ('+ stocksImport() + ')   ) AND ( ' ;
     LOCAL filterDoc = STRING ();
@@ -151,6 +153,8 @@ importWriteOff 'Списания' () {
         isClosed(doc) <- TRUE IF docState(i) = 0;      
         lastVersion[WriteOff](doc) <- currentVersion(i);        
     }
+    
+    overImportWriteOff();
     
     APPLY;
 }
