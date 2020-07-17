@@ -115,8 +115,6 @@ importLegalEntity 'Импорт организаций' () {
     }
 
     FOR idOrg(INTEGER i) AND NOT warehouse(TEXT (idOrg(i))) DO NEW w = Warehouse {
-            name(w) <- ISTRING[150](shortName(i));
-            address(w) <- ISTRING[150](faddress(i));
             id(w) <- ISTRING[100](idOrg(i));
             legalEntity(w) <- legalEntity(TEXT (idOrg(i)));
             stockGroup(w) <- warehouseGroup('external');
@@ -143,6 +141,11 @@ importLegalEntity 'Импорт организаций' () {
         isCustomer(s) <- TRUE IF clientClass(i);
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup('companies') IF own(i) == '1', legalEntityGroup('S' + supplierClass(i)), legalEntityGroup('C' + clientClass(i));
         inactive(s) <- status(i) == 2;
+    }
+    
+    FOR Warehouse s = warehouse(TEXT (idOrg(INTEGER i))) DO {   
+                name(s) <- ISTRING[150](shortName(i));
+                address(s) <- ISTRING[150](faddress(i));
     }
     
     overImportLegalEntity();
