@@ -12,16 +12,17 @@ import java.util.Set;
 public class ProcessMonitorEquipmentServer {
     private final static Logger processMonitorLogger = Logger.getLogger("ProcessMonitorLogger");
 
-    static void process(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
+    static void process(EquipmentServer equipmentServer, EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         processMonitorLogger.info("Process ProcessMonitor");
         boolean needUpdateProcessMonitor = remote.needUpdateProcessMonitor(sidEquipmentServer);
         if (needUpdateProcessMonitor) {
             processMonitorLogger.info("LogProcesses called");
-            remote.logProcesses(sidEquipmentServer, getData(Thread.getAllStackTraces().keySet()));
+            remote.logProcesses(sidEquipmentServer, getData(equipmentServer, Thread.getAllStackTraces().keySet()));
         }
     }
 
-    private static String getData(Set<Thread> threads) {
+    private static String getData(EquipmentServer equipmentServer, Set<Thread> threads) {
+        String result = equipmentServer.taskPool.getTaskInfo();
         if (threads != null && !threads.isEmpty()) {
 
             long[] threadIds = new long[threads.size()];
@@ -40,8 +41,9 @@ public class ProcessMonitorEquipmentServer {
                     data.append(processData);
                 i++;
             }
-            return data.toString();
-        } else return null;
+            result += "\n" + data.toString();
+        }
+        return result;
     }
 
     private static String getProcessData(Thread thread, ThreadInfo threadInfo) {

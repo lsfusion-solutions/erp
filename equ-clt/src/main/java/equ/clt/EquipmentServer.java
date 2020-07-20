@@ -361,7 +361,7 @@ public class EquipmentServer {
             void runTask() throws Exception{
                 try {
                     if(isTimeToRun())
-                        ProcessMonitorEquipmentServer.process(remote, sidEquipmentServer);
+                        ProcessMonitorEquipmentServer.process(EquipmentServer.this, remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     processMonitorLogger.error("Connect Exception: ", e);
                     needReconnect = true;
@@ -660,6 +660,11 @@ public class EquipmentServer {
                 equipmentLogger.error("EquipmentServer Error: ", e);
                 return "No handler";
             }
+        }
+
+        public String getTaskInfo() {
+            return String.format("Task Pool. currentlyProceededGroups: %s; waiting: %s; proceeded %s; succeeded %s",
+                    currentlyProceededGroups, waitingTaskQueueMap.keySet(), proceededTaskList, succeededTaskList);
         }
 
     }
