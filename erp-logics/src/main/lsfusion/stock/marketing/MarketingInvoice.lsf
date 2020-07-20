@@ -68,6 +68,9 @@ sum 'Сумма (согл. базе расчета)' = DATA NUMERIC[18,2] (Marke
 returnSum 'Сумма возврата' = DATA NUMERIC[18,2] (MarketingInvoiceDetail);
 sumMarketing 'Сумма маркетинга' = DATA NUMERIC[18,5] (MarketingInvoiceDetail);
 
+condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
+fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
+
 isCreated 'Создан' (ContractMarketing c, DATE df, DATE dt) =
     GROUP SUM 1 IF contract(MarketingInvoice i) == c AND dateFrom(i) == df AND dateTo(i) == dt;
 
@@ -81,14 +84,16 @@ VATSum 'Сумма НДС' (MarketingInvoice i) = OVERRIDE (round2(overSumVAT(i)
 sum 'Сумма' (MarketingInvoice i) = overSumVAT(i) (-) VATSum(i);
 valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
 
+isReverse 'Обратный' (MarketingInvoiceDetail d) = isReverse(contractMarketing(condition(d)));
+
 averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = 
     NUMERIC[7,2] (100 * overSumVAT(i) / [GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
 
 sumCalcBase 'Сумма (согл. базе расчета)' = GROUP SUM (sum(MarketingInvoiceDetail d) (-) returnSum(d)) BY marketingInvoice(d);
 
-sumClacBaseCustomer (Sku sk, Stock st, MarketingInvoice i) = 
-    GROUP MAX (sum(MarketingInvoiceDetail d) (-) returnSum(d)) IF legalEntity(stock(d)) == customer(marketingInvoice(d)) BY sku(d), stock(d), marketingInvoice(d);
-sumCalcBaseCustomer 'Сумма (согл. базе расчета) (получателя)' (MarketingInvoice i) = GROUP SUM sumClacBaseCustomer(Sku sk, Stock st, i);
+sumCalcBaseCustomer (Sku sk, Stock st, MarketingInvoice i) = 
+    GROUP MAX (sum(MarketingInvoiceDetail d) (-) returnSum(d)) IF ((legalEntity(stock(d)) == customer(marketingInvoice(d)) AND NOT isReverse(d)) OR (legalEntity(stock(d)) == supplier(marketingInvoice(d)) AND isReverse(d)))  BY sku(d), stock(d), marketingInvoice(d);
+sumCalcBaseCustomer 'Сумма (согл. базе расчета) (получателя)' (MarketingInvoice i) = GROUP SUM sumCalcBaseCustomer(Sku sk, Stock st, i);
 averageMarketingPercentCustomer 'Процент маркетинга (получателя)' (MarketingInvoice i) = NUMERIC[7,2] (overSumVAT(i) / sumCalcBaseCustomer(i) * 100);
 
 overSumCalcBase 'Сумма (согл. базе расчета)' (MarketingInvoice i) = CASE 
@@ -153,9 +158,6 @@ marketingCondition (ContractMarketing cm, ConditionType t, Stock st, Sku sk, DAT
 WHEN LOCAL (CHANGED (sum(MarketingInvoiceDetail d)) OR CHANGED (returnSum(d)) OR CHANGED (marketingPercent(d))) AND NOT CHANGED (sumMarketing(d)) DO {
         sumMarketing(d) <- (sum(d) (-) returnSum(d)) * marketingPercent(d) / 100;
 }
-
-condition = DATA MarketingCondition (MarketingInvoiceDetail) INDEXED;
-fixedCondition = DATA FixedMarketingCondition (MarketingInvoiceDetail);
 
 //CONSTRAINT (conditionTypeMarketing(MarketingInvoiceDetail d) == ConditionType.retail OR conditionTypeMarketing(d) == ConditionType.logistic OR 
 //            conditionTypeMarketing(d) == ConditionType.merch OR conditionTypeMarketing(d) == ConditionType.defects) AND NOT condition(d) MESSAGE 'Для строки акта маркетинга должно быть условие маркетинга';
