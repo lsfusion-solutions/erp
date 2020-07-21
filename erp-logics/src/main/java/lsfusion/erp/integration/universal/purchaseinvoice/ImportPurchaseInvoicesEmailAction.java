@@ -110,8 +110,11 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                     ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap("email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                     QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
-                    emailQuery.addProperty("fromAddressEmail", findProperty("fromAddress[Email]").getExpr(context.getModifier(), emailExpr));
-                    emailQuery.addProperty("dateTimeReceivedEmail", findProperty("dateTimeReceived[Email]").getExpr(context.getModifier(), emailExpr));
+                    String[] emailNames = new String[]{"fromAddressEmail", "dateTimeReceivedEmail", "subjectEmail"};
+                    LP<?>[] emailProperties = findProperties("fromAddress[Email]", "dateTimeReceived[Email]", "subject[Email]");
+                    for (int j = 0; j < emailProperties.length; j++) {
+                        emailQuery.addProperty(emailNames[j], emailProperties[j].getExpr(context.getModifier(), emailExpr));
+                    }
                     emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
                     emailQuery.addProperty("nameAttachmentEmail", findProperty("filename[AttachmentEmail]").getExpr(context.getModifier(), attachmentEmailExpr));
 
@@ -130,6 +133,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
                         boolean isOld = Duration.between(dateTimeReceivedEmail, LocalDateTime.now()).toHours() >= 24; //старше 24 часов
                         String nameAttachmentEmail = trim((String) emailEntryValue.get("nameAttachmentEmail").getValue());
                         String fromAddressEmail = (String) emailEntryValue.get("fromAddressEmail").getValue();
+                        String subjectEmail = (String) emailEntryValue.get("subjectEmail").getValue();
 
                         boolean matches = false;
                         if (fromAddressEmail != null) {
@@ -219,7 +223,7 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
 
                                         } catch (Exception e) {
                                             imported = false;
-                                            String error = file.first + ": " + e.toString() + "\n" + ExceptionUtils.getStackTrace(e);
+                                            String error = String.format("email %s, file %s: %s", subjectEmail, file.first, e.toString() + "\n" + ExceptionUtils.getStackTrace(e));
                                             errors.add(error);
                                             logImportError(context, attachmentEmailObject, error, isOld);
                                             ERPLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
