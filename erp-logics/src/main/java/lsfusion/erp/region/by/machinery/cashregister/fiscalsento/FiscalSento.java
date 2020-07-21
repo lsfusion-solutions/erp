@@ -47,6 +47,8 @@ public class FiscalSento {
 
         void closePort();
 
+        Integer getVersion();
+
         boolean openDay(double value);
 
         boolean openRefundDocument(int department, byte[] plu, int vat, double price, double quant, double amount, byte[] name);
@@ -124,6 +126,10 @@ public class FiscalSento {
         logAction("openPort", comPort, baudRate);
         if (!sentoDLL.sento.openPort(comPort, baudRate))
             checkErrors();
+        else {
+            Integer version = sentoDLL.sento.getVersion();
+            logAction("version", version);
+        }
     }
 
     private static String getPort(String port, boolean isUnix) {
@@ -235,9 +241,11 @@ public class FiscalSento {
     }
 
     public static void openDrawer() {
-        //todo: пока не работает
-        //if(!sentoDLL.sento.openDrawer())
-        //    checkErrors();
+        Integer version = sentoDLL.sento.getVersion();
+        if (version >= 104) {
+            if (!sentoDLL.sento.openDrawer())
+                checkErrors();
+        }
     }
 
     public static void displayText(ReceiptItem item) {
@@ -245,15 +253,18 @@ public class FiscalSento {
 
         String quantity = toStr(item.quantity);
         String price = toStr(item.price);
-        String secondLine = "x" + quantity + getSpaces(22 - quantity.length() - price.length()) + price;
+        String secondLine = "x " + quantity + getSpaces(20 - quantity.length() - price.length()) + price;
 
         String sumPos = toStr(item.sumPos);
-        String thirdLine = "ИТОГ: " + getSpaces(16 - sumPos.length());
+        String thirdLine = "ИТОГ: " + getSpaces(16 - sumPos.length()) + sumPos;
 
         logAction("message", firstLine, secondLine, thirdLine);
-        //todo: пока не работает
-        //if (!sentoDLL.sento.message(3, getBytes(firstLine + secondLine + thirdLine)))
-        //    checkErrors();
+
+        Integer version = sentoDLL.sento.getVersion();
+        if (version >= 104) {
+            if (!sentoDLL.sento.message(3, getBytes(firstLine + secondLine + thirdLine)))
+                checkErrors();
+        }
     }
 
     private static String getSpaces(int length) {
