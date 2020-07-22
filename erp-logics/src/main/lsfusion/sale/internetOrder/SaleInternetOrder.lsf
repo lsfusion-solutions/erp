@@ -291,9 +291,20 @@ DESIGN options {
     }
 }
 
+useCustomChangeStatus = ABSTRACT BOOLEAN ();
+customChangeStatus ABSTRACT (InternetOrder);
+
+changeStatus(InternetOrder i) {
+    IF NOT useCustomChangeStatus() THEN {
+        DIALOG statusInternetOrder OBJECTS o = status(i) CHANGE;
+    } ELSE {
+        customChangeStatus(i);
+    }
+}
+
 FORM internetOrder 'Интернет-заказ'
     OBJECTS o = InternetOrder PANEL
-    PROPERTIES (o) isPosted, nameStatus, 
+    PROPERTIES (o) isPosted, nameStatus ON CHANGE changeStatus(o), 
                    nameNumerator, number, series, date, time, nameCurrency, note,
                    deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, addressInternetCustomer, 
                    areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, phoneInternetCustomer, emailCustomer
@@ -498,7 +509,7 @@ FORM internetOrders 'Интернет-заказы'
 
     OBJECTS o = InternetOrder LAST
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isClosed
-    PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isPosted, nameStatus, fullNumber, number, series, date, time
+    PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) isPosted, nameStatus ON CHANGE changeStatus(o), fullNumber, number, series, date, time
     PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundInternetOrder(o) nameCurrency,
                                            deliveryDate, numberDiscountCard, issueCard, nameInternetCustomer, 
                                            areaInternetCustomer, indexInternetCustomer, cityInternetCustomer, 

@@ -81,7 +81,8 @@ nameStatus 'Статус' (Picking p) = staticCaption(status(p)) IN documentPrm 
 status (Picking o) <- StatusPicking.new WHEN SET(o IS Picking);
 
 pickingQuantity 'Собрано' = DATA NUMERIC[16,5](InternetOrderDetail);
-showPickingQuantity (Picking p) = status(p) == StatusPicking.picked;// OR (PREV(status(p)) == StatusPicking.picked);
+showPickingQuantityCustom = ABSTRACT BOOLEAN (Picking);
+showPickingQuantity (Picking p) = status(p) == StatusPicking.picked OR showPickingQuantityCustom(p);// OR (PREV(status(p)) == StatusPicking.picked);
 
 @defineDocumentHeaderQuantityCustomPrefix(internetOrder, internetOrderDetail, picking, ' собрано');
 
@@ -176,11 +177,11 @@ DESIGN picking {
                     }
                     MOVE GROUP(documentPrm,p);
                 }
-                    NEW sumContainer {
-                        MOVE GROUP(documentSum,p) {
-                            columns = 1;
-                        }
+                NEW sumContainer {
+                    MOVE GROUP(documentSum,p) {
+                        columns = 1;
                     }
+                }
             }
         }
     }
@@ -260,45 +261,58 @@ countInternetOrders  = GROUP SUM 1 IF select(InternetOrder o);
 
 skipFilter = ABSTRACT BOOLEAN (InternetOrderDetail);
 
-filterDashboard (InternetOrderDetail detail)= select(internetOrder(detail)) AND status(internetOrder(detail)) == StatusInternetOrder.agreed  
+useCustomfilterDashboard = ABSTRACT BOOLEAN ();
+customFilterDashboard = ABSTRACT BOOLEAN (InternetOrderDetail);
+customFilterDashboard = ABSTRACT INTEGER (InternetOrder);
+
+filterDashboardCalc (InternetOrderDetail detail)= select(internetOrder(detail)) AND status(internetOrder(detail)) == StatusInternetOrder.agreed  
     AND NOT picking(detail) AND NOT skipFilter(detail);
+filterDashboard (InternetOrderDetail detail)= IF useCustomfilterDashboard() THEN customFilterDashboard(detail) ELSE filterDashboardCalc(detail);
     
-filterDashboard = GROUP SUM 1 IF status(internetOrder(InternetOrderDetail detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail) AND NOT isClosed(detail)  
+filterDashboardCalc = GROUP SUM 1 IF status(internetOrder(InternetOrderDetail detail)) == StatusInternetOrder.agreed AND NOT picking(detail) AND NOT skipFilter(detail) AND NOT isClosed(detail)  
     BY internetOrder(detail);
+filterDashboard (InternetOrder i)= IF useCustomfilterDashboard() THEN customFilterDashboard(i) ELSE filterDashboardCalc(i);    
     
+useCustomCreatePicking = ABSTRACT BOOLEAN ();
+customCreatePicking  ABSTRACT (InternetOrder);
+
 createPicking 'Создать комплектацию' (InternetOrder order)  { 
-    IF NOT countInternetOrders() THEN {
-        select(order) <- TRUE;
-    } 
-    IF countInternetOrders() THEN  {      
-        LOCAL NESTED  ok = BOOLEAN ();
-        ok() <- NULL;
-        FOR [GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) AND filterDashboard(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) DO {
-            NEWSESSION {
-                NEW p = Picking{
-                    stock(p) <- stock;
-                    carrier(p) <- carrier;
-                    FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND filterDashboard(detail) DO {                       
-                            picking(detail) <- p;
-                            IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
-                                batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
-                                overFillBatchPicking(detail);
-                            }                        
-                    }                   
-                    DIALOG picking OBJECTS p = p DOCKED NOCANCEL DO {
-                        ok() <- TRUE;
+    IF NOT useCustomCreatePicking() THEN {
+        IF NOT countInternetOrders() THEN {
+            select(order) <- TRUE;
+        } 
+        IF countInternetOrders() THEN  {      
+            LOCAL NESTED  ok = BOOLEAN ();
+            ok() <- NULL;
+            FOR [GROUP SUM 1 IF select(internetOrder(InternetOrderDetail d)) AND NOT picking(d) AND filterDashboard(d) BY Sale.supplierStock[InternetOrderDetail](d), carrier(internetOrder(d))](Stock stock, Carrier carrier) DO {
+                NEWSESSION {
+                    NEW p = Picking{
+                        stock(p) <- stock;
+                        carrier(p) <- carrier;
+                        FOR Sale.supplierStock[InternetOrderDetail](InternetOrderDetail detail) == stock AND carrier(internetOrder(detail)) == carrier AND filterDashboard(detail) DO {                       
+                                picking(detail) <- p;
+                                IF  isItem(sku(detail)) AND NOT batch(detail) THEN {
+                                    batch(detail) <- firstOrderBatchBalance(sku(detail), stock, dateTime(detail), quantity(detail));
+                                    overFillBatchPicking(detail);
+                                }                        
+                        }                   
+                        DIALOG picking OBJECTS p = p DOCKED NOCANCEL DO {
+                            ok() <- TRUE;
+                        }
                     }
-                }
-            }                           
-        }            
-        IF ok() THEN {
-            status(InternetOrder o) <- StatusInternetOrder.isPicking WHERE select(o);
-            apply();
-        }       
-        select(InternetOrder o) <- NULL;
-        ok() <- NULL;
+                }                           
+            }            
+            IF ok() THEN {
+                status(InternetOrder o) <- StatusInternetOrder.isPicking WHERE select(o);
+                apply();
+            }       
+            select(InternetOrder o) <- NULL;
+            ok() <- NULL;
+        } ELSE {
+            MESSAGE 'Вначале необходимо отметить интернет заказы.';
+        }
     } ELSE {
-        MESSAGE 'Вначале необходимо отметить интернет заказы.';
+        customCreatePicking(order);
     }
 }
 
