@@ -1073,6 +1073,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " + "where r.ext_processed = 0 AND r.result = 0 AND p.type = 0"; // type 3 это сдача, type 2 - аннулирование
             ResultSet rs = statement.executeQuery(query);
+            int count = 0;
             while (rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
                 Integer idReceipt = rs.getInt(2); //receipt_header
@@ -1126,7 +1127,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     }
                     paymentMap.put(key, paymentEntry);
                 }
+                count++;
             }
+            sendSalesLogger.info(String.format(logPrefix + "read payments %s entries (query returned %s rows)", paymentMap.size(), count));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
@@ -1181,6 +1184,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             ResultSet rs = statement.executeQuery(query);
 
             Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList);
+            int rowCount = 0;
             while (rs.next()) {
 
                 //Integer nppMachinery = rs.getInt(2); //i.cash_number
@@ -1261,9 +1265,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         receiptSet.add(Pair.create(idReceipt, cash_id));
                     }
                 }
+                rowCount++;
             }
             if (salesInfoList.size() > 0)
-                sendSalesLogger.info(String.format(logPrefix + "found %s records", salesInfoList.size()));
+                sendSalesLogger.info(String.format(logPrefix + "found %s records (query returned %s rows)", salesInfoList.size(), rowCount));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
