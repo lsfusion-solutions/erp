@@ -1255,13 +1255,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                     BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
                     if (totalQuantity != null) {
-                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
+//                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
                             salesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, cash_id, numberZReport,
                                     sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee,
                                     null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, paymentEntry.customPaymentsMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
                                     position, null, idSection, false, cashRegister));
-                        }
+//                        }
                         receiptSet.add(Pair.create(idReceipt, cash_id));
                     }
                 }
