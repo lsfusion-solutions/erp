@@ -1,6 +1,7 @@
 MODULE SupermagOrder;
 
-REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseOrder, PurchaseOrderStatus, PurchaseManufacturingPrice, PurchaseSaleOrder, SaleOrder, SaleOrderStatus, OrderInvoice, SupermagPurchaseInvoice, PurchaseShipment;
+REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseOrder, PurchaseOrderStatus, PurchaseManufacturingPrice, PurchaseSaleOrder, 
+        SaleOrder, SaleOrderStatus, OrderInvoice, SupermagPurchaseInvoice, PurchaseShipment, SupermagSaleInvoice, SalePurchaseInvoiceShipment;
 
 @settingIntegration(Purchase.UserOrder, Purchase.UserOrderDetail);
 EXTEND FORM Purchase.orders PROPERTIES lastStatusSupermag(o);
@@ -347,8 +348,8 @@ exportPurchaseOrderSO 'Экспорт в супермаг' (Purchase.Order doc) 
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 opcode(expMain) <- STRING[10] ('-1');
                 userop(expMain) <- NULL;
-                creatdate(expMain) <- createdTime(doc);                
-                docstate(expMain) <- CASE WHEN invoicedOrderDetail(doc) > 0 THEN 3
+                creatdate(expMain) <- createdTime(doc);                //    shippedOrderDetail(doc)
+                docstate(expMain) <- CASE WHEN  (GROUP SUM shipmentQuantity(Purchase.InvoiceDetail det) IF include(doc, invoice(det)))  > 0 THEN 3
                                           WHEN isPosted(doc) THEN 2                                        
                                           WHEN isClosed(doc) THEN 0 ELSE 1;
                 clientIndex(expMain) <- id(supplier(doc));
@@ -393,14 +394,18 @@ exportPurchaseOrderSO 'Экспорт в супермаг' (Purchase.Order doc) 
 
     APPLY;
 }
- 
-exportPurchaseInvoice (Purchase.Invoice doc) + {
-    IF id(operation(doc)) = 'purchaseStoreStore' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND isPosted(doc) AND isShipped(doc) THEN {
-        FOR Purchase.Order or IF include(or, doc) AND shippedOrderDetail(or) DO {     
-            exportPurchaseOrderSO(or); 
+purchaseShipmentQuantityUserInvoiceDetail (userInvoice) = GROUP SUM purchaseShipmentQuantity(Sale.UserInvoiceDetail idetail) BY userInvoice(idetail);
+
+overApplySaleInvoice(Sale.Invoice doc) + {
+    IF id(operation(doc)) = 'saleStoreStore' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND isPosted(doc) AND isShipped(doc) AND purchaseShipmentQuantityUserInvoiceDetail(doc) THEN {
+        FOR Sale.Order orS IF include(orS, doc) DO {
+            FOR saleOrder(Purchase.Order or)=orS  DO {     
+                exportPurchaseOrderSO(or);
+            }     
         }
     }    
 }
+
 
 //-----------------------------------------------------------------------------------------------------------------------------заказы продажа
 @settingIntegration(Sale.UserOrder, Sale.UserOrderDetail);

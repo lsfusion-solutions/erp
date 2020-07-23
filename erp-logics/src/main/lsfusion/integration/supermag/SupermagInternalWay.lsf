@@ -1,6 +1,6 @@
 MODULE SupermagInternalWay;
 
-REQUIRE SupermagSaleInvoice, PricingSalePurchase, SalePurchaseInvoiceShipment, SaleManufacturingPrice, PriceList, Utils;
+REQUIRE SupermagSaleInvoice, PricingSalePurchase, SalePurchaseInvoiceShipment, SaleManufacturingPrice, PriceList, Utils, PurchaseSaleOrder;
 
 PRIORITY SupermagSettings;
 
@@ -68,7 +68,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                 FOR include(Order o, doc) DO NEW b = DocBase {
                     basisDoc(expMain, b) <- TRUE;
                     docid(b) <- seriesNumber(o);
-                    doctype(b) <- 'OR';
+                    doctype(b) <- 'SO';
                 }
                 
                 FOR ContractSku c = contractSku(doc) DO NEW b = DocBase {
@@ -176,8 +176,11 @@ importInternalWay 'Импорт накладные перемещение' () {
         MESSAGE idDoc(0) +  ' ' + idBase(0);
     }
 
-    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND userContractSku(idBase(i)) DO {    
-        contractSku(doc) <- userContractSku(idBase(i));        
+//    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND  Sale.userOrder(idBase(i)) DO {    
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {    
+        MESSAGE idDoc(i);
+        MESSAGE idBase(i);
+        include(SaleOrder orS, doc) <- TRUE IF orS = saleOrder(Purchase.userOrder(idBase(i)));
     }        
     
     overImportInternalWay2();
