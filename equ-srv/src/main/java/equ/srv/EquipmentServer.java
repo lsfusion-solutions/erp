@@ -1705,7 +1705,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private List<BarcodePart> readBarcodeParts(DataSession session, DataObject barcodeObject, SalesInfo sale)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<BarcodePart> result = new ArrayList<>();
-        if(machineryPriceTransactionPartLM != null) {
+        if(machineryPriceTransactionPartLM != null && sale.nppGroupMachinery != null) {
             KeyExpr barcodeExpr = new KeyExpr("Barcode");
             KeyExpr partExpr = new KeyExpr("Part");
             ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.toRevMap("barcode", barcodeExpr, "part", partExpr);

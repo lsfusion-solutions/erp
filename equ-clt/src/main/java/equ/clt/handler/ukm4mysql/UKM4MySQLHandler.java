@@ -1294,7 +1294,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         String dateFrom = requestExchange.dateFrom.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         String dateTo = requestExchange.dateTo.plusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-                        Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, false);
+                        Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, true);
                         StringBuilder cashIdWhere = null;
                         if (!cashRegisterSet.isEmpty()) {
                             cashIdWhere = new StringBuilder("AND cash_id IN (");
