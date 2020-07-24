@@ -1,0 +1,109 @@
+MODULE PurchaseRefuseReport;
+
+REQUIRE PurchaseReports, PurchaseDeclarationDetail;
+
+NAMESPACE Purchase;
+
+
+@defineCustomsRate(RefuseCustomsRate, refuseCustomsRate, 'Ставка тарифа за отходы');
+
+percentRefuseRate 'Тариф, %' = DATA NUMERIC[14,3](RefuseCustomsRate) IN base;
+weightRefuseRate 'Тариф, руб./тонна' = DATA NUMERIC[14,3](RefuseCustomsRate) IN base;
+
+percentRefuseRate 'Тариф, %' (CustomsGroup customsGroup, DATE date) = percentRefuseRate(refuseCustomsRate(customsGroup, date));
+weightRefuseRate 'Тариф, руб./тонна' (CustomsGroup customsGroup, DATE date) = weightRefuseRate(refuseCustomsRate(customsGroup, date));
+
+percentRefuseRate 'Тариф, %' (CustomsGroup customsGroup) = percentRefuseRate(customsGroup, currentDate());
+weightRefuseRate 'Тариф, руб./тонна' (CustomsGroup customsGroup) = weightRefuseRate(customsGroup, currentDate());
+
+CONSTRAINT percentRefuseRate(RefuseCustomsRate r) AND weightRefuseRate(r) 
+    MESSAGE 'У строки ставки тарифа за отходы не может быть 2 параметра одновременно';
+    
+EXTEND FORM customsGroup
+    OBJECTS rfcr = RefuseCustomsRate
+    PROPERTIES(rfcr) dateFrom, dateTo, percentRefuseRate, weightRefuseRate
+    PROPERTIES(rfcr) NEW, DELETE 
+    FILTERS customsGroup(rfcr) == cg
+;    
+
+DESIGN customsGroup {
+    BOX {
+        NEW lastContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            type = CONTAINERH;
+            MOVE BOX(rcr);
+            MOVE BOX(rfcr);
+        }
+    }
+}
+
+EXTEND FORM customsGroups
+    PROPERTIES(cg, dt) READONLY percentRefuseRate, weightRefuseRate
+;
+
+
+CLASS RefusePackageType 'Вид упаковки для отчёта по отходам';
+TABLE refusePackageType (RefusePackageType);
+
+name '{master.data.name}' = DATA STRING[500] (RefusePackageType) CHARWIDTH 30 IN id;
+refusePackageTypeName = GROUP AGGR RefusePackageType refusePackageType BY name(refusePackageType);
+rate 'Тариф, руб./тонна' = DATA NUMERIC[14,3](RefusePackageType) IN base;
+
+FORM refusePackageType 'Вид упаковки для отчёта по отходам'
+    OBJECTS g = RefusePackageType PANEL
+    PROPERTIES(g) name, rate
+    
+    EDIT RefusePackageType OBJECT g
+;
+
+FORM refusePackageTypes 'Виды упаковки для отчёта по отходам'
+    OBJECTS g = RefusePackageType
+    PROPERTIES(g) READONLY name, rate
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+    
+    LIST RefusePackageType OBJECT g
+;
+
+NAVIGATOR {
+    skuNavigator {
+        NEW refusePackageTypes;
+    }
+}
+
+TABLE userInvoiceRefusePackageType(UserInvoice, RefusePackageType);
+weight 'Масса, кг' = DATA NUMERIC[14,3](UserInvoice, RefusePackageType);
+sum 'Сумма оплаты, руб.' = DATA NUMERIC[18,4](UserInvoice, RefusePackageType);
+
+WHEN LOCAL FORMS userInvoice SETCHANGED (weight(UserInvoice i, RefusePackageType r)) DO {   
+    sum(i, r) <- round2(NUMERIC[18,4](weight(i, r) / 1000 * rate(r)));    
+}
+
+TABLE refuseUserInvoiceDetail(UserInvoiceDetail);
+refuseWeight 'Масса (отчёт по упаковке), кг' = DATA NUMERIC[14,3](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
+refuseSum 'Сумма оплаты (отчёт по упаковке), руб.' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
+
+WHEN LOCAL FORMS userInvoice CHANGED(sum(UserInvoiceDetail d)) OR CHANGED(customsGroup(d)) DO
+    refuseSum(d) <- round2(NUMERIC[18,4](homeSum(d) * percentRefuseRate(customsGroup(d)) / 100));
+    
+WHEN LOCAL FORMS userInvoice SETCHANGED (refuseWeight(UserInvoiceDetail d)) DO {   
+    refuseSum(d) <- round2(NUMERIC[18,4](refuseWeight(d) / 1000 * weightRefuseRate(customsGroup(d))));    
+}
+
+EXTEND FORM userInvoice 
+    OBJECTS rp = RefusePackageType
+    PROPERTIES(rp) READONLY name, rate
+    PROPERTIES(i, rp) weight, sum
+    
+    PROPERTIES (d) SHOWIF showDeclaration(i) refuseWeight READONLYIF percentRefuseRate(customsGroup(d)), refuseSum  
+;
+
+DESIGN userInvoice {
+    headerTabbedPane {
+        NEW refuse {
+            caption = 'Упаковка для отчёта';
+            showIf = showDeclaration(i);
+            flex = 1;
+            MOVE BOX(rp);
+        }
+    }
+}
