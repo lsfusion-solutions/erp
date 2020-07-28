@@ -571,7 +571,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                     tareWeight = safeDivide(infoJSON.optBigDecimal("tareWeight", null), BigDecimal.valueOf(1000));
                                 }
                             }
-                            ps.setBigDecimal(7, tareWeight); //tare_weight
+                            ps.setBigDecimal(7, tareWeight != null ? tareWeight : BigDecimal.ZERO); //tare_weight
                         }
 
                         ps.addBatch();
