@@ -110,45 +110,48 @@ DESIGN userInvoice {
 
 //////////////////////////////////////////// Отчет по ввозу тары ///////////////////////////////////////////////////////
 refuseQuantityForeign = DATA LOCAL NUMERIC[16,5] (CustomsGroup);
-refuseSumForeign = DATA LOCAL NUMERIC[16,2] (CustomsGroup);
-refuseSumYearForeign = DATA LOCAL NUMERIC[16,2] (CustomsGroup);
+refuseSum = DATA LOCAL NUMERIC[18,4] (CustomsGroup);
+refuseSumForeign = DATA LOCAL NUMERIC[18,4] (CustomsGroup);
+refuseSumYearForeign = DATA LOCAL NUMERIC[18,4] (CustomsGroup);
 
 refuseQuantityForeign = DATA LOCAL NUMERIC[16,5] (RefusePackageType);
-refuseSumForeign = DATA LOCAL NUMERIC[16,2] (RefusePackageType);
-refuseSumYearForeign = DATA LOCAL NUMERIC[16,2] (RefusePackageType);
+refuseSumForeign = DATA LOCAL NUMERIC[18,4] (RefusePackageType);
+refuseSumYearForeign = DATA LOCAL NUMERIC[18,4] (RefusePackageType);
 
 companyRefuse = DATA LOCAL LegalEntity ();
 
 fillRefuseReport (DATE df, DATE dt) {
     refuseQuantityForeign (CustomsGroup c) <- NULL;
+    refuseSum (CustomsGroup c)  <- NULL;
     refuseSumForeign (CustomsGroup c)  <- NULL;
     refuseSumYearForeign (CustomsGroup c) <- NULL; 
     
     companyRefuse() <- GROUP MAX legalEntity(Stock st) IF inPurchaseReport(st) AND isCompany(legalEntity(st));
     
-    refuseQuantityForeign (CustomsGroup c) <- GROUP SUM quantity(UserInvoiceDetail d) IF shipmentDate(d) >= df AND 
-        shipmentDate(d) <= dt AND isPosted(d) AND c == customsGroup(countrySku(d), sku(d)) AND showDeclaration(userInvoice(d))
+    refuseQuantityForeign (CustomsGroup c) <- round3((GROUP SUM refuseWeight(UserInvoiceDetail d) IF date(d) >= df AND 
+        date(d) <= dt AND isPosted(d) AND c == customsGroup(defaultCountry(), sku(d)) AND showDeclaration(userInvoice(d)) AND weightRefuseRate(c)
+        AND inPurchaseReport(customerStock(d))) / 1000);
+    refuseSum (CustomsGroup c) <- GROUP SUM homeSum(UserInvoiceDetail d) IF date(d) >= df AND 
+        date(d) <= dt AND isPosted(d) AND c == customsGroup(defaultCountry(), sku(d)) AND showDeclaration(userInvoice(d)) AND percentRefuseRate(c)
         AND inPurchaseReport(customerStock(d));
-    refuseSumForeign (CustomsGroup c) <- round2(refuseQuantityForeign(c) * weightRefuseRate(c) /1000);
-    refuseSumYearForeign (CustomsGroup c) <- 
-        round2((GROUP SUM quantity(UserInvoiceDetail d) IF 
-        shipmentDate(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
-        shipmentDate(d) <= dt AND isPosted(d) AND c == customsGroup(countrySku(d), sku(d)) AND showDeclaration(userInvoice(d))
-        AND inPurchaseReport(customerStock(d))) * weightRefuseRate(c));
+
+    refuseSumForeign (CustomsGroup c) <- GROUP SUM refuseSum(UserInvoiceDetail d) IF date(d) >= df AND 
+        date(d) <= dt AND isPosted(d) AND c == customsGroup(defaultCountry(), sku(d)) AND showDeclaration(userInvoice(d))
+        AND inPurchaseReport(customerStock(d));
+    refuseSumYearForeign (CustomsGroup c) <- GROUP SUM refuseSum(UserInvoiceDetail d) IF date(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
+        date(d) <= dt AND isPosted(d) AND c == customsGroup(defaultCountry(), sku(d)) AND showDeclaration(userInvoice(d))
+        AND inPurchaseReport(customerStock(d));
     
     refuseQuantityForeign (RefusePackageType c) <- NULL;
     refuseSumForeign (RefusePackageType c)  <- NULL;
     refuseSumYearForeign (RefusePackageType c) <- NULL; 
     
-    refuseQuantityForeign (RefusePackageType c) <- GROUP SUM weight(UserInvoice d, c) IF shipmentDate(d) >= df AND 
-        shipmentDate(d) <= dt AND isPosted(d) AND showDeclaration(d)
-        AND inPurchaseReport(customerStock(d));
-    refuseSumForeign (RefusePackageType c) <- round2(refuseQuantityForeign(c) * rate(c) / 1000);
-    refuseSumYearForeign (RefusePackageType c) <-
-        round2((GROUP SUM weight(UserInvoice d, c) IF 
-        shipmentDate(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
-        shipmentDate(d) <= dt AND isPosted(d) AND showDeclaration(d)
-        AND inPurchaseReport(customerStock(d))) * rate(c));
+    refuseQuantityForeign (RefusePackageType c) <- round3((GROUP SUM weight(UserInvoice d, c) IF date(d) >= df AND 
+        date(d) <= dt AND isPosted(d) AND showDeclaration(d) AND inPurchaseReport(customerStock(d))) / 1000);
+    refuseSumForeign (RefusePackageType c) <- GROUP SUM sum(UserInvoice d, c) IF date(d) >= df AND 
+        date(d) <= dt AND isPosted(d) AND showDeclaration(d) AND inPurchaseReport(customerStock(d));
+    refuseSumYearForeign (RefusePackageType c) <- GROUP SUM sum(UserInvoice d, c) IF date(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
+        date(d) <= dt AND isPosted(d) AND showDeclaration(d) AND inPurchaseReport(customerStock(d));
 }
 
 totalRefuseSumSku () = GROUP SUM refuseSumForeign (CustomsGroup c);
@@ -162,7 +165,7 @@ totalRefuseSumYear() = totalRefuseSumYearSku() (+) totalRefuseSumYearPackage();
 
 FORM refuseReport 'Отчет по ввозу тары' 
     OBJECTS c = CustomsGroup
-    PROPERTIES(c) code, refuseQuantityForeign, weightRefuseRate, refuseSumForeign, refuseSumYearForeign
+    PROPERTIES(c) code, refuseQuantityForeign, refuseSum, percentRefuseRate, weightRefuseRate, refuseSumForeign, refuseSumYearForeign
     PROPERTIES() totalRefuseSumSku, totalRefuseSumYearSku
     FILTERS refuseSumForeign(c)
     
