@@ -1,6 +1,6 @@
 MODULE PurchaseRefuseReport;
 
-REQUIRE PurchaseReports, PurchaseDeclarationDetail;
+REQUIRE PurchaseReports, PurchaseDeclarationDetail, LegalEntityBy;
 
 NAMESPACE Purchase;
 
@@ -104,6 +104,91 @@ DESIGN userInvoice {
             showIf = showDeclaration(i);
             flex = 1;
             MOVE BOX(rp);
+        }
+    }
+}
+
+//////////////////////////////////////////// Отчет по ввозу тары ///////////////////////////////////////////////////////
+refuseQuantityForeign = DATA LOCAL NUMERIC[16,5] (CustomsGroup);
+refuseSumForeign = DATA LOCAL NUMERIC[16,2] (CustomsGroup);
+refuseSumYearForeign = DATA LOCAL NUMERIC[16,2] (CustomsGroup);
+
+refuseQuantityForeign = DATA LOCAL NUMERIC[16,5] (RefusePackageType);
+refuseSumForeign = DATA LOCAL NUMERIC[16,2] (RefusePackageType);
+refuseSumYearForeign = DATA LOCAL NUMERIC[16,2] (RefusePackageType);
+
+companyRefuse = DATA LOCAL LegalEntity ();
+
+fillRefuseReport (DATE df, DATE dt) {
+    refuseQuantityForeign (CustomsGroup c) <- NULL;
+    refuseSumForeign (CustomsGroup c)  <- NULL;
+    refuseSumYearForeign (CustomsGroup c) <- NULL; 
+    
+    companyRefuse() <- GROUP MAX legalEntity(Stock st) IF inPurchaseReport(st) AND isCompany(legalEntity(st));
+    
+    refuseQuantityForeign (CustomsGroup c) <- GROUP SUM quantity(UserInvoiceDetail d) IF shipmentDate(d) >= df AND 
+        shipmentDate(d) <= dt AND isPosted(d) AND c == customsGroup(countrySku(d), sku(d)) AND showDeclaration(userInvoice(d))
+        AND inPurchaseReport(customerStock(d));
+    refuseSumForeign (CustomsGroup c) <- round2(refuseQuantityForeign(c) * weightRefuseRate(c) /1000);
+    refuseSumYearForeign (CustomsGroup c) <- 
+        round2((GROUP SUM quantity(UserInvoiceDetail d) IF 
+        shipmentDate(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
+        shipmentDate(d) <= dt AND isPosted(d) AND c == customsGroup(countrySku(d), sku(d)) AND showDeclaration(userInvoice(d))
+        AND inPurchaseReport(customerStock(d))) * weightRefuseRate(c));
+    
+    refuseQuantityForeign (RefusePackageType c) <- NULL;
+    refuseSumForeign (RefusePackageType c)  <- NULL;
+    refuseSumYearForeign (RefusePackageType c) <- NULL; 
+    
+    refuseQuantityForeign (RefusePackageType c) <- GROUP SUM weight(UserInvoice d, c) IF shipmentDate(d) >= df AND 
+        shipmentDate(d) <= dt AND isPosted(d) AND showDeclaration(d)
+        AND inPurchaseReport(customerStock(d));
+    refuseSumForeign (RefusePackageType c) <- round2(refuseQuantityForeign(c) * rate(c) / 1000);
+    refuseSumYearForeign (RefusePackageType c) <-
+        round2((GROUP SUM weight(UserInvoice d, c) IF 
+        shipmentDate(d) >= firstDayOfMonth(sumMonth(currentDate(), -1 * extractMonthNumber(currentDate()))) AND 
+        shipmentDate(d) <= dt AND isPosted(d) AND showDeclaration(d)
+        AND inPurchaseReport(customerStock(d))) * rate(c));
+}
+
+totalRefuseSumSku () = GROUP SUM refuseSumForeign (CustomsGroup c);
+totalRefuseSumYearSku () = GROUP SUM refuseSumYearForeign (CustomsGroup c);
+
+totalRefuseSumPackage () = GROUP SUM refuseSumForeign (RefusePackageType c);
+totalRefuseSumYearPackage () = GROUP SUM refuseSumYearForeign (RefusePackageType c);
+
+totalRefuseSum() = totalRefuseSumSku() (+) totalRefuseSumPackage();
+totalRefuseSumYear() = totalRefuseSumYearSku() (+) totalRefuseSumYearPackage();
+
+FORM refuseReport 'Отчет по ввозу тары' 
+    OBJECTS c = CustomsGroup
+    PROPERTIES(c) code, refuseQuantityForeign, weightRefuseRate, refuseSumForeign, refuseSumYearForeign
+    PROPERTIES() totalRefuseSumSku, totalRefuseSumYearSku
+    FILTERS refuseSumForeign(c)
+    
+    OBJECTS r = RefusePackageType
+    PROPERTIES(r) name, refuseQuantityForeign, rate, refuseSumForeign, refuseSumYearForeign
+    PROPERTIES() totalRefuseSumPackage, totalRefuseSumYearPackage
+    FILTERS refuseSumForeign(r)
+    
+    PROPERTIES() totalRefuseSum, totalRefuseSumYear
+    PROPERTIES nameCompany = fullName(companyRefuse()), addressCompany = address(companyRefuse()), unp = UNP(companyRefuse())
+;
+
+printRefuseReport 'Отчет по ввозу тары' (DATE df, DATE dt) {
+    fillRefuseReport(df, dt);
+    PRINT refuseReport;
+}
+
+EXTEND FORM purchasesReport
+    PROPERTIES printRefuseReport(df, dt)
+;
+
+DESIGN purchasesReport {
+    printPurchasesContainer{
+        NEW refuseReport {
+            caption = 'Обязанности по отходам';
+            MOVE PROPERTY(printRefuseReport(df, dt));
         }
     }
 }
