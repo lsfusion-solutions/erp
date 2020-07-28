@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.*;
+import static equ.clt.handler.HandlerUtils.safeDivide;
 import static equ.clt.handler.HandlerUtils.trim;
 
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
@@ -64,6 +65,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean exportTaxes = ukm4MySQLSettings != null && ukm4MySQLSettings.isExportTaxes();
                 boolean sendZeroQuantityForWeightItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSendZeroQuantityForWeightItems() != null && ukm4MySQLSettings.getSendZeroQuantityForWeightItems();
                 List<String> forceGroups = ukm4MySQLSettings == null ? new ArrayList<>() : ukm4MySQLSettings.getForceGroupsList();
+                boolean tareWeightFieldInVarTable = ukm4MySQLSettings != null && ukm4MySQLSettings.isTareWeightFieldInVarTable();
 
                 Map<String, List<TransactionCashRegisterInfo>> transactionsMap = new HashMap<>();
                 for (TransactionCashRegisterInfo transaction : transactionList) {
@@ -160,7 +162,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         exportPriceTypeStorePriceList(conn, transaction, nppGroupMachinery, section/*departmentNumber*/, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table var", transaction.id));
-                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, sendZeroQuantityForWeightItems, version);
+                                        exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, sendZeroQuantityForWeightItems, tareWeightFieldInVarTable, version);
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table properties", transaction.id));
                                         exportProperties(conn, transaction, version);
@@ -534,7 +536,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, boolean appendBarcode, boolean sendZeroQuantityForWeightItems, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode,
+                           boolean appendBarcode, boolean sendZeroQuantityForWeightItems, boolean tareWeightFieldInVarTable, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -543,8 +546,12 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 checkIndex(conn, "item", "var", "item");
 
                 ps = conn.prepareStatement(
-                        "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                                "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
+                        tareWeightFieldInVarTable ?
+                                "INSERT INTO var (id, item, quantity, stock, version, deleted, tare_weight) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                                        "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted), " +
+                                        "tare_weight=VALUES(tare_weight)" :
+                                "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                                        "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
                     if (barcode != null && item.idItem != null) {
@@ -555,6 +562,18 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
+
+                        if(tareWeightFieldInVarTable) {
+                            BigDecimal tareWeight = null;
+                            if (item.info != null) {
+                                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
+                                if (infoJSON != null) { //приходит в килограммах, выгружаем в граммах
+                                    tareWeight = safeDivide(infoJSON.optBigDecimal("tareWeight", null), BigDecimal.valueOf(1000));
+                                }
+                            }
+                            ps.setBigDecimal(7, tareWeight); //tare_weight
+                        }
+
                         ps.addBatch();
                     }
                 }

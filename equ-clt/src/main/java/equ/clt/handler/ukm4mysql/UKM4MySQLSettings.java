@@ -62,6 +62,9 @@ public class UKM4MySQLSettings implements Serializable{
     private String forceGroups;
     private List<String> forceGroupsList = new ArrayList<>();
 
+    //если true, то выгружаем в таблицу Var поле tare_weight
+    private boolean tareWeightFieldInVarTable;
+
     public UKM4MySQLSettings() {
     }
 
@@ -210,5 +213,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setCashRegisterByStoreAndNumber(boolean cashRegisterByStoreAndNumber) {
         this.cashRegisterByStoreAndNumber = cashRegisterByStoreAndNumber;
+    }
+
+    public boolean isTareWeightFieldInVarTable() {
+        return tareWeightFieldInVarTable;
+    }
+
+    public void setTareWeightFieldInVarTable(boolean tareWeightFieldInVarTable) {
+        this.tareWeightFieldInVarTable = tareWeightFieldInVarTable;
     }
 }
