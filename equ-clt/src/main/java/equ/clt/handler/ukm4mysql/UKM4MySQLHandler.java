@@ -543,7 +543,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 checkIndex(conn, "item", "var", "item");
 
                 ps = conn.prepareStatement(
-                        "INSERT INTO var (id, item, quantity, stock, tare_weight, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                        "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                 "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
@@ -553,18 +553,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         ps.setDouble(3, sendZeroQuantityForWeightItems && item.passScalesItem && !isNonWeight(item) ? 0 :
                                 (item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1)); //quantity
                         ps.setInt(4, 1); //stock
-
-                        BigDecimal tareWeight = null;
-                        if(item.info != null) {
-                            JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
-                            if (infoJSON != null) {
-                                tareWeight = infoJSON.optBigDecimal("tareWeight", null);
-                            }
-                        }
-                        ps.setBigDecimal(5, tareWeight);
-
-                        ps.setInt(6, version); //version
-                        ps.setInt(7, 0); //deleted
+                        ps.setInt(5, version); //version
+                        ps.setInt(6, 0); //deleted
                         ps.addBatch();
                     }
                 }
