@@ -543,7 +543,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 checkIndex(conn, "item", "var", "item");
 
                 ps = conn.prepareStatement(
-                        "INSERT INTO var (id, item, quantity, stock, tare_weight, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                        "INSERT INTO var (id, item, quantity, stock, tare_weight, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?) " +
                                 "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
