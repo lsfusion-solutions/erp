@@ -8,6 +8,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashSet;
@@ -39,6 +40,18 @@ public class DigiSM5300Handler extends DigiHandler {
             protected String getPluNumberForPluRecord(ScalesItemInfo item) {
                 return item.idBarcode;
             }*/
+
+            @Override
+            protected BigDecimal getTareWeight(ScalesItemInfo item) {
+                BigDecimal tareWeight = null;
+                if(item.info != null) {
+                    JSONObject infoJSON = new JSONObject(item.info).optJSONObject("digism5300");
+                    if (infoJSON != null) {
+                        tareWeight = infoJSON.optBigDecimal("tareWeight", null);
+                    }
+                }
+                return tareWeight;
+            }
 
             protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
                 return super.clearFiles(socket, localErrors)

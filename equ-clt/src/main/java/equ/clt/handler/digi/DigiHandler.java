@@ -138,6 +138,10 @@ public class DigiHandler extends MultithreadScalesHandler {
             return item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
         }
 
+        protected BigDecimal getTareWeight(ScalesItemInfo item) {
+            return null;
+        }
+
         //------------------------------------ methods to override ------------------------------------//
 
         private byte[] makePluRecord(ScalesItemInfo item, String weightCode, String pieceCode) throws UnsupportedEncodingException {
@@ -216,6 +220,10 @@ public class DigiHandler extends MultithreadScalesHandler {
             st2b1 = setBit(st2b1, 0); //Формат 1-й этикетки Указан явно
             st2b1 = setBit(st2b1, 2); //Формат штрихкода Указан явно
             st2b1 = setBit(st2b1, 3); //Артикул товара Указан явно
+            BigDecimal tareWeight = getTareWeight(item);
+            if(tareWeight != null) {
+                st2b1 = setBit(st2b1, 6); //Поле «Вес тары» Есть
+            }
             bytes.put(st2b1);
 
             // 2-й байт 2-го статуса
@@ -251,6 +259,11 @@ public class DigiHandler extends MultithreadScalesHandler {
 
             // срок продажи в днях, 2 bytes
             bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(item.daysExpiry == null ? 0 : item.daysExpiry), 4)));
+
+            if(tareWeight != null) {
+                //Вес тары в граммах, 2 bytes
+                bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(tareWeight.intValue()), 4)));
+            }
 
             // номер спец. сообщения
             bytes.put((byte) 0);
