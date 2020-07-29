@@ -5,7 +5,7 @@ REQUIRE PurchaseReports, PurchaseDeclarationDetail, LegalEntityBy;
 NAMESPACE Purchase;
 
 
-@defineCustomsRate(RefuseCustomsRate, refuseCustomsRate, 'Ставка тарифа за отходы');
+@defineCustomsRate(RefuseCustomsRate, refuseCustomsRate, 'Ставка тарифа для экологического налога (отчёта по ввозу упаковки)');
 
 percentRefuseRate 'Тариф, %' = DATA NUMERIC[14,3](RefuseCustomsRate) IN base;
 weightRefuseRate 'Тариф, руб./тонна' = DATA NUMERIC[14,3](RefuseCustomsRate) IN base;
@@ -17,7 +17,7 @@ percentRefuseRate 'Тариф, %' (CustomsGroup customsGroup) = percentRefuseRat
 weightRefuseRate 'Тариф, руб./тонна' (CustomsGroup customsGroup) = weightRefuseRate(customsGroup, currentDate());
 
 CONSTRAINT percentRefuseRate(RefuseCustomsRate r) AND weightRefuseRate(r) 
-    MESSAGE 'У строки ставки тарифа за отходы не может быть 2 параметра одновременно';
+    MESSAGE 'У строки ставки тарифа для экологического налога не может быть 2 параметра одновременно';
     
 EXTEND FORM customsGroup
     OBJECTS rfcr = RefuseCustomsRate
@@ -42,21 +42,21 @@ EXTEND FORM customsGroups
 ;
 
 
-CLASS RefusePackageType 'Вид упаковки для отчёта по отходам';
+CLASS RefusePackageType 'Вид упаковки для отчёта по ввозу упаковки';
 TABLE refusePackageType (RefusePackageType);
 
 name '{master.data.name}' = DATA STRING[500] (RefusePackageType) CHARWIDTH 30 IN id;
 refusePackageTypeName = GROUP AGGR RefusePackageType refusePackageType BY name(refusePackageType);
 rate 'Тариф, руб./тонна' = DATA NUMERIC[14,3](RefusePackageType) IN base;
 
-FORM refusePackageType 'Вид упаковки для отчёта по отходам'
+FORM refusePackageType 'Вид упаковки для отчёта по ввозу упаковки'
     OBJECTS g = RefusePackageType PANEL
     PROPERTIES(g) name, rate
     
     EDIT RefusePackageType OBJECT g
 ;
 
-FORM refusePackageTypes 'Виды упаковки для отчёта по отходам'
+FORM refusePackageTypes 'Виды упаковки для отчёта по ввозу упаковки'
     OBJECTS g = RefusePackageType
     PROPERTIES(g) READONLY name, rate
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
@@ -79,8 +79,8 @@ WHEN LOCAL FORMS userInvoice SETCHANGED (weight(UserInvoice i, RefusePackageType
 }
 
 TABLE refuseUserInvoiceDetail(UserInvoiceDetail);
-refuseWeight 'Масса (отчёт по упаковке), кг' = DATA NUMERIC[14,3](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
-refuseSum 'Сумма оплаты (отчёт по упаковке), руб.' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
+refuseWeight 'Масса (отчёт по ввозу упаковки), кг' = DATA NUMERIC[14,3](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
+refuseSum 'Сумма оплаты (отчёт по ввозу упаковки), руб.' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
 
 WHEN LOCAL FORMS userInvoice CHANGED(sum(UserInvoiceDetail d)) OR CHANGED(customsGroup(d)) DO
     refuseSum(d) <- round2(NUMERIC[18,4](homeSum(d) * percentRefuseRate(customsGroup(d)) / 100));
@@ -163,7 +163,7 @@ totalRefuseSumYearPackage () = GROUP SUM refuseSumYearForeign (RefusePackageType
 totalRefuseSum() = totalRefuseSumSku() (+) totalRefuseSumPackage();
 totalRefuseSumYear() = totalRefuseSumYearSku() (+) totalRefuseSumYearPackage();
 
-FORM refuseReport 'Отчет по ввозу тары' 
+FORM refuseReport 'Отчет по ввозу упаковки' 
     OBJECTS c = CustomsGroup
     PROPERTIES(c) code, refuseQuantityForeign, refuseSum, percentRefuseRate, weightRefuseRate, refuseSumForeign, refuseSumYearForeign
     PROPERTIES() totalRefuseSumSku, totalRefuseSumYearSku
@@ -178,7 +178,7 @@ FORM refuseReport 'Отчет по ввозу тары'
     PROPERTIES nameCompany = fullName(companyRefuse()), addressCompany = address(companyRefuse()), unp = UNP(companyRefuse())
 ;
 
-printRefuseReport 'Отчет по ввозу тары' (DATE df, DATE dt) {
+printRefuseReport 'Отчет по ввозу упаковки' (DATE df, DATE dt) {
     fillRefuseReport(df, dt);
     PRINT refuseReport;
 }
@@ -190,7 +190,7 @@ EXTEND FORM purchasesReport
 DESIGN purchasesReport {
     printPurchasesContainer{
         NEW refuseReport {
-            caption = 'Обязанности по отходам';
+            caption = 'Обязанности по обеспечению сбора, обезвреживания и (или) использования отходов товаров и отходов упаковки (экологический налог)';
             MOVE PROPERTY(printRefuseReport(df, dt));
         }
     }
