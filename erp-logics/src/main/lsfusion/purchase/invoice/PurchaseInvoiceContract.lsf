@@ -12,7 +12,8 @@ NAMESPACE Purchase;
 @implementContractLedger(a, Invoice, contractSku);
 
 reverseContractSum = ABSTRACT NUMERIC[18,4] (Invoice);
-sum[ContractALedger](Invoice contractALedger) += OVERRIDE contractSum(contractALedger), (invoiceSumInvoiceDetail(contractALedger) (-) reverseContractSum(contractALedger));
+customInvoiceSum = ABSTRACT NUMERIC[18,4] (Invoice); // предполагаем, что не используем reverseContractSum
+sum[ContractALedger](Invoice contractALedger) += OVERRIDE contractSum(contractALedger), customInvoiceSum(contractALedger),(invoiceSumInvoiceDetail(contractALedger) (-) reverseContractSum(contractALedger));
 
 TABLE invoicePaymentPeriod (Invoice, PaymentPeriod);
 @implementContractPrepaymentLedger(invoice, invoiceSumInvoiceDetail, contractSku);
@@ -22,7 +23,7 @@ ledgerDateTime(Invoice i) = OVERRIDE overLedgerDateTime(i), dateTime(i);
 @implementInContractLedger(Invoice, contractSku, ledgerDateTime);
 
 extraSum = ABSTRACT NUMERIC[18,4] (Invoice);
-sum[InContractLedger](Invoice l) += (OVERRIDE contractSum(l), (invoiceSumInvoiceDetail(l) (-) reverseContractSum(l))) (-) extraSum(l);
+sum[InContractLedger](Invoice l) += (OVERRIDE contractSum(l), customInvoiceSum(l), (invoiceSumInvoiceDetail(l) (-) reverseContractSum(l))) (-) extraSum(l);
 
 extraInContractLedger = ABSTRACT InContractLedger (InvoiceContractLedger);
 inContractLedger[ContractLedger](InvoiceContractLedger l) += OVERRIDE extraInContractLedger(l), invoice(l);
