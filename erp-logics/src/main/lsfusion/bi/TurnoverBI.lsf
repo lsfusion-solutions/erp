@@ -199,7 +199,12 @@ isSum 'Сумма' = DATA LOCAL BOOLEAN ();
 isTurnover 'Оборачиваемость' = DATA LOCAL BOOLEAN ();
 isDaysOnStock 'Дней на складе' = DATA LOCAL BOOLEAN ();
 
+extraIsBalanceA 'Остаток на конец' = ABSTRACT BOOLEAN ();
+extraIsQuantity 'Количество' = ABSTRACT BOOLEAN ();
+
 overIsOut 'Продажа' = OVERRIDE isOut(), (isMarkup() OR isTurnover());
+overIsBalanceA 'Остаток на конец' = OVERRIDE isBalanceA(), extraIsBalanceA();
+overIsQuantity 'Количество' = OVERRIDE isQuantity(), extraIsQuantity();
 overIsCost 'Себестоимость' = OVERRIDE isCost(), (isMarkup() OR isTurnover());
 
 //------- Группы складов -------
@@ -548,7 +553,7 @@ filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) 
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF include(c),',') + ')','')
                     + (OVERRIDE ' AND (' + filterGroups() + ')','')
                     + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataInclude(sku),',') + ')','');
-values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
+values() = (IF overIsOut() AND overIsQuantity() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
                             + (IF overIsOut() AND isCostVAT() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')
                             + (IF overIsOut() AND isMarkup() THEN 'SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, ' ELSE '')
@@ -556,7 +561,7 @@ values() = (IF overIsOut() AND isQuantity() THEN 'SUM(quantitySold) AS quantityS
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumVATSold) AS sumVATSold, ' ELSE '')
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumSold) AS sumSold, ' ELSE '')
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumPriceSold) AS sumPriceSold, ' ELSE '')
-                            + (IF isIn() AND isQuantity() THEN 'SUM(quantityPurchase) AS quantityPurchase, ' ELSE '')
+                            + (IF isIn() AND overIsQuantity() THEN 'SUM(quantityPurchase) AS quantityPurchase, ' ELSE '')
                             + (IF isIn() AND (isSum() OR overIsCost()) THEN 'SUM(sumPurchase)-SUM(sumVATPurchase) AS sumMinusVATPurchase, ' ELSE '')
                             + (IF isIn() AND (isSum() OR overIsCost()) THEN 'SUM(sumVATPurchase) AS sumVATPurchase, ' ELSE '')
                             + (IF isIn() AND (isSum() OR isCostVAT()) THEN 'SUM(sumPurchase) AS sumPurchase, ' ELSE '')
@@ -614,11 +619,11 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
     IF NOT overFillTurnoverReport() THEN {
         IF gDayTurnover() THEN {
             query(replace('SELECT ' + values() 
-                 + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
-                 + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
-                 + (IF isBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
-                 + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
-                 + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                 + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                 + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                 + (IF overIsBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
+                 + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                 + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
                  + nameGroupsTurnover() + ', ' + groupsTurnover()
                  + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                  + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
@@ -678,7 +683,7 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
             
             IF isBalanceB() AND NOT isTimeGroup() THEN {
                 query(replace('SELECT '
-                    + (IF isBalanceB() AND isQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
+                    + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
                     + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
                     + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
                     + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
@@ -704,13 +709,13 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                 }
             }
             
-            IF isBalanceA() THEN {                        
+            IF overIsBalanceA() THEN {                        
                 query(replace('SELECT '
-                    + (IF isBalanceA() AND isQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
-                    + (IF isBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
-                    + (IF isBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
-                    + (IF isBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
-                    + (IF isBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                    + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                    + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                    + (IF overIsBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
+                    + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                    + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
                     + nameGroupsTurnover() + ', ' + groupsTurnover()
                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                     + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
@@ -759,11 +764,11 @@ FORM printTurnoverReport 'Оборачиваемость'
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1Turnover, nameGroup2Turnover, nameGroup3Turnover, nameGroup4Turnover, group1Turnover, group2Turnover, group3Turnover, group4Turnover, barcodeSku SHOWIF gSkuTurnover()
-    PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
+    PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND overIsQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
                            sumBalanceB SHOWIF (isBalanceB() AND isSum())
-    PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND isQuantity()),
+    PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND overIsQuantity()),
                            costSumSold SHOWIF (overIsOut() AND overIsCost()),
                            costSumVATSold SHOWIF (overIsOut() AND isCostVAT()),
                            markupSumSold SHOWIF (overIsOut() AND isMarkup()),
@@ -771,7 +776,7 @@ FORM printTurnoverReport 'Оборачиваемость'
                            sumVATSold SHOWIF (overIsOut() AND isSum()),
                            sumSold SHOWIF (overIsOut() AND isSum()),
                            sumPriceSold SHOWIF (overIsOut() AND isSum())
-    PROPERTIES(i) READONLY quantityPurchase SHOWIF (isIn() AND isQuantity()),
+    PROPERTIES(i) READONLY quantityPurchase SHOWIF (isIn() AND overIsQuantity()),
                            sumMinusVATPurchase SHOWIF (isIn() AND (isSum() OR overIsCost())),
                            sumVATPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
                            sumPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
@@ -779,10 +784,10 @@ FORM printTurnoverReport 'Оборачиваемость'
     PROPERTIES(i) READONLY turnover SHOWIF isTurnover(),
                            costBalance SHOWIF isTurnover(),
                            daysOnStock SHOWIF isDaysOnStock()
-    PROPERTIES(i) READONLY balanceA SHOWIF (isBalanceA() AND isQuantity()),
-                           costBalanceA SHOWIF (isBalanceA() AND overIsCost()),
-                           costVATBalanceA SHOWIF (isBalanceA() AND isCostVAT()),
-                           sumBalanceA SHOWIF (isBalanceA() AND isSum())
+    PROPERTIES(i) READONLY balanceA SHOWIF (overIsBalanceA() AND overIsQuantity()),
+                           costBalanceA SHOWIF (overIsBalanceA() AND overIsCost()),
+                           costVATBalanceA SHOWIF (overIsBalanceA() AND isCostVAT()),
+                           sumBalanceA SHOWIF (overIsBalanceA() AND isSum())
     FILTERS nameGroup1Turnover(i) AND dt IS DATE AND df IS DATE,
             balanceB(i)!=0 OR quantitySold(i)!=0 OR balanceA(i)!=0 OR quantityPurchase(i)!=0 OR sumBalanceB(i)!=0 OR sumSold(i)!=0 OR sumBalanceA(i)!=0 OR sumPurchase(i)!=0 OR extraFilter(i)
             
@@ -814,11 +819,11 @@ FORM printTurnoverReportTable 'Оборачиваемость'
                            nameGroup3Turnover SHOWIF nameGroup3Turnover(),
                            nameGroup4Turnover SHOWIF nameGroup4Turnover(),
                            barcodeSku SHOWIF gSkuTurnover()
-    PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND isQuantity()),
+    PROPERTIES(i) READONLY balanceB SHOWIF (isBalanceB() AND overIsQuantity()),
                            costBalanceB SHOWIF (isBalanceB() AND overIsCost()),
                            costVATBalanceB SHOWIF (isBalanceB() AND isCostVAT()),
                            sumBalanceB SHOWIF (isBalanceB() AND isSum())
-    PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND isQuantity()),
+    PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND overIsQuantity()),
                            costSumSold SHOWIF (overIsOut() AND overIsCost()),
                            costSumVATSold SHOWIF (overIsOut() AND isCostVAT()),
                            markupSumSold SHOWIF (overIsOut() AND isMarkup()),
@@ -826,7 +831,7 @@ FORM printTurnoverReportTable 'Оборачиваемость'
                            sumVATSold SHOWIF (overIsOut() AND isSum()),
                            sumSold SHOWIF (overIsOut() AND isSum()),
                            sumPriceSold SHOWIF (overIsOut() AND isSum())
-    PROPERTIES(i) READONLY quantityPurchase SHOWIF (isIn() AND isQuantity()),
+    PROPERTIES(i) READONLY quantityPurchase SHOWIF (isIn() AND overIsQuantity()),
                            sumMinusVATPurchase SHOWIF (isIn() AND (isSum() OR overIsCost())),
                            sumVATPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
                            sumPurchase SHOWIF (isIn() AND (isSum() OR isCostVAT())),
@@ -834,10 +839,10 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     PROPERTIES(i) READONLY turnover SHOWIF isTurnover(),
                            costBalance SHOWIF isTurnover(),
                            daysOnStock SHOWIF isDaysOnStock()
-    PROPERTIES(i) READONLY balanceA SHOWIF (isBalanceA() AND isQuantity()),
-                           costBalanceA SHOWIF (isBalanceA() AND overIsCost()),
-                           costVATBalanceA SHOWIF (isBalanceA() AND isCostVAT()),
-                           sumBalanceA SHOWIF (isBalanceA() AND isSum())
+    PROPERTIES(i) READONLY balanceA SHOWIF (overIsBalanceA() AND overIsQuantity()),
+                           costBalanceA SHOWIF (overIsBalanceA() AND overIsCost()),
+                           costVATBalanceA SHOWIF (overIsBalanceA() AND isCostVAT()),
+                           sumBalanceA SHOWIF (overIsBalanceA() AND isSum())
     FILTERS nameGroup1Turnover(i) AND dt IS DATE AND df IS DATE,
             balanceB(i)!=0 OR quantitySold(i)!=0 OR balanceA(i)!=0 OR quantityPurchase(i)!=0 OR sumBalanceB(i)!=0 OR sumSold(i)!=0 OR sumBalanceA(i)!=0 OR sumPurchase(i)!=0 OR extraFilter(i)
             
@@ -865,8 +870,8 @@ hideGroup4Turnover() += TRUE IF NOT showGroup4();
 hideGroup5Turnover() += TRUE IF NOT showGroup5();
 
 EXTEND FORM turnoverReport    
-    PROPERTIES() isBalanceB, isIn, overIsOut, isBalanceA,
-                 isQuantity, overIsCost, isCostVAT, isMarkup, isSum, isTurnover, isDaysOnStock
+    PROPERTIES() isBalanceB, isIn, overIsOut, overIsBalanceA,
+                 overIsQuantity, overIsCost, isCostVAT, isMarkup, isSum, isTurnover, isDaysOnStock
     
     PROPERTIES nameIncludeStockGroups() ON CHANGE changeIncludeStockGroupsStock()
     PROPERTIES nameIncludeStocks() ON CHANGE changeIncludeStockGroupsStock()
@@ -901,11 +906,11 @@ DESIGN turnoverReport {
             MOVE PROPERTY(isBalanceB());
             MOVE PROPERTY(isIn());
             MOVE PROPERTY(overIsOut());
-            MOVE PROPERTY(isBalanceA());
+            MOVE PROPERTY(overIsBalanceA());
         }
         NEW col2 {
             type = CONTAINERV;
-            MOVE PROPERTY(isQuantity());
+            MOVE PROPERTY(overIsQuantity());
             MOVE PROPERTY(overIsCost());
             MOVE PROPERTY(isCostVAT());
             MOVE PROPERTY(isMarkup());
