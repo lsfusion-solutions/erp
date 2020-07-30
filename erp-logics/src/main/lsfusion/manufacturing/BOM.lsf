@@ -1126,7 +1126,7 @@ bruttoQuantityBOMBOM (BOM parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuanti
 TABLE BOMBOM(BOM, BOM);
 TABLE BOMBOMResult(BOM, BOM, NUMERIC[20,11]);
 
-recBruttoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recBruttoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == NUMERIC[20,11]($q * bruttoQuantityBOMBOM($child, child)) CYCLES NO) MATERIALIZED;
 recBruttoQuantityBOMBOM (BOM parent, BOM child) = GROUP SUM recBruttoQuantityBOMBOM(parent, child, NUMERIC[20,11] q) * q MATERIALIZED;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
@@ -1139,7 +1139,7 @@ recBruttoNodeQuantity (BOM BOM, sku, DATE date) = GROUP SUM recBruttoQuantityBOM
 // Расчет цены
 priceCoeffBOMBOM(BOM parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantity(parent, Product material) * priceCoeff(material) / quantity(material)) BY BOM(material) MATERIALIZED;
 
-recPriceCoeffBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recPriceCoeffBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == NUMERIC[20,11]($q * priceCoeffBOMBOM($child, child)) CYCLES NO) MATERIALIZED;
 recPriceCoeffBOMBOM (BOM parent, BOM child) = GROUP SUM recPriceCoeffBOMBOM(parent, child, NUMERIC[20,11] q) * q MATERIALIZED;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
@@ -1154,7 +1154,7 @@ nettoQuantity(BOM BOM, Sku sku) = nettoQuantity[BOM,Material](BOM, sku) IF sku I
 
 nettoQuantityBOMBOM (BOM parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantity(parent, Product material) / quantity(material)) BY BOM(material) MATERIALIZED;
 
-recNettoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) MATERIALIZED;
+recNettoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == NUMERIC[20,11]($q * nettoQuantityBOMBOM($child, child)) CYCLES NO) MATERIALIZED;
 recNettoQuantityBOMBOM (BOM parent, BOM child) = GROUP SUM recNettoQuantityBOMBOM(parent, child, NUMERIC[20,11] q) * q MATERIALIZED;
 
 recNettoQuantity (BOM BOM, Sku sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, BOM childBOM) * nettoQuantity(childBOM, sku); //](BOM, sku);
