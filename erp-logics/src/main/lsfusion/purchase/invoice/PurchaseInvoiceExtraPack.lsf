@@ -8,8 +8,10 @@ isExtraPack 'Поставка в других единицах' = ABSTRACT BOOLE
 isExtraPack 'Поставка в других единицах' = DATA BOOLEAN (Purchase.UserInvoiceDetail);
 isExtraPack(Purchase.UserInvoiceDetail detail) += isExtraPack(detail);
 
+skipExtraPack = ABSTRACT BOOLEAN (Purchase.UserInvoiceDetail);
+
 WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail)) OR CHANGED(showPack(detail))) DO {
-    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail);
+    isExtraPack(detail) <- TRUE IF extraPack(supplier(detail), sku(detail)) AND showPack(detail) AND NOT skipExtraPack(detail);
 }
 WHEN LOCAL (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(supplier(detail))) AND isExtraPack(detail) DO {
     barcodePack(detail) <- extraPack(supplier(detail), sku(detail));
