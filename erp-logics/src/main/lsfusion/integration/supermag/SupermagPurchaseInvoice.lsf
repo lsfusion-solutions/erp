@@ -91,7 +91,7 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                         blankquantity(expDet) <- OVERRIDE quantity(docd), 0;
                         //blankquantity(expDet) <- OVERRIDE quantityOrder(docd), quantity(docd), 0;                        
                         priceWithTax(expDet) <- invoicePrice(docd);
-                        valueTax(expDet) <- valueVAT(sku(docd));
+                        valueTax(expDet) <- OVERRIDE valueVAT(docd), valueVAT(sku(docd));
                         priceNoTax(expDet) <- price(docd);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(creditInvoiceSum(docd)), round2(invoicePrice(docd)*shipmentQuantity(docd)), abs(invoiceSum(docd));
@@ -319,6 +319,11 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         contractSku(doc) <- userContractSku(idBase(i));        
     }    
 
+    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {    
+        include(Order orS, doc) <- TRUE IF orS = userOrder(idBase(i));
+    }        
+
+
     overImportPurchaseInvoice2();
     
     //импорт спецификаций
@@ -375,6 +380,7 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         retailPriceListType(det) <- OVERRIDE retailPriceListType(det), retailPriceListType(stock(ISTRING[100] (locationTo(i))));
         retailPrice(det) <- retailPrice(i);
         imported(det) <- TRUE;
+        connectOrder(det);        
         lastVersion(det) <- currentVersion(i);
    }
    
