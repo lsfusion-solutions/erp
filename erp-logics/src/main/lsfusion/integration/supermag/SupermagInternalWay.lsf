@@ -43,14 +43,14 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
-                        quantity(expDet) <- OVERRIDE quantity(docd), 0;
-                        blankquantity(expDet) <- OVERRIDE quantityOrder(docd), quantity(docd), 0;
+                        quantity(expDet) <- OVERRIDE shipmentQuantity(docd),  0;
+                        blankquantity(expDet) <- OVERRIDE quantity(docd), 0;
                         priceWithTax(expDet) <- price(docd);// invoicePrice(docd);
                         //valueTax(expDet) <- valueVAT(docd);
                         priceNoTax(expDet) <- price(docd);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
-                        sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;//OVERRIDE abs(invoiceSum(docd)), 0;
-                        sumNoTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
+                        sumWithTax(expDet) <- OVERRIDE abs(round2(shipmentQuantity(docd)*price(docd))), abs(sum(docd)), 0;//OVERRIDE abs(invoiceSum(docd)), 0;
+                        sumNoTax(expDet) <- OVERRIDE abs(round2(shipmentQuantity(docd)*price(docd))), abs(sum(docd)), 0;
                         //sumTax(expDet) <- OVERRIDE VATSum(docd), 0;
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceManufacturer(expDet) <- CASE WHEN manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) 
@@ -183,19 +183,25 @@ importInternalWay 'Импорт накладные перемещение' () {
     
     overImportInternalWay2();
 
-    sqlString() <- 'SELECT doc.ID, doc.DOCTYPE, doc.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE FROM Supermag.SMDocuments doc, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = doc.DOCTYPE AND ds.DOCID = doc.id AND dt.DocType(+) = ds.DOCTYPE AND dt.DOCID(+) = ds.DOCID AND dt.SPECITEM(+) = ds.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'IW\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';
+    sqlString() <- 'SELECT doc.ID, doc.DOCTYPE, doc.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dmis.QUANTBYDOC ' + 
+    'FROM Supermag.SMDocuments doc, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby, Supermag.SLSPECQMISMATCH dmis ' + 
+    'WHERE ds.DOCTYPE = doc.DOCTYPE AND ds.DOCID = doc.ID AND ' + 
+    'dt.DOCID(+) = ds.DOCID AND dt.DOCTYPE(+) = \'IW\' AND dt.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dby.DocId(+) = ds.DOCID AND dby.DOCTYPE(+) = \'IW\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dmis.DocId(+) = ds.DOCID AND dmis.DOCTYPE(+) = \'IW\' AND dmis.SPECITEM(+) = ds.SPECITEM AND ' + 
+    filterSql() + ' ORDER BY ds.DOCTYPE, ds.DOCID, ds.SPECITEM';
     //импорт спецификаций
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные перемещение', sqlString());
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer, blankquantity;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
                                                 STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i)),  
-                                                STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)) ) IF idDet(i);                  
+                                                STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)), STRING(blankquantity(i)) ) IF idDet(i);                  
 
     IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN { //для отладки
         MESSAGE sqlString();
@@ -212,11 +218,16 @@ importInternalWay 'Импорт накладные перемещение' () {
         sku(det) <- item(idItem(i));
 //        shipmentQuantity(det) <- quantity(i);
 //        pricingQuantity(det) <- quantity(i);
-        quantity(det) <- quantity(i);
+        quantity(det) <- blankquantity(i);
+        shipmentQuantity(det) <- quantity(i);
         invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
         price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
 //        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
-        sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
+//          поменяли логику теперь "количество" в СМ = "принято" в Fusion, "количество по док" в СМ = "количество" в Fusion
+//          а сумм по документу в СМ нет :(, считаем сами
+        sum(det) <- NUMERIC[16,4](round2(quantity(det)*price(det)));
+        invoiceSum(det) <- NUMERIC[16,4](round2(quantity(det)*invoicePrice(det)));
+//        sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
 //        VAT(det) <-VAT(sku(det));
         valueVAT(det) <- 0;//valueVAT(sku(det));
         VAT(det) <- valueCurrentVAT(countrySupplierStock(det), valueVAT(det));
