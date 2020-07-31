@@ -1267,8 +1267,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                         sumCard, sumCash, sumGiftCardMap, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, cashRegister);
+                                                salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
-                                                    salesInfo.detailExtraFields = new HashMap<>();
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
                                                     salesInfo.detailExtraFields.put("bonusPaid", bonusPaid);
                                                 }
