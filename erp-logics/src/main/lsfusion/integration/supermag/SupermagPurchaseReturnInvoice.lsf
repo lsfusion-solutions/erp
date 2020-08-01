@@ -163,7 +163,9 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.locationfrom IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND d.id = \'' + numberImportDocument() + '\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id'; 
        
-    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, f.paymentdelay, f.iscalendardelay from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMFinobligation f where ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype';    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, f.paymentdelay, f.iscalendardelay ' + 
+                   'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMFinobligation f ' + 
+                   'WHERE ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
             
@@ -208,7 +210,9 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     overImportPurchaseReturnInvoice();
     
     //импорт заказов-оснований для накладных. импорт всех оснований через overImportPurchaseInvoice() 
-    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype ' + 
+                   'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs ' + 
+                   'WHERE ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
             
@@ -228,7 +232,12 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     }    
     
     //импорт спецификаций
-    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONTO, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = \'WI\' AND ds.DocId = d.id AND dt.DocType = \'WO\' AND dt.DocId = d.id AND ds.SPECITEM = dt.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WO\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';    
+    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONTO, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE ' + 
+                   'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby ' + 
+                   'WHERE ds.DocType = \'WO\' AND ds.DocId = d.id AND ' + 
+                   'dt.DocId(+) = ds.DocId AND dt.DocType(+) = \'WO\' AND dt.SPECITEM(+) = ds.SPECITEM AND ' + 
+                   'dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WO\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + 
+                   filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
             
