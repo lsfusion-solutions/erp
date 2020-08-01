@@ -93,7 +93,7 @@ exportPurchaseReturnInvoiceWO 'Экспорт в супермаг' (Invoice doc)
     //                    extracharge(expDet) <-OVERRIDE wholesaleMarkup(docd), 0;
                         extracharge(expDet) <-(OVERRIDE round2([ ((X*100.0)/Y-100.0)](priceNoTax(expDet),priceManufacturer(expDet) IF priceManufacturer(expDet) != 0.0 )),0);
                         expiryDate(expDet) <- expiryDate(docd);                         
-                     //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
+   //                     priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
                     }
                     
                 }           
@@ -159,15 +159,27 @@ overImportPurchaseReturnInvoice ABSTRACT LIST ();
 importPurchaseReturnInvoice 'Импорт накладные (закупка возврат)' () {
 
    LOCAL paymentCondition = PaymentCondition (STRING);
+
+    filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.locationfrom IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( '; 
     
-    filterSql() <- 'D.DocType = \'WO\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id AND d.locationfrom IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
+    LOCAL filterDoc = STRING ();
+    LOCAL operDoc = STRING ();
+    filterDoc() <-'';
+    FOR Purchase.Operation op IF op IS Purchase.Operation AND getWord(docTypeSupermag(op),';',2) DO {
+       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',2) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',2)), ('d.USEROP = ' + getWord(useropSupermag(op),';',2)) ; 
+       filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
+    }
+          
+    filterDoc() <- substrFrom(filterDoc(),4);
+    filterSql() <- CONCAT '', filterSql(), filterDoc(),')'; 
+            
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'D.DocType = \'WO\' AND d.id = \'' + numberImportDocument() + '\' AND b.DocType(+)= D.DocType AND b.id(+) = d.id'; 
        
     sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary, f.paymentdelay, f.iscalendardelay ' + 
                    'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMFinobligation f ' + 
                    'WHERE ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype';    
 
-    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка) возврат', sqlString());
             
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
     
@@ -191,7 +203,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(doc) DO {       
         number[Document](doc) <- STRING[28](docNumber(i));
         bornin(doc) <- bornIn(i);
-        operation(doc) <- Purchase.operation1Supermag(codeOperation(i));
+        operation(doc) <- Purchase.operation2Supermag(codeOperation(i));
         isPosted(doc) <- docState(i) == 3;
         createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
         isClosed(doc) <- docState(i) == 0;
@@ -214,7 +226,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
                    'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs ' + 
                    'WHERE ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';    
 
-    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка) возврат', sqlString());
             
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
     
@@ -232,27 +244,28 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     }    
     
     //импорт спецификаций
-    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONTO, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE ' + 
+    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE ' + 
                    'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby ' + 
                    'WHERE ds.DocType = \'WO\' AND ds.DocId = d.id AND ' + 
                    'dt.DocId(+) = ds.DocId AND dt.DocType(+) = \'WO\' AND dt.SPECITEM(+) = ds.SPECITEM AND ' + 
                    'dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WO\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + 
                    filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';    
 
-    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт актов переоценки', sqlString());
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка) возврат', sqlString());
             
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationTo, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer, retailPrice;
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationFrom, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer, retailPrice;   
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
-    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(locationTo(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
+    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(locationFrom(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
                                                 STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i)),  
                                                 STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)), STRING(retailPrice(i)) ) IF idDet(i);                  
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
         MESSAGE idDet(0);
+        MESSAGE sqlString();
         MESSAGE currentVersion(0);        
     }
 
@@ -261,9 +274,10 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         PurchaseReturn.userInvoice(d) <- PurchaseReturn.userInvoice(idDoc(i));
     }
 
-    FOR PurchaseReturn.UserInvoiceDetail det = PurchaseReturn.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(det) DO {
+    FOR PurchaseReturn.UserInvoiceDetail det = PurchaseReturn.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(det) DO {    
         sku(det) <- item(idItem(i));
         quantity(det) <- quantity(i);
+        priceListType(det) <- SystemLedgerPriceListType.supplierPricingPriceListType;
         invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
         price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
         invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
@@ -271,14 +285,13 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         VATSum(det) <- taxSum(i);
         valueVAT(det) <- taxRate(i);
         dataIndex(det) <- specItem(i);
-        manufacturingPrice(det) <- -priceManufacturer(i);
+        manufacturingPrice(det) <- priceManufacturer(i);
    //     retailPriceListType(det) <- retailPriceListType(stock(ISTRING[100] (locationTo(i))));
         retailPrice(det) <- retailPrice(i);
         imported(det) <- TRUE;
         lastVersion(det) <- currentVersion(i);
    }
-   
-    APPLY;           
+   APPLY;           
 }
 
 EXTEND FORM integrationData PROPERTIES importPurchaseReturnInvoice();
