@@ -1,6 +1,6 @@
 MODULE SupermagSaleInvoice;
 
-REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger, SaleManufacturingPrice, SaleInvoiceConsignmentBy;
+REQUIRE SupermagSettings, SupermagExportForms, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger, SaleManufacturingPrice, SaleInvoiceConsignmentBy;
 
 NAMESPACE Sale;
 
@@ -271,11 +271,13 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
         invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
         sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
         VATSum(det) <- taxSum(i);
+        VAT(det) <- OVERRIDE valueCurrentVAT(countrySupplierStock(det), taxRate(i)), VAT(sku(det));
         valueVAT(det) <- taxRate(i);
         dataIndex(det) <- specItem(i);
      //   priceListType(det) <- priceListType(stock(ISTRING[100] (locationTo(i))));
+        retailVAT(det) <- VAT(sku(det));
+        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);         
         retailPrice(det) <- OVERRIDE retailPrice(i), retailPrice(det), retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
-        retailVAT(det) <- VAT(sku(det));         
         shipmentPrice(det) <- retailPrice(det);
         manufacturingPrice(det) <- priceManufacturer(i); 
         //supplierPrice(det) 

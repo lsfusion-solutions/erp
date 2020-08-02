@@ -1,7 +1,7 @@
 MODULE SupermagPurchaseInvoice;
 
-REQUIRE SupermagSettings, SupermagFormMeta, SupermagExportForms, PurchaseManufacturingPrice, PurchaseInvoiceConsignmentBy, 
-        PricingPurchase, PricingSumPurchase, PurchaseCreditNote, PurchaseInvoiceContract, PriceListOver, Utils, SupermagPricing;
+REQUIRE SupermagSettings, SupermagExportForms, PurchaseManufacturingPrice, PurchaseInvoiceConsignmentBy, 
+        PricingPurchase, PricingSumPurchase, PurchaseCreditNote, PurchaseInvoiceContract, PriceListOver, Utils, SupermagPricing, PricingPurchaseInvoiceDashboard, Range;
 
 NAMESPACE Purchase;
 
@@ -353,15 +353,17 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         MESSAGE currentVersion(0);        
     }
 
-    FOR Purchase.userInvoice(idDoc(INTEGER i)) AND NOT Purchase.userInvoiceDetail(idDet(i)) DO NEW d = Purchase.UserInvoiceDetail {
-        id(d) <- idDet(i);
-        Purchase.userInvoice(d) <- Purchase.userInvoice(idDoc(i));
+    FOR Purchase.userInvoice(idDoc(INTEGER i)) AND NOT Purchase.userInvoiceDetail(idDet(i)) DO NEW det = Purchase.UserInvoiceDetail {
+        Purchase.userInvoice(det) <- Purchase.userInvoice(idDoc(i));
+        sku(det) <- item(idItem(i));
+        id(det) <- idDet(i);
+        quantity(det) <- OVERRIDE blankquantity(i), quantity(i);
     }
 
     FOR Purchase.UserInvoiceDetail det = Purchase.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = Purchase.lastVersion(det) DO {
         sku(det) <- item(idItem(i));
         shipmentQuantity(det) <- quantity(i);
-        pricingQuantity(det) <- quantity(i);
+//        pricingQuantity(det) <- quantity(i);
         quantity(det) <- OVERRIDE blankquantity(i), quantity(i);
         invoicePrice(det) <- NUMERIC[16,2](round(itemPrice(i),2));
         price(det) <- NUMERIC[16,2](round(itemPriceNoTax(i),2));
@@ -369,16 +371,18 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
 //          а сумм по документу в СМ нет :(, считаем сами
         invoiceSum(det) <- NUMERIC[16,2](round(quantity(det)*invoicePrice(det),2));
         sum(det) <- NUMERIC[16,2](round(quantity(det)*price(det),2));
+        VAT(det) <- OVERRIDE valueCurrentVAT(countrySupplierStock(det), taxRate(i)), VAT(sku(det));
         VATSum(det) <- invoiceSum(det) - sum(det);
-//        invoiceSum(det) <- NUMERIC[16,2](round(totalPrice(i),2));
-//        sum(det) <- NUMERIC[16,2](round(totalPriceNoTax(i),2));
-//        VATSum(det) <- taxSum(i);
-        valueVAT(det) <- taxRate(i);
         dataIndex(det) <- specItem(i);
         manufacturingPrice(det) <- priceManufacturer(i);
-        manufacturingMarkup(det) <-  - extracharge(i);
-        retailPriceListType(det) <- OVERRIDE retailPriceListType(det), retailPriceListType(stock(ISTRING[100] (locationTo(i))));
-        retailPrice(det) <- retailPrice(i);
+        manufacturingMarkup(det) <-  extracharge(i);
+        retailVAT(det) <- VAT(sku(det));
+        retailPriceListType(det) <- OVERRIDE retailPriceListType(det),  IF prevPriceA(calcRetailPriceListType(det), sku(det), retailStock(det), pricingDateTime(det))
+                                                                           THEN calcRetailPriceListType(det)
+                                                                           ELSE OVERRIDE extraCalcRetailCalcPriceListType(det), calcRetailCalcPriceListType(det);
+        retailPrice(det) <- OVERRIDE retailPrice(det), retailPrice(i);
+        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);
+        retailMarkup(det) <- OVERRIDE retailMarkup(det), calcRetailMarkup(det);
         imported(det) <- TRUE;
         connectOrder(det);        
         lastVersion(det) <- currentVersion(i);

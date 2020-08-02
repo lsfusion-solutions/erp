@@ -14,43 +14,4 @@ META overCheckDocStatusSupermag(docMain)
     }    
 END
 
-META settingOperationSupermag(docMain)
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {   
-            caption = 'Параметры Супермаг';
-            type = CONTAINERH;
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-            MOVE PROPERTY(createFinobligation(o));
-        }
-    }
-}
 
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag
-;
-
-code1Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[docMain.Operation](op),';',1), getWord(opcodeSupermag[docMain.Operation](op),';',1), getWord(useropSupermag[docMain.Operation](op),';',1)), id[docMain.Operation](op));  
-code2Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[docMain.Operation](op),';',2), getWord(opcodeSupermag[docMain.Operation](op),';',2), getWord(useropSupermag[docMain.Operation](op),';',2)), id[docMain.Operation](op));  
-operation1Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code1Supermag[docMain.Operation](op);
-operation2Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code2Supermag[docMain.Operation](op);
-
-END
-
-META settingIntegration(docMain, docDetail)
-    dateTimeChange = DATA DATETIME (docMain);
-    bornin = DATA STRING[100] (docMain);
-   
-    lastVersion = DATA STRING (docMain);
-    lastVersion = DATA STRING (docDetail);
-    lastStatusSupermag 'Статус в СМ' = DATA INTEGER (docMain);
-    
-    imported = DATA LOCAL BOOLEAN (docMain);         
-    imported = DATA LOCAL BOOLEAN (docDetail);         
-END
