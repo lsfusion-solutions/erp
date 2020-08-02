@@ -1,6 +1,7 @@
 MODULE SupermagSaleInvoice;
 
-REQUIRE SupermagSettings, SupermagExportForms, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger, SaleManufacturingPrice, SaleInvoiceConsignmentBy;
+REQUIRE SupermagSettings, SupermagExportForms, SaleInvoice, SaleShipment, SaleInvoiceContract, Utils, PricingSale, PriceListLedger, SaleManufacturingPrice, 
+        SaleInvoiceConsignmentBy, PurchaseShipment;
 
 NAMESPACE Sale;
 
@@ -95,6 +96,9 @@ exportSaleInvoiceWO 'Экспорт в супермаг' (Invoice doc) {
                         priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                    
                         extracharge(expDet) <-OVERRIDE NUMERIC[10,2](wholesaleMarkup(docd)), 0;
                         expiryDate(expDet) <- expiryDate(docd);                         
+                        causeType(expDet) <- STRING[10] (getWord(docTypeSupermag(operation(shipmentDetail(batch(docd)))),';',1)) IF shipmentDetail(batch(docd));                                          
+                        causeId(expDet) <- STRING[10] (seriesNumber(shipmentDetail(batch(docd)))) IF shipmentDetail(batch(docd));                                          
+                        causeSpecItem(expDet) <- STRING[10] (index(shipmentDetail(batch(docd)))) IF shipmentDetail(batch(docd));                                          
                     }
                     
                 }           
