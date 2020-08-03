@@ -406,7 +406,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VATSum[Invoice.InvoiceDetail](InvoiceDetail detail) += VATSum(detail);
     invoiceSum[Invoice.InvoiceDetail](InvoiceDetail detail) += invoiceSum(detail);
 
-    @defineDocumentInterfaceHeaderVATSum(invoice, invoice);
+    VATSumInvoiceDetail 'Сумма НДС' (invoice) = GROUP SUM VATSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 9 IN documentSum;
+    invoiceSumInvoiceDetail 'Сумма с НДС' (invoice) = GROUP SUM invoiceSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED;
+
+    VATSumUserInvoiceDetail 'Сумма НДС' (userInvoice) = GROUP SUM VATSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 9 IN documentSum;
+    invoiceSumUserInvoiceDetail 'Сумма с НДС' (userInvoice) = GROUP SUM invoiceSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
 
     @defineDocumentInterfaceHeaderQuantity(invoice);
     @defineDocumentInterfaceHeaderItemQuantity(invoice);
