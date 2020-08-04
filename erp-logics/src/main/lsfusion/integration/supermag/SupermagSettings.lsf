@@ -96,23 +96,30 @@ opcodeSupermag 'Код в супермаг' = DATA STRING[10] (Operation.Operati
 useropSupermag 'Доп код в супермаг' = DATA STRING[10] (Operation.Operation); 
 nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operation.Operation);  
 createFinobligation 'Фин.обязательство' = DATA BOOLEAN (Operation.Operation);  
-importSpecification 'Загружать спецификации из СМ' = DATA BOOLEAN (Operation.Operation);
+importOnlyStatus 'Загружать из СМ только статус документа' = DATA BOOLEAN (Operation.Operation);
+importSpecification 'Загружать из СМ только количества в спецификации' = DATA BOOLEAN (Operation.Operation);
 
 META settingOperationSupermag(docMain)
 EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation, importSpecification
+    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation, importOnlyStatus, importSpecification
 ;
 DESIGN operation{
     headContainer {        
         NEW supermag {   
             caption = 'Параметры Супермаг';
-            type = CONTAINERH;
-            MOVE PROPERTY(docTypeSupermag(o));
-            MOVE PROPERTY(opcodeSupermag(o));
-            MOVE PROPERTY(useropSupermag(o));
-            MOVE PROPERTY(nameSuperMag(o));
-            MOVE PROPERTY(createFinobligation(o));
-            MOVE PROPERTY(importSpecification(o));
+            NEW supermag1 {
+                type = CONTAINERH;
+                MOVE PROPERTY(docTypeSupermag(o));
+                MOVE PROPERTY(opcodeSupermag(o));
+                MOVE PROPERTY(useropSupermag(o));
+                MOVE PROPERTY(nameSuperMag(o));
+            }    
+            NEW supermag2 {
+                type = CONTAINERH;
+                MOVE PROPERTY(createFinobligation(o));
+                MOVE PROPERTY(importOnlyStatus(o));
+                MOVE PROPERTY(importSpecification(o));
+            }    
         }
     }
 }
@@ -297,6 +304,9 @@ priceManufacturer = DATA LOCAL NUMERIC[16,4] (INTEGER);
 extracharge = DATA LOCAL NUMERIC[8,3] (INTEGER);
 retailPrice = DATA LOCAL NUMERIC[16,4] (INTEGER); 
 blankquantity = DATA LOCAL NUMERIC[16,4] (INTEGER);
+causeType = DATA LOCAL ISTRING[10](INTEGER);
+causeId = DATA LOCAL ISTRING (INTEGER);
+causeSpecItem = DATA LOCAL INTEGER (INTEGER);
 
 filterSql = DATA LOCAL TEXT ();
 sqlString() = DATA LOCAL TEXT ();

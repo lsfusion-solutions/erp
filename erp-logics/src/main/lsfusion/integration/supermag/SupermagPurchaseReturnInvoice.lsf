@@ -193,17 +193,17 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);   
-    
-    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF Purchase.operation2Supermag(codeOperation(i))](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
-        id(o) <- newId;
-    }
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
         MESSAGE currentVersion(0);
         MESSAGE codeOperation(0);
     }
+    
+    FOR [GROUP SUM 1 BY idDoc(INTEGER i) IF Purchase.operation2Supermag(codeOperation(i)) AND NOT importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) ](STRING[50] newId) AND NOT userInvoice(newId) DO NEW o = UserInvoice {
+        id(o) <- newId;
+    }
       
-    FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(doc) DO {       
+    FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(doc) DO {       
         number[Document](doc) <- STRING[28](docNumber(i));
         bornin(doc) <- bornIn(i);
         operation(doc) <- Purchase.operation2Supermag(codeOperation(i));
@@ -221,7 +221,12 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         paymentCondition(doc) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;              
         lastVersion(doc) <- currentVersion(i);
     }  
-    
+
+    FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(doc) DO {
+        isPosted(doc) <- docState(i) == 3;
+        createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
+        isClosed(doc) <- docState(i) == 0;           
+    }
     overImportPurchaseReturnInvoice();
     
     //импорт заказов-оснований для накладных. импорт всех оснований через overImportPurchaseInvoice() 
@@ -237,12 +242,13 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
 
     IF length(numberImportDocument()) > 0 THEN { //для отладки
         MESSAGE idDoc(0)  +  ' ' + idBase(0);
     }
 
-    FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) DO {    
+    FOR PurchaseReturn.UserInvoice doc == PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) DO {    
         include(Order order, doc) <- TRUE IF order = PurchaseReturn.userOrder(idBase(i));
     }    
     
@@ -262,6 +268,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDoc(i)), STRING(locationFrom(i)), STRING(specItem(i)), STRING(idItem(i)), STRING(quantity(i)), 
                                                 STRING(itemPrice(i)), STRING(itemPriceNoTax(i)), STRING(totalPrice(i)), STRING(totalPriceNoTax(i)),  
                                                 STRING(taxSum(i)), STRING(taxRate(i)), STRING(priceManufacturer(i)), STRING(retailPrice(i)) ) IF idDet(i);                  
@@ -272,17 +279,17 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
         MESSAGE currentVersion(0);        
     }
 
-    FOR PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT PurchaseReturn.userInvoiceDetail(idDet(i)) DO NEW d = PurchaseReturn.UserInvoiceDetail {
+    FOR PurchaseReturn.userInvoice(idDoc(INTEGER i)) AND NOT importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) AND NOT PurchaseReturn.userInvoiceDetail(idDet(i)) DO NEW d = PurchaseReturn.UserInvoiceDetail {
         id(d) <- idDet(i);
         PurchaseReturn.userInvoice(d) <- PurchaseReturn.userInvoice(idDoc(i));
     }
 
-    FOR PurchaseReturn.UserInvoiceDetail det = PurchaseReturn.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(det) DO {    
+    FOR PurchaseReturn.UserInvoiceDetail det = PurchaseReturn.userInvoiceDetail(idDet(INTEGER i)) AND NOT importOnlyStatus(Purchase.operation2Supermag(codeOperation(i))) AND NOT currentVersion(i) = PurchaseReturn.lastVersion(det) DO {    
         sku(det) <- item(idItem(i));
         quantity(det) <- quantity(i);  
-        priceListType(det) <- SystemLedgerPriceListType.supplierPricingPriceListType;
-        invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
-        price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
+        priceListType(det) <- OVERRIDE priceListType(det), SystemLedgerPriceListType.supplierPricingPriceListType;
+        invoicePrice(det) <- OVERRIDE invoicePrice(det), NUMERIC[16,4](itemPrice(i));
+        price(det) <- OVERRIDE price(det), NUMERIC[16,4](itemPriceNoTax(i));
         invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
         sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
         VATSum(det) <- taxSum(i);
@@ -293,6 +300,7 @@ importPurchaseReturnInvoice 'Импорт накладные (закупка в�
 //     retailPriceListType(det) <- retailPriceListType(stock(ISTRING[100] (locationTo(i))));
 //      retailPrice(det) <- retailPrice(i);
         imported(det) <- TRUE;
+        price(det) <- OVERRIDE price(det), NUMERIC[16,4](itemPriceNoTax(i));
         lastVersion(det) <- currentVersion(i);
    }
    APPLY;           
