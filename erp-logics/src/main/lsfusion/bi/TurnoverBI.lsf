@@ -4,15 +4,26 @@ REQUIRE BI, PurchaseLedger, SaleLedger, Pricing, Item, Druid, ReportBI, DefaultL
 
 NAMESPACE BI;
 
+
+//Грузить остаток на начало
+exportBalanceB 'Грузить остаток на начало' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES exportBalanceB() DRAW dates
+;
+
 overExportTurnover  ABSTRACT (DATE);
 overExportTurnover = DATA LOCAL BOOLEAN ();
 
 balance = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+balanceB = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balance = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
 sum = DATA LOCAL NUMERIC[18,4] (Sku, Stock);
 
 exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo)  { 
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
+    IF exportBalanceB() THEN
+        balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, dTo) WHERE signedQuantity(b, st, dTo);
     balance(Sku s, Stock st) <- balanceA(s, st, dTo);
     sum(Sku s, Stock st) <- sumA(s, st, dTo);
 
@@ -23,24 +34,41 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
         logToFile('druid', 'Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
         overExportTurnover(date());
         IF NOT overExportTurnover() THEN {
-            EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
-                                stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
-                                sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
-                                manufacturer = manufacturer(sku(b)),
-                                price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
-                                balance = DOUBLE(balance(b, st)),
-                                quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
-                                quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
-                   WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+            IF exportBalanceB() THEN {
+                EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                                    stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
+                                    sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
+                                    manufacturer = manufacturer(sku(b)),
+                                    price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
+                                    balance = DOUBLE(balance(b, st)), balanceB = DOUBLE(balanceB(b, st)),
+                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
+                       WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+            } ELSE {
+                EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
+                                    stock = Stock st, formatStock = parent(stockGroup(st)), legalEntityStock = legalEntity(st),
+                                    sku = sku(Batch b), supplier = supplier(b), supplierStock = supplierStock(b), cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), //rp = retailPricingPriceA(b, st, date()),
+                                    manufacturer = manufacturer(sku(b)),
+                                    price = DOUBLE(sum(sku(b), st) / balance(sku(b), st)), UOM = UOM(sku(b)),
+                                    balance = DOUBLE(balance(b, st)),
+                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
+                       WHERE balance(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
+                        
+            }
         }
         logToFile('druid', 'Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balance(Batch b, Stock st)));
 
-        ingestBatch('turnover', date());
+        IF exportBalanceB() THEN 
+            ingestBatch('turnover', 'turnoverB', date());
+        ELSE ingestBatch('turnover', date());
 
         balance(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date()); 
         balance(Sku s, Stock st) <- balance(s, st) (-) signedQuantity(s, st, date()) WHERE signedQuantity(s, st, date()); 
         sum(Sku s, Stock st) <- sum(s, st) (-) signedSum(s, st, date()) WHERE signedSum(s, st, date()); 
         date() <- subtract(date(), 1);
+        IF exportBalanceB() THEN
+            balanceB(Batch b, Stock st) <- balanceB(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
     }
     
     runKillTask('turnover', dFrom, dTo);
@@ -618,29 +646,61 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
     overFillTurnoverReport(dateFrom,dateTo);
     IF NOT overFillTurnoverReport() THEN {
         IF gDayTurnover() THEN {
-            query(replace('SELECT ' + values() 
-                 + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
-                 + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
-                 + (IF overIsBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
-                 + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
-                 + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
-                 + nameGroupsTurnover() + ', ' + groupsTurnover()
-                 + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-                 + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-                 + filter()
-                 + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover())
-                 + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
-                
-            IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4,
-                                              group1Turnover = group1, group2Turnover = group2, group3Turnover = group3, group4Turnover = group4,
-                                              quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
-                                              markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
-                                              sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
-                                              quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
-                                              sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
-                                              turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
-                                              VATSupplierA = VATSupplierA, costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA,
-                                              daysOnStock = daysOnStock, barcodeSku = barcodeSku;
+            IF exportBalanceB() THEN {
+                query(replace('SELECT ' + values() 
+                     + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                     + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balanceB) AS balanceB, ' ELSE '')
+                     + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalanceB) AS costBalanceB, ' ELSE '')
+                     + (IF isBalanceB() AND isVATSupplier() THEN '(SUM(costVATBalanceB)-SUM(costBalanceB)) AS VATSupplierB, ' ELSE '')
+                     + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalanceB) AS costVATBalanceB, ' ELSE '')
+                     + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalanceB) AS sumBalanceB, ' ELSE '')
+                     + nameGroupsTurnover() + ', ' + groupsTurnover()
+                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                     + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                     + filter()
+                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover())
+                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4,
+                                                  group1Turnover = group1, group2Turnover = group2, group3Turnover = group3, group4Turnover = group4,
+                                                  quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
+                                                  markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
+                                                  sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
+                                                  quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
+                                                  sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
+                                                  turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
+                                                  VATSupplierA = VATSupplierA, costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA,
+                                                  daysOnStock = daysOnStock, barcodeSku = barcodeSku, balanceB = balanceB, costBalanceB = costBalanceB,
+                                                  VATSupplierB = VATSupplierB, costVATBalanceB = costVATBalanceB, sumBalanceB = sumBalanceB;
+            } ELSE {
+                query(replace('SELECT ' + values() 
+                     + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isVATSupplier() THEN '(SUM(costVATBalance)-SUM(costBalance)) AS VATSupplierA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                     + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                     + nameGroupsTurnover() + ', ' + groupsTurnover()
+                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                     + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+                     + filter()
+                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover())
+                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2, nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4,
+                                                  group1Turnover = group1, group2Turnover = group2, group3Turnover = group3, group4Turnover = group4,
+                                                  quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
+                                                  markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
+                                                  sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
+                                                  quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
+                                                  sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
+                                                  turnover = turnover, costBalance = costBalance, balanceA = balanceA, costBalanceA = costBalanceA,
+                                                  VATSupplierA = VATSupplierA, costVATBalanceA = costVATBalanceA, sumBalanceA = sumBalanceA,
+                                                  daysOnStock = daysOnStock, barcodeSku = barcodeSku;
+            }
         } ELSE {
             query(replace('SELECT ' + values() 
                  + nameGroupsTurnover() + ', ' + groupsTurnover()
@@ -691,6 +751,36 @@ fillTurnoverReport (DATE dateFrom, DATE dateTo)  {
                     + nameGroupsTurnover() + ', ' + groupsTurnover()
                     + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
                     + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
+                    + filter()
+                    + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover())
+                    + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+                    
+                IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4,
+                                                  localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4,
+                                                  localBalanceB = balanceB, localStatisticUOMBalanceB = statisticUOMBalanceB, localCostBalanceB = costBalanceB,
+                                                  localVATSupplierB = VATSupplierB, localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+                
+                FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localBarcodeSku(i)) DO {
+                    balanceB(number) <- localBalanceB(i);
+                    costBalanceB(number) <- localCostBalanceB(i);
+                    VATSupplierB(number) <- localVATSupplierB(i);
+                    costVATBalanceB(number) <- localCostVATBalanceB(i);
+                    sumBalanceB(number) <- localSumBalanceB(i);
+                }
+            }
+            
+            IF isBalanceB() AND exportBalanceB() AND isTimeGroup() THEN {                        
+                query(replace('SELECT '
+                    + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balanceB) AS balanceB, ' ELSE '')
+                    + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalanceB) AS costBalanceB, ' ELSE '')
+                    + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalanceB)-SUM(costBalanceB) AS VATSupplierB, ' ELSE '')
+                    + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalanceB) AS costVATBalanceB, ' ELSE '')
+                    + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalanceB) AS sumBalanceB, ' ELSE '')
+                    + nameGroupsTurnover() + ', ' + groupsTurnover()
+                    + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                    + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
+                    + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, -1, __time)) OR __time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\'))' ELSE
+                       IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, -1, __time)) OR __time = TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\'))' ELSE '')
                     + filter()
                     + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover())
                     + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));

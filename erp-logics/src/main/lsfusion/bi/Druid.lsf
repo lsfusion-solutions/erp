@@ -43,12 +43,12 @@ DESIGN integrationData {
     }
 } 
 
-runImportTask(STRING[100] id, DATE date)  { 
+runImportTask(STRING[100] id, STRING[100] file, DATE date)  { 
     LOCAL template = FILE();
     TRY {
-        READ 'file://bi/' + id + '.json' TO template;
+        READ 'file://bi/' + file + '.json' TO template;
     } CATCH {
-        readResource('/bi/' + id + '.json');
+        readResource('/bi/' + file + '.json');
         template() <- resourceFile();
     }
     fileToString(template(), 'UTF-8');
@@ -66,7 +66,15 @@ ingestBatch (STRING[100] id, DATE date)  {
     WRITE exportFile() TO exportDirectory() + id + date;
     logToFile('druid', '' + currentDateTime() + 'Ended WRITE ');
     
-    runImportTask(id, date);
+    runImportTask(id, id, date);
+}
+
+ingestBatch (STRING[100] id, STRING[100] file, DATE date)  { 
+    logToFile('druid', '' + currentDateTime() + ' Started WRITE to ' + exportDirectory() + id + date);
+    WRITE exportFile() TO exportDirectory() + id + date;
+    logToFile('druid', '' + currentDateTime() + 'Ended WRITE ');
+    
+    runImportTask(id, file, date);
 }
 
 loadLookups 'Загрузить справочники'  ABSTRACT LIST ( );
