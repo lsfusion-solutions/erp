@@ -3,44 +3,4 @@ MODULE ImportUserPriceListPromotion;
 REQUIRE Store, PriceListOperation, PriceListBefore;
 
 NAMESPACE PriceList;
-// promotion options
-promotionImportPath 'Путь импорта акций' = DATA STRING[255] ();
-promotionCopyPath 'Путь к загруженным акциям' = DATA STRING[255] ();
-promotionPriceBeforeMinute 'Цена До действует за (минут)' = DATA INTEGER ();
 
-// store options
-idStockExcelCol 'Колонка xls для импорта' = DATA ISTRING[5] (Store);
-
-sourceFile 'Файл-источник' = DATA EXCELFILE (PriceList);
-
-tempXls = DATA LOCAL EXCELFILE ();
-manager = DATA LOCAL STRING (INTEGER);
-period = DATA LOCAL STRING (INTEGER);
-itemId = DATA LOCAL STRING (INTEGER);
-pricePromotion = DATA LOCAL NUMERIC[16,4] (INTEGER);
-priceBefore = DATA LOCAL NUMERIC[16,4] (INTEGER);
-priceAfter = DATA LOCAL NUMERIC[16,4] (INTEGER);
-flag = DATA LOCAL ISTRING[10] (INTEGER);
-formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISS\')']( DATETIME dt);
-
-importPromotions 'Импорт акционного прайс-листа ' ABSTRACT LIST ();
-
-EXTEND FORM options
-    PROPERTIES () promotionImportPath, promotionCopyPath, promotionPriceBeforeMinute, importPromotions
-    
-    OBJECTS store = Store
-    PROPERTIES (store) name READONLY, idStockExcelCol;
-;
-
-DESIGN options {
-    pane {
-        NEW promotions {
-            caption = 'Акции';
-            MOVE PROPERTY (promotionImportPath());
-            MOVE PROPERTY (promotionCopyPath());
-            MOVE PROPERTY (promotionPriceBeforeMinute());
-            MOVE PROPERTY (importPromotions());            
-            MOVE BOX (store);
-        }
-    }
-}
