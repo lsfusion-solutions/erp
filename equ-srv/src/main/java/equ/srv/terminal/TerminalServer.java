@@ -441,7 +441,7 @@ public class TerminalServer extends MonitorServer {
                                         logger.info("receiving document number " + document[2]);
                                         String dateDocument = document[1];
                                         String numberDocument = document[2];
-                                        String idDocument = numberDocument + " " + dateDocument;
+                                        String idDocument = numberDocument + " " + dateDocument + " " + userInfo.user.object;
                                         String idTerminalDocumentType = document[3];
                                         String ana1 = formatValue(document[4]);
                                         String ana2 = formatValue(document[5]);
