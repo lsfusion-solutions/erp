@@ -162,6 +162,8 @@ exportPurchaseInvoice (Purchase.Invoice doc) + {
     IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WI' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) THEN exportPurchaseInvoiceWI(doc);    
 }
 
+overExportPurchaseInvoiceAC ABSTRACT LIST (Invoice, DocMain) ;
+
 exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain d) <- NULL;
     IF createPricing(doc) THEN {   
@@ -213,6 +215,9 @@ exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                     docid(b) <- seriesNumber(doc);
                     doctype(b) <- 'WI';
                 }
+                
+                overExportPurchaseInvoiceAC(doc,expMain);
+                
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
                     TRY EXPORT exportAC XML TO System.exportFile;
