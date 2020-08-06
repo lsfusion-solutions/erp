@@ -679,71 +679,77 @@ startTimeRecalculatePrice 'Цены старт' = DATA DATETIME(CollationSheet);
 endTimeRecalculatePrice 'Цены конец' = DATA DATETIME(CollationSheet);
 
 recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet)  { 
-    startTimeRecalculatePrice(collationSheet)<- currentDateTime();
-    IF isBatch (collationSheet) THEN {
-        price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
-            WHERE collationSheet(pageInventoryDetail) == collationSheet;
-    } ELSE {
-        price(PageInventoryDetail pageInventoryDetail)
-            <- OVERRIDE prevAccountPriceB(sku(pageInventoryDetail), stock(pageInventoryDetail), dateTime(pageInventoryDetail)), overPriceBalance(collationSheet, sku(pageInventoryDetail))
-            WHERE collationSheet(pageInventoryDetail) == collationSheet;
-    }
+    startTimeRecalculatePrice(collationSheet) <- currentDateTime();
+    
+    FOR DATETIME dt = dateTime(inventory(collationSheet)) AND Stock st = stock(collationSheet) NOINLINE DO {        
 
-    IF isPartly(inventory(collationSheet)) AND isRemains(inventory(collationSheet)) THEN { 
-        priceBalance(collationSheet, Sku sku)
-            <- OVERRIDE prevAccountPriceB(sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
-            WHERE include(inventory(collationSheet), sku);
-            
-        IF NOT isPrice(inventory(collationSheet)) THEN {
-            sumBalance(collationSheet, Sku sku)
-                <- NUMERIC[18,4](sumB(sku, stock(collationSheet), dateTime(inventory(collationSheet))))
-                WHERE include(inventory(collationSheet), sku);
-                    
-        } ELSE {
-            sumBalance(collationSheet, Sku sku)
-                <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku)*priceBalance(collationSheet, sku), currency(stock(collationSheet))))
-                WHERE include(inventory(collationSheet), sku);
-        }
-        
         IF isBatch (collationSheet) THEN {
-            priceBalance(collationSheet, Batch batch)
-                <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-            WHERE include(inventory(collationSheet), sku(batch));
-        }        
-    }
-    ELSE {
-        IF isRemains(inventory(collationSheet)) THEN {
-            priceBalance(collationSheet, Sku sku)
-                <- OVERRIDE prevAccountPriceB(sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku);
-            IF NOT isPrice(inventory(collationSheet)) THEN {
-                sumBalance(collationSheet, Sku sku)
-                    <- NUMERIC[18,4](sumB(sku, stock(collationSheet), dateTime(inventory(collationSheet))));
-            } ELSE {
-                sumBalance(collationSheet, Sku sku)
-                    <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku)*priceBalance(collationSheet, sku), currency(stock(collationSheet))));
-            }
+            price(PageInventoryDetail pageInventoryDetail)
+                <- OVERRIDE prevAccountPriceB(batch(pageInventoryDetail), st, dt), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+                WHERE collationSheet(pageInventoryDetail) == collationSheet;
         } ELSE {
+            price(PageInventoryDetail pageInventoryDetail)
+                <- OVERRIDE prevAccountPriceB(sku(pageInventoryDetail), st, dt), overPriceBalance(collationSheet, sku(pageInventoryDetail))
+                WHERE collationSheet(pageInventoryDetail) == collationSheet;
+        }
+    
+        IF isPartly(inventory(collationSheet)) AND isRemains(inventory(collationSheet)) THEN { 
             priceBalance(collationSheet, Sku sku)
-                <- OVERRIDE prevAccountPriceB(sku, stock(collationSheet), dateTime(inventory(collationSheet))), overPriceBalance(collationSheet, sku)
-                    WHERE include(collationSheet, sku);
+                <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku)
+                WHERE include(inventory(collationSheet), sku);
                 
             IF NOT isPrice(inventory(collationSheet)) THEN {
                 sumBalance(collationSheet, Sku sku)
-                    <- NUMERIC[18,4](sumB(sku, stock(collationSheet), dateTime(inventory(collationSheet))))
-                    WHERE include(collationSheet, sku);
+                    <- NUMERIC[18,4](sumB(sku, st, dt))
+                    WHERE include(inventory(collationSheet), sku);
+                        
             } ELSE {
                 sumBalance(collationSheet, Sku sku)
-                    <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku)*priceBalance(collationSheet, sku), currency(stock(collationSheet))))
-                    WHERE include(collationSheet, sku);
+                    <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku)*priceBalance(collationSheet, sku), currency(st)))
+                    WHERE include(inventory(collationSheet), sku);
+            }
+            
+            IF isBatch (collationSheet) THEN {
+                priceBalance(collationSheet, Batch batch)
+                    <- prevAccountPriceB(batch, st, dt)
+                WHERE include(inventory(collationSheet), sku(batch));
+            }        
+        }
+        ELSE {
+            IF isRemains(inventory(collationSheet)) THEN {
+                priceBalance(collationSheet, Sku sku)
+                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku);
+                IF NOT isPrice(inventory(collationSheet)) THEN {
+                    sumBalance(collationSheet, Sku sku)
+                        <- NUMERIC[18,4](sumB(sku, st, dt));
+                } ELSE {
+                    sumBalance(collationSheet, Sku sku)
+                        <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku) * priceBalance(collationSheet, sku), currency(st)));
+                }
+            } ELSE {
+                priceBalance(collationSheet, Sku sku)
+                    <- OVERRIDE prevAccountPriceB(sku, st, dt), overPriceBalance(collationSheet, sku)
+                        WHERE include(collationSheet, sku);
+                    
+                IF NOT isPrice(inventory(collationSheet)) THEN {
+                    sumBalance(collationSheet, Sku sku)
+                        <- NUMERIC[18,4](sumB(sku, st, dt))
+                        WHERE include(collationSheet, sku);
+                } ELSE {
+                    sumBalance(collationSheet, Sku sku)
+                        <- NUMERIC[18,4](round(quantityBalance(collationSheet, sku) * priceBalance(collationSheet, sku), currency(st)))
+                        WHERE include(collationSheet, sku);
+                }
+            }
+            
+            IF isBatch (collationSheet) THEN {
+                priceBalance(collationSheet, Batch batch)
+                    <- prevAccountPriceB(batch, st, dt);
             }
         }
         
-        IF isBatch (collationSheet) THEN {
-            priceBalance(collationSheet, Batch batch)
-                <- prevAccountPriceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)));
-        }
     }
+    
     endTimeRecalculatePrice(collationSheet)<- currentDateTime();
 } CONFIRM IN inventoryAction;
 
