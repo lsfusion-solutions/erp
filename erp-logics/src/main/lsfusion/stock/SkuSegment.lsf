@@ -1,0 +1,110 @@
+MODULE SkuSegment;
+
+REQUIRE Barcode, PriceListPromotion;
+
+NAMESPACE Stock;
+
+CLASS SkuSegment 'Сегментирование по товарам';
+
+number 'Номер' = DATA STRING[28] (SkuSegment) CHARWIDTH 8;
+name 'Наименование' = DATA STRING[100](SkuSegment);
+
+stock 'Склад'  = DATA Stock (SkuSegment);
+nameStock 'Наименование склада' (SkuSegment s) = name(stock(s));
+
+CLASS SkuSegmentLine 'Детализация';
+skuSegment 'Документ' = DATA SkuSegment (SkuSegmentLine) INDEXED NONULL DELETE;
+
+sku 'Товар' = DATA Sku (SkuSegmentLine);
+nameItem 'Наименование' (SkuSegmentLine sl) = name(sku(sl));
+idBarcode 'Штрихкод' (SkuSegmentLine sl) = barcode(sku(sl));
+
+skuGroup 'Группа' = DATA SkuGroup (SkuSegmentLine);
+nameItemGroup 'Группа' (SkuSegmentLine sl) = name(skuGroup(sl));
+idItemGroup 'Код группы' (SkuSegmentLine sl) = id(skuGroup(sl));
+
+uom 'Единица измерения' = DATA UOM (SkuSegmentLine);
+shortNameUom 'Единица измерения' (SkuSegmentLine sl) = shortName(uom(sl));
+
+brand 'Бренд' = DATA Brand (SkuSegmentLine);
+nameBrand 'Бренд' (SkuSegmentLine sl) = name(brand(sl));
+
+country 'Страна изготовитель' = DATA Country (SkuSegmentLine);
+nameCountry 'Страна изготовитель' (SkuSegmentLine sl) = name(country(sl));
+
+extraIn = ABSTRACT BOOLEAN (SkuSegmentLine);
+extraIn = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
+
+exclude 'Исключение' = DATA BOOLEAN (SkuSegmentLine);
+
+inPromotion 'Вхождение в акционные списки' =  DATA BOOLEAN (SkuSegmentLine);
+
+CONSTRAINT SkuSegmentLine sl IS SkuSegmentLine AND NOT (sku(sl) OR skuGroup(sl) OR uom(sl) OR brand(sl) OR country(sl) OR extraIn(sl))
+    MESSAGE 'Не должно быть строк с пустыми параметрами'
+;
+
+inD (SkuSegmentLine sl, Sku sk) = (sl IS SkuSegmentLine AND sk IS Sku 
+                                                                AND (sk == sku(sl) OR NOT sku(sl)) 
+                                                                AND (isParent(skuGroup(sk), skuGroup(sl)) OR NOT skuGroup(sl)) 
+                                                                AND (UOM(sk) == uom (sl) OR NOT uom(sl)) 
+                                                                AND (brand(sk) == brand(sl) OR NOT brand(sl)) 
+                                                                AND (country(sk) == country(sl) OR NOT country(sl)) 
+                                                                AND (extraIn(sl, sk) OR NOT extraIn(sl)));
+
+in (SkuSegmentLine sl, Sku sk)  = inD(sl, sk) AND (promotionPriceListDetailA(sk, stock(skuSegment(sl))) OR NOT inPromotion(sl));
+                                                                
+line (SkuSegment s, Sku sk) = (GROUP LAST SkuSegmentLine sl ORDER sl IF skuSegment(sl) = s AND in(sl, sk));
+in (SkuSegment s, Sku sk) = line(s, sk) AND NOT exclude(line(s, sk));
+
+dialogTreeItemGroups (SkuSegmentLine sl)  {   
+    DIALOG dialogTreeItemGroups OBJECTS tg = skuGroup(sl) CHANGE;
+}
+
+FORM skuSegments 'Сегментирование по товарам'
+    OBJECTS s = SkuSegment
+    PROPERTIES(s) READONLY number, name
+    PROPERTIES (s) NEWSESSION NEW, EDIT, DELETE
+    LIST SkuSegment OBJECT s
+;
+
+FORM skuSegment 'Сегментирование по товарам'
+    OBJECTS s = SkuSegment PANEL
+    PROPERTIES(s) number, name, nameStock
+    
+    OBJECTS sl = SkuSegmentLine
+    PROPERTIES(sl) exclude, idBarcode, nameItem, idItemGroup ON CHANGE dialogTreeItemGroups(sl), nameItemGroup ON CHANGE dialogTreeItemGroups(sl), shortNameUom, nameBrand, nameCountry, inPromotion
+    PROPERTIES(sl) NEW, DELETE
+       
+    FILTERS skuSegment(sl) = s
+    EDIT SkuSegment OBJECT s
+    
+    OBJECTS ss 'Товары' = Sku
+    PROPERTIES(ss) READONLY name, idBarcode, idSkuGroup, nameSkuGroup, shortNameUOM, nameBrand, nameCountry
+    FILTERS in(s, ss)
+;
+
+DESIGN skuSegment {
+    OBJECTS {
+        NEW headContainev {
+            type = CONTAINERV;
+            fill = 1;
+            NEW nameContainer{
+                type = CONTAINERH;
+                MOVE BOX(s);
+            }
+            NEW tabContainer {
+                fill = 1;
+                type = TABBED ;                
+                MOVE BOX (sl) ;
+                MOVE BOX (ss);
+            }                   
+        }        
+    }    
+}
+
+NAVIGATOR {
+    skuNavigator {
+        NEW Stock.skuSegments
+        ;
+    }
+}

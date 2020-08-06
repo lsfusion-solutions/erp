@@ -143,6 +143,8 @@ EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricing[UserInvoice](i) BACKGROU
 //вынесено из метакода из-за порядка событий в Santa
 skipChangePrice = ABSTRACT CASE BOOLEAN (UserInvoiceDetail);
 
+overSetRetailPrice ABSTRACT LIST (PriceListType, UserInvoiceDetail);
+
 WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
     (CHANGED(retailPriceListType(UserInvoiceDetail detail)) OR
      CHANGED(pricingPrice(detail)) OR
@@ -160,6 +162,8 @@ WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
                                                                 retailMarkup(detail),
                                                                 valueRetailVAT(detail)), roundCondition)
                                                      WHERE retailPriceListType(detail) == priceListType;
+        
+        overSetRetailPrice(priceListType, detail);
     }
     
 WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
@@ -176,7 +180,9 @@ WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
         retailPrice(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), retailStock(detail), pricingDateTime(detail))
                                                   ELSE prevPriceA(priceListType, sku(detail), retailStock(detail), pricingDateTime(detail))
                                                      WHERE retailPriceListType(detail) == priceListType;
-                                                     
+
+        overSetRetailPrice(priceListType, detail);
+        
         retailMarkup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                            retailPrice(detail),
                                                            pricingPrice(detail),
