@@ -14,6 +14,8 @@ loadWordFile 'Загрузить шаблон'(ContractMarketing i)  { INPUT =wo
 openWordFile 'Открыть шаблон'(ContractMarketing i)  { open(wordFile(i)); }
 isLoad 'Есть шаблон' (ContractMarketing i) = TRUE IF wordFile(i);
 
+overWordFileReverse = ABSTRACT WORDFILE (ContractType, LegalEntity);
+
 FORM templates 'Шаблоны'
     OBJECTS (t = ContractType, l = LegalEntity)
     PROPERTIES isLoad(t, l) READONLY, staticCaption(t) READONLY, name(l) READONLY, loadWordFile(t, l), openWordFile(t, l) SHOWIF isLoad(t, l)
@@ -46,7 +48,7 @@ createTask 'Задание и Акт' (MarketingInvoice i)  {
     NEWSESSION {
         NEW t = Template {
             template(i) <- t;
-            file(t) <- OVERRIDE wordFile(contract(i)), wordFile(contractType(contract(i)), customer(contract(i)));
+            file(t) <- OVERRIDE wordFile(contract(i)), wordFile(contractType(contract(i)), customer(contract(i))) IF NOT isReverse(contract(i)), (overWordFileReverse(contractType(contract(i)), supplier(contract(i))) IF isReverse(contract(i)));
             NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_ACT'; description(e) <- 'Номер акта'; }
             NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_TASK'; description(e) <- 'Номер задания'; }
             NEW e = TemplateEntry { template(e) <- t; key(e) <- 'NUMBER_ATTACHMENT'; description(e) <- 'Номер приложения'; }
@@ -121,8 +123,16 @@ createTask 'Задание и Акт' (MarketingInvoice i)  {
         value(TemplateEntry d) <- TEXT (toDateDDMMYY(jumpWorkdays(defaultCountry(), subtract(firstDayOfMonth(dateFrom(i)), 1), 1))) WHERE key(d) = 'FIRST_WORK_DAY_MONTH' AND template (d) == template(i);
         value(TemplateEntry d) <- TEXT (toDateDDMMYY(jumpWorkdays(defaultCountry(), sum(lastDayOfMonth(dateTo(i)), 1), -1))) WHERE key(d) = 'LAST_WORK_DAY_MONTH' AND template (d) == template(i);
         value(TemplateEntry d) <- TEXT (toDateDDMMYY(currentDate())) WHERE key(d) = 'CURRENT_DATE' AND template (d) == template(i);
-        value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(customer(i))+ ' ','') + nameCustomer(i) WHERE key(d) = 'NAME_LEGAL_ENTITY' AND template (d) == template(i);
-        value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(supplier(i))+ ' ','') + nameSuppler(i) WHERE key(d) = 'NAME_CUSTOMER' AND template (d) == template(i);
+
+        IF isReverse(contract(i)) THEN {        
+            value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(supplier(i))+ ' ','') + nameSuppler(i) WHERE key(d) = 'NAME_LEGAL_ENTITY' AND template (d) == template(i);
+            value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(customer(i))+ ' ','') + nameCustomer(i) WHERE key(d) = 'NAME_CUSTOMER' AND template (d) == template(i);
+        }
+        ELSE {
+            value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(customer(i))+ ' ','') + nameCustomer(i) WHERE key(d) = 'NAME_LEGAL_ENTITY' AND template (d) == template(i);
+            value(TemplateEntry d) <- (OVERRIDE shortNameOwnership(supplier(i))+ ' ','') + nameSuppler(i) WHERE key(d) = 'NAME_CUSTOMER' AND template (d) == template(i);
+        }
+
         value(TemplateEntry d) <- personSupplier(contract(i)) WHERE key(d) = 'PERSON_CUSTOMER' AND template (d) == template(i);
         value(TemplateEntry d) <- basedOnSupplier(contract(i)) WHERE key(d) = 'BASED_ON_CUSTOMER' AND template (d) == template(i);
         value(TemplateEntry d) <- TEXT (toDateDDMMYY(dateFrom(i))) WHERE key(d) = 'DATE_FROM_ACT' AND template (d) == template(i);
@@ -141,23 +151,45 @@ createTask 'Задание и Акт' (MarketingInvoice i)  {
             value(TemplateEntry d) <- numSpelledRouble(overSumCalcBase(i), '00d') WHERE key(d) = 'SUM_CALC_BASE_WORDS' AND template (d) == template(i);
         }
         value(TemplateEntry d) <- replace(TEXT (NUMERIC[7,2](overAverageMarketingPercent(i))), '.', ',') WHERE key(d) = 'MARKETING_PERCENT' AND template (d) == template(i);  
-        value(TemplateEntry d) <- OVERRIDE (address(customer(i))), '' WHERE key(d) = 'ADDRESS_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (number(account(customer(i)))), '' WHERE key(d) = 'IBAN_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (nameBank(account(customer(i)))), '' WHERE key(d) = 'BANK_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (MFOBank(account(customer(i)))), '' WHERE key(d) = 'MFO_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (phone(customer(i))), '' WHERE key(d) = 'PHONE_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (address(supplier(i))), '' WHERE key(d) = 'ADDRESS_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (number(account(supplier(i)))), '' WHERE key(d) = 'IBAN_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (nameBank(account(supplier(i)))), '' WHERE key(d) = 'BANK_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (MFOBank(account(supplier(i)))), '' WHERE key(d) = 'MFO_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (phone(supplier(i))), '' WHERE key(d) = 'PHONE_CUSTOMER' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (postAddress(customer(i))), '' WHERE key(d) = 'POSTADDR_LE' AND template (d) == template(i);
-        value(TemplateEntry d) <- OVERRIDE (addressBank(account(customer(i)))), '' WHERE key(d) = 'BANKADDR_LE' AND template (d) == template(i);
 
+        IF isReverse(contract(i)) THEN {        
+            value(TemplateEntry d) <- OVERRIDE (address(supplier(i))), '' WHERE key(d) = 'ADDRESS_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (number(account(supplier(i)))), '' WHERE key(d) = 'IBAN_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (nameBank(account(supplier(i)))), '' WHERE key(d) = 'BANK_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (MFOBank(account(supplier(i)))), '' WHERE key(d) = 'MFO_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (phone(supplier(i))), '' WHERE key(d) = 'PHONE_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (address(customer(i))), '' WHERE key(d) = 'ADDRESS_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (number(account(customer(i)))), '' WHERE key(d) = 'IBAN_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (nameBank(account(customer(i)))), '' WHERE key(d) = 'BANK_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (MFOBank(account(customer(i)))), '' WHERE key(d) = 'MFO_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (phone(customer(i))), '' WHERE key(d) = 'PHONE_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (postAddress(supplier(i))), '' WHERE key(d) = 'POSTADDR_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (addressBank(account(supplier(i)))), '' WHERE key(d) = 'BANKADDR_LE' AND template (d) == template(i);
+        }
+        ELSE {
+            value(TemplateEntry d) <- OVERRIDE (address(customer(i))), '' WHERE key(d) = 'ADDRESS_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (number(account(customer(i)))), '' WHERE key(d) = 'IBAN_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (nameBank(account(customer(i)))), '' WHERE key(d) = 'BANK_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (MFOBank(account(customer(i)))), '' WHERE key(d) = 'MFO_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (phone(customer(i))), '' WHERE key(d) = 'PHONE_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (address(supplier(i))), '' WHERE key(d) = 'ADDRESS_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (number(account(supplier(i)))), '' WHERE key(d) = 'IBAN_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (nameBank(account(supplier(i)))), '' WHERE key(d) = 'BANK_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (MFOBank(account(supplier(i)))), '' WHERE key(d) = 'MFO_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (phone(supplier(i))), '' WHERE key(d) = 'PHONE_CUSTOMER' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (postAddress(customer(i))), '' WHERE key(d) = 'POSTADDR_LE' AND template (d) == template(i);
+            value(TemplateEntry d) <- OVERRIDE (addressBank(account(customer(i)))), '' WHERE key(d) = 'BANKADDR_LE' AND template (d) == template(i);
+        
+        }
+        
         overCreateTask(i);
         process(template(i));
         open(resultTemplate());
