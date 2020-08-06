@@ -73,8 +73,9 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> detailResult = detailQuery.execute(context);
                 BigDecimal totalSum = BigDecimal.ZERO;
                 for (ImMap<Object, Object> entry : detailResult.values()) {
-                    invoiceDetailList.add(new InvoiceDetail((String) entry.get("name"), (BigDecimal)entry.get("price"), (BigDecimal)entry.get("quantity")));
-                    totalSum = totalSum.add((BigDecimal)entry.get("sum"));
+                    BigDecimal sum = (BigDecimal) entry.get("sum");
+                    invoiceDetailList.add(new InvoiceDetail((String) entry.get("name"), (BigDecimal) entry.get("price"), (BigDecimal) entry.get("quantity"), sum));
+                    totalSum = totalSum.add(sum);
                 }
                 if(totalSum.compareTo(sumPayment) != 0) {
                     throw new RuntimeException(String.format("Сумма платежа (%s) должна совпадать с суммой чека (%s)", sumPayment, totalSum));

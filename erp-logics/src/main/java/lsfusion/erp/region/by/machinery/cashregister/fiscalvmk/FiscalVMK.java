@@ -387,9 +387,9 @@ public class FiscalVMK {
 
     public static boolean registerItemPaymentDetail(InvoiceDetail detail) {
         try {
-            logAction("vmk_sale", "", detail.name, detail.price, 1 /*отдел*/, detail.quantity, 0);
+            logAction("vmk_sale", "", detail.name, detail.price.doubleValue(), 1 /*отдел*/, detail.quantity.doubleValue(), detail.sum.doubleValue());
             //кассам с СКНО обязательно нужен ШК, иначе не печатается наименование
-            return vmkDLL.vmk.vmk_sale(getBytes("1"), getBytes(detail.name), detail.price.doubleValue(), 1 /*отдел*/, detail.quantity.doubleValue(), 0.0);
+            return vmkDLL.vmk.vmk_sale(getBytes("1"), getBytes(detail.name), detail.price.doubleValue(), 1 /*отдел*/, detail.quantity.doubleValue(), detail.sum.doubleValue());
         } catch (UnsupportedEncodingException e) {
             return false;
         }
