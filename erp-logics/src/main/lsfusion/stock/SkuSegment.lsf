@@ -49,9 +49,9 @@ inD (SkuSegmentLine sl, Sku sk) = (sl IS SkuSegmentLine AND sk IS Sku
                                                                 AND (UOM(sk) == uom (sl) OR NOT uom(sl)) 
                                                                 AND (brand(sk) == brand(sl) OR NOT brand(sl)) 
                                                                 AND (country(sk) == country(sl) OR NOT country(sl)) 
-                                                                AND (extraIn(sl, sk) OR NOT extraIn(sl)));
+                                                                AND (extraIn(sl, sk) OR NOT extraIn(sl))) MATERIALIZED;
 
-in (SkuSegmentLine sl, Sku sk)  = inD(sl, sk) AND (promotionPriceListDetailA(sk, stock(skuSegment(sl))) OR NOT inPromotion(sl));
+in (SkuSegmentLine sl, Sku sk)  = inD(sl, sk) AND (prevPromotionPriceListDetailA(sk, stock(skuSegment(sl))) OR NOT inPromotion(sl));
                                                                 
 line (SkuSegment s, Sku sk) = (GROUP LAST SkuSegmentLine sl ORDER sl IF skuSegment(sl) = s AND in(sl, sk));
 in (SkuSegment s, Sku sk) = line(s, sk) AND NOT exclude(line(s, sk));
