@@ -1,0 +1,770 @@
+MODULE DisparityReturn;
+
+REQUIRE Disparity, DisparityOperation, RepricingDisparity;
+
+NAMESPACE DisparityReturn;
+
+//----------------------------------- Пересорт товара (возврат) -------------------------------------------------------
+
+CLASS Disparity 'Изменение сортности (возврат)';
+CLASS DisparityDetail 'Строка изменения сортности (возврат)';
+
+@defineDocument(disparity);
+@deriveDocumentHeaderTimePrefix(Disparity, );
+
+@defineDocumentHeaderNumber(Disparity);
+@defineNumeratedDefault(Disparity, 'Изменения сортности (возврат)', 'ИВ', DisparityReturn);
+
+@defineDocumentDataStock (disparity, stock, 'Склад', );
+
+@defineExternalizable(disparity, STRING[100]);
+
+id = DATA STRING[100] (DisparityDetail);
+disparityDetail (id, disparity) = GROUP AGGR DisparityDetail disparityDetail WHERE disparityDetail IS DisparityDetail BY id(disparityDetail), disparity(disparityDetail);
+
+@defineDocumentDialogStocks(disparity, stock, company, , );
+@defineDocumentStockAccess(Disparity, stock, company);
+
+@defineDocumentPosted(disparity);
+@defineDocumentClosed(disparity);
+@defineDocumentClosedConstraint(Disparity);
+@defineDocumentDescription (disparity, 'Изменение сортности (возврат)');
+@defineDocumentCurrency (disparity);
+@deriveDocumentCurrency(disparity, stock);
+
+@defineDocumentDetailSkuPrefix (disparity, sku, , ' (расход)');
+@defineDocumentDetailSkuPrefix (disparity, sku, input, ' (приход)');
+
+@showDocumentDetailBatch(disparity);
+skipFillBatch = ABSTRACT CASE BOOLEAN (DisparityDetail);
+
+batch = DATA Batch (DisparityDetail) INDEXED;
+nameBatch 'Партия (расход)' (DisparityDetail disparityDetail) = name(batch(disparityDetail)) CHARWIDTH 20;
+documentNameBatch 'Наименование (для документов) (расход)' (DisparityDetail disparityDetail) = documentNameSku(batch(disparityDetail)) CHARWIDTH 20;
+
+CONSTRAINT sku(batch(DisparityDetail disparityDetail)) != sku(disparityDetail) CHECKED BY batch[DisparityDetail]
+    MESSAGE 'Товар партии (расход) строки должен соответствовать SKU (расход) строки';
+
+CONSTRAINT batch(DisparityDetail disparityDetail) AND NOT sku(disparityDetail) CHECKED BY batch[DisparityDetail]
+    MESSAGE 'Для строки задана партия (расход), но не задан товар (расход)';
+
+changeBatch(DisparityDetail d)  { 
+    DIALOG dialogBatchStockOut OBJECTS st = stock(d),
+                             t = dateTime(d),
+                             sk = sku(d),
+                             bt = batch(d) INPUT NULL NEWSESSION DO
+        batch(d) <- bt;
+}
+
+idBatch 'Код партии (расход)' (DisparityDetail detail) = id(batch(detail));
+
+costBatch 'Себестоимость партии (расход)' = DATA NUMERIC[16,4] (DisparityDetail);
+
+WHEN LOCAL (CHANGED(batch(DisparityDetail detail)) OR CHANGED(sku(detail)) OR CHANGED(stock(detail))) DO
+    costBatch(detail) <- prevCost(OVERRIDE batch(detail), prevLastOrderBatch(sku(detail), stock(detail)));
+
+expiryDateBatch 'Годен до' = DATA DATE (DisparityDetail);
+expiryDateBatch(DisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
+
+inputBatch = DATA Batch (DisparityDetail) INDEXED;
+nameInputBatch 'Партия (приход)' (DisparityDetail disparityDetail) = name(inputBatch(disparityDetail)) CHARWIDTH 20;
+documentNameInputBatch 'Наименование (для документов) (приход)' (DisparityDetail disparityDetail) = documentNameSku(inputBatch(disparityDetail)) CHARWIDTH 20;
+
+CONSTRAINT sku(inputBatch(DisparityDetail disparityDetail)) != inputSku(disparityDetail) CHECKED BY inputBatch[DisparityDetail]
+    MESSAGE 'Товар партии (приход) строки должен соответствовать SKU (приход) строки';
+
+CONSTRAINT inputBatch(DisparityDetail disparityDetail) AND NOT inputSku(disparityDetail) CHECKED BY inputBatch[DisparityDetail]
+    MESSAGE 'Для строки задана партия (приход), но не задан товар (приход)';
+
+changeInputBatch(DisparityDetail d)  { 
+    DIALOG dialogBatchStockOut OBJECTS st = stock(d),
+                             t = dateTime(d),
+                             sk = inputSku(d),
+                             bt = inputBatch(d) INPUT NULL NEWSESSION DO
+        inputBatch(d) <- bt;
+}
+
+idInputBatch 'Код партии (расход)' (DisparityDetail detail) = id(inputBatch(detail));
+
+disallowLineDisparitiesReturn 'Запретить строки без партий в изменениях сортности (возврат)' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() disallowLineDisparitiesReturn
+;
+
+DESIGN options {
+    pane {
+        disparity {
+            MOVE PROPERTY(disallowLineDisparitiesReturn());
+        }
+    }
+}
+
+CONSTRAINT isPosted(DisparityDetail d) AND disallowLineDisparitiesReturn() AND NOT batch(d) 
+    MESSAGE 'Для строки изменения сортности (возврат) должна быть задана партия';
+CONSTRAINT isPosted(DisparityDetail d) AND disallowLineDisparitiesReturn() AND NOT inputBatch(d) 
+    MESSAGE 'Для строки изменения сортности (приход) должна быть задана партия';
+
+@defineDocumentDetailQuantityPrefix (disparity, , ' (расход)');
+@defineDocumentDetailQuantityPrefix (disparity, input, ' (приход)');
+inputQuantity(DisparityDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
+
+@defineDocumentDetailPricePrefix (disparity, , ' учетная (расход)');
+
+@deriveDocumentDetailPriceAccountBatch (disparity, sku, stock);
+@defineDocumentDetailPricePrefix (disparity, input, ' учетная (приход)');
+inputPrice(DisparityDetail detail) <- price(detail) WHEN CHANGED(price(detail));
+
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, , ' учетная (расход)');
+@deriveDocumentDetailSumPrefix(disparity, , currency, quantity);
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, input, ' учетная (приход)');
+@deriveDocumentDetailSumPrefix(disparity, input, currency, inputQuantity);
+
+@defineDocumentHeaderSumPrefix (disparity, , ' учетная (расход)');
+@defineDocumentHeaderSumPrefix (disparity, input, ' учетная (приход)');
+
+@defineDocumentHeaderQuantityPrefix (disparity, , ' (расход)');
+@defineDocumentHeaderQuantityPrefix (disparity, input, ' (приход)');
+
+@defineAddDetailDialogSkuStock(disparity, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(disparity, sku);
+
+@defineDocumentDetailDiffSumCustomPrefix(disparityDetail, sum, , input, ' изменения учетной');
+diffSumDisparityDetail 'Сумма' (disparity) =
+    GROUP SUM diffSum(DisparityDetail idetail) 
+        BY disparity(idetail) IN documentSum;
+
+@defineDocumentHeaderItemSum (disparity, diff, diff);
+// ------------ Проведение по товарному отчету ----------------- //
+@implementStockDocumentLedgerInc(Disparity, stock);
+type(Disparity l) += STRING[50]('Сортность (возврат)') IF l IS Disparity;
+sumItem (Disparity ledger) += diffSumItemDisparityDetail(ledger);
+sumContainer (Disparity ledger) += diffSumContainerDisparityDetail(ledger);
+
+// ------------ Проведение по регистру ----------------- //
+@implementSkuLedgerOutFIFO(DisparityDetail, sku, stock);
+quantity (DisparityDetail ledger) += quantity(ledger);
+batch(DisparityDetail ledger) += batch(ledger);
+sum (DisparityDetail ledger) += sum(ledger);
+
+stockDocumentLedger(DisparityDetail ledger) += disparity(ledger);
+
+//----------------------------  Изменение остатка пересорт --------------------------------------------//
+
+CLASS InputDisparityDetail 'Приход пересортицы';
+TABLE inputDisparityDetail (InputDisparityDetail);
+
+needToInput (DisparityDetail disparityDetail) = inputQuantity(disparityDetail) > 0
+    AND isPosted(disparityDetail);
+
+inputDisparityDetail = AGGR InputDisparityDetail WHERE needToInput(DisparityDetail disparityDetail) MATERIALIZED INDEXED;
+
+@defineBarcodeSku(disparityDetail);
+
+@defineDocumentAggregationDetailTime(disparity, inputDisparity);
+@defineDocumentAggregationDetailPosted(disparity, inputDisparity);
+@defineDocumentAggregationDetailClosed(disparity, inputDisparity);
+@defineDocumentAggregationDetailStock(disparity, inputDisparity, stock, 'Склад');
+@defineDocumentAggregationDetailSkuPrefix(disparity, inputDisparity, sku, input);
+quantity(InputDisparityDetail inputDisparityDetail) = inputQuantity(disparityDetail(inputDisparityDetail));
+sum(InputDisparityDetail inputDisparityDetail) = inputSum(disparityDetail(inputDisparityDetail));
+description(InputDisparityDetail inputDisparityDetail) = description(disparityDetail(inputDisparityDetail));
+batch(InputDisparityDetail inputDisparityDetail) = inputBatch(disparityDetail(inputDisparityDetail));
+
+@implementSkuLedgerInLIFO(InputDisparityDetail, sku, stock);
+quantity (InputDisparityDetail ledger) += quantity(ledger);
+batch(InputDisparityDetail ledger) += batch(ledger);
+sum (InputDisparityDetail ledger) += sum(ledger);
+
+stockDocumentLedger(InputDisparityDetail ledger) += disparity(disparityDetail(ledger));
+
+//------------------------------------------- Пересорт товара (возврат) ----------------------------------------------------//
+
+FORM disparity 'Изменение сортности (возврат)'
+
+    OBJECTS dis=Disparity PANEL
+
+    PROPERTIES(dis) isPosted, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(dis), 
+                    date, time, quantityDisparityDetail, sumDisparityDetail,
+                    inputQuantityDisparityDetail, inputSumDisparityDetail, note
+
+    OBJECTS d = DisparityDetail
+    PROPERTIES(d)   index,
+                    idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, idBatch, nameBatch ON CHANGE changeBatch(d),
+                    expiryDateBatch,
+                    quantity, price, sum,
+                    inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku,
+                    idInputBatch, nameInputBatch ON CHANGE changeInputBatch(d),
+                    costBatch,
+                    inputQuantity, inputPrice, inputSum
+    PROPERTIES(d)   NEW, deletedd=DELETE GRID
+
+    PROPERTIES(dis) DRAW d addDetailDialogSkuStockDisparityDetail,
+                             addDetailInputBarcodeDisparityDetail, deleteDisparityDetail
+
+    FILTERS         disparity(d) == dis
+
+    EVENTS
+        ON OK prePost(dis)
+
+    EDIT Disparity OBJECT dis
+;
+
+DESIGN disparity {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox {
+                fill = 1;
+                type = CONTAINERV;
+                caption = 'Изменение сортности (возврат)';
+                NEW headerBox {
+                    type = CONTAINERH;
+        
+                    NEW headerRow1 {
+                        fill = 1;
+                        MOVE GROUP(documentHeader,dis) {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(isPosted(dis)) { charWidth = 10; }
+                            MOVE PROPERTY(nameStock(dis));
+                            MOVE PROPERTY(nameNumerator(dis));
+                            MOVE PROPERTY(number(dis));
+                            MOVE PROPERTY(series(dis));
+                            MOVE PROPERTY(date(dis));
+                            MOVE PROPERTY(time(dis));
+                        }
+        
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,dis) {
+                                    type = COLUMNS;
+                                    columns = 2;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
+                        }
+                    }
+        
+                    MOVE GROUP(documentSum,dis) {
+                        columns = 1;
+                    }
+                }
+                NEW specificationBox {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        PROPERTY(sumDisparityDetail(dis)) { charWidth = 13;}
+        PROPERTY(inputSumDisparityDetail(dis)) { charWidth = 13;}
+    }
+}
+
+edit (DisparityDetail d) + {  DIALOG disparity OBJECTS dis = disparity(d), d = d DOCKED; }
+
+show 'Просмотреть' (DisparityDetail d)  { 
+	NEWSESSION {
+	    SHOW disparity OBJECTS dis = disparity(d), d = d DOCKED READONLY;
+	}
+}
+show(DisparityDetail d) + {  show(d); }
+
+//-- SKU
+@defineDocumentSkuStockPriceListTypeSystemLedger(disparity, );
+@extendFormDocumentSkuStock(disparity, disparity, dis, legalEntityStock, );
+EXTEND FORM disparity
+    FILTERS disparityItem(ks)
+;
+@defineDocumentBatchStockPriceListTypeSystemLedger(disparity, );
+
+@defineDocumentHeaderSkuQuantity(disparity, inputSku);
+
+@extendFormDocumentBatchStock(disparity, disparity, dis, legalEntityStock, );
+EXTEND FORM disparity
+    FILTERS disparityItem(sku(b))
+;
+
+
+shipmentDateTime(Disparity disparity) = dateTime(disparity);
+
+@extendFormDocumentSkuStockOrderLedgerOver(disparity, disparity, dis, stock);
+
+@extendFormDocumentSkuStockOrderLedgerAll(disparity, disparity, dis);
+
+@extendFormDocumentBatchStockOrderLedger(disparity, disparity, dis);
+
+close(Disparity l) + {  isClosed(l) <- TRUE; }
+
+EXTEND FORM disparity
+
+    FILTERGROUP filter
+        FILTER 'С остатком ' prevCurrentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(ks, dis, st) 'F9'
+;
+
+EXTEND FORM disparity
+
+    FILTERGROUP filter3
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(b, dis, sto) 'F9'
+;
+
+skipShowEdit = ABSTRACT BOOLEAN (Disparity);
+skipShowDelete = ABSTRACT BOOLEAN (Disparity);
+overShowEditDelete = ABSTRACT BOOLEAN (Disparity);
+
+showEdit (Disparity d) = isOpened(d) AND overShowEditDelete(d) AND NOT skipShowEdit(d); 
+showDelete(Disparity d) = isOpened(d) AND overShowEditDelete(d) AND NOT skipShowDelete(d);
+
+FORM disparities 'Изменения сортности (возврат)'
+
+    OBJECTS dis=Disparity
+    PROPERTIES (dis) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock
+    PROPERTIES(dis)  READONLY countDisparityDetail, quantityDisparityDetail, sumDisparityDetail,
+                              inputQuantityDisparityDetail, inputSumDisparityDetail
+    PROPERTIES (dis) READONLYIF isReadonly() note
+
+    PROPERTIES(dis)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                          postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES (dis) NEWSESSION NEW, EDIT SHOWIF showEdit(dis)
+    PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
+    
+    PROPERTIES (dis) NEWSESSION deleted=DELETE SHOWIF showDelete(dis)
+
+    OBJECTS d=DisparityDetail
+    PROPERTIES(d)   READONLY index,
+                    idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
+                    expiryDateBatch, quantity, price, sum,
+                    inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku,
+                    nameInputBatch, costBatch,
+                    inputQuantity, inputPrice, inputSum
+
+    FILTERS         disparity(d) == dis
+;
+@extendFormFilterAccessStock(Disparity, dis, disparities, stock, company);
+
+DESIGN disparities {
+    BOX {
+        size = (1024, 768);
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            MOVE BOX(dis) {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,dis);
+                    MOVE GROUP(posted,dis);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+@extendFormEditable(disparities);
+@defineFilterIsOpened (disparity, disparities, dis);
+NAVIGATOR {
+    disparityNavigator {
+        NEW disparities;
+    }
+}
+
+//------------------------------------------ Опеределение операции для disparity ------------------------------------//
+
+operation = DATA Disparity.Operation (Disparity) MATERIALIZED;
+nameOperation 'Операция' = name(operation(Disparity disparity));
+
+operation 'Операция' (DisparityDetail disparityDetail) = operation(disparity(disparityDetail));
+
+EXTEND FORM disparity
+    PROPERTIES(dis) nameOperation
+;
+
+DESIGN disparity{
+    GROUP(documentPrm,dis){
+        MOVE PROPERTY(nameOperation(dis)) BEFORE PROPERTY(note(dis));
+    }
+}
+EXTEND FORM disparities
+    PROPERTIES(dis) READONLYIF isReadonly() nameOperation AFTER nameStock(dis)
+;
+
+CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))  
+    AND inputSku(detail) AND sku(detail) 
+    AND NOT inputSku(detail)=disparityItem(sku(detail))
+    CHECKED BY inputSku[DisparityDetail] MESSAGE 'Выбран не уценяемый товар';
+
+WHEN LOCAL FORMS disparity SETCHANGED (sku(DisparityDetail d)) AND NOT CHANGED(inputSku(d)) AND useDisparityItemDisparity(operation(d))
+    AND disparityItem(sku(d)) DO {
+    inputSku(d) <- disparityItem(sku(d));
+}
+
+@defineDocumentOperationConstraint(disparity, 'изменения сортности (возврат)', Disparity);
+@extendFormFilterRoleAccess(disparity, dis, disparities);
+
+operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
+
+//кратность
+rate 'Кратность'  = DATA NUMERIC[15,4] (DisparityDetail);
+
+EXTEND FORM disparity
+    PROPERTIES(d) rate SHOWIF showRate(operation(d)) BEFORE inputIdBarcodeSku(d)
+;
+
+WHEN LOCAL (CHANGED(rate(DisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
+    inputQuantity(d) <- quantity(d)/rate(d);
+    inputPrice(d) <- round2(price(d)*rate(d));
+}
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(disparity, Disparity, preventChangesDocument, created);
+
+overShowEditDelete(Disparity p) += showEditDeleteUser(p);
+
+
+//------------------------------ Переоценка -----------------------------//
+
+@defineDocumentHeaderProperty(disparity, createRepricing, 'Создать акт переоценки');
+@defineDocumentDetailProperty(disparity, disparityDetail, createRepricing, 'Создать акт переоценки');
+
+notConduct 'Не проводить по товарному отчету' = DATA BOOLEAN (Disparity) IN documentPrm;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) notConduct
+;
+
+EXTEND FORM disparity
+    PROPERTIES(dis) notConduct
+;
+
+@deriveDocumentOperationProperty(Disparity, createRepricing);
+@deriveDocumentOperationProperty(Disparity, notConduct);
+
+skip(Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
+
+// Операция переоценки
+@defineDocumentOperationHeaderPrefix(disparity, repricing, Repricing, ' (переоценка)');
+@defineDocumentOperationDetailPrefix(disparity, disparityDetail, repricing, Repricing, ' переоценка');
+
+@deriveDocumentOperationProperty(Disparity, repricingOperation);
+
+// До
+@defineDocumentTimePrefix(disparity, before, ' документа до');
+@deriveDocumentHeaderTimePrefix(Disparity, before);
+
+@defineDocumentDetailPricePrefix(disparity, curInput, ' поставщика до');
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInput, ' поставщика до');
+@deriveDocumentDetailSumPrefix(disparity, curInput, currency, inputQuantity);
+
+overCurInputRepricingPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail) MATERIALIZED;
+curInputRepricingPrice (DisparityDetail detail) = OVERRIDE overCurInputRepricingPrice(detail), curInputPrice(detail) MATERIALIZED;
+
+@defineDocumentDetailPricePrefix(disparity, curInputRetail, ' розничная до');
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInputRetail, ' розничная до');
+@deriveDocumentDetailSumPrefix(disparity, curInputRetail, currency, inputQuantity);
+@defineDocumentDetailVAT(disparity, countryStock, curInput, ' до');
+@deriveDocumentDetailValueVAT(disparity, curInput);
+
+@defineDocumentDetailMarkupPrefix (disparity, curInput, ' до');
+curInputMarkup(DisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    curInputRetailPrice(disparityDetail),
+    valueCurInputVAT(disparityDetail),
+    curInputRepricingPrice(disparityDetail))
+    WHEN CHANGED(curInputRetailPrice(disparityDetail)) OR CHANGED (valueCurInputVAT(disparityDetail)) OR CHANGED(curInputRepricingPrice(disparityDetail));
+
+@defineDocumentDetailVATDataSumCustomPrefix (disparityDetail, curInput, ' до');
+@deriveDocumentDetailReverseVATSumPrefix(disparity, curInput, curInputRetail);
+@defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, curInput, ' до');
+@deriveDocumentDetailMarkupSumPrefix(disparity, curInput, curInputRetail, curInput);
+
+curInputPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                        sku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail)) OR
+                                                     CHANGED(rate(detail));
+
+@deriveDocumentDetailVAT (disparity, curInput, beforeDate, sku, stock);
+
+curInputRetailPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                        sku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail))OR
+                                                     CHANGED(rate(detail));
+
+@changeDocumentDetailMarkupCustomPrefix(disparityDetail, curInputRetail, curInput, curInput, curInput);
+roundCondition(DisparityDetail disparityDetail) = roundCondition(stock(disparityDetail));
+@changeDocumentDetailPriceCustomPrefix(disparityDetail, curInputRetail, curInputRepricing, curInput, curInput);
+
+// После
+@defineDocumentDetailPricePrefix (disparity, afterInput, ' поставщика после');
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInput, ' поставщика после');
+@deriveDocumentDetailSumPrefix(disparity, afterInput, currency, inputQuantity);
+
+overAfterInputRepricingPrice = ABSTRACT NUMERIC[16,4] (DisparityDetail) MATERIALIZED;
+afterInputRepricingPrice (DisparityDetail detail) = OVERRIDE overAfterInputRepricingPrice(detail), afterInputPrice(detail) MATERIALIZED;
+
+@defineDocumentDetailPricePrefix(disparity, afterInputRetail, ' розничная после');
+@defineDocumentDetailDataSumCustomPrefix (disparityDetail, afterInputRetail, ' розничная после');
+@deriveDocumentDetailSumPrefix(disparity, afterInputRetail, currency, inputQuantity);
+
+@defineDocumentDetailVAT(disparity, countryStock, afterInput, ' после');
+@deriveDocumentDetailValueVAT(disparity, afterInput);
+
+@defineDocumentDetailVATDataSumCustomPrefix (disparityDetail, afterInput, ' после');
+@deriveDocumentDetailReverseVATSumPrefix(disparity, afterInput, afterInputRetail);
+@defineDocumentDetailMarkupPrefix (disparity, afterInput, ' после');
+afterInputMarkup(DisparityDetail disparityDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    afterInputRetailPrice(disparityDetail),
+    valueAfterInputVAT(disparityDetail),
+    afterInputRepricingPrice(disparityDetail))
+    WHEN CHANGED(afterInputPrice(disparityDetail)) OR CHANGED (valueAfterInputVAT(disparityDetail)) OR CHANGED(afterInputRepricingPrice(disparityDetail));
+
+@defineDocumentDetailMarkupSumCustomPrefix (disparityDetail, afterInput, ' после');
+@deriveDocumentDetailMarkupSumPrefix(disparity, afterInput, afterInputRetail, afterInput);
+
+afterInputPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                        inputSku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(inputSku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail)) OR
+                                                     CHANGED(rate(detail));
+
+afterInputVAT(DisparityDetail detail) <- curInputVAT(detail) WHEN CHANGED (curInputVAT(detail));
+
+afterInputRetailPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                        inputSku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail))/(OVERRIDE rate(detail), 1))
+                                                WHEN DO CHANGED(inputSku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail))OR
+                                                     CHANGED(rate(detail));
+
+@changeDocumentDetailMarkupCustomPrefix(disparityDetail, afterInputRetail, afterInput, afterInput, afterInput);
+@changeDocumentDetailPriceCustomPrefix(disparityDetail, afterInputRetail, afterInputRepricing, afterInput, afterInput);
+
+@defineDocumentDetailDiffSumCustomPrefix (disparityDetail, retailSum, afterInput, curInput, ' переоценки');
+@defineDocumentHeaderSumPrefix(disparity, diffRetail, ' переоценки');
+
+needToRepricing (DisparityDetail disparityDetail) = curInputRetailPrice(disparityDetail) != afterInputRetailPrice(disparityDetail)
+                                               AND inputQuantity(disparityDetail) != 0 AND stock(disparityDetail) IS DepartmentStore
+                                               AND NOT costLedger(stock(disparityDetail))
+                                               AND createRepricing(disparityDetail) MATERIALIZED;
+
+needToRepricing (disparity)= GROUP SUM 1 IF needToRepricing(DisparityDetail disparityDetail)
+    BY disparity(disparityDetail) MATERIALIZED;
+
+@defineDocumentHeaderRepricingCommittee(disparity, stock);
+
+CLASS DisparityRepricing 'Акт переоценки (сортность-возврат)': Repricing;
+CLASS DisparityRepricingDetail 'Строка акта переоценки (сортность-возврат)': RepricingDetail;
+
+@defineDocumentTables(disparityRepricing);
+
+@defineDocumentAggregation(disparity, disparityRepricing, needToRepricing);
+@defineDocumentAggregationTimePrefix(disparity, disparityRepricing, before);
+
+repricing(DisparityRepricingDetail detail) += disparityRepricing(detail);
+
+index(DisparityRepricingDetail detail) += index(detail);
+
+date(DisparityRepricing repricing) += date(repricing);
+time(DisparityRepricing repricing) += time(repricing);
+
+beforeDate(DisparityRepricing repricing) += beforeDate(repricing);
+beforeTime(DisparityRepricing repricing) += beforeTime(repricing);
+
+operation (DisparityRepricing repricing)+= repricingOperation(disparity(repricing));
+changeSupplierPrice (DisparityRepricing repricing)+= changeSupplierPrice(repricingOperation(disparity(repricing)));
+negativeMarkupOnAccount90 (DisparityRepricing repricing)+= negativeMarkupOnAccount90(repricingOperation(disparity(repricing)));
+
+printRepricing 'Акт переоценки' (Disparity disparity)  { print(disparityRepricing(disparity)); } IMAGE 'print.png' IN print;
+
+@defineDocumentAggregationStockPrefix(disparity, disparityRepricing, , 'Склад', , );
+departmentStore(DisparityRepricing repricing) += stock(repricing) AS DepartmentStore;
+
+@defineDocumentAggregationPosted(disparity, disparityRepricing);
+isPosted(DisparityRepricing repricing) += isPosted(repricing);
+
+@defineDocumentAggregationClosed(disparity, disparityRepricing);
+isClosed(DisparityRepricing repricing) += isClosed(repricing);
+
+number 'Номер документа' (DisparityRepricing disparityRepricing) = number(disparity(disparityRepricing));
+number(DisparityRepricing repricing) += number(repricing);
+
+series 'Серия документа' (DisparityRepricing disparityRepricing) = series(disparity(disparityRepricing));
+series(DisparityRepricing repricing) += series(repricing);
+
+seriesNumber 'Серия/номер документа' (DisparityRepricing disparityRepricing) = seriesNumber(disparity(disparityRepricing));
+
+noteDisparity 'Примечание' (DisparityRepricing disparityRepricing) = note(disparity(disparityRepricing));
+note(DisparityRepricing repricing) += noteDisparity(repricing);
+
+currency  (DisparityRepricing disparityRepricing) = currency(disparity(disparityRepricing));
+currency (DisparityRepricing repricing) += currency(repricing);
+repricingCommittee(DisparityRepricing repricing) += repricingCommittee(disparity(repricing));
+numberDisposal(DisparityRepricing repricing) += dataNumberDisposal(disparity(repricing));
+
+@defineDocumentDescription(disparityRepricing, DisparityRepricingDetail, 'Акт переоценки (сортность-возврат)');
+description (DisparityRepricing repricing) += description(repricing);
+
+sku (DisparityRepricingDetail repricingDetail) = inputSku(disparityDetail(repricingDetail));
+
+sku(DisparityRepricingDetail repricingDetail) +=  sku(repricingDetail);
+
+edit(DisparityRepricingDetail d) + {  edit(disparityDetail(d)); }
+show(DisparityRepricingDetail d) + {  show(disparityDetail(d)); }
+
+backgroundCur 'Цвет' (Disparity disparity) = RGB(255, 255, 224) IF disparity IS Disparity;
+backgroundAfter 'Цвет' (Disparity disparity) = RGB(255, 255, 200) IF disparity IS Disparity;
+
+showCreateRepricing (Disparity disparity) = stock(disparity) IS DepartmentStore AND NOT costLedger(stock(disparity));
+
+@defineDocumentAbstractDetailBatchCustom(disparityRepricingDetail, batch);
+
+batch(DisparityRepricingDetail detail) += inputBatch(disparityDetail(detail));
+batch[RepricingDetail](DisparityRepricingDetail detail) += batch(detail);
+
+EXTEND FORM disparity
+    PROPERTIES(dis)   SHOWIF showCreateRepricing(dis) BACKGROUND backgroundCur(dis) createRepricing
+    PROPERTIES(dis)   BACKGROUND backgroundCur(dis) SHOWIF createRepricing(dis) nameRepricingOperation,
+                      nameRepricingCommittee, dataNumberDisposal, beforeDate
+    PROPERTIES(dis)   BACKGROUND backgroundAfter(dis) SHOWIF createRepricing(dis) diffRetailSumDisparityDetail
+
+    PROPERTIES(d)   BACKGROUND backgroundCur(dis) SHOWIF createRepricing(dis) BEFORE deletedd
+                    curInputPrice, curInputSum,
+                    curInputMarkup ON CHANGE changeCurInputMarkup(d), curInputMarkupSum,
+                    numberCurInputVAT, valueCurInputVAT, curInputVATSum,
+                    curInputRetailPrice ON CHANGE changeCurInputRetailPrice(d), curInputRetailSum
+    PROPERTIES(d)   BACKGROUND backgroundAfter(dis) SHOWIF createRepricing(dis) BEFORE deletedd
+                    afterInputPrice, afterInputSum,
+                    afterInputMarkup ON CHANGE changeAfterInputMarkup(d), afterInputMarkupSum,
+                    numberAfterInputVAT, valueAfterInputVAT, afterInputVATSum,
+                    afterInputRetailPrice ON CHANGE changeAfterInputRetailPrice(d), afterInputRetailSum
+;
+DESIGN disparity {
+    headerCreateDocuments {
+        NEW headerRepricing {
+            caption = 'Переоценка';
+            type = COLUMNS;
+            columns = 2;
+            MOVE PROPERTY(createRepricing(dis));
+            MOVE PROPERTY(nameRepricingOperation(dis));
+            MOVE PROPERTY(nameRepricingCommittee(dis));
+            MOVE PROPERTY(dataNumberDisposal(dis));
+            MOVE PROPERTY(beforeDate(dis));
+        }
+    }
+    PROPERTY(diffRetailSumDisparityDetail(dis)) { charWidth = 13;}
+}
+
+EXTEND FORM disparities
+    PROPERTIES(dis) READONLY BACKGROUND backgroundCur(dis) createRepricing, diffRetailSumDisparityDetail AFTER inputSumDisparityDetail(dis)
+    PROPERTIES(dis)   printRepricing SHOWIF createRepricing(dis)
+
+    PROPERTIES(d)   READONLY BACKGROUND backgroundCur(dis) SHOWIF createRepricing(dis)
+                    curInputPrice, curInputSum,
+                    curInputMarkup, curInputMarkupSum,
+                    numberCurInputVAT, valueCurInputVAT, curInputVATSum,
+                    curInputRetailPrice, curInputRetailSum
+    PROPERTIES(d)   READONLY BACKGROUND backgroundAfter(dis) SHOWIF createRepricing(dis)
+                    afterInputPrice, afterInputSum,
+                    afterInputMarkup, afterInputMarkupSum,
+                    numberAfterInputVAT, valueAfterInputVAT, afterInputVATSum,
+                    afterInputRetailPrice, afterInputRetailSum
+
+;
+DESIGN disparities {
+    printTab {
+        MOVE GROUP(print,dis);
+    }
+}
+
+//----------------------------------------------------------------------------------------------------------
+quantity(DisparityRepricingDetail repricingDetail) += inputQuantity(disparityDetail(repricingDetail));
+
+price(DisparityRepricingDetail repricingDetail) += afterInputPrice(disparityDetail(repricingDetail));
+curPrice(DisparityRepricingDetail repricingDetail) += curInputPrice(disparityDetail(repricingDetail));
+
+retailPrice(DisparityRepricingDetail repricingDetail) += afterInputRetailPrice(disparityDetail(repricingDetail));
+curRetailPrice(DisparityRepricingDetail repricingDetail) += curInputRetailPrice(disparityDetail(repricingDetail));
+
+retailSum(DisparityRepricingDetail repricingDetail) += afterInputRetailSum(disparityDetail(repricingDetail));
+curRetailSum(DisparityRepricingDetail repricingDetail) += curInputRetailSum(disparityDetail(repricingDetail));
+
+markup(DisparityRepricingDetail repricingDetail) += afterInputMarkup(disparityDetail(repricingDetail));
+curMarkup(DisparityRepricingDetail repricingDetail) += curInputMarkup(disparityDetail(repricingDetail));
+
+VAT(DisparityRepricingDetail repricingDetail) += afterInputVAT(disparityDetail(repricingDetail));
+curVAT(DisparityRepricingDetail repricingDetail) += curInputVAT(disparityDetail(repricingDetail));
+
+valueVAT(DisparityRepricingDetail repricingDetail) += valueAfterInputVAT(disparityDetail(repricingDetail));
+valueCurVAT(DisparityRepricingDetail repricingDetail) += valueCurInputVAT(disparityDetail(repricingDetail));
+
+sum(DisparityRepricingDetail repricingDetail) += afterInputSum(disparityDetail(repricingDetail));
+curSum(DisparityRepricingDetail repricingDetail) += curInputSum(disparityDetail(repricingDetail));
+
+VATSum(DisparityRepricingDetail repricingDetail) += afterInputVATSum(disparityDetail(repricingDetail));
+curVATSum(DisparityRepricingDetail repricingDetail) += curInputVATSum(disparityDetail(repricingDetail));
+
+markupSum(DisparityRepricingDetail repricingDetail) += afterInputMarkupSum(disparityDetail(repricingDetail));
+curMarkupSum(DisparityRepricingDetail repricingDetail) += curInputMarkupSum(disparityDetail(repricingDetail));
+
+
+edit(DisparityRepricing repricing) + {  edit(disparity(repricing)); }
+
+skipChangeLedger(DisparityRepricing r) += TRUE IF r IS DisparityRepricing;
+
+replaceBefore(Sku i, Sku item) + { 
+    curInputPrice(DisparityDetail disparityDetail) <- curInputPrice(disparityDetail) WHERE sku(disparityDetail) = i;
+    curInputRetailPrice(DisparityDetail disparityDetail) <- curInputRetailPrice(disparityDetail) WHERE sku(disparityDetail) = i;
+}
