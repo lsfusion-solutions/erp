@@ -108,8 +108,11 @@ CONSTRAINT sku(dataBarcode(Sku item)) != item CHECKED BY dataBarcode[Sku] MESSAG
 
 replace(Sku s, Sku d) + { sku(Barcode barcode) <- d WHERE sku(barcode) == s;}
 
-barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), [ GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode)
-                        BY sku(barcode)](sku) MATERIALIZED INDEXED;
+overPrimaryBarcode (Sku s) = ABSTRACT Barcode (Sku);
+barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), 
+                        overPrimaryBarcode(sku),
+                        [ GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode) BY sku(barcode)](sku) 
+                        MATERIALIZED INDEXED;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
 changePrimary(Barcode barcode, Sku sku)  { 
