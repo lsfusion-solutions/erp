@@ -360,38 +360,38 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
 
     FOR Purchase.userInvoice(idDoc(INTEGER i)) AND NOT Purchase.userInvoiceDetail(idDet(i)) DO NEW det = Purchase.UserInvoiceDetail {
         Purchase.userInvoice(det) <- Purchase.userInvoice(idDoc(i));
-        sku(det) <- item(idItem(i));
         id(det) <- idDet(i);
-        quantity(det) <- OVERRIDE blankquantity(i), quantity(i);
     }
-
+       
     FOR Purchase.UserInvoiceDetail det = Purchase.userInvoiceDetail(idDet(INTEGER i)) AND NOT currentVersion(i) = Purchase.lastVersion(det) DO {
         sku(det) <- item(idItem(i));
         shipmentQuantity(det) <- quantity(i);
-//        pricingQuantity(det) <- quantity(i);
+////        pricingQuantity(det) <- quantity(i);
         quantity(det) <- OVERRIDE blankquantity(i), quantity(i);
         invoicePrice(det) <- NUMERIC[16,2](round(itemPrice(i),2));
         price(det) <- NUMERIC[16,2](round(itemPriceNoTax(i),2));
-//          поменяли логику теперь "количество" в СМ = "принято" в Fusion, "количество по док" в СМ = "количество" в Fusion
-//          а сумм по документу в СМ нет :(, считаем сами
-        invoiceSum(det) <- NUMERIC[16,2](round(quantity(det)*invoicePrice(det),2));
-        sum(det) <- NUMERIC[16,2](round(quantity(det)*price(det),2));
+////          поменяли логику теперь "количество" в СМ = "принято" в Fusion, "количество по док" в СМ = "количество" в Fusion
+////          а сумм по документу в СМ нет :(, считаем сами
+////        invoiceSum(det) <- NUMERIC[16,2](round(quantity(det)*invoicePrice(det),2));
+////        sum(det) <- NUMERIC[16,2](round(quantity(det)*price(det),2));
         VAT(det) <- OVERRIDE valueCurrentVAT(countrySupplierStock(det), taxRate(i)), VAT(sku(det));
-        VATSum(det) <- invoiceSum(det) - sum(det);
         dataIndex(det) <- specItem(i);
         manufacturingPrice(det) <- priceManufacturer(i);
-        manufacturingMarkup(det) <-  extracharge(i);
-        retailVAT(det) <- VAT(sku(det));
+        manufacturingMarkup(det) <- CASE WHEN calcManufacturingMarkupFromPrices(det) THEN NUMERIC[8,3]( (calcBaseManufacturingPrice(det) / manufacturingPrice(det) - 1) *100)      
+                                                                                     ELSE calcManufacturingMarkup(det);        
+
+//        retailVAT(det) <- VAT(sku(det));
         retailPriceListType(det) <- OVERRIDE retailPriceListType(det),  IF prevPriceA(calcRetailPriceListType(det), sku(det), retailStock(det), pricingDateTime(det))
                                                                            THEN calcRetailPriceListType(det)
                                                                            ELSE OVERRIDE extraCalcRetailCalcPriceListType(det), calcRetailCalcPriceListType(det);
-        retailPrice(det) <- OVERRIDE retailPrice(det), retailPrice(i);
-        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);
-        retailMarkup(det) <- OVERRIDE retailMarkup(det), calcRetailMarkup(det);
+//        retailPrice(det) <- OVERRIDE retailPrice(det), retailPrice(i);
+//        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);
+ //       retailMarkup(det) <- OVERRIDE retailMarkup(det), calcRetailMarkup(det);
         imported(det) <- TRUE;
         connectOrder(det);        
         lastVersion(det) <- currentVersion(i);
-   }
+    }
+    executeLocalEvents('Purchase.UserInvoice');
    
     APPLY;           
 }
