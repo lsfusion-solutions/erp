@@ -148,10 +148,10 @@ importItem 'Импорт товаров' () {
     FOR Item s = item(id(INTEGER i)) AND imported(s) DO {    
         VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();    
     }
-       
-    EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE FROM Supermag.SVStoreUnits' TO SupermagSettings.file;
+      
+    EXTERNAL SQL connectionString() EXEC 'SELECT BARCODE, ARTICLE, QUANTITY, FLAGS FROM Supermag.SVStoreUnits' TO SupermagSettings.file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO name, id;
+    IMPORT TABLE FROM SupermagSettings.file() TO name, id, quantity, flags;
         
     name(INTEGER i) <- left(name(i), 15);
     //весовой товар 
@@ -163,8 +163,9 @@ importItem 'Импорт товаров' () {
     FOR Barcode b = barcode(name(INTEGER i)) AND Item s = item(id(i)) DO {
         sku(b) <- s;
         transportPack(b) <- NULL;
-        dataAmount(b) <- NULL;
+        dataAmount(b) <- quantity(i); // 11.08  я добавил импорт множителя 
         barcode(s) <- b;
+//        dataBarcode(s) <- b IF flags(i) = 9; // 11.08 не проверял значения флага в СМ
         imported(b) <- TRUE;
     }
     
