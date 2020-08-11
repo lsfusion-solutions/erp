@@ -11,6 +11,7 @@ public class ScalesSettings implements Serializable{
     private boolean capitalLetters;
     private Integer advancedClearMaxPLU;
     private boolean notInvertPrices; //временная опция для BizerbaBS
+    private Integer descriptionLineLength;
 
     public ScalesSettings() {}
 
@@ -77,5 +78,13 @@ public class ScalesSettings implements Serializable{
 
     public void setNotInvertPrices(boolean notInvertPrices) {
         this.notInvertPrices = notInvertPrices;
+    }
+
+    public Integer getDescriptionLineLength() {
+        return descriptionLineLength;
+    }
+
+    public void setDescriptionLineLength(Integer notInvertPrices) {
+        this.descriptionLineLength = descriptionLineLength;
     }
 }

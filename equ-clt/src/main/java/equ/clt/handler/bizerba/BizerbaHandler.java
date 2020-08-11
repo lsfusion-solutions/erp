@@ -79,17 +79,21 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
         boolean capitalLetters = bizerbaSettings != null && bizerbaSettings.isCapitalLetters();
         boolean notInvertPrices = bizerbaSettings != null && bizerbaSettings.isNotInvertPrices();
-        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices);
+        Integer descriptionLineLength = (bizerbaSettings != null ? bizerbaSettings.getDescriptionLineLength() : null);
+        if (descriptionLineLength == null) descriptionLineLength = 750;
+        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength);
     }
 
     class BizerbaSendTransactionTask extends SendTransactionTask {
         boolean capitalLetters;
         boolean notInvertPrices;
+        int descriptionLineLength;
 
-        public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters, boolean notInvertPrices) {
+        public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters, boolean notInvertPrices, int descriptionLineLength) {
             super(transaction, scales);
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
+            this.descriptionLineLength = descriptionLineLength;
         }
 
         @Override
@@ -121,7 +125,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices);
+                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices, descriptionLineLength);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {
@@ -409,19 +413,19 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return null;
     }
 
-    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item) {
+    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, int descriptionLineLength) {
         OrderedMap<Integer, String> messageMap = new OrderedMap<>();
         Integer pluNumber = getPluNumber(item);
         int count = 0;
         String description = trimToEmpty(item.description);
         if(!description.isEmpty()) {
-            if(description.length() > 3000)
-                description = description.substring(0, 2999);
+            if(description.length() > descriptionLineLength * 4)
+                description = description.substring(0, descriptionLineLength * 4 - 1);
             List<String> splittedMessage = new ArrayList<>();
             for (String line : description.split("\\\\n")) {
-                while (line.length() > 750) {
-                    splittedMessage.add(line.substring(0, 749));
-                    line = line.substring(749);
+                while (line.length() > descriptionLineLength) {
+                    splittedMessage.add(line.substring(0, descriptionLineLength - 1));
+                    line = line.substring(descriptionLineLength - 1);
                 }
                 splittedMessage.add(line);
             }
@@ -430,8 +434,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
             for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
                 String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
                 line = line.replace('@', 'a');
-                if (line.length() >= 750) {
-                    line = line.substring(0, 749);
+                if (line.length() >= descriptionLineLength) {
+                    line = line.substring(0, descriptionLineLength - 1);
                 }
                 int messageNumber = pluNumber * 10 + count;
                 messageMap.put(messageNumber, line);
@@ -445,7 +449,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters, boolean notInvertPrices) {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters, boolean notInvertPrices, int descriptionLineLength) {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -459,7 +463,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         int department = 1;
         boolean manualWeight = false;
 
-        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item);
+        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, descriptionLineLength);
         String result = loadPLUMessages(errors, port, scales, messageMap, item, scales.port);
         if(result != null) {
             return result;
