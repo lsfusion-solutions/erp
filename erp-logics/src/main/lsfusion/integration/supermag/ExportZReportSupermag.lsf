@@ -35,8 +35,6 @@ WHEN SET(changeDoc(RetailSales i)) OR SET (changeDocDetail(i)) OR SET(changeDocR
     dateTimeChange(i)<- currentDateTime();  
 }
 
-
-
 FORM exportZReportMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 //-- продажи
@@ -70,11 +68,20 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES d2 = NUMERIC[18,4](price(d)/curRate(d)) EXTID 'ITEMPRICECUR'                
     PROPERTIES d4 = round2((sum[SaleLedger](d) (-) sumVAT[SaleLedger](d))/quantity[SaleLedger](d)) EXTID 'ITEMPRICENOTAX'   
     PROPERTIES = quantity[SaleLedger] (d) EXTID 'QUANTITY'  
-    PROPERTIES = OVERRIDE sum[SaleLedger](d), 99999 EXTID 'TOTALPRICE'   
-    PROPERTIES d3 =  NUMERIC[18,4](sum[SaleLedger](d)/curRate(d)) EXTID 'TOTALPRICECUR'                
-    PROPERTIES d5 = (sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)) EXTID 'TOTALPRICENOTAX'         
+    PROPERTIES = OVERRIDE sum[SaleLedger](d), 0 EXTID 'TOTALPRICE'   
+    PROPERTIES d3 =  OVERRIDE NUMERIC[18,4](sum[SaleLedger](d)/curRate(d)), 0 EXTID 'TOTALPRICECUR'                
+    PROPERTIES d5 = OVERRIDE (sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)), 0 EXTID 'TOTALPRICENOTAX'         
     FILTERS stockDocumentLedger(d)==i,
             inc(i)                                         
+
+    OBJECTS d2 = ReceiptSaleSkuLedger   EXTID 'SMSPECCASHDISC' IN CS
+    PROPERTIES = STRING[100](STRING[30](LONG(stockDocumentLedger(d2)))) EXTID 'DOCID'    
+    PROPERTIES = 'CS' IF d2 IS ReceiptSaleSkuLedger EXTID 'DOCTYPE'      
+    PROPERTIES = index(d2) EXTID 'SPECITEM'        
+    PROPERTIES = 2 IF d2 IS ReceiptSaleSkuLedger EXTID 'DISCKIND'        
+    PROPERTIES = OVERRIDE discountSum[SaleLedger](d2), 0 EXTID 'DISCKSUM'
+    PROPERTIES = OVERRIDE sum[SaleLedger](d), 0 EXTID 'TOTALSUM'            
+    FILTERS stockDocumentLedger(d2)==i                              
                                                                            
     OBJECTS dd = ReceiptSaleSkuLedger   EXTID 'SMSPECTAX' IN CS
     PROPERTIES = STRING[100](STRING[30](LONG(stockDocumentLedger(dd)))) EXTID 'DOCID'    
@@ -82,7 +89,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS ReceiptSaleSkuLedger  EXTID 'TAXID'        
     PROPERTIES = valueVAT[SaleLedger](dd) EXTID 'TAXRATE'
-    PROPERTIES = sumVAT[SaleLedger](dd) EXTID 'TAXSUM'            
+    PROPERTIES = OVERRIDE sumVAT[SaleLedger](dd),0 EXTID 'TAXSUM'            
     FILTERS stockDocumentLedger(dd)==i                              
 ; 
 GROUP CR;
@@ -208,5 +215,9 @@ exportZReportMag() {
     FOR date(RetailSales s AS RetailSales) > DATE(startDate(departmentStore(s))) AND dateTimeChange(s) DO {
         exportZReportMag(s);
     }
+    
+FOR ReceiptSaleDetail s IF s IS ReceiptSaleDetail AND id(sku(s))='0612148' AND id(departmentStore(s)) = '70'  AND date(s) = DATE ( startDate(departmentStore(s))) DO {
+   MESSAGE number(receipt(s));
+}    
 }
 
