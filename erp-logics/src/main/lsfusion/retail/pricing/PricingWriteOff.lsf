@@ -87,13 +87,14 @@ showPricing (WriteOff writeOff) = showCreatePricing (writeOff) AND NOT createPri
 toShowPricing (WriteOff writeOff) = showCreatePricing (writeOff) AND createPricing(writeOff);
 
 backgroundRetail 'Цвет' (WriteOff writeOff) = RGB(224, 255, 255) IF writeOff IS WriteOff;
+overShowPricing = ABSTRACT BOOLEAN (WriteOff);
 
 EXTEND FORM userWriteOff
     PROPERTIES(w) SHOWIF showCreatePricing(w) BACKGROUND backgroundRetail(w) createPricing
     PROPERTIES(w) SHOWIF createPricing(w) BACKGROUND backgroundRetail(w)
                   namePricingOperation, namePricingCommittee, retailSumUserWriteOffDetail
 
-    PROPERTIES(d) BEFORE deletewd SHOWIF createPricing[WriteOff](w) BACKGROUND backgroundRetail(w)
+    PROPERTIES(d) BEFORE deletewd SHOWIF createPricing[WriteOff](w) AND overShowPricing(w) BACKGROUND backgroundRetail(w)
                   supplierPrice, supplierSum,
                   retailMarkup ON CHANGE changeRetailMarkup(d), retailMarkupSum, numberRetailVAT,
                   valueRetailVAT, retailVATSum,
@@ -112,7 +113,7 @@ DESIGN userWriteOff {
 }
 EXTEND FORM writeOffs
     PROPERTIES(w) READONLY BACKGROUND backgroundRetail(w) retailSumWriteOffDetail AFTER sumWriteOffDetail(w)
-    PROPERTIES(d) READONLY SHOWIF createPricing(w) BACKGROUND backgroundRetail(w)
+    PROPERTIES(d) READONLY SHOWIF createPricing(w) AND overShowPricing(w) BACKGROUND backgroundRetail(w)
                   supplierPrice, supplierSum,
                   retailMarkup, retailMarkupSum, numberRetailVAT,
                   valueRetailVAT, retailVATSum,
