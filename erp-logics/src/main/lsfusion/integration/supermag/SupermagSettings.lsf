@@ -22,11 +22,13 @@ EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), passwor
 
 inImport 'Отм.' = DATA BOOLEAN (Stock);
 stocksImport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inImport(st), ',' ORDER id(st) CHARWIDTH 50;
+startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
 
 FORM dialogDepartmentStoresImport 'Склады'
     OBJECTS d = Stock
     PROPERTIES (d) inImport
-    PROPERTIES (d) READONLY id, name, nameStore
+    PROPERTIES (d) READONLY id, name, nameStore    
+    PROPERTIES (d) startDate
     FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' inImport(d)
