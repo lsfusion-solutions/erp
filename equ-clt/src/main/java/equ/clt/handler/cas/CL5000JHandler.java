@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
-import java.util.concurrent.*;
 
 public class CL5000JHandler extends DefaultScalesHandler {
 
@@ -245,20 +244,9 @@ public class CL5000JHandler extends DefaultScalesHandler {
 
     private int receiveReply(DataSocket socket) {
         try {
-            final Future<Integer> future = Executors.newSingleThreadExecutor().submit((Callable) () -> {
-                byte[] buffer = new byte[255];
-                socket.inputStream.read(buffer);
-                return buffer[14] == 58 ? 0 : buffer[14]; //это либо байт ошибки, либо первый байт хвоста (:)
-            });
-
-            int result;
-            try {
-                result = future.get(30000, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                future.cancel(true);
-                result = -2;
-            }
-            return result;
+            byte[] buffer = new byte[255];
+            socket.inputStream.read(buffer);
+            return buffer[14] == 58 ? 0 : buffer[14]; //это либо байт ошибки, либо первый байт хвоста (:)
         } catch (Exception e) {
             return -1;
         }
@@ -342,7 +330,6 @@ public class CL5000JHandler extends DefaultScalesHandler {
 
     private String getErrorMessage(int errorNumber) {
         switch(errorNumber) {
-            case -2: return "TimeoutException. Check logs";
             case -1: return "Exception occurred. Check logs";
             case 82: return "number is over";
             case 84: return "Header, tail or CK fail";
