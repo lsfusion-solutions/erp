@@ -35,6 +35,8 @@ WHEN SET(changeDoc(RetailSales i)) OR SET (changeDocDetail(i)) OR SET(changeDocR
     dateTimeChange(i)<- currentDateTime();  
 }
 
+sumItems (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d)) IF stockDocumentLedger(d)==i;
+
 FORM exportZReportMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 //-- продажи
@@ -55,8 +57,11 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
     PROPERTIES = 1 IF i IS RetailSales  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 3 IF i IS RetailSales  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
-    PROPERTIES = (sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)) EXTID 'TOTALSUM' IN SMDOCUMENTS 
-    PROPERTIES i1 = NUMERIC[18,4]((sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger))/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                       
+    PROPERTIES = sumItems(i) EXTID 'TOTALSUM' IN SMDOCUMENTS
+//    PROPERTIES = sumItem(i) EXTID 'TOTALSUM2' IN SMDOCUMENTS
+    PROPERTIES = NUMERIC[18,4](sumItems(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS 
+//    PROPERTIES = (sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)) EXTID 'TOTALSUM' IN SMDOCUMENTS 
+//    PROPERTIES i1 = NUMERIC[18,4]((sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger))/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                       
                            
     OBJECTS d = ReceiptSaleSkuLedger   EXTID 'SMSPEC' IN CS
     PROPERTIES = STRING[100](STRING[30](LONG(stockDocumentLedger(d)))) EXTID 'DOCID'    
