@@ -35,7 +35,8 @@ WHEN SET(changeDoc(RetailSales i)) OR SET (changeDocDetail(i)) OR SET(changeDocR
     dateTimeChange(i)<- currentDateTime();  
 }
 
-sumItems (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d)) IF stockDocumentLedger(d)==i;
+sumRetailSales (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptSaleSkuLedger;
+sumRetailSalesCur (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d) / curRate(i)) IF stockDocumentLedger(d)==i AND d IS ReceiptSaleSkuLedger;
 
 FORM exportZReportMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
@@ -47,7 +48,7 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[100]('CS'+STRING[30](LONG(i))) EXTID 'Id'
     PROPERTIES = STRING[100](LONG(i)) EXTID 'ID' IN SMDOCUMENTS
     PROPERTIES = 'CS' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS    
-//    PROPERTIES = idSupermag((i)) EXTID 'BORNIN' IN SMDOCUMENTS    
+    PROPERTIES = baseIDSupermag() IF i IS RetailSales EXTID 'BORNIN' IN SMDOCUMENTS    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS
     PROPERTIES = 0 IF i IS RetailSales EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS 
@@ -57,10 +58,9 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATIONFROM' IN SMDOCUMENTS  
     PROPERTIES = 1 IF i IS RetailSales  EXTID 'OPCODE' IN SMDOCUMENTS      
     PROPERTIES = 3 IF i IS RetailSales  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS     
-    PROPERTIES = sumItems(i) EXTID 'TOTALSUM' IN SMDOCUMENTS
-//    PROPERTIES = sumItem(i) EXTID 'TOTALSUM2' IN SMDOCUMENTS
-    PROPERTIES = NUMERIC[18,4](sumItems(i)/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS 
-//    PROPERTIES = (sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)) EXTID 'TOTALSUM' IN SMDOCUMENTS 
+    PROPERTIES = sumRetailSales(i) EXTID 'TOTALSUM' IN SMDOCUMENTS
+    PROPERTIES = NUMERIC[18,4](sumRetailSalesCur(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS 
+//    PROPERTIES = (sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)) EXTID 'TOTALSUM3' IN SMDOCUMENTS 
 //    PROPERTIES i1 = NUMERIC[18,4]((sumItem(i) (-) (GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger))/curRate(i)) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS                       
                            
     OBJECTS d = ReceiptSaleSkuLedger   EXTID 'SMSPEC' IN CS
@@ -75,7 +75,8 @@ FORM exportZReportMag FORMEXTID 'PACKAGE'
     PROPERTIES = quantity[SaleLedger] (d) EXTID 'QUANTITY'  
     PROPERTIES = OVERRIDE sum[SaleLedger](d), 0 EXTID 'TOTALPRICE'   
     PROPERTIES d3 =  OVERRIDE NUMERIC[18,4](sum[SaleLedger](d)/curRate(d)), 0 EXTID 'TOTALPRICECUR'                
-    PROPERTIES d5 = OVERRIDE (sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)), 0 EXTID 'TOTALPRICENOTAX'         
+    PROPERTIES d5 = OVERRIDE (sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)), 0 EXTID 'TOTALPRICENOTAX'
+             
     FILTERS stockDocumentLedger(d)==i,
             inc(i)                                         
 
@@ -103,6 +104,9 @@ index (ReceiptReturnSkuLedger d) =
         PARTITION SUM 1
         ORDER d BY stockDocumentLedger(d);
 
+sumRetailReturns (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptReturnSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptReturnSkuLedger;
+sumRetailReturnsCur (RetailSales i) = GROUP SUM (sum[SaleLedger](ReceiptReturnSkuLedger d) / curRate(i)) IF stockDocumentLedger(d)==i AND d IS ReceiptReturnSkuLedger;
+
 FORM exportZReportReturnMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
 //-- возвраты
@@ -113,7 +117,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = STRING[100]('CR'+STRING[30](LONG(i))) EXTID 'Id'
     PROPERTIES = STRING[100](LONG(i)) EXTID 'ID' IN SMDOCUMENTS1
     PROPERTIES = 'CR' IF i IS RetailSales EXTID 'DOCTYPE' IN SMDOCUMENTS1    
- //   PROPERTIES = idSupermag(departmentStore(i)) EXTID 'BORNIN' IN SMDOCUMENTS1    
+    PROPERTIES = baseIDSupermag() IF i IS RetailSales EXTID 'BORNIN' IN SMDOCUMENTS1    
     PROPERTIES = exportTime(DATETIME(date(i)))  EXTID 'CREATEDAT' IN SMDOCUMENTS1
     PROPERTIES = 0 IF i IS RetailSales EXTID 'CURRENCYMULTORDER' IN SMDOCUMENTS1  
     PROPERTIES = curRate(i) EXTID 'CURRENCYRATE' IN SMDOCUMENTS1 
@@ -123,8 +127,10 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = id(departmentStore(i)) EXTID 'LOCATIONTO' IN SMDOCUMENTS1  
     PROPERTIES = 3 IF i IS RetailSales  EXTID 'OPCODE' IN SMDOCUMENTS1      
     PROPERTIES = 3 IF i IS RetailSales  EXTID 'PRICEROUNDMODE' IN SMDOCUMENTS1     
-    PROPERTIES = -(GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger) EXTID 'TOTALSUM' IN SMDOCUMENTS1 
-    PROPERTIES i1 = NUMERIC[18,4](-((GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)/curRate(i))) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
+    PROPERTIES = -sumRetailReturns(i) EXTID 'TOTALSUM' IN SMDOCUMENTS1 
+    PROPERTIES = -sumRetailReturnsCur(i) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
+//    PROPERTIES = -(GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger) EXTID 'TOTALSUM' IN SMDOCUMENTS1 
+//    PROPERTIES i1 = NUMERIC[18,4](-((GROUP SUM sum[SaleLedger](ReceiptReturnSkuLedger h) IF stockDocumentLedger(h)==i AND h IS ReceiptReturnSkuLedger)/curRate(i))) EXTID 'TOTALSUMCUR' IN SMDOCUMENTS1                       
 
     OBJECTS d = ReceiptReturnSkuLedger   EXTID 'SMSPEC' IN CR
     PROPERTIES = STRING[100](STRING[30](LONG(stockDocumentLedger(d)))) EXTID 'DOCID'    
@@ -138,7 +144,10 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = -quantity[SaleLedger] (d) EXTID 'QUANTITY'  
     PROPERTIES = -sum[SaleLedger] (d) EXTID 'TOTALPRICE'   
     PROPERTIES d3 = NUMERIC[18,4](-sum[SaleLedger](d)/curRate(d)) EXTID 'TOTALPRICECUR'                
-    PROPERTIES d5 = -(sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)) EXTID 'TOTALPRICENOTAX'         
+    PROPERTIES d5 = -(sum[SaleLedger] (d) (-) sumVAT[SaleLedger](d)) EXTID 'TOTALPRICENOTAX'  
+    PROPERTIES = 'CS' IF d IS ReceiptReturnSkuLedger EXTID 'CAUSETYPE'            
+    PROPERTIES d6 = STRING[100](STRING[30](LONG(stockDocumentLedger(d)))) EXTID 'CAUSEID'                         
+    PROPERTIES d7 = GROUP LAST index(ReceiptSaleSkuLedger rs) IF sku(d) = sku(rs) AND stockDocumentLedger(d) = stockDocumentLedger(rs) ORDER rs  EXTID 'CAUSESPECITEM'                
     FILTERS stockDocumentLedger(d)==i,
             inc(i)                                         
 
@@ -147,7 +156,7 @@ FORM exportZReportReturnMag FORMEXTID 'PACKAGE'
     PROPERTIES = 'CR' IF dd IS ReceiptReturnSkuLedger EXTID 'DOCTYPE'      
     PROPERTIES = index(dd) EXTID 'SPECITEM'        
     PROPERTIES = 0 IF dd IS ReceiptReturnSkuLedger  EXTID 'TAXID'        
-    PROPERTIES = 0 IF valueVAT(dd) EXTID 'TAXRATE'
+    PROPERTIES = valueVAT(dd) EXTID 'TAXRATE'
     PROPERTIES = -sumVAT[SaleLedger](dd) EXTID 'TAXSUM'            
     FILTERS stockDocumentLedger(dd)==i   
 ; 
@@ -166,6 +175,7 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
         TRY{
             EXPORT exportZReportMag XML TO System.exportFile;
             WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
+            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
             fileExists('file://' + exportDirectorySupermag() + '/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt()) + '.xml');  
             IF fileExists()  THEN NEWSESSION NESTED LOCAL {
                 FOR inc(RetailSales ii)  DO NEW log = SupermagLog {
