@@ -378,6 +378,8 @@ public class FiscalPirit {
                     return "Не была вызвана функция 'Начало работы'";
                 case 3:
                     return "Некорректный формат или параметр команды";
+                case 10:
+                    return "24 часа смены истекли";
                 default:
                     return "Неизвестная ошибка " + error;
             }
