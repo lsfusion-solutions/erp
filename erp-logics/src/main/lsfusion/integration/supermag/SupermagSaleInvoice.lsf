@@ -11,6 +11,11 @@ NAMESPACE Sale;
 causeType = DATA STRING[10] (UserInvoiceDetail);
 causeId = DATA STRING (UserInvoiceDetail);
 causeSpecItem = DATA INTEGER (UserInvoiceDetail);
+causeSM (UserInvoiceDetail det) = CONCAT '~',causeType(det), causeId(det), causeSpecItem(det);  
+
+EXTEND FORM Sale.userInvoice
+    PROPERTIES (d)  causeSM 
+;
 
 overApplySaleInvoice 'Экспорт в Супермаг' ABSTRACT LIST (Sale.Invoice);
 
@@ -27,7 +32,7 @@ DESIGN Sale.invoices {
 userInvoiceApply 'Сохранить ' (UserInvoice doc) {
     formApply();
     IF series(doc) THEN { number(doc) <- seriesNumber(doc); series(doc) <- NULL;} 
-    overApplySaleInvoice(doc);
+    overApplySaleInvoice(doc);    
 }
 
 EXTEND FORM userInvoice  PROPERTIES userInvoiceApply(i) TOOLBAR;
