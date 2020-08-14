@@ -120,12 +120,16 @@ CONSTRAINT CHANGED(countSku(RangeRev v)) AND depth(range(v)) < countSku(v) AND N
 CONSTRAINT CHANGED(depth(range(RangeRev v))) AND rangeRev(range(v), currentDate()) == v AND  depth(range(v)) < countSku(v) AND NOT (notCheckDepthRange() OR notCheckDepthLoc())
     MESSAGE 'Превышено максимально количество товаров по матрице для действующей версии';
 
+overOrder = ABSTRACT NUMERIC[5,1] (RangeLevel);
+sortOrder 'Порядок' (RangeLevel l) = OVERRIDE overOrder(l), NUMERIC[16,0](l);
+
 countSku 'Кол-во товаров' = GROUP SUM 1 BY RangeRev r, level(r, Sku s);
 
-countRecSku 'Кол-во товаров' (RangeRev r, RangeLevel level) = GROUP SUM countSku(r, RangeLevel l) IF l <= (level AS RangeLevel);
+countRecSku 'Кол-во товаров' (RangeRev r, RangeLevel level) = GROUP SUM countSku(r, RangeLevel l) IF sortOrder(l) <= sortOrder(level);
 
 countSku 'Кол-во товаров' (Range r, DATE d) = countSku(rangeRev(r, d));
 countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(rangeRev(r, d), l);
+countRecSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countRecSku(rangeRev(r, d), l);
 
 countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
@@ -142,6 +146,8 @@ countSkus 'Кол-во наименований (всего)' (RangeRev v, suppl
     
 countSkus 'Кол-во наименований' (RangeRev v,l,supplier,LedgerPriceListType pt,Stock d) = GROUP SUM 1
     BY level(v, Sku sku), companyA(pt, sku, d, dateTime(v));
+countRecSkus 'Кол-во наименований' (RangeRev v, RangeLevel l,LegalEntity supplier,LedgerPriceListType pt,Stock d) = GROUP SUM 1
+    IF sortOrder(level(v, Sku sku)) <= sortOrder(l) AND companyA(pt, sku, d, dateTime(v)) == supplier AND in(v,l);
     
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 
@@ -171,7 +177,9 @@ EXTEND FORM rangeRev
     FILTERS in(v, l2)  
     
     OBJECTS su = LegalEntity
-    PROPERTIES READONLY name(su), countSkus(v, su, pt, d), countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) 
+    PROPERTIES READONLY name(su), countSkus(v, su, pt, d),
+                        countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF NOT useCountRecSku(),
+                        countRecSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) SHOWIF useCountRecSku()
     ORDERS name(su)
     FILTERS countSkus(v, su, pt, d)      
 ;
@@ -189,7 +197,9 @@ EXTEND FORM range
     OBJECTS vl = RangeLevel GRID BEFORE v
     FILTERS in(r, vl)
     
-    PROPERTIES READONLY countSku(v) AFTER dateTime(v), countSku(v, vl) COLUMNS (vl) HEADER name(vl)
+    PROPERTIES READONLY countSku(v) AFTER dateTime(v),
+                        countSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(),
+                        countRecSku(v, vl) COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku()
 ;
 
 countSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, RangeRev v) = GROUP 
@@ -206,7 +216,8 @@ EXTEND FORM ranges
     OBJECTS vl = RangeLevel GRID BEFORE r
 
     PROPERTIES READONLY countSku(r, d)
-    PROPERTIES READONLY countSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) 
+    PROPERTIES READONLY countSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF NOT useCountRecSku(),
+                        countRecSku(r, vl, d) DRAW r COLUMNS (vl) HEADER name(vl) SHOWIF useCountRecSku()
     
     PROPERTIES READONLY countSkuNotSupplier(pt,ds,r1,d)
     PROPERTIES fillCountSkuNotSupplier(pt, ds, d) DRAW r1 TOOLBAR BEFORE createRangeRev(r1,d) 
