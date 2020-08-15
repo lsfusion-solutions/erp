@@ -42,8 +42,8 @@ inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku);
 skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
 overSetMarkupManagementRetailPrice  ABSTRACT LIST( DepartmentStore, DATETIME);
-overSetManagementRetailPriceFirstAct  ABSTRACT LIST ( DepartmentStore, DATETIME);
-overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME);
+overSetManagementRetailPriceFirstAct  ABSTRACT LIST ( DepartmentStore, DATETIME);  // реализовано в Sosedi
+overSetManagementRetailPrice  ABSTRACT LIST ( DepartmentStore, DATETIME); 
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { overSetManagementRetailPriceFirstAct(d, dt); }
 
@@ -58,7 +58,7 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
         DIALOG dialogSkuGroup;
     }
     IF NOT requestCanceled() THEN {
-        IF onStockPriceListRepricing() THEN {
+        IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, dt);
@@ -74,9 +74,9 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         }
         
-        overSetManagementRetailPrice(d, dt);
+        overSetManagementRetailPrice(d, dt);  // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
         
-        IF withoutCurrentRetailPrice() THEN
+        IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
             inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
                                                            AND NOT skipRepricing(sku, d);
         ELSE
@@ -102,22 +102,22 @@ customerManagementRepricing  ABSTRACT LIST ( DepartmentStore, PriceListType, DAT
 
 calculateDashboardManagementRepricing 'По прайсам'(DepartmentStore d, PriceListType pt, DATETIME dt)  { 
     managementRetailPrice(Sku sku) <- NULL;
-    IF NOT customerManagementRepricing() THEN {
-        IF onStockPriceListRepricing() THEN {
+    IF NOT customerManagementRepricing() THEN {   // используется в Fancy у остальных NULL
+        IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
-                IF NOT skipManagementPriceList(pt, sku, d, dt);
+                IF NOT skipManagementPriceList(pt, sku, d, dt);  // запрет на установление цены из прайс-листа
         } ELSE {
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt) 
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt);
             
         }
     } ELSE {
-        customerManagementRepricing(d,pt,dt);
+        customerManagementRepricing(d,pt,dt);  // реализовано в Fancy
     }
-    managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;    
-    overSetManagementRetailPrice(d, dt);
+    managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku) AND skuType(sku) != SkuType.skuTypeContainer;  //тару не берем  
+    overSetManagementRetailPrice(d, dt); // контроль мин. и макс. фиксиров. цен, мин. цен на алкоголь, предельных надбавок
     
-    IF withoutCurrentRetailPrice() THEN
+    IF withoutCurrentRetailPrice() THEN //Формировать цену, если нет текущих розничных цен
         inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) AND NOT managementRetailPrice(sku) == prevRetailPricingPriceA(sku, d, dt)  
                                                        AND NOT skipRepricing(sku, d);
     ELSE
