@@ -37,7 +37,8 @@ WHEN SET(changeDoc(RetailSales i)) OR SET (changeDocDetail(i)) OR SET(changeDocR
 
 sumRetailSales = DATA LOCAL NUMERIC[16,4] (RetailSales); 
 sumRetailSalesCur = DATA LOCAL NUMERIC[16,4] (RetailSales);
-sumSaleLedgerCur (ReceiptSaleSkuLedger d) = NUMERIC[18,4](sum[SaleLedger](d)/curRate(d));
+sumSaleLedgerCur (ReceiptSaleSkuLedger d) = NUMERIC[18,4](sum[SaleLedger](d)/curRate(d)); 
+//sumSaleLedgerCur = DATA LOCAL NUMERIC[18,4] (ReceiptSaleSkuLedger);
 
 FORM exportZReportMag FORMEXTID 'PACKAGE'  
     PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
@@ -170,9 +171,10 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
     dt () <- currentDateTime();
     dateTimeChange(i) <- NULL;
     IF (GROUP SUM 1 IF inc(RetailSales ii)) THEN{        
-        TRY{     
+        TRY{
+//            sumSaleLedgerCur (ReceiptSaleSkuLedger d) <- NUMERIC[18,4](sum[SaleLedger](d)/curRate(d));    
             sumRetailSales (i) <- NUMERIC[16,4](GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptSaleSkuLedger);
-            sumRetailSalesCur (i) <- NUMERIC[16,4](GROUP SUM (sum[SaleLedger](ReceiptSaleSkuLedger d) / curRate(i)) IF stockDocumentLedger(d)==i AND d IS ReceiptSaleSkuLedger);
+            sumRetailSalesCur (i) <- NUMERIC[16,4](GROUP SUM (sumSaleLedgerCur[SaleLedger](ReceiptSaleSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptSaleSkuLedger);
           
             EXPORT exportZReportMag XML TO System.exportFile;
             WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CS_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
@@ -196,7 +198,7 @@ exportZReportMag 'Экспорт в супермаг' (RetailSales i) {
         TRY{
             IF (GROUP SUM 1 IF inc(stockDocumentLedger(ReceiptReturnSkuLedger h)) AND h IS ReceiptReturnSkuLedger)THEN {
                 sumRetailReturns (i) <- NUMERIC[16,4](GROUP SUM (sum[SaleLedger](ReceiptReturnSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptReturnSkuLedger);
-                sumRetailReturnsCur (i) <- NUMERIC[16,4](GROUP SUM (sum[SaleLedger](ReceiptReturnSkuLedger d) / curRate(i)) IF stockDocumentLedger(d)==i AND d IS ReceiptReturnSkuLedger);
+                sumRetailReturnsCur (i) <- NUMERIC[16,4](GROUP SUM (sumReturnLedgerCur[SaleLedger](ReceiptReturnSkuLedger d)) IF stockDocumentLedger(d)==i AND d IS ReceiptReturnSkuLedger);
             
                 EXPORT exportZReportReturnMag XML TO System.exportFile;
                 WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'CR_' +STRING[30](LONG(i))+(OVERRIDE seriesNumber(i), '')+'_'+ formulaDateT(dt());  
