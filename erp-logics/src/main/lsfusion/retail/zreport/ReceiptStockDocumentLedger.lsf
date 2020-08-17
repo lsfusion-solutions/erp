@@ -6,9 +6,12 @@ REQUIRE StockDocument, ZReport;
 CLASS RetailSales 'Розничные продажи';
 TABLE retailSales (RetailSales);
 
+overRetailSalesDate = ABSTRACT DATE (ZReport);
+retailSalesDate(ZReport z) = OVERRIDE overRetailSalesDate(z), date(z); 
+
 sumReceiptDetail (stock,date) = GROUP SUM 
     sumSkuReceiptDetail(ZReport z) IF isPosted(z) 
-    BY departmentStore(z), date(z);
+    BY departmentStore(z), retailSalesDate(z);
 
 retailSales = AGGR RetailSales WHERE sumReceiptDetail(DepartmentStore departmentStore, DATE date) MATERIALIZED INDEXED;
 dateTime 'Дата/время' (RetailSales o) =  toDateTime(date(o));
@@ -44,7 +47,7 @@ CLASS ZReportRepricing 'Скидка по кассе';
 TABLE zReportRepricing (ZReportRepricing);
 
 discountSum  (stock, date) = GROUP SUM discountSum(ZReport z) 
-    BY departmentStore(z), date(z);
+    BY departmentStore(z), retailSalesDate(z);
 
 ZReportRepricing = AGGR ZReportRepricing WHERE discountSum(DepartmentStore departmentStore, DATE date) MATERIALIZED INDEXED;
 dateTime 'Дата/время' (ZReportRepricing o) =  toDateTime(date(o));
