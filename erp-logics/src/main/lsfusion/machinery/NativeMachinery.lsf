@@ -6,7 +6,16 @@ NAMESPACE Machinery;
 
 sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
+receiveGroupMachinery ABSTRACT LIST (GroupMachinery);
+
 sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
     FOR MachineryPriceTransaction t IS MachineryPriceTransaction AND NOT succeeded(t) AND NOT canceled(t) AND NOT dateTimeProcessing(t) DO
         sendMachineryPriceTransaction(t);
 }
+
+receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
+    FOR GroupMachinery g IS GroupMachinery AND left(handlerModel(g), 4) = 'lsf.' DO
+        receiveGroupMachinery(g);
+}
+
+//EXTEND FORM machineryPriceTransactions PROPERTIES sendMachineryPriceTransactions(), receiveGroupsMachinery();

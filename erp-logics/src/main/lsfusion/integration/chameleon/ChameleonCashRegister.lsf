@@ -1,58 +1,89 @@
 MODULE ChameleonCashRegister;
 
-REQUIRE NativeMachinery, CashRegister, TaxItem;
+REQUIRE NativeMachinery, CashRegister, TaxItem, Store, ZReport;
 
 NAMESPACE Chameleon;
 
 isChameleon (CashRegisterModel m) = handler(m) = 'lsf.Chameleon.2.6';
 isChameleon (GroupCashRegister g) = isChameleon(cashRegisterModel(g));
+haveChameleon (DepartmentStore d) = GROUP MAX isChameleon(GroupCashRegister g) IF stock(g) = d;
+
+idTellerSettings 'Ид. настройки ККМ' = DATA INTEGER (DepartmentStore);
+idTellerSettings 'Ид. настройки ККМ' (MachineryPriceTransaction t) = OVERRIDE idTellerSettings(stock(groupMachinery(t)) AS DepartmentStore), 0;
+
+EXTEND FORM store PROPERTIES idTellerSettings(d) BEFORE deleteD SHOWIF haveChameleon(d);
 
 trueFalse (BOOLEAN flag) = IF flag THEN 'true' ELSE 'false';
 escape (ISTRING s) = replace(s, '\'', '\'\'');
 
 centsString(NUMERIC n) = IF n THEN STRING(round(n * 100, 0)) ELSE '0';
 
-indexTax (Tax t) = PARTITION SUM 1 IF t IS Tax ORDER t;
-taxString (Range r) = 'SELECT system.import_front_tax(' + STRING(r) + ',' + STRING(valueCurrentRate(r)) + ',\'' + (CONCAT '', valueCurrentRate(r), '%') + '\',' + indexTax(tax(r)) + ',true)';
-taxesString() = GROUP CONCAT taxString(Range r), ';' ORDER r;
+//indexTax (Tax t) = PARTITION SUM 1 IF t IS Tax ORDER t;
+//taxString (Range r) = 'SELECT system.import_front_tax(' + STRING(r) + ',' + STRING(valueCurrentRate(r)) + ',\'' + (CONCAT '', valueCurrentRate(r), '%') + '\',' + indexTax(tax(r)) + ',true)';
+//taxesString() = GROUP CONCAT taxString(Range r), ';' ORDER r;
 
-groupString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';
-groupStringHierarchy (Group g) = GROUP CONCAT groupString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
-groupsStringHierarchy (MachineryPriceTransaction t) = GROUP CONCAT groupStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
+currencyString() = 'SELECT system.import_front_currencies(' + sid(defaultCurrency()) + ',\'' + shortName(defaultCurrency()) + '\',\'' + name(defaultCurrency()) + '\',true,true);' +
+                                  'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,1,current_timestamp,true)';
+
+taxStringBy() =   'SELECT system.import_front_group_tax(0,\'T1\',true);' +
+                                'SELECT system.import_front_tax(1,0,\'-\',0,true)';
+
+employeeString (Employee e) =
+    'SELECT system.import_front_employees(' + STRING(e) + ',\'' + escape(login(e)) + '\',\'' + escape(shortName(e)) + '\',\'password\',\'' + STRING(e) + '\',\'1111111111111111111\',true, null::integer,' + trueFalse(active(e)) +')';
+employeesString (MachineryPriceTransaction t) = GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t);
+
+priceLevelString (MachineryPriceTransaction t) = 'SELECT system.import_front_price_level(' + STRING(stock(t)) + ',\'' + (CONCAT ' ', 'Розничная', '(' + nameStock(t) + ')') + '\',true)';
+
+chainStoreString (Stock s) = 'SELECT system.import_front_group_outlet(' + STRING(chainStores(s AS DepartmentStore)) + ',\'' + name(chainStores(s AS DepartmentStore)) + '\', 0,true)';
+chainStoreString (MachineryPriceTransaction t) = chainStoreString(stock(groupMachinery(t)));
+
+storeString (MachineryPriceTransaction t) =
+    'SELECT system.import_front_outlet(' + STRING(stock(t)) + ',\'' + escape(name(stock(t))) + '\',' + STRING(stock(t)) + ',' + STRING(chairman(store(stock(t)))) + ',' + idTellerSettings(stock(t)) + ',' + STRING(chainStores(stock(t))) + ',true)'; 
+
+cashRegisterString (CashRegister cr) =
+    'SELECT system.import_front_workplace(' + STRING(cr) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
+cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g;
+cashRegistersString (MachineryPriceTransaction t) = cashRegistersString(groupMachinery(t));
+
+groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';
+groupSkuStringHierarchy (Group g) = GROUP CONCAT groupSkuString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
+groupsSkuStringHierarchy (MachineryPriceTransaction t) = GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
 
 name(MachineryPriceTransaction t, Sku s) = escape((GROUP LAST name(t, Barcode b) ORDER t, b IF in(t, b) AND sku(b) = s));
 order (Sku s) = PARTITION SUM 1 IF s IS Sku ORDER name(s), s;
 
-skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',' + STRING(tax(VAT(s))) + ', \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
-    'SELECT system.import_front_series (\'1\',' + STRING(s) + ', \'\', true)';
+//skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',' + STRING(tax(VAT(s))) + ', \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
+skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',1, \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
+    'SELECT system.import_front_series (\'-\',' + STRING(s) + ', \'-\', true);' + 
+    'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,null::integer,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,null::integer,false,null::integer,0,null::integer,null::integer,true)';
 skusString (MachineryPriceTransaction t) = GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
 
-uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',3' ELSE ',1') + ',null,true)';
+uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true)';
 uomsString (MachineryPriceTransaction t) = GROUP CONCAT uomString(m, Barcode b), ';' IF in(t, b) ORDER m, b;
 
-priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'1\',0,' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
+priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
 pricesString (MachineryPriceTransaction m) = GROUP CONCAT priceString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
-barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'1\', \'-\', true)';
+barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
 barcodesString (MachineryPriceTransaction m) = GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
 pluString (Barcode b) = 'SELECT system.import_front_plu(' + escape(id(b)) + ',' + STRING(sku(b)) + ',true)' IF length(id(b)) <= 5 AND passScales(b);
 plusString (MachineryPriceTransaction m) = GROUP CONCAT pluString(Barcode b), ';' IF in(m, b) ORDER m, b;
 
-returnSend = DATA LOCAL BOOLEAN (GroupCashRegister);
+returnExchange = DATA LOCAL BOOLEAN (GroupCashRegister);
 
-sendToChameleon (GroupCashRegister g, STRING q) {
-    IF NOT returnSend(g) AND directory(g) AND isChameleon(g) THEN {
+exchangeChameleon (GroupCashRegister g, STRING q) {
+    IF NOT returnExchange(g) AND directory(g) AND isChameleon(g) THEN {
         System.messageCaughtException() <- NULL;
         TRY {
-            EXTERNAL SQL directory(g) EXEC q;
+            EXTERNAL SQL directory(g) EXEC q TO exportFile;
         } CATCH {
             IF System.messageCaughtException() != 'java.lang.UnsupportedOperationException' AND System.messageCaughtException() !=  'java.lang.RuntimeException: java.io.IOException' THEN {
-                returnSend(g) <- TRUE;
+                returnExchange(g) <- TRUE;
             }
         }
     } ELSE {
-        returnSend(g) <- TRUE;
+        returnExchange(g) <- TRUE;
     }
 }
 
@@ -60,16 +91,23 @@ sendToChameleon (MachineryPriceTransaction t){
     NEWSESSION {
         IF isChameleon(groupMachinery(t)) AND notSucceeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) THEN {
             NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
-            sendToChameleon(groupMachinery(t),
+            exchangeChameleon(groupMachinery(t),
             CONCAT ';',
-                groupsStringHierarchy(t),
+                currencyString(),
+                taxStringBy(),
+                employeesString(t),
+                priceLevelString(t),
+                chainStoreString(t),
+                storeString(t),
+                cashRegistersString(t),
+                groupsSkuStringHierarchy(t),
                 skusString(t),
                 uomsString(t),
                 pricesString(t),
                 barcodesString(t)
                 //plusString(t)
             );
-            IF returnSend(groupMachinery(t)) THEN {
+            IF returnExchange(groupMachinery(t)) THEN {
                 NEW e = MachineryPriceTransactionError {
                     LOCAL p = INTEGER();
                     dateTimeProcessing(t) <- NULL;
@@ -99,20 +137,106 @@ sendToChameleon (MachineryPriceTransaction t){
     }
 }
 
+receiptNumber = DATA LOCAL INTEGER (INTEGER);
+idCashRegister = DATA LOCAL LONG (INTEGER);
+idReceipt = DATA LOCAL INTEGER (INTEGER);
+
+receipt (LONG cr, INTEGER n) = GROUP MAX LONG(cashRegister(Receipt r)) = cr IF number(r) = n;
+zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) = n AND cashRegister(z) = cr;
+
+receipt (ZReport z, INTEGER n) = GROUP LAST Receipt r AS Receipt ORDER r IF zReport(r) = z AND number(r) = n;
+
+receiptNumberString () = GROUP CONCAT STRING(idReceipt(INTEGER i)), ',' IF NOT receipt(idCashRegister(i), receiptNumber(i));
+
+cashRegister (LONG id) = GROUP LAST CashRegister cr AS CashRegister ORDER cr BY LONG(cr);
+employee (LONG id) = GROUP LAST Employee e AS Employee ORDER e BY LONG(e);
+sku (LONG id) = GROUP LAST Sku s AS Sku ORDER s BY LONG(s);
+
+receiveFromChameleon(GroupCashRegister g) {
+    IF isChameleon(g) THEN {
+        exportFile() <- NULL;
+        exchangeChameleon(g,'select id_check, id_workplace, id_fcheck from sales.checks where type_payment < 1000');
+        IMPORT FROM exportFile() TO idReceipt = id_check, receiptNumber = id_fcheck, idCashRegister = id_workplace;
+        NEWSESSION NESTED LOCAL {
+            LOCAL localReceiptNumberString = STRING();
+            LOCAL number = INTEGER (INTEGER);
+            LOCAL idCashRegister = LONG (INTEGER);
+            LOCAL dateTime = DATETIME (INTEGER);
+            LOCAL idCashMan = LONG (INTEGER);
+            LOCAL numberZReport = INTEGER (INTEGER);
+            LOCAL summ = INTEGER (INTEGER);
+            LOCAL quantity = NUMERIC[10,3] (INTEGER);
+            LOCAL discount = INTEGER (INTEGER);
+            LOCAL idSku = LONG (INTEGER);
+            LOCAL price = INTEGER (INTEGER);
+            LOCAL idTypePayment = INTEGER (INTEGER);
+            localReceiptNumberString() <- receiptNumberString();
+            exportFile() <- NULL;
+            exchangeChameleon(g,
+                'select id_workplace, id_session, max(time_change) as time_change from sales.checks where id_check in(' + localReceiptNumberString() + ') group by id_workplace, id_session'
+            );
+            IMPORT FROM exportFile() TO number = id_session, idCashRegister = id_workplace, dateTime = time_change;
+            FOR imported(INTEGER i) AND cashRegister(idCashRegister(i)) AND NOT zReport(cashRegister(idCashRegister(i)), STRING(number(i))) DO NEW z = ZReport {
+                number(z) <- STRING(number(i));
+                cashRegister(z) <- cashRegister(idCashRegister(i));
+//                date(z) <- DATE(dateTime(i));
+//                time(z) <- TIME(dateTime(i));
+                departmentStore(z) <- stock(cashRegister(idCashRegister(i))) AS DepartmentStore;
+                isPosted(z) <- TRUE;
+            }
+            FOR imported(INTEGER i) AND cashRegister(idCashRegister(i)) AND zReport(cashRegister(idCashRegister(i)), STRING(number(i))) DO {
+                date(zReport(cashRegister(idCashRegister(i)), STRING(number(i)))) <- DATE(dateTime(i));
+                time(zReport(cashRegister(idCashRegister(i)), STRING(number(i)))) <- TIME(dateTime(i));
+            }
+            exportFile() <- NULL;
+            exchangeChameleon(g,
+                'select id_workplace,id_session,id_fcheck,time_check,id_employee,type_payment,sum_check from sales.checks where id_check in(' + localReceiptNumberString() + ')'
+            );
+            imported(INTEGER i) <- NULL;
+            IMPORT FROM exportFile() TO number = id_fcheck, dateTime = time_check, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, idTypePayment = type_payment, summ = sum_check;
+            FOR imported(INTEGER i) AND zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))) DO NEW r = Receipt {
+                number(r) <- number(i);
+                date(r) <- DATE(dateTime(i));
+                time(r) <- TIME(dateTime(i));
+                employee(r) <- employee(idCashMan(i));
+                zReport(r) <- zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i)));
+                NEW p = Payment {
+                    receipt(p) <- r;
+                    paymentType(p) <- typePaymentSID(BPISTRING(idTypePayment(i)));
+                    sum(p) <- abs(NUMERIC[18,4](summ(i)) / 100);
+                }
+            }
+            exportFile() <- NULL;
+            exchangeChameleon(g,
+                'select sales.checks.id_workplace,quantity,price,discount,summ,id_goods,id_session,id_fcheck from sales.check_lines, sales.checks where sales.checks.id_check = sales.check_lines.id_check and sales.check_lines.id_check in(' + localReceiptNumberString() + ')'
+            );
+            imported(INTEGER i) <- NULL;
+            IMPORT FROM exportFile() TO number = id_fcheck, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, summ, quantity, discount, price, idSku = id_goods;
+            FOR imported(INTEGER i) AND receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
+                receipt(d) <- receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i));
+                sku(d) <- sku(idSku(i));
+                price(d) <- NUMERIC[16,4](price(i)) / 100;
+                quantity(d) <- quantity(i);
+                sum(d) <- NUMERIC[18,4](summ(i)) / 100;
+                discountSum(d) <-NUMERIC[18,4](discount(i)) / 100;     
+            }
+            FOR imported(INTEGER i) AND receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) < 0 DO NEW d = ReceiptReturnDetail {
+                receipt(d) <- receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i));
+                sku(d) <- sku(idSku(i));
+                price(d) <- NUMERIC[16,4](price(i)) / 100;
+                quantity(d) <- quantity(i);
+                sum(d) <- NUMERIC[18,4](summ(i)) / 100;
+                discountSum(d) <- NUMERIC[18,4](discount(i)) / 100;     
+            }
+            APPLY;
+        }
+    }
+}
+
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
     sendToChameleon(t);
 }
 
-sendInitialData 'Передать начальные данные' (GroupCashRegister g) {
-    IF isChameleon(g) AND directory(g) THEN {
-        sendToChameleon(g, 'SELECT system.import_front_price_level(0,\'Розничные цены\',true)');
-        FOR Tax t IS Tax DO {
-            sendToChameleon(g,'SELECT system.import_front_group_tax(' + indexTax(t) + ',\'' + STRING[2](staticCaption(t)) + '\', true )');
-            sendToChameleon(g, taxesString());
-        } 
-    }
+receiveGroupMachinery(GroupCashRegister g) + {
+    receiveFromChameleon(g);
 }
-
-EXTEND FORM groupCashRegister
-    PROPERTIES (grc) sendInitialData
-;
