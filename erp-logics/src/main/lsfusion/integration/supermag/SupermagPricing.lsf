@@ -1,6 +1,8 @@
 MODULE SupermagPricing;
 
-REQUIRE SupermagSettings, SupermagExportForms, Time,  Store, Repricing, Pricing, PriceList, PriceListOperation, PurchaseInvoice, SaleInvoice, StockSkuDocument;
+REQUIRE SupermagSettings, SupermagExportForms, Time,  Store, Repricing, Pricing, PriceList, PriceListOperation, PurchaseInvoice, SaleInvoice, StockSkuDocument, 
+RepricingMachinery, PriceListOver;
+ //PriceListStore;
 
 
 //---------------------------------------------------------------------------------------------------------импорт
@@ -38,26 +40,27 @@ DESIGN repricings {
 overExportRepricingAC ABSTRACT LIST (Repricing, DocMain);
 
 exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
-
-    inc(DocMain expMain) <- NULL;
+        inc(DocMain expMain) <- NULL;
         LOCAL NESTED dt = DATETIME();
         NEW expMain = DocMain {                       
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- 'AC';
+                docid(expMain) <- seriesNumber(doc);            
                 id(doc) <- CONCAT '', doctype(expMain), seriesNumber(doc);               
                 id(expMain) <- id(doc); 
-                docid(expMain) <- seriesNumber(doc);            
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 opcode(expMain) <- '-1';
-                creatdate(expMain) <- shipmentDateTime(doc);                
+                creatdate(expMain) <- dateTime(doc);                
                 docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
                                       WHEN isClosed(doc) THEN 0 ELSE 2;
                 execDate(expMain) <- postedTime(doc);
                 execTime(expMain) <- postedTime(doc);                
+                priceType(expMain) <- STRING[10](replace( (OVERRIDE id(retailPriceListType(customerStock(doc))),  id(baseBPriceListLedger(retailPriceListType(departmentStore(doc))))),'D',''));
                 priceRoundMode(expMain) <- 0 IF doc IS Repricing;                                                
                 reasonPricing(expMain) <- id(operation(doc));     
-                location(expMain)  <- id(stock(doc));                        
-                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(stock(doc))),'D',''));
+                location(expMain)  <- id(departmentStore(doc));                        
+                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
+                priceRoundMode(expMain) <- 0;
                 ourselfclient(expMain) <- id(legalEntity(customerStock(doc)));
                 
                 FOR repricing(RepricingDetail docd) = doc DO {
@@ -90,14 +93,14 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                                                                                 
-                FOR basisDoc(doc, Document base) DO {
-                    IF base IS PriceList THEN NEW b = DocBase {
-                        basisDoc(expMain, b) <- TRUE;
-                        docid(b) <- seriesNumber[UserPriceList](base);
-                        doctype(b) <- CASE WHEN id(operation[UserPriceList](base)) = 'promotion' THEN 'MA'
-                                           WHEN id(operation[UserPriceList](base)) = 'retail' THEN 'AB';
-                    }    
-                }
+//                FOR basisDoc(doc, Document base) DO {
+//                    IF base IS PriceList THEN NEW b = DocBase {
+//                        basisDoc(expMain, b) <- TRUE;
+//                        docid(b) <- seriesNumber[UserPriceList](base);
+//                        doctype(b) <- CASE WHEN id(operation[UserPriceList](base)) = 'promotion' THEN 'MA'
+//                                           WHEN id(operation[UserPriceList](base)) = 'retail' THEN 'AB';
+//                    }    
+//                }
                 
                 overExportRepricingAC(doc,expMain);
                 
@@ -132,7 +135,7 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 }
         }        
         inc(DocMain expMain) <- NULL;
-        APPLY;
+        APPLY;        
 }
 
 exportRepricing (Repricing doc) + {
