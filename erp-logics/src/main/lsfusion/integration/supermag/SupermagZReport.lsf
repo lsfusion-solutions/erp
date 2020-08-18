@@ -1,0 +1,74 @@
+MODULE SupermagZReport;
+
+REQUIRE SupermagSettings, SupermagExportForms, ReceiptSkuLedgerReceiptStockDocumentLedger, ReceiptSkuLedger, Time;
+
+NAMESPACE ZReport;
+
+toDateYYYYMMDD = FORMULA STRING[10] 'to_char(($1),\'YYYYMMDD\')';
+
+index (DocDetail expDet) = PARTITION SUM 1 ORDER expDet BY docMain(expDet);
+
+exportZReports 'Экспорт в супермаг' (DepartmentStore departmentStore, DATE date) {
+    inc(DocMain d) <- NULL;
+    LOCAL NESTED dt = DATETIME();
+    NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- 'CS';
+                docid(expMain) <- STRING[30](CONCAT '', 'CS', STRING(id(departmentStore)), toDateYYYYMMDD(date), '@', STRING(id(departmentStore)));            
+                id(expMain) <- STRING[100](CONCAT '', doctype(expMain), docid(expMain)); 
+                bornin(expMain) <- baseIDSupermag();
+                opcode(expMain) <- '1';
+                creatdate(expMain) <- DATETIME (date);                
+                docstate(expMain) <- 3 IF expMain IS DocMain; 
+                curRate(expMain) <- (OVERRIDE rateOn(typeExchange('НБРБ (BYR)'),currencyShortName('USD'),date),1.0);                      
+                priceRoundMode(expMain) <- 4 IF expMain IS DocMain;                                                
+                locationFrom(expMain) <- id(departmentStore);
+                ourselfclient(expMain) <- id(legalEntity(departmentStore));
+                                
+                FOR countReceiptSaleDetail(departmentStore, Sku sku, date, NUMERIC[16,4] price) DO
+                    NEW expDet = DocDetail {                        
+//                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        skuId(expDet) <- id(sku);                                                                           
+                        quantity(expDet) <- OVERRIDE quantityReceiptSaleDetail(departmentStore, sku, date, price), 0; //quantity(docd);
+                        priceWithTax(expDet) <- price;
+                        valueTax(expDet) <- valueRate(VATReceiptSaleDetail(departmentStore, sku, date, price),date);
+                        sumWithTax(expDet) <- sumReceiptSaleDetail(departmentStore, sku, date, price);
+                        sumTax(expDet) <- NUMERIC[18,4]([ X*Y/(100+Y)](sumWithTax(expDet), valueTax(expDet)));
+                        sumNoTax(expDet) <- sumWithTax(expDet) - sumTax(expDet);                       
+                        priceNoTax(expDet) <- NUMERIC[18,4] (sumNoTax(expDet)/quantity(expDet));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);                        
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        discSum(expDet) <- discountSumReceiptSaleDetail(departmentStore, sku, date, price);
+                    }                                    
+                           
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                               
+                IF countSpec(expMain) > 0 THEN {
+                    dt () <- currentDateTime();        
+                    TRY EXPORT exportZReportSales XML TO System.exportFile;
+                    CATCH logToFile('supermag', CONCAT '\n', 'Кассовые документы (продажа)', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    TRY {
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' +(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) + '_' +(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                        }
+                    CATCH logToFile('supermag', CONCAT '\n', 'Кассовые документы (продажа)', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' +(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                    
+//                    sleep(pauseBetweenInvoiceFI());
+//                    
+//                    dt () <- currentDateTime();        
+//                    TRY EXPORT exportFI XML TO System.exportFile;
+//                    CATCH logToFile('supermag', CONCAT '\n', 'Финансовое обязательство', 'file://' + exportDirectorySupermag() + '/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE seriesNumber(doc), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+//                    TRY {
+//                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+//                            WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + 'FI_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+//                        }
+//                    CATCH logToFile('supermag', CONCAT '\n', 'Финансовое обязательство', 'file://' + exportDirectorySupermag() + '/' + 'FI_' + STRING[30](LONG(doc)) + '_' + (OVERRIDE seriesNumber(doc), '') + '_' + formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                }                             
+                  
+                inc(expMain) <- NULL;
+    }
+    APPLY;
+}
