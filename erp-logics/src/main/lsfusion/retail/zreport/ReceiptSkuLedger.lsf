@@ -1,20 +1,25 @@
 MODULE ReceiptSkuLedger;
 
 REQUIRE ZReport,SkuLedger;
+
+overDate = ABSTRACT DATE (ZReport);
+ledgerDate (ZReport z) = OVERRIDE overDate(z), date(z);  
    
 //---------------------- Продажа ----------------//
 CLASS ReceiptSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE ReceiptSaleSkuLedger (ReceiptSaleSkuLedger);
 TABLE departmentStoreSkuDatePrice(DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 
+ledgerDate(ReceiptSaleDetail d) = ledgerDate(zReport(receipt(d)));
+
 quantityReceiptSaleDetail 'Кол-во' (department, sku, date, price) = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 sumReceiptSaleDetail 'Сумма' (department, sku, date, price) = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 countReceiptSaleDetail (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 
 VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[16,4] price)) DO {
@@ -79,14 +84,16 @@ discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSal
 CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE ReceiptReturnSkuLedger (ReceiptReturnSkuLedger);
 
+ledgerDate(ReceiptReturnDetail d) = ledgerDate(zReport(receipt(d)));
+
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date, price) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 sumReceiptReturnDetail 'Сумма' (department, sku, date, price) = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
-    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) MATERIALIZED;
+    BY departmentStore(d), sku(d), ledgerDate(d), NUMERIC[18,6](price(d)) MATERIALIZED;
 
 VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[16,4] price)) DO {
