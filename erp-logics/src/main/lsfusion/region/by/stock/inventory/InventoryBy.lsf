@@ -175,12 +175,16 @@ printByGroup 'Сличительная ведомость(по группам)' 
     { PRINT printCollationSheetByGroup OBJECTS cs = collationSheet; }   IMAGE 'print.png' IN print;    
 printByGroupXLS 'Сличительная ведомость(по группам) (xls)' (CollationSheet collationSheet) 
     { PRINT printCollationSheetByGroup OBJECTS cs = collationSheet XLS; } IMAGE 'print.png' IN print;    
-    
+useCustomIndex = ABSTRACT BOOLEAN ();
+includeCustom = ABSTRACT BOOLEAN (CollationSheet, Item);
+includeCustom = ABSTRACT BOOLEAN (CollationSheet, Batch);
+includeCustomOver(CollationSheet cs, Item i) = IF useCustomIndex() THEN includeCustom(cs,i) ELSE include(cs,i);
+includeCustomOver(CollationSheet cs, Batch b) = IF useCustomIndex() THEN includeCustom(cs,b) ELSE (include(cs,b) AND(quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)));
+
 countIndex 'Количество наименований товара'(CollationSheet cs) = GROUP
-        SUM 1 IF include(cs, Sku i) IN documentSum;    
+        SUM 1 IF includeCustomOver(cs, Sku i) IN documentSum;    
 countIndexBatch 'Количество наименований партий'(CollationSheet cs) = GROUP
-        SUM 1 IF include(cs,Batch b) 
-    AND (quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)) IN documentSum;     
+        SUM 1 IF includeCustomOver(cs,Batch b) IN documentSum;     
   
 countResponsiblePersonStock = TRUE IF [GROUP SUM 1 IF isOverResponsiblePerson(stock(CollationSheet cs), Employee e1) BY cs](CollationSheet cs);
         
