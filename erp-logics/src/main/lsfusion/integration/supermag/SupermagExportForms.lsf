@@ -84,6 +84,7 @@ causeType = DATA LOCAL STRING[10] (DocDetail);
 causeId = DATA LOCAL STRING (DocDetail);
 causeSpecItem = DATA LOCAL STRING[10] (DocDetail);
 discSum = DATA LOCAL NUMERIC[18,4] (DocDetail);
+moveType = DATA LOCAL INTEGER (DocDetail);
 
 CLASS DocBase;
 docid = DATA LOCAL STRING[50] (DocBase);
@@ -853,16 +854,16 @@ FORM exportZReportSales FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE sumNoTax(docd), 0 EXTID 'TOTALPRICENOTAX'            
     PROPERTIES = OVERRIDE priceCurr(docd), 0 EXTID 'ITEMPRICECUR'                         
     PROPERTIES = OVERRIDE sumCurr(docd), 0 EXTID 'TOTALPRICECUR'      
-    FILTERS docMain(docd)==doc AND quantity(docd)>0
+    FILTERS docMain(docd)==doc AND moveType(docd) = 1
                            
     OBJECTS docd2 = DocDetail EXTID 'SMSPECCASHDISC' IN CS
     PROPERTIES = docid(docd2) EXTID 'DOCID'    
     PROPERTIES = doctype(docd2) EXTID 'DOCTYPE'      
     PROPERTIES = indexPlus(docd2) EXTID 'SPECITEM'    
     PROPERTIES = 2 IF docd2 IS DocDetail EXTID 'DISCKIND'        
-    PROPERTIES = discSum(docd2) EXTID 'DISCSUM'
-    PROPERTIES = sumWithTax(docd2) EXTID 'TOTALSUM'            
-    FILTERS docMain(docd2)==doc AND quantity(docd2)>0                                                                                  
+    PROPERTIES = OVERRIDE discSum(docd2), 0 EXTID 'DISCSUM'
+    PROPERTIES = OVERRIDE sumWithTax(docd2), 0 EXTID 'TOTALSUM'            
+    FILTERS docMain(docd2)==doc AND moveType(docd2) = 1                                                                                  
 
     OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN CS
     PROPERTIES = docid(docd3) EXTID 'DOCID'    
@@ -871,7 +872,7 @@ FORM exportZReportSales FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF docd3 IS DocDetail  EXTID 'TAXID'        
     PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
     PROPERTIES = OVERRIDE sumTax(docd3),0 EXTID 'TAXSUM'            
-    FILTERS docMain(docd3)==doc AND quantity(docd3)>0                                                                                 
+    FILTERS docMain(docd3)==doc AND moveType(docd3) = 1                                                                                 
 ;
  
 GROUP CR;
@@ -902,6 +903,7 @@ FORM exportZReportReturns FORMEXTID 'PACKAGE'
     PROPERTIES = OVERRIDE priceRoundMode(doc), 0 EXTID 'PRICEROUNDMODE' IN CR_SMDOCUMENTS       
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN CR_SMDOCUMENTS      
     PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN CR_SMDOCUMENTS     
+    FILTERS inc(doc)                                                      
 
     OBJECTS docd = DocDetail EXTID 'SMSPEC' IN CS 
     PROPERTIES = docid(docd) EXTID 'DOCID'    
@@ -919,7 +921,7 @@ FORM exportZReportReturns FORMEXTID 'PACKAGE'
     PROPERTIES = causeType(docd) EXTID 'CAUSETYPE'            
     PROPERTIES = causeId(docd) EXTID 'CAUSEID'                         
     PROPERTIES = causeSpecItem(docd) EXTID 'CAUSESPECITEM'      
-    FILTERS docMain(docd)==doc AND quantity(docd)<0
+    FILTERS docMain(docd)==doc AND moveType(docd) = -1
                            
     OBJECTS docd3 = DocDetail EXTID 'SMSPECTAX' IN CS
     PROPERTIES = docid(docd3) EXTID 'DOCID'    
@@ -928,5 +930,5 @@ FORM exportZReportReturns FORMEXTID 'PACKAGE'
     PROPERTIES = 0 IF docd3 IS DocDetail  EXTID 'TAXID'        
     PROPERTIES = valueTax(docd3) EXTID 'TAXRATE'
     PROPERTIES = OVERRIDE abs(sumTax(docd3)), 0 EXTID 'TAXSUM'            
-    FILTERS docMain(docd3)==doc AND quantity(docd3)<0                                                                                 
+    FILTERS docMain(docd3)==doc AND moveType(docd3) = -1                                                                                 
 ; 
