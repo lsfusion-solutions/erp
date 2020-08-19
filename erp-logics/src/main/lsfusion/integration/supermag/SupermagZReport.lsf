@@ -53,11 +53,12 @@ countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPost
 
 exportZReports 'Экспорт в супермаг продажи' (DepartmentStore departmentStore, DATE date) {
     inc(DocMain d) <- NULL;
-    LOCAL NESTED dt = DATETIME();   
+    LOCAL NESTED dt = DATETIME();
+    LOCAL causeId = STRING ();  
     NEW expMain = DocMain {
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- 'CS';
-                docid(expMain) <- STRING[30](CONCAT '', 'CS', STRING(id(departmentStore)), toDateYYYYMMDD(date), '@', STRING(id(departmentStore)));            
+                docid(expMain) <- STRING[30](CONCAT '', 'CS', STRING(id(departmentStore)), toDateYYYYMMDD(date), '@', STRING(id(departmentStore)));
                 id(expMain) <- STRING[100](CONCAT '', doctype(expMain), docid(expMain)); 
                 bornin(expMain) <- baseIDSupermag();
                 opcode(expMain) <- '1';
@@ -67,6 +68,7 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 priceRoundMode(expMain) <- 3 IF expMain IS DocMain;                                                
                 locationFrom(expMain) <- id(departmentStore);
                 ourselfclient(expMain) <- id(legalEntity(departmentStore));
+                causeId()<-docid(expMain);            
                                 
                 FOR countReceiptSaleDetail(departmentStore, Sku sku, date, NUMERIC[16,4] price) DO
                     NEW expDet = DocDetail {                        
@@ -102,11 +104,9 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                     CATCH logToFile('supermag', CONCAT '\n', 'Кассовые документы (продажа)', 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' +(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 }                             
                 inc(expMain) <- NULL;
-   // }
-    
+                
  //   sleep(pauseBetweenInvoiceFI());
-  
- //   NEW expMain = DocMain {
+ 
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- 'CR';
                 docid(expMain) <- STRING[30](CONCAT '', 'CR', STRING(id(departmentStore)), toDateYYYYMMDD(date), '@', STRING(id(departmentStore)));            
@@ -122,7 +122,6 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 
                 FOR countReceiptReturnDetail(departmentStore, Sku sku, date, NUMERIC[16,4] price) DO
                     NEW expDet = DocDetail {                        
-//                        index(expDet) <- index(docd);
                         docMain(expDet) <- expMain;
                         skuId(expDet) <- id(sku);                                                                           
                         quantity(expDet) <- OVERRIDE quantityReceiptReturnDetail(departmentStore, sku, date, price), 0; 
@@ -136,7 +135,7 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         discSum(expDet) <- discountSumReceiptReturnDetail(departmentStore, sku, date, price);
                         causeType(expDet) <- 'CS';
-                        causeId(expDet) <- docid(expMain);  
+                        causeId(expDet) <- causeId();  
                         causeSpecItem(expDet) <- STRING[10] (GROUP LAST indexPlus(DocDetail rs) IF skuId(rs) = skuId(expDet) AND docMain(rs) = docMain(expDet) ORDER rs);                               
                         moveType(expDet) <- -1;
                    }                                    
