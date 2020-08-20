@@ -84,7 +84,7 @@ public class ScalesSettings implements Serializable{
         return descriptionLineLength;
     }
 
-    public void setDescriptionLineLength(Integer notInvertPrices) {
+    public void setDescriptionLineLength(Integer descriptionLineLength) {
         this.descriptionLineLength = descriptionLineLength;
     }
 }
