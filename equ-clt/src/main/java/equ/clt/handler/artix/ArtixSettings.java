@@ -51,6 +51,8 @@ public class ArtixSettings implements Serializable{
     private String cardPayments;
     //Коды признака оплаты подарочным сертификатом через запятую. По умолчанию используется код 6
     private String giftCardPayments;
+    //Коды признака оплаты кастомными типами платежей через запятую.
+    private String customPayments;
 
     //время ожидания в секундах обработки транзакции после выгрузки, по умолчанию - 180 секунд
     private Integer timeout;
@@ -187,6 +189,14 @@ public class ArtixSettings implements Serializable{
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public String getCustomPayments() {
+        return customPayments;
+    }
+
+    public void setCustomPayments(String customPayments) {
+        this.customPayments = customPayments;
     }
 
     public Integer getTimeout() {

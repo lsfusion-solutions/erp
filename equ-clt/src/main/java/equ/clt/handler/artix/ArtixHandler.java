@@ -988,6 +988,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
         Set<Integer> cashPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCashPayments());
         Set<Integer> cardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCardPayments());
         Set<Integer> giftCardPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getGiftCardPayments());
+        Set<Integer> customPayments = artixSettings == null ? new HashSet<>() : parsePayments(artixSettings.getCustomPayments());
         int externalSumType = artixSettings == null ? 0 : artixSettings.getExternalSumType();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
@@ -1108,6 +1109,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                         BigDecimal sumCash = BigDecimal.ZERO;
                                         BigDecimal sumGiftCard = BigDecimal.ZERO;
                                         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                                        Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
 
                                         Map<String, BigDecimal> certificatePriceMap = new HashMap<>();
                                         if(giftCardPriceInCertificatePositions) {
@@ -1128,36 +1130,43 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                             Integer paymentType = moneyPosition.getInt("valCode");
                                             Integer operationCode = moneyPosition.getInt("opCode");
                                             BigDecimal sum = BigDecimal.valueOf(moneyPosition.getDouble("sumB"));
+                                            sum = (sum != null && !isSale) ? sum.negate() : sum;
+
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))))) {
 
-                                                if (cashPayments.contains(paymentType)) //нал
-                                                    paymentType = 1;
-                                                else if (cardPayments.contains(paymentType)) //безнал
-                                                    paymentType = 4;
-                                                else if (giftCardPayments.contains(paymentType)) //сертификат
-                                                    paymentType = 6;
+                                                if(customPayments.contains(paymentType)) {
+                                                    BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(paymentType));
+                                                    customPaymentsMap.put(String.valueOf(paymentType), safeAdd(customPaymentSum, sum));
+                                                } else {
+                                                    if (cashPayments.contains(paymentType)) //нал
+                                                        paymentType = 1;
+                                                    else if (cardPayments.contains(paymentType)) //безнал
+                                                        paymentType = 4;
+                                                    else if (giftCardPayments.contains(paymentType)) //сертификат
+                                                        paymentType = 6;
 
-                                                sum = (sum != null && !isSale) ? sum.negate() : sum;
-                                                switch (paymentType) {
-                                                    case 4:
-                                                        sumCard = HandlerUtils.safeAdd(sumCard, sum);
-                                                        break;
-                                                    case 6:
-                                                    case 7:
-                                                        String certificate = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
-                                                        String numberGiftCard = certificate != null && certificate.length() >= 11 ? appendCheckDigitToBarcode(certificate, 11, appendBarcode) : certificate;
-                                                        BigDecimal price = certificatePriceMap.get(certificate);
-                                                        price = sum != null && price != null ? price : sum;
-                                                        if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
-                                                            sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
-                                                            sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, price);
-                                                        } else
-                                                            sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, price));
-                                                        break;
-                                                    case 1:
-                                                    default:
-                                                        sumCash = HandlerUtils.safeAdd(sumCash, sum);
-                                                        break;
+
+                                                    switch (paymentType) {
+                                                        case 4:
+                                                            sumCard = HandlerUtils.safeAdd(sumCard, sum);
+                                                            break;
+                                                        case 6:
+                                                        case 7:
+                                                            String certificate = BaseUtils.trimToNull(moneyPosition.getString("cardnum"));
+                                                            String numberGiftCard = certificate != null && certificate.length() >= 11 ? appendCheckDigitToBarcode(certificate, 11, appendBarcode) : certificate;
+                                                            BigDecimal price = certificatePriceMap.get(certificate);
+                                                            price = sum != null && price != null ? price : sum;
+                                                            if (sumGiftCardMap.containsKey(numberGiftCard)) { // пока вот такой чит, так как в cardnum бывают пустые значения
+                                                                sumGiftCardMap.get(numberGiftCard).sum = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).sum, sum);
+                                                                sumGiftCardMap.get(numberGiftCard).price = HandlerUtils.safeAdd(sumGiftCardMap.get(numberGiftCard).price, price);
+                                                            } else
+                                                                sumGiftCardMap.put(numberGiftCard, new GiftCard(sum, price));
+                                                            break;
+                                                        case 1:
+                                                        default:
+                                                            sumCash = HandlerUtils.safeAdd(sumCash, sum);
+                                                            break;
+                                                    }
                                                 }
                                             }
                                         }
@@ -1264,7 +1273,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, null, null,
-                                                        sumCard, sumCash, sumGiftCardMap, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
+                                                        sumCard, sumCash, sumGiftCardMap, customPaymentsMap, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         numberReceiptDetail, fileName, null, isSkip, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
