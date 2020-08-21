@@ -82,6 +82,7 @@ eInvoicesFailed = DATA LOCAL NESTED INTEGER();
 eCreditNotesSucceeded = DATA LOCAL NESTED INTEGER();
 eCreditNotesFailed = DATA LOCAL NESTED INTEGER();
 blrwbrCount = DATA LOCAL NESTED INTEGER();
+blrdnrCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], STRING[100], INTEGER, TEXT, STRING[100], BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN, STRING[100]);
@@ -132,6 +133,8 @@ META receiveMessages (namespace)
                         eInvoicesSucceeded() <- 0;
                         eInvoicesFailed() <- 0;
                         blrwbrCount() <- 0;
+                        blrdnrCount() <- 0;
+                        blradfCount() <- 0;
                         
                         FOR documentType(INTEGER i) ORDER id(i) DO {
                             IF archiveDir THEN {
@@ -159,6 +162,7 @@ META receiveMessages (namespace)
                         IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
                         IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
                         IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
+                        IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
                         IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
                         
                         IF sendRecipientErrorFailed() == 0 THEN {
@@ -443,7 +447,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
         TRY {
             IMPORT systemMessage XML FROM data(i);
             CASE
-            WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' THEN {
+            WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- 'm' + messageDocumentNumber();
@@ -454,10 +458,14 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                         description(m) <- OVERRIDE description(), description(code());
                         eInvoice(m) <- CASE
                             WHEN documentType() == 'BLRWBL' THEN eInvoiceBlrwbl(documentNumber())
-                            WHEN documentType() == 'BLRWBR' THEN eInvoiceBlrwbr(documentNumber());
+                            WHEN documentType() == 'BLRWBR' THEN eInvoiceBlrwbr(documentNumber())
+                            WHEN documentType() == 'BLRDLN' THEN eInvoiceBlrdln(documentNumber())
+                            WHEN documentType() == 'BLRDNR' THEN eInvoiceBlrdnr(documentNumber());
                         type(m) <- CASE
                             WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
-                            WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr;
+                            WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
+                            WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
+                            WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
                         XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
@@ -688,7 +696,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
         TRY {
             IMPORT importBlrapn XML FROM data(i);
             IF blrapnDeliveryNoteId() AND belrapnCode() THEN {
-                IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN {
+                IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl'
+                OR lower(blrapnReferenceDocumentType()) == 'blrdnr' OR lower(blrapnReferenceDocumentType()) == 'blrdln' THEN {
                     NEWSESSION NESTED LOCAL {
                         IF NOT eInvoiceMessage(blrapnDocumentNumber()) THEN NEW m = EInvoiceMessage {
                             number(m) <- blrapnDocumentNumber();
@@ -705,7 +714,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             type(m) <- CASE
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrapn' THEN EInvoiceMessageType.blrapn_blrapn
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrwbr' THEN EInvoiceMessageType.blrapn_blrwbr
-                                WHEN lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN EInvoiceMessageType.blrapn_blrwbl;
+                                WHEN lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN EInvoiceMessageType.blrapn_blrwbl
+                                WHEN lower(blrapnReferenceDocumentType()) == 'blrdnr' THEN EInvoiceMessageType.blrapn_blrdnr
+                                WHEN lower(blrapnReferenceDocumentType()) == 'blrdln' THEN EInvoiceMessageType.blrapn_blrdln;
                             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {

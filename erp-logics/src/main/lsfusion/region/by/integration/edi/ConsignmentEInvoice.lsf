@@ -70,13 +70,13 @@ currentOrderMessage = GROUP LAST EInvoiceMessage m ORDER dateTime(m), m BY invoi
 statusDescription 'Статус отправки EDI'(Invoice o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) CHARWIDTH 15;
 backgroundStatusDescription (Invoice i) = RGB(255,238,238) IF currentOrderMessage(i) AND NOT good(currentOrderMessage(i));
 
-WHEN SETCHANGED(payer(invoice(EInvoice e))) AND NOT (CHANGED(freightPayer(e)))  DO {
+WHEN SETCHANGED(payer(invoice(EInvoice e))) AND NOT (CHANGED(freightPayer(e))) AND NOT isTN2(e) DO {
     freightPayer(e) <- payer(invoice(e));    
 }
-WHEN SETCHANGED(nameDriver(invoice(EInvoice e))) AND NOT (CHANGED(transportContact(e)))  DO {
+WHEN SETCHANGED(nameDriver(invoice(EInvoice e))) AND NOT (CHANGED(transportContact(e))) AND NOT isTN2(e) DO {
     transportContact(e) <- STRING[150](nameDriver(invoice(e)));    
 }
-WHEN SETCHANGED(overWaybill(invoice(EInvoice e))) AND NOT (CHANGED(waybillId(e)))  DO {
+WHEN SETCHANGED(overWaybill(invoice(EInvoice e))) AND NOT (CHANGED(waybillId(e))) AND NOT isTN2(e) DO {
     waybillId(e) <- STRING[70](trim(overWaybill(invoice(e)))); 
 }
 WHEN SETCHANGED(nameIssuanceAllowed(invoice(EInvoice e))) AND NOT (CHANGED(contactSupplier(e)))  DO {
@@ -91,20 +91,20 @@ WHEN SETCHANGED(warrant(invoice(EInvoice e))) AND NOT (CHANGED(proxyID(e)))  DO 
 WHEN SETCHANGED(warrantHolder(invoice(EInvoice e))) AND NOT (CHANGED(partyIssuingProxyName(e)))  DO {
     partyIssuingProxyName(e) <- STRING[175](warrantHolder(invoice(e)));
 }
-WHEN SETCHANGED(raceQuantity(invoice(EInvoice e))) AND NOT (CHANGED(quantityTrip(e)))  DO {
+WHEN SETCHANGED(raceQuantity(invoice(EInvoice e))) AND NOT (CHANGED(quantityTrip(e))) AND NOT isTN2(e) DO {
     quantityTrip(e) <- STRING[70](raceQuantity(invoice(e)));
 }
-WHEN SETCHANGED(nameTruck(invoice(EInvoice e))) AND NOT (CHANGED(transportID(e)))  DO {
+WHEN SETCHANGED(nameTruck(invoice(EInvoice e))) AND NOT (CHANGED(transportID(e))) AND NOT isTN2(e) DO {
     transportID(e) <- STRING[35](nameTruck(invoice(e)));
 }
-WHEN SETCHANGED (trailer(invoice(EInvoice e))) AND NOT (CHANGED(trailerID(e)))  DO {
+WHEN SETCHANGED (trailer(invoice(EInvoice e))) AND NOT (CHANGED(trailerID(e))) AND NOT isTN2(e) DO {
     trailerID(e) <- STRING[35](trailer(invoice(e)));
 }
 WHEN SETCHANGED (overGoodsAccepted(invoice(EInvoice e))) AND NOT (CHANGED(contactCustomerStock(e)))  DO {
     contactCustomerStock(e) <- STRING[150](overGoodsAccepted(invoice(e)));
 }
 
-WHEN SETCHANGED (sealNumberSupplier(invoice(EInvoice e))) AND NOT (CHANGED(sealIDReceiver(e)))  DO {
+WHEN SETCHANGED (sealNumberSupplier(invoice(EInvoice e))) AND NOT (CHANGED(sealIDReceiver(e))) AND NOT isTN2(e) DO {
     sealIDReceiver(e) <- STRING[35](sealNumberSupplier(invoice(e)));
 }
 
@@ -112,7 +112,7 @@ WHEN SETCHANGED (nameIssuanceExecuted(invoice(EInvoice e))) AND NOT (CHANGED(con
     contactSupplierStock(e) <- STRING[35](nameIssuanceExecuted(invoice(e)));    
 }
 
-WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail ed))) AND NOT (CHANGED(grossWeightValue(ed))) DO {
+WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail ed))) AND NOT (CHANGED(grossWeightValue(ed))) AND NOT isTN2(eInvoice(ed)) DO {
     grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(invoiceDetail(ed)));
 }
 
@@ -122,7 +122,7 @@ overCreate ABSTRACT LIST(EInvoiceDetail, ConsignmentDetail);
 
 hideCreateEInvoice = ABSTRACT BOOLEAN (Consignment);
 
-createEInvoice 'Создать электронную накладную' (Consignment invoice)  { 
+createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
             invoice(ei) <- invoice;
@@ -152,6 +152,44 @@ createEInvoice 'Создать электронную накладную' (Consi
                 grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(detail));
                 lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                 despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 1.0;
+                overCreate(ed,detail);
+            }
+            
+            overCreate(ei,invoice);
+        }
+        APPLY;
+    }
+}
+
+createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  { 
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        NEW ei = EInvoice {
+            isTN2(ei) <- TRUE;
+            invoice(ei) <- invoice;
+            number(ei) <- number(invoice);
+            dateTime(ei) <- dateTime[Invoice](invoice);
+            deliveryNoteDateTime(ei) <- dateTime[Invoice](invoice);
+            supplier(ei) <- supplier(invoice);
+            supplierStock(ei) <- supplierStock(invoice);
+            customer(ei) <- customer(invoice);
+            customerStock(ei) <- customerStock(invoice);
+            contractId(ei) <- seriesNumberContractSku(invoice);
+            contractDate(ei) <- dateFromContractSku(invoice);
+            currency(ei) <- shortNameCurrency(invoice);
+            
+            FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+                eInvoice(ed) <- ei;
+                invoiceDetail(ed) <- detail;
+                lineItemID(ed) <- id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7;
+                lineItemBuyerID(ed) <- id(sku(detail));
+                lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
+                quantityDespatched(ed) <- quantity(detail);
+                valueVAT(ed) <- NUMERIC[8,2](vat(detail));
+                lineItemPrice(ed) <- price(detail);
+                lineItemAmount(ed) <- dataSumInvoice(detail);
+                lineItemAmountCharges(ed) <- sumVATIaW(detail);
+                lineItemAmountWithoutCharges(ed) <- dataSumInvoice(detail) (-) sumVATIaW(detail);
+                lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                 overCreate(ed,detail);
             }
             
@@ -314,7 +352,9 @@ META defineInvoiceEinvoice (dumb)
     EXTEND FORM invoices
         PROPERTIES READONLY PANEL numberEInvoice(i)
         PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
-        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i)), statusDescription SHOWIF eInvoice(i) PANEL, 
+        PROPERTIES(i) createEInvoice SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i) AND showTTN1(i)),
+                      createEInvoiceTN2 SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i) AND showTN2(i)),
+                      statusDescription SHOWIF eInvoice(i) PANEL, 
                       signAndSendSupplierEDI SHOWIF (eInvoice(i) AND NOT exportedSupplier(eInvoice(i))), 
                       cancelSignAndSendSupplierEDI SHOWIF (eInvoice(i) AND exportedSupplier(eInvoice(i)))
         PROPERTIES(i) editAttributesEInvoice SHOWIF (eInvoice(i) AND showEditEInvoiceCurrent() AND NOT exportedSupplier(eInvoice(i))),
@@ -337,6 +377,7 @@ META defineInvoiceEinvoice (dumb)
                         type = CONTAINERH;
                         MOVE PROPERTY(numberEInvoice(i));
                         MOVE PROPERTY(createEInvoice(i));
+                        MOVE PROPERTY(createEInvoiceTN2(i));
                         MOVE PROPERTY(editAttributes);
                         MOVE PROPERTY(showAttributes(i));
                         MOVE PROPERTY(editAttributesEInvoice(i));
