@@ -145,7 +145,8 @@ useGiftCardPrintXls 'Получ. и исп. ПС (xlsx)' (DepartmentStore ds, DA
     PRINT useGiftCardPrint OBJECTS st=ds, dFrom=df, dTo=dt XLSX;
 }  IMAGE 'print.png'; 
 
-// форма с отчетами
+notLimitStore = ABSTRACT BOOLEAN ();
+
 FORM listGiftCards 'Отчет по ПС'
 
     OBJECTS dates = ( df=DATE,dt=DATE) PANEL 
@@ -153,7 +154,7 @@ FORM listGiftCards 'Отчет по ПС'
     OBJECTS ds = DepartmentStore PANEL 
     PROPERTIES (ds) SELECTOR name
     FILTERS isCompany(ds),
-            id(store(ds)) == id(ds)
+            id(store(ds)) == id(ds) OR notLimitStore()
         
     OBJECTS c = GiftCard
     PROPERTIES (c) READONLY seriesNumber, date, dateSold, nameDepartmentStoreSold, 
@@ -206,7 +207,11 @@ DESIGN listGiftCards {
     }
     MOVE TOOLBARBOX;
 }
-@extendFormFilterStockAccess(ds, listGiftCards);
+@extendFormFilterStockAccess(ds, listGiftCards){ // по умолчанию для компании
+    @extendFormFilterStockAccess(ds, listGiftCards, company){
+    EXTEND FORM listGiftCards FILTERS accessCompany(currentUser(), ds);
+};
+};
 
 NAVIGATOR {
     retailReports  {
