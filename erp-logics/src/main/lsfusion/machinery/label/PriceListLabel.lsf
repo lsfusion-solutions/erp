@@ -24,12 +24,13 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
     FILTERGROUP inactiveStock 
         FILTER 'Активный' active(d) 'F10' DEFAULT    
 ;
-
+createPriceListLabelExtra ABSTRACT LIST(PriceTransactionDocument);
 createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList)  { 
 	NEWSESSION {
 	    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
 	        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND inPrint(labelType, sku, d);   
 	        localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
+	        createPriceListLabelExtra(priceList);
 	        createLabelTransaction(d);  
 	        priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
 	        
@@ -66,6 +67,7 @@ createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(Pr
         }         
         FOR select(LabelType type, d) DO {
             localPriceListType() <- printLabelPriceListType(operation[PriceList](priceList));
+            createPriceListLabelExtra(priceList);
             createSnapshotLabelTransactionDepartmentStore(d, type);   
             priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
         } 
