@@ -150,8 +150,10 @@ extraUNPPayer 'УНП получателя' = ABSTRACT STRING[50] (Consignment);
 dataPayer = ABSTRACT LegalEntity (Consignment);
 overPayer = ABSTRACT LegalEntity (Consignment);
 payer(Consignment c) = OVERRIDE dataPayer(c), overPayer(c);
-UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE extraUNPPayer(consignment), UNP(payer(consignment));
-addressPayer 'Юр. адрес заказчика' (Consignment consignment) =
+dataUNPPayer = DATA STRING[9] (Consignment);
+UNPPayer 'УНП заказчика' (Consignment consignment) = OVERRIDE dataUNPPayer(consignment), extraUNPPayer(consignment), UNP(payer(consignment));
+dataAddressPayer = DATA STRING[150] (Consignment);
+addressPayer 'Юр. адрес заказчика' (Consignment consignment) = OVERRIDE dataAddressPayer(consignment),
     address(payer(consignment), date(consignment));
 
 dataFullNamePayer = DATA STRING[200] (Consignment);
@@ -162,6 +164,8 @@ overChangePayer ABSTRACT (Consignment);
 
 customSelectPayer = ABSTRACT BOOLEAN (Consignment);
 overSelectPayer ABSTRACT (Consignment);
+overSelectUNPPayer ABSTRACT (Consignment);
+overSelectAddressPayer ABSTRACT (Consignment);
 
 changePayer (Consignment consignment) {
     IF customSelectPayer(consignment) THEN {
@@ -170,6 +174,18 @@ changePayer (Consignment consignment) {
         DIALOG LIST LegalEntity = dataPayer(consignment) CHANGE = dataPayer(consignment) NULL;
     }
     overChangePayer(consignment);
+}
+
+changeUNPPayer (Consignment consignment) {
+    IF customSelectPayer(consignment) THEN {
+        overSelectUNPPayer(consignment);
+    } 
+}
+
+changeAddressPayer (Consignment consignment) {
+    IF customSelectPayer(consignment) THEN {
+        overSelectAddressPayer(consignment);
+    } 
 }
 
 // ------------------------------------- Атрибуты --------------------------------- //
@@ -1191,7 +1207,7 @@ FORM consignment 'Атрибуты накладной'
     PROPERTIES(c)  quantityConsignmentDetail, overPackQuantityConsignmentDetail, grossWeightConsignmentDetail,
                    sumConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
                    countConsignmentDetail, note, shortNameCurrency, countPages, additionalDocuments
-    PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer ON CHANGE changePayer(c), UNPPayer, addressPayer                 
+    PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer ON CHANGE changePayer(c), UNPPayer ON CHANGE changeUNPPayer(c), addressPayer ON CHANGE changeAddressPayer(c)              
 
 
     OBJECTS d=ConsignmentDetail
