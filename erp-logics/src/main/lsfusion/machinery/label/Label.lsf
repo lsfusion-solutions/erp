@@ -968,13 +968,17 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
         }
     } TOOLBAR CONFIRM;
     
-    createLabelTransactionChoice 'Распечатать ценники (частично)'(cls document)  { 
+    overCreateLabelTransactionChoice ABSTRACT LIST (###document);
+    
+    createLabelTransactionChoice 'Распечатать ценники (частично)'(cls document)  {
         NEWSESSION {       		       	    
             ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {             
                 Label.ok() <- NULL;
                 inLabel(###skuProp sku) <- NULL;
                 filterLabel(###skuProp sku) <- NULL;
                 filterLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);                   
+                
+                overCreateLabelTransactionChoice(document);
                 
                 DIALOG selectLabelSkus OBJECTS s INPUT NOMANAGESESSION DO {
                     IF NOT (GROUP SUM 1 IF inLabel(###skuProp skuProp)) THEN {
