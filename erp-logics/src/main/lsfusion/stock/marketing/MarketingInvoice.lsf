@@ -10,11 +10,11 @@ TABLE marketingInvoice(MarketingInvoice);
 contract = DATA ContractMarketing(MarketingInvoice) INDEXED;
 numberContract 'Номер договора маркетинга' (MarketingInvoice i) = number(contract(i));
 nameContract 'Наименование договора' (MarketingInvoice i) = name(contract(i));
-dateContract 'Дата договора' (MarketingInvoice i) = dateFrom(contract(i));
+dateContract 'Дата договора' (MarketingInvoice i) = Contract.dateFrom(contract(i));
 date 'Дата акта' = DATA DATE (MarketingInvoice);
 dateTime 'Дата/время создания' = DATA DATETIME (MarketingInvoice);
-dateFromContract 'Дата с (договора)' (MarketingInvoice i) = dateFrom(contract(i));
-dateToContract 'Дата по (договора)' (MarketingInvoice i) = dateTo(contract(i));
+dateFromContract 'Дата с (договора)' (MarketingInvoice i) = Contract.dateFrom(contract(i));
+dateToContract 'Дата по (договора)' (MarketingInvoice i) = Contract.dateTo(contract(i));
 nameContractType 'Тип договора' (MarketingInvoice i) = name(contractType(contract(i)));
 dateFrom 'Дата с' = DATA DATE (MarketingInvoice);
 dateTo 'Дата по' = DATA DATE (MarketingInvoice);
@@ -384,13 +384,13 @@ resetAllSelected 'Сбросить все отмеченные' ()  {
 } 
 
 createMarketingInvoiceMonth 'Отметить договоры за месяц' (DATE df, DATE dt)  { 
-    FOR dateFrom(ContractMarketing c) <= dt AND NOT dateTo(c) < df AND period(c) == Period.month DO {
+    FOR Contract.dateFrom(ContractMarketing c) <= dt AND NOT Contract.dateTo(c) < df AND period(c) == Period.month DO {
         selected(c) <- TRUE;
     }
 }
 
 createMarketingInvoiceQuarter 'Отметить договоры за квартал' (DATE df, DATE dt)  { 
-    FOR dateFrom(ContractMarketing c) <= dt AND NOT dateTo(c) < df AND period(c) == Period.quarter DO {
+    FOR Contract.dateFrom(ContractMarketing c) <= dt AND NOT Contract.dateTo(c) < df AND period(c) == Period.quarter DO {
         selected(c) <- TRUE;
     }
 }
@@ -430,8 +430,8 @@ FORM marketingInvoicesCreate 'Договоры маркетинга'
 
     OBJECTS c = ContractMarketing
     PROPERTIES selected(c)
-    PROPERTIES (c) READONLY number, dateFrom, dateTo, prolongation, nameSupplier, nameCustomer, nameContractType, namePeriod, fromCount, fromPayment
-    FILTERS (dateFrom(c) <= dt AND NOT dateTo(c) < df)
+    PROPERTIES (c) READONLY number, Contract.dateFrom, Contract.dateTo, prolongation, nameSupplier, nameCustomer, nameContractType, namePeriod, fromCount, fromPayment
+    FILTERS (Contract.dateFrom(c) <= dt AND NOT Contract.dateTo(c) < df)
     
     PROPERTIES DRAW c TOOLBAR resetAllSelected(), createMarketingInvoiceMonth(df, dt), createMarketingInvoiceQuarter(df, dt)
     

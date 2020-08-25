@@ -28,9 +28,11 @@ isReverse 'Обратный' = DATA BOOLEAN (ContractMarketing);
 
 supplier = DATA LegalEntity (ContractMarketing);
 nameSupplier 'Поставщик' (ContractMarketing c) = name(supplier(c));
+partyA (ContractMarketing contract) += supplier(contract);
 
 customer = DATA LegalEntity (ContractMarketing);
 nameCustomer 'Получатель' (ContractMarketing c) = name(customer(c));
+partyB (ContractMarketing contract) += customer(contract);
 
 paymentDelay 'Отсрочка платежа по договору, дн' = DATA NUMERIC[3,0] (ContractMarketing);
 
@@ -42,7 +44,7 @@ CLASS ContractType 'Тип договора' {
     tradeBonus 'Торговая премия',
     audioAd 'Аудио-реклама',
     adServices 'Рекламные услуги'
-}
+} : Contract.ContractType;
 TABLE contractType (ContractType);
 name 'Наименование' (ContractType t) = staticCaption(t) IF t IS ContractType IN id CHARWIDTH 25;
 
@@ -54,6 +56,7 @@ FORM contractTypes 'Типы договоров'
 
 contractType = DATA ContractType (ContractMarketing);
 nameContractType 'Тип договора' (ContractMarketing c) = name(contractType(c));
+contractType (ContractMarketing c) += contractType(c);
 
 CLASS Weighted 'Весовой' {
     yes 'Весовой',
@@ -96,8 +99,10 @@ deleteScanFile 'Удалить' (ContractMarketing c)  { scanFile(c) <- NULL; }
 
 FORM contractMarketing 'Договор маркетинга'
     OBJECTS c = ContractMarketing PANEL 
-    PROPERTIES (c) nameNumerator, number, series, dateFrom, dateTo, name, prolongation, nameSupplier, nameCustomer, paymentDelay, isReverse,
-                   nameContractType, namePeriod, fromCount, fromPayment, personSupplier, basedOnSupplier, inputScanFile, openScanFile, deleteScanFile
+    PROPERTIES (c) nameNumerator, number, series, Contract.dateFrom, Contract.dateTo, name, prolongation, 
+                   nameSupplier, nameCustomer, isReverse, nameContractType, namePeriod, fromCount, fromPayment, 
+                   personSupplier, basedOnSupplier, inputScanFile, openScanFile, deleteScanFile, nameCurrency, nameTypeExchange,
+                   descriptionPaymentCondition
     
     EDIT ContractMarketing OBJECT c
 ;
@@ -129,10 +134,12 @@ DESIGN contractMarketing {
             MOVE PROPERTY (nameSupplier(c));
             MOVE PROPERTY (nameCustomer(c));
             MOVE PROPERTY (nameContractType(c));
-            MOVE PROPERTY (paymentDelay(c));
+            MOVE PROPERTY (descriptionPaymentCondition(c));
             MOVE PROPERTY (fromCount(c));
             MOVE PROPERTY (fromPayment(c));
             MOVE PROPERTY (isReverse(c));
+            MOVE PROPERTY (nameCurrency(c));
+            MOVE PROPERTY (nameTypeExchange(c));
         }
         NEW person {
             caption = 'Строка для задания и акта';
@@ -157,8 +164,8 @@ DESIGN contractMarketing {
 
 FORM contractMarketings 'Договоры маркетинга'
     OBJECTS c = ContractMarketing 
-    PROPERTIES (c) READONLY number, dateFrom, dateTo, name, prolongation, nameSupplier, nameCustomer, paymentDelay, 
-                   nameContractType, namePeriod, fromCount, fromPayment           
+    PROPERTIES (c) READONLY number, Contract.dateFrom, Contract.dateTo, name, prolongation, nameSupplier, nameCustomer, 
+                   descriptionPaymentCondition, nameContractType, namePeriod, fromCount, fromPayment           
     PROPERTIES (c) NEWSESSION NEW, EDIT, DELETE 
 ;
 
@@ -178,8 +185,8 @@ DESIGN contractMarketings {
 
 FORM dialogContractMarketings 'Договоры маркетинга'
     OBJECTS c = ContractMarketing 
-    PROPERTIES (c) READONLY number, dateFrom, dateTo, name, prolongation, nameSupplier, nameCustomer, paymentDelay, 
-                   nameContractType, namePeriod, fromCount, fromPayment   
+    PROPERTIES (c) READONLY number, Contract.dateFrom, Contract.dateTo, name, prolongation, nameSupplier, nameCustomer, 
+                   descriptionPaymentCondition, nameContractType, namePeriod, fromCount, fromPayment   
                    
     LIST ContractMarketing OBJECT c
 ;
@@ -680,12 +687,12 @@ copyConditionList 'Копировать' (ConditionList l)  {
 
 copyContractMarketing 'Копировать' (ContractMarketing c)  { 
     NEWSESSION NEW nc = ContractMarketing {
-        dateFrom(nc) <- dateTo(c);
-        dateTo(nc) <- sum(dateTo(c), 1 + daysBetweenDates(dateTo(c), dateFrom(c)));
+        Contract.dateFrom(nc) <- Contract.dateTo(c);
+        Contract.dateTo(nc) <- sum(Contract.dateTo(c), 1 + daysBetweenDates(Contract.dateTo(c), Contract.dateFrom(c)));
         prolongation(nc) <- prolongation(c);
         customer(nc) <- customer(c);
         supplier(nc) <- supplier(c);
-        paymentDelay(nc) <- paymentDelay(c);
+        paymentCondition(nc) <- paymentCondition(c);
         contractType(nc) <- contractType(c);
         fromPayment(nc) <- fromPayment(c);
         fromCount(nc) <- fromCount(c);
@@ -807,32 +814,32 @@ importContractMarketings 'Импорт договоров' ()  {
         FOR [GROUP MIN INTEGER i IF i > 0 BY number(i), dfrom(i), dto(i), idSupplier(i)]
         (STRING[28] number, DATE df, DATE dt, STRING[100] sup) NEW c = ContractMarketing DO {
             number(c) <- number;
-            dateFrom(c) <- df;
-            dateTo(c) <- dt;
+            Contract.dateFrom(c) <- df;
+            Contract.dateTo(c) <- dt;
             supplier(c) <- legalEntity(sup);
         }
         FOR INTEGER i == [GROUP MIN INTEGER ii BY  number(ii), dfrom(ii), dto(ii), idSupplier(ii)](STRING[28] number, DATE df, DATE dt, STRING[10] idsup)
-            AND ContractMarketing c == (GROUP LAST ContractMarketing cc WHERE number(cc) = number AND dateFrom(cc) == df AND dateTo(cc) == dt AND id(supplier(cc)) == idsup) DO {
+            AND ContractMarketing c == (GROUP LAST ContractMarketing cc WHERE number(cc) = number AND Contract.dateFrom(cc) == df AND Contract.dateTo(cc) == dt AND id(supplier(cc)) == idsup) DO {
             
             name(c) <- name(i);
             prolongation(c) <- prolongation(i);
-            customer(c) <- GROUP LAST LegalEntity l WHERE isSubstring(name(l), customer(i));
-            paymentDelay(c) <- delay(i);
-            contractType(c) <- GROUP LAST ContractType t WHERE name(t) == contractType(i);
-            period(c) <- GROUP LAST Period p WHERE name(p) == period(i);
+            customer(c) <- (GROUP MAX LegalEntity l IF isSubstring(name(l), customer(i)));
+            paymentCondition(c) <- (GROUP MAX PaymentCondition pc IF countDays(PaymentPeriod pp) == delay(i) AND paymentCondition(pp) == pc) ;
+            contractType(c) <- (GROUP MAX ContractType t IF name(t) == contractType(i));
+            period(c) <- (GROUP MAX Period p IF name(p) == period(i));
             fromCount(c) <- fromCount(i) == 1;
             fromPayment(c) <- fromPayment(i) == 1;
         }
                 
         FOR [GROUP MIN INTEGER i IF i > 0 BY number(i), dfrom(i), dto(i), idSupplier(i), dfList(i), dtList(i)](STRING[28] n, DATE df, DATE dt, STRING[10] ids, DATE dfl, DATE dtl)
             NEW c = ConditionList DO {
-                contractMarketing(c) <- (GROUP LAST ContractMarketing m WHERE number(m) == n AND dateFrom(m) = df AND dateTo(m) = dt AND id(supplier(m)) = ids);
+                contractMarketing(c) <- (GROUP LAST ContractMarketing m WHERE number(m) == n AND Contract.dateFrom(m) = df AND Contract.dateTo(m) = dt AND id(supplier(m)) = ids);
                 dateFrom(c) <- dfl;
                 dateTo(c) <- dtl;
         }  
         
-        FOR imported(INTEGER i) AND number(ContractMarketing c) == number(i) AND dateFrom(c) == dfrom(i) 
-            AND dateTo(c) == dto(i) AND id(supplier(c)) == idSupplier(i) AND i > 0 DO {
+        FOR imported(INTEGER i) AND number(ContractMarketing c) == number(i) AND Contract.dateFrom(c) == dfrom(i) 
+            AND Contract.dateTo(c) == dto(i) AND id(supplier(c)) == idSupplier(i) AND i > 0 DO {
                     
             FOR ConditionList l == (GROUP LAST ConditionList ll WHERE dateFrom(ll) == dfList(i) AND dateTo(ll) == dtList(i) AND contractMarketing(ll) == c) DO {
                                 
@@ -883,14 +890,26 @@ CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(customer(c
 CONSTRAINT ContractMarketing c IS ContractMarketing AND NOT isCompany(supplier(c)) AND isReverse(c) CHECKED BY supplier[ContractMarketing] 
     MESSAGE 'Поставщик не является компанией';
     
-migratedItemCondition = DATA BOOLEAN ();
+migratedContract = DATA BOOLEAN ();
 onStarted() + { 
-    IF NOT migratedItemCondition() THEN {
+    IF NOT migratedContract() THEN {
         NEWSESSION {
             setNoCancelInTransaction();
-            migratedItemCondition() <- TRUE;
-            in(Item i, MarketingCondition c) <- i == item(c);
+            migratedContract() <- TRUE;
+            Contract.dateFrom(Contract c) <- Marketing.dateFrom(c) WHERE c IS ContractMarketing;
+            Contract.dateTo(Contract c) <- Marketing.dateTo(c) WHERE c IS ContractMarketing;
+            
+            FOR [GROUP SUM 1 BY INTEGER(paymentDelay(ContractMarketing c))](INTEGER days) AND NOT (GROUP SUM 1 IF days == countDays(PaymentPeriod pp) AND NOT bankingDays(pp)) NEW p = PaymentCondition DO {
+                type(p) <- AgreementPaymentType.prepayment;
+                NEW pp = PaymentPeriod {
+                    paymentCondition(pp) <- p;
+                    countDays(pp) <- days;
+                    percent(pp) <- 100;
+                }
+            }
+            paymentCondition(Contract c) <- (GROUP MAX PaymentCondition pc IF countDays(PaymentPeriod pp) == paymentDelay(c) AND paymentCondition(pp) == pc AND NOT bankingDays(pp)) WHERE c IS ContractMarketing;
             APPLY;
-        }    
+        }
+        recalculateColumnsAggregations(tableSID('Contract_contract'));
     }
 }
