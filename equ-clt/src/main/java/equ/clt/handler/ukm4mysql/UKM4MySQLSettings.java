@@ -65,6 +65,9 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то выгружаем в таблицу Var поле tare_weight
     private boolean tareWeightFieldInVarTable;
 
+    //если true, то используем r.local_number, иначе r.global_number
+    private boolean useLocalNumber;
+
     public UKM4MySQLSettings() {
     }
 
@@ -221,5 +224,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setTareWeightFieldInVarTable(boolean tareWeightFieldInVarTable) {
         this.tareWeightFieldInVarTable = tareWeightFieldInVarTable;
+    }
+
+    public boolean isUseLocalNumber() {
+        return useLocalNumber;
+    }
+
+    public void setUseLocalNumber(boolean useLocalNumber) {
+        this.useLocalNumber = useLocalNumber;
     }
 }

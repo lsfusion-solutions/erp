@@ -1024,6 +1024,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         boolean useShiftNumberAsNumberZReport = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseShiftNumberAsNumberZReport();
         boolean zeroPaymentForZeroSumReceipt = ukm4MySQLSettings != null && ukm4MySQLSettings.isZeroPaymentForZeroSumReceipt();
         boolean cashRegisterByStoreAndNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isCashRegisterByStoreAndNumber();
+        boolean useLocalNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseLocalNumber();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
@@ -1055,7 +1056,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
-                            cashRegisterByStoreAndNumber, directory);
+                            cashRegisterByStoreAndNumber, useLocalNumber, directory);
 
                 } finally {
                     if (conn != null)
@@ -1184,7 +1185,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
-                                                     boolean cashRegisterByStoreAndNumber, String directory) {
+                                                     boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1192,8 +1193,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Set<String> usedBarcodes = new HashSet<>();
 
         try (Statement statement = conn.createStatement()) {
+            String numberReceiptField = useLocalNumber ? "r.local_number" : "r.global_number";
             String query = "SELECT sql_no_cache i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
-                    " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.value, l.user_id, l.user_name, s.number, r.client_card_code " +
+                    " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, " + numberReceiptField + ", r.date, r.cash_id, r.id, r.login, s.date, rip.value, l.user_id, l.user_name, s.number, r.client_card_code " +
                     " FROM receipt_item AS i" +
                     " JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                     " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
@@ -1236,7 +1238,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     boolean isSale = receiptType == 0 || receiptType == 8;
                     boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                     String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
-                    Integer numberReceipt = rs.getInt(16); //r.global_number
+                    Integer numberReceipt = rs.getInt(16); //r.local_number or r.global_number
                     LocalDate dateReceipt = sqlDateToLocalDate(rs.getDate(17)); // r.date
                     Time timeReceipt = rs.getTime(17); //r.date
                     //Integer login = rs.getInt(18); //r.login
