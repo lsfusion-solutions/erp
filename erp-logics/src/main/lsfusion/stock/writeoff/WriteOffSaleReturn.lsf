@@ -1,0 +1,321 @@
+MODULE WriteOffSaleReturn;
+
+REQUIRE WriteOffPurchase, SaleReturnShipment;
+
+PRIORITY SaleReturn, WriteOff; 
+
+// Должна быть возможность подключить без WriteOffSale, поэтому свой параметр в операции
+
+createSaleReturnWriteOff 'Акт списания (при возврате)' = DATA BOOLEAN (Sale.Operation);  
+
+writeOffSaleReturnOperation  = DATA Operation (Sale.Operation);
+nameWriteOffSaleReturnOperation 'Операция списания (при возврате)' (Sale.Operation operation)= name(writeOffSaleReturnOperation(operation));
+
+EXTEND FORM Sale.operation
+    PROPERTIES(o) createSaleReturnWriteOff
+    PROPERTIES(o) nameWriteOffSaleReturnOperation
+;
+DESIGN Sale.operation {
+    createContainer {
+        MOVE PROPERTY(createSaleReturnWriteOff(o));
+        MOVE PROPERTY(nameWriteOffSaleReturnOperation(o)) AFTER PROPERTY(createSaleReturnWriteOff(o));
+    }
+}
+
+//---------------------------------- Extend Invoice ------------------------------------//
+@defineDocumentInterfaceProperty (invoice, createSaleReturnWriteOff, 'Создать акт списания');
+@deriveDocumentOperationProperty(UserInvoice, createSaleReturnWriteOff);
+
+@defineDocumentInterfaceOperationPrefix (invoice, writeOff, WriteOff, ' (списания)');
+writeOffOperation (UserInvoice i) <- writeOffSaleReturnOperation(operation(i))
+    WHEN CHANGED(operation(i));
+
+writeOffQuantity 'Кол-во списания' = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
+writeOffQuantity 'Кол-во списания' = DATA NUMERIC[16,5] (UserInvoiceDetail);
+writeOffQuantity (UserInvoiceDetail invoiceDetail) += writeOffQuantity(invoiceDetail);
+
+writeOffPrice 'Цена списания' = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
+writeOffPrice 'Цена списания' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+writeOffPrice (UserInvoiceDetail invoiceDetail) += writeOffPrice(invoiceDetail);
+
+writeOffSum 'Сумма списания' = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+writeOffSum 'Сумма списания' = DATA NUMERIC[18,4] (UserInvoiceDetail);
+writeOffSum (UserInvoiceDetail invoiceDetail) += writeOffSum(invoiceDetail);
+
+@deriveDocumentDetailSumPrefix(userInvoice, writeOff, currency, writeOffQuantity);
+@defineDocumentInterfaceHeaderSumPrefix (invoice, writeOff, ' списания');
+@defineDocumentInterfaceHeaderWriteOffCommittee(invoice, supplierStock);
+
+reason 'Причина списания (ИД)' = ABSTRACT Reason (Invoice);
+reason 'Причина списания (ИД)' = DATA Reason (UserInvoice);
+reason(UserInvoice invoice) += reason(invoice);
+nameReason 'Причина списания' (Invoice invoice) = name(reason(invoice)) IN documentPrm;
+nameReason 'Причина списания' (UserInvoice userInvoice) = name(reason (userInvoice)) IN documentPrm;
+reason (UserInvoice i) <- reason(writeOffOperation(i))
+    WHEN CHANGED(writeOffOperation(i));
+
+writeOffRate 'Норма отходов' (invoiceDetail) = ABSTRACT WriteOffRate (InvoiceDetail);
+nameWriteOffRate 'Норма отходов' (InvoiceDetail invoiceDetail) = name(writeOffRate(invoiceDetail));
+percentWriteOffRate 'Норма отходов,%' (invoiceDetail)= ABSTRACT NUMERIC[10,3] (InvoiceDetail);
+
+writeOffRate 'Норма отходов' (userInvoiceDetail) = DATA WriteOffRate (UserInvoiceDetail);
+nameWriteOffRate 'Норма отходов' (UserInvoiceDetail userInvoiceDetail) = name(writeOffRate(userInvoiceDetail));
+percentWriteOffRate 'Норма отходов,%' (invoiceDetail)= DATA NUMERIC[10,3] (UserInvoiceDetail);
+
+CONSTRAINT DROPPED(WriteOffRate w IS WriteOffRate) AND [ GROUP SUM 1 IF NOT writeOffRate(UserInvoiceDetail d) BY PREV(writeOffRate(d))](w)
+    MESSAGE 'Запрещено удалять норму отходов, так как она используется в накладных(продажа-возврат)';
+
+WHEN LOCAL (SETCHANGED(countryCustomerStock(UserInvoiceDetail detail)) OR 
+              SETCHANGED(sku(detail)) OR
+              SET(createSaleReturnWriteOff(detail))) AND createSaleReturnWriteOff(detail) DO
+    writeOffRate(detail) <- writeOffRate(countryCustomerStock(detail), sku(detail));
+              
+WHEN LOCAL CHANGED(writeOffRate(UserInvoiceDetail detail)) DO
+    percentWriteOffRate(detail) <- percent(writeOffRate(detail));
+
+WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail detail)) OR
+              CHANGED(percentWriteOffRate (detail))) DO
+    writeOffQuantity (detail) <- round3(shipmentQuantity(detail) * percentWriteOffRate (detail)/100);
+
+WHEN LOCAL (CHANGED(shipmentPrice(UserInvoiceDetail detail)) OR
+              CHANGED(writeOffQuantity(detail))) AND writeOffQuantity(detail) DO 
+    writeOffPrice (detail) <- shipmentPrice(detail);
+
+writeOffRate (UserInvoiceDetail detail) += writeOffRate(detail);
+percentWriteOffRate (UserInvoiceDetail detail) += percentWriteOffRate(detail);
+
+backgroundWritten 'Цвет' (Invoice invoice) = RGB(212, 255, 212) IF invoice IS Invoice;
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) createSaleReturnWriteOff BACKGROUND backgroundWritten(i) 
+    PROPERTIES (i) BACKGROUND backgroundWritten(i) SHOWIF createSaleReturnWriteOff(i)
+                   nameWriteOffOperation, nameWriteOffCommittee, nameReason, writeOffSumUserInvoiceDetail
+    PROPERTIES (d) SHOWIF createSaleReturnWriteOff(i) BEFORE deleteid BACKGROUND backgroundWritten(i)
+                   nameWriteOffRate, percentWriteOffRate, writeOffQuantity,
+                   writeOffPrice,  writeOffSum
+;
+DESIGN userInvoice {
+    headerCreateDocuments {
+        NEW headerCreateWriteOff {
+            caption = 'Акт списания';
+            MOVE PROPERTY(createSaleReturnWriteOff(i));
+            MOVE PROPERTY(nameWriteOffOperation(i));
+            MOVE PROPERTY(nameWriteOffCommittee(i));
+            MOVE PROPERTY(nameReason(i));
+        }
+    }
+    PROPERTY(writeOffSumUserInvoiceDetail(i)) { charWidth = 13;}
+}
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY writeOffSumInvoiceDetail BACKGROUND backgroundWritten(i) BEFORE orders(i)
+    PROPERTIES (d) SHOWIF createSaleReturnWriteOff(i) BACKGROUND backgroundWritten(i) READONLY writeOffQuantity,
+                   writeOffPrice,  writeOffSum
+;
+
+
+//---------------------------------- Extend Shipment ------------------------------------//
+
+GROUP shipment 'Информация о поставке (продажа-возврат)' : base;
+
+@defineDocumentInterfaceProperty (shipment, createSaleReturnWriteOff, 'Создать акт списания');
+@deriveDocumentOperationProperty(UserShipment, createSaleReturnWriteOff);
+
+overCopy(UserInvoice s, UserInvoice d) + { 
+    createSaleReturnWriteOff(d) <- createSaleReturnWriteOff(s);
+    writeOffCommittee(d) <- writeOffCommittee(s);
+    writeOffOperation(d) <- writeOffOperation(s);
+    reason(d) <- reason(s);
+}
+
+@defineDocumentInterfaceOperationPrefix (shipment, writeOff, WriteOff, ' (списания)');
+writeOffOperation(UserShipment s) <- writeOffSaleReturnOperation(operation(s))
+    WHEN CHANGED(operation(s));
+
+writeOffQuantity 'Кол-во (списания)' = ABSTRACT NUMERIC[16,5] (ShipmentDetail);
+writeOffQuantity 'Кол-во (списания)' = DATA NUMERIC[16,5] (UserShipmentDetail);
+writeOffQuantity (UserShipmentDetail shipmentDetail) += writeOffQuantity(shipmentDetail);
+
+writeOffPrice 'Цена (списания)' = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
+writeOffPrice 'Цена (списания)' = DATA NUMERIC[16,4] (UserShipmentDetail);
+writeOffPrice (UserShipmentDetail shipmentDetail) += writeOffPrice(shipmentDetail);
+
+writeOffSum 'Сумма (списания)' = ABSTRACT NUMERIC[18,4] (ShipmentDetail);
+writeOffSum 'Сумма (списания)' = DATA NUMERIC[18,4] (UserShipmentDetail);
+writeOffSum (UserShipmentDetail shipmentDetail) += writeOffSum(shipmentDetail);
+
+@deriveDocumentDetailSumPrefix(userShipment, writeOff, currency, writeOffQuantity);
+@defineDocumentInterfaceHeaderSumPrefix (shipment, writeOff, ' (списания)');
+@defineDocumentInterfaceHeaderWriteOffCommittee(shipment, supplierStock);
+
+//------------------------------ Создание агрегированных объектов через операции -----------------------------//
+
+reason 'Причина списания (ИД)' = ABSTRACT Reason (Shipment);
+reason 'Причина списания (ИД)' = DATA Reason (UserShipment);
+reason(UserShipment shipment) += reason(shipment);
+nameReason 'Причина списания' (Shipment shipment) = name(reason (shipment)) IN documentPrm;
+nameReason 'Причина списания' (UserShipment userShipment) = name(reason (userShipment)) IN documentPrm;
+reason(UserShipment s) <- reason(writeOffOperation(s))
+    WHEN CHANGED(writeOffOperation(s));
+
+writeOffRate 'Норма отходов' (shipmentDetail) = ABSTRACT WriteOffRate (ShipmentDetail);
+nameWriteOffRate 'Норма отходов' (ShipmentDetail shipmentDetail) = name(writeOffRate(shipmentDetail));
+percentWriteOffRate 'Норма отходов,%' (shipmentDetail)= ABSTRACT NUMERIC[10,3] (ShipmentDetail);
+
+writeOffRate 'Норма отходов' (userShipmentDetail) = DATA WriteOffRate (UserShipmentDetail);
+nameWriteOffRate 'Норма отходов' (UserShipmentDetail userShipmentDetail) = name(writeOffRate(userShipmentDetail));
+percentWriteOffRate 'Норма отходов,%' (shipmentDetail)= DATA NUMERIC[10,3] (UserShipmentDetail);
+
+writeOffRate(UserShipmentDetail detail) <- writeOffRate(countryCustomerStock(detail), sku(detail)) WHEN
+    CHANGED(countryCustomerStock(detail)) OR CHANGED(sku(detail)) AND createSaleReturnWriteOff(detail);
+
+percentWriteOffRate (UserShipmentDetail detail) <- percent(writeOffRate(detail)) WHEN
+    CHANGED(writeOffRate(detail)) AND createSaleReturnWriteOff(detail);
+
+writeOffQuantity (UserShipmentDetail detail) <- round3(quantity(detail)*percentWriteOffRate (detail)/100)   WHEN
+    CHANGED(quantity(detail)) OR CHANGED(percentWriteOffRate (detail)) AND createSaleReturnWriteOff(detail);
+
+writeOffPrice (UserShipmentDetail detail) <- price(detail) WHEN CHANGED(price(detail)) AND createSaleReturnWriteOff(detail);
+
+writeOffRate (UserShipmentDetail detail) += writeOffRate(detail);
+percentWriteOffRate (UserShipmentDetail detail) += percentWriteOffRate(detail);
+
+
+//---------------------------------- Extend Aggregation (invoiceInvoiceShipment) ------------------//
+
+createSaleReturnWriteOff(InvoiceShipment shipment) += createSaleReturnWriteOff(invoice(shipment));
+reason(InvoiceShipment shipment) += reason(invoice(shipment));
+writeOffCommittee(InvoiceShipment shipment) += writeOffCommittee(invoice(shipment));
+writeOffOperation(InvoiceShipment shipment) += writeOffOperation(invoice(shipment));
+
+writeOffQuantity(InvoiceShipmentDetail detail) += writeOffQuantity(invoiceDetail(detail));
+writeOffPrice(InvoiceShipmentDetail detail) += writeOffPrice(invoiceDetail(detail));
+writeOffSum(InvoiceShipmentDetail detail) += writeOffSum(invoiceDetail(detail));
+writeOffRate (InvoiceShipmentDetail detail) += writeOffRate(invoiceDetail(detail));
+percentWriteOffRate(InvoiceShipmentDetail detail) += percentWriteOffRate(invoiceDetail(detail));
+
+//--  Связь поставки и акта списания
+shipmentDetail = ABSTRACT ShipmentDetail (WriteOffDetail) MATERIALIZED;
+descriptionIndexShipmentDetail 'Строка поставки (продажа-возврат)' (WriteOffDetail detail) = descriptionIndex(shipmentDetail(detail));
+
+quantityWriteOffDetail (shipment, writeOff) = GROUP SUM quantity(WriteOffDetail writeOffDetail) BY shipment(shipmentDetail(writeOffDetail)), writeOff(writeOffDetail);
+
+writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantity(WriteOffDetail writeOffDetail) IF isPosted(writeOffDetail)
+                                                                   BY shipmentDetail(writeOffDetail);
+writtenOff (shipment)= GROUP SUM writtenOff(ShipmentDetail shipmentDetail) BY shipment(shipmentDetail);
+notWrittenOff 'Поставки без списания' (Shipment shipment) = shipment IS Shipment AND NOT writtenOff (shipment);
+
+showWriteOff (Shipment shipment) =  shipment IS Shipment AND NOT createSaleReturnWriteOff(shipment);
+
+backgroundWritten 'Цвет' (Shipment shipment) = RGB(212, 255, 212) IF shipment IS Shipment;
+
+EXTEND FORM userShipment
+    PROPERTIES (s) createSaleReturnWriteOff BACKGROUND backgroundWritten(s)
+    PROPERTIES (s) BACKGROUND backgroundWritten(s) SHOWIF createSaleReturnWriteOff(s)
+                   nameWriteOffOperation, nameWriteOffCommittee, nameReason, writeOffSumUserShipmentDetail
+    PROPERTIES(d)  READONLY writtenOff AFTER quantity(d) SHOWIF showWriteOff(s) BACKGROUND backgroundWritten(s)
+    PROPERTIES (d) SHOWIF createSaleReturnWriteOff(s) BEFORE deletesd BACKGROUND backgroundWritten(s)
+                   nameWriteOffRate, percentWriteOffRate, writeOffQuantity,
+                   writeOffPrice,  writeOffSum
+;
+DESIGN userShipment {
+    headerCreateDocuments {
+        NEW headerWriteOff {
+            caption = 'Акт списания';
+            type = CONTAINERH;
+            MOVE PROPERTY(createSaleReturnWriteOff(s));
+            MOVE PROPERTY(nameWriteOffOperation(s));
+            MOVE PROPERTY(nameWriteOffCommittee(s));
+            MOVE PROPERTY(nameReason(s));
+        }
+    }
+    PROPERTY(writeOffSum(d)) { charWidth = 13;}
+}
+EXTEND FORM shipments
+    PROPERTIES (s) READONLY writeOffSumShipmentDetail BACKGROUND backgroundWritten(s) AFTER sumShipmentDetail(s)
+    PROPERTIES (d) READONLY SHOWIF createSaleReturnWriteOff(s) BACKGROUND backgroundWritten(s) writeOffQuantity,
+                   writeOffPrice,  writeOffSum
+    PROPERTIES(d) READONLY writtenOff AFTER quantity(d) SHOWIF showWriteOff(s) BACKGROUND backgroundWritten(s)
+
+;
+        
+calcWriteOffRate  (ShipmentDetail detail) = writeOffRate(countryCustomerStock(detail), sku(detail));
+calcWriteOffQuantity 'Кол-во (списания)' (ShipmentDetail detail) = round3(quantity(detail)*percent(calcWriteOffRate(detail))/100);
+calcWriteOffPrice 'Цена (списания)' (ShipmentDetail detail) = price(detail) IF calcWriteOffQuantity(detail);
+calcWriteOffSum 'Сумма (списания)' (ShipmentDetail detail) = round(calcWriteOffQuantity(detail)*calcWriteOffPrice(detail),currency(detail));
+
+EXTEND FORM writeOffs
+    PROPERTIES(d) READONLY descriptionIndexShipmentDetailSaleReturn = descriptionIndexShipmentDetail
+;
+
+//-- агр. объект
+
+needToWritten (ShipmentDetail shipmentDetail) = writeOffQuantity(shipmentDetail) AND createSaleReturnWriteOff(shipmentDetail);
+
+needToWritten (shipment)= GROUP SUM 1 IF needToWritten(ShipmentDetail shipmentDetail)
+    BY shipment(shipmentDetail) MATERIALIZED;
+
+CLASS ShipmentWriteOff 'Акт списания на основе поставки (продажа-возврат)': WriteOff;
+CLASS ShipmentWriteOffDetail 'Строка акта списания на основе поставки (продажа-возврат)': WriteOffDetail;
+
+@defineDocumentTables(shipmentWriteOff);
+
+@defineDocumentAggregation(shipment, shipmentWriteOff, needToWritten);
+writeOff(ShipmentWriteOffDetail detail) += shipmentWriteOff(detail);
+
+index(ShipmentWriteOffDetail detail) += index(detail);
+
+date(ShipmentWriteOff writeOff) += date(writeOff);
+time(ShipmentWriteOff writeOff) += time(writeOff);
+
+@defineDocumentAggregationStockPrefix(shipment, shipmentWriteOff, supplier, 'Склад', , );
+stock(ShipmentWriteOff writeOff) += supplierStock(writeOff);
+
+@defineDocumentAggregationPosted(shipment, shipmentWriteOff);
+isPosted(ShipmentWriteOff writeOff) += isPosted(writeOff);
+
+@defineDocumentAggregationClosed(shipment, shipmentWriteOff);
+isClosed(ShipmentWriteOff writeOff) += isClosed(writeOff);
+
+number 'Номер документа' (ShipmentWriteOff shipmentWriteOff) = number(shipment(shipmentWriteOff));
+number(ShipmentWriteOff writeOff) += number(writeOff);
+
+series 'Серия документа' (ShipmentWriteOff shipmentWriteOff) = series(shipment(shipmentWriteOff));
+series(ShipmentWriteOff writeOff) += series(writeOff);
+
+seriesNumber 'Серия/номер документа' (ShipmentWriteOff shipmentWriteOff) = seriesNumber(shipment(shipmentWriteOff));
+
+noteShipment 'Примечание' (ShipmentWriteOff shipmentWriteOff) = note(shipment(shipmentWriteOff));
+note(ShipmentWriteOff writeOff) += noteShipment(writeOff);
+
+currency  (ShipmentWriteOff shipmentWriteOff) = currency(shipment(shipmentWriteOff));
+currency (ShipmentWriteOff writeOff) += currency(writeOff);
+
+@defineDocumentDescription(shipmentWriteOff, ShipmentWriteOffDetail, 'Акт списания на основе поставки (продажа-возврат)');
+description (ShipmentWriteOff writeOff) += description(writeOff);
+
+reason(ShipmentWriteOff writeOff) += reason(shipment(writeOff));
+writeOffCommittee(ShipmentWriteOff writeOff) += writeOffCommittee(shipment(writeOff));
+operation(ShipmentWriteOff writeOff) += writeOffOperation(shipment(writeOff));
+
+@defineDocumentAggregationDetailSku(shipment, shipmentWriteOff, sku);
+sku(ShipmentWriteOffDetail writeOffDetail) +=  sku(writeOffDetail);
+
+quantity(ShipmentWriteOffDetail writeOffDetail) += writeOffQuantity(shipmentDetail(writeOffDetail));
+batch(ShipmentWriteOffDetail writeOffDetail) += batch(shipmentDetail(writeOffDetail));
+
+writeOffPrice(ShipmentWriteOffDetail shipmentWriteOffDetail) = writeOffPrice(shipmentDetail(shipmentWriteOffDetail));
+price(ShipmentWriteOffDetail writeOffDetail) += writeOffPrice(writeOffDetail);
+
+sumWriteOff(ShipmentWriteOffDetail shipmentWriteOffDetail) = writeOffSum(shipmentDetail(shipmentWriteOffDetail));
+sum(ShipmentWriteOffDetail writeOffDetail) += sumWriteOff(writeOffDetail);
+
+price 'Цена поставщика' (ShipmentWriteOffDetail shipmentWriteOffDetail)= price(invoiceDetail(shipmentDetail(shipmentWriteOffDetail)));
+
+sumVAT(ShipmentWriteOffDetail shipmentWriteOffDetail) = sumWriteOff(shipmentWriteOffDetail) * valueVAT(invoiceDetail(shipmentDetail(shipmentWriteOffDetail))) 
+    / (100 + valueVAT(invoiceDetail(shipmentDetail(shipmentWriteOffDetail))));
+
+shipmentDetail(ShipmentWriteOffDetail writeOffDetail) += shipmentDetail(writeOffDetail);
+
+edit(ShipmentWriteOffDetail d) + {  edit(shipmentDetail(d)); }
+show(ShipmentWriteOffDetail d) + {  show(shipmentDetail(d)); }
+edit(ShipmentWriteOff w) + {  edit(shipment(w)); }
