@@ -12,7 +12,6 @@ EXTEND FORM zReports
 
 importCloseDate(ZReport z) {
     LOCAL file = FILE ();
-    
     LOCAL num = INTEGER (INTEGER );
     LOCAL closeDate = DATETIME (INTEGER );
     
@@ -104,7 +103,7 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 }                             
                 inc(expMain) <- NULL;
                 
- //   sleep(pauseBetweenInvoiceFI());
+               sleep(pauseBetweenInvoiceFI());
  
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- 'CR';
@@ -162,4 +161,13 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
 
 exportZReports (STRING idStock, STRING dateStr ) {
     exportZReports(departmentStore(idStock),toDateFormat(dateStr,'DD.MM.YYYY'));
+}
+
+exportZReports () {
+    FOR date(ZReport z) >= sum(currentDate(), -1) AND NOT closeDate(z) DO {
+        importCloseDate(z);
+    }
+
+    exportZReports(departmentStore('69'),sum(currentDate(), -1));
+    exportZReports(departmentStore('69'),currentDate());
 }
