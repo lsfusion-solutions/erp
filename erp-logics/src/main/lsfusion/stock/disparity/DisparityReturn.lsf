@@ -412,6 +412,24 @@ NAVIGATOR {
 
 //------------------------------------------ Опеределение операции для disparity ------------------------------------//
 
+reverseDisparity 'Обратная уценка' = DATA BOOLEAN (Disparity.Operation) PREREAD;
+
+EXTEND FORM Disparity.operation
+    PROPERTIES(o) reverseDisparity
+;
+DESIGN Disparity.operation {
+    paramsContainer {
+        MOVE PROPERTY(reverseDisparity(o));
+    }
+}
+
+CONSTRAINT SETCHANGED(operation(Disparity.Disparity d)) AND reverseDisparity(operation(d))
+    CHECKED BY operation[Disparity.Disparity] MESSAGE 'Для документа выбрана операция обратной уценки';
+
+WHEN LOCAL SET(Disparity.Disparity o IS Disparity.Disparity) AND (GROUP SUM 1 IF Disparity.Operation oo IS Disparity.Operation AND NOT reverseDisparity(oo)) == 1 DO {
+    IF o IS Disparity.Disparity AND NOT operation(o) THEN operation(o) <- GROUP MAX Disparity.Operation oo IF oo IS Disparity.Operation AND NOT reverseDisparity(oo);
+};
+
 operation = DATA Disparity.Operation (Disparity) MATERIALIZED;
 nameOperation 'Операция' = name(operation(Disparity disparity));
 
@@ -429,6 +447,13 @@ DESIGN disparity{
 EXTEND FORM disparities
     PROPERTIES(dis) READONLYIF isReadonly() nameOperation AFTER nameStock(dis)
 ;
+
+CONSTRAINT SETCHANGED(operation(Disparity d)) AND NOT reverseDisparity(operation(d))
+    CHECKED BY operation[Disparity] MESSAGE 'Для документа должна быть выбрана операция обратной уценки';
+
+WHEN LOCAL SET(Disparity o IS Disparity) AND (GROUP SUM 1 IF reverseDisparity(Disparity.Operation oo)) == 1 DO {
+    IF o IS Disparity AND NOT operation(o) THEN operation(o) <- GROUP MAX Disparity.Operation oo IF reverseDisparity(oo);
+};
 
 CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))  
     AND inputSku(detail) AND sku(detail) 
