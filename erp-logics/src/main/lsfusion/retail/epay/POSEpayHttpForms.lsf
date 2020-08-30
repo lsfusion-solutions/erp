@@ -1,0 +1,476 @@
+MODULE POSEpayHttpForm;
+
+REQUIRE POS;
+
+NAMESPACE POS;
+
+token 'Токен' = DATA STRING[36] (CashRegister);
+regNum 'Регистрационный номер' = DATA STRING[12] (CashRegister);
+lastPayment 'id последнего платежа' = DATA STRING (CashRegister);
+
+EXTEND CLASS PaymentMeans { paymentMeansEpay 'Электронный платеж "Оплати"' }
+order (PaymentMeans p) += WHEN p = PaymentMeans.paymentMeansEpay THEN 4;
+
+CLASS StatusPayment {
+    inProgress 'Ожидание подтверждения',
+    ok 'Платеж совершён успешно',
+    decline 'Отказ от платежа',
+    notEnough 'Недостаточно средств',
+    timeout 'Время для подтверждения истекло'
+}
+
+name 'Статус платежа' (StatusPayment s) = staticCaption(s) CHARWIDTH 35;
+indexStatusPayment (StatusPayment s) = CASE
+    WHEN s = StatusPayment.inProgress THEN 0
+    WHEN s = StatusPayment.ok THEN 1
+    WHEN s = StatusPayment.decline THEN 2
+    WHEN s = StatusPayment.notEnough THEN 3
+    WHEN s = StatusPayment.timeout THEN 4
+;
+
+statusPayment(INTEGER i) = GROUP AGGR StatusPayment s BY indexStatusPayment(s);
+
+CLASS PaymentMode {
+    staticQR 'Статический QR',
+    consumerPresented 'QR покупателя' 
+}
+
+name 'Способ оплаты' (PaymentMode p) = staticCaption(p);
+
+indexPaymentMode = ABSTRACT CASE INTEGER (PaymentMode);
+indexPaymentMode (PaymentMode p) += WHEN p = PaymentMode.staticQR THEN 1;
+indexPaymentMode (PaymentMode p) += WHEN p = PaymentMode.consumerPresented THEN 2;
+paymentMode (INTEGER i) = GROUP AGGR PaymentMode m BY indexPaymentMode(m);
+
+addressRequest 'Адрес запросов' = DATA STRING[100] (); 
+
+paymentMode 'Способ оплаты' = DATA PaymentMode ();
+namePaymentMode 'Способ оплаты' () = name(paymentMode());
+indexPaymentMode () = indexPaymentMode(paymentMode());
+
+paymentId 'Id платежа'= DATA LONG (Payment);
+paymentMode = DATA PaymentMode (Payment);
+createdDate = DATA DATETIME (Payment);
+paidDate 'Дата оплаты' = DATA DATETIME (Payment);
+
+EXTEND FORM zReports
+    PROPERTIES (p) paymentId
+;    
+
+minEpayPaymentType () = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansEpay;
+
+epay (Receipt r) = GROUP LAST Payment p ORDER p IF paymentType(p) = minEpayPaymentType() AND sum(p) AND receipt(p) = r;
+
+CLASS ReceiptPaymentType {
+    epay 'О!плати',
+    card 'Карта',
+    cash 'Наличные',
+    credit 'Кредит',
+    other 'Другой' 
+}
+
+name 'Способ оплаты' (ReceiptPaymentType t) = staticCaption(t);
+index (ReceiptPaymentType t) = CASE
+    WHEN t = ReceiptPaymentType.epay THEN 1
+    WHEN t = ReceiptPaymentType.card THEN 2
+    WHEN t = ReceiptPaymentType.cash THEN 3
+    WHEN t = ReceiptPaymentType.credit THEN 4
+    ELSE 99
+;
+receiptPaymentType(INTEGER i) = GROUP AGGR ReceiptPaymentType t BY index(t);
+receiptPaymentType(PaymentType t) = CASE
+    WHEN t = minEpayPaymentType() THEN ReceiptPaymentType.epay
+    WHEN t = minCashPaymentType() THEN ReceiptPaymentType.cash
+    WHEN t = minCardPaymentType() THEN ReceiptPaymentType.card
+    ELSE ReceiptPaymentType.other
+;
+
+currentRegNum = DATA LOCAL STRING[12] ();
+currentToken = DATA LOCAL STRING[36] ();
+currentPin 'Код подтверждения' = DATA LOCAL STRING[2] ();
+currentSessionId = DATA LOCAL INTEGER ();
+isConsumerReady = DATA LOCAL BOOLEAN ();
+currentPayment = DATA LOCAL Payment ();
+resultHttp = DATA LOCAL JSONFILE ();
+conn = DATA LOCAL Connection ();
+authCode = DATA LOCAL STRING ();
+
+// error
+lang_ru = DATA LOCAL STRING ();
+internalCode = DATA LOCAL STRING ();
+code = DATA LOCAL STRING ();
+devMessage = DATA LOCAL STRING ();
+
+GROUP userMessage;
+FORM errorEpay
+    PROPERTIES() internalCode, code, devMessage
+    PROPERTIES() IN userMessage lang_ru
+;
+
+errorMessage = DATA LOCAL TEXT ();
+
+errorEpay(JSONFILE f) {
+    IF f THEN {
+        IMPORT errorEpay JSON FROM f;
+        errorMessage() <- CONCAT '\n', 'Сервер вернул ошибку: ' + (OVERRIDE internalCode(), code()), (OVERRIDE lang_ru(), devMessage());
+    } ELSE {
+        errorMessage() <- CONCAT ': ','Сервер вернул ошибку', statusHttp();
+    }
+    returnPost() <- TRUE;
+    IF conn() THEN {
+        NEWTHREAD {
+            formClose();
+            MESSAGE errorMessage();
+        } CONNECTION OVERRIDE conn();
+    } ELSE {
+        MESSAGE errorMessage();
+    }
+    
+}
+
+// headers
+httpHeadersToken(TEXT name) = CASE
+    WHEN name == 'regNum' THEN currentRegNum()
+; 
+
+httpHeaders(TEXT name) = CASE 
+    WHEN name = 'regNum' THEN currentRegNum()
+    WHEN name = 'token' THEN currentToken()
+;
+
+// token
+setToken (CashRegister c, STRING[36] t) {
+    NEWSESSION {
+        token(c) <- t;
+        APPLY;
+    }
+}
+
+getToken 'Получить токен' (CashRegister c) {
+    IF regNum(c) AND addressRequest() THEN {
+        TRY {
+            currentRegNum() <- regNum(c);
+            EXTERNAL HTTP GET 'https://' + addressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers;
+            IF statusHttp() = 200 THEN {
+                setToken(c, headers('token'));
+            }
+        } CATCH {
+            MESSAGE 'Невозможно получить токен';
+            returnPost() <- TRUE;
+        }
+    }
+}
+
+dropToken 'Сбросить токен' (CashRegister c) {
+    NEWSESSION {
+        token(c) <- NULL;
+        APPLY;
+    }
+}
+
+// payment
+setLastPayment (CashRegister c, STRING o) {
+    NEWSESSION {
+        lastPayment(c) <- o;
+        APPLY;
+    }
+}
+
+itemTypeNum (ReceiptDetail d) = IF isCharge(sku(d)) THEN '2' ELSE '1';
+
+typeModifier (ReceiptDetail d) = IF discountSum(d) > 0 AND d IS ReceiptSaleDetail THEN (1 IF discountSum(d)) ELSE (2 IF discountSum(d));
+sumModifier (ReceiptDetail d) = abs(discountSum(d));
+rateModifier (ReceiptDetail d) = abs(discountPercent(d));
+orderNumber(Receipt r) = STRING(GROUP LAST Payment p ORDER p IF receipt(p) = r);
+absSumReceiptDetail(Receipt r) = abs(sumReceiptDetail(r));
+indexPaymentType (Payment p) = index(receiptPaymentType(paymentType(p)));
+namePaymentType (Payment p) = namePaymentType(p) IF receiptPaymentType(paymentType(p)) = ReceiptPaymentType.other;
+absSum(Payment p) = abs(sum(p));
+absSum(Receipt r) = abs(sum(epay(r)));
+
+GROUP details;
+
+FORM paymentEpay
+    OBJECTS r = Receipt
+    PROPERTIES receiptNumber = id(r), orderNumber(r), sum = absSum(r),
+               sessionId = currentSessionId(), cashierName = nameEmployee(r), authCode()    
+    PROPERTIES IN details amountTotal = absSumReceiptDetail(r), number(r)
+    
+    OBJECTS payments = Payment EXTID 'payments' IN details
+    PROPERTIES indexPaymentType(payments) EXTID 'type', namePaymentType(payments) EXTID 'name', absSum(payments) EXTID 'sum'
+    FILTERS absSum(payments), receipt(payments) = r 
+
+    OBJECTS items = ReceiptSaleDetail EXTID 'items' IN details
+    PROPERTIES (items) type = itemTypeNum, name = nameSku,
+               barcode = idBarcode, quantity,
+               price, unit = shortNameUOMSku,
+               cost = fullSum
+    FILTERS receipt(items) = r  
+
+    OBJECTS modifiers = ReceiptDetail
+    PROPERTIES (modifiers) typeModifier EXTID 'type', sumModifier EXTID 'sum', rateModifier EXTID 'rate'
+    FILTERS modifiers = items, receipt(modifiers) = r, typeModifier(modifiers)
+;
+
+FORM reversalEpay
+    OBJECTS r = Receipt
+    PROPERTIES receiptNumber = id(r), orderNumber(r), sum = absSum(r),
+               sessionId = currentSessionId(), cashierName = nameEmployee(r)    
+    PROPERTIES IN details amountTotal = absSumReceiptDetail(r), number(r)
+    
+    OBJECTS payments = Payment EXTID 'payments' IN details
+    PROPERTIES indexPaymentType(payments) EXTID 'type', namePaymentType(payments) EXTID 'name', absSum(payments) EXTID 'sum'
+    FILTERS absSum(payments), receipt(payments) = r 
+
+    OBJECTS items = ReceiptSaleDetail EXTID 'items' IN details
+    PROPERTIES (items) type = itemTypeNum, name = nameSku,
+               barcode = idBarcode, quantity,
+               price, unit = shortNameUOMSku,
+               cost = fullSum
+    FILTERS receipt(items) = r  
+
+    OBJECTS modifiers = ReceiptDetail
+    PROPERTIES (modifiers) typeModifier EXTID 'type', sumModifier EXTID 'sum', rateModifier EXTID 'rate'
+    FILTERS modifiers = items, receipt(modifiers) = r, typeModifier(modifiers)
+;
+
+
+indexCurrentStatusPayment = DATA LOCAL INTEGER ();
+
+currentStatusPayment = DATA LOCAL StatusPayment ();
+nameCurrentStatusPayment 'Статус платежа' () = name(currentStatusPayment());
+
+deletePayment 'Техническая отмена' (Receipt r) {
+    IF lastPayment(cashRegister(r)) THEN {
+        currentRegNum() <- regNum(cashRegister(r));
+        currentToken() <- token(cashRegister(r));
+        
+        TRY {
+            EXTERNAL HTTP DELETE 'https://' + addressRequest() + '/pos/payments/' + lastPayment(cashRegister(r)) HEADERS httpHeaders HEADERSTO headers;
+            setToken(cashRegister(r), headers('token'));
+            setLastPayment(cashRegister(r), NULL);
+        }
+    }
+}
+
+setPaymentStatus(Payment p, JSONFILE f) {
+    IF p AND f THEN {
+        LOCAL paymentId = LONG ();
+        LOCAL paymentType = INTEGER ();
+        LOCAL sum = NUMERIC[10,2] ();
+        LOCAL createdDate = DATETIME ();
+        LOCAL paidDate = DATETIME ();
+        LOCAL orderNumber = STRING ();
+        LOCAL status = INTEGER ();
+        LOCAL indexPaymentMode = INTEGER ();
+    
+        IMPORT JSON FROM f TO () paymentId, indexPaymentMode = paymentType, sum, createdDate, paidDate, orderNumber, status;
+        paymentId(p) <- paymentId();
+        paymentMode(p) <- paymentMode(indexPaymentMode());
+        createdDate(p) <- createdDate();
+        paidDate(p) <- paidDate();
+        currentStatusPayment() <- statusPayment(status());
+        IF currentStatusPayment() = StatusPayment.inProgress THEN {
+            setLastPayment(cashRegister(receipt(p)), STRING(p));
+        } ELSE {
+            returnPost() <- NOT currentStatusPayment() == StatusPayment.ok;
+            IF returnPost() THEN {
+                setLastPayment(cashRegister(receipt(p)), NULL);
+            }
+        }
+    } ELSE {
+        currentStatusPayment() <- NULL;
+    }
+}
+
+paymentStatus(Payment p) {
+    currentRegNum() <- regNum(cashRegister(receipt(p)));
+    TRY {
+        resultHttp() <- NULL;
+        EXTERNAL HTTP GET 'https://' + addressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
+        setPaymentStatus(p, resultHttp());
+    } CATCH {
+        errorEpay(resultHttp());
+    }
+}
+
+waitPaymentStatus (Payment p) {
+    conn() <- currentConnection();
+    currentPayment() <- p;
+    NEWTHREAD {
+        WHILE currentStatusPayment() == StatusPayment.inProgress AND NOT returnPost() DO {
+            paymentStatus(currentPayment());
+            sleep(5000);        
+        } 
+        IF NOT returnPost() OR NOT currentStatusPayment() == StatusPayment.inProgress THEN { 
+            NEWTHREAD formClose(); CONNECTION conn();
+        }
+    }
+}
+
+FORM paymentStatus 'Статус платежа' AUTOREFRESH 1
+    OBJECTS p = Payment PANEL
+    PROPERTIES READONLY nameCurrentStatusPayment()
+    EVENTS
+        ON INIT { waitPaymentStatus(p); },
+        ON CLOSE { returnPost() <- NOT currentStatusPayment() = StatusPayment.ok; } 
+;
+
+DESIGN paymentStatus {
+    REMOVE TOOLBARLEFT;
+    REMOVE PROPERTY (formApply());
+    REMOVE PROPERTY (formOk());  
+    PANEL {
+        MOVE PROPERTY (nameCurrentStatusPayment()) {
+            caption = '';
+            fontSize = 35;
+            fontStyle = 'bold';
+        }
+    }
+}
+
+paymentEpay (Payment p) {
+    currentRegNum() <- regNum(cashRegister(receipt(p)));
+    currentToken() <- token(cashRegister(receipt(p)));
+    conn() <- NULL;
+    EXPORT paymentEpay OBJECTS r = receipt(p) JSON CHARSET 'UTF-8';
+    
+    LOCAL result = JSONFILE ();
+    TRY {
+        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/payments'
+            HEADERS httpHeaders
+            HEADERSTO headers 
+            PARAMS exportFile() TO result;
+        setToken(cashRegister(receipt(p)), headers('token'));
+        setPaymentStatus(p, result());
+        SHOW paymentStatus OBJECTS p = p WAIT NOMANAGESESSION;
+    } CATCH {
+        errorEpay(result());
+    }
+}
+
+//asyncPaymentEpay (Receipt r) {
+//    currentRegNum() <- regNum(cashRegister(r));
+//    currentToken() <- token(cashRegister(r));
+//    conn() <- NULL;
+//    LOCAL result = JSONFILE ();
+//       
+//    EXPORT paymentEpay OBJECTS r = r JSON CHARSET 'UTF-8';
+//    TRY {
+//        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/async/payments'
+//            HEADERS httpHeaders
+//            HEADERSTO headers 
+//            PARAMS exportFile() TO result;
+//        setToken(cashRegister(r), headers('token'));
+//        setPaymentStatus(r, result());
+//    } CATCH {
+//        errorEpay(result());
+//    }
+//}
+
+receiptSale (Receipt r) = GROUP LAST receiptSale(ReceiptReturnDetail rd) ORDER rd BY receipt(rd);
+paymentSaleId(Payment p) = GROUP LAST paymentId(Payment ps) ORDER ps IF receipt(ps) = receiptSale(receipt(p));  
+
+reversalEpay (Payment p) {
+    currentRegNum() <- regNum(cashRegister(receipt(p)));
+    currentToken() <- token(cashRegister(receipt(p)));
+    conn() <- NULL;
+    EXPORT reversalEpay OBJECTS r = receipt(p) JSON CHARSET 'UTF-8';
+
+    LOCAL result = JSONFILE ();
+    TRY {
+        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/payments/' + STRING(paymentSaleId(p)) + '/reversals'
+            HEADERS httpHeaders
+            HEADERSTO headers 
+            PARAMS exportFile() TO result;
+        setToken(cashRegister(receipt(p)), headers('token'));
+        setPaymentStatus(p, result());
+    } CATCH {
+        errorEpay(result());
+    }
+}
+
+
+
+// consumer 
+consumerStatus(STRING addressRequest, STRING[12] regNum) {
+    isConsumerReady() <- NULL;
+    currentRegNum() <- regNum;
+    TRY {
+        EXTERNAL HTTP GET 'https://' + addressRequest + '/pos/consumerStatus'
+            HEADERS httpHeadersToken TO resultHttp;
+            IF resultHttp() THEN {
+                IMPORT JSON FROM resultHttp() TO () isConsumerReady;
+            } ELSE {
+                isConsumerReady() <- NULL;
+                returnPost() <- TRUE;
+            }
+        } CATCH {
+            errorEpay(resultHttp());
+        }
+}
+
+waitConsumerStatus(CashRegister c) {
+    conn() <- currentConnection();
+    NEWTHREAD {
+        consumerStatus(addressRequest(), regNum(c));
+        WHILE NOT isConsumerReady() AND NOT returnPost() DO {
+            sleep(3000);
+            consumerStatus(addressRequest(), regNum(c));
+        }
+        IF NOT returnPost() THEN NEWTHREAD formClose(); CONNECTION conn();
+    }
+} 
+
+FORM dialogEpay
+    
+    OBJECTS c = CashRegister PANEL 
+    
+    PROPERTIES () READONLY currentPin
+    EVENTS ON INIT waitConsumerStatus(c), ON CLOSE { returnPost() <- NOT isConsumerReady(); }
+;
+
+DESIGN dialogEpay 'Код подтверждения' {
+    REMOVE TOOLBARLEFT;
+    REMOVE PROPERTY (formRefresh());
+    REMOVE PROPERTY (formApply());
+    REMOVE PROPERTY (formOk());  
+    PANEL {
+        MOVE PROPERTY (currentPin()) {
+            caption = 'Для продолжения оплаты сообщите код подтверждения покупателю';
+            fontSize = 35;
+            fontStyle = 'bold';
+            foreground = RGB (0, 225, 0);
+        }
+    }
+}
+
+FORM demandPayment
+    PROPERTIES () paymentMode = indexPaymentMode
+;
+
+demandPayment(CashRegister c) {
+    authCode() <- NULL;
+    currentPin() <- NULL;
+    currentSessionId() <- NULL;
+    currentRegNum() <- regNum(c);
+    currentToken() <- token(c);
+    LOCAL result = JSONFILE ();
+    TRY {
+        EXPORT demandPayment JSON CHARSET 'UTF-8';
+        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/demandPayment'
+            HEADERS httpHeaders
+            HEADERSTO headers
+            PARAMS exportFile() TO result;
+        setToken(c, headers('token'));
+        IMPORT JSON FROM result() TO () currentPin = pin, currentSessionId = sessionId;
+        IF currentPin() AND currentSessionId() THEN NEWSESSION NESTED LOCAL {
+            SHOW dialogEpay OBJECTS c = c NOMANAGESESSION WAIT;
+        } ELSE {
+            returnPost() <- TRUE;
+            MESSAGE 'Ошибка требования оплаты - не получен корректный PIN';
+        }
+        } CATCH {
+            errorEpay(result());
+        }
+}

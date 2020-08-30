@@ -1,0 +1,173 @@
+MODULE POSEpay;
+
+REQUIRE POSEpayHttpForm;
+
+NAMESPACE POS;
+
+onStarted() + { 
+    IF NOT minEpayPaymentType() THEN APPLY { loadDefaultType('О!плати', PaymentMeans.paymentMeansEpay, 'epay'); }
+}
+
+EXTEND FORM options
+    PROPERTIES () addressRequest, namePaymentMode;
+
+DESIGN options {
+    pos {
+        NEW epay {
+            caption = 'Электронные платежи';
+            type = CONTAINERH;
+            MOVE PROPERTY (addressRequest());
+            MOVE PROPERTY (namePaymentMode());
+        }
+    }
+}
+
+orderNumber = DATA LOCAL STRING();
+shift = DATA LOCAL STRING();
+sum = DATA LOCAL STRING();
+amountTotal = DATA LOCAL STRING();
+quantity = DATA LOCAL STRING(INTEGER);
+cost = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+receiptNumber = DATA LOCAL STRING();
+footerInfo = DATA LOCAL STRING();
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (c) SHOWIF addressRequest() token READONLY, regNum, getToken SHOWIF regNum(c) AND NOT token(c),
+                                           dropToken SHOWIF token(c);
+;
+
+paymentMode (CashRegister c) = paymentMode();
+
+showEpay (ZReport z) = minEpayPaymentType() AND regNum(cashRegister(z)) AND addressRequest();
+showEpay (Receipt r) = showEpay (zReport(r));
+
+overCreatePayment(Receipt r) + {
+    IF showEpay(r) THEN {
+        NEW p = Payment {
+            receipt(p) <- r;
+            paymentType(p) <- minEpayPaymentType();
+            sum(p) <- NULL;
+        }
+    }
+} 
+
+postPaymentEpayConsumerPresented (Receipt r) {
+    barcodeInput() <- NULL;
+    DIALOG barcodeInput DO {
+        FOR iterate(INTEGER i, 1, 63) DO
+            barcodeInput() <- replace(barcodeInput(),
+            substr('йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', i, 1),
+            substr('qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM', i, 1)
+            ); 
+        authCode() <- barcodeInput();
+        paymentEpay(epay(r));
+        deletePayment(r);
+    } ELSE {
+        returnPost() <- TRUE;
+    } 
+}
+
+postPaymentEpayStaticQR (Receipt r) {
+    demandPayment(cashRegister(r));
+    IF isConsumerReady() THEN {
+        paymentEpay(epay(r));
+        deletePayment(r); 
+    } ELSE {
+        returnPost() <- TRUE;
+    }
+}
+
+postPaymentEpay (Receipt r) {
+    deletePayment(r);
+    IF NOT lastPayment(cashRegister(r)) THEN {
+        CASE 
+            WHEN countReceiptSaleDetail(r) AND countReceiptReturnDetail(r) THEN {
+                MESSAGE 'В системе О!плати не допускается оплата и возврат в одном чеке';
+            }
+            WHEN countReceiptSaleDetail(r) AND NOT countReceiptReturnDetail(r) THEN {
+                CASE 
+                    WHEN paymentMode(cashRegister(r)) = PaymentMode.staticQR THEN {
+                        postPaymentEpayStaticQR(r);    
+                    }
+                    WHEN paymentMode(cashRegister(r)) = PaymentMode.consumerPresented THEN {
+                        postPaymentEpayConsumerPresented(r);    
+                    }
+            }
+            WHEN NOT countReceiptSaleDetail(r) AND countReceiptReturnDetail(r) THEN {
+                FOR receipt(Payment p) = r AND paymentType(p) = minEpayPaymentType() DO {
+                    reversalEpay(p);
+                }
+            }
+    } ELSE {
+        returnPost() <- TRUE;
+        MESSAGE 'Возможность оплаты с использованием платежной системы О!Плати временно недоступна.';
+    }
+}
+
+prePostPrint(Receipt r) + {
+    IF epay(r) THEN {
+        postPaymentEpay(r);
+    } 
+}
+
+
+overPostEpay ABSTRACT LIST (Receipt); 
+
+failPost = DATA LOCAL BOOLEAN ();
+
+postEpay 'О!плати' (Receipt receipt) {
+    
+    returnPost()<- NULL;
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
+        MESSAGE 'Выберите дисконтную карту';      
+        RETURN;   
+    } 
+    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
+        RETURN;
+    } 
+    IF incorrectReceipt(receipt) THEN {
+        MESSAGE incorrectReceipt(receipt);
+        RETURN;
+    } 
+    prePost(receipt);
+    overPostEpay(receipt);
+    IF returnPost() THEN RETURN;
+    IF sumReceiptDetail(receipt) THEN {
+        NEW p = Payment {
+            receipt(p) <- receipt;
+            paymentType(p) <- minEpayPaymentType();
+            sum(p) <- sumReceiptDetail(receipt);
+        }
+        //postPaymentEpay(receipt);
+        IF NOT returnPost() THEN {
+            prePostPrint(receipt);
+            IF returnPost() THEN RETURN;
+            failPost() <- TRUE;
+            WHILE failPost() DO {
+                postPrint(receipt);
+                IF failPost() THEN {
+                    ASK 'Не удалось напечатать чек. Нажмите "Да", чтобы повторить попытку печати чека или "Нет", чтобы отменить платеж в системе "О!плати"' rePost = YESNO DO {
+                        IF NOT rePost THEN {
+                            deletePayment(receipt);
+                        }
+                    }
+                }
+            }
+            setLastPayment(cashRegister(receipt), NULL);
+        }
+    }
+} IN receiptAction;
+
+EXTEND FORM POS
+    PROPERTIES(r) SHOWIF currentZReport() postEpay SHOWIF showEpay(r)
+;
+
+DESIGN POS {
+    GROUP(receiptAction, r) {
+        MOVE PROPERTY (postEpay(r)) BEFORE PROPERTY (cancel(r)){ alignment = STRETCH; focusable = FALSE; fontStyle = 'bold'; }
+    }
+}
