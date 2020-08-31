@@ -317,3 +317,16 @@ retailPrice(PurchaseInvoiceDetail invoiceDetail) += purchaseRetailPrice(invoiceD
 retailMarkupSum(PurchaseInvoiceDetail invoiceDetail) += purchaseRetailMarkupSum(invoiceDetail(invoiceDetail));
 retailVATSum(PurchaseInvoiceDetail invoiceDetail) += purchaseRetailVATSum(invoiceDetail(invoiceDetail));
 retailSum(PurchaseInvoiceDetail invoiceDetail) += purchaseRetailSum(invoiceDetail(invoiceDetail));
+
+// Добавляем на форму цену розничную (до)
+purchaseRetailPriceB 'Розничная цена (до) (закупка)' (UserInvoiceDetail d) = prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d));
+//purchaseRetailPriceB 'Розничная цена (до)' (Purchase.InvoicePricingDetail o) = purchaseRetailPriceB(invoiceDetail(invoiceDetail(o)));
+//retailPriceB(InvoicePricingDetail d) += purchaseRetailPriceB(invoiceDetail(invoiceDetail(d))); //purchaseRetailPriceB(d);
+
+backgroundPurchaseRetailPriceB (UserInvoiceDetail d) = CASE 
+    WHEN purchaseRetailPriceB(d) > purchaseRetailPrice(d) THEN RGB(250,150,150)
+    WHEN purchaseRetailPriceB(d) < purchaseRetailPrice(d) THEN RGB(150,250,200);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY SHOWIF createPurchasePricing(i) purchaseRetailPriceB BACKGROUND backgroundPurchaseRetail(i) AFTER purchaseRetailSum(d)
+;
