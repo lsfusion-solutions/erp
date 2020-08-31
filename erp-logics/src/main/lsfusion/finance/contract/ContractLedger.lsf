@@ -369,9 +369,9 @@ writeOutContractLedgerFIFOApplyDateCustom 'Расписать по FIFO с да�
     APPLY SINGLE {
         LOCAL changed = BOOLEAN (OutContractLedger);
 
-        changed(OutContractLedger l) <- TRUE IF (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND date(l)>=d);            
+        changed(OutContractLedger l) <- TRUE IF (contract(l)==c AND isPosted(l) AND NOT (skipCost(l) OR skipWrite(l)) AND date(l)>=d);            
 
-        changed(OutContractLedger l) <- TRUE WHERE (contract(l)==c AND isPosted(l) AND NOT skipCost(l) AND (GROUP SUM 1 IF cost(l, InContractLedger il) AND isPosted(il) AND date(il)>=d));
+        changed(OutContractLedger l) <- TRUE WHERE (contract(l)==c AND isPosted(l) AND NOT (skipCost(l) OR skipWrite(l)) AND (GROUP SUM 1 IF cost(l, InContractLedger il) AND isPosted(il) AND date(il)>=d));
 
         cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol);
 
