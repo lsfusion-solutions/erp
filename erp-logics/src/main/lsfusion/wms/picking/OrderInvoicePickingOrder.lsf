@@ -11,6 +11,16 @@ countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickin
                                                          BY from(o), to(o), fromStock(o), toStock(o);
 countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(LegalEntity from, LegalEntity to, Stock fromStock, Stock toStock); 
 
+showPickingUserInvoicePosted 'Показывать созданные накладные по комплектации' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() showPickingUserInvoicePosted
+;
+DESIGN options {
+    invoices {
+        MOVE PROPERTY (showPickingUserInvoicePosted());
+    }
+}
+
 createPickingUserInvoicePosted 'Создать проведенную накладную'  ABSTRACT ( Order);
 
 META defineOrderInvoicePickingOrder (sign)
@@ -124,6 +134,9 @@ META defineOrderInvoicePickingOrder (sign)
                     createdUser(i, order) <- TRUE;
                     userInvoice(order) <- i;
                     include(order,i) <- TRUE;
+                    IF showPickingUserInvoicePosted() THEN {
+                        SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+                    }
                 }
             }
         }
