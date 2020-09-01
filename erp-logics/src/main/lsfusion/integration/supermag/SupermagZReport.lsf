@@ -104,6 +104,7 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
 //                sumPositivePayments(expMain, 0) <- sumPositiveCashPayment(departmentStore, date);
                 sumPositivePayments(expMain, 1) <- sumPositiveCardPayment(departmentStore, date);
                 sumPositivePayments(expMain, 2) <- sumGiftCardPayment(departmentStore, date);
+                docMain(DocPayment expPayment) <- NULL IF expPayment IS DocPayment;           
                 FOR sumPositivePayments(expMain, INTEGER i) DO NEW expPayment = DocPayment {
                         docMain(expPayment) <- expMain;
                         credcardId(expPayment) <- i;
@@ -164,7 +165,8 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain AND moveType(expDet) = -1;                                                           
                                
  //               sumNegativePayments(expMain, 0) <- sumNegativeCashPayment(departmentStore, date);
-                sumNegativePayments(expMain, 1) <- sumNegativeCardPayment(departmentStore, date);                
+                sumNegativePayments(expMain, 1) <- -sumNegativeCardPayment(departmentStore, date);  
+                docMain(DocPayment expPayment) <- NULL IF expPayment IS  DocPayment;           
                 FOR sumNegativePayments(expMain, INTEGER i) DO NEW expPayment = DocPayment {
                         docMain(expPayment) <- expMain;
                         credcardId(expPayment) <- i;
