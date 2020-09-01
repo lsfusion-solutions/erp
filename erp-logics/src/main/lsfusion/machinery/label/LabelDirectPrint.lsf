@@ -94,10 +94,29 @@ dataTypeDirectPrint = DATA TypeDirectPrint(LabelType);
 typeDirectPrint(LabelType lt) = OVERRIDE dataTypeDirectPrint(lt), TypeDirectPrint.dpl;
 nameTypeDirectPrint 'Тип печати' (LabelType lt) = name(typeDirectPrint(lt));
 
+CLASS CodepageDirectPrint 'Кодировка' {
+    cp1251 'cp1251',
+    utf8 'UTF-8',
+    cp866 'cp866'
+};
+TABLE barcodeCodepagePrint (CodepageDirectPrint);
+
+name 'Наименование' (CodepageDirectPrint o) = staticCaption(o) IF o IS CodepageDirectPrint CHARWIDTH 15;
+
+FORM dialogCodepageDirectPrints 'Кодировка'
+    OBJECTS o = CodepageDirectPrint
+    PROPERTIES(o) READONLY name
+    
+    LIST CodepageDirectPrint OBJECT o
+;
+
+codepageDirectPrint(LabelType lt) = DATA CodepageDirectPrint(LabelType);
+nameCodepageDirectPrint 'Кодировка' (LabelType lt) = name(codepageDirectPrint(lt));
+
 textTemplate 'Текст шаблона' = DATA TEXT (LabelType);
 printMessage 'Сообщение перед печатью' = DATA  STRING[250] (LabelType) CHARWIDTH 50;
 
-EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l), printMessage(l);
+EXTEND FORM labelType PROPERTIES textTemplate(l), nameTypeDirectPrint(l), printMessage(l), nameCodepageDirectPrint(l);
 
 DESIGN labelType {
     specification{
@@ -106,6 +125,7 @@ DESIGN labelType {
             fill = 1;
             MOVE PROPERTY (textTemplate(l) ){valueSize = (600, 500); panelCaptionAbove = TRUE;};
             MOVE PROPERTY (nameTypeDirectPrint(l) );
+            MOVE PROPERTY (nameCodepageDirectPrint(l) );
             MOVE PROPERTY (printMessage(l) );
         }
     }
@@ -237,10 +257,17 @@ customPrint(LabelTransaction labelTrans) + {
     FOR labelTrans == labelTransaction(LabelTransactionDetail ld) ORDER ld DO {
         formattedText() <- text(ld);
         
-        IF isSubstring(formattedText(),'#EncodeWindows = Yes') OR isSubstring(formattedText(),'CODEPAGE 1251') THEN {
+        CASE 
+        WHEN isSubstring(formattedText(),'#EncodeWindows = Yes') OR isSubstring(formattedText(),'CODEPAGE 1251') OR codepageDirectPrint(labelType(labelTrans)) == CodepageDirectPrint.cp1251 THEN {
             charset() <-  'CP1251';
             formattedText() <- replace(formattedText(), '#EncodeWindows = Yes', '');
-        } ELSE charset() <-  'CP866';         
+        } 
+        WHEN codepageDirectPrint(labelType(labelTrans)) == CodepageDirectPrint.utf8 THEN{
+            charset() <-  'UTF-8';
+        }
+        ELSE {
+            charset() <-  'CP866';         
+        }
         
         formattedText() <- replace(formattedText(),'@6.18.4@', CONCAT '/', 'руб', lower(shortNameUOMSku(ld)));
         formattedText() <- replace(formattedText(),'@32.1@', CASE 
