@@ -1,6 +1,6 @@
 MODULE SupermagZReport;
 
-REQUIRE SupermagSettings, SupermagExportForms, ReceiptSkuLedgerReceiptStockDocumentLedger, ReceiptSkuLedger, Time;
+REQUIRE SupermagSettings, SupermagExportForms, ReceiptSkuLedgerReceiptStockDocumentLedger, ReceiptSkuLedger, Time, GiftCard;
 
 NAMESPACE ZReport;
 
@@ -39,6 +39,12 @@ discountSumReceiptSaleDetail 'Сумма скидки'  = GROUP SUM discountSum(
     BY departmentStore(d), sku(d), closeDate(zReport(d)), price(d);
 countReceiptSaleDetail= GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
     BY departmentStore(d), sku(d), closeDate(zReport(d)), price(d);
+sumPositiveCashPayment 'Сумма продаж (наличные)' = GROUP SUM sumPositiveCashPayment(ZReport rep) IF isPosted(rep) 
+    BY departmentStore(rep), closeDate(rep);
+sumPositiveCardPayment 'Сумма продаж (карты)' = GROUP SUM sumPositiveCardPayment(ZReport rep) IF isPosted(rep) 
+    BY departmentStore(rep), closeDate(rep);
+sumGiftCardPayment 'Сумма продаж (сертификаты)' = GROUP SUM sumGiftCardPayment(ZReport rep) IF isPosted(rep) 
+    BY departmentStore(rep), closeDate(rep);
 
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date, price) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
     BY departmentStore(d), sku(d), closeDate(zReport(d)), NUMERIC[18,6](price(d));
@@ -48,6 +54,10 @@ discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date,
     BY departmentStore(d), sku(d), closeDate(zReport(d)), NUMERIC[18,6](price(d));
 countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
     BY departmentStore(d), sku(d), closeDate(zReport(d)), NUMERIC[18,6](price(d));
+sumNegativeCashPayment 'Сумма возвратов (наличные)' = GROUP SUM sumNegativeCashPayment(ZReport rep) IF isPosted(rep) 
+    BY departmentStore(rep), closeDate(rep);
+sumNegativeCardPayment 'Сумма продаж (карты)' = GROUP SUM sumNegativeCardPayment(ZReport rep) IF isPosted(rep) 
+    BY departmentStore(rep), closeDate(rep);
 
 exportZReports 'Экспорт в супермаг продажи' (DepartmentStore departmentStore, DATE date) {
     inc(DocMain d) <- NULL;
@@ -90,6 +100,15 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain AND moveType(expDet) = 1;                
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain AND moveType(expDet) = 1; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain AND moveType(expDet) = 1;                                                           
+                                          
+//                sumPositivePayments(expMain, 0) <- sumPositiveCashPayment(departmentStore, date);
+                sumPositivePayments(expMain, 1) <- sumPositiveCardPayment(departmentStore, date);
+                sumPositivePayments(expMain, 2) <- sumGiftCardPayment(departmentStore, date);
+                FOR sumPositivePayments(expMain, INTEGER i) DO NEW expPayment = DocPayment {
+                        docMain(expPayment) <- expMain;
+                        credcardId(expPayment) <- i;
+                        sum(expPayment) <- sumPositivePayments(expMain,i);
+                }
                                
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
@@ -144,6 +163,14 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain AND moveType(expDet) = -1; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain AND moveType(expDet) = -1;                                                           
                                
+ //               sumNegativePayments(expMain, 0) <- sumNegativeCashPayment(departmentStore, date);
+                sumNegativePayments(expMain, 1) <- sumNegativeCardPayment(departmentStore, date);                
+                FOR sumNegativePayments(expMain, INTEGER i) DO NEW expPayment = DocPayment {
+                        docMain(expPayment) <- expMain;
+                        credcardId(expPayment) <- i;
+                        sum(expPayment) <- sumNegativePayments(expMain,i);
+                }
+                
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
                     TRY EXPORT exportZReportReturns XML TO System.exportFile;

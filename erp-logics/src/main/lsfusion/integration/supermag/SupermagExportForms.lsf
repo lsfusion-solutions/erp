@@ -51,6 +51,8 @@ supplytime = DATA LOCAL INTEGER (DocMain);
 deliverydate = DATA LOCAL DATETIME (DocMain);
 deliverytime = DATA LOCAL TIME (DocMain);
 useForAutoGen = DATA LOCAL STRING[1] (DocMain);
+sumPositivePayments = DATA LOCAL NUMERIC[18,4] (DocMain, INTEGER);
+sumNegativePayments = DATA LOCAL NUMERIC[18,4] (DocMain, INTEGER);
 
 docMain = DATA DocMain (DocDetail) NONULL DELETE;
 id = DATA LOCAL STRING[50] (DocDetail);
@@ -95,6 +97,11 @@ CLASS DocProp;
 docMain = DATA LOCAL DocMain (DocProp);
 paramname = DATA LOCAL STRING[50] (DocProp);
 paramvalue = DATA LOCAL STRING[100] (DocProp);
+     
+CLASS DocPayment;
+docMain = DATA LOCAL DocMain (DocPayment);
+credcardId = DATA LOCAL INTEGER (DocPayment);
+sum = DATA LOCAL NUMERIC[18,4] (DocPayment);
      
        //различные индексы сделаны для SPECITEM т.к. из одного документа с + и - мы делаем 2 в супермаге
 //indexPlus (DocDetail ad) = PARTITION SUM 1 IF quantity(ad)>0 ORDER ad BY SMDocuments(ad) CHARWIDTH 4;
@@ -841,6 +848,14 @@ FORM exportZReportSales FORMEXTID 'PACKAGE'
     PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN CS_SMDOCUMENTS     
     FILTERS inc(doc)                                                      
 
+    OBJECTS p = DocPayment EXTID 'SMDOCCREDCARD' IN CS 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocPayment EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocPayment EXTID 'DOCTYPE'     
+    PROPERTIES = credcardId(p) EXTID 'CREDCARDID'                    
+    PROPERTIES = sum(p) EXTID 'TOTALSUM'    
+    PROPERTIES = 0 IF doc IS DocMain  EXTID 'TOTALSUMCUR'
+    FILTERS docMain(p) = doc AND sum(p)                                                                          
+
     OBJECTS docd = DocDetail EXTID 'SMSPEC' IN CS 
     PROPERTIES = docid(docd) EXTID 'DOCID'    
     PROPERTIES = doctype(docd) EXTID 'DOCTYPE'      
@@ -904,6 +919,14 @@ FORM exportZReportReturns FORMEXTID 'PACKAGE'
     PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN CR_SMDOCUMENTS      
     PROPERTIES = note(doc)  EXTID 'COMMENTARY' IN CR_SMDOCUMENTS     
     FILTERS inc(doc)                                                      
+
+    OBJECTS p = DocPayment EXTID 'SMDOCCREDCARD' IN CR 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocPayment EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocPayment EXTID 'DOCTYPE'     
+    PROPERTIES = credcardId(p) EXTID 'CREDCARDID'                    
+    PROPERTIES = sum(p) EXTID 'TOTALSUM'    
+    PROPERTIES = 0 IF doc IS DocMain  EXTID 'TOTALSUMCUR'
+    FILTERS docMain(p) = doc AND sum(p)                                                                          
 
     OBJECTS docd = DocDetail EXTID 'SMSPEC' IN CR 
     PROPERTIES = docid(docd) EXTID 'DOCID'    
