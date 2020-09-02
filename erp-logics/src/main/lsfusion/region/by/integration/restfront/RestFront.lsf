@@ -122,14 +122,17 @@ DESIGN customGroup {
     }
 }
 
-dataCookingTime 'Время приготовления, сек' = DATA INTEGER (Item);
-cookingTime 'Время приготовления, сек' (Item i) = OVERRIDE dataCookingTime(i), cookingTime(customGroup(groupTypeRestFront(),i)) IN itemBase;
+TABLE restFrontItem(Item);
+groupRestFront(Item i) = customGroup(groupTypeRestFront(),i) MATERIALIZED TABLE restFrontItem;
 
-dataNameRestFront 'Название для RestFront' = DATA STRING[255] (Item);
-nameRestFront 'Название для RestFront' (Item i) = OVERRIDE dataNameRestFront(i), (CONCAT ', ', caption(i), namePack(i)), nameAttribute(i) IN itemBase;
+dataCookingTime 'Время приготовления, сек' = DATA INTEGER (Item) TABLE restFrontItem;
+cookingTime 'Время приготовления, сек' (Item i) = OVERRIDE dataCookingTime(i), cookingTime(groupRestFront(i)) IN itemBase;
+
+dataNameRestFront 'Название для RestFront' = DATA STRING[255] (Item) TABLE restFrontItem;
+nameRestFront 'Название для RestFront' (Item i) = (OVERRIDE dataNameRestFront(i), (CONCAT ', ', caption(i), namePack(i)), nameAttribute(i)) IF groupRestFront(i) IN itemBase MATERIALIZED TABLE restFrontItem;
 
 EXTEND FORM item
-    PROPERTIES(i) SHOWIF customGroup(groupTypeRestFront(),i) cookingTime, nameRestFront
+    PROPERTIES(i) SHOWIF groupRestFront(i) cookingTime, nameRestFront
 ;
 EXTEND FORM items PROPERTIES (i) READONLY nameRestFront;
 
@@ -266,11 +269,11 @@ EXTEND FORM customGroup
     PROPERTIES(g) SHOWIF (groupTypeRestFront() == groupType(g)) nameAdditionGroup
 ;
 
-additionGroup 'Группа добавок' = DATA AdditionGroup (Item);
+additionGroup 'Группа добавок' = DATA AdditionGroup (Item) TABLE restFrontItem;
 nameAdditionGroup 'Группа добавок' (Item i) = name(additionGroup(i)) IN itemBase;
 
 EXTEND FORM item
-    PROPERTIES(i) SHOWIF customGroup(groupTypeRestFront(),i) nameAdditionGroup
+    PROPERTIES(i) SHOWIF groupRestFront(i) nameAdditionGroup
 ;
 EXTEND FORM items PROPERTIES (i) READONLY nameAdditionGroup;
 
@@ -322,9 +325,9 @@ textGood (Item i) = '\{"alias":"' + id(i) + '"' +
                            ',"name":"' + replace(nameRestFront(i),'"','\\"') + '"' +
                            (IF caption(i) THEN (',"shortName":"' + replace(caption(i),'"','\\"') + '"') ELSE '') +
                            ',"description":"' + (OVERRIDE replace(composition(i),'"','\\"'),'') + '"' +
-                           ',"group":\{"name":"' + (OVERRIDE replace(name(customGroup(groupTypeRestFront(),i)),'"','\\"'),'') + '"\}' +
-                           (IF printGroup(customGroup(groupTypeRestFront(),i)) THEN (',"printGroup":\{"name":"' + replace(name(printGroup(customGroup(groupTypeRestFront(),i))),'"','\\"') + '"\}') ELSE '') +
-                           (IF additionGroup(customGroup(groupTypeRestFront(),i)) THEN (',"additionGroup":\{"name":"' + replace(name(additionGroup(customGroup(groupTypeRestFront(),i))),'"','\\"') + '"\}') ELSE '') +
+                           ',"group":\{"name":"' + (OVERRIDE replace(name(groupRestFront(i)),'"','\\"'),'') + '"\}' +
+                           (IF printGroup(groupRestFront(i)) THEN (',"printGroup":\{"name":"' + replace(name(printGroup(groupRestFront(i))),'"','\\"') + '"\}') ELSE '') +
+                           (IF additionGroup(groupRestFront(i)) THEN (',"additionGroup":\{"name":"' + replace(name(additionGroup(groupRestFront(i))),'"','\\"') + '"\}') ELSE '') +
                            ',"cookingTime":' + (OVERRIDE cookingTime(i), 0) + '\}';
 
 aliasGood = DATA LOCAL NESTED STRING[100] (INTEGER);
@@ -373,15 +376,15 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
         EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
         IMPORT importGood JSON FROM result();
         
-        FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) DO {
+        FOR groupRestFront(Item i) AND active(i) AND NOT (GROUP SUM 1 IF aliasGood(INTEGER j) == id(i)) DO {
             putGood(ds,i);
         }
         FOR Item i == item(aliasGood(INTEGER j)) AND NOT (barcodeGood(j) == idBarcode(i) AND nameGood(j) == replace(nameRestFront(i),'"','\\"') AND
             shortNameGood(j) == (OVERRIDE replace(caption(i),'"','\\"'),'') AND descriptionGood(j) == (OVERRIDE replace(composition(i),'"','\\"'),'') AND
             cookingTimeGood(j) == (OVERRIDE cookingTime(i), 0) AND
-            nameGroupGood(j) == (OVERRIDE replace(name(customGroup(groupTypeRestFront(),i)),'"','\\"'),'')
-            AND namePrintGroupGood(j) == (OVERRIDE replace(name(printGroup(customGroup(groupTypeRestFront(),i))),'"','\\"'),'')
-            AND nameAdditionGroupGood(j) == (OVERRIDE replace(name(additionGroup(customGroup(groupTypeRestFront(),i))),'"','\\"'),'')) DO {
+            nameGroupGood(j) == (OVERRIDE replace(name(groupRestFront(i)),'"','\\"'),'')
+            AND namePrintGroupGood(j) == (OVERRIDE replace(name(printGroup(groupRestFront(i))),'"','\\"'),'')
+            AND nameAdditionGroupGood(j) == (OVERRIDE replace(name(additionGroup(groupRestFront(i))),'"','\\"'),'')) DO {
             putGood(ds,i);
         }
     }
@@ -396,7 +399,7 @@ putImage (DepartmentStore ds, Item i) {
     LOCAL result = FILE();
     TRY {
         EXTERNAL HTTP PUT urlAPI(ds) + '/api/front/good/image/alias?alias=' + id(i) HEADERS httpHeaders
-                 PARAMS (OVERRIDE image(i), imageRestFront(customGroup(groupTypeRestFront(),i))) TO result;
+                 PARAMS (OVERRIDE image(i), imageRestFront(groupRestFront(i))) TO result;
     }
     CATCH {
         logToFile('RestFront', messageCaughtException());
@@ -413,7 +416,7 @@ exportImage 'Выгрузить изображения' (DepartmentStore ds) {
         EXTERNAL HTTP GET urlAPI(ds) + '/api/front/good' HEADERS httpHeaders TO result;
         IMPORT importGood JSON FROM result();
         
-        FOR Item i == item(aliasGood(INTEGER j)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+        FOR Item i == item(aliasGood(INTEGER j)) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) DO {
             putImage(ds,i);
         }
     }
@@ -461,7 +464,7 @@ exportAddition 'Выгрузить добавки' (DepartmentStore ds) {
         EXTERNAL HTTP GET urlAPI(ds) + '/api/front/addition' HEADERS httpHeaders TO result;
         IMPORT importAddition JSON FROM result();
         
-        FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND additionGroup(i) AND NOT (GROUP SUM 1 IF aliasGoodAddition(INTEGER j) == id(i)) DO {
+        FOR groupRestFront(Item i)  AND active(i) AND additionGroup(i) AND NOT (GROUP SUM 1 IF aliasGoodAddition(INTEGER j) == id(i)) DO {
             putAddition(ds,i);
         }
         FOR Item i == item(aliasGoodAddition(INTEGER j)) AND NOT nameGroupGoodAddition(j) == (OVERRIDE replace(name(additionGroup(i)),'"','\\"'),'') DO {
@@ -527,13 +530,13 @@ exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
         TRY {
             EXTERNAL HTTP GET urlAPI(ds) + '/api/front/menu/' + idMenuRestFront(ds) + '/line' HEADERS httpHeaders TO result;
             IMPORT importMenuLine JSON FROM result();
-            FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+            FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),ds,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(groupRestFront(item(aliasGoodMenuLine(i)))))) DO {
                 deleteMenuLine(ds,idMenuLine(i));
             }
-            FOR customGroup(groupTypeRestFront(), Item i) AND active(i) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+            FOR groupRestFront(Item i) AND active(i) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) DO {
                 putMenuLine(ds,i);
             }
-            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) AND NOT
+            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND NOT inStopList(i,ds,currentDateTime()) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) AND NOT
             (costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND 
             ((IF isNotShowMenuLine(j) THEN 'true' ELSE 'false') == (IF additionGroup(i) THEN 'true' ELSE 'false'))) DO {
                 putMenuLine(ds,i);
@@ -573,14 +576,14 @@ createAttribute (MachineryPriceTransaction t, Stock s) + {
             IMPORT importMenuLine JSON FROM result();
             
             IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
-                FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),s,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),s,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(customGroup(groupTypeRestFront(),item(aliasGoodMenuLine(i)))))) DO {
+                FOR idMenuLine(INTEGER i) AND (NOT priceA(priceListTypeRestFront(),item(aliasGoodMenuLine(i)),s,currentDateTime()) OR inStopList(item(aliasGoodMenuLine(i)),s,currentDateTime()) OR NOT (hasImage(item(aliasGoodMenuLine(i))) OR imageRestFront(groupRestFront(item(aliasGoodMenuLine(i)))))) DO {
                     deleteMenuLine(s,idMenuLine(i));
                 }
             } 
-            FOR customGroup(groupTypeRestFront(), Item i) AND in(t, barcode(i)) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+            FOR groupRestFront(Item i)  AND in(t, barcode(i)) AND NOT (GROUP SUM 1 IF aliasGoodMenuLine(INTEGER j) == id(i)) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) DO {
                 putMenuLine(s,i);
             }
-            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND in(t, barcode(i)) AND NOT costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,s,currentDateTime()) AND (hasImage(i) OR imageRestFront(customGroup(groupTypeRestFront(),i))) DO {
+            FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND in(t, barcode(i)) AND NOT costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,s,currentDateTime()) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) DO {
                 putMenuLine(s,i);
             }
         }
