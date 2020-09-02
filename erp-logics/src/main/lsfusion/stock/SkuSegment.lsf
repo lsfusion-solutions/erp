@@ -1,6 +1,6 @@
 MODULE SkuSegment;
 
-REQUIRE Barcode, PriceListPromotion;
+REQUIRE Barcode, PriceListPromotion, ItemNutrition;
 
 NAMESPACE Stock;
 
@@ -32,14 +32,34 @@ nameBrand 'Бренд' (SkuSegmentLine sl) = name(brand(sl));
 country 'Страна изготовитель' = DATA Country (SkuSegmentLine);
 nameCountry 'Страна изготовитель' (SkuSegmentLine sl) = name(country(sl));
 
-extraIn = ABSTRACT BOOLEAN (SkuSegmentLine);
-extraIn = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
+minNetWeight 'Мин. вес нетто, кг' = DATA NUMERIC[11,5] (SkuSegmentLine);
+maxNetWeight 'Макс. вес нетто, кг' = DATA NUMERIC[11,5] (SkuSegmentLine);
+
+//Для фильтра в доп. модулях
+extraInNotMaterialized = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
+extraInMaterialized = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
 
 exclude 'Исключение' = DATA BOOLEAN (SkuSegmentLine);
 
-inPromotion 'Вхождение в акционные списки' =  DATA BOOLEAN (SkuSegmentLine);
+CLASS SegmentBool 'Установленное значение'
+{
+    yes 'Да',
+    no 'Нет'      
+}
 
-CONSTRAINT SkuSegmentLine sl IS SkuSegmentLine AND NOT (sku(sl) OR skuGroup(sl) OR uom(sl) OR brand(sl) OR country(sl) OR extraIn(sl))
+FORM segmentBool 'Установленное значение'
+    OBJECTS s = SegmentBool
+    PROPERTIES(s) READONLY staticCaption
+    LIST SegmentBool OBJECT s
+;
+
+inPromotion 'Вхождение в акционные списки' =  DATA SegmentBool (SkuSegmentLine);
+captionInPromotion 'Вхождение в акционные списки' (SkuSegmentLine s) = staticCaption(inPromotion(s)) CHARWIDTH 10;
+
+//Для CONSTRAINT
+extraIn = ABSTRACT BOOLEAN (SkuSegmentLine);
+
+CONSTRAINT SkuSegmentLine sl IS SkuSegmentLine AND NOT (sku(sl) OR skuGroup(sl) OR uom(sl) OR brand(sl) OR country(sl) OR minNetWeight(sl) OR maxNetWeight(sl) OR extraIn(sl))
     MESSAGE 'Не должно быть строк с пустыми параметрами'
 ;
 
@@ -49,9 +69,12 @@ inD (SkuSegmentLine sl, Sku sk) = (sl IS SkuSegmentLine AND active(sk)
                                                                 AND (UOM(sk) == uom (sl) OR NOT uom(sl)) 
                                                                 AND (brand(sk) == brand(sl) OR NOT brand(sl)) 
                                                                 AND (country(sk) == country(sl) OR NOT country(sl)) 
-                                                                AND (extraIn(sl, sk) OR NOT extraIn(sl))) MATERIALIZED;
+                                                                AND (netWeight(sk) >= minNetWeight(sl) OR NOT minNetWeight(sl))
+                                                                AND (netWeight(sk) <= maxNetWeight(sl) OR NOT maxNetWeight(sl))
+                                                                AND (extraInMaterialized(sl, sk))) MATERIALIZED;
 
-in (SkuSegmentLine sl, Sku sk)  = inD(sl, sk) AND (prevPromotionPriceListDetailA(sk, stock(skuSegment(sl))) OR NOT inPromotion(sl));
+in (SkuSegmentLine sl, Sku sk)  = inD(sl, sk) AND extraInNotMaterialized(sl, sk) AND (((inPromotion(sl) = SegmentBool.yes AND prevPromotionPriceListDetailA(sk, stock(skuSegment(sl))))
+                                                              OR (inPromotion(sl) = SegmentBool.no AND NOT prevPromotionPriceListDetailA(sk, stock(skuSegment(sl))))) OR NOT inPromotion(sl));
                                                                 
 line (SkuSegment s, Sku sk) = (GROUP LAST SkuSegmentLine sl ORDER sl IF skuSegment(sl) = s AND in(sl, sk));
 in (SkuSegment s, Sku sk) = line(s, sk) AND NOT exclude(line(s, sk));
@@ -72,14 +95,15 @@ FORM skuSegment 'Сегментирование по товарам'
     PROPERTIES(s) number, name, nameStock
     
     OBJECTS sl = SkuSegmentLine
-    PROPERTIES(sl) exclude, idBarcode, nameItem, idItemGroup ON CHANGE dialogTreeItemGroups(sl), nameItemGroup ON CHANGE dialogTreeItemGroups(sl), shortNameUom, nameBrand, nameCountry, inPromotion
+    PROPERTIES(sl) exclude, idBarcode, nameItem, idItemGroup ON CHANGE dialogTreeItemGroups(sl), 
+                   nameItemGroup ON CHANGE dialogTreeItemGroups(sl), shortNameUom, nameBrand, nameCountry, captionInPromotion, 
+                   minNetWeight, maxNetWeight
     PROPERTIES(sl) NEW, DELETE
-       
     FILTERS skuSegment(sl) = s
     EDIT SkuSegment OBJECT s
     
     OBJECTS ss 'Товары' = Sku
-    PROPERTIES(ss) READONLY name, idBarcode, idSkuGroup, nameSkuGroup, shortNameUOM, nameBrand, nameCountry
+    PROPERTIES(ss) READONLY name, idBarcode, idSkuGroup, nameSkuGroup, shortNameUOM, nameBrand, nameCountry, netWeight
     FILTERS in(s, ss)
 ;
 
