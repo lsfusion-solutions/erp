@@ -54,6 +54,35 @@ importCalcPriceListType 'Импорт видов цен' () {
     APPLY;
 }
 
+@defineExternalizable(roundCondition, STRING[100]);
+EXTEND FORM priceIntervals
+    PROPERTIES id(rc)
+;
+EXTEND FORM dialogPriceIntervals
+    PROPERTIES id(rc)
+;
+
+importPriceRoundMode 'Импорт правил округления' () {
+    LOCAL idClass = INTEGER (INTEGER);
+    LOCAL priceType = INTEGER (INTEGER);
+    LOCAL ruleid = INTEGER (INTEGER);
+    
+    filterSql () <- 'r.PRICETYPE = 14';
+    
+    sqlString() <- 'select r.IDCLASS, r.PRICETYPE, r.RULEID from SUPERMAG.SMPriceRoundRuleClass r WHERE ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт правил округления', sqlString());
+            
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO idClass, priceType, ruleid;
+    
+    FOR ItemGroup g = itemGroup(TEXT (idClass(INTEGER i))) AND roundCondition(STRING(ruleid(i))) DO {
+        dataRoundCondition(priceListType('C'+STRING(priceType(i))),g) <- roundCondition(STRING(ruleid(i)));  ; 
+    }
+    APPLY;
+}
+
 importCalcExrtaCharge 'Импорт надбавок по расчетным видам цен' () {
     LOCAL file = FILE ();
     
@@ -93,6 +122,8 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
 }
 
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
+
+
 
 //---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
 overImportPriceListRetail ABSTRACT LIST ();
