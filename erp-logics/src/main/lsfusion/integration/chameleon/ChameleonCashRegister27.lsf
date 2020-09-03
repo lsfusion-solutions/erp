@@ -1,0 +1,76 @@
+MODULE ChameleonCashRegister27;
+
+REQUIRE ChameleonCashRegister, Currency;
+
+NAMESPACE Chameleon27;
+
+EXTEND CLASS ChameleonVersion {
+    version27 '2.7'
+}
+
+idPermissionProfile 'Ид. профиля прав (Chameleon)' = DATA INTEGER (Employee);
+
+EXTEND FORM departmentStore PROPERTIES idPermissionProfile(e) BEFORE deletee;
+
+chameleonVersion (GroupCashRegister g) += WHEN isChameleon(g) AND right(handler(cashRegisterModel(g)), 3) = '2.7' THEN ChameleonVersion.version27;
+isChameleon27 (GroupCashRegister g) = chameleonVersion(g) == ChameleonVersion.version27;
+
+currencyString (Currency c) = 'SELECT system.import_front_currencies(' + sid(c) + ',\'' + shortName(c) + '\',\'' + name(c) + '\',' + trueFalse(c = defaultCurrency()) + ',true)';
+currenciesString (GroupCashRegister g) += WHEN isChameleon27(g) THEN GROUP CONCAT currencyString(Currency c), ';' IF c IS Currency;
+
+typeExchange (Currency c) = GROUP AGGR TypeExchange t WHERE t IS TypeExchange BY currency(t);
+curRate (Currency f, Currency t) = NUMERIC[16,4](curRate(typeExchange(f), t));
+
+currencyExchangeString (Currency c) = 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,' + centsString(curRate(c, defaultCurrency())) + ',current_timestamp,true)';
+currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon27(g) THEN CONCAT ';', (GROUP CONCAT currencyExchangeString(Currency c), ';' IF c IS Currency), 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,1,current_timestamp,true)';
+
+// UA only
+taxString (GroupCashRegister g) += WHEN isChameleon27(g) THEN 'SELECT system.import_front_group_tax(1,\'А\',true);' +
+                                                              'SELECT system.import_front_group_tax(2,\'Б\',true);' +
+                                                              'SELECT system.import_front_group_tax(3,\'В\',true);' +
+                                                              'SELECT system.import_front_group_tax(4,\'Г\',true);' +
+                                                              'SELECT system.import_front_group_tax(5,\'Д\',true);' +
+                                                              'SELECT system.import_front_group_tax(6,\'Н1\',true);' +
+                                                              'SELECT system.import_front_group_tax(7,\'Н2\',true);' +
+                                                              'SELECT system.import_front_group_tax(8,\'Н3\',true);' +
+                                                              'SELECT system.import_front_tax(1,20,\'20\',true);' +
+                                                              'SELECT system.import_front_tax(2,0,\'-\',true);' +
+                                                              'SELECT system.import_front_tax(3,0,\'0\',true);'+
+                                                              'SELECT system.import_front_tax_map(1,1);' +
+                                                              'SELECT system.import_front_tax_map(2,2);' +
+                                                              'SELECT system.import_front_tax_map(3,3)';
+
+employeeString (Employee e) = 'SELECT system.import_front_employees(' + STRING(e) + ',\'' + ISTRING[15](escape(login(e))) + '\',\'' + escape(shortName(e)) + '\',\'password\',\'' + STRING(e) + '\',' + ISTRING(idPermissionProfile(e)) + ',true,' + trueFalse(active(e)) +',true)';
+employeesString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t);
+
+priceLevelString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 'SELECT system.import_front_price_level(' + STRING(stock(t)) + ',\'' + (CONCAT ' ', 'Розничная', '(' + nameStock(t) + ')') + '\',true)';
+
+chainStoreString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 'SELECT system.import_front_group_outlet(' + STRING(chainStores(stock(groupMachinery(t)))) + ',\'' + name(chainStores(stock(groupMachinery(t)))) + '\', 0,true)';
+storeString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN 
+    'SELECT system.import_front_outlet(' + STRING(stock(t)) + ',\'' + escape(name(stock(t))) + '\',' + STRING(stock(t)) + ',' + STRING(chairman(store(stock(t)))) + ',' + idTellerSettings(stock(t)) + ',' + STRING(chainStores(stock(t))) + ',true)'; 
+
+//employeesStoreString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN
+//    GROUP CONCAT 'SELECT system.import_front_employees_outlet(' + ISTRING(Employee e) + ',' + ISTRING(stock(t)) + ',' + trueFalse(active(e)) + ')', ';' IF in(DepartmentStore d, e) AND d = stock(t); 
+
+cashRegisterString (CashRegister cr) =
+    'SELECT system.import_front_workplace(' + STRING(cr) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
+cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g;
+cashRegistersString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN cashRegistersString(groupMachinery(t));
+
+groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';
+groupSkuStringHierarchy (Group g) = GROUP CONCAT groupSkuString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
+groupsSkuStringHierarchy (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
+
+skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',1, \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
+    'SELECT system.import_front_series (\'-\',' + STRING(s) + ', \'-\', true);' + 
+    'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,0,null::integer,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,null::integer,false,null::integer,0)';
+skusString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s;
+
+uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true,0,0)';
+uomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT uomString(m, Barcode b), ';' IF in(t, b) ORDER m, b;
+
+priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
+pricesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT priceString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
+barcodesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;

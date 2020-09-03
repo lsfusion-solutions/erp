@@ -1,0 +1,62 @@
+MODULE ChameleonCashRegister26;
+
+REQUIRE ChameleonCashRegister;
+
+NAMESPACE Chameleon;
+
+EXTEND CLASS ChameleonVersion {
+    version26 '2.6'
+}
+
+chameleonVersion (GroupCashRegister g) += WHEN isChameleon(g) AND right(handler(cashRegisterModel(g)), 3) = '2.6' THEN ChameleonVersion.version26;
+isChameleon26 (GroupCashRegister g) = chameleonVersion(g) == ChameleonVersion.version26;
+
+//indexTax (Tax t) = PARTITION SUM 1 IF t IS Tax ORDER t;
+//taxString (Range r) = 'SELECT system.import_front_tax(' + STRING(r) + ',' + STRING(valueCurrentRate(r)) + ',\'' + (CONCAT '', valueCurrentRate(r), '%') + '\',' + indexTax(tax(r)) + ',true)';
+//taxesString() = GROUP CONCAT taxString(Range r), ';' ORDER r;
+
+currenciesString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.import_front_currencies(' + sid(defaultCurrency()) + ',\'' + shortName(defaultCurrency()) + '\',\'' + name(defaultCurrency()) + '\',true,true)';
+currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,1,current_timestamp,true)';
+
+// BY only
+taxString (GroupCashRegister g) += WHEN isChameleon26(g) THEN 'SELECT system.import_front_group_tax(0,\'T1\',true);' +
+                                                              'SELECT system.import_front_tax(1,0,\'-\',0,true)';
+
+employeeString (Employee e) =
+    'SELECT system.import_front_employees(' + STRING(e) + ',\'' + escape(login(e)) + '\',\'' + escape(shortName(e)) + '\',\'password\',\'' + STRING(e) + '\',\'1111111111111111111\',true, null::integer,' + trueFalse(active(e)) +')';
+employeesString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT employeeString(Employee e), ';' IF in(DepartmentStore d, e) AND d = stock(t);
+
+priceLevelString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN 'SELECT system.import_front_price_level(' + STRING(stock(t)) + ',\'' + (CONCAT ' ', 'Розничная', '(' + nameStock(t) + ')') + '\',true)';
+
+chainStoreString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN 'SELECT system.import_front_group_outlet(' + STRING(chainStores(stock(groupMachinery(t)))) + ',\'' + name(chainStores(stock(groupMachinery(t)))) + '\', 0,true)';
+
+storeString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN 
+    'SELECT system.import_front_outlet(' + STRING(stock(t)) + ',\'' + escape(name(stock(t))) + '\',' + STRING(stock(t)) + ',' + STRING(chairman(store(stock(t)))) + ',' + idTellerSettings(stock(t)) + ',' + STRING(chainStores(stock(t))) + ',true)'; 
+
+cashRegisterString (CashRegister cr) =
+    'SELECT system.import_front_workplace(' + STRING(cr) + ',' + STRING(stock(cr)) + ',\'' + escape(OVERRIDE shortDescription(cr), 'Касса №' + npp(cr)) + '\',false,false,false,false,false,false,false,true)';
+cashRegistersString (GroupCashRegister g) = GROUP CONCAT cashRegisterString(CashRegister cr), ';' IF groupCashRegister(cr) = g;
+cashRegistersString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN cashRegistersString(groupMachinery(t));
+
+groupSkuString (Group g) = 'SELECT system.import_front_group_goods(' + STRING(g) + ', \'' + escape(name(g)) + '\',' + (OVERRIDE STRING(parent(g)), 'null') + ', true)';
+groupSkuStringHierarchy (Group g) = GROUP CONCAT groupSkuString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
+groupsSkuStringHierarchy (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
+
+//skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',' + STRING(tax(VAT(s))) + ', \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
+skuString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_goods(' + STRING(s) + ',' + STRING(skuGroup(s)) + ',1, \'' + ISTRING[128](name(m, s)) + '\',\'' + STRING(order(s)) + '\',0,0,true);' +
+    'SELECT system.import_front_series (\'-\',' + STRING(s) + ', \'-\', true);' + 
+    'SELECT system.import_front_goods_attrs(' + STRING(s) + ',false,null::integer,\'' + STRING[50](name(m, s)) + '\',false,false,false,0,null::integer,false,null::integer,0,null::integer,null::integer,true)';
+skusString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
+
+uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true)';
+uomsString (MachineryPriceTransaction t) += WHEN isChameleon26(groupMachinery(t)) THEN GROUP CONCAT uomString(m, Barcode b), ';' IF in(t, b) ORDER m, b;
+
+priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
+pricesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN GROUP CONCAT priceString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
+barcodesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+pluString (Barcode b) = 'SELECT system.import_front_plu(' + escape(id(b)) + ',' + STRING(sku(b)) + ',true)' IF length(id(b)) <= 5 AND passScales(b);
+plusString (MachineryPriceTransaction m) = GROUP CONCAT pluString(Barcode b), ';' IF in(m, b) ORDER m, b;
+
