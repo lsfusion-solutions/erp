@@ -43,7 +43,7 @@ exportSaleInvoiceIW 'Экспорт в супермаг' (Invoice doc) {
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
-                        quantity(expDet) <- OVERRIDE purchaseShipmentQuantity(docd),  0;
+                        quantity(expDet) <- OVERRIDE purchaseShipmentQuantity(docd),  shipmentQuantity(docd);
                         blankquantity(expDet) <- OVERRIDE quantity(docd), 0;
                         priceWithTax(expDet) <- price(docd);// invoicePrice(docd);
                         //valueTax(expDet) <- valueVAT(docd);
@@ -222,8 +222,6 @@ importInternalWay 'Импорт накладные перемещение' () {
         operation(doc) <- operation1Supermag(codeOperation(i));
         isPosted(doc) <- docState(i) == 3;
         bornin(doc) <- bornIn(i);
-        createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
-        createPurchaseShipment(doc) <- docState(i) == 2 OR docState(i) == 3;
         isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag[UserInvoice](doc) <- docState(i);
         supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
@@ -232,6 +230,8 @@ importInternalWay 'Импорт накладные перемещение' () {
         customer(doc) <- legalEntity(customerStock(doc));
         date(doc) <- DATE (docDate(i));  
         time(doc) <- OVERRIDE time(doc), 09:00;
+        createShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(supplierStock(doc))) <= date(doc); 
+        createPurchaseShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(customerStock(doc))) <= date(doc) ;
         imported(doc) <- TRUE;
         lastVersion[Invoice](doc) <- currentVersion(i);
     }  
@@ -299,7 +299,8 @@ importInternalWay 'Импорт накладные перемещение' () {
 //        shipmentQuantity(det) <- quantity(i);
 //        pricingQuantity(det) <- quantity(i);
         quantity(det) <- CASE WHEN blankquantity(i)>0 THEN blankquantity(i) ELSE quantity(i);
-        shipmentQuantity(det) <- quantity(i);
+        shipmentQuantity(det) <- quantity(i) IF createShipment(det);
+        purchaseShipmentQuantity(det) <- quantity(i) IF createPurchaseShipment(det);
         invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
         price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
 //        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
@@ -326,16 +327,16 @@ importInternalWay 'Импорт накладные перемещение' () {
    //     valuePurchaseRetailVAT(det) <- taxRate(i);       
    //     shipmentPrice(det) <- NUMERIC[16,4](itemPrice(i));
   //      shipmentSum(det) <- NUMERIC[16,4](totalPrice(i)); 
-        manufacturingPrice(det) <- priceManufacturer(i);
         causeType(det) <- causeType(i);
         causeId(det) <- causeId(i);
         causeSpecItem(det) <- causeSpecItem(i);
         
         overImportInternalWayDet(det,i);
+        connectOrder(det);
         
+        Sale.manufacturingPrice(det) <- priceManufacturer(i);
         imported(det) <- TRUE;
         
-        connectOrder(det);
         lastVersion[InvoiceDetail](det) <- currentVersion(i);
     }
     executeLocalEvents('Sale.UserInvoice');
