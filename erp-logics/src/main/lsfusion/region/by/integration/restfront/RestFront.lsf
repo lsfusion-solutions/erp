@@ -131,6 +131,9 @@ cookingTime 'Время приготовления, сек' (Item i) = OVERRIDE 
 dataNameRestFront 'Название для RestFront' = DATA STRING[255] (Item) TABLE restFrontItem;
 nameRestFront 'Название для RestFront' (Item i) = (OVERRIDE dataNameRestFront(i), (CONCAT ', ', caption(i), namePack(i)), nameAttribute(i)) IF groupRestFront(i) IN itemBase MATERIALIZED TABLE restFrontItem;
 
+overComposition = ABSTRACT TEXT (Item);
+descriptionRestFront 'Состав' (Item i) = OVERRIDE overComposition(i), composition(i);
+
 EXTEND FORM item
     PROPERTIES(i) SHOWIF groupRestFront(i) cookingTime, nameRestFront
 ;
@@ -324,7 +327,7 @@ textGood (Item i) = '\{"alias":"' + id(i) + '"' +
                            (IF idBarcode(i) THEN (',"barcode":"' + idBarcode(i) + '"') ELSE '') +
                            ',"name":"' + replace(nameRestFront(i),'"','\\"') + '"' +
                            (IF caption(i) THEN (',"shortName":"' + replace(caption(i),'"','\\"') + '"') ELSE '') +
-                           ',"description":"' + (OVERRIDE replace(composition(i),'"','\\"'),'') + '"' +
+                           ',"description":"' + (OVERRIDE replace(descriptionRestFront(i),'"','\\"'),'') + '"' +
                            ',"group":\{"name":"' + (OVERRIDE replace(name(groupRestFront(i)),'"','\\"'),'') + '"\}' +
                            (IF printGroup(groupRestFront(i)) THEN (',"printGroup":\{"name":"' + replace(name(printGroup(groupRestFront(i))),'"','\\"') + '"\}') ELSE '') +
                            (IF additionGroup(groupRestFront(i)) THEN (',"additionGroup":\{"name":"' + replace(name(additionGroup(groupRestFront(i))),'"','\\"') + '"\}') ELSE '') +
@@ -380,7 +383,7 @@ exportGood 'Выгрузить товары' (DepartmentStore ds) {
             putGood(ds,i);
         }
         FOR Item i == item(aliasGood(INTEGER j)) AND NOT (barcodeGood(j) == idBarcode(i) AND nameGood(j) == replace(nameRestFront(i),'"','\\"') AND
-            shortNameGood(j) == (OVERRIDE replace(caption(i),'"','\\"'),'') AND descriptionGood(j) == (OVERRIDE replace(composition(i),'"','\\"'),'') AND
+            shortNameGood(j) == (OVERRIDE replace(caption(i),'"','\\"'),'') AND descriptionGood(j) == (OVERRIDE replace(descriptionRestFront(i),'"','\\"'),'') AND
             cookingTimeGood(j) == (OVERRIDE cookingTime(i), 0) AND
             nameGroupGood(j) == (OVERRIDE replace(name(groupRestFront(i)),'"','\\"'),'')
             AND namePrintGroupGood(j) == (OVERRIDE replace(name(printGroup(groupRestFront(i))),'"','\\"'),'')
