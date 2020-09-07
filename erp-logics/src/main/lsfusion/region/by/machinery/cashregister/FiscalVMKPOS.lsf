@@ -17,7 +17,18 @@ fiscalAdvancePaper() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalV
 
 fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKXReport(); }
 
-fiscalZReport() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKZReport(); }
+fiscalVMKConfirm 'Предупреждать о необходимости изъятия перед закрытием z-отчёта VMK' = DATA BOOLEAN ();
+fiscalZReport() + {  
+    IF sidModelCurrentCashRegister() == 'VMK' THEN {
+        IF fiscalVMKConfirm() THEN {
+            ASK 'Выполнена ли операция изъятия перед закрытием z-отчёта?' DO {
+                fiscalVMKZReport();
+            }    
+        } ELSE {
+            fiscalVMKZReport();
+        } 
+    }
+}
 
 fiscalCashSum() + {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKCashSum(); }
 
@@ -37,3 +48,13 @@ setFiscalNumber(STRING[28] number) + {
 }
 
 FiscalVMK.closeCurrentZReport() + {POS.closeCurrentZReport();}
+
+EXTEND FORM options PROPERTIES() fiscalVMKConfirm;
+DESIGN options {
+    machinery {
+        NEW vmk {
+            caption = 'VMK';
+            MOVE PROPERTY(fiscalVMKConfirm());          
+        }
+    }
+}
