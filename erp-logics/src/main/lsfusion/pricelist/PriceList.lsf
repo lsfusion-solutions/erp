@@ -1155,6 +1155,15 @@ skipChange = ABSTRACT VALUE BOOLEAN (PriceList);
 overShowEditDelete = ABSTRACT VALUE BOOLEAN (PriceList);
 showChange(PriceList p) = overShowEditDelete(p) AND NOT skipChange(p) ;
 
+show 'Просмотреть' (UserPriceList i)   { 
+    NEWSESSION {
+        SHOW userPriceList OBJECTS p = i DOCKED READONLY;
+    }
+}TOOLBAR;
+        
+overShowToShow = ABSTRACT BOOLEAN(UserPriceList);       
+showToShow (UserPriceList i) = OVERRIDE overShowToShow(i), (is(i) AND NOT showChange(i));
+
 filterPriceListDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (PriceList p) = fromDate(p) >= filterPriceListDateFrom() OR (p IS PriceList AND NOT filterPriceListDateFrom());      
 
@@ -1180,7 +1189,7 @@ FORM priceLists 'Прайсы'
     PROPERTIES(p) READONLY BACKGROUND background(p)
            countPriceListDetail AFTER toTime(p), stocks AFTER nameCompanyStock(p), priceListTypes AFTER nameCompanyStock(p)
 
-    PROPERTIES (p) NEWSESSION NEW[UserPriceList], editP = EDIT SHOWIF showChange(p), DELETE SHOWIF (is[UserPriceList](p) AND showChange(p))
+    PROPERTIES (p) NEWSESSION NEW[UserPriceList], show SHOWIF showToShow(p), editP = EDIT SHOWIF showChange(p), DELETE SHOWIF (is[UserPriceList](p) AND showChange(p))
     PROPERTIES (p) TOOLBAR copy , print 
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
