@@ -466,6 +466,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
                             WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
                             WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
+                        IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr THEN {
+                            exportedCustomer(eInvoice(m)) <- NULL;
+                        }
                         XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                         APPLY NESTED LOCAL;
                         IF canceled() THEN {
