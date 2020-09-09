@@ -957,3 +957,54 @@ NAVIGATOR {
     }    
 }
 
+// ---------------------------------------------- Копирование cтатистического отчета --------------------------------------- //
+
+overCopy ABSTRACT LIST (StatisticReport, StatisticReport);
+overCopy ABSTRACT LIST (StatisticReportDetail, StatisticReportDetail);
+
+copyData(StatisticReport old, StatisticReport new) {
+    name(new) <- name(old);
+    note(new) <- note(old);
+    fromDate(new) <- fromDate(old);
+    toDate(new) <- toDate(old);
+    statisticGroupType(new) <- statisticGroupType(old);
+    statisticReportType(new) <- statisticReportType(old);
+    stock(new) <- stock(old);
+    company(new) <- company(old);
+    reportKind(new) <- reportKind(old);
+    in(new, StatisticReport r) <- in(old,r);
+    isPeriod(new) <- isPeriod(old);
+    region(new) <- region(old);
+    overCopy(old,new);
+    
+    FOR statisticReport(StatisticReportDetail oldd) == old ORDER index(oldd) NEW newd = StatisticReportDetail DO {
+        statisticReport(newd) <- new;
+        name(newd) <- name(oldd);
+        nameUOM(newd) <- nameUOM(oldd);
+        round(newd) <- round(oldd);
+        number(newd) <- number(oldd);
+        statisticGroup(newd) <- statisticGroup(oldd);
+        in(newd, StatisticReportDetail d) <- in(oldd,d);
+        overCopy(oldd,newd);
+    }
+}
+
+copy 'Копировать'(StatisticReport report) {
+	NEWSESSION {
+	    NEW r = StatisticReport {
+	        copyData(report, r);
+	        
+	        SHOW statisticReport OBJECTS r = r DOCKED;
+	    };
+	}
+} TOOLBAR;
+
+EXTEND FORM statisticReports
+    PROPERTIES(r) copy
+;
+
+DESIGN statisticReports {
+    TOOLBAR(r){
+        MOVE PROPERTY(copy(r)) BEFORE PROPERTY(close(r));
+    }
+}
