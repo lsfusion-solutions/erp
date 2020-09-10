@@ -72,15 +72,20 @@ public class CL5000JHandler extends DefaultScalesHandler {
                             if (transaction.snapshot) {
                                 processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
                                 int reply = deleteAllPlu(socket);
-                                if(reply != 0)
+                                if(reply != 0) {
                                     errors += String.format("Deleting all plu failed. Error: %s\n", getErrorMessage(reply));
+                                } else {
+                                    String errorTouch = deleteTouchSpeedKeys(socket);
+                                    if(errorTouch != null)
+                                        errors += String.format("Deleting touch speed keys failed. Error: %s\n", errorTouch);
+                                    }
                             }
 
                             if(errors.isEmpty()) {
                                 for (ScalesItemInfo item : transaction.itemsList) {
                                     if(errorsCount < 5) {
-                                        int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                        int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
+                                        int barcode = getBarcode(item);
+                                        int pluNumber = getPluNumber(item.pluNumber, barcode);
                                         processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", barcode, scales.port));
                                         //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
                                         BigDecimal extraPercent = null;//item.extraPercent;
@@ -90,7 +95,21 @@ public class CL5000JHandler extends DefaultScalesHandler {
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
+                                        } else {
+                                            String errorTouch = sendTouchPlu(socket, pluNumber);
+                                            if (errorTouch != null) {
+                                                errors += String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch);
+                                                errorsCount++;
+                                            }
                                         }
+                                    }
+                                }
+
+                                if(errors.isEmpty()) {
+                                    String errorTouch = sendTouchSpeedKeys(socket, transaction.itemsList);
+                                    if (errorTouch != null) {
+                                        errors += String.format("Send speed keys failed. Error: %s\n", errorTouch);
+                                        errorsCount++;
                                     }
                                 }
                             }
@@ -179,6 +198,18 @@ public class CL5000JHandler extends DefaultScalesHandler {
         bytes.put((byte) 13); //cr
 
         return sendCommand(socket, bytes.array());
+    }
+
+    protected String sendTouchPlu(DataSocket socket, int pluNumber) throws IOException {
+        return null;
+    }
+
+    protected String sendTouchSpeedKeys(DataSocket socket, List<ScalesItemInfo> itemsList) throws IOException {
+        return null;
+    }
+
+    protected String deleteTouchSpeedKeys(DataSocket socket) throws IOException {
+        return null;
     }
 
     private int deleteAllPlu(DataSocket socket) throws IOException {
@@ -309,8 +340,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
                             socket.open();
                             short weightCode = getWeightCode(scales);
                             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                                int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
+                                int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
                                 processStopListLogger.error(String.format(getLogPrefix() + "Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
                                 int reply = deletePlu(socket, weightCode, pluNumber);
                                 if (reply != 0)
@@ -338,8 +368,16 @@ public class CL5000JHandler extends DefaultScalesHandler {
         return getLogPrefix() + groupId;
     }
 
-    private byte[] getBytes(String value) throws UnsupportedEncodingException {
+    protected byte[] getBytes(String value) throws UnsupportedEncodingException {
         return value.getBytes("cp1251");
+    }
+
+    protected int getBarcode(ItemInfo item) {
+        return Integer.parseInt(item.idBarcode.substring(0, 5));
+    }
+
+    protected int getPluNumber(Integer plu, int barcode) {
+        return plu == null ? barcode : plu;
     }
 
     private String getErrorMessage(int errorNumber) {
