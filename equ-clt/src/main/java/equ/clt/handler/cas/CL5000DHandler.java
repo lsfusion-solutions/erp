@@ -1,7 +1,5 @@
 package equ.clt.handler.cas;
 
-import equ.api.MachineryInfo;
-import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 public class CL5000DHandler extends CL5000JHandler {
@@ -10,11 +8,7 @@ public class CL5000DHandler extends CL5000JHandler {
     }
 
     @Override
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        String groupId = "";
-        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
-            groupId += scales.port + ";";
-        }
-        return "CL5000D" + groupId;
+    protected String getLogPrefix() {
+        return "CL5000D: ";
     }
 }
