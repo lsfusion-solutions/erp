@@ -425,6 +425,7 @@ eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumb
 deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice);
 sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA STRING[35] (EInvoice);
 
+contractName 'Наименование документа, который служит основанием отпуска' = DATA STRING[70] (EInvoice);
 contractId 'Номер Договора (или другого документа, служащего основанием отпуска)' = DATA STRING[70] (EInvoice);
 contractDate 'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)' = DATA DATE (EInvoice);
 waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
@@ -488,6 +489,7 @@ eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE INDEXED;
 
 lineItemNumber(EInvoiceDetail d) = PARTITION SUM 1 ORDER d BY eInvoice(d) MATERIALIZED;
 
+lineItemSign 'Признак вида товарной позиции' = DATA STRING[4] (EInvoiceDetail);
 lineItemID 'GTIN товара' = DATA STRING[100] (EInvoiceDetail);
 lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA STRING[100] (EInvoiceDetail);
 lineItemSupplierID 'Код товара в ERP системе поставщика (грузоотправителя)'= DATA STRING[100] (EInvoiceDetail);
@@ -582,12 +584,12 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(e) in
     PROPERTIES(e) READONLYIF isReadonly() isCancel
     PROPERTIES(e) READONLY isTN2, dateTime BACKGROUND background(e), number BACKGROUND background(e), deliveryNoteNumber, deliveryNoteDateTime, glnSupplier, nameSupplier, addressSupplier, unpSupplier, 
-                           nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
+                           nameSupplierStock, nameCustomer, glnCustomer, addressCustomer, unpCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractName, contractId
     PROPERTIES(e) contactCustomerStock, overReportId, overReportDate, overReportName
     FILTERGROUP notExported
     
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT BACKGROUND backgroundVAT(d),
+    PROPERTIES(d) READONLY lineItemSign, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT BACKGROUND backgroundVAT(d),
      lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
      grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields
 
@@ -628,7 +630,7 @@ FORM eInvoice 'Электронная накладная EDI'
     OBJECTS e = EInvoice PANEL 
     PROPERTIES(e)  dateTime BACKGROUND background(e), number BACKGROUND background(e),
                    deliveryNoteNumber, deliveryNoteDateTime, dateTimeCreated,
-                   contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
+                   contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
                    nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
                    nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock,
                    nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
@@ -637,7 +639,7 @@ FORM eInvoice 'Электронная накладная EDI'
                    sealIDReceiver SHOWIF NOT isTN2(e), currency 
     
     OBJECTS ed = EInvoiceDetail
-    PROPERTIES (ed) lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount,
+    PROPERTIES (ed) lineItemSign, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityDespatched, expiryDate, overValueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount,
                     lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, lineItemExtraFields
      FILTERS eInvoice(ed) == e
 ;

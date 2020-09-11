@@ -263,6 +263,7 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
                         functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
                         deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
                         deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
+                        contractName(ein) EXTID 'ContractName',
                         contractId(ein) EXTID 'ContractID',
                         contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate',
                         waybillId(ein) EXTID 'WaybillID'
@@ -302,6 +303,7 @@ FORM exportBlrwbl FORMEXTID 'BLRWBL'
     OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
     FILTERS eInvoice(d) == ein
     PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
+                      lineItemSign(d) EXTID 'LineItemSign',
                       lineItemID(d) EXTID 'LineItemID',
                       lineItemBuyerID(d) EXTID 'LineItemBuyerID',
                       lineItemSupplierID(d) EXTID 'LineItemSupplierID',
@@ -339,9 +341,10 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                 IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
+                    IF NOT length(contractName(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
                     IF NOT length(contractId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер Договора (или другого документа, служащего основанием отпуска)\'\n';
 //                    IF NOT contractDate(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)\'\n';
-                    IF NOT length(waybillId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер путевого листа\'\n';
+//                    IF NOT length(waybillId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер путевого листа\'\n';
                     IF NOT length(contactSupplier(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Отпуск разрешил (должность и ФИО)\'\n';
                     IF NOT length(glnSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'GLN пункта погрузки\'\n';
                     IF NOT length(addressSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта погрузки\'\n';
@@ -353,6 +356,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] provider) {
                     IF NOT length(currency(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
                     IF NOT totalGrossWeight(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Всего масса груза в тоннах\'\n';
                     FOR eInvoice(EInvoiceDetail d) == ei DO {
+                        IF NOT length(lineItemSign(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
                         IF NOT grossWeightValue(d) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Масса груза\'\n';
                         IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
                         IF NOT despatchUnitQuantityDespatched(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Количество в грузовых местах\'\n';
@@ -462,6 +466,7 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
                         functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
                         deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
                         deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
+                        contractName(ein) EXTID 'ContractName',
                         contractId(ein) EXTID 'ContractID',
                         contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate'
     PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
@@ -490,6 +495,7 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
     OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
     FILTERS eInvoice(d) == ein
     PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
+                      lineItemSign(d) EXTID 'LineItemSign',
                       lineItemID(d) EXTID 'LineItemID',
                       lineItemBuyerID(d) EXTID 'LineItemBuyerID',
                       lineItemSupplierID(d) EXTID 'LineItemSupplierID',
@@ -523,9 +529,10 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                 IF hostEDSServiceSupplierTopBy(ei) AND portEDSServiceSupplierTopBy(ei) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
+                    IF NOT length(contractName(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Наименование документа, который служит основанием отпуска\'\n';
                     IF NOT length(contractId(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Номер Договора (или другого документа, служащего основанием отпуска)\'\n';
 //                    IF NOT contractDate(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Дата договора в формате ГГГГММДД (или другого документа, служащего основанием отпуска)\'\n';
-                   IF NOT length(contactSupplier(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Отпуск разрешил (должность и ФИО)\'\n';
+                    IF NOT length(contactSupplier(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Отпуск разрешил (должность и ФИО)\'\n';
                     IF NOT length(glnSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'GLN пункта погрузки\'\n';
                     IF NOT length(addressSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Адрес пункта погрузки\'\n';
                     IF NOT length(contactSupplierStock(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'ФИО и должность лица, которое отвечает за передачу груза со стороны грузоотправителя\'\n';
@@ -533,6 +540,7 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] provider) {
                     IF NOT length(deliveryContact(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Товар к перевозке принял (должность и ФИО)\'\n';
                     IF NOT length(currency(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
                     FOR eInvoice(EInvoiceDetail d) == ei DO {
+                        IF NOT length(lineItemSign(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
                         IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
                         IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
                     }

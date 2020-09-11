@@ -122,6 +122,12 @@ overCreate ABSTRACT LIST(EInvoiceDetail, ConsignmentDetail);
 
 hideCreateEInvoice = ABSTRACT BOOLEAN (Consignment);
 
+quantityDespatched = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+lineItemAmount = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
+lineItemAmountCharges = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
+grossWeightValue = ABSTRACT NUMERIC[12,6] (ConsignmentDetail);
+despatchUnitQuantityDespatched = ABSTRACT NUMERIC[12,5] (ConsignmentDetail);
+
 createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  { 
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         NEW ei = EInvoice {
@@ -133,6 +139,7 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
             supplierStock(ei) <- supplierStock(invoice);
             customer(ei) <- customer(invoice);
             customerStock(ei) <- customerStock(invoice);
+            contractName(ei) <- shipmentBase(invoice);
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
@@ -140,18 +147,19 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
                 invoiceDetail(ed) <- detail;
+                lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
                 lineItemID(ed) <- id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7;
                 lineItemBuyerID(ed) <- id(sku(detail));
                 lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
-                quantityDespatched(ed) <- quantity(detail);
+                quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
                 valueVAT(ed) <- NUMERIC[8,2](vat(detail));
                 lineItemPrice(ed) <- price(detail);
-                lineItemAmount(ed) <- dataSumInvoice(detail);
-                lineItemAmountCharges(ed) <- sumVATIaW(detail);
-                lineItemAmountWithoutCharges(ed) <- dataSumInvoice(detail) (-) sumVATIaW(detail);
-                grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(detail));
+                lineItemAmount(ed) <- OVERRIDE lineItemAmount(detail), dataSumInvoice(detail);
+                lineItemAmountCharges(ed) <- OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail);
+                lineItemAmountWithoutCharges(ed) <- lineItemAmount(ed) (-) lineItemAmountCharges(ed);
+                grossWeightValue(ed) <- OVERRIDE grossWeightValue(detail), NUMERIC[12,6](grossWeightTon(detail));
                 lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
-                despatchUnitQuantityDespatched(ed) <- OVERRIDE NUMERIC[12,5](packQuantity(detail)), 1.0;
+                despatchUnitQuantityDespatched(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail)), 1.0;
                 overCreate(ed,detail);
             }
             
@@ -173,6 +181,7 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
             supplierStock(ei) <- supplierStock(invoice);
             customer(ei) <- customer(invoice);
             customerStock(ei) <- customerStock(invoice);
+            contractName(ei) <- shipmentBase(invoice);
             contractId(ei) <- seriesNumberContractSku(invoice);
             contractDate(ei) <- dateFromContractSku(invoice);
             currency(ei) <- shortNameCurrency(invoice);
@@ -180,15 +189,16 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
             FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                 eInvoice(ed) <- ei;
                 invoiceDetail(ed) <- detail;
+                lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
                 lineItemID(ed) <- id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7;
                 lineItemBuyerID(ed) <- id(sku(detail));
                 lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
-                quantityDespatched(ed) <- quantity(detail);
+                quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
                 valueVAT(ed) <- NUMERIC[8,2](vat(detail));
                 lineItemPrice(ed) <- price(detail);
-                lineItemAmount(ed) <- dataSumInvoice(detail);
-                lineItemAmountCharges(ed) <- sumVATIaW(detail);
-                lineItemAmountWithoutCharges(ed) <- dataSumInvoice(detail) (-) sumVATIaW(detail);
+                lineItemAmount(ed) <- OVERRIDE lineItemAmount(detail), dataSumInvoice(detail);
+                lineItemAmountCharges(ed) <- OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail);
+                lineItemAmountWithoutCharges(ed) <- lineItemAmount(ed) (-) lineItemAmountCharges(ed);
                 lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                 overCreate(ed,detail);
             }

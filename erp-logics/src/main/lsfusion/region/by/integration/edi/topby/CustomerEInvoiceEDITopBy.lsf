@@ -12,6 +12,7 @@ blrwblDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blrwblDateTime = DATA LOCAL NESTED DATETIME();
 blrwblDeliveryNoteDate = DATA LOCAL NESTED DATE();
 blrwblFunctionCode = DATA LOCAL NESTED STRING[3]();
+blrwblContractName = DATA LOCAL NESTED STRING[70]();
 blrwblContractID = DATA LOCAL NESTED STRING[70]();
 blrwblContractDate = DATA LOCAL NESTED DATE();
 blrwblWaybillID = DATA LOCAL NESTED STRING[70]();
@@ -44,6 +45,7 @@ blrwblFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrwblFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 GROUP blrwblDespatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
 blrwblLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
+blrwblLineItemSign = DATA LOCAL NESTED STRING[4](INTEGER);
 blrwblLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
 blrwblLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
 blrwblLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
@@ -71,6 +73,7 @@ FORM blrwbl
                                blrwblDeliveryNoteDate() EXTID 'DeliveryNoteDate',
                                blrwblDateTime() EXTID 'CreationDateTime',
                                blrwblFunctionCode() EXTID 'FunctionCode',
+                               blrwblContractName() EXTID 'ContractName',
                                blrwblContractID() EXTID 'ContractID',
                                blrwblContractDate() EXTID 'ContractDate',
                                blrwblWaybillID() EXTID 'WaybillID',
@@ -100,6 +103,7 @@ FORM blrwbl
     
     OBJECTS i = INTEGER EXTID 'LineItem' IN blrwblDespatchAdviceLogisticUnitLineItemDeliveryNote
     PROPERTIES(i) blrwblLineItemNumber EXTID 'LineItemNumber',
+                  blrwblLineItemSign EXTID 'LineItemSign',
                   blrwblLineItemID EXTID 'LineItemID',
                   blrwblLineItemBuyerID EXTID 'LineItemBuyerID',
                   blrwblLineItemSupplierID EXTID 'LineItemSupplierID',
@@ -139,6 +143,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     dateTime(ei) <- blrwblDateTime();
                     deliveryNoteDateTime(ei) <- DATETIME (blrwblDeliveryNoteDate());
                     deliveryNoteNumber(ei) <- blrwblDeliveryNoteNumber();
+                    contractName(ei) <- blrwblContractName();
                     contractId(ei) <- blrwblContractID();
                     contractDate(ei) <- blrwblContractDate();
                     waybillId(ei) <- blrwblWaybillID();
@@ -166,6 +171,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
                         eInvoice(ed) <- ei;
                         id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);
+                        lineItemSign(ed) <- blrwblLineItemSign(l);
                         lineItemID(ed) <- blrwblLineItemID(l);
                         lineItemBuyerID(ed) <- blrwblLineItemBuyerID(l);
                         lineItemSupplierID(ed) <- blrwblLineItemSupplierID(l);
@@ -272,6 +278,7 @@ blrdlnDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blrdlnDateTime = DATA LOCAL NESTED DATETIME();
 blrdlnDeliveryNoteDate = DATA LOCAL NESTED DATE();
 blrdlnFunctionCode = DATA LOCAL NESTED STRING[3]();
+blrdlnContractName = DATA LOCAL NESTED STRING[70]();
 blrdlnContractID = DATA LOCAL NESTED STRING[70]();
 blrdlnContractDate = DATA LOCAL NESTED DATE();
 GROUP blrdlnShipper EXTID 'Shipper' : deliveryNote;
@@ -295,6 +302,7 @@ blrdlnFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrdlnFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 GROUP blrdlnDespatchAdviceLogisticUnitLineItemDeliveryNote EXTID 'DespatchAdviceLogisticUnitLineItem' :deliveryNote;
 blrdlnLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
+blrdlnLineItemSign = DATA LOCAL NESTED STRING[4](INTEGER);
 blrdlnLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
 blrdlnLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
 blrdlnLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
@@ -320,6 +328,7 @@ FORM blrdln
                                blrdlnDeliveryNoteDate() EXTID 'DeliveryNoteDate',
                                blrdlnDateTime() EXTID 'CreationDateTime',
                                blrdlnFunctionCode() EXTID 'FunctionCode',
+                               blrdlnContractName() EXTID 'ContractName',
                                blrdlnContractID() EXTID 'ContractID',
                                blrdlnContractDate() EXTID 'ContractDate',
                                blrdlnCurrency() EXTID 'Currency'
@@ -341,6 +350,7 @@ FORM blrdln
     
     OBJECTS i = INTEGER EXTID 'LineItem' IN blrdlnDespatchAdviceLogisticUnitLineItemDeliveryNote
     PROPERTIES(i) blrdlnLineItemNumber EXTID 'LineItemNumber',
+                  blrdlnLineItemSign EXTID 'LineItemSign',
                   blrdlnLineItemID EXTID 'LineItemID',
                   blrdlnLineItemBuyerID EXTID 'LineItemBuyerID',
                   blrdlnLineItemSupplierID EXTID 'LineItemSupplierID',
@@ -379,6 +389,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     dateTime(ei) <- blrdlnDateTime();
                     deliveryNoteDateTime(ei) <- DATETIME (blrdlnDeliveryNoteDate());
                     deliveryNoteNumber(ei) <- blrdlnDeliveryNoteNumber();
+                    contractName(ei) <- blrdlnContractName();
                     contractId(ei) <- blrdlnContractID();
                     contractDate(ei) <- blrdlnContractDate();
                     isCancel(ei) <- isCancel();
@@ -398,6 +409,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                     FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
                         eInvoice(ed) <- ei;
                         id(ed) <- id(ei) + '/' + blrdlnLineItemNumber(l);
+                        lineItemSign(ed) <- blrdlnLineItemSign(l);
                         lineItemID(ed) <- blrdlnLineItemID(l);
                         lineItemBuyerID(ed) <- blrdlnLineItemBuyerID(l);
                         lineItemSupplierID(ed) <- blrdlnLineItemSupplierID(l);
