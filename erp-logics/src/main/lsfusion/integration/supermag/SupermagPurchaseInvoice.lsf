@@ -162,7 +162,8 @@ exportPurchaseInvoice (Purchase.Invoice doc) + {
     IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'WI' AND NOT id(operation(doc))='initial' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) THEN exportPurchaseInvoiceWI(doc);    
 }
 
-overExportPurchaseInvoiceAC ABSTRACT LIST (Invoice, DocMain) ;
+overExportPurchaseInvoiceAC ABSTRACT LIST (Invoice, DocMain);
+overExportPurchaseInvoiceDetailAC ABSTRACT LIST (InvoiceDetail, DocDetail);
 
 exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain d) <- NULL;
@@ -204,6 +205,7 @@ exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                         flags(expDet) <- '0';
                         revalSum(expDet) <- 0.00;
                         revalOperQuantity(expDet) <- 0.00;
+                        overExportPurchaseInvoiceDetailAC(docd, expDet);
                     }
                 }    
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
