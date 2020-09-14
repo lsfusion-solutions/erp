@@ -1940,6 +1940,8 @@ showUnpost (Inventory i) = isPosted(i) AND isOpened(i);
 quantityShortage 'Кол-во недостачи / излишка' (Inventory in) = GROUP SUM quantityShortage(CollationSheet cs) BY inventory(cs);
 sumShortage 'Сумма недостачи / излишка' (Inventory in) = GROUP SUM sumShortage(CollationSheet cs) BY inventory(cs);
 
+showMovementSku 'Показать движение по складу' (Sku ks, CollationSheet cs)  { showMovementSku(ks, stock(cs)); }
+
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory LAST
     PROPERTIES(in) READONLYIF isReadonly() isClosed
@@ -1998,7 +2000,7 @@ FORM inventories 'Инвентаризации'
     ORDERS                             nameStock(cs)
 
     OBJECTS          it=Sku GRID
-    PROPERTIES(it) READONLY                                   nASku=name, idBarcode
+    PROPERTIES(it) READONLY                                   nASku=name ON CONTEXTMENU showMovementSku(it, cs), idBarcode
     PROPERTIES(cs,it) READONLY                                quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,it) READONLY SHOWIF isSku(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, it),
                                                               priceBalance BACKGROUND differentPrice(cs, it)
