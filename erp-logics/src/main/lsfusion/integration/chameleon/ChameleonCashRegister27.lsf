@@ -69,8 +69,11 @@ skusString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)
 uomString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_unit(' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(m, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(m,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true,0,0)';
 uomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT uomString(m, Barcode b), ';' IF in(t, b) ORDER m, b;
 
-priceString(MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
+priceString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
 pricesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT priceString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+restString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_rest(' + STRING(sku(b)) + ',\'-\',' + STRING(stock(m)) + ',' + STRING(NUMERIC[10,3](currentBalance(sku(b), stock(m)))) + ',current_timestamp,true)';
+restsString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT restString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
 barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
 barcodesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
