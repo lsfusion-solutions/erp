@@ -244,6 +244,7 @@ exportPurchaseInvoice (Purchase.Invoice doc) + {
 //--------------------------------------------------------------------------------------------импорт--------------------------------------------------------------
 overImportPurchaseInvoice ABSTRACT LIST ();
 overImportPurchaseInvoice2 ABSTRACT LIST ();
+overImportPurchaseInvoiceDetail ABSTRACT LIST (Purchase.UserInvoiceDetail, INTEGER);
 
 importPurchaseInvoice 'Импорт накладные (закупка)' () {
 
@@ -384,12 +385,10 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
                                                                                      ELSE calcManufacturingMarkup(det);        
 
 //        retailVAT(det) <- VAT(sku(det));
-        retailPriceListType(det) <- OVERRIDE retailPriceListType(det),  IF prevPriceA(calcRetailPriceListType(det), sku(det), retailStock(det), pricingDateTime(det))
-                                                                           THEN calcRetailPriceListType(det)
-                                                                           ELSE OVERRIDE extraCalcRetailCalcPriceListType(det), calcRetailCalcPriceListType(det);
 //        retailPrice(det) <- OVERRIDE retailPrice(det), retailPrice(i);
 //        valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);
  //       retailMarkup(det) <- OVERRIDE retailMarkup(det), calcRetailMarkup(det);
+        overImportPurchaseInvoiceDetail(det,i);
         imported(det) <- TRUE;
         connectOrder(det);        
         lastVersion(det) <- currentVersion(i);
