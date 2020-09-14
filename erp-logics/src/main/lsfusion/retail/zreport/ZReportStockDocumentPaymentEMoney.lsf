@@ -1,0 +1,28 @@
+MODULE ZReportStockDocumentPaymentEMoney;
+
+REQUIRE ZReportStockDocumentPayment, ZReportEMoney;
+
+// Подарочный сертификат
+CLASS ZReportEMoney 'Продажа (Оплати)';
+TABLE zReportEMoney (ZReportEMoney);
+
+    
+zReportEMoney = AGGR ZReportEMoney WHERE sumEMoney(ZReport zReport) MATERIALIZED INDEXED;
+
+description (ZReportEMoney zReportEMoney) =
+    STRING[200](CONCAT ' ', 'Продажа (Оплати) отдела', name(departmentStore(zReport(zReportEMoney))), 'от' , date(zReport(zReportEMoney)));
+
+EXTEND CLASS ZReportEMoney : OutStockDocumentLedger;
+
+dateTime (ZReportEMoney ledger) += dateTime(zReport(ledger));
+isPosted (ZReportEMoney ledger) += isPosted(zReport(ledger));
+isClosed (ZReportEMoney ledger) += isClosed(zReport(ledger));
+stock (ZReportEMoney ledger) += departmentStore(zReport(ledger));
+description (ZReportEMoney ledger) += description(ledger);
+number(ZReportEMoney ledger) += number(zReport(ledger));
+
+type(ZReportEMoney l) += STRING[50]('Продажа (Оплати)') IF l IS ZReportEMoney;
+sumItem (ZReportEMoney ledger) += sumEMoney(zReport(ledger));
+sumContainer (ZReportEMoney ledger) += 0.0 IF ledger IS ZReportEMoney;
+skip (ZReportEMoney ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
+close(ZReportEMoney ledger) + {  isClosed(ZReport z) <- TRUE WHERE zReport(ledger) == z; }
