@@ -1,6 +1,6 @@
 MODULE ChameleonCashRegister27;
 
-REQUIRE ChameleonCashRegister, Currency;
+REQUIRE ChameleonCashRegister, Currency, Pricing;
 
 NAMESPACE Chameleon27;
 
@@ -72,8 +72,26 @@ uomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)
 priceString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + STRING(UOM(idUOM(m, b))) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(price(m, b)) + ',' + centsString(minPrice(m, b)) + ',' + centsString(price(m, b)) + ', true)';
 pricesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT priceString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
-restString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_rest(' + STRING(sku(b)) + ',\'-\',' + STRING(stock(m)) + ',' + STRING(NUMERIC[10,3](currentBalance(sku(b), stock(m)))) + ',current_timestamp,true)';
-restsString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT restString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
-
 barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
 barcodesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+restString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_rest(' + STRING(sku(b)) + ',\'-\',' + STRING(stock(m)) + ',' + STRING(OVERRIDE NUMERIC[10,3](currentBalance(sku(b), stock(m))), 0.0) + ',current_timestamp,true)';
+restsString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT restString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
+
+// Только для презентации - потом удалить
+restString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_rest(' + STRING(s) + ',\'-\',' + STRING(stock(m)) + ',' + STRING(OVERRIDE NUMERIC[10,3](currentBalance(s, stock(m))), 0.0) + ',current_timestamp,true)';
+
+//isDelta (MachineryPriceTransaction m, Sku s) = NOT currentBalance(s, stock(m)) = balanceA(s, stock(m), dateTimeProcessing(m)) AND (currentBalance(s, stock(m)) OR balanceA(s, stock(m), dateTimeProcessing(m)));
+isDelta (MachineryPriceTransaction m, Sku s) = currentBalance(s, stock(m)) OR balanceA(s, stock(m), dateTimeProcessing(m));
+
+deltaRestsString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT restString(m, Sku s), ';' IF isDelta(m, s) ORDER m, s;
+    
+deltaGroupsSkuStringHierarchy (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF g = skuGroup(Sku s) AND isDelta(t, s) ORDER g;
+
+deltaSkusString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT skuString(t, Sku s), ';' IF isDelta(t, s) ORDER s;
+
+uomString (Sku s) = 'SELECT system.import_front_unit(' + STRING(UOM(s)) + ',' + STRING(s) + ',\'' + escape(ISTRING[10](shortNameUOM(s))) + '\',true,1' + (IF split(s) THEN ',2' ELSE (IF passScales(s) THEN ',3' ELSE ',1')) + ',null,true,0,0)';
+deltaUomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT uomString(Sku s), ';' IF isDelta(t, s) ORDER s;
+
+priceString (MachineryPriceTransaction m, Sku s) = 'SELECT system.import_front_price(' + STRING(s) + ',' + STRING(UOM(s)) + ',\'-\',' + STRING(stock(m)) + ',' + centsString(retailPricingPriceA(s, stock(m))) + ',' + centsString(0) + ',' + centsString(retailPricingPriceA(s, stock(m))) + ', true)';
+deltaPricesString (MachineryPriceTransaction m) += WHEN isChameleon27(groupMachinery(m)) THEN GROUP CONCAT priceString(m, Sku s), ';' IF isDelta(m, s) ORDER m, s;

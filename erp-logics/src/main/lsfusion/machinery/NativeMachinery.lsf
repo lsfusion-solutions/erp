@@ -5,13 +5,22 @@ REQUIRE MachineryPriceTransaction,
 
 NAMESPACE Machinery;
 
+sendDeltaRests ABSTRACT LIST (MachineryPriceTransaction);
+
 sendMachineryPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
 receiveGroupMachinery ABSTRACT LIST (GroupMachinery);
 
+
 sendMachineryPriceTransactions 'Загрузка прайса в оборудование (native)' () {
     FOR MachineryPriceTransaction t IS MachineryPriceTransaction AND NOT succeeded(t) AND NOT canceled(t) AND NOT dateTimeProcessing(t) DO
         sendMachineryPriceTransaction(t);
+}
+
+sendRests 'Загрузка остатков в оборудование' () {
+    FOR MachineryPriceTransaction t IS MachineryPriceTransaction AND succeeded(t) AND NOT canceled(t) AND left(handlerModel(groupMachinery(t)), 4) = 'lsf.' DO {
+        sendDeltaRests(t);
+    }
 }
 
 receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
@@ -19,4 +28,4 @@ receiveGroupsMachinery 'Получение данных из оборудова�
         receiveGroupMachinery(g);
 }
 
-//EXTEND FORM machineryPriceTransactions PROPERTIES sendMachineryPriceTransactions(), receiveGroupsMachinery();
+//EXTEND FORM machineryPriceTransactions PROPERTIES sendMachineryPriceTransactions(), receiveGroupsMachinery(), sendRests();

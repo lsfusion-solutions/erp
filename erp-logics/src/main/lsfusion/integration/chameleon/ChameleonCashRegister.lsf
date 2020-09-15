@@ -68,6 +68,7 @@ exchangeChameleon (GroupCashRegister g, STRING q) {
     }
 }
 
+
 sendToChameleon (MachineryPriceTransaction t){
     NEWSESSION {
         IF isChameleon(groupMachinery(t)) AND notSucceeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) THEN {
@@ -223,4 +224,29 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
 
 receiveGroupMachinery(GroupCashRegister g) + {
     receiveFromChameleon(g);
+}
+
+// Только для презентации
+deltaRestsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+deltaGroupsSkuStringHierarchy = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+deltaSkusString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+deltaUomsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+deltaPricesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+
+sendDeltaRests (MachineryPriceTransaction t) {
+    IF isChameleon(groupMachinery(t)) AND succeeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) AND deltaRestsString(t) THEN {
+             exchangeChameleon(groupMachinery(t),
+             CONCAT ';',
+                 deltaGroupsSkuStringHierarchy(t),
+                 deltaSkusString(t),
+                 deltaUomsString(t),
+                 deltaPricesString(t),
+                 deltaRestsString(t)
+             );
+
+    }
+}
+
+sendDeltaRests (MachineryPriceTransaction t) + {
+    sendDeltaRests(t);
 }
