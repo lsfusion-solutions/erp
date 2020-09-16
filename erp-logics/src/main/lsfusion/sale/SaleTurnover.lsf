@@ -44,8 +44,8 @@ takeSupplier 'Рассчитать товарооборачиваемость (�
             balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [ GROUP SUM balanceA(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur())) 
                 WHERE isCompany(st) AND active(st) AND isSupplier(su) AND [ GROUP SUM balanceA(Batch batch, st, DATE dt)*cost(batch) BY supplier(batch),dt](su,dateCur());
                 
-            soldSum (LegalEntity su, Stock st, DATE dt) <- NULL WHERE isCompany(st) AND active(st) AND isSupplier(su) AND iterate(dt, sum(date, -daysToTurnover()), sum(date, -1));
-            cumBalance (LegalEntity su, Stock st, DATE dt) <- NULL WHERE isCompany(st) AND active(st) AND isSupplier(su) AND iterate(dt, sum(date, -daysToTurnover()), sum(date, -1));                
+            soldSum (LegalEntity su, Stock st, DATE dt) <- NULL WHERE soldSum(su, st, dt) AND dt >= sum(date, -daysToTurnover()) AND dt <= sum(date, -1);
+            cumBalance (LegalEntity su, Stock st, DATE dt) <- NULL WHERE cumBalance(su, st, dt) AND dt >= sum(date, -daysToTurnover()) AND dt <= sum(date, -1);                
             
             WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
                       
