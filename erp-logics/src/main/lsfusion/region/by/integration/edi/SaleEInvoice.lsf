@@ -63,6 +63,8 @@ DESIGN selectECreditNote {
 }
 
 overCopy  ABSTRACT LIST ( ECreditNoteDetail, UserCreditNoteDetail);
+overSupplierStock = ABSTRACT Stock(ECreditNote);
+
 copyData(ECreditNote ec, CreditNote c)  { 
     creditNote(ECreditNote e) <- NULL WHERE creditNote(e) == c AND NOT isCancel(e);
     creditNote(ec) <- c;
@@ -70,7 +72,7 @@ copyData(ECreditNote ec, CreditNote c)  {
     series(c) <- NULL;
     operation(c) <- eOperation(customer(ec)) WHERE eOperation(customer(ec));
     supplier(c) <- supplier(ec);
-    supplierStock(c) <- OVERRIDE supplierStock(invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec)))), defaultStock(supplier(c));
+    supplierStock(c) <- OVERRIDE supplierStock(invoice(eInvoiceDeliveryNoteNumber(deliveryNoteNumber(ec)))), overSupplierStock(ec), defaultStock(supplier(c));
     customer(c) <- customer(ec);
     customerStock(c) <- customerStock(ec);
     date(c) <- DATE(dateTime(ec));
