@@ -628,22 +628,22 @@ overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +  {
         LOCAL cumBalance = NUMERIC[16,2] (Batch, Stock);
         LOCAL dateCur = DATE();    
     
-        dateCur() <- dateFrom;
-        balance(Batch batch, Stock stock) <- balanceB(batch, stock, dateFrom)*cost(batch) WHERE include(snapshot, stock) 
-                                AND include(snapshot, sku(batch)) AND balanceB(batch, stock, dateFrom);
+        dateCur() <- dateTo;
+        balance(Batch batch, Stock stock) <- balanceA(batch, stock, dateTo)*cost(batch) WHERE include(snapshot, stock) 
+                                AND include(snapshot, sku(batch)) AND balanceA(batch, stock, dateTo);
         daysOn(Batch batch, Stock stock) <- NULL;
         
-        WHILE dateCur() <= dateTo DO {
+        WHILE dateCur() >= dateFrom DO {
             daysOn(Batch batch, Stock stock) <- daysOn(batch, stock) (+) (1 IF ((balance(batch, stock) > 0) OR (signedQuantity(batch, stock, dateCur())))) 
                                 WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND 
                                 (daysOn(batch, stock) (+) (1 IF ((balance(batch, stock) > 0) OR (signedQuantity(batch, stock, dateCur())))));
+            balance(Batch batch, Stock stock) <- balance(batch, stock) (-) signedQuantity(batch, stock, dateCur()) * cost(batch) 
+                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND 
+                                (balance(batch, stock) (+) signedQuantity(batch, stock, dateCur()) * cost(batch));                                
             cumBalance(Batch batch, Stock stock) <- cumBalance(batch, stock) (+) balance(batch, stock)
                                 WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND (cumBalance(batch, stock) (+) balance(batch, stock));
-            balance(Batch batch, Stock stock) <- balance(batch, stock) (+) signedQuantity(batch, stock, dateCur()) * cost(batch) 
-                                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND 
-                                (balance(batch, stock) (+) signedQuantity(batch, stock, dateCur()) * cost(batch));
     
-            dateCur() <- sum(dateCur(), 1);
+            dateCur() <- sum(dateCur(), - 1);
         }
     
         daysOnStock(Batch batch, Stock stock, snapshot) <- daysOn(batch, stock);
