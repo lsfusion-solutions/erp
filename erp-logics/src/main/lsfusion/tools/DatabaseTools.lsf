@@ -88,6 +88,7 @@ createIndexes 'Создать индексы' (Table t) {
 }
 
 reindexConcurrently 'REINDEX CONCURRENTLY' = DATA BOOLEAN ();
+skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
 
 reindex 'REINDEX' (Table t) {
     IF deleteIndexes(t) THEN {
@@ -96,7 +97,14 @@ reindex 'REINDEX' (Table t) {
         createIndexes(t);
     } ELSE {
         logToFile('database-tools', 'start - REINDEX TABLE ' + sid(t) );
-        runSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
+        IF skipExceptions() THEN {
+            TRY {
+                runSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
+            } CATCH {
+                logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
+            }
+        } ELSE 
+            runSQL('REINDEX TABLE ' + (IF reindexConcurrently() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
         logToFile('database-tools', 'end - REINDEX TABLE ' + sid(t));
     }
     NEWSESSION {
@@ -111,7 +119,14 @@ vacuum 'VACUUM FULL' (Table t) {
         dropIndexes(t);
     }
     logToFile('database-tools', 'start - VACUUM FULL ' + sid(t) );
-    runSQL('VACUUM FULL ' + sid(t));
+    IF skipExceptions() THEN {
+        TRY {
+            runSQL('VACUUM FULL ' + sid(t));
+        } CATCH {
+            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
+        }
+    } ELSE 
+        runSQL('VACUUM FULL ' + sid(t));
     logToFile('database-tools', 'end - VACUUM FULL ' + sid(t));
     IF deleteIndexes(t) THEN {
         createIndexes(t);
