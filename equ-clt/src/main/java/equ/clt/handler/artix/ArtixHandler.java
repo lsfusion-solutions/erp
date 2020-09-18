@@ -19,9 +19,8 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.*;
 import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -168,6 +167,19 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                             }
                         }
 
+                        //Tax groups
+                        Set<BigDecimal> usedTaxGroups = new HashSet<>();
+                        for (CashRegisterItemInfo item : transaction.itemsList) {
+                            if (!Thread.currentThread().isInterrupted()) {
+                                if (item.vat != null && !usedTaxGroups.contains(item.vat)) {
+                                    String group = getAddTaxGroup(item);
+                                    if (group != null)
+                                        writeStringToFile(tmpFile, group + "\n---\n");
+                                    usedTaxGroups.add(item.vat);
+                                }
+                            }
+                        }
+
                         //UOMs
                         Set<String> usedUOMs = new HashSet<>();
                         for (CashRegisterItemInfo item : transaction.itemsList) {
@@ -299,6 +311,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventObject.put("rtext", item.name); //текст для чека
             inventObject.put("name", item.name); //наименование товара
             inventObject.put("measurecode", idUOM); //код единицы измерения
+            if (item.vat != null)
+                inventObject.put("taxgroupcode", item.vat.intValue());
             if (item.balance != null) {
                 inventObject.put("remain", item.balance);
                 inventObject.put("remaindate", (item.balanceDate != null ? item.balanceDate : LocalDateTime.now()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")));
@@ -363,6 +377,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             inventGroupObject.put("parentGroupCode", itemGroup.idParentItemGroup); //идентификационный код родительской группы товаров
             inventGroupObject.put("groupname", trim(itemGroup.nameItemGroup, 200)); //название группы товаров
             rootObject.put("command", "addInventGroup");
+            return rootObject.toString();
+        } else return null;
+    }
+
+    private String getAddTaxGroup(CashRegisterItemInfo item) throws JSONException {
+        if (item.vat != null) {
+            JSONObject rootObject = new JSONObject();
+
+            JSONObject taxGroupObject = new JSONObject();
+            rootObject.put("taxGroup", taxGroupObject);
+            taxGroupObject.put("idTaxGroup", item.vat.intValue());
+
+            JSONArray taxesArray = new JSONArray();
+            JSONObject tax = new JSONObject();
+            tax.put("changebase", false);
+            tax.put("name", item.vat + "%");
+            tax.put("rate", item.vat.doubleValue());
+
+            taxGroupObject.put("taxes", taxesArray);
+            rootObject.put("command", "addTaxGroup");
             return rootObject.toString();
         } else return null;
     }
