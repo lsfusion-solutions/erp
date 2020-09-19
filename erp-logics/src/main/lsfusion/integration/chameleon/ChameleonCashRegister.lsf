@@ -42,6 +42,7 @@ cashRegistersString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
 groupsSkuStringHierarchy = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 skusString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+batchesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
 uomsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
@@ -86,6 +87,7 @@ sendToChameleon (MachineryPriceTransaction t){
                 cashRegistersString(t),
                 groupsSkuStringHierarchy(t),
                 skusString(t),
+                batchesString(t),
                 uomsString(t),
                 pricesString(t),
                 restsString(t),
@@ -136,6 +138,7 @@ receiptNumberString () = GROUP CONCAT STRING(idReceipt(INTEGER i)), ',' IF NOT r
 cashRegister (LONG id) = GROUP LAST CashRegister cr AS CashRegister ORDER cr BY LONG(cr);
 employee (LONG id) = GROUP LAST Employee e AS Employee ORDER e BY LONG(e);
 sku (LONG id) = GROUP LAST Sku s AS Sku ORDER s BY LONG(s);
+batch (LONG id) = GROUP LAST Batch b AS Batch ORDER b BY LONG(b);
 
 receiveFromChameleon(GroupCashRegister g) {
     IF isChameleon(g) THEN {
@@ -155,6 +158,7 @@ receiveFromChameleon(GroupCashRegister g) {
             LOCAL idSku = LONG (INTEGER);
             LOCAL price = INTEGER (INTEGER);
             LOCAL idTypePayment = INTEGER (INTEGER);
+            LOCAL idBatch = STRING (INTEGER);
             localReceiptNumberString() <- receiptNumberString();
             exportFile() <- NULL;
             exchangeChameleon(g,
@@ -193,13 +197,14 @@ receiveFromChameleon(GroupCashRegister g) {
             }
             exportFile() <- NULL;
             exchangeChameleon(g,
-                'select sales.checks.id_workplace,quantity,price,discount,summ,id_goods,id_session,id_fcheck from sales.check_lines, sales.checks where sales.checks.id_check = sales.check_lines.id_check and sales.check_lines.id_check in(' + localReceiptNumberString() + ')'
+                'select sales.checks.id_workplace,quantity,price,discount,summ,id_goods,id_series,id_session,id_fcheck from sales.check_lines, sales.checks where sales.checks.id_check = sales.check_lines.id_check and sales.check_lines.id_check in(' + localReceiptNumberString() + ')'
             );
             imported(INTEGER i) <- NULL;
-            IMPORT FROM exportFile() TO number = id_fcheck, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, summ, quantity, discount, price, idSku = id_goods;
+            IMPORT FROM exportFile() TO number = id_fcheck, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, summ, quantity, discount, price, idSku = id_goods, idBatch = id_series;
             FOR imported(INTEGER i) AND receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
                 receipt(d) <- receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i));
                 sku(d) <- sku(idSku(i));
+                batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- quantity(i);
                 sum(d) <- NUMERIC[18,4](summ(i)) / 100;
@@ -227,26 +232,26 @@ receiveGroupMachinery(GroupCashRegister g) + {
 }
 
 // Только для презентации
-deltaRestsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
-deltaGroupsSkuStringHierarchy = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
-deltaSkusString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
-deltaUomsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
-deltaPricesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
-
-sendDeltaRests (MachineryPriceTransaction t) {
-    IF isChameleon(groupMachinery(t)) AND succeeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) AND deltaRestsString(t) THEN {
-             exchangeChameleon(groupMachinery(t),
-             CONCAT ';',
-                 deltaGroupsSkuStringHierarchy(t),
-                 deltaSkusString(t),
-                 deltaUomsString(t),
-                 deltaPricesString(t),
-                 deltaRestsString(t)
-             );
-
-    }
-}
-
-sendDeltaRests (MachineryPriceTransaction t) + {
-    sendDeltaRests(t);
-}
+//deltaRestsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+//deltaGroupsSkuStringHierarchy = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+//deltaSkusString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+//deltaUomsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+//deltaPricesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+//
+//sendDeltaRests (MachineryPriceTransaction t) {
+//    IF isChameleon(groupMachinery(t)) AND succeeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) AND deltaRestsString(t) THEN {
+//             exchangeChameleon(groupMachinery(t),
+//             CONCAT ';',
+//                 deltaGroupsSkuStringHierarchy(t),
+//                 deltaSkusString(t),
+//                 deltaUomsString(t),
+//                 deltaPricesString(t),
+//                 deltaRestsString(t)
+//             );
+//
+//    }
+//}
+//
+//sendDeltaRests (MachineryPriceTransaction t) + {
+//    sendDeltaRests(t);
+//}
