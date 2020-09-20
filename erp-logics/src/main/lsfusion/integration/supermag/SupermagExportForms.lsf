@@ -53,6 +53,9 @@ deliverytime = DATA LOCAL TIME (DocMain);
 useForAutoGen = DATA LOCAL STRING[1] (DocMain);
 sumPositivePayments = DATA LOCAL NUMERIC[18,4] (DocMain, INTEGER);
 sumNegativePayments = DATA LOCAL NUMERIC[18,4] (DocMain, INTEGER);
+startdate = DATA LOCAL DATETIME (DocMain);
+enddate = DATA LOCAL DATETIME (DocMain);
+orderno = DATA LOCAL STRING[50] (DocMain);
 
 docMain = DATA DocMain (DocDetail) NONULL DELETE;
 id = DATA LOCAL STRING[50] (DocDetail);
@@ -87,6 +90,10 @@ causeId = DATA LOCAL STRING (DocDetail);
 causeSpecItem = DATA LOCAL STRING[10] (DocDetail);
 discSum = DATA LOCAL NUMERIC[18,4] (DocDetail);
 moveType = DATA LOCAL INTEGER (DocDetail);
+awaitquantity = DATA LOCAL NUMERIC[14,3] (DocDetail);
+awaittotalprice = DATA LOCAL NUMERIC[19,4] (DocDetail);
+awaittotalpricecur = DATA LOCAL NUMERIC[19,4] (DocDetail);
+actualquantity = DATA LOCAL NUMERIC[14,3] (DocDetail);
 
 CLASS DocBase;
 docid = DATA LOCAL STRING[50] (DocBase);
@@ -699,6 +706,152 @@ FORM exportSO FORMEXTID 'PACKAGE'
     PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
     FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
 ;    
+
+
+GROUP IL;
+GROUP IL_SMDOCUMENTS EXTID 'SMDOCUMENTS': IL;
+GROUP IL_SMINVLINST EXTID 'SMINVLINST': IL;
+
+FORM exportIL FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = 'Акт потерь' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN IL_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN IL_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN IL_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN IL_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN IL_SMDOCUMENTS           
+    PROPERTIES = -1 IF doc IS DocMain EXTID 'OPCODE' IN IL_SMDOCUMENTS
+    PROPERTIES = location(doc) EXTID 'LOCATION' IN IL_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN IL_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN IL_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN IL_SMDOCUMENTS      
+    PROPERTIES = sumWithTax(doc) IF doc IS DocMain EXTID 'TOTALSUM' IN IL_SMDOCUMENTS    
+    PROPERTIES = sumCurr(doc) IF doc IS DocMain EXTID 'TOTALSUMCUR' IN IL_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEROUNDMODE' IN IL_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN IL_SMDOCUMENTS      
+    PROPERTIES = note(doc) EXTID 'COMMENTARY' IN IL_SMDOCUMENTS     
+    FILTERS inc(doc)                                              
+
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN IL_SMINVLINST      
+    PROPERTIES = STRING[50](doctype(doc)) EXTID 'DOCTYPE' IN IL_SMINVLINST 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'FILLSPECTYPE' IN IL_SMINVLINST  
+    PROPERTIES = '0' IF doc IS DocMain EXTID 'ISFILLCOMPLETE' IN IL_SMINVLINST  
+    PROPERTIES = '0' IF doc IS DocMain EXTID 'ISACTIVEONLY' IN IL_SMINVLINST  
+    PROPERTIES = priceType(doc) IF doc IS DocMain EXTID 'PRICETYPE' IN IL_SMINVLINST  
+    PROPERTIES = orderno(doc) IF doc IS DocMain EXTID 'ORDERNO' IN IL_SMINVLINST  
+    PROPERTIES = ourselfclient(doc) EXTID 'OURSELFCLIENT' IN IL_SMINVLINST    
+    PROPERTIES = exportTime(startdate(doc)) EXTID 'PREAMBLEDATE' IN IL_SMINVLINST    
+    PROPERTIES = exportTime(enddate(doc)) EXTID 'FINALDATE' IN IL_SMINVLINST  
+    PROPERTIES loc = location(doc) EXTID 'STORELOC' IN IL_SMINVLINST  
+//    PROPERTIES = 0 IF doc IS DocMain EXTID 'ZONEID' IN IL_SMINVLINST      
+//    PROPERTIES = '' IF doc IS DocMain EXTID 'SPECTYPENAME' IN IL_SMINVLINST  
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEMODE' IN IL_SMINVLINST      
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'WITHDUE' IN IL_SMINVLINST      
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN IL 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = priceWithTax(docd) IF docd IS DocDetail EXTID 'ITEMPRICE'     
+    PROPERTIES = sumWithTax(docd) IF docd IS DocDetail EXTID 'TOTALPRICE'  
+//    PROPERTIES = priceNoTax(docd) IF docd IS DocDetail EXTID 'ITEMPRICENOTAX'  
+//    PROPERTIES = sumNoTax(docd) IF docd IS DocDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = priceCurr(docd) IF docd IS DocDetail EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = sumCurr(docd) IF docd IS DocDetail EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)=doc
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN IL 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
+;
+
+GROUP RL;
+GROUP RL_SMDOCUMENTS EXTID 'SMDOCUMENTS': RL;
+GROUP RL_SMROLLS EXTID 'SMROLLS': RL;
+
+FORM exportRL FORMEXTID 'PACKAGE' 
+    PROPERTIES ATTR = exportTime(currentDateTime())  EXTID 'name'
+
+    OBJECTS doc = DocMain EXTID 'POSTOBJECT'
+    PROPERTIES ATTR = 'normal' IF doc IS DocMain EXTID 'action'      
+    PROPERTIES ATTR = 'Сличительная ведомость' IF doc IS DocMain EXTID 'description'  
+    PROPERTIES = STRING[100](id(doc)) EXTID 'Id'
+    PROPERTIES = doctype(doc) EXTID 'DOCTYPE' IN IL_SMDOCUMENTS
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN IL_SMDOCUMENTS
+    PROPERTIES = bornin(doc) EXTID 'BORNIN' IN IL_SMDOCUMENTS    
+    PROPERTIES = exportTime(creatdate(doc))  EXTID 'CREATEDAT' IN IL_SMDOCUMENTS    
+    PROPERTIES = docstate(doc) EXTID 'DOCSTATE' IN IL_SMDOCUMENTS           
+    PROPERTIES = -1 IF doc IS DocMain EXTID 'OPCODE' IN IL_SMDOCUMENTS
+    PROPERTIES = location(doc) EXTID 'LOCATION' IN IL_SMDOCUMENTS
+    PROPERTIES = 1 IF doc IS DocMain EXTID 'CURRENCYTYPE' IN IL_SMDOCUMENTS        
+    PROPERTIES = curRate(doc) EXTID 'CURRENCYRATE' IN IL_SMDOCUMENTS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'CURRENCYMULTORDER' IN IL_SMDOCUMENTS      
+    PROPERTIES = sumWithTax(doc) IF doc IS DocMain EXTID 'TOTALSUM' IN IL_SMDOCUMENTS    
+    PROPERTIES = sumCurr(doc) IF doc IS DocMain EXTID 'TOTALSUMCUR' IN IL_SMDOCUMENTS    
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEROUNDMODE' IN IL_SMDOCUMENTS       
+    PROPERTIES = 1 IF doc IS DocMain  EXTID 'ISROUBLES' IN IL_SMDOCUMENTS      
+    PROPERTIES = note(doc) EXTID 'COMMENTARY' IN IL_SMDOCUMENTS     
+    FILTERS inc(doc)                                              
+
+    PROPERTIES = STRING[100](docid(doc)) EXTID 'ID' IN RL_SMROLLS      
+    PROPERTIES = STRING[50](doctype(doc)) EXTID 'DOCTYPE' IN RL_SMROLLS 
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'FILLSPECTYPE' IN RL_SMROLLS  
+    PROPERTIES = '0' IF doc IS DocMain EXTID 'ISFILLCOMPLETE' IN RL_SMROLLS  
+    PROPERTIES = '0' IF doc IS DocMain EXTID 'ISACTIVEONLY' IN RL_SMROLLS  
+    PROPERTIES = priceType(doc) IF doc IS DocMain EXTID 'PRICETYPE' IN RL_SMROLLS  
+    PROPERTIES = orderno(doc) IF doc IS DocMain EXTID 'ORDERNO' IN RL_SMROLLS  
+    PROPERTIES = ourselfclient(doc) EXTID 'OURSELFCLIENT' IN RL_SMROLLS    
+    PROPERTIES = exportTime(startdate(doc)) EXTID 'PREAMBLEDATE' IN RL_SMROLLS    
+    PROPERTIES = exportTime(enddate(doc)) EXTID 'FINALDATE' IN RL_SMROLLS  
+    PROPERTIES loc = location(doc) EXTID 'STORELOC' IN RL_SMROLLS  
+//    PROPERTIES = 0 IF doc IS DocMain EXTID 'ZONEID' IN IL_SMINVLINST      
+//    PROPERTIES = '' IF doc IS DocMain EXTID 'SPECTYPENAME' IN IL_SMINVLINST  
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'PRICEMODE' IN RL_SMROLLS      
+    PROPERTIES = 0 IF doc IS DocMain EXTID 'WITHDUE' IN RL_SMROLLS      
+
+    OBJECTS docd = DocDetail EXTID 'SMSPEC' IN RL 
+    PROPERTIES = docid(docd) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd) EXTID 'SPECITEM'
+    PROPERTIES d1 = index(docd) EXTID 'DISPLAYITEM'
+    PROPERTIES = skuId(docd) EXTID 'ARTICLE'                          
+    PROPERTIES = OVERRIDE abs(quantity(docd)), 0 EXTID 'QUANTITY'
+    PROPERTIES = priceWithTax(docd) IF docd IS DocDetail EXTID 'ITEMPRICE'     
+    PROPERTIES = sumWithTax(doc) IF docd IS DocDetail EXTID 'TOTALPRICE'  
+    PROPERTIES = priceNoTax(docd) IF docd IS DocDetail EXTID 'ITEMPRICENOTAX'  
+    PROPERTIES = sumNoTax(docd) IF docd IS DocDetail EXTID 'TOTALPRICENOTAX'            
+    PROPERTIES = priceCurr(docd) IF docd IS DocDetail EXTID 'ITEMPRICECUR'                         
+    PROPERTIES = sumCurr(docd) IF docd IS DocDetail EXTID 'TOTALPRICECUR'      
+    FILTERS docMain(docd)=doc
+    
+    OBJECTS docd2 = DocDetail EXTID 'SMSPECRL' IN RL 
+    PROPERTIES = docid(docd2) EXTID 'DOCID'    
+    PROPERTIES = doctype(docMain(docd2)) EXTID 'DOCTYPE'      
+    PROPERTIES = index(docd2) EXTID 'SPECITEM'
+    PROPERTIES = awaitquantity(docd2) EXTID 'AWAITQUANTITY'
+    PROPERTIES = awaittotalprice(docd2) EXTID 'AWAITTOTALPRICE'                          
+    PROPERTIES = awaittotalpricecur(docd2) EXTID 'AWAITTOTALPRICECUR'                          
+    PROPERTIES = actualquantity(docd2) EXTID 'ACTUALQUANTITY'                          
+    FILTERS docMain(docd2)=doc
+    
+    OBJECTS p = DocProp EXTID 'SMDOCPROPS' IN IL 
+    PROPERTIES = STRING[100](docid(doc)) IF p IS DocProp EXTID 'DOCID'  
+    PROPERTIES = STRING[10](doctype(doc)) IF p IS DocProp EXTID 'DOCTYPE'     
+    PROPERTIES = paramname(p) EXTID 'PARAMNAME'                    
+    PROPERTIES = paramvalue(p) EXTID 'PARAMVALUE'    
+    FILTERS docMain(p) = doc AND paramvalue(p)                                                                         
+;
+
 
 GROUP LA;
 GROUP LA_SMDOCUMENTS EXTID 'SMDOCUMENTS': LA;
