@@ -456,7 +456,14 @@ printActBackground 'Цвет' (Repricing r) = RGB(212,255,212) IF r IS Repricing
 
 overReportFileDetail = ABSTRACT STRING[100](Repricing);
 reportFileDetail (Repricing r) =  OVERRIDE overReportFileDetail(r), 'Repricing_repricing_d.jrxml' IF r IS Repricing; 
-                                                      
+
+printNullDiffSumUserRepricingDetail 'Печатать в актах переоценки строки с пустыми суммами' = DATA BOOLEAN ();
+
+EXTEND FORM options PROPERTIES () printNullDiffSumUserRepricingDetail;
+
+DESIGN options{ repricings { MOVE PROPERTY (printNullDiffSumUserRepricingDetail());}}
+
+
 FORM repricing 'Акт переоценки (печать)'
 
     OBJECTS p = Repricing PANEL SUBREPORT
@@ -496,7 +503,8 @@ FORM repricing 'Акт переоценки (печать)'
                (diffSum(d) AND diffSum(d)!=0.0) OR
                (diffMarkupSum(d) AND diffMarkupSum(d)!=0.0) OR
                (diffVATSum(d) AND diffVATSum(d)!=0.0) OR
-               (diffRetailSum(d) AND diffRetailSum(d)!=0.0)
+               (diffRetailSum(d) AND diffRetailSum(d)!=0.0) OR 
+               printNullDiffSumUserRepricingDetail()
 
 ;
 
