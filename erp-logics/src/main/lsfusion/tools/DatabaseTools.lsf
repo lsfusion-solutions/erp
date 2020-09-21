@@ -89,6 +89,7 @@ createIndexes 'Создать индексы' (Table t) {
 
 reindexConcurrently 'REINDEX CONCURRENTLY' = DATA BOOLEAN ();
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
+stopAfter 'Не запускать после' = DATA TIME();
 
 reindex 'REINDEX' (Table t) {
     IF deleteIndexes(t) THEN {
@@ -205,6 +206,10 @@ smartVacuum 'Smart VACUUM'() {
             vacuum(t);
         } ELSE {
             reindex(t);
+        }
+        IF currentTime() > stopAfter() THEN {
+            logToFile('database-tools', 'Stopped after deadline');
+            BREAK;
         }
     }
     
@@ -337,7 +342,8 @@ EXTEND FORM tools
     PROPERTIES(i)  READONLY name, definition, isConstraint
     FILTERS table(i)==t
     
-    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows, countTreads, reindexConcurrently
+    PROPERTIES () loadCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, loadCurRows, countTreads, 
+                  reindexConcurrently, skipExceptions, stopAfter
 ;
 
 DESIGN tools{
@@ -354,6 +360,8 @@ DESIGN tools{
                     MOVE PROPERTY (nameVacuumOrderType());
                     MOVE PROPERTY (countTreads());
                     MOVE PROPERTY (reindexConcurrently());
+                    MOVE PROPERTY (skipExceptions());
+                    MOVE PROPERTY (stopAfter());
                     MOVE PROPERTY (smartVacuum());
                 }
                 NEW stats{
