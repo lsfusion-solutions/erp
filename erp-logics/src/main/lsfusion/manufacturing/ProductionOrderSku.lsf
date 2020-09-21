@@ -8,6 +8,12 @@ skuGroup = DATA ItemGroup(Stock);
 //nameSkuGroup 'Группа товаров' (Stock st) = name(skuGroup(st));
 
 inWorkshop 'Вкл' = DATA BOOLEAN (ItemGroup, Stock);
+levelParentinWorkshop (ItemGroup g, Stock st) = GROUP MIN level(g, ItemGroup parent) IF inWorkshop(parent, st) MATERIALIZED;
+inWorkshopOver 'Вкл' (ItemGroup g, Stock st) = OVERRIDE 
+    inWorkshop(g, st),
+    TRUE IF levelParentinWorkshop(g,st);
+inWorkshop 'Вкл'(Sku s,Stock st) = inWorkshopOver(skuGroup(s),st);
+        
 nameInWorkshopGroups 'Группы товаров' (Stock st) = GROUP CONCAT name(ItemGroup g) IF inWorkshop(g,st),', ' ORDER name(g),g CHARWIDTH 25;
 countInWorkshopGroups 'Вкл' (Stock st) = GROUP SUM 1 IF inWorkshop(ItemGroup g, st);       
 
@@ -34,7 +40,7 @@ FORM selectInWorkshopGroups 'Выбор групп'
 
     TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
     PROPERTIES READONLY order(sk2), id(sk2), name(sk2)
-    PROPERTIES inWorkshop(sk2,st)
+    PROPERTIES inWorkshop(sk2,st), inWorkshopOver(sk2,st)
     ORDERS order(sk2), name(sk2)
     PROPERTIES (st) resetInWorkshopGroups TOOLBAR DRAW sk2 SHOWIF countInWorkshopGroups(st)
     FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT           
