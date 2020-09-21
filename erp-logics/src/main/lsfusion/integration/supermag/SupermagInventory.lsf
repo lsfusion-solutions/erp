@@ -1,6 +1,6 @@
 MODULE SupermagInventory;
 
-REQUIRE SupermagSettings, SupermagExportForms, Utils, TaxItem, Inventory;
+REQUIRE SupermagSettings, SupermagExportForms, Utils, TaxItem, Inventory, PricingSum;
 
 NAMESPACE Inventory;
 
@@ -49,26 +49,26 @@ index(InInventoryBatchDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
 
 exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
     LOCAL NESTED dt = DATETIME();
-    FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 1) DO {
+    IF getWord(docTypeSupermag(operation(doc)),';',2) = 'RL' THEN {
             inc(DocMain expmain) <- NULL;
             DELETE DocDetail expDet WHERE expDet IS DocDetail;        
             DELETE DocMain expmain WHERE expmain IS DocMain;
             NEW expMain = DocMain {
                 inc(expMain) <- TRUE;          
-                doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',2));
                 id(doc) <- CONCAT '', doctype(expMain), name(doc);                               
                 id(expMain) <- id(doc); 
                 docid(expMain) <- name(doc);            
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
-                opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
-                userop(expMain) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',2));
+                userop(expMain) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',2));
                 creatdate(expMain) <- dateTime(doc);                
-                docstate(expMain) <- CASE WHEN isPosted(doc) AND (doctype(expMain) = 'FA' OR doctype(expMain) = 'LA') THEN 2
-                                          WHEN isClosed(doc) THEN 0 ELSE 1;
-                priceRoundMode(expMain) <- CASE WHEN (doctype(expMain) = 'FA' OR doctype(expMain) = 'LA') THEN 0 ELSE 4; 
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 2
+                                          WHEN isClosed(doc) THEN 0;
+                priceRoundMode(expMain) <- 0; 
                 location(expMain)  <- id(stock(doc));     
                 ourselfclient(expMain) <- id(legalEntity(stock(doc)));                                              
-                FOR collationSheet(OutInventorySkuDetail docd) = doc AND (doctype(expMain) = 'LA' OR doctype(expMain) = 'WO')
+                FOR collationSheet(OutInventorySkuDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
                         index(expDet) <- index(docd);
@@ -86,30 +86,25 @@ exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                 }        
                 
-                FOR collationSheet(OutInventoryBatchDetail docd) = doc AND (doctype(expMain) = 'LA' OR doctype(expMain) = 'WO')
-//                    ( (quantity(docd) > 0 AND (doctype(expMain) = 'FA' OR doctype(expMain) = 'WI')) OR 
-//                      (quantity(docd) < 0 AND (doctype(expMain) = 'LA' OR doctype(expMain) = 'WO')) )
+                FOR collationSheet(OutInventoryBatchDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
                         index(expDet) <- index(docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
-                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
-//                        blankquantity(expDet) <- quantity(expDet);
-//                        priceWithTax(expDet) <- price(docd);
-//                        valueTax(expDet) <-  valueVAT(sku(docd));
-//                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueTax(expDet)/100),4)));
-//                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
-//                        sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
-//                        sumNoTax(expDet) <- OVERRIDE NUMERIC[18,4] ( abs(round( sumWithTax(expDet) / (1 + valueTax(expDet)/100),2))), 0;
-//                        sumTax(expDet) <- OVERRIDE (sumWithTax(expDet) - sumNoTax(expDet)), 0;
-//                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
-                     //     priceManufacturer(expDet) <- IF manufacturingPrice(docd) >= 0.0001 THEN manufacturingPrice(docd) ELSE priceNoTax(expDet);
-                     //   priceRetail(expDet) <- (OVERRIDE retailPrice(docd), 0);                                        
+                        quantity(expDet) <- OVERRIDE quantityPageInventoryDetail(doc, batch(docd)), 0;
+                        awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,batch(docd))), 0;
+                        actualquantity(expDet) <- awaitquantity(expDet); 
+                        priceWithTax(expDet) <- priceBalance(doc,batch(docd));
+                        priceNoTax(expDet) <- priceWithTax(expDet);
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
+                        sumNoTax(expDet) <- sumWithTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                 }        
                    
-                FOR collationSheet(InInventorySkuDetail docd) = doc AND (doctype(expMain) = 'FA' OR doctype(expMain) = 'WI')
+                FOR collationSheet(InInventorySkuDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
                         index(expDet) <- index(docd);
@@ -117,28 +112,40 @@ exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        actualquantity(expDet) <- awaitquantity(expDet); 
+                        priceWithTax(expDet) <- priceBalance(doc,sku(docd));
+                        priceNoTax(expDet) <- priceWithTax(expDet);
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
+                        sumNoTax(expDet) <- sumWithTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                 }        
 
-                FOR collationSheet(InInventoryBatchDetail docd) = doc AND (doctype(expMain) = 'FA' OR doctype(expMain) = 'WI')
+                FOR collationSheet(InInventoryBatchDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
                         index(expDet) <- index(docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
-                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        quantity(expDet) <- OVERRIDE quantityPageInventoryDetail(doc, batch(docd)), 0;
+                        awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,batch(docd))), 0;
+                        actualquantity(expDet) <- awaitquantity(expDet); 
+                        priceWithTax(expDet) <- priceBalance(doc,batch(docd));
+                        priceNoTax(expDet) <- priceWithTax(expDet);
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
+                        sumNoTax(expDet) <- sumWithTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                 }        
 
-                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
-                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+//                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+//                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                 
                 dt () <- currentDateTime();                        
                 TRY {                
-                    CASE WHEN doctype(expMain) = 'WI' THEN EXPORT exportWI XML TO System.exportFile;                 
-                         WHEN doctype(expMain) = 'FA' THEN EXPORT exportFA XML TO System.exportFile;
-                         WHEN doctype(expMain) = 'WO' THEN EXPORT exportWO XML TO System.exportFile;                 
-                         WHEN doctype(expMain) = 'LA' THEN EXPORT exportLA XML TO System.exportFile;
+                      EXPORT exportWI XML TO System.exportFile;                 
                 } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 
                 TRY { 
@@ -155,7 +162,7 @@ exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
 
 exportActs 'Экспорт в супермаг' (CollationSheet doc) {
     LOCAL NESTED dt = DATETIME();
-    FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 1) DO {
+    FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 3) DO {
             inc(DocMain expmain) <- NULL;
             DELETE DocDetail expDet WHERE expDet IS DocDetail;        
             DELETE DocMain expmain WHERE expmain IS DocMain;
@@ -226,15 +233,13 @@ exportActs 'Экспорт в супермаг' (CollationSheet doc) {
                         sumCurr(expDet) <- 0;
                 }        
 
-                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
-                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                sumWithTax(expMain) <- 0; // GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumCurr(expMain) <- 0; //GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                 
                 dt () <- currentDateTime();                        
                 TRY {                
-                    CASE WHEN doctype(expMain) = 'WI' THEN EXPORT exportWI XML TO System.exportFile;                 
-                         WHEN doctype(expMain) = 'FA' THEN EXPORT exportFA XML TO System.exportFile;
-                         WHEN doctype(expMain) = 'WO' THEN EXPORT exportWO XML TO System.exportFile;                 
+                    CASE WHEN doctype(expMain) = 'FA' THEN EXPORT exportFA XML TO System.exportFile;
                          WHEN doctype(expMain) = 'LA' THEN EXPORT exportLA XML TO System.exportFile;
                 } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 
@@ -251,8 +256,143 @@ exportActs 'Экспорт в супермаг' (CollationSheet doc) {
 }
 
 
+exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
+    LOCAL NESTED dt = DATETIME();
+    FOR iterateDown(INTEGER n, wordCount(docTypeSupermag(operation(doc)),';'), 1) DO {
+            inc(DocMain expmain) <- NULL;
+            DELETE DocDetail expDet WHERE expDet IS DocDetail;        
+            DELETE DocMain expmain WHERE expmain IS DocMain;
+            NEW expMain = DocMain {
+                inc(expMain) <- TRUE;          
+                doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
+                id(doc) <- CONCAT '', doctype(expMain), name(doc);                               
+                id(expMain) <- id(doc); 
+                docid(expMain) <- name(doc);            
+                bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
+                opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
+                userop(expMain) <- STRING[10] (getWord(useropSupermag(operation(doc)),';',n));
+                creatdate(expMain) <- dateTime(doc);                
+                docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3
+                                          WHEN isClosed(doc) THEN 0 ELSE 1;
+                priceRoundMode(expMain) <- 4; 
+                location(expMain)  <- id(stock(doc)); 
+                locationTo(expMain)  <- id(stock(doc)); 
+                locationFrom(expMain)  <- id(stock(doc)); 
+                clientIndex(expMain) <- id(contragentSupermag(stockGroup(stock(doc))));    
+                ourselfclient(expMain) <- id(legalEntity(stock(doc))); 
+                                                             
+                FOR collationSheet(OutInventorySkuDetail docd) = doc AND doctype(expMain) = 'WO'
+                    DO NEW expDet = DocDetail {
+//                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        valueTax(expDet) <-  valueVAT(sku(docd));
+                        priceWithTax(expDet) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc));
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
+                        sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
+                        sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- priceBalance(doc,sku(docd));
+                }        
+                
+                FOR collationSheet(OutInventoryBatchDetail docd) = doc AND doctype(expMain) = 'WO'
+                    DO NEW expDet = DocDetail {
+//                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        valueTax(expDet) <-  valueVAT(sku(docd));
+                        priceWithTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
+                        sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
+                        sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- priceBalance(doc,batch(docd));
+                }        
+                   
+                FOR collationSheet(InInventorySkuDetail docd) = doc AND doctype(expMain) = 'WI'
+                    DO NEW expDet = DocDetail {
+//                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        valueTax(expDet) <-  valueVAT(sku(docd));
+                        priceWithTax(expDet) <- OVERRIDE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc)), 0;
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
+                        sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
+                        sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- priceBalance(doc,sku(docd));
+                }        
+
+                FOR collationSheet(InInventoryBatchDetail docd) = doc AND doctype(expMain) = 'WI'
+                    DO NEW expDet = DocDetail {
+//                        id(docd) <- (CONCAT '~',id(doc),index(docd));
+                        index(expDet) <- index(docd);
+                        docMain(expDet) <- expMain;
+                        id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
+                        skuId(expDet) <- id(sku(docd));                                                                           
+                        quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        blankquantity(expDet) <- quantity(expDet);
+                        valueTax(expDet) <-  valueVAT(sku(docd));
+                        priceWithTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
+                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
+                        sumWithTax(expDet) <- OVERRIDE abs(costSum(docd)), 0;;
+                        sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
+                        sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        priceRetail(expDet) <- priceBalance(doc,batch(docd));
+                }        
+
+                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                
+                dt () <- currentDateTime();                        
+                TRY {                
+                    CASE WHEN doctype(expMain) = 'WI' THEN EXPORT exportWI XML TO System.exportFile;
+                         WHEN doctype(expMain) = 'WO' THEN EXPORT exportWO XML TO System.exportFile;
+                } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+                
+                TRY { 
+                IF countSpec(expMain) > 0 THEN {          
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                    WRITE System.exportFile() TO 'file://' + exportDirectorySupermag() + '/COPY/' + doctype(expMain) +'_' +STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt());
+                }                
+                } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка записи в файл' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());                
+            }      
+    }       
+    inc(DocMain expmain) <- NULL;
+    APPLY;
+}
+
+
 exportInventory (Inventory inv) + {
-    FOR inventory(CollationSheet doc) = inv DO {
+    MESSAGE getWord(docTypeSupermag(operation(inv)),';',1);
+    FOR inventory(CollationSheet doc) = inv AND getWord(docTypeSupermag(operation(inv)),';',1) = 'IL' DO {
         exportCollationSheet(doc);
+        exportActs(doc);
     }
+    FOR inventory(CollationSheet doc) = inv AND getWord(docTypeSupermag(operation(inv)),';',1) = 'WI' DO {
+        exportInvoices(doc);
+    }
+    
+    
 }
