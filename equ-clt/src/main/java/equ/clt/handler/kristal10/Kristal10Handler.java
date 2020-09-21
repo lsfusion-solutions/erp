@@ -76,7 +76,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
                 List<String> notGTINPrefixes = kristalSettings != null ? kristalSettings.getNotGTINPrefixesList() : null;
-                boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+                boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
                 boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
                 String sftpPath = kristalSettings != null ? kristalSettings.getSftpPath() : null;
                 List<String> sftpDepartmentStoresList = kristalSettings != null ? kristalSettings.getSftpDepartmentStoresList() : null;
@@ -119,7 +119,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
 
-                            String shopIndices = useNumberGroupInShopIndices ? String.valueOf(transaction.nppGroupMachinery) : transaction.idDepartmentStoreGroupCashRegister;
+                            String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
                             if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
                                 shopIndices += " " + weightShopIndices;
                             }
@@ -463,7 +463,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) throws IOException {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         for (RequestExchange entry : requestExchangeList) {
             int count = 0;
@@ -651,6 +651,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         for (String directory : directorySet) {
 
@@ -696,7 +697,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             Set<String> stockSet = new HashSet<>();
                             for (MachineryInfo machineryInfo : machineryInfoSet) {
                                 if (machineryInfo instanceof CashRegisterInfo)
-                                    stockSet.add(((CashRegisterInfo) machineryInfo).section);
+                                    stockSet.add(getIdDepartmentStore(machineryInfo.numberGroup, ((CashRegisterInfo) machineryInfo).section, useNumberGroupInShopIndices));
                             }
                             for (String idStock : stockSet) {
                                 shopIndices.append(idStock).append(" ");
@@ -883,7 +884,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
         String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
@@ -892,7 +893,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.number != null) {
-                String idDepartmentStore = useNumberGroupInShopIndices ? String.valueOf(c.numberGroup) : c.idDepartmentStore;
+                String idDepartmentStore = getIdDepartmentStore(c.numberGroup, c.idDepartmentStore, useNumberGroupInShopIndices);
                 String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
 
                 List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());

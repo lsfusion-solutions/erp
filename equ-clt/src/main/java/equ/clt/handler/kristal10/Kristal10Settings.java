@@ -287,8 +287,8 @@ public class Kristal10Settings implements Serializable{
         this.giftCardRegexp = giftCardRegexp;
     }
 
-    public Boolean getUseNumberGroupInShopIndices() {
-        return useNumberGroupInShopIndices;
+    public boolean useNumberGroupInShopIndices() {
+        return useNumberGroupInShopIndices != null && useNumberGroupInShopIndices;
     }
 
     public void setUseNumberGroupInShopIndices(Boolean useNumberGroupInShopIndices) {

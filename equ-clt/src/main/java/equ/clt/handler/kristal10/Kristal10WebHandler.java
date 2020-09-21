@@ -156,7 +156,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -266,7 +266,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private String getShopIndices(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useNumberGroupInShopIndices, boolean useShopIndices, String weightShopIndices) {
-        String shopIndices = useNumberGroupInShopIndices ? String.valueOf(transaction.nppGroupMachinery) : transaction.idDepartmentStoreGroupCashRegister;
+        String shopIndices = getIdDepartmentStore(transaction.nppGroupMachinery, transaction.idDepartmentStoreGroupCashRegister, useNumberGroupInShopIndices);
         if (useShopIndices && item.passScalesItem && weightShopIndices != null) {
             shopIndices += " " + weightShopIndices;
         }
@@ -449,7 +449,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean skipUseShopIndicesMinPrice = kristalSettings != null && kristalSettings.getSkipUseShopIndicesMinPrice() != null && kristalSettings.getSkipUseShopIndicesMinPrice();
         String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
         boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -514,7 +514,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         for (RequestExchange entry : requestExchangeList) {
             for (Map.Entry<String, Set<String>> directoryStockEntry : getDirectoryStockMap(entry, useNumberGroupInShopIndices).entrySet()) {
@@ -700,6 +700,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
             String error = getLogPrefix() + "Error! Start DateTime not specified for stopList " + stopListInfo.number;
@@ -736,7 +737,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     Set<String> stockSet = new HashSet<>();
                     for (MachineryInfo machineryInfo : machineryInfoSet) {
                         if (machineryInfo instanceof CashRegisterInfo)
-                            stockSet.add(((CashRegisterInfo) machineryInfo).section);
+                            stockSet.add(getIdDepartmentStore(machineryInfo.numberGroup, ((CashRegisterInfo) machineryInfo).section, useNumberGroupInShopIndices));
                     }
                     for (String idStock : stockSet) {
                         shopIndices.append(idStock).append(" ");
@@ -940,7 +941,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
-        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.getUseNumberGroupInShopIndices() != null && kristalSettings.getUseNumberGroupInShopIndices();
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
         String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
@@ -949,7 +950,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.number != null) {
-                String idDepartmentStore = useNumberGroupInShopIndices ? String.valueOf(c.numberGroup) : c.idDepartmentStore;
+                String idDepartmentStore = getIdDepartmentStore(c.numberGroup, c.idDepartmentStore, useNumberGroupInShopIndices);
                 String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
 
                 List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
