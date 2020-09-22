@@ -1436,7 +1436,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private String docToXMLString(Document doc) {
-        return new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
+        String result = new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
+        processTransactionLogger.info("sent xml: " + result); //temp log
+        return result;
     }
 
     private class HttpRequestHandler implements HttpHandler {
