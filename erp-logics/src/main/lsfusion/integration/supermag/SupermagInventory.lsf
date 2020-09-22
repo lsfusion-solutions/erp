@@ -1,6 +1,6 @@
 MODULE SupermagInventory;
 
-REQUIRE SupermagSettings, SupermagExportForms, Utils, TaxItem, Inventory, PricingSum;
+REQUIRE SupermagSettings, SupermagExportForms, Utils, TaxItem, Inventory, PricingSum, PriceListStore;
 
 NAMESPACE Inventory;
 
@@ -46,6 +46,7 @@ index(OutInventorySkuDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
 index(InInventorySkuDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
 index(OutInventoryBatchDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
 index(InInventoryBatchDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d);
+index(InventorySkuDetail d) = PARTITION SUM 1 ORDER d BY collationSheet(d); 
 
 exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
     LOCAL NESTED dt = DATETIME();
@@ -67,85 +68,98 @@ exportCollationSheet 'Экспорт в супермаг' (CollationSheet doc) {
                                           WHEN isClosed(doc) THEN 0;
                 priceRoundMode(expMain) <- 0; 
                 location(expMain)  <- id(stock(doc));     
-                ourselfclient(expMain) <- id(legalEntity(stock(doc)));                                              
+                ourselfclient(expMain) <- id(legalEntity(stock(doc))); 
+                startdate(expMain) <- OVERRIDE timeFrom(doc), dateTime(doc);
+                enddate(expMain) <- OVERRIDE timeTo(doc), dateTime(doc);
+                orderno(expMain) <- STRING[50](name(inventory(doc)));
+                priceType(expMain) <- STRING[10](replace( id(retailCalcPriceListType(stock(doc))),'C',''));                                                             
                 FOR collationSheet(OutInventorySkuDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
-                        index(expDet) <- index(docd);
+                        index(expDet) <- index[InventorySkuDetail](docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
                         quantity(expDet) <- OVERRIDE quantityPageInventoryDetail(doc,sku(docd)), 0;
                         awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,sku(docd))), 0;
                         actualquantity(expDet) <- awaitquantity(expDet); 
-                        priceWithTax(expDet) <- priceBalance(doc,sku(docd));
+                        priceWithTax(expDet) <- OVERRIDE priceBalance(doc,sku(docd)), 0;
                         priceNoTax(expDet) <- priceWithTax(expDet);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumNoTax(expDet) <- sumWithTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        awaittotalprice(expDet) <- priceWithTax(expDet);
+                        awaittotalpricecur(expDet) <- priceCurr(expDet);
                 }        
                 
                 FOR collationSheet(OutInventoryBatchDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
-                        index(expDet) <- index(docd);
+                        index(expDet) <- index[InventorySkuDetail](docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
                         quantity(expDet) <- OVERRIDE quantityPageInventoryDetail(doc, batch(docd)), 0;
                         awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,batch(docd))), 0;
                         actualquantity(expDet) <- awaitquantity(expDet); 
-                        priceWithTax(expDet) <- priceBalance(doc,batch(docd));
+                        priceWithTax(expDet) <- OVERRIDE priceBalance(doc,batch(docd)), 0;
                         priceNoTax(expDet) <- priceWithTax(expDet);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumNoTax(expDet) <- sumWithTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        awaittotalprice(expDet) <- priceWithTax(expDet);
+                        awaittotalpricecur(expDet) <- priceCurr(expDet);
                 }        
                    
                 FOR collationSheet(InInventorySkuDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
-                        index(expDet) <- index(docd);
+                        index(expDet) <- index[InventorySkuDetail](docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
+                        awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,sku(docd))), 0;
                         actualquantity(expDet) <- awaitquantity(expDet); 
-                        priceWithTax(expDet) <- priceBalance(doc,sku(docd));
+                        priceWithTax(expDet) <- OVERRIDE priceBalance(doc,sku(docd)), 0;
                         priceNoTax(expDet) <- priceWithTax(expDet);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumNoTax(expDet) <- sumWithTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        awaittotalprice(expDet) <- priceWithTax(expDet);
+                        awaittotalpricecur(expDet) <- priceCurr(expDet);
                 }        
 
                 FOR collationSheet(InInventoryBatchDetail docd) = doc
                     DO NEW expDet = DocDetail {
 //                        id(docd) <- (CONCAT '~',id(doc),index(docd));
-                        index(expDet) <- index(docd);
+                        index(expDet) <- index[InventorySkuDetail](docd);
                         docMain(expDet) <- expMain;
                         id(expDet) <- (CONCAT '~',id(expMain),index(expDet));
                         skuId(expDet) <- id(sku(docd));                                                                           
                         quantity(expDet) <- OVERRIDE quantityPageInventoryDetail(doc, batch(docd)), 0;
                         awaitquantity(expDet) <- OVERRIDE NUMERIC[14,3](quantityBalance(doc,batch(docd))), 0;
                         actualquantity(expDet) <- awaitquantity(expDet); 
-                        priceWithTax(expDet) <- priceBalance(doc,batch(docd));
+                        priceWithTax(expDet) <- OVERRIDE priceBalance(doc,batch(docd)), 0;
                         priceNoTax(expDet) <- priceWithTax(expDet);
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(sum(docd)), 0;
                         sumNoTax(expDet) <- sumWithTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        awaittotalprice(expDet) <- priceWithTax(expDet);
+                        awaittotalpricecur(expDet) <- priceCurr(expDet);
                 }        
 
-//                sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
-//                sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
+                sumWithTax(expMain) <- 0; //GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
+                sumCurr(expMain) <- 0; //GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
                 
                 dt () <- currentDateTime();                        
                 TRY {                
-                      EXPORT exportWI XML TO System.exportFile;                 
+                      EXPORT exportRL XML TO System.exportFile;                 
                 } CATCH logToFile('supermag', CONCAT '\n', 'Изменение остатков ' + id(expMain), 'Ошибка формы' ,'file://' + exportDirectorySupermag() + '/' + doctype(expMain) + '_' + STRING[30](LONG(doc))+'_'+(OVERRIDE id(expMain), '')+'_'+ formulaDateT(dt()) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 
                 TRY { 
@@ -385,7 +399,7 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
 
 
 exportInventory (Inventory inv) + {
-    MESSAGE getWord(docTypeSupermag(operation(inv)),';',1);
+    //MESSAGE getWord(docTypeSupermag(operation(inv)),';',1);
     FOR inventory(CollationSheet doc) = inv AND getWord(docTypeSupermag(operation(inv)),';',1) = 'IL' DO {
         exportCollationSheet(doc);
         exportActs(doc);
