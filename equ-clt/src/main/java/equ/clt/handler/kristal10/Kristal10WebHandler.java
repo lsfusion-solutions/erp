@@ -347,7 +347,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
+        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -701,6 +701,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
         boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
+        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
 
         if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
             String error = getLogPrefix() + "Error! Start DateTime not specified for stopList " + stopListInfo.number;
@@ -756,13 +757,15 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             boolean noPriceEntry = true;
             Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
             if (machineryInfoSet != null) {
-                Set<Integer> nppGroupMachinerySet = new HashSet<>();
+                Set<Integer> departNumberSet = new HashSet<>();
                 for (MachineryInfo machineryInfo : machineryInfoSet) {
-                    if (machineryInfo instanceof CashRegisterInfo)
-                        nppGroupMachinerySet.add(((CashRegisterInfo) machineryInfo).overDepartNumber != null ? ((CashRegisterInfo) machineryInfo).overDepartNumber : ((CashRegisterInfo) machineryInfo).numberGroup);
+                    if (machineryInfo instanceof CashRegisterInfo) {
+                        CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
+                        departNumberSet.add(getDepartNumber(c.section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
+                    }
                 }
-                noPriceEntry = nppGroupMachinerySet.isEmpty();
-                for (Integer number : nppGroupMachinerySet) {
+                noPriceEntry = departNumberSet.isEmpty();
+                for (Integer departNumber : departNumberSet) {
 
                     //parent: good
                     Element priceEntry = new Element("price-entry");
@@ -774,7 +777,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                     //parent: priceEntry
                     Element department = new Element("department");
-                    setAttribute(department, "number", number);
+                    setAttribute(department, "number", departNumber);
                     priceEntry.addContent(department);
                 }
             }
@@ -945,7 +948,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         String giftCardRegexp = kristalSettings != null ? kristalSettings.getGiftCardRegexp() : null;
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
-        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.getUseSectionAsDepartNumber() != null && kristalSettings.getUseSectionAsDepartNumber();
+        boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {

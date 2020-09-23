@@ -48,13 +48,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     }
 
     protected static Integer getDepartNumber(TransactionCashRegisterInfo transaction, CashRegisterItemInfo item, boolean useSectionAsDepartNumber) {
-        Integer departNumber;
-        if(useSectionAsDepartNumber && item.section != null) {
-            departNumber = Integer.parseInt(item.section.split(",")[0].split("\\|")[0]);
-        } else {
-            departNumber = transaction.departmentNumberGroupCashRegister;
-        }
-        return departNumber;
+        return getDepartNumber(item.section, transaction.departmentNumberGroupCashRegister, useSectionAsDepartNumber);
+    }
+
+    protected static Integer getDepartNumber(String section, Integer departNumber, boolean useSectionAsDepartNumber) {
+        return useSectionAsDepartNumber && section != null ? Integer.parseInt(section.split(",")[0].split("\\|")[0]) : departNumber;
     }
 
     protected static void addIntegerElement(Element parent, String id, Integer value) {

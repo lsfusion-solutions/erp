@@ -295,8 +295,8 @@ public class Kristal10Settings implements Serializable{
         this.useNumberGroupInShopIndices = useNumberGroupInShopIndices;
     }
 
-    public Boolean getUseSectionAsDepartNumber() {
-        return useSectionAsDepartNumber;
+    public boolean useSectionAsDepartNumber() {
+        return useSectionAsDepartNumber != null && useSectionAsDepartNumber;
     }
 
     public void setUseSectionAsDepartNumber(Boolean useSectionAsDepartNumber) {
