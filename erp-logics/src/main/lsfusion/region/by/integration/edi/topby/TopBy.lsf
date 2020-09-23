@@ -466,7 +466,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
                             WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
                             WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
-                        IF importedCustomer(eInvoice(m)) AND code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr THEN {
+                        IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr AND NOT message(m) == 'Электронная накладная была отменена.' THEN {
                             exportedCustomer(eInvoice(m)) <- NULL;
                         }
                         XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
@@ -711,7 +711,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
                             //для blrapn DeliveryNoteID всегда должен быть задан поэтому ссылку можно определять сразу по нему
                             eInvoice(m) <- eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId());
-                            IF code(m) == '2570' THEN {
+                            IF code(m) == '2570' AND NOT description(m) == 'Электронная накладная была отменена.' THEN {
                                 exportedCustomer(eInvoice(m)) <- NULL;
                             }
                             type(m) <- CASE
