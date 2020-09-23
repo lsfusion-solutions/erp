@@ -71,6 +71,21 @@ importUOM 'Импорт единиц измерений' () {
     APPLY;
 }
 
+importCountries 'Импорт стран' () {
+    LOCAL id = INTEGER (INTEGER);
+    LOCAL name = STRING[50] (INTEGER);
+    
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TITLE FROM Supermag.SACOUNTRIES' TO SupermagSettings.file;
+    
+    IMPORT TABLE FROM SupermagSettings.file() TO id, name;
+    
+    FOR name(INTEGER i) AND NOT (GROUP MAX Country c IF name(c) == upper(name(i))) DO NEW c = Country {
+        name(c) <- upper(name(i));
+    }
+
+    APPLY;
+}
+
 EXTEND FORM integrationData PROPERTIES importUOM();
 
 shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
@@ -134,7 +149,7 @@ importItem 'Импорт товаров' () {
         skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
                            WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge 
                            ELSE SkuType.skuTypeItem;
-        Item.country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(country(i));
+        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
@@ -229,12 +244,13 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         manufacturer(s) <- manufacturerName(value(i));
     }
     
-    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY ISTRING[50](upper(value(i)))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
-        name(c) <- ISTRING[50] (name);
-    }
-    FOR property(INTEGER i) == 'manCountry' AND Item s = item(idItem(i)) DO {
-        country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(value(i));
-    }
+//    FOR [GROUP SUM 1 IF property(INTEGER i) == 'manCountry' BY ISTRING[50](upper(value(i)))](TEXT name) AND name != '' AND NOT (GROUP MAX Country c IF upper(name(c)) == name) DO NEW c = Country {
+//        name(c) <- ISTRING[50] (name);
+//    }
+//    // наверно если и записывать, то в другое свойство
+//    FOR property(INTEGER i) == 'manCountry' AND Item s = item(idItem(i)) DO {
+//        country(s) <- GROUP MAX Country c IF upper(name(c)) == upper(value(i));
+//    }
     
     FOR property(INTEGER i) == '17' AND Item s = item(idItem(i)) DO {
         netWeight(s) <- NUMERIC[11,5](replace(trim(value(i)), ',', '.'));
