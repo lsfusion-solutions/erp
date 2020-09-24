@@ -428,11 +428,109 @@ public class FiscalAbsolut {
         logAction("LastError (checkErrors)");
         Integer lastError = absolutDLL.absolut.LastError();
         if (lastError != 0) {
-            logAction("LastError result: " + lastError);
+            String errorText = getErrorText(lastError);
+            logAction("LastError result: " + errorText);
             if (throwException)
-                throw new RuntimeException("Absolut Exception: " + lastError);
+                throw new RuntimeException("Absolut Exception: " + errorText);
         }
         return lastError;
+    }
+
+    private static String getErrorText(Integer error) {
+        switch (error) {
+            case 49: return "Пользователь с указанным номером уже зарегистрирован";
+            case 50: return "Неверный пароль";
+            case 51: return "Неверный номер таблицы";
+            case 52: return "Доступ к таблице запрещен";
+            case 53: return "Умолчание не найдено";
+            case 54: return "Недопустимый индекс";
+            case 55: return "Неправильное поле";
+            case 56: return "Таблица переполнена";
+            case 57: return "Неправильная длина бинарной информации";
+            case 58: return "Нельзя модифицировать поле, которое только для чтения";
+            case 59: return "Недопустимое значение поля";
+            case 60: return "Товар уже существует";
+            case 61: return "По товару были зарегистрированы продажи";
+            case 62: return "Запрос запрещен";
+            case 63: return "Неверная закладка";
+            case 64: return "Ключ не найден";
+            case 65: return "Процедура уже исполняется";
+            case 66: return "Количество товара не может быть отрицательным";
+            case 1: return "Не указана цена";
+            case 2: return "Не указано количество";
+            case 3: return "Не указан отдел";
+            case 4: return "Не указана товарная группа";
+            case 255: return "Электронная контрольная лента переполнена";
+            case 254: return "Чек уже открыт";
+            case 253: return "Нефискальный чек уже открыт";
+            case 252: return "Чек не открыт";
+            case 251: return "Нефискальный чек не открыт";
+            case 250: return "Неправильный номер оператора";
+            case 249: return "Кассир не зарегистрирован";
+            case 248: return "Оплата чека не завершена";
+            case 247: return "Чек для создания копии не найден";
+            case 246: return "Дневной отчет переполнен";
+            case 245: return "Чек переполнен";
+            case 244: return "Отрицательная сумма по чеку";
+            case 243: return "Отрицательная сумма по дневному отчету";
+            case 242: return "Переполнение поля записи";
+            case 241: return "Вид оплаты запрещен или не существует";
+            case 240: return "В чеке уже были продажи товаров";
+            case 239: return "Начат внос/вынос денег";
+            case 238: return "Нет такого товара";
+            case 237: return "Плохая цена";
+            case 236: return "Цена не может меняться";
+            case 235: return "Плохое количество";
+            case 234: return "Дробное количество";
+            case 233: return "Переполнение суммы в long";
+            case 232: return "Цена*Количество = 0";
+            case 231: return "Плохой отдел";
+            case 230: return "Отдел не может меняться";
+            case 229: return "Плохая группа";
+            case 228: return "Группа не может меняться";
+            case 227: return "Товар закончился по количеству";
+            case 226: return "Начата расплата по чеку";
+            case 225: return "Недопустимая сумма оплаты";
+            case 224: return "Использование кода клиента запрещено для данного вида оплаты";
+            case 223: return "Недопустимая сумма оплаты";
+            case 222: return "Наценка запрещена";
+            case 221: return "Не было ни одной продажи";
+            case 220: return "Плохой процент";
+            case 219: return "Отрицательная сумма по товару";
+            case 218: return "Нечего отменять командой VoidLast";
+            case 217: return "В чеке не было продаж по коду";
+            case 216: return "Отмена товара по которому есть пром.нац";
+            case 215: return "Z1 отчет уже выведен и обнулен";
+            case 214: return "Не обнулен Z1 отчет";
+            case 213: return "Не указана нац/скидка по умолчанию";
+            case 212: return "Не указан % скидки по умолчанию";
+            case 211: return "Переход через дату или конец смены";
+            case 210: return "Прервана печать контр. ленты";
+            case 209: return "Не закрыт сейф";
+            case 206: return "ef_BegPost - postal operation is opened";
+            case 205: return "ef_PostCode - reserved PLU code for the postal operations";
+            case 204: return "Начаты операции выплат";
+            case 203: return "ef_OverTime2 Z4 report need (next month)";
+            case 202: return "ef_Partion Partion postal operations started";
+            case 201: return "ef_NoPartion Partion postal operations is not started";
+            case 196: return "Изменилось имя или налоговая группа товара";
+            case 195: return "Аппарат не в терминальном режиме";
+            case 194: return "Недопустимый параметр процедуры";
+            case 193: return "Недопустимый номер налога";
+            case 192: return "Ошибка при работе с терминалом";
+            case 191: return "Сработал сервисный таймер";
+            case 190: return "Изменение даты/времени запрещено";
+            case 189: return "Неправильная текущая дата";
+            case 188: return "Активен режим тренировки";
+            case 187: return "Электронная лента не пуста";
+            case 169: return "ef_FMNotEmpty Fiscal memory is not empty";
+            case 168: return "ef_FMBadNum   Bad Fiscal memory number";
+            case 167: return "ef_MMCDisable MMC is disabled";
+            case 166: return "ef_NoSlipPaper End of slip document occured";
+            case 165: return "ef_NoFindZ1Rep Z1 report not found";
+            case 164: return "ef_BegSlipChk Slip Receipt is open";
+            default: return String.valueOf(error);
+        }
     }
 
     public static int getReceiptNumber(Boolean throwException) {
