@@ -232,6 +232,7 @@ importInternalWay 'Импорт накладные перемещение' () {
         time(doc) <- OVERRIDE time(doc), 09:00;
         createShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(supplierStock(doc))) <= date(doc); 
         createPurchaseShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(customerStock(doc))) <= date(doc) ;
+        updateManufacturingPrice(doc) <- TRUE IF NOT startDate(supplierStock(doc));
         imported(doc) <- TRUE;
         lastVersion[Invoice](doc) <- currentVersion(i);
     }  
@@ -334,12 +335,12 @@ importInternalWay 'Импорт накладные перемещение' () {
         overImportInternalWayDet(det,i);
         connectOrder(det);
         
-        Sale.manufacturingPrice(det) <- priceManufacturer(i);
+        manufacturingPrice[Sale.UserInvoiceDetail](det) <- priceManufacturer(i);
         imported(det) <- TRUE;
         
         lastVersion[InvoiceDetail](det) <- currentVersion(i);
     }
-    executeLocalEvents('Sale.UserInvoice');
+   executeLocalEvents('Sale.UserInvoice');
      
     APPLY;    
 }
