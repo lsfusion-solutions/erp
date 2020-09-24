@@ -144,8 +144,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                         }
 
                         boolean cancelSession = false;
-                        String script = (String) findProperty("script[ImportType]").read(context, importTypeObject);
-                        if(script != null && !script.isEmpty()) {
+                        if(findProperty("needExecuteScript[ImportType]").read(context, importTypeObject) != null) {
                             needToApply = true;
                             findAction("executeScript[ImportType]").execute(context, importTypeObject);
                             cancelSession = findProperty("cancelSession[]").read(context) != null;

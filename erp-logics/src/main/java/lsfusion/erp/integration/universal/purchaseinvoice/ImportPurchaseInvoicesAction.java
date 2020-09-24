@@ -63,8 +63,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
                                 findProperty("currentInvoice[]").change(invoiceObject, newContext);
                             }
                             boolean cancelSession = false;
-                            String script = (String) findProperty("script[ImportType]").read(newContext, importTypeObject);
-                            if (script != null && !script.isEmpty()) {
+                            if (findProperty("needExecuteScript[ImportType]").read(newContext, importTypeObject) != null) {
                                 findAction("executeScript[ImportType]").execute(newContext, importTypeObject);
                                 cancelSession = findProperty("cancelSession[]").read(newContext) != null;
                             }
