@@ -156,6 +156,7 @@ showBalanceMovementSku(Sku sku, Stock stock) + {  showMovementSku(sku, stock); }
 showMovementSkuStocks 'Показать движение товара по складу' (Sku sku)  { NEWSESSION SHOW movementSkuStock OBJECTS s = sku ; }
 
 // -------------------------------- Движение по партии -------------------------- //
+balanceB 'Остаток (до)' (Batch batch, SkuLedger ledger) = balanceB(batch, stock(ledger), dateTime(ledger));
 balanceA 'Остаток (после)' (Batch batch, SkuLedger ledger) = balanceA(batch, stock(ledger), dateTime(ledger));
 accountPriceA 'Цена учетная' (Batch batch, Stock stock, SkuLedger ledger)= prevAccountPriceA(batch, stock, dateTime(ledger));
 accountPriceA 'Цена учетная' (Batch batch, SkuLedger ledger)= prevAccountPriceA(batch, stock(ledger), dateTime(ledger));
@@ -168,7 +169,7 @@ FORM movementBatch 'Движение по партии'
     PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, signedSum
 
-    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceA(bt,bil), accountPriceA(bt,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceB(bt,bil), cost(bil, bt), balanceA(bt,bil), accountPriceA(bt,bil)
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)        
     ORDERS dateTime(bil) DESC
     FILTERS cost(bil, bt) OR batch(bil)==bt,           
@@ -186,7 +187,7 @@ FORM movementBatchStock 'Движение по партии'
     PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity,
                              signedPrice, signedSum
-    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceA(bt,bil), accountPriceA(bt,st,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceB(bt,bil), cost(bil, bt),  balanceA(bt,bil), accountPriceA(bt,st,bil)
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil) 
     ORDERS dateTime(bil) DESC
     FILTERS cost(bil, bt) OR batch(bil)==bt,            
