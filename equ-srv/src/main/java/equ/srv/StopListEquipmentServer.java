@@ -209,11 +209,11 @@ public class StopListEquipmentServer {
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev("stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
-                "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
+                "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
         LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
-                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]",
-                "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
+                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
+                "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
@@ -234,6 +234,7 @@ public class StopListEquipmentServer {
             String nameSkuGroup = trim((String) values.get("nameSkuGroupStopListDetail").getValue());
             String idUOM = trim((String) values.get("idUOMSkuStopListDetail").getValue());
             String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
+            String info = trim((String) values.get("infoStopListDetail").getValue());
             boolean split = values.get("splitSkuStopListDetail").getValue() != null;
             boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
             Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
@@ -244,7 +245,7 @@ public class StopListEquipmentServer {
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, null));
+                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info));
         }
         return stopListItemList;
     }

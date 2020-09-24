@@ -721,7 +721,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         for (MachineryInfo machineryInfo : machineryInfoSet) {
                             if (machineryInfo instanceof CashRegisterInfo) {
                                 CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
-                                departNumberSet.add(getDepartNumber(c.section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
+                                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
+                                String section = infoJSON != null ? infoJSON.optString("section") : null;
+                                departNumberSet.add(getDepartNumber(section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
                             }
                         }
                         noPriceEntry = departNumberSet.isEmpty();
