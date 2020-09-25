@@ -44,10 +44,13 @@ notOwnertruck = NOT owner(Truck truck);
 legalEntity = DATA LegalEntity (Truck);
 nameLegalEntity 'Владелец(Организация)' = fullName(legalEntity(Truck truck)); 
 
+inactive 'Неактивный' = DATA BOOLEAN (Truck);
+active 'Активный' (Truck t) =  t IS Truck AND NOT inactive(t);
+
 FORM truck 'Машина'
     OBJECTS t=Truck PANEL
     PROPERTIES (t) sid, nameTruckModel, name, trailer, owner, weight, 
-                   nameLegalEntity SHOWIF notOwnertruck(t)
+                   nameLegalEntity SHOWIF notOwnertruck(t), inactive
 
     EDIT Truck OBJECT t
 ;
@@ -61,9 +64,9 @@ DESIGN truck {
 FORM trucks 'Машины'
     OBJECTS t=Truck
     PROPERTIES(t) READONLY sid, nameTruckModel, name, trailer, owner, 
-                           nameLegalEntity, weight
+                           nameLegalEntity, weight, inactive
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE 
-
+    FILTERGROUP active FILTER 'Активные' active(t) 'F5'  DEFAULT
     LIST Truck OBJECT t
 ;
 
