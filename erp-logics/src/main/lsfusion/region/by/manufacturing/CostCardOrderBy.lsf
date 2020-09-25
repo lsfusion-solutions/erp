@@ -246,11 +246,12 @@ FORM actOfCuttingBy 'Акт о разделке сырья'
     FILTERS BOM(cd)== BOM(pd)        
 ;
 printActOfCuttingBy 'Акт о разделке сырья' (Order order)  { PRINT actOfCuttingBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
-
-
+intakeSheetOrderByCustom = DATA LOCAL STRING();
+reportFilePrintIntakeSheetOrderBy () = OVERRIDE intakeSheetOrderByCustom(), 'Production_intakeSheetOrderBy_o.jrxml';
+fillIntakeSheetOrderBy ABSTRACT LIST (Order);
 FORM intakeSheetOrderBy 'Заборный лист'
 
-    OBJECTS o = Order PANEL SUBREPORT
+    OBJECTS o = Order PANEL SUBREPORT reportFilePrintIntakeSheetOrderBy()
     PROPERTIES(o) fullNameProductsLegalEntityStock, nameProductsLegalEntityStock, nameComponentsStock, nameProductsStock, addressProductsStock,
                   number, series, seriesNumber,
                   date, time, fromDate, toDate, UNPProductsLegalEntityStock, addressProductsLegalEntityStock
@@ -263,7 +264,10 @@ FORM intakeSheetOrderBy 'Заборный лист'
     FILTERS order(pd)==o
 
 ;
-printIntakeSheet 'Заборный лист' (Order order)  { PRINT intakeSheetOrderBy OBJECTS o = order; }   IMAGE 'print.png' IN print;
+printIntakeSheet 'Заборный лист' (Order order)  { 
+    fillIntakeSheetOrderBy(order);
+    PRINT intakeSheetOrderBy OBJECTS o = order; 
+} IMAGE 'print.png' IN print;
 EXTEND FORM orders
     PROPERTIES(o)  printCostCard, printCostCardNotSubstitute, printIntakeSheet, printCutting, printActOfCuttingBy 
 ;
