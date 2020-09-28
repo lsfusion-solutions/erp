@@ -394,6 +394,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
             tax.put("changebase", false);
             tax.put("name", item.vat + "%");
             tax.put("rate", item.vat.doubleValue());
+            taxesArray.put(tax);
 
             taxGroupObject.put("taxes", taxesArray);
             rootObject.put("command", "addTaxGroup");
