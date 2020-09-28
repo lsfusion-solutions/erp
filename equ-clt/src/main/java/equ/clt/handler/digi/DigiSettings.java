@@ -7,6 +7,9 @@ public class DigiSettings implements Serializable{
     private Integer maxLineLength;
     private Integer maxNameLength;
 
+    //размер шрифта. По умолчанию 4
+    private Integer fontSize;
+
     public DigiSettings() {
     }
 
@@ -24,5 +27,13 @@ public class DigiSettings implements Serializable{
 
     public void setMaxNameLength(Integer maxNameLength) {
         this.maxNameLength = maxNameLength;
+    }
+
+    public Integer getFontSize() {
+        return fontSize;
+    }
+
+    public void setFontSize(Integer fontSize) {
+        this.fontSize = fontSize;
     }
 }

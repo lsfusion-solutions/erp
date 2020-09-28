@@ -18,6 +18,8 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class DigiHandler extends MultithreadScalesHandler {
 
     protected static short cmdWrite = 0xF1;
@@ -49,6 +51,7 @@ public class DigiHandler extends MultithreadScalesHandler {
     class DigiSendTransactionTask extends SendTransactionTask {
         private Integer maxLineLength;
         private Integer maxNameLength;
+        private Integer fontSize;
 
         public DigiSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
             super(transaction, scales);
@@ -106,6 +109,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
             maxLineLength = maxLineLength == null ? 50 : maxLineLength;
             maxNameLength = digiSettings != null ? digiSettings.getMaxNameLength() : null;
+            fontSize = nvl(digiSettings != null ? digiSettings.getFontSize() : null, 4);
         }
 
         protected boolean clearFiles(DataSocket socket, List<String> localErrors) throws IOException {
@@ -272,7 +276,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             bytes.put((byte) 0);
 
             //шрифт наименования
-            bytes.put((byte) 4);
+            bytes.put((byte) fontSize.intValue());
 
             //длина наименования
             bytes.put((byte) itemNameLength);
