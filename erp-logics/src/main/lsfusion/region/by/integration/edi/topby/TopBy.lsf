@@ -448,19 +448,21 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
             IMPORT systemMessage XML FROM data(i);
             CASE
             WHEN documentType() == 'BLRWBL' OR documentType() == 'BLRWBR' OR documentType() == 'BLRDLN' OR documentType() == 'BLRDNR' THEN {
+                LOCAL eInvoice = EInvoice();
+                eInvoice() <- CASE
+                    WHEN documentType() == 'BLRWBL' THEN eInvoiceBlrwbl(documentNumber())
+                    WHEN documentType() == 'BLRWBR' THEN eInvoiceBlrwbr(documentNumber())
+                    WHEN documentType() == 'BLRDLN' THEN eInvoiceBlrdln(documentNumber())
+                    WHEN documentType() == 'BLRDNR' THEN eInvoiceBlrdnr(documentNumber());
                 NEWSESSION NESTED LOCAL {
-                    IF NOT eInvoiceMessage('m' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
+                    IF NOT eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber()) THEN NEW m = EInvoiceMessage {
                         number(m) <- 'm' + messageDocumentNumber();
+                        eInvoice(m) <- eInvoice();
                     }
-                    FOR EInvoiceMessage m == eInvoiceMessage('m' + messageDocumentNumber()) DO {
+                    FOR EInvoiceMessage m == eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber()) DO {
                         dateTime(m) <- messageDocumentDate();
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
-                        eInvoice(m) <- CASE
-                            WHEN documentType() == 'BLRWBL' THEN eInvoiceBlrwbl(documentNumber())
-                            WHEN documentType() == 'BLRWBR' THEN eInvoiceBlrwbr(documentNumber())
-                            WHEN documentType() == 'BLRDLN' THEN eInvoiceBlrdln(documentNumber())
-                            WHEN documentType() == 'BLRDNR' THEN eInvoiceBlrdnr(documentNumber());
                         type(m) <- CASE
                             WHEN documentType() == 'BLRWBL' THEN EInvoiceMessageType.systemmessage_blrwbl
                             WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
@@ -525,10 +527,13 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
             }
             WHEN documentType() == 'BLRADF' THEN {
                 NEWSESSION NESTED LOCAL {
-                    IF NOT eCreditNoteMessage('m' + messageDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+                    LOCAL eCreditNote = ECreditNote();
+                    eCreditNote() <- eCreditNoteBlradf(documentNumber());
+                    IF NOT eCreditNoteMessage(eCreditNote(), 'm' + messageDocumentNumber()) THEN NEW m = ECreditNoteMessage {
                         number(m) <- 'm' + messageDocumentNumber();
+                        eCreditNote(m) <- eCreditNote();
                     }
-                    FOR ECreditNoteMessage m == eCreditNoteMessage('m' + messageDocumentNumber()) DO {
+                    FOR ECreditNoteMessage m == eCreditNoteMessage(eCreditNote(), 'm' + messageDocumentNumber()) DO {
                         dateTime(m) <- messageDocumentDate();
                         code(m) <- code();
                         description(m) <- OVERRIDE description(), description(code());
@@ -702,15 +707,17 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blrwbr' OR lower(blrapnReferenceDocumentType()) == 'blrwbl'
                 OR lower(blrapnReferenceDocumentType()) == 'blrdnr' OR lower(blrapnReferenceDocumentType()) == 'blrdln' THEN {
                     NEWSESSION NESTED LOCAL {
-                        IF NOT eInvoiceMessage(blrapnDocumentNumber()) THEN NEW m = EInvoiceMessage {
+                        LOCAL eInvoice = EInvoice();
+                        //для blrapn DeliveryNoteID всегда должен быть задан поэтому ссылку можно определять сразу по нему
+                        eInvoice() <- eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId());
+                        IF NOT eInvoiceMessage(eInvoice(), blrapnDocumentNumber()) THEN NEW m = EInvoiceMessage {
                             number(m) <- blrapnDocumentNumber();
+                            eInvoice(m) <- eInvoice();
                         }
-                        FOR EInvoiceMessage m == eInvoiceMessage(blrapnDocumentNumber()) DO {
+                        FOR EInvoiceMessage m == eInvoiceMessage(eInvoice(), blrapnDocumentNumber()) DO {
                             dateTime(m) <- blrapnDateTime();
                             code(m) <- belrapnCode();
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
-                            //для blrapn DeliveryNoteID всегда должен быть задан поэтому ссылку можно определять сразу по нему
-                            eInvoice(m) <- eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId());
                             IF code(m) == '2570' AND NOT description(m) == 'Электронная накладная была отменена.' THEN {
                                 exportedCustomer(eInvoice(m)) <- NULL;
                             }
@@ -776,10 +783,13 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 }
                 IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND eCreditNoteActDifNumber(blrapnDeliveryNoteId())) OR lower(blrapnReferenceDocumentType()) == 'blradf' THEN {
                     NEWSESSION NESTED LOCAL {
-                        IF NOT eCreditNoteMessage(blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+                        LOCAL eCreditNote = ECreditNote();
+                        eCreditNote() <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
+                        IF NOT eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
                             number(m) <- blrapnDocumentNumber();
+                            eCreditNote(m) <- eCreditNote();
                         }
-                        FOR ECreditNoteMessage m == eCreditNoteMessage(blrapnDocumentNumber()) DO {
+                        FOR ECreditNoteMessage m == eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) DO {
                             dateTime(m) <- blrapnDateTime();
                             code(m) <- belrapnCode();
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
