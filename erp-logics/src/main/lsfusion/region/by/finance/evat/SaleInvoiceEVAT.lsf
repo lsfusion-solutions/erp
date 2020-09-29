@@ -55,7 +55,7 @@ customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (InvoiceDetail);
 extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (SaleReturn.InvoiceDetail);
 // в Виталюре своё действие, создающее для возвратной накладной столько ЭСЧФ, сколько есть накладных-оснований в строках.
-createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
+createEVATSaleInvoiceHeader(EVAT e, Sale.Invoice i) {
     EVATDocument(e) <- i;        
     type(e) <- EVATType.sale;
     status(e) <- EVATStatus.original;
@@ -93,6 +93,10 @@ createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
     noCustomer(e) <- NOT VATSumInvoiceDetail(i);
     
     overCreateEVATSaleInvoice(e,i);
+}
+
+createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
+    createEVATSaleInvoiceHeader(e,i);
     
     FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
         evat(ed) <- e;
@@ -116,8 +120,7 @@ createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
         overEVATDetailSaleInvoiceDetail(ed,id);
     } 
 }
-
-createEVATSaleRenurnInvoice(EVAT e, SaleReturn.Invoice i) {
+createEVATSaleRenurnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
     EVATDocument(e) <- i;        
     type(e) <- EVATType.saleReturn;
     status(e) <- EVATStatus.additionalNoRef;
@@ -155,6 +158,9 @@ createEVATSaleRenurnInvoice(EVAT e, SaleReturn.Invoice i) {
     noCustomer(e) <- NOT VATSumInvoiceDetail(i);
     
     overCreateEVATSaleReturnInvoice(e,i);
+}
+createEVATSaleRenurnInvoice(EVAT e, SaleReturn.Invoice i) {
+    createEVATSaleRenurnInvoiceHeader(e,i);
     
     FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
         evat(ed) <- e;
