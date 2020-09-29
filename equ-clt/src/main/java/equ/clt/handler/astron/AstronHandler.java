@@ -1113,6 +1113,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Set<Integer> cashPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCashPayments());
         Set<Integer> cardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCardPayments());
         Set<Integer> giftCardPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getGiftCardPayments());
+        Set<Integer> customPayments = astronSettings == null ? new HashSet<>() : parsePayments(astronSettings.getCustomPayments());
         boolean ignoreSalesInfoWithoutCashRegister = astronSettings != null && astronSettings.isIgnoreSalesInfoWithoutCashRegister();
 
         checkExtraColumns(conn, params);
@@ -1141,6 +1142,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             BigDecimal sumCash = null;
             BigDecimal sumCard = null;
             BigDecimal sumGiftCard = null;
+            Map<String, BigDecimal> customPaymentsMap = new HashMap<>();
             String idSaleReceiptReceiptReturnDetail = null;
             while (rs.next()) {
 
@@ -1177,13 +1179,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     receiptDetailExtraFields.put("salesAttri", rs.getInt("SALESATTRI"));
 
                     Integer type = rs.getInt("SALESTYPE");
-                    if (cashPayments.contains(type))
-                        type = 0;
-                    else if (cardPayments.contains(type))
-                        type = 1;
-                    else if (giftCardPayments.contains(type))
-                        type = 2;
-                    boolean isWeight = type == 0 || type == 2;
+                    boolean customPaymentType = customPayments.contains(type);
+                    if(!customPaymentType) {
+                        if (cashPayments.contains(type))
+                            type = 0;
+                        else if (cardPayments.contains(type))
+                            type = 1;
+                        else if (giftCardPayments.contains(type))
+                            type = 2;
+                    }
 
                     Integer recordType = rs.getInt("SALESTAG");
                     boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
@@ -1193,6 +1197,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
                             String idBarcode = trimToNull(rs.getString("SALESBARC"));
                             String idItem = String.valueOf(rs.getInt("SALESCODE"));
+                            boolean isWeight = !customPaymentType && (type == 0 || type == 2);
                             BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
                             BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
                             BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
@@ -1200,7 +1205,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
                             sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
                             curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, null, idBarcode, idItem,
+                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem,
                                     null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
                                     salesNum, null, null, receiptDetailExtraFields, cashRegister));
                             curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
@@ -1211,17 +1216,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
                             if (isReturn)
                                 sum = safeNegate(sum);
-                            switch (type) {
-                                case 1:
-                                    sumCard = safeAdd(sumCard, sum);
-                                    break;
-                                case 2:
-                                    sumGiftCard = safeAdd(sumGiftCard, sum);
-                                    break;
-                                case 0:
-                                default:
-                                    sumCash = safeAdd(sumCash, sum);
-                                    break;
+                            if(customPaymentType) {
+                                BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
+                                customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
+                            } else {
+                                switch (type) {
+                                    case 1:
+                                        sumCard = safeAdd(sumCard, sum);
+                                        break;
+                                    case 2:
+                                        sumGiftCard = safeAdd(sumGiftCard, sum);
+                                        break;
+                                    case 0:
+                                    default:
+                                        sumCash = safeAdd(sumCash, sum);
+                                        break;
+                                }
                             }
                             curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                             break;

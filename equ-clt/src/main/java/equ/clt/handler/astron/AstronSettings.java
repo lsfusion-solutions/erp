@@ -23,6 +23,9 @@ public class AstronSettings implements Serializable {
     //номера платежей подарочными сертификатами через запятую, по умолчанию - 2
     private String giftCardPayments;
 
+    //Коды признака оплаты кастомными типами платежей через запятую.
+    private String customPayments;
+
     //если true, то игнорируем продажи, для которых не найдена касса
     private boolean ignoreSalesInfoWithoutCashRegister;
 
@@ -103,6 +106,14 @@ public class AstronSettings implements Serializable {
 
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
+    }
+
+    public String getCustomPayments() {
+        return customPayments;
+    }
+
+    public void setCustomPayments(String customPayments) {
+        this.customPayments = customPayments;
     }
 
     public boolean isIgnoreSalesInfoWithoutCashRegister() {
