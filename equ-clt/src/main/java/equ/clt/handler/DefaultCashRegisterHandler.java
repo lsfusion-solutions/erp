@@ -155,7 +155,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
 
     //Astron, Atol, Belcoopsoyuz, HTC, Kristal, Maxishop, UKM4
     public static SalesInfo getSalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport, LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
-                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, String barcodeItem,
+                                     BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, Map<String, BigDecimal> customPaymentMap, String barcodeItem,
                                      String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
@@ -163,7 +163,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
         Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
         sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, null, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, null, sumCard, sumCash, sumGiftCardMap, customPaymentMap, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
                 discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptDetailExtraFields, cashRegisterInfo);
     }

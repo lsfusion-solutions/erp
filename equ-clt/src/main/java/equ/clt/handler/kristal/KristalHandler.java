@@ -1055,7 +1055,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                             failed = true;
                                         } else
                                             currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
-                                                    numberReceipt, dateReceipt, timeReceipt, null, null, sumCard, sumCash, null, barcode, idItem, null,
+                                                    numberReceipt, dateReceipt, timeReceipt, null, null, sumCard, sumCash, null, null, barcode, idItem, null,
                                                     null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName,
                                                     null, null, cashRegister));
                                     }
@@ -1152,7 +1152,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                                 failed = true;
                                             } else
                                                 currentSalesInfoList.add(getSalesInfo(nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
-                                                        numberReceipt, dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, barcode, idItem, null,
+                                                        numberReceipt, dateReceipt, timeReceipt, idEmployee, null, sumCard, sumCash, null, null, barcode, idItem, null,
                                                         null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, null, discountCard, numberReceiptDetail,
                                                         fileName, null, null, cashRegister));
                                         }
