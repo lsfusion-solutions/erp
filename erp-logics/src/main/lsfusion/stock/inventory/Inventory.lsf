@@ -411,7 +411,7 @@ quantityBalance 'Кол-во по остаткам' (collationSheet, sku) = DATA
 priceBalance 'Цена по остаткам' (collationSheet, sku) = DATA NUMERIC[16,4] (CollationSheet, Sku);
 sumBalance 'Сумма по остаткам' (collationSheet, sku) = DATA NUMERIC[18,4] (CollationSheet, Sku);
 
-isPrice 'Сумму остатка считать по цене' = DATA BOOLEAN (Inventory);
+isPrice 'Сумму остатка считать по цене' = DATA BOOLEAN (Inventory) PREREAD;
 
 //---------------------------- Состав сличительной ведомости (Партия) ----------------------------//
 
@@ -585,6 +585,8 @@ overInclude = ABSTRACT BOOLEAN (CollationSheet, Sku);
 include(collationSheet, batch) = DATA BOOLEAN (CollationSheet, Batch);
 include(CollationSheet collationSheet, Batch batch) <- include(collationSheet, PREV(sku(batch))) AND isBatch(collationSheet)
                         WHEN [ CHANGED(include(collationSheet, Sku sku))](PREV(sku(batch)));
+                        
+skipRecalculateBalance = ABSTRACT BOOLEAN (Inventory) PREREAD; 
 
 recalculateBalance 'Заполнить остатки' (Inventory inventory)  {   
     startTimeRecalculateBalance(inventory) <- currentDateTime();
@@ -593,7 +595,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory)  {
     quantityBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     
-    FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {        
+    FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) AND NOT skipRecalculateBalance(inventory) DO {        
         IF isPartly(inventory) AND isRemains(inventory) THEN { 
             quantityBalance(cs, Sku sku)
                 <- balanceB(sku, st, dt)
