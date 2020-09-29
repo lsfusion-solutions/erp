@@ -460,15 +460,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             if (!Thread.currentThread().isInterrupted()) {
 
                 String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
-                //parent: rootElement
-                Element good = new Element("good");
-
                 String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                setAttribute(good, "marking-of-the-good", idItem);
-
-                //rootElement.addContent(good);
 
                 //parent: rootElement
                 if (item.minPrice != null) {
