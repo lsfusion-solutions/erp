@@ -68,6 +68,10 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то используем r.local_number, иначе r.global_number
     private boolean useLocalNumber;
 
+    //если true, то idEmployee = store + "_" + user_id; иначе = user_id
+    private boolean useStoreInIdEmployee;
+
+
     public UKM4MySQLSettings() {
     }
 
@@ -232,5 +236,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUseLocalNumber(boolean useLocalNumber) {
         this.useLocalNumber = useLocalNumber;
+    }
+
+    public boolean isUseStoreInIdEmployee() {
+        return useStoreInIdEmployee;
+    }
+
+    public void setUseStoreInIdEmployee(boolean useStoreInIdEmployee) {
+        this.useStoreInIdEmployee = useStoreInIdEmployee;
     }
 }
