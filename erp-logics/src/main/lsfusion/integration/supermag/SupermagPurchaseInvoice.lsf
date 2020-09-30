@@ -27,6 +27,7 @@ userInvoiceApply 'Сохранить ' (UserInvoice doc) {
     apply();
     IF NOT canceled() THEN {
         IF series(doc) THEN { number(doc) <- seriesNumber(doc); series(doc) <- NULL;} 
+        APPLY;
         exportPurchaseInvoice(doc);
     }
 }
@@ -334,8 +335,9 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         contractSku(doc) <- userContractSku(idBase(i));        
     }    
 
-    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) AND baseDoctype(i) = 'OR' DO {
-        include(Order orS, doc) <- TRUE IF orS = userOrder(idBase(i));
+    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) AND userOrder(idBase(i)) AND baseDoctype(i) = 'OR' DO {
+        include(Order orS, doc) <- NULL;    
+        include(Order orS, doc) <- TRUE WHERE orS = userOrder(idBase(i));
     }        
 
     overImportPurchaseInvoice2();
