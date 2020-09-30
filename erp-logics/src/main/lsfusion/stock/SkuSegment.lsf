@@ -38,6 +38,7 @@ maxNetWeight 'Макс. вес нетто, кг' = DATA NUMERIC[11,5] (SkuSegmen
 //Для фильтра в доп. модулях
 extraInNotMaterialized = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
 extraInMaterialized = ABSTRACT BOOLEAN (SkuSegmentLine, Sku);
+skippedInSegment = ABSTRACT BOOLEAN (Sku);
 
 exclude 'Исключение' = DATA BOOLEAN (SkuSegmentLine);
 
@@ -63,7 +64,7 @@ CONSTRAINT SkuSegmentLine sl IS SkuSegmentLine AND NOT (sku(sl) OR skuGroup(sl) 
     MESSAGE 'Не должно быть строк с пустыми параметрами'
 ;
 
-inD (SkuSegmentLine sl, Sku sk) = (sl IS SkuSegmentLine AND active(sk) 
+inD (SkuSegmentLine sl, Sku sk) = (sl IS SkuSegmentLine AND active(sk) AND (NOT (skippedInSegment(sk)))
                                                                 AND (sk == sku(sl) OR NOT sku(sl)) 
                                                                 AND (isParent(skuGroup(sk), skuGroup(sl)) OR NOT skuGroup(sl)) 
                                                                 AND (UOM(sk) == uom (sl) OR NOT uom(sl)) 
