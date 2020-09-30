@@ -290,13 +290,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (CashRegisterItemInfo item : transaction.itemsList) {
             if (!Thread.currentThread().isInterrupted()) {
 
-                //parent: rootElement
-                Element good = new Element("good");
-
                 String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
-
-                setAttribute(good, "marking-of-the-good", idItem);
 
                 List<String> deleteBarcodeList = new ArrayList<>();
                 if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
@@ -308,20 +303,20 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     usedDeleteBarcodes.barcodes.add(item.idBarcode);
                 }
 
-                rootElement.addContent(good);
-
                 //parent: good
                 Element barcode = new Element("bar-code");
+                setAttribute(barcode, "marking-of-the-good", idItem);
                 setAttribute(barcode, "code", barcodeItem);
                 addStringElement(barcode, "default-code", "true");
-                good.addContent(barcode);
+                rootElement.addContent(barcode);
 
                 for(String deleteBarcode : deleteBarcodeList) {
                     //parent: good
                     Element deleteBarcodeElement = new Element("bar-code");
+                    setAttribute(barcode, "marking-of-the-good", idItem);
                     setAttribute(deleteBarcodeElement, "code", deleteBarcode);
                     setAttribute(deleteBarcodeElement, "deleted", true);
-                    good.addContent(deleteBarcodeElement);
+                    rootElement.addContent(deleteBarcodeElement);
                 }
 
                 if (notGTINPrefixes != null) {
@@ -348,6 +343,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
         boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
+        boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        String weightShopIndices = kristalSettings != null ? kristalSettings.getWeightShopIndices() : null;
+        boolean useNumberGroupInShopIndices = kristalSettings != null && kristalSettings.useNumberGroupInShopIndices();
 
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
@@ -359,24 +357,22 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("kristal10") : null;
 
-                //parent: rootElement
-                Element good = new Element("good");
-
                 String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
                 String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-                setAttribute(good, "marking-of-the-good", idItem);
+                String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
 
-                rootElement.addContent(good);
-
-                //parent: good
+                //parent: rootElement
                 Element priceEntry = new Element("price-entry");
+                setAttribute(priceEntry, "marking-of-the-good", idItem);
                 Object price = item.price == null ? null : (item.price.doubleValue() == 0.0 ? "0.00" : item.price);
                 setAttribute(priceEntry, "price", price);
                 setAttribute(priceEntry, "deleted", "false");
+                if (useShopIndices)
+                    addStringElement(priceEntry, "shop-indices", shopIndices);
                 addStringElement(priceEntry, "begin-date", currentDate());
                 addStringElement(priceEntry, "number", "1");
-                good.addContent(priceEntry);
+                rootElement.addContent(priceEntry);
 
                 //parent: priceEntry
                 Element department = new Element("department");
@@ -398,7 +394,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     }
                     addStringElement(secondPriceEntry, "deleted", String.valueOf(secondPriceDeleted));
                     addStringElement(secondPriceEntry, "number", "2");
-                    good.addContent(secondPriceEntry);
+                    rootElement.addContent(secondPriceEntry);
 
                     //parent: priceEntry
                     Element secondDepartment = new Element("department");
@@ -413,7 +409,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     setAttribute(oldSecondPriceEntry, "price", oldSecondPrice);
                     setAttribute(oldSecondPriceEntry, "deleted", "true");
                     addStringElement(oldSecondPriceEntry, "number", "2");
-                    good.addContent(oldSecondPriceEntry);
+                    rootElement.addContent(oldSecondPriceEntry);
 
                     //parent: priceEntry
                     Element secondDepartment = new Element("department");
@@ -426,9 +422,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 if(zone != 0 && countZone != 0) {
                     for(int i = 1; i <= countZone; i++) {
                         if (i == zone) {
-                            addPriceEntryElement(good, price, false, currentDate(), null, "1", i);
+                            addPriceEntryElement(rootElement, idItem, price, false, currentDate(), null, "1", i);
                         } else {
-                            addPriceEntryElement(good, 1, true, null, null, "1", i);
+                            addPriceEntryElement(rootElement, idItem, 1, true, null, null, "1", i);
                         }
                     }
                 }

@@ -294,9 +294,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                             if(zone != 0 && countZone != 0) {
                                 for(int i = 1; i <= countZone; i++) {
                                     if (i == zone) {
-                                        addPriceEntryElement(good, price, false, currentDate(), null, "1", i);
+                                        addPriceEntryElement(good, null, price, false, currentDate(), null, "1", i);
                                     } else {
-                                        addPriceEntryElement(good, 1, true, null, null, "1", i);
+                                        addPriceEntryElement(good, null, 1, true, null, null, "1", i);
                                     }
                                 }
                             }

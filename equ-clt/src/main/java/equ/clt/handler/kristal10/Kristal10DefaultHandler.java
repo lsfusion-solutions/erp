@@ -80,8 +80,9 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
     }
 
-    protected static void addPriceEntryElement(Element parent, Object price, boolean deleted, String beginDate, String endDate, String number, Object departmentNumber) {
+    protected static void addPriceEntryElement(Element parent, String barcode, Object price, boolean deleted, String beginDate, String endDate, String number, Object departmentNumber) {
         Element priceEntry = new Element("price-entry");
+        setAttribute(priceEntry, "marking-of-the-good", barcode);
         setAttribute(priceEntry, "price", price);
         setAttribute(priceEntry, "deleted", deleted);
         addStringElement(priceEntry, "begin-date", beginDate);
