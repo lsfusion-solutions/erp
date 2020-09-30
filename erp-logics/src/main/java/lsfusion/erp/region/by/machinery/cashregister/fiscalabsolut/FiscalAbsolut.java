@@ -111,7 +111,9 @@ public class FiscalAbsolut {
         absolutDLL.absolut.ErrorString(lastError, lastErrorText, length);
         if (closePort)
             closePort();
-        return Native.toString(lastErrorText, "cp1251");
+        String errorText = lastError + " " + Native.toString(lastErrorText, "cp1251");
+        logAction("Absolut Exception: " + errorText);
+        return errorText;
     }
 
     public static void openPort(String logPath, int comPort, int baudRate) {
@@ -429,7 +431,7 @@ public class FiscalAbsolut {
         logAction("LastError (checkErrors)");
         Integer lastError = absolutDLL.absolut.LastError();
         if (lastError != 0) {
-            String errorText = getErrorText(lastError);
+            String errorText = lastError + " " + getErrorText(lastError);
             logAction("LastError result: " + errorText);
             if (throwException)
                 throw new RuntimeException("Absolut Exception: " + errorText);
