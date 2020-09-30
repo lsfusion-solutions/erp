@@ -135,7 +135,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 sum = sum.add(BigDecimal.valueOf(item.sumPos)).subtract(BigDecimal.valueOf(discount));
                 discountSum = discountSum.add(BigDecimal.valueOf(discount));
                 printMultilineFiscalText(item.name, "");
-                FiscalAbsolut.printFiscalText(getFiscalString("Код", item.barcode));
+                FiscalAbsolut.printFiscalText(getFiscalString("Код", item.getDigitBarcode()));
                 FiscalAbsolut.printFiscalText(getFiscalString("Цена",
                         new DecimalFormat("#,###.##").format(item.quantity) + "x" + formatter.format(item.price)));
                 if(discount != 0.0)

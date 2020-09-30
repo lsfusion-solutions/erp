@@ -327,6 +327,7 @@ public class FiscalAbsolut {
     static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT, Integer maxLines, boolean useSKNO) {
         try {
             double price = formatAbsPrice(item.price);
+            String barcode = item.getDigitBarcode();
             //if(item.barcode != null)
             //    printComment(item.barcode, saveCommentOnFiscalTape);
             int count = 0;
@@ -337,9 +338,9 @@ public class FiscalAbsolut {
                 }
             }
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
-            String plu = item.barcode +  (groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "1" : item.valueVAT == 10.0 ? "2" : item.valueVAT == 0.0 ? "3" : "0") : "");
-            logAction("FullProd", plu, item.price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, item.barcode);
-            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(item.barcode), getCodeType(useSKNO));
+            String plu = barcode + (groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "1" : item.valueVAT == 10.0 ? "2" : item.valueVAT == 0.0 ? "3" : "0") : "");
+            logAction("FullProd", plu, item.price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, barcode);
+            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(barcode), getCodeType(useSKNO));
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -547,14 +548,14 @@ public class FiscalAbsolut {
             String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
             for(ReceiptItem item : receipt.receiptSaleList) {
                 sw.write(String.format("%s|%s|1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,
-                        trimToEmpty(item.barcode), item.name, toStr(item.price), item.quantity, item.sumPos, item.articleDiscSum,
+                        trimToEmpty(item.getDigitBarcode()), item.name, toStr(item.price), item.quantity, item.sumPos, item.articleDiscSum,
                         item.isGiftCard ? "1" : "0", trim(receipt.sumDisc), trim(receipt.sumCard), trim(receipt.sumCash),
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
 
             for(ReceiptItem item : receipt.receiptReturnList) {
                 sw.write(String.format("%s|%s|2|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,
-                        trimToEmpty(item.barcode), item.name, item.price, item.quantity, item.sumPos, item.articleDiscSum,
+                        trimToEmpty(item.getDigitBarcode()), item.name, item.price, item.quantity, item.sumPos, item.articleDiscSum,
                         item.isGiftCard ? "1" : "0", trim(receipt.sumDisc), trim(receipt.sumCard), trim(receipt.sumCash),
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }

@@ -7,7 +7,7 @@ public class ReceiptItem implements Serializable {
     public boolean isGiftCard;
     public BigDecimal price;
     public double quantity;
-    public String barcode;
+    private String barcode;
     public String name;
     public double sumPos;
     public double articleDiscSum;
@@ -27,5 +27,10 @@ public class ReceiptItem implements Serializable {
         this.bonusSum = bonusSum;
         this.bonusPaid = bonusPaid;
         this.valueVAT = valueVAT;
+    }
+
+    //Absolut не умеет работать со штрихкодами, содержащими буквы, поэтому все не-цифры заменяем на 0
+    public String getDigitBarcode() {
+        return barcode != null ? barcode.replaceAll("[^0-9]", "0") : null;
     }
 }
