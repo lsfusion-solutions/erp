@@ -4,6 +4,21 @@ REQUIRE NativeMachinery, CashRegister, Store, ZReport;
 
 NAMESPACE Chameleon;
 
+id = DATA INTEGER (CashRegister);
+cashRegister (INTEGER id) = GROUP AGGR CashRegister cr BY id(cr);
+
+maxIdCashRegister(CashRegister c) = GROUP MAX id(CashRegister cr AS CashRegister) IF c IS CashRegister;
+
+index(CashRegister cr) = PARTITION SUM 1 ORDER cr IF cr IS CashRegister AND NOT id(cr);
+
+WHEN SET(CashRegister cr IS CashRegister) DO id(cr) <- (GROUP MAX id(CashRegister c AS CashRegister)) (+) 1;
+
+onStarted() + {
+    APPLY {
+        id(CashRegister cr) <- index(cr) (+) maxIdCashRegister(cr) WHERE index(cr);
+    };
+}
+
 CLASS ChameleonVersion;
 
 chameleonVersion = ABSTRACT CASE ChameleonVersion (GroupMachinery);
@@ -127,7 +142,7 @@ sendToChameleon (MachineryPriceTransaction t){
 }
 
 receiptNumber = DATA LOCAL INTEGER (INTEGER);
-idCashRegister = DATA LOCAL LONG (INTEGER);
+idCashRegister = DATA LOCAL INTEGER (INTEGER);
 idReceipt = DATA LOCAL INTEGER (INTEGER);
 
 receipt (LONG cr, INTEGER n) = GROUP MAX LONG(cashRegister(Receipt r)) = cr IF number(r) = n;
@@ -137,7 +152,7 @@ receipt (ZReport z, INTEGER n) = GROUP LAST Receipt r AS Receipt ORDER r IF zRep
 
 receiptNumberString () = GROUP CONCAT STRING(idReceipt(INTEGER i)), ',' IF NOT receipt(idCashRegister(i), receiptNumber(i));
 
-cashRegister (LONG id) = GROUP LAST CashRegister cr AS CashRegister ORDER cr BY LONG(cr);
+//cashRegister (LONG id) = GROUP LAST CashRegister cr AS CashRegister ORDER cr BY LONG(cr);
 employee (LONG id) = GROUP LAST Employee e AS Employee ORDER e BY LONG(e);
 sku (LONG id) = GROUP LAST Sku s AS Sku ORDER s BY LONG(s);
 batch (LONG id) = GROUP LAST Batch b AS Batch ORDER b BY LONG(b);
@@ -150,7 +165,7 @@ receiveFromChameleon(GroupCashRegister g) {
         NEWSESSION NESTED LOCAL {
             LOCAL localReceiptNumberString = STRING();
             LOCAL number = INTEGER (INTEGER);
-            LOCAL idCashRegister = LONG (INTEGER);
+            LOCAL idCashRegister = INTEGER (INTEGER);
             LOCAL dateTime = DATETIME (INTEGER);
             LOCAL idCashMan = LONG (INTEGER);
             LOCAL numberZReport = INTEGER (INTEGER);
