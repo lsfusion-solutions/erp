@@ -12,8 +12,8 @@ accountDeltaQuantity(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedQua
     AND skip(stockDocumentLedger(l)) AND date(l) >= df AND date(l)<=dt AND sku(l)==s AND stock(l)==st);   
     
 accountDeltaBQuantity(Sku s, Stock st, DATETIME dateTime) +=  accountDeltaQuantity(s, st)(-) 
-                                                (GROUP SUM -signedQuantity (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
-                                                AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);
+    (GROUP SUM -signedQuantity (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) AND sku(l)==s AND stock(l)==st
+    AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);
                                        
 calcAccountDeltaSum(Sku s, Stock st) = NUMERIC[18,4](GROUP SUM -signedSum(SkuLedger l) IF isPosted(l) AND NOT skip(l) 
     AND skip(stockDocumentLedger(l)) AND NOT date(l) < dateAccountDelta(stock(l)) AND sku(l)==s AND stock(l)==st) MATERIALIZED;   
@@ -23,8 +23,8 @@ accountDeltaSum(Sku s, Stock st, DATE df, DATE dt) += (GROUP SUM -signedSum(SkuL
     AND skip(stockDocumentLedger(l)) AND date(l) >= df AND date(l)<=dt AND sku(l)==s AND stock(l)==st);   
     
 accountDeltaBSum(Sku s, Stock st, DATETIME dateTime) +=  accountDeltaSum(s, st)(-) 
-                                                (GROUP SUM -signedSum (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) 
-                                                AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);                                     
+    (GROUP SUM -signedSum (SkuLedger l) IF isPosted(l) AND skip(stockDocumentLedger(l)) AND sku(l)==s AND stock(l)==st
+    AND NOT date(l) < dateAccountDelta(stock(l)) AND   dateTime(l) >= dateTime);                                     
                                                                                  
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES(s, st) READONLY accountBalanceQuantity AFTER currentBalance(s, st), accountBalanceSum AFTER currentSum(s, st) 
