@@ -19,10 +19,11 @@ edit (InvoicePricingDetail d)+ {  edit(invoiceDetail(d)); }
 
 
 // Автоматически проставляем цены поставщика и розничные
+disableUpdateSupplierPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             CHANGED(batch(detail))) AND supplierStock(detail) IS DepartmentStore
-            AND batch(detail) AND NOT CHANGED(supplierPrice(detail)) DO {
+            AND batch(detail) AND NOT CHANGED(supplierPrice(detail)) AND NOT disableUpdateSupplierPrice(detail) DO {
     supplierPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                  batch(detail),
                                                  supplierStock(detail),
@@ -32,7 +33,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
             DROPPED(batch(detail)) OR CHANGED(sku(detail))) AND supplierStock(detail) IS DepartmentStore
-            AND NOT batch(detail) AND NOT CHANGED(supplierPrice(detail)) DO {
+            AND NOT batch(detail) AND NOT CHANGED(supplierPrice(detail)) AND NOT disableUpdateSupplierPrice(detail) DO {
     supplierPrice (detail)  <- round2(prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
                                                  sku(detail),
                                                  supplierStock(detail),
