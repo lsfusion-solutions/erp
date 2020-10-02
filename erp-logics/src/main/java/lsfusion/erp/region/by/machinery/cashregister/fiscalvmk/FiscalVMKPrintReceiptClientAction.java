@@ -205,8 +205,9 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         }
 
         if (extraReceipt != null) {
-            if(!FiscalVMK.printMultilineFiscalText2(extraReceipt))
-                return null;
+            //При печати extraReceipt (доп. текст после чека) может возникнуть ошибка - например, кончилась лента.
+            //Но ошибки игнорируем, поскольку сам чек уже напечатан.
+            FiscalVMK.printMultilineFiscalText2(extraReceipt);
             FiscalVMK.printHeaderReceipt();
         }
 
