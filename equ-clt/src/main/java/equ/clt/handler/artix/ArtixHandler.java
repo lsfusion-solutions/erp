@@ -144,8 +144,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch> {
                         for (Map.Entry<String, List<CashRegisterItemInfo>> barcodeEntry : barcodeMap.entrySet()) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String inventItem = getAddInventItemJSON(transaction, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode);
-                                if(inventItem != null)
+                                if(inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
+                                } else {
+                                    //сейчас inventItem == null только при отсутствии UOM
+                                    processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + barcodeEntry.getKey());
+                                }
                             }
                         }
 
