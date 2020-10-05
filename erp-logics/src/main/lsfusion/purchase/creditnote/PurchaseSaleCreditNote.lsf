@@ -149,10 +149,10 @@ WHEN LOCAL (CHANGED(supplier(UserCreditNote o)) OR CHANGED(customer(o)) OR CHANG
 }                                     
                                       
 
-CONSTRAINT returnContractSku(UserCreditNote o) AND NOT customer(o) == partyA(returnContractSku(o))
+CONSTRAINT returnContractSku(UserCreditNote o) AND NOT supplier(o) == partyA(returnContractSku(o))
     CHECKED BY returnContractSku[UserCreditNote] MESSAGE 'Организация (поставщик) договора накладной не соответствует организация (поставщик) накладной';
 
-CONSTRAINT returnContractSku(UserCreditNote o) AND NOT supplier(o) == partyB(returnContractSku(o))
+CONSTRAINT returnContractSku(UserCreditNote o) AND NOT customer(o) == partyB(returnContractSku(o))
     CHECKED BY returnContractSku[UserCreditNote] MESSAGE 'Организация (покупатель) договора накладной не соответствует организация (покупатель) накладной';    
     
 returnContractSku(UserCreditNote o) += returnContractSku(o);
@@ -241,23 +241,23 @@ customer(SaleCreditNote creditNote) += IF returnContractSku(creditNote(creditNot
                                                 ELSE customer(creditNote);
 
 @defineDocumentAggregationPosted(creditNote, saleCreditNote);
-isPosted(SaleCreditNote creditNote) += isPosted(creditNote);
+isPosted[Sale.CreditNote](SaleCreditNote creditNote) += isPosted(creditNote);
 
 @defineDocumentAggregationClosed(creditNote, saleCreditNote);
-isClosed(SaleCreditNote creditNote) += isClosed(creditNote);
+isClosed[Sale.CreditNote](SaleCreditNote creditNote) += isClosed(creditNote);
 
-number(SaleCreditNote creditNote) += number(creditNote(creditNote));
-series(SaleCreditNote creditNote) += series(creditNote(creditNote));
+number[Sale.CreditNote](SaleCreditNote creditNote) += number(creditNote(creditNote));
+series[Sale.CreditNote](SaleCreditNote creditNote) += series(creditNote(creditNote));
 seriesNumber 'Серия/номер документа' (SaleCreditNote saleCreditNote) = seriesNumber(creditNote(saleCreditNote));
 
 noteCreditNote 'Примечание' (SaleCreditNote saleCreditNote) = note(creditNote(saleCreditNote));
-note(SaleCreditNote creditNote) += noteCreditNote(creditNote);
+note[Sale.CreditNote](SaleCreditNote creditNote) += noteCreditNote(creditNote);
 
 currency  (SaleCreditNote saleCreditNote) = currency(creditNote(saleCreditNote));
 currency (SaleCreditNote creditNote) += currency(creditNote);
 
 @defineDocumentDescription(saleCreditNote, SaleCreditNoteDetail, 'Акт расхождения на основе акта расхождения');
-description (SaleCreditNote creditNote) += description(creditNote);
+description[Sale.CreditNote] (SaleCreditNote creditNote) += description(creditNote);
 
 contractSku (SaleCreditNote creditNote) += IF returnContractSku(creditNote(creditNote)) 
                                                THEN returnContractSku(creditNote(creditNote))
@@ -267,16 +267,16 @@ isCommission (SaleCreditNote creditNote) += IF returnContractSku(creditNote(cred
                                                 ELSE isCommission(creditNote(creditNote));
 
 @defineDocumentAggregationDetailSku(creditNote, saleCreditNote, sku);
-sku(SaleCreditNoteDetail creditNoteDetail) +=  sku(creditNoteDetail);
+sku[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) +=  sku(creditNoteDetail);
 
 @defineDocumentAggregationDetailBatch(creditNote, saleCreditNote);
-batch(SaleCreditNoteDetail creditNoteDetail) += batch(creditNoteDetail);
+batch[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += batch(creditNoteDetail);
 
-quantity(SaleCreditNoteDetail creditNoteDetail) += quantity(creditNoteDetail(creditNoteDetail));
+quantity[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += quantity(creditNoteDetail(creditNoteDetail));
 //Sale.priceListTypeCreditNoteDetail(creditNoteDetail) += priceListTypeCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 
 price(SaleCreditNoteDetail creditNoteDetail) += price(creditNoteDetail(creditNoteDetail));
-sum(SaleCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail(creditNoteDetail));
+sum[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail(creditNoteDetail));
 VAT(SaleCreditNoteDetail creditNoteDetail) += VAT(creditNoteDetail(creditNoteDetail));
 valueVAT(SaleCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail(creditNoteDetail));
 VATSum(SaleCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail(creditNoteDetail));
@@ -285,6 +285,21 @@ invoiceSum(SaleCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail
 edit(SaleCreditNote creditNote) + {  edit(creditNote(creditNote)); }
 
 creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(creditNoteDetail);
+
+@defineDocumentInterfaceOperationPrefix (creditNote, sale, Sale, ' (продажа)');
+
+operation[Sale.CreditNote](SaleCreditNote creditNote) += saleOperation(creditNote(creditNote));
+
+EXTEND FORM userCreditNote
+    PROPERTIES(c) BACKGROUND backgroundSale(c) SHOWIF createSaleCreditNote(c) nameSaleOperation
+
+;
+
+DESIGN userCreditNote {
+    headerCreateSale {                        
+        MOVE PROPERTY(nameSaleOperation(c));
+    }
+}
 
 //-- Действие
 
