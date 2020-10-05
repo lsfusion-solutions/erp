@@ -79,14 +79,14 @@ importCountries 'Импорт стран' () {
     
     IMPORT TABLE FROM SupermagSettings.file() TO id, name;
     
-    FOR name(INTEGER i) AND NOT (GROUP MAX Country c IF name(c) == upper(name(i))) DO NEW c = Country {
-        name(c) <- upper(name(i));
+    FOR name(INTEGER i) AND NOT (GROUP MAX Country c IF name(c) == upper(trim(name(i)))) DO NEW c = Country {
+        name(c) <- upper(trim(name(i)));
     }
 
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importUOM();
+EXTEND FORM integrationData PROPERTIES importUOM(), importCountries();
 
 shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
 
@@ -136,7 +136,10 @@ importItem 'Импорт товаров' () {
                                             TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i)));
  //   logToFile('importSupermag', 'importItem_2');
       
-//    FOR [GROUP SUM 1 IF id(INTEGER i) AND NOT item(id(i)) BY id(i)](ISTRING[100] id) DO NEW s = Item {
+    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
+        name(s) <- ISTRING[50](upper(trim(country(i))));
+    }
+
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
         id(s) <- ISTRING[100] (id(i));
     }
@@ -149,7 +152,7 @@ importItem 'Импорт товаров' () {
         skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
                            WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge 
                            ELSE SkuType.skuTypeItem;
-        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(country(i));
+        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
