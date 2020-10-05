@@ -1735,7 +1735,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
 
             //если сумма не совпала, докидываем разницу на первую часть
-            BigDecimal diff = safeSubtract(sale.sumReceiptDetail, currentSum);
+            BigDecimal diff = safeSubtract(safeAdd(sale.sumReceiptDetail, sale.discountSumReceiptDetail), currentSum);
             if(!result.isEmpty() && diff != null && diff.compareTo(BigDecimal.ZERO) > 0) {
                 result.get(0).sum = safeAdd(result.get(0).sum, diff);
             }
@@ -1746,12 +1746,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 BigDecimal discountSum = safeDivide(safeMultiply(sale.discountSumReceiptDetail, barcodePart.sum), sale.sumReceiptDetail, 2);
                 currentDiscountSum = safeAdd(currentDiscountSum, discountSum);
                 barcodePart.discountSum = discountSum;
+                barcodePart.sum = safeSubtract(barcodePart.sum, barcodePart.discountSum);
             }
 
             //если сумма скидки не совпала, докидываем разницу на первую часть
             BigDecimal discountDiff = safeSubtract(sale.discountSumReceiptDetail, currentDiscountSum);
             if(!result.isEmpty() && discountDiff != null && discountDiff.compareTo(BigDecimal.ZERO) > 0) {
                 result.get(0).discountSum = safeAdd(result.get(0).discountSum, discountDiff);
+                result.get(0).sum = safeSubtract(result.get(0).sum, result.get(0).discountSum);
             }
 
         }
