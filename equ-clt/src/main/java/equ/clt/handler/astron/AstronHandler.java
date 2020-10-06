@@ -1249,6 +1249,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             sumCash = null;
                             sumCard = null;
                             sumGiftCard = null;
+                            customPaymentsMap = new HashMap<>();
                             if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
                                 salesInfoList.addAll(curSalesInfoList);
                                 recordList.addAll(curRecordList);
