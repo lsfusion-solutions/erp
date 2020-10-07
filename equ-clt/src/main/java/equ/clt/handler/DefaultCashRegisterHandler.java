@@ -153,6 +153,20 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch> extends C
 
     }
 
+    protected Set<Integer> parsePayments(String payments) {
+        Set<Integer> paymentsSet = new HashSet<>();
+        try {
+            if (payments != null && !payments.isEmpty()) {
+                for (String payment : payments.split(",")) {
+                    paymentsSet.add(Integer.parseInt(payment.trim()));
+                }
+            }
+        } catch (Exception e) {
+            sendSalesLogger.error("invalid payment settings: " + payments);
+        }
+        return paymentsSet;
+    }
+
     //Astron, Atol, Belcoopsoyuz, HTC, Kristal, Maxishop, UKM4
     public static SalesInfo getSalesInfo(Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, LocalDate dateZReport, LocalTime timeZReport, Integer numberReceipt, LocalDate dateReceipt, LocalTime timeReceipt, String idEmployee, String firstNameContact,
                                      BigDecimal sumCard, BigDecimal sumCash, BigDecimal sumGiftCard, Map<String, BigDecimal> customPaymentMap, String barcodeItem,

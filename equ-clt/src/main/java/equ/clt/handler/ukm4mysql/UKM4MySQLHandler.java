@@ -1071,20 +1071,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return salesBatch;
     }
 
-    private Set<Integer> parsePayments(String payments) {
-        Set<Integer> paymentsSet = new HashSet<>();
-        try {
-            if (payments != null && !payments.isEmpty()) {
-                for (String payment : payments.split(",")) {
-                    paymentsSet.add(Integer.parseInt(payment.trim()));
-                }
-            }
-        } catch (Exception e) {
-            sendSalesLogger.error("UKM: invalid payment settings: " + payments);
-        }
-        return paymentsSet;
-    }
-
     private Map<String, Payment> readPaymentMap(Connection conn, Set<Integer> cashPayments, Set<Integer> cardPayments,
                                                 Set<Integer> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList) {
 

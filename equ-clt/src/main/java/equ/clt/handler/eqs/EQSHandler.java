@@ -357,6 +357,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
         EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
         boolean appendBarcode = eqsSettings != null && eqsSettings.getAppendBarcode() != null && eqsSettings.getAppendBarcode();
         String giftCardRegexp = eqsSettings != null ? eqsSettings.getGiftCardRegexp() : null;
+        Set<Integer> customPayments = eqsSettings == null ? new HashSet<>() : parsePayments(eqsSettings.getCustomPayments());
 
         Set<Integer> readRecordSet = new HashSet<>();
 
@@ -516,21 +517,29 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                             BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
                             Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                             for (SalesInfo salesInfo : currentSalesInfoList) {
-                                if (typePayment == 0)
-                                    salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
-                                else if (typePayment == 1)
-                                    salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                                else if (typePayment == 2) {
-                                    GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                    salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
-                                } else if (typePayment == 3)
-                                    salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
-                                else if(typePayment == 5) {
+                                if(customPayments.contains(typePayment)) {
                                     if(salesInfo.customPaymentMap == null)
                                         salesInfo.customPaymentMap = new HashMap<>();
-                                    salesInfo.customPaymentMap.put(salaryPaymentType, HandlerUtils.safeAdd(salesInfo.customPaymentMap.get(oplatiPaymentType), sumPayment));
-                                } else
-                                    salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
+                                    salesInfo.customPaymentMap.put(String.valueOf(typePayment), HandlerUtils.safeAdd(salesInfo.customPaymentMap.get(String.valueOf(typePayment)), sumPayment));
+                                } else {
+
+                                    if (typePayment == 0)
+                                        salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
+                                    else if (typePayment == 1)
+                                        salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
+                                    else if (typePayment == 2) {
+                                        GiftCard sumGiftCard = salesInfo.sumGiftCardMap.get(null);
+                                        salesInfo.sumGiftCardMap.put(null, new GiftCard(HandlerUtils.safeAdd(sumGiftCard.sum, sumPayment)));
+                                    } else if (typePayment == 3)
+                                        salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
+                                    else if(typePayment == 5) {
+                                        if(salesInfo.customPaymentMap == null)
+                                            salesInfo.customPaymentMap = new HashMap<>();
+                                        salesInfo.customPaymentMap.put(salaryPaymentType, HandlerUtils.safeAdd(salesInfo.customPaymentMap.get(oplatiPaymentType), sumPayment));
+                                    } else
+                                        salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
+
+                                }
                             }
                             break;
                         case 8: //Закрытие чека

@@ -26,6 +26,9 @@ public class EQSSettings implements Serializable{
     //По умолчанию - каждое задание выполняется в отдельном потоке.
     private int discountCardThreadCount;
 
+    //Коды признака оплаты кастомными типами платежей через запятую.
+    private String customPayments;
+
     public EQSSettings() {
     }
 
@@ -68,5 +71,13 @@ public class EQSSettings implements Serializable{
 
     public void setDiscountCardThreadCount(int discountCardThreadCount) {
         this.discountCardThreadCount = discountCardThreadCount;
+    }
+
+    public String getCustomPayments() {
+        return customPayments;
+    }
+
+    public void setCustomPayments(String customPayments) {
+        this.customPayments = customPayments;
     }
 }

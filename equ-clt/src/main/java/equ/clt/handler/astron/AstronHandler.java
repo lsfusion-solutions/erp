@@ -1504,17 +1504,4 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return "SALESREFUND";
     }
 
-    private Set<Integer> parsePayments(String payments) {
-        Set<Integer> paymentsSet = new HashSet<>();
-        try {
-            if (payments != null && !payments.isEmpty()) {
-                for (String payment : payments.split(",")) {
-                    paymentsSet.add(Integer.parseInt(payment.trim()));
-                }
-            }
-        } catch (Exception e) {
-            sendSalesLogger.error(logPrefix + "invalid payment settings: " + payments);
-        }
-        return paymentsSet;
-    }
 }
