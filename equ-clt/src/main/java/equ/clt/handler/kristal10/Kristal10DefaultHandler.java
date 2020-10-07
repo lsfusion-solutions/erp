@@ -276,6 +276,20 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return  cashRegister;
     }
 
+    protected Set<String> parseStringPayments(String payments) {
+        Set<String> paymentsSet = new HashSet<>();
+        try {
+            if (payments != null && !payments.isEmpty()) {
+                for (String payment : payments.split(",")) {
+                    paymentsSet.add(payment.trim());
+                }
+            }
+        } catch (Exception e) {
+            sendSalesLogger.error("invalid payment settings: " + payments);
+        }
+        return paymentsSet;
+    }
+
     public class DeleteBarcode {
         Integer nppGroupMachinery;
         String directory;

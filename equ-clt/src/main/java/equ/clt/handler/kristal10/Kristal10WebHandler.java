@@ -940,6 +940,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         if(giftCardRegexp == null)
             giftCardRegexp = "(?!666)\\d{3}";
         boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
+        Set<String> customPayments = kristalSettings == null ? new HashSet<>() : parseStringPayments(kristalSettings.getCustomPayments());
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
@@ -998,59 +999,63 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     if (paymentType != null) {
                         BigDecimal sum = readBigDecimalXMLAttribute(paymentEntryNode, "amount");
                         sum = (sum != null && !isSale) ? sum.negate() : sum;
-                        switch (paymentType) {
-                            case "CashPaymentEntity":
-                                sumCash = HandlerUtils.safeAdd(sumCash, sum);
-                                break;
-                            case "CashChangePaymentEntity":
-                                sumCash = HandlerUtils.safeSubtract(sumCash, sum);
-                                break;
-                            case "ExternalBankTerminalPaymentEntity":
-                            case "BankCardPaymentEntity":
-                                sumCard = HandlerUtils.safeAdd(sumCard, sum);
-                                break;
-                            case "GiftCardPaymentEntity": {
-                                List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
-                                boolean found = false;
-                                String giftCardNumber = null;
-                                BigDecimal giftCardPrice = null;
-                                for(Element pluginProperty : pluginProperties) {
-                                    String keyPluginProperty = pluginProperty.getAttributeValue("key");
-                                    String valuePluginProperty = pluginProperty.getAttributeValue("value");
-                                    if(notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
-                                        if (keyPluginProperty.equals("card.number")) {
-                                            giftCardNumber = valuePluginProperty;
-                                            found = true;
-                                        } else if(keyPluginProperty.equals("card.amount")) {
-                                            giftCardPrice = new BigDecimal(valuePluginProperty);
+                        if(customPayments.contains(paymentType)) {
+                            customPaymentMap.put(paymentType, HandlerUtils.safeAdd(customPaymentMap.get(paymentType), sum));
+                        } else {
+                            switch (paymentType) {
+                                case "CashPaymentEntity":
+                                    sumCash = HandlerUtils.safeAdd(sumCash, sum);
+                                    break;
+                                case "CashChangePaymentEntity":
+                                    sumCash = HandlerUtils.safeSubtract(sumCash, sum);
+                                    break;
+                                case "ExternalBankTerminalPaymentEntity":
+                                case "BankCardPaymentEntity":
+                                    sumCard = HandlerUtils.safeAdd(sumCard, sum);
+                                    break;
+                                case "GiftCardPaymentEntity": {
+                                    List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
+                                    boolean found = false;
+                                    String giftCardNumber = null;
+                                    BigDecimal giftCardPrice = null;
+                                    for(Element pluginProperty : pluginProperties) {
+                                        String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                                        String valuePluginProperty = pluginProperty.getAttributeValue("value");
+                                        if(notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
+                                            if (keyPluginProperty.equals("card.number")) {
+                                                giftCardNumber = valuePluginProperty;
+                                                found = true;
+                                            } else if(keyPluginProperty.equals("card.amount")) {
+                                                giftCardPrice = new BigDecimal(valuePluginProperty);
+                                            }
                                         }
                                     }
+                                    if(found) {
+                                        sumGiftCardMap.put(giftCardNumber, new GiftCard(sum, giftCardPrice));
+                                    } else
+                                        sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
+                                    break;
                                 }
-                                if(found) {
-                                    sumGiftCardMap.put(giftCardNumber, new GiftCard(sum, giftCardPrice));
-                                } else
-                                    sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
-                                break;
-                            }
-                            case "BonusCardPaymentEntity": {
-                                List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
-                                String giftCardNumber = null;
-                                for (Element pluginProperty : pluginProperties) {
-                                    String keyPluginProperty = pluginProperty.getAttributeValue("key");
-                                    String valuePluginProperty = pluginProperty.getAttributeValue("value");
-                                    if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
-                                        if (keyPluginProperty.equals("card.number")) {
-                                            giftCardNumber = valuePluginProperty;
+                                case "BonusCardPaymentEntity": {
+                                    List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
+                                    String giftCardNumber = null;
+                                    for (Element pluginProperty : pluginProperties) {
+                                        String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                                        String valuePluginProperty = pluginProperty.getAttributeValue("value");
+                                        if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
+                                            if (keyPluginProperty.equals("card.number")) {
+                                                giftCardNumber = valuePluginProperty;
+                                            }
                                         }
                                     }
+                                    if (giftCardNumber != null) {
+                                        sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
+                                    } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
+                                    break;
                                 }
-                                if (giftCardNumber != null) {
-                                    sumGiftCardMap.put(giftCardNumber, new GiftCard(sum));
-                                } else sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
-                                break;
-                            }
-                            case "by.lwo.oplati.payment": {
-                                customPaymentMap.put(oplatiPaymentType, HandlerUtils.safeAdd(customPaymentMap.get(oplatiPaymentType), sum));
+                                case "by.lwo.oplati.payment": {
+                                    customPaymentMap.put(oplatiPaymentType, HandlerUtils.safeAdd(customPaymentMap.get(oplatiPaymentType), sum));
+                                }
                             }
                         }
                     }

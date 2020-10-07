@@ -103,6 +103,9 @@ public class Kristal10Settings implements Serializable{
     private String sftpDepartmentStores;
     private List<String> sftpDepartmentStoresList = new ArrayList<>();
 
+    //Коды признака оплаты кастомными типами платежей через запятую.
+    private String customPayments;
+
     public Kristal10Settings() {
     }
 
@@ -318,5 +321,13 @@ public class Kristal10Settings implements Serializable{
     public void setSftpDepartmentStores(String sftpDepartmentStores) {
         this.sftpDepartmentStores = sftpDepartmentStores;
         this.sftpDepartmentStoresList.addAll(Arrays.asList(sftpDepartmentStores.split(",\\s?")));
+    }
+
+    public String getCustomPayments() {
+        return customPayments;
+    }
+
+    public void setCustomPayments(String customPayments) {
+        this.customPayments = customPayments;
     }
 }
