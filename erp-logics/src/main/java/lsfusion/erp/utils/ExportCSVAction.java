@@ -134,9 +134,12 @@ public abstract class ExportCSVAction extends DefaultExportAction {
                 String headerString = "";
                 ImList propertyDrawsList = formEntity.getPropertyDrawsList();
                 for (int i = 0; i < propertyDrawsList.size(); i++) {
-                    PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                    if (instance.toDraw != null) {
-                        headerString += instance.getValueProperty().property.caption.toString() + separator;
+                    PropertyDrawEntity property = (PropertyDrawEntity) propertyDrawsList.get(i);
+                    if(!isVirtualProperty(property)) {
+                        PropertyDrawInstance instance = property.getInstance(formInstance.instanceFactory);
+                        if (instance.toDraw != null) {
+                            headerString += instance.getValueProperty().property.caption.toString() + separator;
+                        }
                     }
                 }
                 headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
@@ -161,5 +164,10 @@ public abstract class ExportCSVAction extends DefaultExportAction {
 
     protected boolean checkDirectory(String directory) {
         return directory != null && (directory.startsWith("ftp://") || new File(directory).exists());
+    }
+
+    private boolean isVirtualProperty(PropertyDrawEntity property) {
+        String sid = property.getSID();
+        return sid != null && sid.equals("count()");
     }
 }

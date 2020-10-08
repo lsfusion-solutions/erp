@@ -86,14 +86,17 @@ abstract class ExportSQLAction extends InternalAction {
                     Map<String, Object> keysRow = new HashMap<>();
                     ImList propertyDrawsList = formEntity.getPropertyDrawsList();
                     for (int i = 0; i < propertyDrawsList.size(); i++) {
-                        PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
-                        if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
-                            Object value = formRow.values.get(instance);
-                            row.add(value);
-                            if (first)
-                                columnNames.add(instance.getsID());
-                            if (keyColumns.contains(instance.getsID()))
-                                keysRow.put(instance.getsID(), value);
+                        PropertyDrawEntity property = (PropertyDrawEntity) propertyDrawsList.get(i);
+                        if(!isVirtualProperty(property)) {
+                            PropertyDrawInstance instance = property.getInstance(formInstance.instanceFactory);
+                            if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
+                                Object value = formRow.values.get(instance);
+                                row.add(value);
+                                if (first)
+                                    columnNames.add(instance.getsID());
+                                if (keyColumns.contains(instance.getsID()))
+                                    keysRow.put(instance.getsID(), value);
+                            }
                         }
                     }
                     rows.add(row);
@@ -184,5 +187,10 @@ abstract class ExportSQLAction extends InternalAction {
             if (conn != null)
                 conn.close();
         }
+    }
+
+    private boolean isVirtualProperty(PropertyDrawEntity property) {
+        String sid = property.getSID();
+        return sid != null && sid.equals("count()");
     }
 }
