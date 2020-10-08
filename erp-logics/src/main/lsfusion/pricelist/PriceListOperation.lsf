@@ -369,11 +369,13 @@ closePriceLists 'Исключить прайсы с компанией из ре
                 AND NOT exclude(d)  ORDER fromDateTime(d), d DO {
             
             LOCAL notSkip = BOOLEAN ();
-            FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
-                IF prevPriceListLedgerA(t, sku(d), s, company(d), currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
-                    notSkip() <- TRUE;
-                    logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
-                    BREAK;
+            IF active(sku(d)) THEN {
+                FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
+                    IF prevPriceListLedgerA(t, sku(d), s, company(d), currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, company(d), 2040_01_01_00:00) == d THEN {
+                        notSkip() <- TRUE;
+                        logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), company(d), idBarcodeSku(d), name(s), name(t));
+                        BREAK;
+                    }
                 }
             }
             
@@ -400,11 +402,13 @@ closePriceListsNotCompany 'Исключить прайсы без компани
                 AND NOT exclude(d)  ORDER d DO {
             
             LOCAL notSkip = BOOLEAN ();
-            FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
-                IF prevPriceListLedgerB(t, sku(d), s, currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, 2040_01_01_00:00) == d THEN {
-                    notSkip() <- TRUE;
-                    logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), idBarcodeSku(d), name(s), name(t));
-                    BREAK;
+            IF active(sku(d)) THEN {
+                FOR in(userPriceList(d), Stock s) AND active(s) AND in(d, DataPriceListType t) DO {
+                    IF prevPriceListLedgerB(t, sku(d), s, currentDateTime()) == d OR prevPriceListLedgerA(t, sku(d), s, 2040_01_01_00:00) == d THEN {
+                        notSkip() <- TRUE;
+                        logToFile('closePriceList', CONCAT '-', 'SKIP', date(d), number(d), idBarcodeSku(d), name(s), name(t));
+                        BREAK;
+                    }
                 }
             }
             
