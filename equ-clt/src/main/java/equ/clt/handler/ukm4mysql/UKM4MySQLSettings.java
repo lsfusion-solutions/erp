@@ -71,6 +71,9 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то idEmployee = store + "_" + user_id; иначе = user_id
     private boolean useStoreInIdEmployee;
 
+    //если true, для идентификации кассы вместо cash_id используем cash_number
+    private boolean useCashNumberInsteadOfCashId;
+
 
     public UKM4MySQLSettings() {
     }
@@ -244,5 +247,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUseStoreInIdEmployee(boolean useStoreInIdEmployee) {
         this.useStoreInIdEmployee = useStoreInIdEmployee;
+    }
+
+    public boolean isUseCashNumberInsteadOfCashId() {
+        return useCashNumberInsteadOfCashId;
+    }
+
+    public void setUseCashNumberInsteadOfCashId(boolean useCashNumberInsteadOfCashId) {
+        this.useCashNumberInsteadOfCashId = useCashNumberInsteadOfCashId;
     }
 }

@@ -1026,6 +1026,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         boolean cashRegisterByStoreAndNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isCashRegisterByStoreAndNumber();
         boolean useLocalNumber = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseLocalNumber();
         boolean useStoreInIdEmployee = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseStoreInIdEmployee();
+        boolean useCashNumberInsteadOfCashId = ukm4MySQLSettings != null && ukm4MySQLSettings.isUseCashNumberInsteadOfCashId();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
@@ -1057,7 +1058,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
-                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, directory);
+                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, directory);
 
                 } finally {
                     if (conn != null)
@@ -1172,7 +1173,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
-                                                     boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee, String directory) {
+                                                     boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee,
+                                                     boolean useCashNumberInsteadOfCashId, String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1195,11 +1197,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             int rowCount = 0;
             while (rs.next()) {
 
-                //Integer nppMachinery = rs.getInt(2); //i.cash_number
-
                 String store = rs.getString(1); //i.store = при выгрузке цен выгружаем section
+                Integer cash_number = rs.getInt(2); //i.cash_number
                 Integer cash_id = rs.getInt(3); //i.cash_id
-                CashRegisterInfo cashRegister = machineryMap.get(getMachineryKey(store, cash_id, cashRegisterByStoreAndNumber));
+                CashRegisterInfo cashRegister = machineryMap.get(getMachineryKey(store, useCashNumberInsteadOfCashId ? cash_number : cash_id, cashRegisterByStoreAndNumber));
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                 //Integer id = rs.getInt(4); //i.id
