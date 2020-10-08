@@ -21,8 +21,8 @@ currenciesString (GroupCashRegister g) += WHEN isChameleon27(g) THEN GROUP CONCA
 typeExchange (Currency c) = GROUP AGGR TypeExchange t WHERE t IS TypeExchange BY currency(t);
 curRate (Currency f, Currency t) = NUMERIC[16,4](curRate(typeExchange(f), t));
 
-currencyExchangeString (Currency c) = 'SELECT system.import_front_currencies_exchange(' + sid(c) + ',' + centsString(100 * curRate(c, defaultCurrency())) + ',100,current_timestamp,true)' IF NOT c = defaultCurrency();
-currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon27(g) THEN CONCAT ';', (GROUP CONCAT currencyExchangeString(Currency c), ';' IF c IS Currency), 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,100,current_timestamp,true)';
+currencyExchangeString (Currency c) = 'SELECT system.import_front_currencies_exchange(' + sid(c) + ',' + centsString(curRate(c, defaultCurrency())) + ',100,current_timestamp,true)' IF NOT c = defaultCurrency();
+currenciesExchangeString (GroupCashRegister g) += WHEN isChameleon27(g) THEN CONCAT ';', (GROUP CONCAT currencyExchangeString(Currency c), ';' IF c IS Currency); //, 'SELECT system.import_front_currencies_exchange(' + sid(defaultCurrency()) + ',100,100,current_timestamp,true)';
 
 // UA only
 taxString (GroupCashRegister g) += WHEN isChameleon27(g) THEN 'SELECT system.import_front_group_tax(1,\'А\',true);' +
