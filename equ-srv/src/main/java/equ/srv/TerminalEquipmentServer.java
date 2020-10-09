@@ -7,7 +7,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.erp.integration.Employee;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -35,7 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class TerminalEquipmentServer {
@@ -145,32 +143,32 @@ public class TerminalEquipmentServer {
             DataObject currentDateTimeObject = new DataObject(LocalDateTime.now(), DateTimeClass.instance);
 
             KeyExpr skuExpr = new KeyExpr("Sku");
-            KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
-            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "LegalEntity", legalEntityExpr);
+            KeyExpr supplierExpr = new KeyExpr("Stock");
+            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "Stock", supplierExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             if (terminalHandlerLM != null) {
-                query.addProperty("filterAssortment", terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
-                query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
-                query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
-                query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr));
+                query.addProperty("filterAssortment", terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
+                query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
+                query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
+                query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr));
             } else
-                query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                        skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
+                query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+                        skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()));
             query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
-            query.addProperty("idLegalEntity", machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
+            query.addProperty("idSupplier", machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr));
 
-            query.and(machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
+            query.and(machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
             query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
             if (terminalHandlerLM != null) {
-                query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,LegalEntity]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr).getWhere());
+                query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock]").getExpr(skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr).getWhere());
             } else
-                query.and(machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
-                    skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
+                query.and(machineryPriceTransactionLM.findProperty("Machinery.priceA[LedgerPriceListType,Sku,Stock,Stock,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+                    skuExpr, stockGroupMachineryObject.getExpr(), supplierExpr, currentDateTimeObject.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
-                String idLegalEntity = trim((String) entry.get("idLegalEntity"));
+                String idSupplier = trim((String) entry.get("idSupplier"));
                 BigDecimal price;
                 if (terminalHandlerLM != null)
                     price = (BigDecimal) entry.get("price");
@@ -183,7 +181,7 @@ public class TerminalEquipmentServer {
                     minPrice = (BigDecimal) entry.get("minPrice");
                     maxPrice = (BigDecimal) entry.get("maxPrice");
                 }
-                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idLegalEntity, price, minPrice, maxPrice));
+                terminalAssortmentList.add(new TerminalAssortment(idBarcodeSku, idSupplier, price, minPrice, maxPrice));
             }
         }
         return terminalAssortmentList;
