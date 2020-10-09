@@ -9,6 +9,7 @@ import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.DefaultScalesHandler;
 import equ.clt.handler.HandlerUtils;
+import equ.clt.handler.ScalesSettings;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -42,6 +43,9 @@ public class CL5000JHandler extends DefaultScalesHandler {
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+
+        ScalesSettings settings = springContext.containsBean("CL5000JSettings") ? (ScalesSettings) springContext.getBean("CL5000JSettings") : null;
+        int priceMultiplier = settings == null || settings.getPriceMultiplier() == null ? 100 : settings.getPriceMultiplier();
 
         if (transactionList.isEmpty()) {
             processTransactionLogger.error(getLogPrefix() + "Empty transaction list!");
@@ -90,7 +94,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
                                         //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
                                         BigDecimal extraPercent = null;//item.extraPercent;
                                         int reply = sendItem(socket, item, weightCode, pluNumber, barcode, item.name,
-                                        item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue(),
+                                        item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
                                                 HandlerUtils.trim(item.description, null, descriptionLength - 1), extraPercent);
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));

@@ -12,6 +12,7 @@ public class ScalesSettings implements Serializable{
     private Integer advancedClearMaxPLU;
     private boolean notInvertPrices; //временная опция для BizerbaBS
     private Integer descriptionLineLength;
+    private Integer priceMultiplier;
 
     public ScalesSettings() {}
 
@@ -86,5 +87,13 @@ public class ScalesSettings implements Serializable{
 
     public void setDescriptionLineLength(Integer descriptionLineLength) {
         this.descriptionLineLength = descriptionLineLength;
+    }
+
+    public Integer getPriceMultiplier() {
+        return priceMultiplier;
+    }
+
+    public void setPriceMultiplier(Integer priceMultiplier) {
+        this.priceMultiplier = priceMultiplier;
     }
 }
