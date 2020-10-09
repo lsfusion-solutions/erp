@@ -22,9 +22,11 @@ class StopListEquipmentServer {
         List<StopListInfo> stopListInfoList = remote.readStopListInfo();
         for (StopListInfo stopListInfo : stopListInfoList) {
             boolean succeeded = true;
+            processStopListLogger.info("Start sending stop-list # " + stopListInfo.number);
             for (Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
                 Set<MachineryInfo> machineryInfoSet = entry.getValue();
                 try {
+                    processStopListLogger.info("Sending stop-list to " + entry.getKey());
                     Object clsHandler = EquipmentServer.getHandler(entry.getKey(), remote);
                     if (clsHandler instanceof CashRegisterHandler)
                         ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(machineryInfoSet));
