@@ -72,6 +72,7 @@ atcString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 returnExchange = DATA LOCAL BOOLEAN (GroupCashRegister);
 
 exchangeChameleon (GroupCashRegister g, STRING q) {
+    exportFile() <- NULL;
     IF NOT returnExchange(g) AND directory(g) AND isChameleon(g) THEN {
         System.messageCaughtException() <- NULL;
         TRY {
@@ -160,13 +161,55 @@ employee (LONG id) = GROUP LAST Employee e AS Employee ORDER e BY LONG(e);
 sku (LONG id) = GROUP LAST Sku s AS Sku ORDER s BY LONG(s);
 batch (LONG id) = GROUP LAST Batch b AS Batch ORDER b BY LONG(b);
 
+@defineStaticObject(chameleonPaymentType, 'Тип оплаты Chameleon');
+
+EXTEND CLASS ChameleonPaymentType {
+    cash 'Наличные',
+    card 'Карта',
+    certificate 'Сертификат',
+    check 'Чек',
+    credit 'Кредит',
+    deposit 'Депозит',
+    points 'Баллы',
+    tksMoney 'ТКС',
+    transfer 'Перевод'
+}
+
+chameleonPaymentType 'Тип оплаты Chameleon' (ISTRING s) = GROUP AGGR ChameleonPaymentType t BY shortStaticName(t);
+
+chameleonPaymentType 'Тип оплаты Chameleon' = DATA ChameleonPaymentType (PaymentType);
+nameChameleonPaymentType 'Тип оплаты Chameleon' (PaymentType t) = name(chameleonPaymentType(t)); 
+
+paymentType 'Тип оплаты' (ChameleonPaymentType t) = GROUP AGGR PaymentType pt BY chameleonPaymentType(pt);
+
+EXTEND FORM paymentType PROPERTIES nameChameleonPaymentType(pt);
+
+paymentType(ISTRING s) = OVERRIDE paymentType(chameleonPaymentType(s)), typePaymentSID(BPISTRING[10](s));
+
+getPayments (Receipt r, LONG rid) {
+    LOCAL type = ISTRING (INTEGER);
+    LOCAL sum = INTEGER (INTEGER);
+    IF isChameleon(groupCashRegister(cashRegister(r))) AND rid THEN {
+        
+        exchangeChameleon(groupCashRegister(cashRegister(r)),
+            'select keys as type,abs(cast(val as integer)) as sum from (select id_check,skeys(attrs) as keys,svals(attrs) as val from sales.checks) AS attrs where keys in (' + (GROUP CONCAT '\'' + shortStaticName(ChameleonPaymentType t) + '\'', ',' IF t IS ChameleonPaymentType) + ') and id_check=' + STRING(rid)
+        );
+        IMPORT FROM exportFile() TO type, sum;
+        FOR imported(INTEGER i) AND PaymentType pt = paymentType(type(i)) DO NEW  p = Payment {
+            receipt(p) <- r;
+            paymentType(p) <- pt;
+            sum(p) <- NUMERIC[18,4](sum(i)) / 100;
+        }
+    }
+}
+
 receiveFromChameleon(GroupCashRegister g) {
     IF isChameleon(g) THEN {
-        exportFile() <- NULL;
         exchangeChameleon(g,'select id_check, id_workplace, id_fcheck from sales.checks where type_payment < 1000');
         IMPORT FROM exportFile() TO idReceipt = id_check, receiptNumber = id_fcheck, idCashRegister = id_workplace;
         NEWSESSION NESTED LOCAL {
             LOCAL localReceiptNumberString = STRING();
+            LOCAL idCheck = LONG (INTEGER);
             LOCAL number = INTEGER (INTEGER);
             LOCAL idCashRegister = INTEGER (INTEGER);
             LOCAL dateTime = DATETIME (INTEGER);
@@ -179,8 +222,8 @@ receiveFromChameleon(GroupCashRegister g) {
             LOCAL price = INTEGER (INTEGER);
             LOCAL idTypePayment = INTEGER (INTEGER);
             LOCAL idBatch = STRING (INTEGER);
+            LOCAL idBarcode = STRING (INTEGER);
             localReceiptNumberString() <- receiptNumberString();
-            exportFile() <- NULL;
             exchangeChameleon(g,
                 'select id_workplace, id_session, max(time_change) as time_change from sales.checks where id_check in(' + localReceiptNumberString() + ') group by id_workplace, id_session'
             );
@@ -197,46 +240,44 @@ receiveFromChameleon(GroupCashRegister g) {
                 date(zReport(cashRegister(idCashRegister(i)), STRING(number(i)))) <- DATE(dateTime(i));
                 time(zReport(cashRegister(idCashRegister(i)), STRING(number(i)))) <- TIME(dateTime(i));
             }
-            exportFile() <- NULL;
             exchangeChameleon(g,
-                'select id_workplace,id_session,id_fcheck,time_check,id_employee,type_payment,sum_check from sales.checks where id_check in(' + localReceiptNumberString() + ')'
+                'select id_check,id_workplace,id_session,id_fcheck,time_check,id_employee,type_payment,sum_check from sales.checks where id_check in(' + localReceiptNumberString() + ')'
             );
             imported(INTEGER i) <- NULL;
-            IMPORT FROM exportFile() TO number = id_fcheck, dateTime = time_check, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, idTypePayment = type_payment, summ = sum_check;
+            IMPORT FROM exportFile() TO idCheck = id_check, number = id_fcheck, dateTime = time_check, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, idTypePayment = type_payment, summ = sum_check;
             FOR imported(INTEGER i) AND zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))) DO NEW r = Receipt {
                 number(r) <- number(i);
                 date(r) <- DATE(dateTime(i));
                 time(r) <- TIME(dateTime(i));
                 employee(r) <- employee(idCashMan(i));
                 zReport(r) <- zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i)));
-                NEW p = Payment {
-                    receipt(p) <- r;
-                    paymentType(p) <- typePaymentSID(BPISTRING(idTypePayment(i)));
-                    sum(p) <- abs(NUMERIC[18,4](summ(i)) / 100);
-                }
+                getPayments(r, idCheck(i));
             }
-            exportFile() <- NULL;
             exchangeChameleon(g,
-                'select sales.checks.id_workplace,quantity,price,discount,summ,id_goods,id_series,id_session,id_fcheck from sales.check_lines, sales.checks where sales.checks.id_check = sales.check_lines.id_check and sales.check_lines.id_check in(' + localReceiptNumberString() + ')'
+                'select sales.checks.id_workplace,quantity,price,discount,summ,id_goods,id_series,id_session,id_fcheck,sales.check_lines.attrs->\'barcode\' as barcode from sales.check_lines, sales.checks where sales.checks.id_check = sales.check_lines.id_check and sales.check_lines.id_check in(' + localReceiptNumberString() + ')'
             );
             imported(INTEGER i) <- NULL;
-            IMPORT FROM exportFile() TO number = id_fcheck, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, summ, quantity, discount, price, idSku = id_goods, idBatch = id_series;
-            FOR imported(INTEGER i) AND receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
-                receipt(d) <- receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i));
+            IMPORT FROM exportFile() TO
+                number = id_fcheck, idCashRegister = id_workplace, idCashMan = id_employee, numberZReport = id_session, summ, quantity, discount, price, idSku = id_goods, idBatch = id_series, idBarcode = barcode;
+            FOR imported(INTEGER i) AND Receipt r = receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) > 0 DO NEW d = ReceiptSaleDetail {
+                receipt(d) <- r;
                 sku(d) <- sku(idSku(i));
                 batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- quantity(i);
                 sum(d) <- NUMERIC[18,4](summ(i)) / 100;
-                discountSum(d) <-NUMERIC[18,4](discount(i)) / 100;     
+                discountSum(d) <-NUMERIC[18,4](discount(i)) / 100;
+                idBarcode(d) <- idBarcode(i);
             }
-            FOR imported(INTEGER i) AND receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) < 0 DO NEW d = ReceiptReturnDetail {
-                receipt(d) <- receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i));
+            FOR imported(INTEGER i) AND Receipt r = receipt(zReport(cashRegister(idCashRegister(i)), STRING(numberZReport(i))), number(i)) AND summ(i) < 0 DO NEW d = ReceiptReturnDetail {
+                receipt(d) <- r;
                 sku(d) <- sku(idSku(i));
+                batch[DocumentDetail](d) <- batch(LONG(idBatch(i)));
                 price(d) <- NUMERIC[16,4](price(i)) / 100;
                 quantity(d) <- quantity(i);
                 sum(d) <- NUMERIC[18,4](summ(i)) / 100;
-                discountSum(d) <- NUMERIC[18,4](discount(i)) / 100;     
+                discountSum(d) <- NUMERIC[18,4](discount(i)) / 100;
+                idBarcode(d) <- idBarcode(i);     
             }
             APPLY;
         }

@@ -75,7 +75,7 @@ batchesString (MachineryPriceTransaction t, Sku s) = IF NOT explicitBatchLedger(
 ;
 batchesString (MachineryPriceTransaction t) += WHEN  isChameleon27(groupMachinery(t)) THEN GROUP CONCAT batchesString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s; 
 
-uomString (MachineryPriceTransaction t, Barcode b) = 'SELECT system.import_front_unit(' + UOM(idUOM(t, b)) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(t, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF split(t,b) THEN ',2' ELSE (IF passScales(b) THEN ',3' ELSE ',1')) + ',null,true,0,0)';
+uomString (MachineryPriceTransaction t, Barcode b) = 'SELECT system.import_front_unit(' + UOM(idUOM(t, b)) + ',' + STRING(sku(b)) + ',\'' + escape(ISTRING[10](shortNameUOM(t, b))) + '\',' + trueFalse(primary(b)) + ',' + amount(b) + (IF passScales(b) THEN ',3' ELSE (IF split(t,b) THEN ',2' ELSE ',1')) + ',null,true,0,0)';
 uomsString (MachineryPriceTransaction t) += WHEN isChameleon27(groupMachinery(t)) THEN GROUP CONCAT uomString(t, Barcode b), ';' IF in(t, b) ORDER t, b;
 
 priceString (MachineryPriceTransaction t, Barcode b, Batch btch) = 'SELECT system.import_front_price(' + STRING(sku(b)) + ',' + UOM(idUOM(t, b)) + ',\'' + STRING(btch) + '\',' + STRING(stock(t)) + ',' + centsString(price(t, b)) + ',' + centsString(minPrice(t, b)) + ',' + centsString(price(t, b)) + ',true)'; 
