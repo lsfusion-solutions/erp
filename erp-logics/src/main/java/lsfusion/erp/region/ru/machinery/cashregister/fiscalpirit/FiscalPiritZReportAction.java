@@ -26,7 +26,7 @@ public class FiscalPiritZReportAction extends InternalAction {
             boolean isUnix = findProperty("isUnix[]").read(context) != null;
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-            String cashier = (String) findProperty("currentUserName[]").read(context);
+            String cashier = (String) findProperty("userName[]").read(context);
 
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 2));
