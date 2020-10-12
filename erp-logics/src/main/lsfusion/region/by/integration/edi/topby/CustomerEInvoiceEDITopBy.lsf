@@ -136,7 +136,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 isCancel() <- TRUE IF blrwblFunctionCode() == '1';
                 IF eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) THEN {
                     importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
-                    isCancel(EInvoice ei) <- isCancel() WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                    IF isCancel() THEN {
+                        isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                        exportedCustomer(EInvoice ei) <- NULL WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                    }
                 } ELSE NEW ei = EInvoice {
                     importedCustomer(ei) <- TRUE;
                     id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
@@ -382,7 +385,10 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                 isCancel() <- TRUE IF blrdlnFunctionCode() == '1';
                 IF eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) THEN {
                     importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
-                    isCancel(EInvoice ei) <- isCancel() WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                    IF isCancel() THEN {
+                        isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                        exportedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                    }
                 } ELSE NEW ei = EInvoice {
                     importedCustomer(ei) <- TRUE;
                     isTN2(ei) <- TRUE;
