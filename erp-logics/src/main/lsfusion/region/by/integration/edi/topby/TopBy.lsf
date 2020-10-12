@@ -470,7 +470,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                                 WHEN documentType() == 'BLRWBR' THEN EInvoiceMessageType.systemmessage_blrwbr
                                 WHEN documentType() == 'BLRDLN' THEN EInvoiceMessageType.systemmessage_blrdln
                                 WHEN documentType() == 'BLRDNR' THEN EInvoiceMessageType.systemmessage_blrdnr;
-                            IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr AND NOT description(m) == 'Электронная накладная была отменена.' THEN {
+                            IF code(m) >= '1350' AND type(m) == EInvoiceMessageType.systemmessage_blrwbr 
+                                AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice())  THEN {
+                                 //подверждение уже приходило, не трогаем больше
                                 exportedCustomer(eInvoice(m)) <- NULL;
                             }
                             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
@@ -770,15 +772,16 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
                             dateTime(m) <- blrapnDateTime();
                             code(m) <- belrapnCode();
                             description(m) <- OVERRIDE belrapnDescription(), description(belrapnCode());
-                            IF code(m) == '2570' AND NOT description(m) == 'Электронная накладная была отменена.' THEN {
-                                exportedCustomer(eInvoice(m)) <- NULL;
-                            }
                             type(m) <- CASE
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrapn' THEN EInvoiceMessageType.blrapn_blrapn
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrwbr' THEN EInvoiceMessageType.blrapn_blrwbr
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrwbl' THEN EInvoiceMessageType.blrapn_blrwbl
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrdnr' THEN EInvoiceMessageType.blrapn_blrdnr
                                 WHEN lower(blrapnReferenceDocumentType()) == 'blrdln' THEN EInvoiceMessageType.blrapn_blrdln;
+                            IF code(m) == '2570'  AND type(m) == EInvoiceMessageType.blrapn_blrwbr 
+                                AND NOT (GROUP SUM 1 IF type(EInvoiceMessage em) == EInvoiceMessageType.blrapn_blrwbr AND code(em) == '2550' AND eInvoice(em) == eInvoice()) THEN {
+                                exportedCustomer(eInvoice(m)) <- NULL;
+                            }
                             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             APPLY NESTED LOCAL;
                             IF canceled() THEN {
