@@ -175,7 +175,7 @@ EXTEND CLASS ChameleonPaymentType {
     transfer 'Перевод'
 }
 
-chameleonPaymentType 'Тип оплаты Chameleon' (ISTRING s) = GROUP AGGR ChameleonPaymentType t BY shortStaticName(t);
+chameleonPaymentType 'Тип оплаты Chameleon' (ISTRING s) = GROUP AGGR ChameleonPaymentType t BY shortStaticNameChameleon(t);
 
 chameleonPaymentType 'Тип оплаты Chameleon' = DATA ChameleonPaymentType (PaymentType);
 nameChameleonPaymentType 'Тип оплаты Chameleon' (PaymentType t) = name(chameleonPaymentType(t)); 
@@ -192,7 +192,7 @@ getPayments (Receipt r, LONG rid) {
     IF isChameleon(groupCashRegister(cashRegister(r))) AND rid THEN {
         
         exchangeChameleon(groupCashRegister(cashRegister(r)),
-            'select keys as type,abs(cast(val as integer)) as sum from (select id_check,skeys(attrs) as keys,svals(attrs) as val from sales.checks) AS attrs where keys in (' + (GROUP CONCAT '\'' + shortStaticName(ChameleonPaymentType t) + '\'', ',' IF t IS ChameleonPaymentType) + ') and id_check=' + STRING(rid)
+            'select keys as type,abs(cast(val as integer)) as sum from (select id_check,skeys(attrs) as keys,svals(attrs) as val from sales.checks) AS attrs where keys in (' + (GROUP CONCAT '\'' + shortStaticNameChameleon(ChameleonPaymentType t) + '\'', ',' IF t IS ChameleonPaymentType) + ') and id_check=' + STRING(rid)
         );
         IMPORT FROM exportFile() TO type, sum;
         FOR imported(INTEGER i) AND PaymentType pt = paymentType(type(i)) DO NEW  p = Payment {
