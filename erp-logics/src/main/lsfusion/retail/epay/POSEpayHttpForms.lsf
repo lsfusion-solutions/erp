@@ -112,7 +112,7 @@ errorMessage = DATA LOCAL TEXT ();
 errorEpay(JSONFILE f) {
     IF f THEN {
         IMPORT errorEpay JSON FROM f;
-        errorMessage() <- CONCAT '\n', 'Сервер вернул ошибку: ' + (OVERRIDE internalCode(), code()), (OVERRIDE lang_ru(), devMessage());
+        errorMessage() <- CONCAT '\n', 'Сервер вернул ошибку: ' + (OVERRIDE internalCode(), code()), (OVERRIDE lang_ru(), devMessage(), System.messageCaughtException());
     } ELSE {
         errorMessage() <- CONCAT ': ','Сервер вернул ошибку', statusHttp();
     }
@@ -262,17 +262,18 @@ setPaymentStatus(Payment p, JSONFILE f) {
         LOCAL paymentId = LONG ();
         LOCAL paymentType = INTEGER ();
         LOCAL sum = NUMERIC[10,2] ();
-        LOCAL createdDate = DATETIME ();
-        LOCAL paidDate = DATETIME ();
+//        LOCAL createdDate = DATETIME ();
+//        LOCAL paidDate = DATETIME ();
+        LOCAL createdDate = STRING ();
+        LOCAL paidDate = STRING ();
         LOCAL orderNumber = STRING ();
         LOCAL status = INTEGER ();
         LOCAL indexPaymentMode = INTEGER ();
-    
         IMPORT JSON FROM f TO () paymentId, indexPaymentMode = paymentType, sum, createdDate, paidDate, orderNumber, status;
         paymentId(p) <- paymentId();
         paymentMode(p) <- paymentMode(indexPaymentMode());
-        createdDate(p) <- createdDate();
-        paidDate(p) <- paidDate();
+        createdDate(p) <- DATETIME(createdDate());
+        paidDate(p) <- DATETIME(paidDate());
         currentStatusPayment() <- statusPayment(status());
         IF currentStatusPayment() = StatusPayment.inProgress THEN {
             setLastPayment(cashRegister(receipt(p)), STRING(p));
