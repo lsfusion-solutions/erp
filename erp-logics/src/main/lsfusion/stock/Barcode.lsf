@@ -192,7 +192,19 @@ FORM barcodeDialog 'Штрих-код'
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
 overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
-processedBarcode (STRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[15]; 
+processedBarcode (STRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[15];
+
+weightPrefix 'Префикс весового штрихкода' = DATA STRING[2]();
+overPreprocessedBarcode(STRING[15] barcode) += WHEN length(barcode AS STRING[15]) == 13 AND left(barcode, 2) == weightPrefix() THEN STRING[15](substr(barcode, 3, 5));
+
+EXTEND FORM options
+    PROPERTIES () weightPrefix
+;
+DESIGN options {
+    barcodeBox {
+        MOVE PROPERTY(weightPrefix());
+    }    
+}
 
 // ----------------------------------- Форма по вводу штрихкода ---------------------------- //
 
