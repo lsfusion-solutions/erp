@@ -242,32 +242,35 @@ NAVIGATOR {
         NEW invoices;
     }
 }
-
-CONSTRAINT  isPosted(UserInvoice i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
-    MESSAGE 'Для накладной (продажа) обязан быть задан договор';  
+   
+CONSTRAINT (CHANGED(isPosted(UserInvoice i)) OR CHANGED (operation(i)) OR CHANGED (contractSku(i))) AND isPosted(i) AND isContract(operation(i)) AND NOT contractSku(i) 
+    MESSAGE 'Для накладной (продажа) обязан быть задан договор';      
     
 disableShowBatch(Invoice i) += disableShowBatch(operation(i));
 
 skipSalePrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
-CONSTRAINT  isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d)
+CONSTRAINT (CHANGED(isPosted(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(price(d))) AND isPosted(d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d)
     MESSAGE 'Для строки накладная (продажа) должна быть задана цена'; 
+                    
+skipSaleBatch = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+CONSTRAINT (CHANGED(isPosted(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(sku(d)) OR CHANGED(batch(d))) AND
+    isPosted(d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) AND NOT skipSaleBatch(d)
+        MESSAGE 'Для строки накладной (продажа) должна быть задана партия'; 
     
-skipSaleBatch = ABSTRACT BOOLEAN (UserInvoiceDetail);
-CONSTRAINT isPosted(UserInvoiceDetail d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) AND NOT skipSaleBatch(d)
-    MESSAGE 'Для строки накладной (продажа) должна быть задана партия'; 
+CONSTRAINT (CHANGED(isPosted(Invoice i)) OR CHANGED(operation(i)) OR CHANGED(number(i))) AND 
+    isPosted(i) AND isCharLength(operation(i)) AND NOT (length(number(i)) == 7 AND onlyDigits(number(i)))
+        MESSAGE 'У накладной (продажа) номер должен состоять из семи цифр';
     
-CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (length(number(i)) == 7 AND onlyDigits(number(i)))
-    MESSAGE 'У накладной (продажа) номер должен состоять из семи цифр';
-    
-CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(invoiceSum(d) (-) sum(d) (-) VATSum(d)) > invoiceSumDeviation(operation(d)) 
-        AND (CHANGED(sum(d)) OR CHANGED (valueVAT(d)) OR CHANGED (invoiceSum(d)) OR CHANGED (isPosted(d))) 
+CONSTRAINT (CHANGED(sum(UserInvoiceDetail d)) OR CHANGED(VATSum(d)) OR CHANGED(invoiceSum(d)) OR CHANGED(operation(d)) OR CHANGED(isPosted(d))) AND
+    isPosted(d) AND abs(invoiceSum(d) (-) sum(d) (-) VATSum(d)) > invoiceSumDeviation(operation(d)) 
         MESSAGE 'Отклонение Суммы с НДС превышает допустимое';
 
-CONSTRAINT  isPosted(UserInvoiceDetail d) AND abs(sum(d) (-) (OVERRIDE quantity(d), 0.0) * (OVERRIDE price(d), 0.0)) > invoiceSumDeviation(operation(d)) 
-        AND (CHANGED(sum(d)) OR CHANGED (quantity(d)) OR CHANGED (price(d)) OR CHANGED (isPosted(d))) 
+CONSTRAINT (CHANGED(sum(UserInvoiceDetail d)) OR CHANGED (quantity(d)) OR CHANGED (price(d)) OR CHANGED(operation(d)) OR CHANGED (isPosted(d))) AND
+    isPosted(d) AND abs(sum(d) (-) (OVERRIDE quantity(d), 0.0) * (OVERRIDE price(d), 0.0)) > invoiceSumDeviation(operation(d)) 
         MESSAGE 'Отклонение Суммы превышает допустимое';
 
-CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(series(i))) AND isSeriesInvoices(operation(i)) AND isPosted(i) AND NOT series(i)
+CONSTRAINT (CHANGED(isPosted(UserInvoice i)) OR CHANGED(series(i)) OR CHANGED (operation(i))) AND isSeriesInvoices(operation(i)) AND isPosted(i) AND NOT series(i)
         MESSAGE 'Для накладной должна быть задана серия';
 
 @defineMergeDocumentDetails(invoice, userInvoice, i);

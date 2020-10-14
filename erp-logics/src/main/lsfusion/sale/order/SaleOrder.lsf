@@ -230,9 +230,11 @@ CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractS
     MESSAGE 'Для заказа (продажа) обязан быть задан договор';  
 disableShowBatch(Order o) += disableShowBatch(operation(o));
 skipSalePrice = ABSTRACT BOOLEAN (UserOrderDetail);
-CONSTRAINT  isPosted(UserOrderDetail d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d) 
+CONSTRAINT  (CHANGED(isPosted(UserOrderDetail d)) OR CHANGED (operation(d))OR CHANGED (price(d))) AND
+    isPosted(d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d) 
     MESSAGE 'Для строки заказа (продажа) должна быть задана цена';  
     
 skipSaleBatch = ABSTRACT VALUE BOOLEAN (UserOrderDetail);
-CONSTRAINT isPosted(UserOrderDetail d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) AND NOT skipSaleBatch(d)
+CONSTRAINT (CHANGED(isPosted(UserOrderDetail d)) OR CHANGED (operation(d)) OR CHANGED (sku(d)) OR CHANGED(batch(d)))  AND
+    isPosted(d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) AND NOT skipSaleBatch(d)
     MESSAGE 'Для строки заказа (продажа) должна быть задана партия'; 
