@@ -164,9 +164,12 @@ WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (calcValu
     purchaseRetailVATSum(d) <- round([ X*Y/(100+Y)](purchaseRetailSum(d), calcValuePurchaseRetailVAT(d)), currency(d));
 }
 
-WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (purchaseRetailVATSum(d)) OR CHANGED (sum(d)) OR SET(createPurchasePricing(d))) 
+purchasePricingSum = ABSTRACT VALUE NUMERIC[18,4] (UserInvoiceDetail);
+purchasePricingSum[UserInvoiceDetail](UserInvoiceDetail d) += sum(d);
+
+WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (purchaseRetailVATSum(d)) OR CHANGED (purchasePricingSum(d)) OR SET(createPurchasePricing(d))) 
             AND createPurchasePricing(d) DO {
-    purchaseRetailMarkupSum(d) <- purchaseRetailSum(d) (-) purchaseRetailVATSum (d) (-) sum(d);
+    purchaseRetailMarkupSum(d) <- purchaseRetailSum(d) (-) purchaseRetailVATSum (d) (-) purchasePricingSum(d);
 }
 
 //// Вид цены для акта расценки (закупка)
