@@ -159,7 +159,23 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         CONCAT name(Stock stock) IF in(blanketOrder, stock), ', '
         ORDER stock CHARWIDTH 20 MATERIALIZED;
 
-    @defineNumerated (blanketOrder, stock);
+    number '{numerator.number.numerator}' = DATA STRING[28] (BlanketOrder, Stock) CHARWIDTH 8;
+    series '{numerator.series.numerator}' = DATA BPSTRING[2] (BlanketOrder, Stock) CHARWIDTH 3 NOFLEX;
+    seriesNumber '{numerator.series.number.numerator}' (BlanketOrder blanketOrder, Stock stock) = CONCAT '', series(blanketOrder, stock), number(blanketOrder, stock) CHARWIDTH 8 MATERIALIZED;
+
+    numerator = DATA Numerator (BlanketOrder, Stock);
+    nameNumerator '{numerator.numerator}' (BlanketOrder blanketOrder, Stock stock) = name(numerator(blanketOrder, stock)) CHARWIDTH 7;
+
+    setValueSessionNumerated '{numerator.generate.number}'(BlanketOrder blanketOrder, Stock stock)  { 
+        number(blanketOrder, stock) <- curStringValue(numerator(blanketOrder, stock));
+        series(blanketOrder, stock) <- series(numerator(blanketOrder, stock));
+        EXEC incrementValueSession(numerator(blanketOrder, stock));
+    } ASON CONTEXTMENU number[BlanketOrder,Stock];
+
+    WHEN CHANGED(numerator(BlanketOrder blanketOrder, Stock stock)) AND
+         NOT CHANGED(number(blanketOrder, stock)) AND
+         NOT CHANGED(series(blanketOrder, stock))
+         DO EXEC setValueSessionNumerated(blanketOrder, stock);
 
     @defineMovementSku(blanketOrderDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
     @defineBalancesSku(blanketOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
