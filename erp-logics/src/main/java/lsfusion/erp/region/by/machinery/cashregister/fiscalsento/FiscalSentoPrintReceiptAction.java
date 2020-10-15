@@ -111,12 +111,14 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev("receiptDetail", receiptDetailExpr);
 
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
-                String[] receiptDetailNames = new String[]{"nameSkuReceiptDetail", "quantityReceiptSaleDetail",
-                        "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
+                String[] receiptDetailNames = new String[]{"typeReceiptDetail", "nameSkuReceiptDetail",
+                        "quantityReceiptDetail", "quantityReceiptSaleDetail", "quantityReceiptReturnDetail",
+                        "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                         "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail",
                         "skuReceiptDetail", "boardNameSkuReceiptDetail"};
-                LP<?>[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
-                        "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
+                LP<?>[] receiptDetailProperties = findProperties("type[ReceiptDetail]", "nameSku[ReceiptDetail]",
+                        "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]",
+                        "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]",
                         "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
@@ -131,11 +133,13 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
                 List<ReceiptItem> receiptReturnItemList = new ArrayList<>();
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
+                    String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
+                    Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
+
                     BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
-                    BigDecimal quantitySaleValue = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
-                    double quantitySale = quantitySaleValue == null ? 0.0 : quantitySaleValue.doubleValue();
-                    BigDecimal quantityReturnValue = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
-                    double quantityReturn = quantityReturnValue == null ? 0.0 : quantityReturnValue.doubleValue();
+                    double quantity = getDouble((BigDecimal) receiptDetailValues.get("quantityReceiptDetail"));
+                    double quantitySale = getDouble((BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail"));
+                    double quantityReturn = getDouble((BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail"));
                     String barcode = (String) receiptDetailValues.get("idBarcodeReceiptDetail");
                     if(barcode == null)
                         barcode = String.valueOf(receiptDetailValues.get("skuReceiptDetail"));
@@ -147,8 +151,10 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
                     String numberSection = (String) receiptDetailValues.get("numberSection");
-                    if (quantitySale > 0)
+                    if (quantitySale > 0 && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem( price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                    if (quantity > 0 && isGiftCard)
+                        receiptSaleItemList.add(new ReceiptItem( price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail, discountSumReceiptDetail, numberSection));
                     if (quantityReturn > 0)
                         receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                 }
@@ -179,5 +185,9 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
         if (operand1 == null && operand2 == null)
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    private double getDouble(BigDecimal value) {
+        return value == null ? 0.0 : value.doubleValue();
     }
 }
