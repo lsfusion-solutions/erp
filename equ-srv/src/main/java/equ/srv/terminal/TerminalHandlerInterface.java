@@ -34,5 +34,5 @@ public interface TerminalHandlerInterface {
 
     boolean isActiveTerminal(DataSession session, ExecutionStack stack, String idTerminal);
 
-    DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal);
+    Object login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal);
 }

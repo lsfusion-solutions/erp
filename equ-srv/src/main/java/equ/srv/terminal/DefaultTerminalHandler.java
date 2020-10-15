@@ -904,27 +904,31 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) {
+    public Object login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) {
         try {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
-                DataObject result = authenticated ? (DataObject) customUser : null;
-                if(result != null) {
-                    ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
-                    if(terminalObject instanceof DataObject) {
-                        terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(LocalDateTime.now(), session, (DataObject) terminalObject);
-                        terminalHandlerLM.findProperty("lastUser[Terminal]").change(result, session, (DataObject) terminalObject);
-                        String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
-                        if(applyMessage != null)
-                            ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));
+                if(authenticated) {
+                    if(terminalHandlerLM.findProperty("isLocked[CustomUser]").read(session, customUser) != null)
+                        return "Данный пользователь заблокирован";
+                    else {
+                        ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
+                        if (terminalObject instanceof DataObject) {
+                            terminalHandlerLM.findProperty("lastConnectionTime[Terminal]").change(LocalDateTime.now(), session, (DataObject) terminalObject);
+                            terminalHandlerLM.findProperty("lastUser[Terminal]").change(customUser, session, (DataObject) terminalObject);
+                            String applyMessage = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
+                            if (applyMessage != null)
+                                ServerLoggers.systemLogger.error(String.format("Terminal Login error: %s, login %s, terminal %s", applyMessage, login, idTerminal));
+                        }
+                        return customUser; //DataObject
                     }
                 }
-                return result;
-            } else return null;
 
+            }
+            return null;
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

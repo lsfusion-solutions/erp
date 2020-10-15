@@ -20,6 +20,7 @@ import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -294,14 +295,10 @@ public class TerminalServer extends MonitorServer {
         return result.split(escStr, -1);
     }
 
-    public String login(String login, String password, String idTerminal) throws SQLException {
-        DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
-        if (userObject != null) {
-            String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-            userMap.put(sessionId, new UserInfo(userObject, idTerminal));
-            return sessionId;
-        }
-        return null;
+    public String getSessionId(DataObject customUser, String login, String password, String idTerminal) {
+        String sessionId = String.valueOf((login + password + idTerminal).hashCode());
+        userMap.put(sessionId, new UserInfo(customUser, idTerminal));
+        return sessionId;
     }
 
     protected Object readItem(DataObject user, String barcode, String bin) throws SQLException {
@@ -367,8 +364,13 @@ public class TerminalServer extends MonitorServer {
                             if (params.length == 3) {
                                 logger.info("logging user " + params[0]);
                                 if (terminalHandlerInterface.isActiveTerminal(createSession(), getStack(), params[2])) {
-                                    result = login(params[0], params[1], params[2]);
-                                    if (result == null) {
+                                    Object loginResult = terminalHandlerInterface.login(createSession(), getStack(), params[0], params[1], params[2]);
+                                    if (loginResult instanceof DataObject) {
+                                        result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
+                                    } else if (loginResult instanceof String) {
+                                        errorCode = LOGIN_ERROR;
+                                        errorText = (String) loginResult;
+                                    } else {
                                         errorCode = LOGIN_ERROR;
                                         errorText = LOGIN_ERROR_TEXT;
                                     }
@@ -707,7 +709,7 @@ public class TerminalServer extends MonitorServer {
                             break;
                         case GET_PREFERENCES:
                             if (result != null) {
-                                byte[] bytes = result.getBytes("UTF8");
+                                byte[] bytes = result.getBytes(StandardCharsets.UTF_8);
                                 write(outToClient, String.valueOf(bytes.length));
                                 writeByte(outToClient, etx);
                                 write(outToClient, bytes);
