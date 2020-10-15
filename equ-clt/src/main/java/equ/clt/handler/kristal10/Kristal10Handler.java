@@ -644,7 +644,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
 
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
-        processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number);
+        processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
@@ -655,6 +655,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         boolean useSectionAsDepartNumber = kristalSettings != null && kristalSettings.useSectionAsDepartNumber();
 
         for (String directory : directorySet) {
+            processStopListLogger.info(getLogPrefix() + " start sending to " + directory);
 
             if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
                 String error = getLogPrefix() + "Error! Start DateTime not specified for stopList " + stopListInfo.number;
@@ -677,6 +678,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
             doc.setRootElement(rootElement);
 
             if (!stopListInfo.exclude) {
+                processStopListLogger.info(getLogPrefix() + " found " + stopListInfo.stopListItemMap.size() + " items");
                 for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
                     String idBarcode = entry.getKey();
                     ItemInfo item = entry.getValue();
@@ -769,7 +771,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 }
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
-                    exportXML(doc, makeExportFile(exchangeDirectory, "catalog-goods"));
+                    File file = makeExportFile(exchangeDirectory, "catalog-goods");
+                    processStopListLogger.info(getLogPrefix() + " start writing " + stopListInfo.number + " to " + file.getAbsolutePath());
+                    exportXML(doc, file);
                 }
             }
         }
