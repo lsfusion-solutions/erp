@@ -401,8 +401,17 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         lastVersion(det) <- currentVersion(i);
     }
     executeLocalEvents('Purchase.UserInvoice');
+    numberImportDocument() <- NULL;
    
     APPLY;           
 }
 
 EXTEND FORM integrationData PROPERTIES importPurchaseInvoice();
+
+importPurchaseInvoice2 () + {
+    FOR idDoc(STRING ind) IF operation1Supermag(idDoc(ind)) IS Purchase.Operation AND NOT getWord(idDoc(ind),'~',1) = 'WI' DO {       
+        numberImportDocument() <- getWord(ind,'~',2) ; 
+        MESSAGE(numberImportDocument());
+        importPurchaseInvoice(); 
+    }
+}

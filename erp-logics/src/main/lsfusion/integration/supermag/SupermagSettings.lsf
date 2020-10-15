@@ -1,6 +1,6 @@
 MODULE SupermagSettings;
 
-REQUIRE StockDocument, LogTools, Store, PaymentCondition;
+REQUIRE StockDocument, LogTools, Store, PaymentCondition, PurchaseOperation;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[30]();
@@ -100,6 +100,12 @@ nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operatio
 createFinobligation 'Фин.обязательство' = DATA BOOLEAN (Operation.Operation);  
 importOnlyStatus 'Загружать из СМ только статус документа' = DATA BOOLEAN (Operation.Operation);
 importSpecification 'Загружать из СМ только количества в спецификации' = DATA BOOLEAN (Operation.Operation);
+
+code1Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Operation.Operation](op),';',1), getWord(opcodeSupermag[Operation.Operation](op),';',1), getWord(useropSupermag[Operation.Operation](op),';',1)), id[Operation.Operation](op));  
+code2Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Operation.Operation](op),';',2), getWord(opcodeSupermag[Operation.Operation](op),';',2), getWord(useropSupermag[Operation.Operation](op),';',2)), id[Operation.Operation](op));  
+operation1Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code1Supermag[Operation.Operation](op);
+operation2Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code2Supermag[Operation.Operation](op);
+
 
 META settingOperationSupermag(docMain)
 EXTEND FORM operation
@@ -327,7 +333,39 @@ TOTALPACKAGEERROR1 = DATA LOCAL INTEGER(INTEGER);
 nameDoc = DATA LOCAL STRING();
 packageType = DATA LOCAL STRING();
 
+lastDoclogId = DATA LONG ();
+EXTEND FORM integrationData PROPERTIES lastDoclogId(); 
 
+idDoc = DATA LOCAL STRING(STRING);
+
+importPurchaseInvoice2 ABSTRACT LIST();
+
+importDocumentsSupermag 'Импорт документов из СМ'()
+{    
+    LOCAL recid = NUMERIC[16,0] (INTEGER);
+
+    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
+    MESSAGE sqlString();    
+//    connectionString()
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, locationTo, locationFrom, location;   
+    
+//    lastDoclogId() <- GROUP MAX recid(INTEGER i);
+    idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+               
+    FOR idDoc(INTEGER i) AND NOT idDoc(idDoc(i)) DO {
+        idDoc(idDoc(i)) <- codeOperation(i);
+    }            
+    
+//    FOR idDoc(STRING ind) IF idDoc(ind) AND operation1Supermag(idDoc(ind)) IS Purchase.Operation DO {       
+//        MESSAGE CONCAT ' - ', ind, idDoc(ind);  
+//    }
+    importPurchaseInvoice2();   
+    
+    APPLY;      
+}
 
 FORM REPLY
 PROPERTIES() nameDoc ATTR, packageType ATTR
