@@ -771,7 +771,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 }
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
-                    File file = makeExportFile(exchangeDirectory, "catalog-goods");
+                    File file = makeExportFile(exchangeDirectory, "catalog-goods-stoplist");
                     processStopListLogger.info(getLogPrefix() + " start writing " + stopListInfo.number + " to " + file.getAbsolutePath());
                     exportXML(doc, file);
                 }
