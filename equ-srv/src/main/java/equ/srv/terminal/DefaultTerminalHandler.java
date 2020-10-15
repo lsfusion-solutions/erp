@@ -912,7 +912,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password, stack);
                 if(authenticated) {
-                    if(terminalHandlerLM.findProperty("isLocked[CustomUser]").read(session, customUser) != null)
+                    if(terminalHandlerLM.findProperty("restricted[CustomUser]").read(session, customUser) != null)
                         return "Данный пользователь заблокирован";
                     else {
                         ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[STRING[100]]").readClasses(session, new DataObject(idTerminal));
