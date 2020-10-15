@@ -513,6 +513,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.getOrDefault(directory, new ArrayList<>());
                 requestSalesInfoEntry.addAll(generateRequestPurchasesByParams(entry.dateFrom, entry.dateTo, stockSet, getCashRegisterSet(entry, false)));
                 requestSalesInfoMap.put(directory, requestSalesInfoEntry);
+                succeededRequests.add(entry.requestExchange);
             }
         }
     }
