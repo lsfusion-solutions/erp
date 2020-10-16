@@ -415,13 +415,13 @@ public class EquipmentServer {
         reportEquipmentServerError(remote, sidEquipmentServer, result, null);
     }
 
-    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result, String extraData) throws RemoteException, SQLException {
+    public static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result, String extraData) throws RemoteException, SQLException {
         equipmentLogger.error("Equipment server error: " + result);
         remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace(), extraData);
     }
 
 
-    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Throwable throwable) throws RemoteException, SQLException {
+    public static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Throwable throwable) throws RemoteException, SQLException {
         reportEquipmentServerError(remote, sidEquipmentServer, throwable, null);
     }
 

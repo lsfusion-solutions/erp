@@ -106,6 +106,9 @@ public class Kristal10Settings implements Serializable{
     //Коды признака оплаты кастомными типами платежей через запятую.
     private String customPayments;
 
+    //sid equipmentServer, только для Kristal10Web
+    private String sidEquipmentServer;
+
     public Kristal10Settings() {
     }
 
@@ -329,5 +332,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setCustomPayments(String customPayments) {
         this.customPayments = customPayments;
+    }
+
+    public String getSidEquipmentServer() {
+        return sidEquipmentServer;
+    }
+
+    public void setSidEquipmentServer(String sidEquipmentServer) {
+        this.sidEquipmentServer = sidEquipmentServer;
     }
 }
