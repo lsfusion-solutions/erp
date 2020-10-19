@@ -210,12 +210,12 @@ importItem 'Импорт товаров' () {
 EXTEND FORM integrationData PROPERTIES importItem();
 
 
-overImportItemAttribute ABSTRACT LIST ();
+overImportItemAttribute ABSTRACT LIST (STRING);
 
-importItemAttribute 'Импорт доп. свойств товаров' () {
+importItemAttribute 'Импорт доп. свойств товаров' (STRING articleId) {
     
     // пока не импортируем, так как там ерунда - \'packbarcode\',         
-    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
+    sqlString() <- 'SELECT ARTICLE, PROPID, PROPVAL FROM Supermag.SVCARDPROPERTIES WHERE ARTICLE LIKE \''+ articleId +'\' AND  PROPID IN (\'packsize\', \'packsize2\', \'1\', \'17\', \'manufacturer\', \'manCountry\', \'expDate\', \'storeWetness\', \'storeTemperature\', \'packType\', \'supName\', \'alcoPercent\', \'Sys.Composition\', \'brutto\', \'bruttoPack\', \'pack_height\', \'pack_length\', \'pack_width\', \'pack_pallet\', \'volume\')';  
     
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
 
@@ -340,12 +340,20 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
         amount(b) <- NUMERIC[14,3](replace(trim(value(i)), ',', '.'));
     }
     
-    overImportItemAttribute();           
+    overImportItemAttribute(articleId);           
     
     APPLY;
 }
 
+importItemAttribute 'Импорт доп. свойств товаров' () {
+    importItemAttribute('%');
+}
+
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
+
+importAltUnit 'Импорт альтернативных едениц измерения' (STRING articleId) {
+    // пока не импортируем, так как там ерунда - \'packbarcode\',            
+}
 
 //---------------------------------------------------------------------------------------------------------------------импорт списков товаров
 importSkuLists 'Импорт списков товаров' () {

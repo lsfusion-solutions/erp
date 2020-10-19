@@ -76,7 +76,7 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
 //        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, NUMERIC[16,4] price, DATETIME fromDateTime, DATETIME toDateTime) = 
-    GROUP SUM signedQuantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price * signedQuantity(l)- signedSum(l)) < 0.01 AND active(l)
+    GROUP SUM signedQuantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND (abs(price * signedQuantity(l)- signedSum(l)) < 0.01 OR abs(price - signedSum(l)/signedQuantity(l)) < 0.01 )AND active(l)
           BY sku(l), stock(l);
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, DATETIME fromDateTime, DATETIME toDateTime) = 
