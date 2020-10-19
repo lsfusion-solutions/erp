@@ -251,15 +251,17 @@ notFormSku 'Не открывать форму SKU  при поиске штри
 notCreateItem 'Не создавать товар на основе при поиске штрихкода' = DATA BOOLEAN ();
 isShowErrorBarcode() = notFormSku() AND notCreateItem();
 errorMessageNotFormSku 'Сообщение об ошибке при поиске штрихкода' = DATA STRING[100]();
+requestQuantitySku 'Запрашивать количество товара при сканировании' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES () notFormSku, notCreateItem, errorMessageNotFormSku SHOWIF isShowErrorBarcode()
+    PROPERTIES () notFormSku, notCreateItem, errorMessageNotFormSku SHOWIF isShowErrorBarcode(), requestQuantitySku
 ;
 DESIGN options {
     barcodeBox {
         MOVE PROPERTY(notFormSku());
         MOVE PROPERTY(notCreateItem());
         MOVE PROPERTY(errorMessageNotFormSku());
+        MOVE PROPERTY(requestQuantitySku());
     }    
 }
 
@@ -270,8 +272,14 @@ create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  {
     LOCAL dialogBarcodeDetail = idetailClass();
     dialogBarcodeDetail() <- idetail(object, skuProp);
     IF dialogBarcodeDetail() IS idetailClass THEN {
+        LOCAL requestedQuantity = NUMERIC[16,5]();
+        IF requestQuantitySku() THEN {
+            DIALOG dialogNumeric OBJECTS n = amount(barcode(barcode, date(object))) INPUT DO {
+                requestedQuantity() <-n;
+            }
+        } 
         quantity(###idetail detail) <-
-            quantity(detail) (+) (amount(barcode(barcode, date(object))) IF detail IS idetailClass)
+            quantity(detail) (+) (OVERRIDE requestedQuantity(), amount(barcode(barcode, date(object))) IF detail IS idetailClass)
             WHERE detail == dialogBarcodeDetail();
         seek(dialogBarcodeDetail());
     } ELSE {
