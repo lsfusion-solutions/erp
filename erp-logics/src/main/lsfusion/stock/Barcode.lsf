@@ -195,7 +195,8 @@ overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
 processedBarcode (STRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[15];
 
 weightPrefix 'Префикс весового штрихкода' = DATA STRING[2]();
-overPreprocessedBarcode(STRING[15] barcode) += WHEN length(barcode AS STRING[15]) == 13 AND left(barcode, 2) == weightPrefix() THEN STRING[15](substr(barcode, 3, 5));
+weightQuantity = DATA LOCAL NUMERIC[14,3]();
+overPreprocessedBarcode(STRING[15] barcode) += WHEN length(barcode AS STRING[15]) > 11 AND left(barcode, 2) == weightPrefix() THEN STRING[15](substr(barcode, 3, 5));
 
 EXTEND FORM options
     PROPERTIES () weightPrefix
@@ -274,19 +275,19 @@ create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  {
     IF dialogBarcodeDetail() IS idetailClass THEN {
         LOCAL requestedQuantity = NUMERIC[16,5]();
         IF requestQuantitySku() THEN {
-            DIALOG dialogNumeric OBJECTS n = amount(barcode(barcode, date(object))) INPUT DO {
+            DIALOG dialogNumeric OBJECTS n = (OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)))) INPUT DO {
                 requestedQuantity() <-n;
             }
         } 
         quantity(###idetail detail) <-
-            quantity(detail) (+) (OVERRIDE requestedQuantity(), amount(barcode(barcode, date(object))) IF detail IS idetailClass)
+            quantity(detail) (+) (OVERRIDE requestedQuantity(), weightQuantity(), amount(barcode(barcode, date(object))) IF detail IS idetailClass)
             WHERE detail == dialogBarcodeDetail();
         seek(dialogBarcodeDetail());
     } ELSE {
         NEW w = idetailClass {
             object(w) <- object;
             skuProp(w) <- skuProp;
-            quantity(w) <- amount(barcode(barcode, date(object)));
+            quantity(w) <- OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)));
             seek(w);
         }
     }
@@ -310,7 +311,7 @@ create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  {
                         NEW w = idetailClass {
                             object(w) <- object;
                             skuProp(w) <- s;
-                            quantity(w) <- amount(br);
+                            quantity(w) <- OVERRIDE weightQuantity(), amount(br);
                             seek(w);
                         }
                     }
@@ -333,8 +334,12 @@ create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  {
     } TOOLBAR CHANGEKEY 'F4';
 
     changeAddDetailInputBarcode###idetail(###object object)  { 
-        INPUT s = STRING[15] DO
+        INPUT s = STRING[15] DO {
+            IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
+                weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
+            }
             addDetailBarcode###idetail(object, processedBarcode(s));
+        }
     };
     addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[15] (###object) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcode###idetail(object); }
