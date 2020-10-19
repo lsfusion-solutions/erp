@@ -1549,7 +1549,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             sendSalesLogger.info(getLogPrefix() + "parse XML"); //temp log
             List<SalesInfo> salesInfoList = parseSalesInfoXML(xmlStringToDoc(request.xml), directory, cashRegisterInfoList, new HashSet<>());
             if (!salesInfoList.isEmpty()) {
-                sendSalesLogger.info(getLogPrefix() + "send sales"); //temp log
+                sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
                 String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
                 if (result != null) {
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
