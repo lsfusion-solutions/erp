@@ -1222,44 +1222,48 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
-        Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (fitHandler(c) && c.number != null) {
-                numberCashRegisterMap.put(c.number, c);
-            }
-        }
+        if(httpRequestHandler != null) {
 
-        try {
-            //обрабатываем z-отчёты, полученные httpServer'ом
-            List<Request> zReports = httpRequestHandler.popZReports();
-            for (Request zReport : zReports) {
-
-                Document doc = xmlStringToDoc(zReport.xml);
-                Element rootNode = doc.getRootElement();
-                List zReportsList = rootNode.getChildren("zreport");
-
-                for (Object zReportNode : zReportsList) {
-
-                    Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
-                    CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
-                    Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
-
-                    LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
-
-                    String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
-                    String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
-
-                    BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
-                    BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
-                    BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-                    zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
-
+            Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
+            for (CashRegisterInfo c : cashRegisterInfoList) {
+                if (fitHandler(c) && c.number != null) {
+                    numberCashRegisterMap.put(c.number, c);
                 }
-                sendZReportsResponse(zReport.request, null);
             }
 
-        } catch (Throwable e) {
-            sendSalesLogger.error(getLogPrefix(), e);
+            try {
+                //обрабатываем z-отчёты, полученные httpServer'ом
+                List<Request> zReports = httpRequestHandler.popZReports();
+                for (Request zReport : zReports) {
+
+                    Document doc = xmlStringToDoc(zReport.xml);
+                    Element rootNode = doc.getRootElement();
+                    List zReportsList = rootNode.getChildren("zreport");
+
+                    for (Object zReportNode : zReportsList) {
+
+                        Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
+                        CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
+                        Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+
+                        LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
+
+                        String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
+                        String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+                        BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
+                        BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
+                        BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
+                        zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
+
+                    }
+                    sendZReportsResponse(zReport.request, null);
+                }
+
+            } catch (Throwable e) {
+                sendSalesLogger.error(getLogPrefix(), e);
+            }
+
         }
 
         return zReportSumMap.isEmpty() ? null : zReportSumMap;
