@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
+import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -575,20 +576,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     @Override
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
-        /*if(httpRequestHandler != null) {
-            sendSalesLogger.info(getLogPrefix() + "Finish Reading started");
-            try {
-                List<Request> purchases = httpRequestHandler.popPurchases();
-                for(Request purchase : purchases) {
-                    sendPurchasesResponse(purchase.request, null);
-                }
-            } catch (IOException e) {
-                sendSalesLogger.error(getLogPrefix(), e);
-            }
-        }*/
     }
 
-    @Override
+/*    @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
         List<CashDocument> cashDocumentList = new ArrayList<>();
         if(httpRequestHandler != null) {
@@ -606,7 +596,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             }
         }
         return new CashDocumentBatch(cashDocumentList, null);
-    }
+    }*/
 
     public List<CashDocument> parseCashDocumentXML(Document doc, List<CashRegisterInfo> cashRegisterInfoList, boolean cashIn) {
         List<CashDocument> cashDocumentList = new ArrayList<>();
@@ -643,7 +633,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return cashDocumentList;
     }
 
-    @Override
+/*    @Override
     public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
         if (httpRequestHandler != null) {
             sendSalesLogger.info(getLogPrefix() + "Finish ReadingCashDocumentInfo started");
@@ -660,7 +650,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 sendSalesLogger.error(getLogPrefix(), e);
             }
         }
-    }
+    }*/
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
@@ -913,17 +903,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             try {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.get(directory);
                 if (requestSalesInfoEntry != null && !requestSalesInfoEntry.isEmpty()) {
-                    //сначала обрабатываем запросы перезагрузки продаж
+                    //обрабатываем запросы перезагрузки продаж
                     String response = parseResponsePurchasesByParams(sendRequest(directory + "/FiscalInfoExport", requestSalesInfoEntry.remove(0)));
                     Document doc = xmlStringToDoc(response);
                     salesInfoList.addAll(parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>()));
-                } else {
-                    //обрабатываем продажи, полученные httpServer'ом
-                    /*List<Request> purchases = httpRequestHandler.getPurchases();
-                    for(Request purchase : purchases) {
-                        Document doc = xmlStringToDoc(purchase.xml);
-                        salesInfoList.addAll(parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>()));
-                    }*/
                 }
             } catch (Throwable e) {
                 sendSalesLogger.error(getLogPrefix() + "readSalesInfo", e);
@@ -1273,6 +1256,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         sendResponse(httpExchange, "processPurchasesWithTI", ns1PurchasesNamespace, error);
     }
 
+    private void sendCashDocumentResponse(HttpExchange httpExchange, String error, boolean introduction) throws IOException {
+        if(introduction) {
+            sendIntroductionsResponse(httpExchange, error);
+        } else {
+            sendWithdrawalsResponse(httpExchange, error);
+        }
+    }
+
     private void sendIntroductionsResponse(HttpExchange httpExchange, String error) throws IOException {
         sendResponse(httpExchange, "processIntroductionsWithTI", ns1IntroductionsNamespace, error);
     }
@@ -1452,10 +1443,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         private final String sidEquipmentServer;
 
         //пока рассматриваем только случай с 1 SetRetail сервером на 1 equ
-        //private List<Request> httpServerPurchasesList = new ArrayList<>();
-        //private int processPurchases;
-        private List<CashDocumentRequest> httpServerCashDocumentsList = new ArrayList<>();
-        private int processCashDocuments;
+        //private List<CashDocumentRequest> httpServerCashDocumentsList = new ArrayList<>();
+        //private int processCashDocuments;
         private List<Request> httpServerZReportsList = new ArrayList<>();
 
         public HttpRequestHandler() {
@@ -1463,29 +1452,17 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             sidEquipmentServer = kristalSettings == null ? null : kristalSettings.getSidEquipmentServer();
         }
 
-        /*public List<Request> getPurchases() {
-            processPurchases = httpServerPurchasesList.size();
-            return httpServerPurchasesList;
-        }*/
-
-/*        public List<Request> popPurchases() {
-            List<Request> purchases = httpServerPurchasesList.subList(0, processPurchases);
-            httpServerPurchasesList = httpServerPurchasesList.subList(processPurchases, httpServerPurchasesList.size());
-            processPurchases = 0;
-            return purchases;
-        }*/
-
-        public List<CashDocumentRequest> getCashDocuments() {
+        /*public List<CashDocumentRequest> getCashDocuments() {
             processCashDocuments = httpServerCashDocumentsList.size();
             return httpServerCashDocumentsList;
-        }
+        }*/
 
-        public List<CashDocumentRequest> popCashDocuments() {
+/*        public List<CashDocumentRequest> popCashDocuments() {
             List<CashDocumentRequest> cashDocuments = httpServerCashDocumentsList.subList(0, processCashDocuments);
             httpServerCashDocumentsList = httpServerCashDocumentsList.subList(processCashDocuments, httpServerCashDocumentsList.size());
             processCashDocuments = 0;
             return cashDocuments;
-        }
+        }*/
 
         //у z-отчётов нет finish, подтверждаем сразу
         public List<Request> popZReports() {
@@ -1498,31 +1475,29 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         public void handle(HttpExchange httpExchange) throws IOException {
             String uri = String.valueOf(httpExchange.getRequestURI());
             sendSalesLogger.info(getLogPrefix() + "HttpServer received " + uri);
-            if(uri.endsWith("purchases")) {
+            boolean purchases = uri.endsWith("purchases");
+            boolean introductions = uri.endsWith("introductions");
+            boolean withdrawals = uri.endsWith("withdrawals");
+            boolean zreports = uri.endsWith("zreports");
+
+            if(purchases) {
                 try {
-                    //httpServerPurchasesList.add(new Request(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "purchases")));
-                    readSalesInfo(remote, sidEquipmentServer, new Request(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "purchases")));
+                    readSalesInfo(remote, sidEquipmentServer, httpExchange);
                 } catch (Exception e) {
                     sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
                     sendPurchasesResponse(httpExchange, e.getMessage());
-                    try {
-                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
-                    } catch (SQLException ignored) {
-                    }
+                    reportEquipmentServerError(remote, sidEquipmentServer, e);
                 }
-            } else if(uri.endsWith("introductions")) {
+            } else if(introductions || withdrawals) {
                 try {
-                    httpServerCashDocumentsList.add(new CashDocumentRequest(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "introductions"), true));
+                    readCashDocuments(remote, sidEquipmentServer, httpExchange, introductions);
                 } catch (Exception e) {
-                    sendIntroductionsResponse(httpExchange, e.getMessage());
+                    sendSalesLogger.error(getLogPrefix() + "Reading CashDocuments", e);
+                    sendCashDocumentResponse(httpExchange, e.getMessage(), introductions);
+                    reportEquipmentServerError(remote, sidEquipmentServer, e);
                 }
-            } else if(uri.endsWith("withdrawals")) {
-                try {
-                    httpServerCashDocumentsList.add(new CashDocumentRequest(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "withdrawals"), false));
-                } catch (Exception e) {
-                    sendWithdrawalsResponse(httpExchange, e.getMessage());
-                }
-            } else if(uri.endsWith("zreports")) {
+
+            } else if(zreports) {
                 try {
                     httpServerZReportsList.add(new Request(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "zreports")));
                 } catch (Exception e) {
@@ -1534,29 +1509,52 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, Request request) throws IOException, SQLException, JDOMException {
+    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
+        Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "purchases"));
 
         Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (cashRegister.handlerModel.equals("equ.clt.handler.kristal10.Kristal10WebHandler") && !cashRegister.disableSales) {
+            if (fitHandler(cashRegister) && !cashRegister.disableSales) {
                 directorySet.add(cashRegister.directory);
             }
         }
 
         //assert directorySet.size() == 1
         for (String directory : directorySet) {
-            sendSalesLogger.info(getLogPrefix() + "parse XML"); //temp log
-            List<SalesInfo> salesInfoList = parseSalesInfoXML(xmlStringToDoc(request.xml), directory, cashRegisterInfoList, new HashSet<>());
+            List<SalesInfo> salesInfoList = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
             if (!salesInfoList.isEmpty()) {
                 sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
                 String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
                 if (result != null) {
+                    sendSalesLogger.info(getLogPrefix() + "Send SalesInfo result: " + result);
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
                 }
-                sendSalesLogger.info(getLogPrefix() + "send sales result: " + result); //temp log
-                sendPurchasesResponse(request.request, result);
+                sendPurchasesResponse(httpExchange, result);
             }
+        }
+    }
+
+    private void readCashDocuments(EquipmentServerInterface remote, String sidEquipmentServer, HttpExchange httpExchange, boolean introductions) throws IOException, SQLException, JDOMException {
+        List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
+        Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, introductions ? "introductions" :  "withdrawals"));
+
+        List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, cashRegisterInfoList, introductions);
+        if (!cashDocumentList.isEmpty()) {
+            sendSalesLogger.info(getLogPrefix() + "Sending CashDocuments: " + cashDocumentList.size());
+            String result = remote.sendCashDocumentInfo(cashDocumentList);
+            if (result != null) {
+                sendSalesLogger.info(getLogPrefix() + "Send CashDocuments result: " + result);
+                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, null);
+            }
+            sendCashDocumentResponse(httpExchange, result, introductions);
+        }
+    }
+
+    private void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Exception e) throws RemoteException {
+        try {
+            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
+        } catch (SQLException ignored) {
         }
     }
 
@@ -1567,15 +1565,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         public Request(HttpExchange request, String xml) {
             this.request = request;
             this.xml = xml;
-        }
-    }
-
-    private class CashDocumentRequest extends Request {
-        public boolean cashIn;
-
-        public CashDocumentRequest(HttpExchange request, String xml, boolean cashIn) {
-            super(request, xml);
-            this.cashIn = cashIn;
         }
     }
 }
