@@ -67,7 +67,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
 
                     processTransactionLogger.info(getLogPrefix() + "Sending to scales " + scales.port);
                     if(scales.port != null) {
-                        DataSocket socket = new DataSocket(scales.port, 20304);
+                        DataSocket socket = getDataSocket(scales.port);
                         try {
 
                             socket.open();
@@ -338,7 +338,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
             if (!machineryInfoList.isEmpty()) {
                 for (MachineryInfo scales : machineryInfoList) {
                     if (scales.port != null) {
-                        DataSocket socket = new DataSocket(scales.port, 20304);
+                        DataSocket socket = getDataSocket(scales.port);
                         try {
                             processStopListLogger.info(getLogPrefix() + "Sending StopList to scale " + scales.port);
                             socket.open();
@@ -398,5 +398,10 @@ public class CL5000JHandler extends DefaultScalesHandler {
             case 99: return "Data end";
             default: return "Unknown error " + errorNumber;
         }
+    }
+
+    private DataSocket getDataSocket(String address) {
+        String[] hostPort = address.split(":");
+        return hostPort.length == 1 ? new DataSocket(address, 20304) : new DataSocket(hostPort[0], Integer.parseInt(hostPort[1]));
     }
 }
