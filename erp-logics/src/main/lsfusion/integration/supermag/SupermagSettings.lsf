@@ -1,6 +1,6 @@
 MODULE SupermagSettings;
 
-REQUIRE StockDocument, LogTools, Store, PaymentCondition, PurchaseOperation;
+REQUIRE StockDocument, LogTools, Store, PaymentCondition, PurchaseOperation, Time;
 
 host 'Хост' = DATA ISTRING[30]();
 base 'База' = DATA ISTRING[30]();
@@ -338,7 +338,7 @@ EXTEND FORM integrationData PROPERTIES lastDoclogId();
 
 idDoc = DATA LOCAL STRING(STRING);
 
-importPurchaseInvoice2 ABSTRACT LIST();
+importPurchaseInvoices ABSTRACT LIST();
 
 importDocumentsSupermag 'Импорт документов из СМ'()
 {    
@@ -351,7 +351,8 @@ importDocumentsSupermag 'Импорт документов из СМ'()
        
     IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, locationTo, locationFrom, location;   
     
-//    lastDoclogId() <- GROUP MAX recid(INTEGER i);
+    lastDoclogId() <- GROUP MAX recid(INTEGER i);
+    MESSAGE lastDoclogId();
     idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
                
@@ -362,7 +363,7 @@ importDocumentsSupermag 'Импорт документов из СМ'()
 //    FOR idDoc(STRING ind) IF idDoc(ind) AND operation1Supermag(idDoc(ind)) IS Purchase.Operation DO {       
 //        MESSAGE CONCAT ' - ', ind, idDoc(ind);  
 //    }
-    importPurchaseInvoice2();   
+    importPurchaseInvoices();   
     
     APPLY;      
 }
