@@ -54,6 +54,28 @@ overCreatePayment(Receipt r) + {
     }
 } 
 
+// ----------------------------------- Форма по вводу штрихкода ---------------------------- //
+
+barcodeInput 'Штрихкод' = DATA LOCAL STRING () EVENTID 'SCANNER';
+changeBarcodeInput()  { 
+    INPUT s = STRING DO {
+        barcodeInput() <- processedBarcode(s);
+        formOk();
+    }
+}
+FORM barcodeInput 'Ввод штрихкода'
+    PROPERTIES() barcodeInput ON CHANGE changeBarcodeInput()
+;
+
+DESIGN barcodeInput {
+    PROPERTY (barcodeInput()) {
+        caption = 'Штрихкод';
+        font = 'bold 64';
+        panelCaptionAbove = TRUE;
+        changeKey = 'F4';
+        focusable = TRUE;    }
+}
+
 //postPaymentEpayConsumerPresented (Receipt r) {
 //    barcodeInput() <- NULL;
 //    DIALOG barcodeInput DO {
@@ -78,7 +100,7 @@ postPaymentEpayConsumerPresented (Receipt r) {
         deletePayment(r);
     } ELSE {
         returnPost() <- TRUE;
-    } 
+    }
 }
 
 postPaymentEpayStaticQR (Receipt r) {
