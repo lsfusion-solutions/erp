@@ -54,15 +54,26 @@ overCreatePayment(Receipt r) + {
     }
 } 
 
+//postPaymentEpayConsumerPresented (Receipt r) {
+//    barcodeInput() <- NULL;
+//    DIALOG barcodeInput DO {
+//        FOR iterate(INTEGER i, 1, 63) DO
+//            barcodeInput() <- replace(barcodeInput(),
+//            substr('йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', i, 1),
+//            substr('qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM', i, 1)
+//            ); 
+//        authCode() <- barcodeInput();
+//        paymentEpay(epay(r));
+//        deletePayment(r);
+//    } ELSE {
+//        returnPost() <- TRUE;
+//    } 
+//}
+
 postPaymentEpayConsumerPresented (Receipt r) {
     barcodeInput() <- NULL;
     DIALOG barcodeInput DO {
-        FOR iterate(INTEGER i, 1, 63) DO
-            barcodeInput() <- replace(barcodeInput(),
-            substr('йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', i, 1),
-            substr('qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM', i, 1)
-            ); 
-        authCode() <- barcodeInput();
+        authCode() <- [FORMULA TEXT PG 'translate($1, $2, $3)'](barcodeInput(), 'йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', 'qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM');
         paymentEpay(epay(r));
         deletePayment(r);
     } ELSE {
@@ -141,7 +152,6 @@ postEpay 'О!плати' (Receipt receipt) {
             paymentType(p) <- minEpayPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
         }
-        //postPaymentEpay(receipt);
         IF NOT returnPost() THEN {
             prePostPrint(receipt);
             IF returnPost() THEN RETURN;
