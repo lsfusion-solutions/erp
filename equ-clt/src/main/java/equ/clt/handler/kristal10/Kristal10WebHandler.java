@@ -1356,6 +1356,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         public HttpRequestHandler() {
             Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
             sidEquipmentServer = kristalSettings == null ? null : kristalSettings.getSidEquipmentServer();
+            if(sidEquipmentServer == null) {
+                throw new RuntimeException(getLogPrefix() + "sidEquipmentServer option is required");
+            }
         }
 
         @Override
