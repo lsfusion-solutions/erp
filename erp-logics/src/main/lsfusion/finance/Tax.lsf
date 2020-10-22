@@ -462,7 +462,7 @@ END
 
 // Изменение цены без НДС
 META defineDocumentDetailPriceVATOnChangeCustom (detail)
-    overChangePrice  ABSTRACT ( ###detail);
+    overChangePrice  ABSTRACT LIST ( ###detail);
     changePrice (###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             price (detail) <- n;
@@ -478,10 +478,12 @@ END
 
 // Изменение щкалы НДС
 META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
+    overChangeNumberVAT ABSTRACT LIST (###detail); 
     changeNumberVAT (###detail detail)  { 
         DIALOG rangeDialog OBJECTS c = country###stockProp(detail), r = VAT(detail) INPUT NULL DO {
             VAT (detail) <- r;
             invoicePrice (detail) <- round2(price (detail) * (100 + calcValueVAT(detail))/100);
+            overChangeNumberVAT(detail);
         }
     }
 END
@@ -492,11 +494,13 @@ END
 
 // Изменение ставки НДС
 META defineDocumentDetailValueVATOnChangeCustom (detail)
+    overChangeValueVAT ABSTRACT LIST (###detail);
     changeValueVAT (###detail detail)  { 
         INPUT n = NUMERIC[10,5] DO {
             valueVAT (detail) <- n;
             VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), n);
             invoicePrice (detail) <- round2(price (detail) * (100 + n)/100);
+            overChangeValueVAT(detail);
         }
     }
 END
@@ -508,10 +512,12 @@ END
 // Изменение цены с НДС
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
     skipChangeInvoicePrice = ABSTRACT BOOLEAN (###detail);
+    overChangeInvoicePrice  ABSTRACT LIST (###detail);   
     changeInvoicePrice (###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
             invoicePrice (detail) <- n;
             price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail))) WHERE NOT skipChangeInvoicePrice(detail);
+            overChangeInvoicePrice(detail);
         }
     }
 END
