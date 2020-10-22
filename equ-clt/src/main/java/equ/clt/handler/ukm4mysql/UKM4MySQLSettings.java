@@ -74,6 +74,9 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, для идентификации кассы вместо cash_id используем cash_number
     private boolean useCashNumberInsteadOfCashId;
 
+    //если true, то для штучных товаров (ед.изм = ШТ) используем pieceCode вместо weightCode
+    private boolean usePieceCode;
+
 
     public UKM4MySQLSettings() {
     }
@@ -255,5 +258,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUseCashNumberInsteadOfCashId(boolean useCashNumberInsteadOfCashId) {
         this.useCashNumberInsteadOfCashId = useCashNumberInsteadOfCashId;
+    }
+
+    public boolean isUsePieceCode() {
+        return usePieceCode;
+    }
+
+    public void setUsePieceCode(boolean usePieceCode) {
+        this.usePieceCode = usePieceCode;
     }
 }
