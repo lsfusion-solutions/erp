@@ -578,26 +578,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     public void finishReadingSalesInfo(Kristal10SalesBatch salesBatch) {
     }
 
-/*    @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) {
-        List<CashDocument> cashDocumentList = new ArrayList<>();
-        if(httpRequestHandler != null) {
-            try {
-
-                //обрабатываем внесения и изъятия, полученные httpServer'ом
-                List<CashDocumentRequest> cashDocuments = httpRequestHandler.getCashDocuments();
-                for(CashDocumentRequest cashDocument : cashDocuments) {
-                    Document doc = xmlStringToDoc(cashDocument.xml);
-                    cashDocumentList.addAll(parseCashDocumentXML(doc, cashRegisterInfoList, cashDocument.cashIn));
-                }
-
-            } catch (Throwable e) {
-                sendSalesLogger.error(getLogPrefix() + "readSalesInfo", e);
-            }
-        }
-        return new CashDocumentBatch(cashDocumentList, null);
-    }*/
-
     public List<CashDocument> parseCashDocumentXML(Document doc, List<CashRegisterInfo> cashRegisterInfoList, boolean cashIn) {
         List<CashDocument> cashDocumentList = new ArrayList<>();
 
@@ -632,25 +612,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         return cashDocumentList;
     }
-
-/*    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-        if (httpRequestHandler != null) {
-            sendSalesLogger.info(getLogPrefix() + "Finish ReadingCashDocumentInfo started");
-            try {
-                List<CashDocumentRequest> cashDocuments = httpRequestHandler.popCashDocuments();
-                for (CashDocumentRequest cashDocument : cashDocuments) {
-                    if (cashDocument.cashIn) {
-                        sendIntroductionsResponse(cashDocument.request, null);
-                    } else {
-                        sendWithdrawalsResponse(cashDocument.request, null);
-                    }
-                }
-            } catch (IOException e) {
-                sendSalesLogger.error(getLogPrefix(), e);
-            }
-        }
-    }*/
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
@@ -1201,57 +1162,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return salesInfoList;
     }
 
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
-        Map<String, List<Object>> zReportSumMap = new HashMap<>();
-
-        if(httpRequestHandler != null) {
-
-            Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
-            for (CashRegisterInfo c : cashRegisterInfoList) {
-                if (fitHandler(c) && c.number != null) {
-                    numberCashRegisterMap.put(c.number, c);
-                }
-            }
-
-            try {
-                //обрабатываем z-отчёты, полученные httpServer'ом
-                List<Request> zReports = httpRequestHandler.popZReports();
-                for (Request zReport : zReports) {
-
-                    Document doc = xmlStringToDoc(zReport.xml);
-                    Element rootNode = doc.getRootElement();
-                    List zReportsList = rootNode.getChildren("zreport");
-
-                    for (Object zReportNode : zReportsList) {
-
-                        Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
-                        CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
-                        Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
-
-                        LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
-
-                        String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
-                        String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
-
-                        BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
-                        BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
-                        BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-                        zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
-
-                    }
-                    sendZReportsResponse(zReport.request, null);
-                }
-
-            } catch (Throwable e) {
-                sendSalesLogger.error(getLogPrefix(), e);
-            }
-
-        }
-
-        return zReportSumMap.isEmpty() ? null : zReportSumMap;
-    }
-
     private void sendPurchasesResponse(HttpExchange httpExchange, String error) throws IOException {
         sendResponse(httpExchange, "processPurchasesWithTI", ns1PurchasesNamespace, error);
     }
@@ -1440,35 +1350,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     private class HttpRequestHandler implements HttpHandler {
 
-        private final String sidEquipmentServer;
-
         //пока рассматриваем только случай с 1 SetRetail сервером на 1 equ
-        //private List<CashDocumentRequest> httpServerCashDocumentsList = new ArrayList<>();
-        //private int processCashDocuments;
-        private List<Request> httpServerZReportsList = new ArrayList<>();
+        private final String sidEquipmentServer;
 
         public HttpRequestHandler() {
             Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
             sidEquipmentServer = kristalSettings == null ? null : kristalSettings.getSidEquipmentServer();
-        }
-
-        /*public List<CashDocumentRequest> getCashDocuments() {
-            processCashDocuments = httpServerCashDocumentsList.size();
-            return httpServerCashDocumentsList;
-        }*/
-
-/*        public List<CashDocumentRequest> popCashDocuments() {
-            List<CashDocumentRequest> cashDocuments = httpServerCashDocumentsList.subList(0, processCashDocuments);
-            httpServerCashDocumentsList = httpServerCashDocumentsList.subList(processCashDocuments, httpServerCashDocumentsList.size());
-            processCashDocuments = 0;
-            return cashDocuments;
-        }*/
-
-        //у z-отчётов нет finish, подтверждаем сразу
-        public List<Request> popZReports() {
-            List<Request> zReports = httpServerZReportsList.subList(0, httpServerZReportsList.size());
-            httpServerZReportsList = new ArrayList<>();
-            return zReports;
         }
 
         @Override
@@ -1482,7 +1369,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             if(purchases) {
                 try {
-                    readSalesInfo(remote, sidEquipmentServer, httpExchange);
+                    readSalesInfo(sidEquipmentServer, httpExchange);
                 } catch (Exception e) {
                     sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
                     sendPurchasesResponse(httpExchange, e.getMessage());
@@ -1490,18 +1377,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 }
             } else if(introductions || withdrawals) {
                 try {
-                    readCashDocuments(remote, sidEquipmentServer, httpExchange, introductions);
+                    readCashDocuments(sidEquipmentServer, httpExchange, introductions);
                 } catch (Exception e) {
                     sendSalesLogger.error(getLogPrefix() + "Reading CashDocuments", e);
                     sendCashDocumentResponse(httpExchange, e.getMessage(), introductions);
                     reportEquipmentServerError(remote, sidEquipmentServer, e);
                 }
-
             } else if(zreports) {
                 try {
-                    httpServerZReportsList.add(new Request(httpExchange, parseHttpRequestHandlerResponse(httpExchange, "zreports")));
+                    readZReports(sidEquipmentServer, httpExchange);
                 } catch (Exception e) {
+                    sendSalesLogger.error(getLogPrefix() + "Reading ZReports", e);
                     sendZReportsResponse(httpExchange, e.getMessage());
+                    reportEquipmentServerError(remote, sidEquipmentServer, e);
                 }
             } else {
                 sendSalesLogger.error(getLogPrefix() + "unknown request: " + uri);
@@ -1509,8 +1397,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
-        List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
+    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
+        List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "purchases"));
 
         Set<String> directorySet = new HashSet<>();
@@ -1535,8 +1423,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readCashDocuments(EquipmentServerInterface remote, String sidEquipmentServer, HttpExchange httpExchange, boolean introductions) throws IOException, SQLException, JDOMException {
-        List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
+    private void readCashDocuments(String sidEquipmentServer, HttpExchange httpExchange, boolean introductions) throws IOException, SQLException, JDOMException {
+        List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, introductions ? "introductions" :  "withdrawals"));
 
         List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, cashRegisterInfoList, introductions);
@@ -1551,6 +1439,51 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
+    private void readZReports(String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
+        List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
+
+        Map<String, List<Object>> zReportSumMap = new HashMap<>();
+
+        Map<Integer, CashRegisterInfo> numberCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (fitHandler(c) && c.number != null) {
+                numberCashRegisterMap.put(c.number, c);
+            }
+        }
+
+        Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "zreports"));
+        Element rootNode = doc.getRootElement();
+        List zReportsList = rootNode.getChildren("zreport");
+
+        for (Object zReportNode : zReportsList) {
+
+            Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
+            CashRegisterInfo cashRegister = numberCashRegisterMap.get(numberCashRegister);
+            Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+
+            LocalDate dateZReport = ZonedDateTime.parse(readStringXMLValue(zReportNode, "dateOperDay"), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")).toLocalDate();
+
+            String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
+            String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+            BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
+            BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
+            BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
+            zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport));
+
+        }
+
+        //вне зависимости от результата отправляем, что запрос обработан успешно
+        sendZReportsResponse(httpExchange, null);
+
+        ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, remote.readZReportSumMap());
+        if (extraCheckResult.message.isEmpty()) {
+            remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
+        } else {
+            EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message, null);
+        }
+    }
+
     private void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, Exception e) throws RemoteException {
         try {
             EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, e);
@@ -1558,13 +1491,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private class Request {
-        public HttpExchange request;
-        public String xml;
-
-        public Request(HttpExchange request, String xml) {
-            this.request = request;
-            this.xml = xml;
-        }
+    private List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
+        return remote.readCashRegisterInfo(sidEquipmentServer);
     }
 }
