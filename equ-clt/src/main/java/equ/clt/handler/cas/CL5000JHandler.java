@@ -43,6 +43,7 @@ public class CL5000JHandler extends DefaultScalesHandler {
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
         Map<Long, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
+        Map<String, String> brokenPortsMap = new HashMap<>();
 
         ScalesSettings settings = springContext.containsBean("CL5000JSettings") ? (ScalesSettings) springContext.getBean("CL5000JSettings") : null;
         int priceMultiplier = settings == null || settings.getPriceMultiplier() == null ? 100 : settings.getPriceMultiplier();
@@ -67,67 +68,73 @@ public class CL5000JHandler extends DefaultScalesHandler {
 
                     processTransactionLogger.info(getLogPrefix() + "Sending to scales " + scales.port);
                     if(scales.port != null) {
-                        DataSocket socket = getDataSocket(scales.port);
-                        try {
+                        String error = brokenPortsMap.get(scales.port);
+                        if(error != null) {
+                            exception = new RuntimeException(String.format("IP: %s, one of previous transactions failed (%s)", scales.port, error));
+                        } else {
 
-                            socket.open();
+                            DataSocket socket = getDataSocket(scales.port);
+                            try {
 
-                            short weightCode = getWeightCode(scales);
-                            if (transaction.snapshot) {
-                                processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
-                                int reply = deleteAllPlu(socket);
-                                if(reply != 0) {
-                                    errors += String.format("Deleting all plu failed. Error: %s\n", getErrorMessage(reply));
-                                } else {
-                                    String errorTouch = deleteTouchSpeedKeys(socket);
-                                    if(errorTouch != null)
-                                        errors += String.format("Deleting touch speed keys failed. Error: %s\n", errorTouch);
+                                socket.open();
+
+                                short weightCode = getWeightCode(scales);
+                                if (transaction.snapshot) {
+                                    processTransactionLogger.info(getLogPrefix() + "Deleting all plu at scales " + scales.port);
+                                    int reply = deleteAllPlu(socket);
+                                    if (reply != 0) {
+                                        errors += String.format("Deleting all plu failed. Error: %s\n", getErrorMessage(reply));
+                                    } else {
+                                        String errorTouch = deleteTouchSpeedKeys(socket);
+                                        if (errorTouch != null)
+                                            errors += String.format("Deleting touch speed keys failed. Error: %s\n", errorTouch);
                                     }
-                            }
+                                }
 
-                            if(errors.isEmpty()) {
-                                for (ScalesItemInfo item : transaction.itemsList) {
-                                    if(errorsCount < 5) {
-                                        int barcode = getBarcode(item);
-                                        int pluNumber = getPluNumber(item.pluNumber, barcode);
-                                        processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", barcode, scales.port));
-                                        //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
-                                        BigDecimal extraPercent = null;//item.extraPercent;
-                                        int reply = sendItem(socket, item, weightCode, pluNumber, barcode, item.name,
-                                        item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(),
-                                                HandlerUtils.trim(item.description, null, descriptionLength - 1), extraPercent);
-                                        if (reply != 0) {
-                                            errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
-                                            errorsCount++;
-                                        } else {
-                                            String errorTouch = sendTouchPlu(socket, pluNumber);
-                                            if (errorTouch != null) {
-                                                errors += String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch);
+                                if (errors.isEmpty()) {
+                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                        if (errorsCount < 5) {
+                                            int barcode = getBarcode(item);
+                                            int pluNumber = getPluNumber(item.pluNumber, barcode);
+                                            processTransactionLogger.info(String.format(getLogPrefix() + "Sending item %s to scales %s", barcode, scales.port));
+                                            //TODO: временно extraPercent не передаём - тестируем сначала на MassaK (не забыть убрать после отмашки)
+                                            BigDecimal extraPercent = null;//item.extraPercent;
+                                            int reply = sendItem(socket, item, weightCode, pluNumber, barcode, item.name, item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(priceMultiplier)).intValue(), HandlerUtils.trim(item.description, null, descriptionLength - 1), extraPercent);
+                                            if (reply != 0) {
+                                                errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                                 errorsCount++;
+                                            } else {
+                                                String errorTouch = sendTouchPlu(socket, pluNumber);
+                                                if (errorTouch != null) {
+                                                    errors += String.format("Send item touch %s failed. Error: %s\n", pluNumber, errorTouch);
+                                                    errorsCount++;
+                                                }
                                             }
+                                        }
+                                    }
+
+                                    if (errors.isEmpty()) {
+                                        String errorTouch = sendTouchSpeedKeys(socket, transaction.itemsList);
+                                        if (errorTouch != null) {
+                                            errors += String.format("Send speed keys failed. Error: %s\n", errorTouch);
+                                            errorsCount++;
                                         }
                                     }
                                 }
 
-                                if(errors.isEmpty()) {
-                                    String errorTouch = sendTouchSpeedKeys(socket, transaction.itemsList);
-                                    if (errorTouch != null) {
-                                        errors += String.format("Send speed keys failed. Error: %s\n", errorTouch);
-                                        errorsCount++;
-                                    }
+                                if (errors.isEmpty()) succeededScalesList.add(scales);
+                                else {
+                                    exception = new RuntimeException(errors);
+                                    brokenPortsMap.put(scales.port, errors);
                                 }
+
+                            } catch (Exception e) {
+                                exception = e;
+                                brokenPortsMap.put(scales.port, e.getMessage());
+                            } finally {
+                                processTransactionLogger.info(getLogPrefix() + "Finally disconnecting... " + scales.port);
+                                socket.close();
                             }
-
-                            if (errors.isEmpty())
-                                succeededScalesList.add(scales);
-                            else
-                                exception = new RuntimeException(errors);
-
-                        } catch (Exception e) {
-                            exception = e;
-                        } finally {
-                            processTransactionLogger.info(getLogPrefix() + "Finally disconnecting... " + scales.port);
-                            socket.close();
                         }
                     }
                 }
