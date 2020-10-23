@@ -8,6 +8,7 @@ import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.WordUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static lsfusion.base.BaseUtils.nvl;
@@ -188,10 +190,14 @@ public class DigiHandler extends MultithreadScalesHandler {
             if(maxCompositionLinesCount != null && compositionLines.size() > maxCompositionLinesCount)
                 compositionLines = compositionLines.subList(0, maxCompositionLinesCount);
 
-            int itemNameLength = maxNameLength != null ? Math.min(item.name.length(), maxNameLength) : item.name.length();
-            String itemName = item.name.substring(0, itemNameLength);
+            List<String> headers = new ArrayList<>();
+            for(String line : item.name.split("\n")) {
+                headers.addAll(Arrays.asList(WordUtils.wrap(line, maxNameLength != null ? maxNameLength : line.length(), "\n", true).split("\n")));
+            }
 
-            int length = 36 + itemNameLength +
+            int headersLength = item.name.length() + 3 * headers.size() - 1; //на первую строку + 2 байта, на остальные + 3 байта
+
+            int length = 36 + headersLength +
                     compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
                     expiryLength + (expiryLines.isEmpty() ? 0 : expiryLines.size() * 2);
 
@@ -275,23 +281,24 @@ public class DigiHandler extends MultithreadScalesHandler {
             // номер ингредиента
             bytes.put((byte) 0);
 
-            //шрифт наименования
-            bytes.put((byte) fontSize.intValue());
+            for (int i = 0; i < headers.size(); i++) {
+                String header = headers.get(i);
 
-            //длина наименования
-            bytes.put((byte) itemNameLength);
+                //шрифт наименования
+                bytes.put((byte) fontSize.intValue());
+                //длина наименования
+                bytes.put((byte) header.length());
+                // Наименование товара
+                bytes.put(getBytes(header));
 
-            // Наименование товара
-            bytes.put(getBytes(itemName));
-
-            //если будет разбиение на строки
-            //терминатор первой строки
-            //bytes.put((byte) 0x0D);
-            //заголовок второй строки, 2 bytes
-            //bytes.put(getHexBytes("0311")); //номер шрифта и длина
-            //bytes.put(getBytes("second line"));
-
-            bytes.put((byte) 0x0C);
+                if(i < (headers.size() - 1)) {
+                    //терминатор промежуточной строки
+                    bytes.put((byte) 0x0D);
+                } else {
+                    //терминатор последней строки
+                    bytes.put((byte) 0x0C);
+                }
+            }
 
             //todo: макс. длина строки состава и спец.сообщения - 51 символ, хорошо бы ещё и на это смотреть
             // Состав
