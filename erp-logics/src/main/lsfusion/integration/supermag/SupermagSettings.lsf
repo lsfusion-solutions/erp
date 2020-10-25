@@ -336,7 +336,7 @@ packageType = DATA LOCAL STRING();
 lastDoclogId = DATA LONG ();
 EXTEND FORM integrationData PROPERTIES lastDoclogId(); 
 
-idDoc = DATA LOCAL STRING(STRING);
+//codeOperation = DATA LOCAL STRING(STRING);
 
 importPurchaseInvoices ABSTRACT LIST();
 
@@ -344,28 +344,21 @@ importDocumentsSupermag 'Импорт документов из СМ'()
 {    
     LOCAL recid = NUMERIC[16,0] (INTEGER);
 
-    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
-    MESSAGE sqlString();    
-//    connectionString()
+    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE NOT log.action = 11 AND (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
+
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
        
-    IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, locationTo, locationFrom, location;   
+    IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, bornIn, locationTo, locationFrom, location;   
     
     lastDoclogId() <- GROUP MAX recid(INTEGER i);
+   // APPLY;
     MESSAGE lastDoclogId();
     idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
-               
-    FOR idDoc(INTEGER i) AND NOT idDoc(idDoc(i)) DO {
-        idDoc(idDoc(i)) <- codeOperation(i);
-    }            
-    
-//    FOR idDoc(STRING ind) IF idDoc(ind) AND operation1Supermag(idDoc(ind)) IS Purchase.Operation DO {       
-//        MESSAGE CONCAT ' - ', ind, idDoc(ind);  
-//    }
+                              
     importPurchaseInvoices();   
     
-    APPLY;      
+    //APPLY;      
 }
 
 FORM REPLY

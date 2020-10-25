@@ -33,7 +33,9 @@ userInvoiceApply 'Сохранить ' (UserInvoice doc) {
     apply();
     IF NOT canceled() THEN {
         IF series(doc) THEN { number(doc) <- seriesNumber(doc); series(doc) <- NULL;} 
-        id(doc) <- CONCAT '', STRING[10](getWord(docTypeSupermag(operation(doc)),';',1)), seriesNumber(doc);         
+        id(doc) <- CONCAT '', STRING[10](getWord(docTypeSupermag(operation(doc)),';',1)), seriesNumber(doc);   
+        dataIndex(InvoiceDetail docd) <- index(docd) WHERE invoice(docd) = doc; 
+        id(InvoiceDetail docd) <- (CONCAT '~',id(doc),index(docd)) WHERE invoice(docd) = doc;      
         APPLY;
         overApplySaleInvoice(doc);
     }    
