@@ -1042,7 +1042,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
         String weightCode = null;
-        String pieceCode = null;
         Map<String, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (fitHandler(c)) {
@@ -1051,12 +1050,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 if (c.weightCodeGroupCashRegister != null) {
                     weightCode = c.weightCodeGroupCashRegister;
                 }
-                if (c.pieceCodeGroupCashRegister != null) {
-                    pieceCode = c.pieceCodeGroupCashRegister;
-                }
             }
         }
-        sendSalesLogger.info(logPrefix + "pieceCode = '" + pieceCode + "'"); //temp log
 
         try {
 
@@ -1072,7 +1067,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     sendSalesLogger.info(String.format(logPrefix + "connecting to %s", params.connectionString));
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
-                    salesBatch = readSalesInfoFromSQL(conn, weightCode, pieceCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
                             cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, directory);
 
@@ -1185,7 +1180,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, String pieceCode, boolean usePieceCode, Map<String, CashRegisterInfo> machineryMap,
+    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, boolean usePieceCode, Map<String, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
@@ -1225,8 +1220,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 idBarcode = appendBarcode ? appendCheckDigitToBarcode(idBarcode, 5) : idBarcode;
                 if(idBarcode != null) {
                     boolean startsWithWeightCode = weightCode != null && idBarcode.startsWith(weightCode);
+                    String pieceCode = cashRegister == null ? null : cashRegister.pieceCodeGroupCashRegister;
+                    sendSalesLogger.info(logPrefix + "pieceCode = '" + pieceCode + "'"); //temp log
                     boolean startsWithPieceCode = usePieceCode && pieceCode != null && idBarcode.startsWith(pieceCode);
-                    sendSalesLogger.info(logPrefix + "barcode = '" + idBarcode + "'"); //temp log
                     if ((idBarcode.length() == 13 || idBarcode.length() == 7) && (startsWithWeightCode || startsWithPieceCode))
                         idBarcode = idBarcode.substring(2, 7);
                 }
