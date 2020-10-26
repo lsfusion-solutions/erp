@@ -1056,6 +1056,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
             }
         }
+        sendSalesLogger.info(logPrefix + "pieceCode = '" + pieceCode + "'"); //temp log
 
         try {
 
@@ -1225,6 +1226,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 if(idBarcode != null) {
                     boolean startsWithWeightCode = weightCode != null && idBarcode.startsWith(weightCode);
                     boolean startsWithPieceCode = usePieceCode && pieceCode != null && idBarcode.startsWith(pieceCode);
+                    sendSalesLogger.info(logPrefix + "barcode = '" + idBarcode + "'"); //temp log
                     if ((idBarcode.length() == 13 || idBarcode.length() == 7) && (startsWithWeightCode || startsWithPieceCode))
                         idBarcode = idBarcode.substring(2, 7);
                 }
