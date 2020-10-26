@@ -1221,7 +1221,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 if(idBarcode != null) {
                     boolean startsWithWeightCode = weightCode != null && idBarcode.startsWith(weightCode);
                     String pieceCode = cashRegister == null ? null : cashRegister.pieceCodeGroupCashRegister;
-                    sendSalesLogger.info(logPrefix + "pieceCode = '" + pieceCode + "'"); //temp log
                     boolean startsWithPieceCode = usePieceCode && pieceCode != null && idBarcode.startsWith(pieceCode);
                     if ((idBarcode.length() == 13 || idBarcode.length() == 7) && (startsWithWeightCode || startsWithPieceCode))
                         idBarcode = idBarcode.substring(2, 7);
