@@ -5,6 +5,8 @@ import java.io.Serializable;
 public class DigiSettings implements Serializable{
 
     private Integer maxLineLength;
+
+    //максимальная длина строки наименования. Если не задано, то по строкам не разбивается
     private Integer maxNameLength;
 
     //размер шрифта. По умолчанию 4
