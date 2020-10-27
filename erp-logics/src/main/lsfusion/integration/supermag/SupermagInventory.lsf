@@ -316,14 +316,15 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
                         blankquantity(expDet) <- quantity(expDet);
                         valueTax(expDet) <-  valueVAT(sku(docd));
-                        priceWithTax(expDet) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc));
-                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceNoTax(expDet) <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc));
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) * (1 + valueVAT(sku(docd))/100),4)));
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
                         sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
                         sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceRetail(expDet) <- priceBalance(doc,sku(docd));
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
                 }        
                 
                 FOR collationSheet(OutInventoryBatchDetail docd) = doc AND doctype(expMain) = 'WO'
@@ -336,14 +337,15 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
                         blankquantity(expDet) <- quantity(expDet);
                         valueTax(expDet) <-  valueVAT(sku(docd));
-                        priceWithTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
-                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceNoTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) * (1 + valueVAT(sku(docd))/100),4)));
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
                         sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
                         sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceRetail(expDet) <- priceBalance(doc,batch(docd));
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
                 }        
                    
                 FOR collationSheet(InInventorySkuDetail docd) = doc AND doctype(expMain) = 'WI'
@@ -356,14 +358,15 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
                         blankquantity(expDet) <- quantity(expDet);
                         valueTax(expDet) <-  valueVAT(sku(docd));
-                        priceWithTax(expDet) <- OVERRIDE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc)), 0;
-                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceNoTax(expDet) <- OVERRIDE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku(docd), stock(doc), dateTime(doc)), 0;
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) * (1 + valueVAT(sku(docd))/100),4)));
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- round2(quantity(expDet) * priceWithTax(expDet));
                         sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
                         sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceRetail(expDet) <- priceBalance(doc,sku(docd));
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
                 }        
 
                 FOR collationSheet(InInventoryBatchDetail docd) = doc AND doctype(expMain) = 'WI'
@@ -376,14 +379,15 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
                         quantity(expDet) <- OVERRIDE abs(quantity(docd)), 0;
                         blankquantity(expDet) <- quantity(expDet);
                         valueTax(expDet) <-  valueVAT(sku(docd));
-                        priceWithTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
-                        priceNoTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) / (1 + valueVAT(sku(docd))/100),4)));
+                        priceNoTax(expDet) <- OVERRIDE cost(batch(docd)), 0;
+                        priceWithTax(expDet) <- NUMERIC[18,4] ( abs(round( priceWithTax(expDet) * (1 + valueVAT(sku(docd))/100),4)));
                         priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);
                         sumWithTax(expDet) <- OVERRIDE abs(costSum(docd)), 0;;
                         sumNoTax(expDet) <- round2(quantity(expDet) * priceNoTax(expDet));
                         sumTax(expDet) <- sumWithTax(expDet)  - sumNoTax(expDet);
                         sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
                         priceRetail(expDet) <- priceBalance(doc,batch(docd));
+                        priceManufacturer(expDet) <- priceNoTax(expDet);
                 }        
 
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
