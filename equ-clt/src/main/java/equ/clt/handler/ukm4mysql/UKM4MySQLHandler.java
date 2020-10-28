@@ -1211,8 +1211,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 String store = rs.getString(1); //i.store = при выгрузке цен выгружаем section
                 Integer cash_number = rs.getInt(2); //i.cash_number
                 Integer cash_id = rs.getInt(3); //i.cash_id
+                String machineryKey = getMachineryKey(store, useCashNumberInsteadOfCashId ? cash_number : cash_id, cashRegisterByStoreAndNumber);
                 CashRegisterInfo cashRegister = machineryMap.get(getMachineryKey(store, useCashNumberInsteadOfCashId ? cash_number : cash_id, cashRegisterByStoreAndNumber));
-                Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                if(cashRegister == null) {
+                    throw new RuntimeException(logPrefix + String.format("cashRegister %s not found", machineryKey));
+                }
 
                 //Integer id = rs.getInt(4); //i.id
                 Integer idReceipt = rs.getInt(5); //i.receipt_header
@@ -1220,8 +1223,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 idBarcode = appendBarcode ? appendCheckDigitToBarcode(idBarcode, 5) : idBarcode;
                 if(idBarcode != null) {
                     boolean startsWithWeightCode = weightCode != null && idBarcode.startsWith(weightCode);
-                    String pieceCode = cashRegister == null ? null : cashRegister.pieceCodeGroupCashRegister;
-                    boolean startsWithPieceCode = usePieceCode && pieceCode != null && idBarcode.startsWith(pieceCode);
+                    boolean startsWithPieceCode = usePieceCode && cashRegister.pieceCodeGroupCashRegister != null && idBarcode.startsWith(cashRegister.pieceCodeGroupCashRegister);
                     if ((idBarcode.length() == 13 || idBarcode.length() == 7) && (startsWithWeightCode || startsWithPieceCode))
                         idBarcode = idBarcode.substring(2, 7);
                 }
@@ -1281,7 +1283,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
                     if (totalQuantity != null) {
 //                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
-                            salesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, cash_id, numberZReport,
+                            salesInfoList.add(getSalesInfo(isGiftCard, false, cashRegister.numberGroup, cash_id, numberZReport,
                                     sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee,
                                     null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, paymentEntry.customPaymentsMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
