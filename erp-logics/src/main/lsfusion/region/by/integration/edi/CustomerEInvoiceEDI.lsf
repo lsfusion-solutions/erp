@@ -5,10 +5,31 @@ REQUIRE EInvoiceEDI;
 NAMESPACE EDI;
 
 importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (EInvoice);
+exportedBlrapnCustomer 'Экспортировано извещение о прочтении (покупатель)' = DATA BOOLEAN (EInvoice);
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (EInvoice);
+exportedNoticeCustomer 'Экспортировано уведомление об изменении (покупатель)' = DATA BOOLEAN (EInvoice);
 
 aliasEDSServiceCustomer (EInvoice i) = OVERRIDE aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
 passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
+
+signAndSendBlrapnCustomer 'Подписать и отправить извещение о прочтении (покупатель)' ABSTRACT LIST (EInvoice);
+signAndSendBlrapnCustomerEDI 'Подписать и отправить извещение о прочтении (покупатель)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProvider(supplier(i)) THEN
+                signAndSendBlrapnCustomer(i);
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + number(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + number(i);
+        in(i) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+}
 
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST ( EInvoice);
 signAndSendCustomerEDI 'Подписать и отправить (покупатель)'() {
@@ -29,12 +50,48 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
         MESSAGE 'Не выбрано ни одной накладной';
 }
 
+FORM signAndSendNotice 'Уведомление об изменении'
+    OBJECTS d = TEXT PANEL
+    PROPERTIES description = VALUE(d)
+;
+DESIGN signAndSendNotice {
+    OBJECTS {
+        MOVE PROPERTY(description) {
+            caption = 'Текст';
+            valueSize = (400, 128);
+            panelCaptionAbove = TRUE;
+        }
+    }
+}
+
+signAndSendNoticeCustomer 'Подписать и отправить уведомление об изменении (покупатель)' ABSTRACT LIST (EInvoice, STRING[1000]);
+signAndSendNoticeCustomerEDI 'Подписать и отправить уведомление об изменении (покупатель)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO {
+        IF isEDI(i) THEN {
+            IF EDIProvider(supplier(i)) THEN {
+                DIALOG signAndSendNotice OBJECTS d INPUT DO {
+                    signAndSendNoticeCustomer(i,STRING[1000](d));
+                }
+            }
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + number(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + number(i);
+        in(i) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+}
+
 EXTEND FORM eInvoices
-    PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() importedCustomer, exportedCustomer
+    PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() importedCustomer, exportedBlrapnCustomer, exportedCustomer, exportedNoticeCustomer
     EXTEND FILTERGROUP notExported
         FILTER 'Не импортированы (покупатель)' NOT importedCustomer(e) 'F9'
-        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(e) 'F10'
-    PROPERTIES() DRAW e TOOLBAR signAndSendCustomerEDI
+        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(e) AND NOT exportedNoticeCustomer(e) 'F10'
+    PROPERTIES() DRAW e TOOLBAR signAndSendBlrapnCustomerEDI, signAndSendCustomerEDI, signAndSendNoticeCustomerEDI
 ;
 
 

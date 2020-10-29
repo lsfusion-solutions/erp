@@ -6,7 +6,9 @@ NAMESPACE EDI;
 
 exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (EInvoice);
 importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (EInvoice);
+importedNoticeSupplier 'Импортировано уведомление об изменении (поставщик)' = DATA BOOLEAN (EInvoice);
 importedSupplierCancel 'Импортирован (поставщик) отмена' = DATA BOOLEAN (EInvoice);
+exportedBlrapnSupplier 'Экспортировано извещение о прочтении (поставщик)' = DATA BOOLEAN (EInvoice);
 
 aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
 passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
@@ -31,12 +33,32 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     
 }
 
+signAndSendBlrapnSupplier 'Подписать и отправить извещение о прочтении (поставщик)'  ABSTRACT LIST ( EInvoice);
+signAndSendBlrapnSupplierEDI 'Подписать и отправить извещение о прочтении (поставщик)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(EInvoice i) DO { 
+        IF isEDI(i) THEN {
+            IF EDIProvider(supplier(i)) THEN
+                signAndSendBlrapnSupplier(i);
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для накладной: ' + number(i);
+        } ELSE
+            MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + number(i);
+        in(i) <- NULL;
+    }
+    ELSE
+        MESSAGE 'Не выбрано ни одной накладной';
+    
+}
+
 EXTEND FORM eInvoices
-    PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() exportedSupplier, importedSupplier, importedSupplierCancel
+    PROPERTIES(e) BEFORE isCancel(e) READONLYIF isReadonly() exportedSupplier, importedSupplier, importedNoticeSupplier, importedSupplierCancel, exportedBlrapnSupplier
     EXTEND FILTERGROUP notExported
         FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(e) 'F8'
-        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) 'F11'
-    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI
+        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(e) AND NOT importedNoticeSupplier(e) 'F11'
+    PROPERTIES() DRAW e TOOLBAR signAndSendSupplierEDI, signAndSendBlrapnSupplierEDI
 ;
 
 

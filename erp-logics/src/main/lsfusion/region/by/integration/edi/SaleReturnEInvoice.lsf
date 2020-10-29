@@ -45,11 +45,19 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
         in(EInvoice e) <- NULL;
     }
 }
+signAndSendNoticeCustomerEDI 'Подписать и отправить уведомление об изменении (покупатель)'(Invoice i)  { 
+    NEWSESSION {
+        in(EInvoice e) <- e = eInvoice(i);
+        signAndSendNoticeCustomerEDI();
+        in(EInvoice e) <- NULL;
+    }
+}
 
 EXTEND FORM invoices
     PROPERTIES READONLY numberEInvoice = numberEInvoice(i), statusDescription = statusDescription(i) BACKGROUND backgroundStatusDescription(i)
     PROPERTIES numberEInvoice(i) SHOWIF eInvoice(i) PANEL READONLY,
-               signAndSendCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i))),
+               signAndSendCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i))),
+               signAndSendNoticeCustomerEDI(i) SHOWIF (eInvoice(i) AND NOT exportedCustomer(eInvoice(i)) AND NOT exportedNoticeCustomer(eInvoice(i))),
                statusDescription(i) SHOWIF eInvoice(i) PANEL
 ;
 
@@ -64,6 +72,7 @@ DESIGN invoices {
                     type = CONTAINERH;
                     MOVE PROPERTY(numberEInvoice(i));
                     MOVE PROPERTY(signAndSendCustomerEDI(i));
+                    MOVE PROPERTY(signAndSendNoticeCustomerEDI(i));
                     MOVE PROPERTY(statusDescription(i));
                 }
             }
