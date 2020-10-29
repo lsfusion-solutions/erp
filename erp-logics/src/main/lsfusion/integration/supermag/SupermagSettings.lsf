@@ -265,6 +265,7 @@ paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percen
     AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
 
 idDoc = DATA LOCAL ISTRING[50] (INTEGER);
+indexDoc = DATA LOCAL ISTRING[50] (INTEGER);
 idDet = DATA LOCAL ISTRING[50] (INTEGER);
 docType = DATA LOCAL ISTRING[100] (INTEGER);
 docNumber = DATA LOCAL ISTRING[50] (INTEGER);
@@ -334,32 +335,50 @@ nameDoc = DATA LOCAL STRING();
 packageType = DATA LOCAL STRING();
 
 lastDoclogId = DATA LONG ();
-EXTEND FORM integrationData PROPERTIES lastDoclogId(); 
 
-//codeOperation = DATA LOCAL STRING(STRING);
+codeOperation = DATA LOCAL STRING(STRING);
 
 importPurchaseInvoices ABSTRACT LIST();
+onImportPurchaseInvoices = DATA BOOLEAN ();
+importAdjustments ABSTRACT LIST();
+onImportAdjustments = DATA BOOLEAN ();
+importDisparities ABSTRACT LIST();
+onImportDisparities = DATA BOOLEAN ();
+importWriteOffs ABSTRACT LIST();
+onImportWriteOffs = DATA BOOLEAN ();
 
 importDocumentsSupermag 'Импорт документов из СМ'()
 {    
     LOCAL recid = NUMERIC[16,0] (INTEGER);
 
-    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE NOT log.action = 11 AND (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
+    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE NOT log.actioncode = 11 AND (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
 
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
        
     IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, bornIn, locationTo, locationFrom, location;   
     
-    lastDoclogId() <- GROUP MAX recid(INTEGER i);
-   // APPLY;
-    MESSAGE lastDoclogId();
-    idDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
+    indexDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+    FOR codeOperation (INTEGER i) DO {
+        codeOperation(indexDoc(i)) <- codeOperation (i);
+    }
                               
-    importPurchaseInvoices();   
+    IF onImportPurchaseInvoices() THEN importPurchaseInvoices();   
+    IF onImportAdjustments() THEN importAdjustments();
+    IF onImportDisparities() THEN importDisparities();
+    IF onImportWriteOffs() THEN importWriteOffs();
     
-    //APPLY;      
+    lastDoclogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastDoclogId();
+   // MESSAGE lastDoclogId();
+    
+    APPLY;      
 }
+
+EXTEND FORM integrationData
+PROPERTIES importDocumentsSupermag(), lastDoclogId(), onImportPurchaseInvoices(), onImportAdjustments(),  onImportDisparities(),  onImportWriteOffs()
+;
+
 
 FORM REPLY
 PROPERTIES() nameDoc ATTR, packageType ATTR

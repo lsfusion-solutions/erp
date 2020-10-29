@@ -164,3 +164,46 @@ importWriteOff 'Списания' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importWriteOff();
+
+importWriteOffStatus 'Изменение сортности' (STRING indexDoc, STRING idDoc) {
+    filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
+    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.docstate from Supermag.SMDocuments d WHERE ' + filterSql();    
+    
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт изменение остатков', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+ //   MESSAGE sqlString();
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
+        
+    FOR UserWriteOff doc == userWriteOff(idDoc) DO {  
+        isPosted(doc) <- TRUE IF ( docState(0) = 3 );
+        isClosed(doc) <- NULL WHERE docState(0) == 2 OR docState(0) == 1;
+    }
+    
+    APPLY;
+}
+
+importWriteOffs () + {
+    LOCAL indexDoc = STRING ();
+    LOCAL idDoc = STRING ();
+    
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) IS WriteOff.Operation  AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+        idDoc() <- CONCAT '', getWord(docTypeSupermag(operation1Supermag(codeOperation(indexDoc))),';',1), getWord(indexDoc,'~',2);         
+        indexDoc() <- indexDoc;     
+        IF userWriteOff(idDoc()) THEN
+        NEWSESSION NESTED (indexDoc, idDoc){            
+            importWriteOffStatus(indexDoc(), idDoc());
+        } 
+    }
+    
+//    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation2Supermag(codeOperation(i)) IS WriteOff.Operation AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+//        idDoc() <- CONCAT '', getWord(docTypeSupermag(operation2Supermag(codeOperation(indexDoc))),';',1), getWord(indexDoc,'~',2);         
+//        indexDoc() <- indexDoc;     
+//        IF userWriteOff(idDoc()) THEN
+//        NEWSESSION NESTED (indexDoc, idDoc){            
+//            importWriteOffStatus(indexDoc(), idDoc());
+//        } 
+//    }
+}
