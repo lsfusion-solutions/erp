@@ -45,20 +45,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    static Logger astronTempLogger;
-    static {
-        try {
-            astronTempLogger = Logger.getLogger("astronTempLog");
-            astronTempLogger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/astrontemp.log");
-            astronTempLogger.removeAllAppenders();
-            astronTempLogger.addAppender(fileAppender);
-
-        } catch (Exception ignored) {
-        }
-    }
-
     private static String logPrefix = "Astron: ";
 
     private static Map<String, Map<String, CashRegisterItemInfo>> deleteBarcodeConnectionStringMap = new HashMap<>();
@@ -104,7 +90,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         Set<String> deleteBarcodeSet = new HashSet<>();
                         if(exception == null) {
-                            astronTempLogger.info(String.format("sending transaction %s of %s", transactionCount, totalCount));
                             exception = exportTransaction(transaction, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(), exportExtraTables, groupMachineryMap, deleteBarcodeSet, timeout);
                         }
                         currentSendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(null, null, transaction.nppGroupMachinery, deleteBarcodeSet, exception));
@@ -218,7 +203,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
 
                     if (lastTransaction) {
-                        astronTempLogger.info("waiting for processing transactions");
                         processTransactionLogger.info(logPrefix + "waiting for processing transactions");
                         exportFlags(conn, params, tables);
                         Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
@@ -420,7 +404,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            processTransactionLogger.error("Unable to parse UOM " + value, e);
+            processTransactionLogger.error(logPrefix + "Unable to parse UOM " + value, e);
             return null;
         }
     }
@@ -888,11 +872,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         while ((flags = checkFlags(conn, params, tables)) != 0) {
             if (count > (timeout / 5)) {
                 String message = String.format("data was sent to db but %s flag records were not set to zero", flags);
-                processTransactionLogger.error(message);
+                processTransactionLogger.error(logPrefix + message);
                 return new RuntimeException(message);
             } else {
                 count++;
-                processTransactionLogger.info(String.format("Waiting for setting to zero %s flag records", flags));
+                processTransactionLogger.info(logPrefix + String.format("Waiting for setting to zero %s flag records", flags));
                 Thread.sleep(5000);
             }
         }
@@ -1241,7 +1225,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             //увеличиваем id, если номер чека совпадает
                             while (uniqueReceiptIdNumberReceiptMap.containsKey(uniqueReceiptId = getUniqueReceiptId(sAreaId, nppCashRegister, sessionId, numberReceipt))) {
                                 numberReceipt += 100000000; //считаем, что касса никогда сама не достигнет стомиллионного чека. Может возникнуть переполнение, если таких чеков будет больше 21
-                                astronLogger.info(String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
+                                astronLogger.info(logPrefix + String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
                             }
                             currentUniqueReceiptId = uniqueReceiptId;
                             uniqueReceiptIdNumberReceiptMap.put(uniqueReceiptId, numberReceipt);
@@ -1254,7 +1238,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 salesInfoList.addAll(curSalesInfoList);
                                 recordList.addAll(curRecordList);
                             } else {
-                                sendSalesLogger.info(String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+                                sendSalesLogger.info(logPrefix + String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
                             }
                             curSalesInfoList = new ArrayList<>();
                             curRecordList = new ArrayList<>();
