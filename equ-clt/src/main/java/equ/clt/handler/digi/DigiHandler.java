@@ -53,6 +53,7 @@ public class DigiHandler extends MultithreadScalesHandler {
     class DigiSendTransactionTask extends SendTransactionTask {
         private Integer maxLineLength;
         private Integer maxNameLength;
+        private Integer maxNameLinesCount;
         private Integer fontSize;
 
         public DigiSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
@@ -111,6 +112,7 @@ public class DigiHandler extends MultithreadScalesHandler {
             maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
             maxLineLength = maxLineLength == null ? 50 : maxLineLength;
             maxNameLength = digiSettings != null ? digiSettings.getMaxNameLength() : null;
+            maxNameLinesCount = digiSettings != null ? digiSettings.getMaxNameLinesCount() : null;
             fontSize = nvl(digiSettings != null ? digiSettings.getFontSize() : null, 4);
         }
 
@@ -195,7 +197,16 @@ public class DigiHandler extends MultithreadScalesHandler {
                 headers.addAll(Arrays.asList(WordUtils.wrap(line, maxNameLength != null ? maxNameLength : line.length(), "\n", true).split("\n")));
             }
 
-            int headersLength = item.name.length() + 3 * headers.size() - 1; //на первую строку + 2 байта, на остальные + 3 байта
+            if(maxNameLinesCount != null && headers.size() > maxNameLinesCount) {
+                headers = headers.subList(0, maxNameLinesCount);
+            }
+
+            int headersLength = 3 * headers.size() - 1; //на первую строку + 2 байта, на остальные + 3 байта
+            for(String header : headers) {
+                headersLength += header.length();
+            }
+
+
 
             int length = 36 + headersLength +
                     compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
