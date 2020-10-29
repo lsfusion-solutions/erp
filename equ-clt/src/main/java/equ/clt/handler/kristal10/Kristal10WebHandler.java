@@ -1338,14 +1338,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document xmlStringToDoc(String xml) throws JDOMException, IOException {
-        processTransactionLogger.info("received xml: " + xml); //temp log
         return new SAXBuilder().build(org.apache.commons.io.IOUtils.toInputStream(xml, encoding));
     }
 
     private String docToXMLString(Document doc) {
-        String result = new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
-        processTransactionLogger.info("sent xml: " + result); //temp log
-        return result;
+        return new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
     }
 
     private class HttpRequestHandler implements HttpHandler {
