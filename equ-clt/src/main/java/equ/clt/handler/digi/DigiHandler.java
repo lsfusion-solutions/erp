@@ -206,8 +206,6 @@ public class DigiHandler extends MultithreadScalesHandler {
                 headersLength += header.length();
             }
 
-
-
             int length = 36 + headersLength +
                     compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
                     expiryLength + (expiryLines.isEmpty() ? 0 : expiryLines.size() * 2);
