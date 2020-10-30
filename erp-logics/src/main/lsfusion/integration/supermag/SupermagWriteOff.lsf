@@ -178,8 +178,22 @@ importWriteOffStatus 'Изменение сортности' (STRING indexDoc, S
     IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
         
     FOR UserWriteOff doc == userWriteOff(idDoc) DO {  
-        isPosted(doc) <- TRUE IF ( docState(0) = 3 );
-        isClosed(doc) <- NULL WHERE docState(0) == 2 OR docState(0) == 1;
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- TRUE IF (docType(0) = 'FA' OR docType(0) = 'LA');
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
     }
     
     APPLY;

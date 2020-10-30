@@ -6,6 +6,11 @@ NAMESPACE Inventory;
 
 @settingOperationSupermag(Inventory);
 
+code3Supermag (Inventory.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Inventory.Operation](op),';',3), getWord(opcodeSupermag[Inventory.Operation](op),';',3), getWord(useropSupermag[Inventory.Operation](op),';',3)), id[Inventory.Operation](op));  
+code4Supermag (Inventory.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Inventory.Operation](op),';',4), getWord(opcodeSupermag[Inventory.Operation](op),';',4), getWord(useropSupermag[Inventory.Operation](op),';',4)), id[Inventory.Operation](op));  
+operation3Supermag (STRING code) = GROUP MAX Inventory.Operation op IF op IS Inventory.Operation BY code3Supermag[Inventory.Operation](op);
+operation4Supermag (STRING code) = GROUP MAX Inventory.Operation op IF op IS Inventory.Operation BY code4Supermag[Inventory.Operation](op);
+
 bornin = DATA STRING[100] (Inventory);
 
 dateTimeChange = DATA DATETIME (CollationSheet);
@@ -196,8 +201,8 @@ exportActs 'Экспорт в супермаг' (CollationSheet doc) {
             NEW expMain = DocMain {
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
-                id(doc) <- CONCAT '', doctype(expMain), name(doc);                               
-                id(expMain) <- id(doc); 
+                id(doc) <- CONCAT '', 'RL', name(doc);                               
+                id(expMain) <-  CONCAT '', doctype(expMain) , name(doc); 
                 docid(expMain) <- name(doc);            
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
@@ -290,8 +295,8 @@ exportInvoices 'Экспорт в супермаг' (CollationSheet doc) {
             NEW expMain = DocMain {
                 inc(expMain) <- TRUE;          
                 doctype(expMain) <- STRING[10] (getWord(docTypeSupermag(operation(doc)),';',n));
-                id(doc) <- CONCAT '', doctype(expMain), name(doc);                               
-                id(expMain) <- id(doc); 
+                id(doc) <- CONCAT '', 'RL', name(doc);                               
+                id(expMain) <-  CONCAT '', doctype(expMain) , name(doc); 
                 docid(expMain) <- name(doc);            
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 opcode(expMain) <- STRING[10] (getWord(opcodeSupermag(operation(doc)),';',n));
@@ -424,7 +429,99 @@ exportInventory (Inventory inv) + {
     }    
     FOR inventory(CollationSheet cs) = inv AND getWord(docTypeSupermag(operation(inv)),';',3) = 'WI' DO {
         exportInvoices(cs);
+    }       
+}
+
+importInventoryStatus 'Изменение остатков' (STRING indexDoc, STRING idDoc) {
+    filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
+    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.docstate from Supermag.SMDocuments d WHERE ' + filterSql();    
+    
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт изменение остатков', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+ //   MESSAGE sqlString();
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
+        
+    FOR Inventory doc == inventory(idDoc) DO {  
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
+    }
+
+    FOR CollationSheet doc == collationSheet(idDoc) DO {  
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(inventory(doc)) <- NULL;
+            isClosed(inventory(doc)) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(inventory(doc)) <- NULL;
+            isClosed(inventory(doc)) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(inventory(doc)) <- TRUE;
+//            isClosed(inventory(doc)) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(inventory(doc)) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
     }
     
+    APPLY;
+}
+
+importInventories () + {
+    LOCAL indexDoc = STRING ();
+    LOCAL idDoc = STRING ();
     
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) IS Inventory.Operation  AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+        idDoc() <- CONCAT '', 'IL', getWord(indexDoc,'~',2);         
+        indexDoc() <- indexDoc;     
+        IF inventory(idDoc()) THEN
+        NEWSESSION NESTED (indexDoc, idDoc){            
+            importInventoryStatus(indexDoc(), idDoc());
+        } 
+    }
+    
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation2Supermag(codeOperation(i)) IS Inventory.Operation AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+        idDoc() <- CONCAT '', 'RL', getWord(indexDoc,'~',2);         
+        indexDoc() <- indexDoc;     
+        IF collationSheet(idDoc()) THEN
+        NEWSESSION NESTED (indexDoc, idDoc){            
+            importInventoryStatus(indexDoc(), idDoc());
+        } 
+    }
+
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation3Supermag(codeOperation(i)) IS Inventory.Operation AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+        idDoc() <- CONCAT '', 'RL', getWord(indexDoc,'~',2);         
+        indexDoc() <- indexDoc;     
+        IF collationSheet(idDoc()) THEN
+        NEWSESSION NESTED (indexDoc, idDoc){            
+            importInventoryStatus(indexDoc(), idDoc());
+        } 
+    }
+
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation4Supermag(codeOperation(i)) IS Inventory.Operation AND bornIn(i) = baseIDSupermag()](STRING indexDoc) NOINLINE DO  {
+        idDoc() <- CONCAT '', 'RL', getWord(indexDoc,'~',2);         
+        indexDoc() <- indexDoc;     
+        IF collationSheet(idDoc()) THEN
+        NEWSESSION NESTED (indexDoc, idDoc){            
+            importInventoryStatus(indexDoc(), idDoc());
+        } 
+    }
 }

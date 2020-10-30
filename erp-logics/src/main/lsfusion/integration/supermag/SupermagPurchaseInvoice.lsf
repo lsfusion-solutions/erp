@@ -436,8 +436,22 @@ importPurchaseInvoiceStatus 'Импорт накладные (закупка)' (
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
 
     FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
-        isPosted(doc) <- docState(i) == 3;
-        isClosed(doc) <- NULL WHERE docState(i) == 2 OR docState(i) == 1;
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- TRUE IF (docType(0) = 'FA' OR docType(0) = 'LA');
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
     }      
             
     overImportPurchaseInvoiceStatus();
@@ -465,13 +479,28 @@ importPurchaseInvoiceFull 'Импорт накладные (закупка)' (ST
     IF NOT userInvoice(idDoc(0)) THEN NEW o = UserInvoice {  id(o) <- idDoc(0); }
               
     FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- TRUE IF (docType(0) = 'FA' OR docType(0) = 'LA');
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
+    }      
+                  
+    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
         number[Document](doc) <- STRING[28](docNumber(i));
         bornin(doc) <- bornIn(i);
         operation(doc) <- operation1Supermag(codeOperation(i));
-        isPosted(doc) <- docState(i) == 3;
-//        createShipment(doc) <- docState(i) == 2 OR docState(i) == 3; 
-        isClosed(doc) <- NULL IF docState(i) == 2 OR docState(i) == 1;
-//        isClosed(doc) <- docState(i) == 0;
         lastStatusSupermag(doc) <- docState(i);
         supplier(doc) <- legalEntity(STRING(clientIndex(i)));
         supplierStock(doc) <- stock(STRING[100] (clientIndex(i)));
