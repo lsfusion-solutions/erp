@@ -118,6 +118,13 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;
+                                
+                acceptsum(expMain)  <- creditInvoiceSumInvoiceDetail(doc);
+                basesum(expMain) <- invoiceSumInvoiceDetail(doc);
+                calcenddate(expMain) <- OVERRIDE dateTime(lastInvoiceContractLedger(doc)), calcendDate(doc);
+                paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
+                finagent(expMain) <- id(supplier(doc)); 
+                iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
                 
                 FOR include(Order o, doc) DO NEW b = DocBase {
                     basisDoc(expMain, b) <- TRUE;
@@ -130,13 +137,6 @@ exportPurchaseInvoiceWI 'Экспорт в супермаг' (Invoice doc) {
                     docid(b) <- seriesNumber(c);
                     doctype(b) <- 'CO';
                 }                                
-                
-                acceptsum(expMain)  <- creditInvoiceSumInvoiceDetail(doc);
-                basesum(expMain) <- invoiceSumInvoiceDetail(doc);
-                calcenddate(expMain) <- OVERRIDE dateTime(lastInvoiceContractLedger(doc)), calcendDate(doc);
-                paymentdelay(expMain) <- countDays(lastPaymentPeriod(paymentCondition(doc)));
-                finagent(expMain) <- id(supplier(doc)); 
-                iscalendardelay(expMain) <- IF bankingDays(paymentCondition(doc)) THEN '0' ELSE '1'; 
                 
                 overExportPurchaseInvoiceWI(doc,expMain); 
                 
