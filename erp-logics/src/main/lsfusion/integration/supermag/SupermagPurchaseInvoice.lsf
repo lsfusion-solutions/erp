@@ -260,6 +260,8 @@ overImportPurchaseInvoiceDetail ABSTRACT LIST (Purchase.UserInvoiceDetail, INTEG
 importPurchaseInvoice 'Импорт накладные (закупка)' () {
 
     LOCAL paymentCondition = PaymentCondition (STRING);
+    imported (Purchase.Invoice i) <- NULL;         
+    imported (Purchase.InvoiceDetail d) <- NULL;            
        
     filterSql() <- 'NOT d.DOCTYPE = \'IW\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.locationto IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( ';
     LOCAL filterDoc = STRING ();
@@ -406,9 +408,9 @@ importPurchaseInvoice 'Импорт накладные (закупка)' () {
         lastVersion(det) <- currentVersion(i);
     }
     
-//    FOR Purchase.UserInvoiceDetail det = Purchase.userInvoiceDetail(idDet(INTEGER i)) DO imported(det) <- TRUE;
+    FOR Purchase.UserInvoiceDetail det = Purchase.userInvoiceDetail(idDet(INTEGER i)) DO imported(det) <- TRUE;
 //    
-//    DELETE Purchase.UserInvoiceDetail det WHERE det IS UserInvoiceDetail AND imported(userInvoice(det)) AND NOT imported(det);
+    DELETE Purchase.UserInvoiceDetail det WHERE det IS UserInvoiceDetail AND imported(userInvoice(det)) AND NOT imported(det);
     
     executeLocalEvents('Purchase.UserInvoice');
     numberImportDocument() <- NULL;
@@ -460,6 +462,9 @@ importPurchaseInvoiceStatus 'Импорт накладные (закупка)' (
 }
 
 importPurchaseInvoiceFull 'Импорт накладные (закупка)' (STRING indexDoc) {
+
+    imported (Purchase.Invoice i) <- NULL;         
+    imported (Purchase.InvoiceDetail d) <- NULL;            
 
     filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
     
