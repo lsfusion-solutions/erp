@@ -110,7 +110,7 @@ overApplySaleInvoice (Sale.UserInvoice doc) + {
     IF (getWord(docTypeSupermag(operation(doc)),';',1)) = 'IW' AND (inExport(supplierStock(doc)) OR inExport(customerStock(doc))) AND (isPosted(doc) OR createShipment(doc)) THEN exportSaleInvoiceIW(doc);
 }
 
-overExportPurchaseInvoiceAC ABSTRACT LIST (Invoice, DocMain) ;
+overExportSalePurchaseInvoiceAC ABSTRACT LIST (Invoice, DocMain) ;
 
 exportSalePurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
     inc(DocMain d) <- NULL;
@@ -152,7 +152,10 @@ exportSalePurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                         revalSum(expDet) <- 0.00;
                         revalOperQuantity(expDet) <- 0.00;
                     }
-                }    
+                }
+                    
+                overExportSalePurchaseInvoiceAC(doc,expMain);
+                
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;                
@@ -163,7 +166,6 @@ exportSalePurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                     doctype(b) <- 'IW';
                 }
                 
-           //     overExportPurchaseInvoiceAC(doc,expMain);
                 
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        

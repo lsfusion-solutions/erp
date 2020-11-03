@@ -218,6 +218,9 @@ exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                         overExportPurchaseInvoiceDetailAC(docd, expDet);
                     }
                 }    
+
+                overExportPurchaseInvoiceAC(doc,expMain);
+                
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain;                
                 sumCurr(expMain) <- GROUP SUM sumCurr(DocDetail expDet) IF docMain(expDet) = expMain; 
                 countSpec(expMain) <- GROUP SUM 1 IF docMain(DocDetail expDet) = expMain;                
@@ -227,9 +230,7 @@ exportPurchaseInvoiceAC 'Экспорт в супермаг' (Invoice doc) {
                     docid(b) <- seriesNumber(doc);
                     doctype(b) <- 'WI';
                 }
-                
-                overExportPurchaseInvoiceAC(doc,expMain);
-                
+                               
                 IF countSpec(expMain) > 0 THEN {
                     dt () <- currentDateTime();        
                     TRY EXPORT exportAC XML TO System.exportFile;
@@ -424,7 +425,7 @@ importPurchaseInvoiceStatus 'Импорт накладные (закупка)' (
                
     filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
     
-    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.docstate, f.isadmitted from Supermag.SMDocuments d, Supermag.SMFinobligation f ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype';    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.docstate, f.isadmitted from Supermag.SMDocuments d, Supermag.SMFinobligation f WHERE ' + filterSql() + ' AND f.docid(+)=d.id AND f.doctype(+)=d.doctype';    
     
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка)', sqlString());
     
@@ -447,7 +448,7 @@ importPurchaseInvoiceStatus 'Импорт накладные (закупка)' (
             isClosed(doc) <- NULL;                        
         } 
         WHEN docState(0) = 2 THEN {
-            isPosted(doc) <- TRUE IF (docType(0) = 'FA' OR docType(0) = 'LA');
+            isPosted(doc) <- IF (docType(0) = 'FA' OR docType(0) = 'LA') THEN TRUE ELSE NULL;
             isClosed(doc) <- NULL;;                
         } 
         WHEN docState(0) = 3 THEN {
@@ -493,7 +494,7 @@ importPurchaseInvoiceFull 'Импорт накладные (закупка)' (ST
             isClosed(doc) <- NULL;                        
         } 
         WHEN docState(0) = 2 THEN {
-            isPosted(doc) <- TRUE IF (docType(0) = 'FA' OR docType(0) = 'LA');
+            isPosted(doc) <- IF (docType(0) = 'FA' OR docType(0) = 'LA') THEN TRUE ELSE NULL;
             isClosed(doc) <- NULL;;                
         } 
         WHEN docState(0) = 3 THEN {
