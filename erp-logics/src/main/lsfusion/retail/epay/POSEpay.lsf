@@ -202,3 +202,16 @@ DESIGN POS {
         MOVE PROPERTY (postEpay(r)) BEFORE PROPERTY (cancel(r)){ alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
     }
 }
+
+sumEpayPayment 'Сумма продаж (О!ПЛАТИ)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansEpay BY receipt(payment);
+sumEpayPayment 'Сумма продаж (О!ПЛАТИ)' (zReport) = GROUP SUM sumEpayPayment(Receipt r) BY zReport(r) MATERIALIZED IN documentSum;
+
+EXTEND FORM zReport
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumEpayPayment
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumEpayPayment 
+;
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumEpayPayment
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumEpayPayment   
+;
