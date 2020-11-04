@@ -1,0 +1,77 @@
+MODULE BOMNutritionTreatment;
+
+REQUIRE BOMNutrition, BOMHumidity;
+
+NAMESPACE BOM;
+
+isTreatment 'Тепловая обработка' = DATA BOOLEAN (BOM);
+percFats '% потери жиры' = DATA NUMERIC[16,5](BOM);
+percCarbohydrades '% потери углероды'= DATA NUMERIC[16,5](BOM);
+percProteins'% потери белки'= DATA NUMERIC[16,5](BOM);
+percEnergy '% потери энерг. ценность'= DATA NUMERIC[16,5](BOM);
+
+EXTEND FORM BOM
+    PROPERTIES (b) SHOWIF showNutrition (b) isTreatment
+    PROPERTIES (b) SHOWIF (showNutrition (b) AND isTreatment(b)) percFats, percCarbohydrades, percProteins, percEnergy
+;
+DESIGN BOM {
+    nutrition{
+        type = CONTAINERV;
+        NEW  nutrition1{
+            type = CONTAINERH;
+            caption = '';
+            MOVE PROPERTY (isTreatment(b));
+            MOVE PROPERTY (percFats(b));
+            MOVE PROPERTY (percCarbohydrades(b));
+            MOVE PROPERTY (percProteins(b));
+            MOVE PROPERTY (percEnergy(b));
+            
+        }
+        NEW nutrition2 {
+            fill = 1;
+            type = SPLITV;
+            MOVE BOX(pp);
+            MOVE BOX (cc);
+        }    
+    } 
+}
+
+WHEN LOCAL FORMS BOM CHANGED(isTreatment(BOM b)) DO {
+    IF isTreatment(b) THEN {
+        percFats(b) <- 12.0;
+        percCarbohydrades(b) <- 9.0;
+        percProteins(b) <- 6.0;
+        percEnergy(b) <- 10.0;        
+    } ELSE {
+        percFats(b) <- NULL;
+        percCarbohydrades(b) <- NULL;
+        percProteins(b) <- NULL;
+        percEnergy(b) <- NULL;   
+    }
+
+}
+
+isFillNutrition(Product p) += isTreatment(BOM(p));
+overFillNutrition (Product p) + {
+    IF isTreatment(BOM(p)) THEN { 
+        IF countProduct(BOM(p)) == 1  THEN {
+            proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*proteinsProduct(c)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percProteins(BOM(p)))/100.0)));
+            fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*fatsProduct(c)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percFats(BOM(p)))/100.0)));
+            carbohydrates(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*carbohydratesProduct(c)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percCarbohydrades(BOM(p)))/100.0)));
+            energy(p)<- NUMERIC[8,2](energyParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*energyProduct(c)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percEnergy(BOM(p)))/100.0)));                        
+        } ELSE {                
+            proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*proteins(sku)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percProteins(BOM(p)))/100.0)));
+            fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*fats(sku)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percFats(BOM(p)))/100.0)));
+            carbohydrates(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*carbohydrates(sku)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percCarbohydrades(BOM(p)))/100.0)));
+            energy(p)<- NUMERIC[8,2](energyParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*energy(sku)/100.0)*coeffGramsDrynessQuantity()*(100.0 (-) percEnergy(BOM(p)))/100.0)));    
+        }        
+    } 
+}
+
+overCopy( BOM from, BOM to) + {    
+    isTreatment(to) <- isTreatment(from); 
+    percFats(to) <- percFats(from); 
+    percCarbohydrades(to) <- percCarbohydrades(from); 
+    percProteins(to) <- percProteins(from); 
+    percEnergy(to) <- percEnergy(from);              
+}
