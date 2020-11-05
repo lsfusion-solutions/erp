@@ -178,25 +178,24 @@ overImportSaleInvoice2 ABSTRACT LIST ();
 
 importSaleInvoiceWO 'Импорт накладные (продажа)' () {
       
-    LOCAL paymentCondition = PaymentCondition (STRING);       
     imported (Sale.Invoice i) <- NULL;         
     imported (Sale.InvoiceDetail d) <- NULL;            
     
-    filterSql() <- 'NOT doc.DOCTYPE = \'IW\' AND b.DocType(+)= doc.DocType AND b.id(+) = doc.id AND doc.locationfrom IN ('+ stocksImport() + ')  AND doc.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( ';
+    filterSql() <- 'NOT d.DOCTYPE = \'IW\' AND b.DocType(+)= d.DocType AND b.id(+) = doid AND d.locationfrom IN ('+ stocksImport() + ')  AND d.CreateDat >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND ( ';
     LOCAL filterDoc = STRING ();
     LOCAL operDoc = STRING ();
     filterDoc() <-'';
     FOR Operation op IF op IS Operation AND getWord(docTypeSupermag(op),';',1) DO {
-       operDoc() <- CONCAT ' AND ', ('doc.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',1) + '\''), ('doc.OPCODE = ' + getWord(opcodeSupermag(op),';',1)), ('doc.USEROP = ' + getWord(useropSupermag(op),';',1)) ; 
+       operDoc() <- CONCAT ' AND ', ('d.DOCTYPE = \'' + getWord(docTypeSupermag(op),';',1) + '\''), ('d.OPCODE = ' + getWord(opcodeSupermag(op),';',1)), ('d.USEROP = ' + getWord(useropSupermag(op),';',1)) ; 
        filterDoc() <- CONCAT ' OR ',filterDoc(), '(' + operDoc() + ')';
     }
           
     filterDoc() <- substrFrom(filterDoc(),4);
     filterSql() <- CONCAT '', filterSql(), filterDoc(),')'; 
     
-    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'doc.DocType = \'WO\' AND b.DocType(+)= doc.DocType AND b.id(+) = doc.id AND doc.id = \'' + numberImportDocument() + '\''; 
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.DocType = \'WO\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.id = \'' + numberImportDocument() + '\''; 
        
-    sqlString() <- 'Select doc.ID, doc.doctype, doc.opcode, doc.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.createdat, doc.docstate, doc.clientindex, doc.locationfrom, doc.Commentary from Supermag.SMDocuments doc, Supermag.SMWayBillsOut b where ' + filterSql();    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql();    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
     
@@ -239,7 +238,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
     overImportSaleInvoice();
     
     //импорт оснований для накладных
-    sqlString() <- 'Select doc.ID, doc.doctype, bs.baseId, bs.baseDoctype from Supermag.SMDocuments doc, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=doc.id AND bs.doctype(+)=doc.doctype';    
+    sqlString() <- 'Select d.ID, d.doctype, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
     
@@ -261,7 +260,7 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
     overImportSaleInvoice2();
 
     //импорт спецификаций
-    sqlString() <- 'SELECT doc.ID, doc.DOCTYPE, doc.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE FROM Supermag.SMDocuments doc, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = doc.DOCTYPE AND ds.DOCID = doc.id AND dt.DocType = \'WO\' AND dt.DOCID = doc.id  AND ds.SPECITEM = dt.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WI\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';    
+    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby WHERE ds.DocType = d.DOCTYPE AND ds.DOCID = d.id AND dt.DocType = d.DOCTYPE AND dt.DOCID = d.id  AND ds.SPECITEM = dt.SPECITEM AND dby.DocId(+) = ds.DocId AND dby.DocType(+) = \'WO\' AND dby.SPECITEM(+) = ds.SPECITEM AND ' + filterSql() + ' ORDER BY ds.doctype, ds.docid, ds.specitem';    
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
     
@@ -311,3 +310,190 @@ importSaleInvoiceWO 'Импорт накладные (продажа)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSaleInvoiceWO();
+
+overImportSaleInvoiceStatus ABSTRACT LIST ();
+
+importSaleInvoiceStatus 'Импорт накладные (закупка)' (STRING indexDoc) {
+               
+    filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
+    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.docstate from Supermag.SMDocuments d WHERE ' + filterSql();    
+    
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажи)', sqlString());
+    
+    TRY
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    CATCH MESSAGE sqlString();
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
+    }      
+            
+    overImportSaleInvoiceStatus();
+    
+    APPLY;
+}
+
+importSaleInvoiceFull 'Импорт накладные (закупка)' (STRING indexDoc) {
+
+    imported (Sale.Invoice i) <- NULL;         
+    imported (Sale.InvoiceDetail d) <- NULL;            
+
+    filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
+    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationFrom, comment;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+           
+    IF NOT userInvoice(idDoc(0)) AND NOT docState(0) = 1 THEN NEW o = UserInvoice {  id(o) <- idDoc(0); }
+              
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- IF (docType(0) = 'FA' OR docType(0) = 'LA') THEN TRUE ELSE NULL;
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
+    }      
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        operation(doc) <- Sale.operation1Supermag(codeOperation(i));
+        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
+        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
+        customer(doc) <- legalEntity(STRING(clientIndex(i)));
+        customerStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- OVERRIDE time(doc), 09:00;
+        imported(doc) <- TRUE;
+    }  
+    
+    overImportSaleInvoice();
+
+    //импорт заказов-оснований и договоров для накладных. импорт всех оснований через overImportPurchaseInvoice()
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, bs.baseId, bs.baseDoctype from Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMCommonBases bs where ' + filterSql() + ' AND bs.id(+)=d.id AND bs.doctype(+)=d.doctype';    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
+
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, baseNumber, baseDoctype ;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND userContractSku(idBase(i)) DO {    
+        contractSku(doc) <- userContractSku(idBase(i));        
+    }    
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) AND userOrder(idBase(i)) AND baseDoctype(i) = 'OR' DO {
+        include(Order orS, doc) <- NULL;    
+        include(Order orS, doc) <- TRUE WHERE orS = userOrder(idBase(i));
+    }        
+
+//    overImportSaleInvoice2();
+
+    //импорт спецификаций
+    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE, dmis.QUANTBYDOC ' + 
+    'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby, Supermag.SLSPECQMISMATCH dmis ' + 
+    'WHERE ds.DocType = d.DocType AND ds.DocId = d.id AND ' + 
+    'dt.DocType(+) = ds.DocType AND dt.DocId(+) = ds.docid AND dt.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dby.DocType(+) = ds.DocType AND dby.DocId(+) = ds.docid AND dby.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dmis.DocType(+) = ds.DocType AND dmis.DocId(+) = ds.docid AND dmis.SPECITEM(+) = ds.SPECITEM AND ' + 
+    filterSql()+' ORDER BY ds.doctype, ds.docid, ds.specitem';    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
+
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationFrom, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer, retailPrice, blankquantity;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+
+    FOR Sale.userInvoice(idDoc(INTEGER i)) AND NOT Sale.userInvoiceDetail(idDet(i)) DO NEW det = Sale.UserInvoiceDetail {
+        Sale.userInvoice(det) <- Sale.userInvoice(idDoc(i));
+        id(det) <- idDet(i);
+    }
+
+    FOR Sale.UserInvoiceDetail det = Sale.userInvoiceDetail(idDet(INTEGER i)) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+        invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
+        price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
+        invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
+        sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
+//        VATSum(det) <- taxSum(i);
+        VAT(det) <- OVERRIDE valueCurrentVAT(countrySupplierStock(det), taxRate(i)), VAT(sku(det));
+//        valueVAT(det) <- taxRate(i);
+        dataIndex(det) <- specItem(i);
+ //       retailVAT(det) <- VAT(sku(det));
+ //       valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);         
+        retailPrice(det) <- OVERRIDE retailPrice(i), retailPrice(det), retailPricingPriceA(sku(det), stock(ISTRING[100] (locationTo(i))), currentDateTime());
+        shipmentPrice(det) <- retailPrice(det);
+        manufacturingPrice(det) <- priceManufacturer(i); 
+        imported(det) <- TRUE;
+    }
+
+    DELETE Sale.UserInvoiceDetail det WHERE det IS UserInvoiceDetail AND imported(userInvoice(det)) AND NOT imported(det);
+
+    executeLocalEvents('Sale.UserInvoice');
+
+    APPLY;               
+}
+
+importSaleInvoices () + {
+    LOCAL indexDoc = STRING ();
+    
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) IS Sale.Operation AND NOT getWord(indexDoc(i),'~',1) = 'IW' AND importOnlyStatus(operation1Supermag(codeOperation(i))) AND userInvoice(idDoc(i))](STRING indexDoc) NOINLINE DO  {           
+        indexDoc() <- indexDoc;     
+        NEWSESSION NESTED (indexDoc){            
+            importSaleInvoiceStatus(indexDoc());
+        } 
+    }
+    
+    FOR [GROUP SUM 1 BY indexDoc(INTEGER i) IF operation1Supermag(codeOperation(i)) IS Sale.Operation AND NOT getWord(indexDoc(i),'~',1) = 'IW' AND NOT (importOnlyStatus(operation1Supermag(codeOperation(i))) AND userInvoice(idDoc(i)))](STRING indexDoc) NOINLINE DO {       
+        indexDoc() <- indexDoc; 
+        NEWSESSION NESTED (indexDoc){
+            importSaleInvoiceFull(indexDoc());
+        } 
+    }
+}
