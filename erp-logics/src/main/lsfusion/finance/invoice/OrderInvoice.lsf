@@ -457,8 +457,9 @@ META defineOrderInvoice(sign, stockProp)
         FILTERGROUP customerStock
             FILTER 'По складу покупателя' customerStock(d) == customerStock(i) DEFAULT
             FILTER 'По покупателю' customer(d) == customer(i)
+        FILTERGROUP opened
+            FILTER 'Открытые' isOpened(d) DEFAULT
         FILTERS isPosted(d),
-                isOpened(d) OR d = orderDetail(i),
                 sku(d) == sku(i)
     ;
     changeOrder (UserInvoiceDetail d)  { 
@@ -507,13 +508,15 @@ META defineOrderInvoice(sign, stockProp)
                                 nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency,
                                 countOrderDetail, quantityOrderDetail, sumOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
                                 note
+        FILTERGROUP open 
+            FILTER 'Открыт' isOpened(o) 'F6' DEFAULT   
 
         FILTERS supplier(o) == supplier(i),
                 customer(o) == customer(i),
                 supplierStock(o) == supplierStock(i),
                 customerStock(o) == customerStock(i),
                 isPosted(o),
-                toInvoice(o) AND isOpened(o) OR include[Order,Invoice](o,i)
+                toInvoice(o) OR include[Order,Invoice](o,i)
                 
                 
         PROPERTIES(o,i) BACKGROUND backgroundInvoice(o) include BEFORE isPosted(o)
