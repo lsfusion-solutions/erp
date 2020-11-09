@@ -468,7 +468,8 @@ importInit 'Импорт остатков' ()  {
         isPosted(i) <- TRUE;
         operation(i) <- Purchase.operation('initial');
         createShipment(i) <- createShipment(Purchase.operation('initial')); 
-        createPricing(i) <- createPricing(Purchase.operation('initial')); 
+        createPricing(i) <- createPricing(Purchase.operation('initial'));
+        showManufacturingPrice(i) <- TRUE; 
         isClosed(i) <- TRUE;
     }
         
@@ -489,6 +490,7 @@ importInit 'Импорт остатков' ()  {
         price(d) <- NUMERIC[16,4](price(r));
         retailPrice(d) <- NUMERIC[16,4](retailPrice(r));
         shipmentPrice(d) <- NUMERIC[16,4](OVERRIDE retailPrice(r), price(r));
+        manufacturingPrice(d) <- price(r);
         incl(d) <- TRUE;
         dataIndex(d) <- spec(r);
     }
@@ -542,8 +544,8 @@ checkBalance 'Сверить остатки' () {
     
     EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ (OVERRIDE hostBalance(), host()) + '/' + base() 
             EXEC 'SELECT ARTICLE, STORELOC, CAST(QUANTITY AS numeric(16,4)) FROM Supermag.SVGOODSWITHOPER WHERE STORELOC IN (' + stocksImport() + ')' TO file;
-
-    IMPORT TABLE FROM file() TO idItem, idStock, quantity;
+     
+    IMPORT TABLE FROM file() TO idStock, idItem, quantity;
     
     LOCAL balanceB = NUMERIC[16,5](Sku, Stock);
     LOCAL balanceS = NUMERIC[16,5](Sku, Stock);
