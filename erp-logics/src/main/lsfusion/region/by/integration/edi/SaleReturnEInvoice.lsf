@@ -21,6 +21,20 @@ receiver(UserInvoice i) += receiver(i);
 
 nameReceiver 'Приёмщик'(Invoice i) = name(receiver(i));
 
+FORM dialogEInvoiceSupplier 'Выбор электронной накладной'
+    OBJECTS i = EInvoice
+    PROPERTIES(i) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    FILTERS importedCustomer(i)
+;
+@extendFormFilterAccessStock(dialogEInvoiceSupplier, i, dialogEInvoiceSupplier, supplierStock, Company);
+
+changeEInvoiceSupplier(Invoice in) {
+    DIALOG dialogEInvoiceSupplier OBJECTS i = eInvoice(in) NULL INPUT NULL DO {
+        invoice(EInvoice e) <- NULL WHERE e == eInvoice(in) AND NOT isCancel(e);
+        invoice(i) <- in;
+    }
+}
+
 EXTEND FORM userInvoice 
     PROPERTIES READONLYIF exportedCustomer(eInvoice(i)) numberEInvoice(i) ON CHANGE changeEInvoiceSupplier(i)
     PROPERTIES(i) READONLYIF exportedCustomer(eInvoice(i)) nameReceiver

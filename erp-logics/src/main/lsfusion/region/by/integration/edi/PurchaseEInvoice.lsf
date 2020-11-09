@@ -113,6 +113,20 @@ createInvoice 'Создать на основе накладных EDI' (DATE d)
     }
 }
 
+FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
+    OBJECTS i = EInvoice
+    PROPERTIES(i) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    FILTERS importedCustomer(i)
+;
+@extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
+
+changeEInvoiceCustomer(Invoice in) {
+    DIALOG dialogEInvoiceCustomer OBJECTS i = eInvoice(in) NULL INPUT NULL DO {
+        invoice(EInvoice e) <- NULL WHERE e == eInvoice(in) AND NOT isCancel(e);
+        invoice(i) <- in;
+    }
+}
+
 EXTEND FORM userInvoice 
     PROPERTIES READONLYIF exportedCustomer(eInvoice(i)) numberEInvoice(i) ON CHANGE changeEInvoiceCustomer(i)
     PROPERTIES(i) READONLYIF exportedCustomer(eInvoice(i)) importFromEInvoice, nameReceiver
