@@ -417,26 +417,22 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         OrderedMap<Integer, String> messageMap = new OrderedMap<>();
         Integer pluNumber = getPluNumber(item);
         int count = 0;
-        String description = trimToEmpty(item.description);
+        String description = trimToEmpty(item.description).replace('@', 'a');
         if(!description.isEmpty()) {
             if(description.length() > descriptionLineLength * 4)
                 description = description.substring(0, descriptionLineLength * 4 - 1);
             List<String> splittedMessage = new ArrayList<>();
             for (String line : description.split("\\\\n")) {
                 while (line.length() > descriptionLineLength) {
-                    splittedMessage.add(line.substring(0, descriptionLineLength - 1));
-                    line = line.substring(descriptionLineLength - 1);
+                    splittedMessage.add(line.substring(0, descriptionLineLength));
+                    line = line.substring(descriptionLineLength);
                 }
                 splittedMessage.add(line);
             }
 
-            boolean isDouble = splittedMessage.size() > 4;
-            for (int i = 0; i < splittedMessage.size(); i = i + (isDouble ? 2 : 1)) {
-                String line = splittedMessage.get(i) + (isDouble && (i + 1 < splittedMessage.size()) ? (" " + splittedMessage.get(i + 1)) : "");
-                line = line.replace('@', 'a');
-                if (line.length() >= descriptionLineLength) {
-                    line = line.substring(0, descriptionLineLength - 1);
-                }
+            splittedMessage = splittedMessage.subList(0, Math.min(splittedMessage.size(), 4));
+
+            for (String line : splittedMessage) {
                 int messageNumber = pluNumber * 10 + count;
                 messageMap.put(messageNumber, line);
                 ++count;
