@@ -53,9 +53,9 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 creatdate(expMain) <- dateTime(doc);                
                 docstate(expMain) <- CASE WHEN isPosted(doc) THEN 3 
                                       WHEN isClosed(doc) THEN 0 ELSE 2;
-                execDate(expMain) <- postedTime(doc);
-                execTime(expMain) <- postedTime(doc);                
-                priceType(expMain) <- STRING[10](replace( (OVERRIDE id(retailPriceListType(departmentStore(doc))),  id(baseBPriceListLedger(retailPriceListType(departmentStore(doc))))),'D',''));
+                execDate(expMain) <- dateTime(doc); //postedTime(doc);
+                execTime(expMain) <- dateTime(doc);  //postedTime(doc);                
+                priceType(expMain) <- idSupermagPriceType(departmentStore(doc));   //(replace( (OVERRIDE id(retailPriceListType(departmentStore(doc))),  id(baseBPriceListLedger(retailPriceListType(departmentStore(doc))))),'D',''));
                 priceRoundMode(expMain) <- 0 IF doc IS Repricing;                                                
                 reasonPricing(expMain) <- CASE WHEN id(operation(doc)) = 'repricing' THEN '1' ELSE id(operation(doc));     
                 location(expMain)  <- id(departmentStore(doc));                        
@@ -306,7 +306,7 @@ exportPricingAC 'Экспорт в супермаг' (Pricing doc) {
                 creatdate(expMain) <- dateTime(doc);
                 execDate(expMain) <- postedTime(doc);
                 execTime(expMain) <- postedTime(doc);                
-                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
+                priceType(expMain) <- idSupermagPriceType(departmentStore(doc)); //STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(expMain); 
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 location(expMain)  <- id(departmentStore(doc));

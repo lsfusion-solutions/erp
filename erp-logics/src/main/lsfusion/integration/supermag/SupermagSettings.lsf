@@ -20,15 +20,16 @@ fromSupermagDateTime = FORMULA DATETIME PG 'to_timestamp(CAST($1 as char(17)), \
 
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
 
+startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
 inImport 'Отм.' = DATA BOOLEAN (Stock);
 stocksImport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inImport(st), ',' ORDER id(st) CHARWIDTH 50;
-startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
+idSupermagPriceType 'Ид вида цен в Супермаг' = DATA STRING[10] (Stock);
 
 FORM dialogDepartmentStoresImport 'Склады'
     OBJECTS d = Stock
     PROPERTIES (d) inImport
     PROPERTIES (d) READONLY id, name, nameStore    
-    PROPERTIES (d) startDate
+    PROPERTIES (d) startDate, idSupermagPriceType
     FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' inImport(d)
