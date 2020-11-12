@@ -154,16 +154,21 @@ getToken 'Получить токен' (CashRegister c) {
     IF regNum(c) AND addressRequest() THEN {
         TRY {
             currentRegNum() <- regNum(c);
+            statusHttp() <- NULL;
             EXTERNAL HTTP GET 'https://' + addressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers;
             IF statusHttp() = 200 THEN {
                 setToken(c, headers('token'));
             }
         } CATCH {
-            MESSAGE 'Невозможно получить токен';
+            CASE  
+                WHEN statusHttp() = 400 THEN MESSAGE 'Ошибка получения токена: возможно токен уже получен';
+                WHEN statusHttp() = 500 THEN MESSAGE 'Ошибка получения токена: внутренняя ошибка сервера';
+                ELSE MESSAGE 'Ошибка получения токена: сервер недоступен';
             returnPost() <- TRUE;
         }
     }
 }
+
 
 dropToken 'Сбросить токен' (CashRegister c) {
     NEWSESSION {
