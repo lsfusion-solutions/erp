@@ -206,12 +206,13 @@ public class FiscalSento {
     public static void closeDocument(ReceiptInstance receipt) {
         double total = receipt.sumTotal == null ? 0 : receipt.sumTotal.abs().doubleValue();
         double cash = receipt.sumCash == null ? 0 : receipt.sumCash.abs().doubleValue();
+        double check = receipt.sumCheck == null ? 0 : receipt.sumCheck.abs().doubleValue();
         double payCard = receipt.sumCard == null ? 0 : receipt.sumCard.abs().doubleValue();
         double coupon = receipt.sumGiftCard == null ? 0 : receipt.sumGiftCard.abs().doubleValue();
         double credit = receipt.sumSalary == null ? 0 : receipt.sumSalary.abs().doubleValue();
 
         logAction("closeDocument", total, cash, 0, payCard, coupon, credit);
-        if(!sentoDLL.sento.closeDocument(total, cash, 0, payCard, coupon, credit))
+        if(!sentoDLL.sento.closeDocument(total, cash, check, payCard, coupon, credit))
             checkErrors();
     }
 

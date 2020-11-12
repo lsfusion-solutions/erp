@@ -72,6 +72,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
+                BigDecimal sumCheck = null;
                 BigDecimal sumSalary = null;
                 BigDecimal sumGiftCard = null;
 
@@ -85,25 +86,30 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
 
+                ScriptingLogicsModule posEpayHttpFormLM = context.getBL().getModule("POSEpayHttpForm");
                 ScriptingLogicsModule posSalaryLM = context.getBL().getModule("POSSalary");
 
+                DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
+                DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
+                DataObject paymentMeansEpayObject = posEpayHttpFormLM != null ? ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansEpay") : null;
+                DataObject paymentMeansSalaryObject = posSalaryLM != null ? ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansSalary") : null;
+
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
-                    DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
-                    DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
-                    DataObject paymentMeansSalaryObject = posSalaryLM != null ? ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansSalary") : null;
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     Object paymentMeans = paymentValues.get("paymentMeansPayment");
                     if(sumPayment != null) {
                         if (paymentMeansCashObject.getValue().equals(paymentMeans)) {
-                            sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
+                            sumCash = safeAdd(sumCash, sumPayment);
                         } else if (paymentMeansCardObject.getValue().equals(paymentMeans)) {
-                            sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
+                            sumCard = safeAdd(sumCard, sumPayment);
+                        } else if (paymentMeansEpayObject != null && paymentMeansEpayObject.getValue().equals(paymentMeans)) {
+                            sumCheck = safeAdd(sumCheck, sumPayment);
                         } else if (paymentMeansSalaryObject != null && paymentMeansSalaryObject.getValue().equals(paymentMeans)) {
-                            sumSalary = sumSalary == null ? sumPayment : sumSalary.add(sumSalary);
+                            sumSalary = safeAdd(sumSalary, sumPayment);
                         } else if (giftCardLM != null) {
-                            sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
+                            sumGiftCard = safeAdd(sumGiftCard, sumPayment);
                         } else
-                            sumDisc = sumDisc == null ? sumPayment : sumDisc.add(sumPayment);
+                            sumDisc = safeAdd(sumDisc, sumPayment);
                     }
                 }
 
@@ -161,7 +167,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
-                            new ReceiptInstance(sumDisc, sumCard, sumCash, sumSalary,
+                            new ReceiptInstance(sumDisc, sumCard, sumCash, sumCheck, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalSentoReceiptTop, fiscalSentoReceiptBottom));
                     if (result instanceof Integer) {
