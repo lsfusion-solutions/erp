@@ -2,6 +2,7 @@ package equ.clt.handler;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;

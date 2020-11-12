@@ -1,4 +1,6 @@
-package equ.api;
+package equ.api.stoplist;
+
+import equ.api.MachineryInfo;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -15,11 +17,11 @@ public class StopListInfo implements Serializable {
     public LocalTime timeTo;
     public Set<String> idStockSet;
     public Map<Integer, Set<String>> inGroupMachineryItemMap;
-    public Map<String, ItemInfo> stopListItemMap;
+    public Map<String, StopListItemInfo> stopListItemMap;
     public Map<String, Set<MachineryInfo>> handlerMachineryMap;
 
     public StopListInfo(boolean exclude, String number, LocalDate dateFrom, LocalTime timeFrom, LocalDate dateTo, LocalTime timeTo, Set<String> idStockSet,
-                        Map<Integer, Set<String>> inGroupMachineryItemMap, Map<String, ItemInfo> stopListItemMap,
+                        Map<Integer, Set<String>> inGroupMachineryItemMap, Map<String, StopListItemInfo> stopListItemMap,
                         Map<String, Set<MachineryInfo>> handlerMachineryMap) {
         this.exclude = exclude;
         this.number = number;

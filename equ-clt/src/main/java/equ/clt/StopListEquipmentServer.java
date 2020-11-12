@@ -2,7 +2,7 @@ package equ.clt;
 
 import equ.api.EquipmentServerInterface;
 import equ.api.MachineryInfo;
-import equ.api.StopListInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.scales.ScalesHandler;
 import org.apache.log4j.Logger;

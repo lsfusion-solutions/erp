@@ -3,6 +3,7 @@ package equ.clt.handler.ukm4mysql;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.Pair;

@@ -6,6 +6,7 @@ import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;

@@ -4,6 +4,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItemInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -771,7 +773,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         processStopListLogger.info("Kristal: creating STOPLIST file");
                         PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(stopListFile), "windows-1251"));
 
-                        for (Map.Entry<String, ItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
+                        for (Map.Entry<String, StopListItemInfo> item : stopListInfo.stopListItemMap.entrySet()) {
                             String idBarcode = item.getKey();
                             String code = useIdItem ? item.getValue().idItem : idBarcode;
                             String record = (stopListInfo.exclude ? "+" : "-") + "|" + code + "|" + idBarcode;

@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.io.LittleEndianDataInputStream;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
-import equ.api.StopListInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;

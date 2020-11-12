@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
-public class ItemInfo implements Serializable {
+public abstract class ItemInfo implements Serializable {
     public Map<String, Integer> stockPluNumberMap;
     public String idItem;
     public String idBarcode;

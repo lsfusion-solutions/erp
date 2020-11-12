@@ -3,6 +3,8 @@ package equ.clt.handler.kristal10;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItemInfo;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
@@ -679,7 +681,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
             if (!stopListInfo.exclude) {
                 processStopListLogger.info(getLogPrefix() + " found " + stopListInfo.stopListItemMap.size() + " items");
-                for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
+                for (Map.Entry<String, StopListItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
                     String idBarcode = entry.getKey();
                     ItemInfo item = entry.getValue();
 

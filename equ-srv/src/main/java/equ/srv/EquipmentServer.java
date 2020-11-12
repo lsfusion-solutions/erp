@@ -6,6 +6,7 @@ import equ.api.cashregister.*;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.terminal.*;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.col.MapFact;

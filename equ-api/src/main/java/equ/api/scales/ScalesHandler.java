@@ -3,7 +3,7 @@ package equ.api.scales;
 import equ.api.MachineryHandler;
 import equ.api.MachineryInfo;
 import equ.api.SalesBatch;
-import equ.api.StopListInfo;
+import equ.api.stoplist.StopListInfo;
 
 import java.io.IOException;
 import java.util.Set;

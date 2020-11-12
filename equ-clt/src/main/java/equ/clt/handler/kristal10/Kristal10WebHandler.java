@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItemInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.DaemonThreadFactory;
@@ -660,7 +662,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Element rootElement = new Element("goods-catalog");
         Document doc = new Document(rootElement);
 
-        for (Map.Entry<String, ItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
+        for (Map.Entry<String, StopListItemInfo> entry : stopListInfo.stopListItemMap.entrySet()) {
             String idBarcode = entry.getKey();
             ItemInfo item = entry.getValue();
 

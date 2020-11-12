@@ -1,6 +1,7 @@
 package equ.api;
 
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
 import equ.api.terminal.TerminalDocumentDetail;
 import equ.api.terminal.TerminalInfo;
 import equ.api.terminal.TerminalOrder;

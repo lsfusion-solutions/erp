@@ -1,6 +1,7 @@
 package equ.api.cashregister;
 
 import equ.api.*;
+import equ.api.stoplist.StopListInfo;
 
 import java.io.IOException;
 import java.math.BigDecimal;

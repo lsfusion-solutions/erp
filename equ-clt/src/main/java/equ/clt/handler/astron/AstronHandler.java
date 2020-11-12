@@ -6,6 +6,8 @@ import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.CashRegisterItemInfo;
 import equ.api.cashregister.DiscountCard;
 import equ.api.cashregister.TransactionCashRegisterInfo;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItemInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -528,6 +530,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return item.barcodeObject.intValue();
     }
 
+    private Integer getPackId(Long barcodeObject) {
+        //Потенциальная опасность, если база перейдёт границу Integer.MAX_VALUE
+        return barcodeObject.intValue();
+    }
+
     private Integer parseIdItem(CashRegisterItemInfo item) {
         try {
             return Integer.parseInt(item.idItem);
@@ -970,10 +977,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                              conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"))) {
 
                     processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
-                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                        for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                            if (item instanceof CashRegisterItemInfo) { //todo: похоже, это условие никогда не выполняется
-                                ps.setObject(1, getPackId((CashRegisterItemInfo) item)); //PACKID
+                    for (StopListItemInfo item : stopListInfo.stopListItemMap.values()) {
+                        for (Long barcodeObject : item.barcodeObjectList) {
+                            for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+                                ps.setObject(1, getPackId(barcodeObject)); //PACKID
                                 ps.setObject(2, getPriceLevelId(nppGroupMachinery, exportExtraTables)); //PRCLEVELID
                                 ps.addBatch();
                             }

@@ -2,7 +2,7 @@ package equ.clt.handler;
 
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
-import equ.api.StopListInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;

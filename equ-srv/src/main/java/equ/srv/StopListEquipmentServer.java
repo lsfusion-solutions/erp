@@ -1,11 +1,11 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
-import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
-import equ.api.StopListInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
+import equ.api.stoplist.StopListItemInfo;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -36,8 +36,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
-import static lsfusion.erp.integration.DefaultIntegrationAction.*;
 import static org.apache.commons.lang3.StringUtils.trim;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public class StopListEquipmentServer {
     static ScriptingLogicsModule cashRegisterLM;
@@ -129,8 +129,8 @@ public class StopListEquipmentServer {
                         }
                     }
 
-                    if(!handlerMachineryMap.isEmpty()) {
-                        Map<String, ItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
+                    if (!handlerMachineryMap.isEmpty()) {
+                        Map<String, StopListItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
                         StopListInfo stopList = stopListInfoMap.get(numberStopList);
                         Map<Integer, Set<String>> inGroupMachineryItemMap = stopList == null ? new HashMap<>() : stopList.inGroupMachineryItemMap;
                         inGroupMachineryItemMap.putAll(itemsInGroupMachineryMap);
@@ -202,18 +202,20 @@ public class StopListEquipmentServer {
         return stockMap;
     }
 
-    private static Map<String, ItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, ItemInfo> stopListItemList = new HashMap<>();
+    private static Map<String, StopListItemInfo> getStopListItemMap(DataSession session, DataObject stopListObject, Set<String> idStockSet) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, StopListItemInfo> stopListItemList = new HashMap<>();
 
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev("stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
-                "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail"};
+                "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail",
+                "barcodes"};
         LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
                 "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
-                "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]");
+                "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]",
+                "barcodes[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
@@ -239,15 +241,24 @@ public class StopListEquipmentServer {
             boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
             Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
             BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
+            List<Long> barcodeObjectList = getBarcodeObjectList(trimToEmpty((String) values.get("barcodes").getValue()));
             Map<String, Integer> stockPluNumberMap = new HashMap();
             for(String idStock : idStockSet) {
                 Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
-            stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info));
+            stopListItemList.put(idBarcode, new StopListItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
+                    valueVAT, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM, info, barcodeObjectList));
         }
         return stopListItemList;
+    }
+
+    private static List<Long> getBarcodeObjectList(String barcodes) {
+        List<Long> result = new ArrayList<>();
+        for (String barcode : barcodes.split(",")) {
+            result.add(Long.parseLong(barcode));
+        }
+        return result;
     }
 
     private static Set<String> getInGroupMachineryItemSet(DataSession session, DataObject stopListObject, DataObject groupMachineryObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
