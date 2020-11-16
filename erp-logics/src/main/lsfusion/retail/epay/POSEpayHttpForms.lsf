@@ -42,7 +42,9 @@ indexPaymentMode (PaymentMode p) += WHEN p = PaymentMode.staticQR THEN 1;
 indexPaymentMode (PaymentMode p) += WHEN p = PaymentMode.consumerPresented THEN 2;
 paymentMode (INTEGER i) = GROUP AGGR PaymentMode m BY indexPaymentMode(m);
 
-addressRequest 'Адрес запросов' = DATA STRING[100] (); 
+addressRequest 'Адрес запросов' = DATA STRING[100] ();
+
+calcAddressRequest 'Адрес запросов' = trim(rtrim(addressRequest(), '/'));
 
 paymentMode 'Способ оплаты' = DATA PaymentMode ();
 namePaymentMode 'Способ оплаты' () = name(paymentMode());
@@ -151,11 +153,11 @@ setToken (CashRegister c, STRING[36] t) {
 }
 
 getToken 'Получить токен' (CashRegister c) {
-    IF regNum(c) AND addressRequest() THEN {
+    IF regNum(c) AND calcAddressRequest() THEN {
         TRY {
             currentRegNum() <- regNum(c);
             statusHttp() <- NULL;
-            EXTERNAL HTTP GET 'https://' + addressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers;
+            EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers;
             IF statusHttp() = 200 THEN {
                 setToken(c, headers('token'));
             }
@@ -255,7 +257,7 @@ deletePayment 'Техническая отмена' (Receipt r) {
         currentToken() <- token(cashRegister(r));
         
         TRY {
-            EXTERNAL HTTP DELETE 'https://' + addressRequest() + '/pos/payments/' + lastPayment(cashRegister(r)) HEADERS httpHeaders HEADERSTO headers;
+            EXTERNAL HTTP DELETE 'https://' + calcAddressRequest() + '/pos/payments/' + lastPayment(cashRegister(r)) HEADERS httpHeaders HEADERSTO headers;
             setToken(cashRegister(r), headers('token'));
             setLastPayment(cashRegister(r), NULL);
         }
@@ -297,7 +299,7 @@ paymentStatus(Payment p) {
     currentRegNum() <- regNum(cashRegister(receipt(p)));
     TRY {
         resultHttp() <- NULL;
-        EXTERNAL HTTP GET 'https://' + addressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
+        EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentId(p)) HEADERS httpHeadersToken TO resultHttp;
         setPaymentStatus(p, resultHttp());
     } CATCH {
         errorEpay(resultHttp());
@@ -347,7 +349,7 @@ paymentEpay (Payment p) {
     
     LOCAL result = JSONFILE ();
     TRY {
-        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/payments'
+        EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/payments'
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
@@ -367,7 +369,7 @@ paymentEpay (Payment p) {
 //       
 //    EXPORT paymentEpay OBJECTS r = r JSON CHARSET 'UTF-8';
 //    TRY {
-//        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/async/payments'
+//        EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/async/payments'
 //            HEADERS httpHeaders
 //            HEADERSTO headers 
 //            PARAMS exportFile() TO result;
@@ -389,7 +391,7 @@ reversalEpay (Payment p) {
 
     LOCAL result = JSONFILE ();
     TRY {
-        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/payments/' + STRING(paymentSaleId(p)) + '/reversals'
+        EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/payments/' + STRING(paymentSaleId(p)) + '/reversals'
             HEADERS httpHeaders
             HEADERSTO headers 
             PARAMS exportFile() TO result;
@@ -403,11 +405,11 @@ reversalEpay (Payment p) {
 
 
 // consumer 
-consumerStatus(STRING addressRequest, STRING[20] regNum) {
+consumerStatus(STRING calcAddressRequest, STRING[20] regNum) {
     isConsumerReady() <- NULL;
     currentRegNum() <- regNum;
     TRY {
-        EXTERNAL HTTP GET 'https://' + addressRequest + '/pos/consumerStatus'
+        EXTERNAL HTTP GET 'https://' + calcAddressRequest + '/pos/consumerStatus'
             HEADERS httpHeadersToken TO resultHttp;
             IF resultHttp() THEN {
                 IMPORT JSON FROM resultHttp() TO () isConsumerReady;
@@ -423,10 +425,10 @@ consumerStatus(STRING addressRequest, STRING[20] regNum) {
 waitConsumerStatus(CashRegister c) {
     conn() <- currentConnection();
     NEWTHREAD {
-        consumerStatus(addressRequest(), regNum(c));
+        consumerStatus(calcAddressRequest(), regNum(c));
         WHILE NOT isConsumerReady() AND NOT returnPost() DO {
             sleep(3000);
-            consumerStatus(addressRequest(), regNum(c));
+            consumerStatus(calcAddressRequest(), regNum(c));
         }
         IF NOT returnPost() THEN NEWTHREAD formClose(); CONNECTION conn();
     }
@@ -468,7 +470,7 @@ demandPayment(CashRegister c) {
     LOCAL result = JSONFILE ();
     TRY {
         EXPORT demandPayment JSON CHARSET 'UTF-8';
-        EXTERNAL HTTP POST 'https://' + addressRequest() + '/pos/demandPayment'
+        EXTERNAL HTTP POST 'https://' + calcAddressRequest() + '/pos/demandPayment'
             HEADERS httpHeaders
             HEADERSTO headers
             PARAMS exportFile() TO result;
