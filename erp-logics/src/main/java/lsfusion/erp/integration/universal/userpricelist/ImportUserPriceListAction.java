@@ -565,8 +565,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
 
             ImportTable table = new ImportTable(fields, data);
 
-            IntegrationService service = new IntegrationService(context, table, keys, props);
-            service.synchronize(true, false);
+            synchronize(context, table, keys, props);
             String result = null;
             if (apply)
                 result = context.applyMessage();
@@ -669,8 +668,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
 
             ImportTable table = new ImportTable(fields, data);
 
-            IntegrationService service = new IntegrationService(context, table, keys, props);
-            service.synchronize(true, false);
+            synchronize(context, table, keys, props);
             String result = null;
             if (apply)
                 result = context.applyMessage();
@@ -680,6 +678,11 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             return result == null;
         }
         return false;
+    }
+
+    private void synchronize(ExecutionContext context, ImportTable table, List<ImportKey<?>> keys, List<ImportProperty<?>> props) throws SQLException, SQLHandledException {
+        IntegrationService service = new IntegrationService(context, table, keys, props);
+        service.synchronize(true, false);
     }
 
     private List<UserPriceListDetail> importUserPriceListsFromXLS(RawFileData importFile, DataObject userPriceListObject, ImportPriceListSettings settings,
@@ -937,7 +940,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
 
         for (int i = settings.getStartRow() - 1; dbfReader.hasNextRecord(); i++) {
 
-            Object entry[] = dbfReader.nextRecord(Charset.forName(charset));
+            Object[] entry = dbfReader.nextRecord(Charset.forName(charset));
 
             String checkColumn = getJDBFFieldValue(entry, fieldNamesMap, new ImportColumnDetail(settings.getCheckColumn(), settings.getCheckColumn(), false), i);
             if (settings.getCheckColumn() == null || checkColumn != null) {
@@ -1079,16 +1082,16 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
         String fileExtension = trim((String) findProperty("captionImportUserPriceListTypeFileExtension[ImportUserPriceListType]").read(context, importTypeObject));
         String quantityAdjustmentColumn = (String) findProperty("quantityAdjustment[ImportUserPriceListType]").read(context, importTypeObject);
 
-        ObjectValue operation = findProperty("operation[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue operation = findProperty("operation[ImportUserPriceListType]").readClasses(context, importTypeObject);
         DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
-        ObjectValue company = findProperty("company[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue company = findProperty("company[ImportUserPriceListType]").readClasses(context, importTypeObject);
         DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
 
-        ObjectValue stock = findProperty("stock[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue stock = findProperty("stock[ImportUserPriceListType]").readClasses(context, importTypeObject);
         DataObject stockObject = stock instanceof NullValue ? null : (DataObject) stock;
 
-        ObjectValue defaultItemGroup = findProperty("defaultItemGroup[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue defaultItemGroup = findProperty("defaultItemGroup[ImportUserPriceListType]").readClasses(context, importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
         
         String itemKeyType = (String) findProperty("nameImportUserPriceListKeyType[ImportUserPriceListType]").read(context, importTypeObject);
