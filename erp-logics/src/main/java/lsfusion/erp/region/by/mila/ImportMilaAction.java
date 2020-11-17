@@ -36,7 +36,7 @@ public class ImportMilaAction extends InternalAction {
     String baseUrl = "https://mila.by";             // Базовый URL для подстановки
     boolean fullInfo = true;                        // Получать полную информацию о товаре
     boolean addLog = true;                          // Включает дополнительное логирование в файл addLogFile
-    String addLogFile = "import_mila.log";          // Имя файла дополнительного логирования
+    String addLogFile = "logs/import_mila.log";     // Имя файла дополнительного логирования
     int maxPage = 0;                                // Ограничение на количество принимаемых страниц в группе, 0 - все
     int maxGoods = 0;                               // Ограничение на количество товаров на странице, 0 - все
     ioFile ioFile = new ioFile();                   // Для записи результатов
