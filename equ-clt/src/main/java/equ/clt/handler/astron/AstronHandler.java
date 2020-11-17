@@ -1128,6 +1128,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Map<String, Integer> uniqueReceiptIdNumberReceiptMap = new HashMap<>();
             Set<String> uniqueReceiptDetailIdSet = new HashSet<>();
             BigDecimal prologSum = BigDecimal.ZERO;
+            String prologSumLog = ""; //todo: temp log
             String idDiscountCard = null;
 
             BigDecimal sumCash = null;
@@ -1200,6 +1201,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
                                     salesNum, null, null, receiptDetailExtraFields, cashRegister));
                             curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                            prologSumLog += " - " + rs.getBigDecimal("SALESSUM");
                             prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
                             break;
                         }
@@ -1246,10 +1248,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 recordList.addAll(curRecordList);
                             } else {
                                 sendSalesLogger.info(logPrefix + String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
+                                sendSalesLogger.info(logPrefix + prologSumLog);
                             }
                             curSalesInfoList = new ArrayList<>();
                             curRecordList = new ArrayList<>();
                             prologSum = rs.getBigDecimal("SALESSUM");
+                            prologSumLog = String.valueOf(prologSum);
                             idDiscountCard = trimToNull(rs.getString("SALESBARC"));
 
                             if (isReturn) { //чек возврата
