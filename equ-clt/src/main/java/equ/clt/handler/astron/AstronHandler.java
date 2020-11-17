@@ -1248,7 +1248,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 recordList.addAll(curRecordList);
                             } else {
                                 sendSalesLogger.info(logPrefix + String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                                sendSalesLogger.info(logPrefix + prologSumLog);
+                                sendSalesLogger.info(logPrefix + prologSum + " = " + prologSumLog);
                             }
                             curSalesInfoList = new ArrayList<>();
                             curRecordList = new ArrayList<>();
