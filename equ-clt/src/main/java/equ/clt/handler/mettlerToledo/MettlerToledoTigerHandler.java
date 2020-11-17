@@ -16,7 +16,6 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -43,7 +42,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         byte[] result = new byte[500];
 
         try {
-            long startTime = new Date().getTime();
+            long startTime = System.currentTimeMillis();
 
             long time;
             do {
@@ -53,7 +52,7 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
                 }
 
                 Thread.sleep(10L);
-                time = (new Date()).getTime();
+                time = System.currentTimeMillis();
             } while(time - startTime <= 10000L); //10 seconds
 
             return false;

@@ -13,9 +13,10 @@ import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -835,21 +836,18 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         queryString += " where m.date >='" + LocalDate.now().minusDays(lastDaysCashDocument).format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "'";
                     }
                     ResultSet rs = statement.executeQuery(queryString);
-                    Time midnight = new Time(23, 59, 59);
+                    LocalTime midnight = LocalTime.of(23, 59, 59);
                     while (rs.next()) {
                         int nppMachinery = rs.getInt("m.cash_id");
                         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + nppMachinery);
                         if (cashRegister != null) {
                             String numberCashDocument = rs.getString("m.id");
-                            Timestamp dateTimeMoneyOperation = rs.getTimestamp("m.date");
-                            Timestamp dateTimeShift = rs.getTimestamp("s.date");
-                            Date date = new Date(dateTimeShift.getTime());
-                            Time time = new Time(dateTimeMoneyOperation.getTime());
-                            Time twoAM = new Time(time.getTime());
-                            twoAM.setHours(2);
-                            twoAM.setMinutes(0);
-                            twoAM.setSeconds(0);
-                            if (time.getTime() < twoAM.getTime())
+                            LocalDateTime dateTimeMoneyOperation = sqlTimestampToLocalDateTime(rs.getTimestamp("m.date"));
+                            LocalDateTime dateTimeShift = sqlTimestampToLocalDateTime(rs.getTimestamp("s.date"));
+                            LocalDate date = dateTimeShift.toLocalDate();
+                            LocalTime time = dateTimeMoneyOperation.toLocalTime();
+                            LocalTime twoAM = LocalTime.of(2, 0, 0);
+                            if (time.isBefore(twoAM))
                                 time = midnight;
                             int type = rs.getInt("m.type");
                             String numberZReport = rs.getString("s.id");
@@ -857,7 +855,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if (sum != null) {
                                 String idCashDocument = params.connectionString + "/" + nppMachinery + "/" + numberCashDocument;
                                 if (!cashDocumentSet.contains(idCashDocument))
-                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, sqlDateToLocalDate(date), sqlTimeToLocalTime(time), cashRegister.numberGroup, nppMachinery, numberZReport, sum));
+                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, date, time, cashRegister.numberGroup, nppMachinery, numberZReport, sum));
                             }
                         }
                     }
@@ -1247,10 +1245,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
                     Integer numberReceipt = rs.getInt(16); //r.local_number or r.global_number
                     LocalDate dateReceipt = sqlDateToLocalDate(rs.getDate(17)); // r.date
-                    Time timeReceipt = rs.getTime(17); //r.date
+                    LocalTime timeReceipt = sqlTimeToLocalTime(rs.getTime(17)); //r.date
                     //Integer login = rs.getInt(18); //r.login
-                    Date dateZReport = rs.getDate(21); //s.date
-                    Time timeZReport = rs.getTime(21); //s.date
+                    LocalDate dateZReport = sqlDateToLocalDate(rs.getDate(21)); //s.date
+                    LocalTime timeZReport = sqlTimeToLocalTime(rs.getTime(21)); //s.date
                     //String idEmployee = loginMap.get(login);
 
                     String giftCardValue = rs.getString(22); //rip.value
@@ -1285,7 +1283,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (totalQuantity != null) {
 //                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
                             salesInfoList.add(getSalesInfo(isGiftCard, false, cashRegister.numberGroup, cash_id, numberZReport,
-                                    sqlDateToLocalDate(dateZReport), sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee,
+                                    dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
                                     null, lastNameContact, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, paymentEntry.customPaymentsMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
                                     position, null, idSection, false, cashRegister));
