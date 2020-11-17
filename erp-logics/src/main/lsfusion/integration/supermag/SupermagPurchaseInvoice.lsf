@@ -483,7 +483,22 @@ importPurchaseInvoiceFull 'Импорт накладные (закупка)' (ST
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);   
     
     IF NOT userInvoice(idDoc(0)) THEN NEW o = UserInvoice {  id(o) <- idDoc(0); }
-              
+                                
+    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        operation(doc) <- operation1Supermag(codeOperation(i));
+        lastStatusSupermag(doc) <- docState(i);
+        supplier(doc) <- legalEntity(STRING(clientIndex(i)));
+        supplierStock(doc) <- stock(STRING[100] (clientIndex(i)));
+        customer(doc) <- legalEntity(stock(ISTRING[100] (locationTo(i))));
+        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- OVERRIDE time(doc), 09:00;
+        imported(doc) <- TRUE;
+        paymentCondition(doc) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;              
+    }  
+    
     FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
         CASE WHEN docState(0) = 0 THEN {
             isPosted(doc) <- NULL;
@@ -502,21 +517,6 @@ importPurchaseInvoiceFull 'Импорт накладные (закупка)' (ST
 //            isClosed(doc) <- TRUE;        
         } 
     }      
-                  
-    FOR Purchase.UserInvoice doc == Purchase.userInvoice(idDoc(INTEGER i)) DO {       
-        number[Document](doc) <- STRING[28](docNumber(i));
-        bornin(doc) <- bornIn(i);
-        operation(doc) <- operation1Supermag(codeOperation(i));
-        lastStatusSupermag(doc) <- docState(i);
-        supplier(doc) <- legalEntity(STRING(clientIndex(i)));
-        supplierStock(doc) <- stock(STRING[100] (clientIndex(i)));
-        customer(doc) <- legalEntity(stock(ISTRING[100] (locationTo(i))));
-        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
-        date(doc) <- DATE (docDate(i));  
-        time(doc) <- OVERRIDE time(doc), 09:00;
-        imported(doc) <- TRUE;
-        paymentCondition(doc) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;              
-    }  
     
     overImportPurchaseInvoice();
 

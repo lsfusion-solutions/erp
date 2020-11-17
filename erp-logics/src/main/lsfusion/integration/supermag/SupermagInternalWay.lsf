@@ -414,6 +414,22 @@ importInternalWayFull 'Импорт накладные (перемещение)'
     IF NOT userInvoice(idDoc(0)) AND NOT docState(0) = 1 THEN NEW o = UserInvoice {  id(o) <- idDoc(0); }
               
     FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        operation(doc) <- Sale.operation1Supermag(codeOperation(i));
+        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
+        supplier(doc) <- legalEntity(supplierStock(doc));
+        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
+        customer(doc) <- legalEntity(customerStock(doc));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- OVERRIDE time(doc), 09:00;
+        createShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(supplierStock(doc))) <= date(doc); 
+        createPurchaseShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(customerStock(doc))) <= date(doc) ;
+        updateManufacturingPrice(doc) <- TRUE IF NOT startDate(supplierStock(doc));
+        imported(doc) <- TRUE;
+    }  
+
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
         CASE WHEN docState(0) = 0 THEN {
             isPosted(doc) <- NULL;
             isClosed(doc) <- TRUE;                
@@ -431,22 +447,6 @@ importInternalWayFull 'Импорт накладные (перемещение)'
 //            isClosed(doc) <- TRUE;        
         } 
     }      
-
-    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
-        number[Document](doc) <- STRING[28](docNumber(i));
-        bornin(doc) <- bornIn(i);
-        operation(doc) <- Sale.operation1Supermag(codeOperation(i));
-        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
-        supplier(doc) <- legalEntity(supplierStock(doc));
-        customerStock(doc) <- stock(ISTRING[100] (locationTo(i)));
-        customer(doc) <- legalEntity(customerStock(doc));
-        date(doc) <- DATE (docDate(i));  
-        time(doc) <- OVERRIDE time(doc), 09:00;
-        createShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(supplierStock(doc))) <= date(doc); 
-        createPurchaseShipment(doc) <- (docState(i) == 2 OR docState(i) == 3) AND DATE(startDate(customerStock(doc))) <= date(doc) ;
-        updateManufacturingPrice(doc) <- TRUE IF NOT startDate(supplierStock(doc));
-        imported(doc) <- TRUE;
-    }  
     
     overImportInternalWay();
 

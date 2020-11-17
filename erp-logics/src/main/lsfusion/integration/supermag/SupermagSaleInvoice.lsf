@@ -375,6 +375,19 @@ importSaleInvoiceFull 'Импорт накладные (закупка)' (STRING
     IF NOT userInvoice(idDoc(0)) AND NOT docState(0) = 1 THEN NEW o = UserInvoice {  id(o) <- idDoc(0); }
               
     FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        operation(doc) <- Sale.operation1Supermag(codeOperation(i));
+        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
+        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
+        customer(doc) <- legalEntity(STRING(clientIndex(i)));
+        customerStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- OVERRIDE time(doc), 09:00;
+        imported(doc) <- TRUE;
+    }  
+    
+    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
         CASE WHEN docState(0) = 0 THEN {
             isPosted(doc) <- NULL;
             isClosed(doc) <- TRUE;                
@@ -392,19 +405,6 @@ importSaleInvoiceFull 'Импорт накладные (закупка)' (STRING
 //            isClosed(doc) <- TRUE;        
         } 
     }      
-
-    FOR Sale.UserInvoice doc == Sale.userInvoice(idDoc(INTEGER i)) DO {       
-        number[Document](doc) <- STRING[28](docNumber(i));
-        bornin(doc) <- bornIn(i);
-        operation(doc) <- Sale.operation1Supermag(codeOperation(i));
-        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
-        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
-        customer(doc) <- legalEntity(STRING(clientIndex(i)));
-        customerStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
-        date(doc) <- DATE (docDate(i));  
-        time(doc) <- OVERRIDE time(doc), 09:00;
-        imported(doc) <- TRUE;
-    }  
     
     overImportSaleInvoice();
 
