@@ -328,7 +328,9 @@ desadvDeliveryNoteDate = DATA LOCAL NESTED DATE();
 desadvBuyerGLN = DATA LOCAL NESTED STRING[13]();
 desadvDestinationGLN = DATA LOCAL NESTED STRING[13]();
 desadvSupplierGLN = DATA LOCAL NESTED STRING[13]();
+desadvStGLN = DATA LOCAL NESTED STRING[13]();
 desadvOrderNumber = DATA LOCAL NESTED STRING[28]();
+desadvOrderDate = DATA LOCAL NESTED DATETIME();
 desadvDeliveryDateTimeFirst = DATA LOCAL NESTED DATETIME();
 desadvComment = DATA LOCAL NESTED TEXT();
 desadvGTIN = DATA LOCAL NESTED STRING[15](INTEGER);
@@ -343,8 +345,8 @@ desadvLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
 FORM desadv
     PROPERTIES() desadvDocumentNumber EXTID 'documentNumber', desadvDocumentDate EXTID 'documentDate',
                  desadvDeliveryNoteNumber EXTID 'deliveryNoteNumber', desadvDeliveryNoteDate EXTID 'deliveryNoteDate',
-                 desadvBuyerGLN EXTID 'buyerGLN', desadvDestinationGLN EXTID 'destinationGLN',
-                 desadvSupplierGLN EXTID 'supplierGLN', desadvOrderNumber EXTID 'orderNumber',
+                 desadvBuyerGLN EXTID 'buyerGLN', desadvDestinationGLN EXTID 'destinationGLN', desadvSupplierGLN EXTID 'supplierGLN',
+                 desadvOrderNumber EXTID 'orderNumber', desadvOrderDate EXTID 'orderDate', desadvStGLN EXTID 'stGLN',
                  desadvDeliveryDateTimeFirst EXTID 'deliveryDateTimeFirst', desadvComment EXTID 'comment'
     OBJECTS i = INTEGER EXTID 'line'
     PROPERTIES(i) desadvGTIN EXTID 'GTIN', desadvQuantityOrdered EXTID 'quantityOrdered',
@@ -355,11 +357,14 @@ FORM desadv
 
 @openXML(EOrderDespatchAdvice,o,eOrderDespatchAdvices);
 
+overReceiveMessageDesadv ABSTRACT ();
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'desadv' AND NOT invoices THEN {
         TRY {
             IMPORT desadv XML FROM data(i);
             desadvOrderNumber() <- trim(desadvOrderNumber());
+            overReceiveMessageDesadv();
             IF eOrder(desadvOrderNumber()) THEN {
                 NEWSESSION NESTED LOCAL {
                     IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
