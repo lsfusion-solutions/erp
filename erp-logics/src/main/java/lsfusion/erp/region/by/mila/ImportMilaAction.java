@@ -23,36 +23,44 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Iterator;
 
 public class ImportMilaAction extends InternalAction {
 
     protected final ClassPropertyInterface fullInfoInterface;
+    protected final ClassPropertyInterface addLogInterface;
 
-    StringBuilder cResult = new StringBuilder();                    // Строка в формате JSON - результат работы
-    String errMsg = "";                     // Текст сообщений об ошибках
-    String baseUrl = "https://mila.by";     // Базовый URL для подстановки
-    boolean fullInfo = true;                // Получать полную информацию о товаре
-    int maxPage = 0;                        // Ограничение на количество принимаемых страниц в группе, 0 - все
-    int maxGoods = 0;                       // Ограничение на количество товаров на странице, 0 - все
-    ioFile ioFile = new ioFile();           // Для записи результатов
+    StringBuilder cResult = new StringBuilder();    // Строка в формате JSON - результат работы
+    String errMsg = "";                             // Текст сообщений об ошибках
+    String baseUrl = "https://mila.by";             // Базовый URL для подстановки
+    boolean fullInfo = true;                        // Получать полную информацию о товаре
+    boolean addLog = true;                          // Включает дополнительное логирование в файл addLogFile
+    String addLogFile = "import_mila.log";          // Имя файла дополнительного логирования
+    int maxPage = 0;                                // Ограничение на количество принимаемых страниц в группе, 0 - все
+    int maxGoods = 0;                               // Ограничение на количество товаров на странице, 0 - все
+    ioFile ioFile = new ioFile();                   // Для записи результатов
+    Long nTimeStamp = null;                         // Начало временной метки для доп. лог файла
 
     public ImportMilaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
         fullInfoInterface = i.next();
+        addLogInterface = i.next();
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
             fullInfo = context.getKeyValue(fullInfoInterface).getValue() != null;
+            addLog = context.getKeyValue(addLogInterface).getValue() != null;
 
             ioFile.lAdd = false;
             File tmpFile = File.createTempFile("mila_js", ".txt");
             try {
                 saveResult(tmpFile);
+                saveLog(0,"","",0);
                 ioFile.lAdd = true;
                 if (!getGroups(baseUrl, tmpFile)) {
                     ERPLoggers.importLogger.error(errMsg);
@@ -74,12 +82,47 @@ public class ImportMilaAction extends InternalAction {
         oRs.saveDoc(fName);
     }
 
+    // сохраняет лог
+    void saveLog(Integer nLevel,String cText,String cUrl, Integer flag) {
+        if (!addLog) return; // дополнительное логирование отменено
+        String ch ="", ch2 = "";
+        if (flag != 0) ch = new String(new char[nLevel * 4]).replace("\0"," ");
+        ch2 = ch;
+        ioFile log = new ioFile();
+        ioFile.lAdd = true;
+        if (flag == 0) {
+            try {
+                File fLog = new File(addLogFile);
+                if (fLog.exists()) fLog.delete();
+            } catch (Exception e) {
+                // ничего делать не будем
+            }
+            cText = "Старт: " + new Timestamp(System.currentTimeMillis()) + "\n---------------------------------------";
+        }
+        switch (flag) {
+            case 1: {
+                nTimeStamp = new Timestamp(System.currentTimeMillis()).getTime();
+                ch = ch.substring(0, ch.length() - 2) + ":";
+                break;
+            }
+            case 2: {
+                Double nResult = (double) (new Timestamp(System.currentTimeMillis()).getTime() - nTimeStamp) / 1000;
+                cText += ", " + nResult.toString();
+                break;
+            }
+        }
+        log.strToFile(ch + cText + "\n",addLogFile);
+        if (cUrl.length() > 0) log.strToFile(ch2 + cUrl + "\n",addLogFile);
+    }
+
     //  Парсировка товарных групп
     private boolean getGroups(String url, File tmpFile) throws IOException {
         boolean lRet = true;
         String c_class, c_url;
         readSite oRS = new readSite();
+        saveLog(1,"Получение списка групп", url,1);
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
+        saveLog(1,"getGroups, ok", "", 2);
         addKeyValue("{", "title", oRS.doc.title(), ",", true);
         addKeyValue("", "groups", "", "[\n", true);
         int i = 0;
@@ -96,6 +139,7 @@ public class ImportMilaAction extends InternalAction {
             addKeyValue("", "goods", "", "[\n", true);
             saveResult(tmpFile);
             // вызываем поиск максимального количеста страниц, принадлежащих группе
+            saveLog(2,"Получение списка страниц группы", c_url, 1);
             lRet = getPagesGoods(c_url, tmpFile); // c_url
             cResult.append("]}");   // закрываем goods
             saveResult(tmpFile);
@@ -107,13 +151,14 @@ public class ImportMilaAction extends InternalAction {
     }
 
     //  Вызов первой страницы с товарами.
-//  Метод запустит последовательную обработку всех последующих страниц группы
+    //  Метод запустит последовательную обработку всех последующих страниц группы
     private boolean getPagesGoods(String url, File tmpFile) throws IOException {
         boolean lRet = true;
         int n1 = -1, n2 = 0;
         String c_class, c_url, c_num;
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
+        saveLog(2,"getPagesGoods, ok", "", 2);
         for (Element item : oRS.doc.getElementsByTag("ul")) {
             c_class = getItemValue(item, "li", "class", 0);
             if (!c_class.equals("bx-pag-prev")) continue;
@@ -134,6 +179,7 @@ public class ImportMilaAction extends InternalAction {
                 attempt++;
                 if (attempt > 10) break;
                 ERPLoggers.importLogger.info(c_url);
+                saveLog(3,"Чтение списка товаров группы", c_url, 1);
                 lRet = getGoods(c_url, i, tmpFile);
             } while (!lRet);
         }
@@ -146,6 +192,7 @@ public class ImportMilaAction extends InternalAction {
         String c_class, c_url, c_name;
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
+        saveLog(3,"getGoods, ok", "", 2);
         int i = 0;
         for (Element item : oRS.doc.getElementsByTag("div")) {
             c_class = getItemValue(item, "div", "class", null);
@@ -158,6 +205,7 @@ public class ImportMilaAction extends InternalAction {
             if (c_url.length() > 0) {
                 c_url = baseUrl + c_url;
                 if (fullInfo) {
+                    saveLog(4,"Получение расширенной информации по товару", c_url, 1);
                     lRet = getProduct(c_url); // расширенная информация по товару
                     if (lRet) saveResult(tmpFile);
                 } else {
@@ -191,6 +239,7 @@ public class ImportMilaAction extends InternalAction {
         String cid = "", c_pic = "", c1 = "";
         readSite oRS = new readSite();
         if (!oRS.loadUrl(url)) return errbox(oRS.errMsg);
+        saveLog(4,"getProduct, ok", "", 2);
         for (Element item : oRS.doc.getElementsByTag("div")) {
             cid = getItemValue(item, "div", "id", null);
             if (!cid.equals("catalogElement")) continue;
@@ -229,7 +278,7 @@ public class ImportMilaAction extends InternalAction {
         }
         return " ";
     }
-    
+
     private String getPriceValue(Element item, String cExpr, String cAtr, Integer nIndex) {
         String result = getItemValue(item, cExpr, cAtr, nIndex);
         if (result == null || result.trim().isEmpty())

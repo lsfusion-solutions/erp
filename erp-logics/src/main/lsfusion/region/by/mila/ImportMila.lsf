@@ -5,10 +5,11 @@ REQUIRE System, Barcode, PriceListOperation, Competitor;
 PRIORITY Competitor;
 
 importMilaFile = DATA LOCAL FILE ();
-importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaAction' (BOOLEAN);
+addLog = DATA LOCAL BOOLEAN ();
+importMila 'Импортировать'  INTERNAL  'lsfusion.erp.region.by.mila.ImportMilaAction' (BOOLEAN, BOOLEAN );
 
-importMilaLight 'Импорт списка товаров' () { importMila(NULL); open(importMilaFile()); }
-importMilaFull 'Импорт всей информации по товарам' () { importMila(TRUE); open(importMilaFile()); }
+importMilaLight 'Импорт списка товаров' () { importMila(NULL, addLog()); open(importMilaFile()); }
+importMilaFull 'Импорт всей информации по товарам' () { importMila(TRUE, addLog()); open(importMilaFile()); }
 
 FORM importMilaEuroopt 'Импорт Mila'
     PROPERTIES() importMilaLight, importMilaFull
@@ -30,7 +31,6 @@ DESIGN integrationData {
 gname = DATA LOCAL STRING[100] (INTEGER);
 
 group = DATA LOCAL INTEGER (INTEGER);
-tname = DATA LOCAL STRING[100] (INTEGER);
 tcode = DATA LOCAL STRING[25] (INTEGER);
 price2 = DATA LOCAL NUMERIC[10,3](INTEGER);
 price3 = DATA LOCAL NUMERIC[10,3](INTEGER);
@@ -45,7 +45,7 @@ FORM importMila
 ;
 
 importPriceList () {
-    importMila(TRUE);
+    importMila(TRUE, addLog());
     
     IMPORT importMila JSON FROM importMilaFile();
     
