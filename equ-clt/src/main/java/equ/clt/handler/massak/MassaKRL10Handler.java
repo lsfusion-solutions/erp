@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
@@ -100,22 +99,20 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
     private boolean getSetWorkModeReply(List<String> errors, TCPPort port, String ip) {
         boolean result = false;
         byte[] reply = receiveReply(errors, port, ip);
-        if (reply != null) {
-            try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
-                byte byte0 = stream.readByte();
-                byte byte1 = stream.readByte();
-                byte byte2 = stream.readByte();
-                if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                    byte lengthByte1 = stream.readByte();
-                    byte lengthByte2 = stream.readByte();
-                    byte code = stream.readByte();
-                    if (code == (byte) 0x51) { //51 ok, 54 error
-                        result = true;
-                    }
+        try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
+            byte byte0 = stream.readByte();
+            byte byte1 = stream.readByte();
+            byte byte2 = stream.readByte();
+            if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
+                byte lengthByte1 = stream.readByte();
+                byte lengthByte2 = stream.readByte();
+                byte code = stream.readByte();
+                if (code == (byte) 0x51) { //51 ok, 54 error
+                    result = true;
                 }
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
             }
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
         return result;
     }
@@ -139,7 +136,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
     private byte[] receiveReply(List<String> errors, TCPPort port, String ip) {
         byte[] reply = new byte[500];
         try {
-            long startTime = new Date().getTime();
+            long startTime = System.currentTimeMillis();
             long time;
             do {
                 if (port.getBisStream().available() != 0) {
@@ -147,7 +144,7 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
                     break;
                 }
                 Thread.sleep(10L);
-                time = (new Date()).getTime();
+                time = System.currentTimeMillis();
             } while (time - startTime <= 10000L); //10 seconds
         } catch (Exception e) {
             logError(errors, String.format(getLogPrefix() + "IP %s receive Reply Error", ip), e);
@@ -160,19 +157,17 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
         boolean cleared = false;
         try {
             byte[] reply = receiveReply(errors, port, ip);
-            if (reply != null) {
-                LittleEndianDataInputStream stream = new LittleEndianDataInputStream(new ByteArrayInputStream(reply));
-                byte byte0 = stream.readByte();
-                byte byte1 = stream.readByte();
-                byte byte2 = stream.readByte();
-                if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                    short length = stream.readShort();
-                    byte code = stream.readByte();
-                    if (code == (byte) 0x41) {
-                        int maskFile = stream.readInt();
-                        if (maskFile == 17) {
-                            cleared = true;
-                        }
+            LittleEndianDataInputStream stream = new LittleEndianDataInputStream(new ByteArrayInputStream(reply));
+            byte byte0 = stream.readByte();
+            byte byte1 = stream.readByte();
+            byte byte2 = stream.readByte();
+            if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
+                short length = stream.readShort();
+                byte code = stream.readByte();
+                if (code == (byte) 0x41) {
+                    int maskFile = stream.readInt();
+                    if (maskFile == 17) {
+                        cleared = true;
                     }
                 }
             }
@@ -406,25 +401,23 @@ public class MassaKRL10Handler extends MultithreadScalesHandler {
     private boolean getCommandReply(List<String> errors, TCPPort port, String ip, byte commandFileType) {
         boolean result = false;
         byte[] reply = receiveReply(errors, port, ip);
-        if (reply != null) {
-            try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
-                byte byte0 = stream.readByte();
-                byte byte1 = stream.readByte();
-                byte byte2 = stream.readByte();
-                if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
-                    byte lengthByte1 = stream.readByte();
-                    byte lengthByte2 = stream.readByte();
-                    byte code = stream.readByte();
-                    if (code == (byte) 0x42) { //42 ok, 43 error
-                        byte fileType = stream.readByte();
-                        if (fileType == commandFileType) {
-                            result = true;
-                        }
+        try (DataInputStream stream = new DataInputStream(new ByteArrayInputStream(reply))) {
+            byte byte0 = stream.readByte();
+            byte byte1 = stream.readByte();
+            byte byte2 = stream.readByte();
+            if (byte0 == (byte) 0xF8 && byte1 == (byte) 0x55 && byte2 == (byte) 0xCE) {
+                byte lengthByte1 = stream.readByte();
+                byte lengthByte2 = stream.readByte();
+                byte code = stream.readByte();
+                if (code == (byte) 0x42) { //42 ok, 43 error
+                    byte fileType = stream.readByte();
+                    if (fileType == commandFileType) {
+                        result = true;
                     }
                 }
-            } catch (IOException e) {
-                throw Throwables.propagate(e);
             }
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
         }
         return result;
     }

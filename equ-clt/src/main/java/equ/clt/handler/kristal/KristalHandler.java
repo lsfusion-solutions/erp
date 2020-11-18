@@ -26,7 +26,6 @@ import java.math.RoundingMode;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
-import java.sql.Date;
 import java.sql.*;
 import java.text.ParseException;
 import java.time.LocalDate;
@@ -36,6 +35,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.EquipmentServer.*;
+import static lsfusion.base.DateConverter.dateToStamp;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch> {
@@ -714,9 +714,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     while (rs.next()) {
                         String number = rs.getString("Ck_Number");
                         Integer ckNSmena = rs.getInt("Ck_NSmena");
-                        Timestamp dateTime = rs.getTimestamp("Ck_Date");
-                        Date date = new Date(dateTime.getTime());
-                        Time time = new Time(dateTime.getTime());
+                        LocalDateTime dateTime = sqlTimestampToLocalDateTime(rs.getTimestamp("Ck_Date"));
+                        LocalDate date = dateTime.toLocalDate();
+                        LocalTime time = dateTime.toLocalTime();
 
                         Integer nppMachinery = rs.getInt("CashNumber");
                         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(dir + "_" + nppMachinery);
@@ -724,7 +724,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             BigDecimal sum = rs.getBigDecimal("Ck_Summa");
                             String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
                             if (!cashDocumentSet.contains(idCashDocument))
-                                result.add(new CashDocument(idCashDocument, number, sqlDateToLocalDate(date), sqlTimeToLocalTime(time), cashRegister.numberGroup, nppMachinery, null, sum));
+                                result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, null, sum));
                         }
                     }
                 } catch (SQLException e) {
@@ -1009,9 +1009,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
                                 LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
 
-                                long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss").getTime();
-                                LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
-                                LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
+                                LocalDateTime dateTimeReceipt = sqlTimestampToLocalDateTime(dateToStamp(DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), "dd.MM.yyyy HH:mm:ss")));
+                                LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
+                                LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
                                 BigDecimal discountSumReceipt = readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM");
 
@@ -1087,9 +1087,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
                                     //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
-                                    long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), "dd.MM.yyyy HH:mm:ss").getTime();
-                                    LocalDate dateReceipt = sqlDateToLocalDate(new Date(dateTimeReceipt));
-                                    LocalTime timeReceipt = sqlTimeToLocalTime(new Time(dateTimeReceipt));
+                                    LocalDateTime dateTimeReceipt = sqlTimestampToLocalDateTime(dateToStamp(DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), "dd.MM.yyyy HH:mm:ss")));
+                                    LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
+                                    LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
                                     String idEmployee = receiptElement.getAttributeValue("CASSIR");
 
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);

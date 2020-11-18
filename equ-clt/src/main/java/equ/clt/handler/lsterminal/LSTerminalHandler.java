@@ -13,13 +13,17 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.sql.Date;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static equ.clt.EquipmentServer.*;
+import static equ.clt.EquipmentServer.localDateToSqlDate;
+import static equ.clt.EquipmentServer.sqlTimestampToLocalDateTime;
+import static lsfusion.base.DateConverter.dateToStamp;
 
 public class LSTerminalHandler extends TerminalHandler {
 
@@ -216,9 +220,9 @@ public class LSTerminalHandler extends TerminalHandler {
                                     for (List<Object> entry : dokData) {
 
                                         String dateTimeValue = (String) entry.get(0); //DV
-                                        Timestamp dateTime = dateTimeValue == null ? null : new Timestamp(DateUtils.parseDate(dateTimeValue, "yyyy-MM-dd HH:mm:ss").getTime());
-                                        Date date = dateTime == null ? null : new Date(dateTime.getTime());
-                                        Time time = dateTime == null ? null : new Time(dateTime.getTime());
+                                        LocalDateTime dateTime = dateTimeValue == null ? null : sqlTimestampToLocalDateTime(dateToStamp(DateUtils.parseDate(dateTimeValue, "yyyy-MM-dd HH:mm:ss")));
+                                        LocalDate date = dateTime == null ? null : dateTime.toLocalDate();
+                                        LocalTime time = dateTime == null ? null : dateTime.toLocalTime();
                                         String numberDocument = (String) entry.get(1); //NUM
                                         String idDocument = dateTimeValue + "/" + numberDocument;
                                         String idDocumentType = (String) entry.get(2); //VOP
@@ -234,7 +238,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                             terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, numberDocument,
-                                                    sqlDateToLocalDate(date), sqlTimeToLocalTime(time), commentDocument, directoryEntry.getKey(), idTerminalHandbookType1, idTerminalHandbookType2,
+                                                    date, time, commentDocument, directoryEntry.getKey(), idTerminalHandbookType1, idTerminalHandbookType2,
                                                     idDocumentType, null, idDocumentDetail, numberDocumentDetail, barcode, null,
                                                     price, quantity, sum));
                                     }
@@ -286,8 +290,8 @@ public class LSTerminalHandler extends TerminalHandler {
         int count = 1;
         while (resultSet.next()) {
             String barcode = resultSet.getString("barcode");
-            BigDecimal quantity = new BigDecimal(resultSet.getDouble("quant"));
-            BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
+            BigDecimal quantity = BigDecimal.valueOf(resultSet.getDouble("quant"));
+            BigDecimal price = BigDecimal.valueOf(resultSet.getDouble("price"));
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
