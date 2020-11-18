@@ -1,0 +1,33 @@
+MODULE LotType;
+
+REQUIRE Sku, Item;
+
+NAMESPACE Stock;
+
+// lot type
+
+CLASS LotType 'Тип маркировки' {
+    clothing 'Одежда'
+}
+
+name 'Наименование' (LotType t) = staticCaption(t) IF t IS LotType CHARWIDTH 20;
+
+FORM dialogLotTypes 'Выбор типа маркировки'
+    OBJECTS t = LotType
+    PROPERTIES(t) READONLY name
+    
+    LIST LotType OBJECT t
+;
+
+// sku group
+
+dataLotType = DATA LotType (SkuGroup);
+nearestLotType (SkuGroup child) = GROUP LAST dataLotType(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataLotType(parent);
+
+lotType (SkuGroup skuGroup) = OVERRIDE dataLotType(skuGroup), nearestLotType(skuGroup) MATERIALIZED;
+nameLotType 'Тип маркировки' (SkuGroup skuGroup) = name(lotType(skuGroup)) IN paramsItemGroup;
+
+EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) nameLotType;
+EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() nameLotType BACKGROUND RGB(190,190,190) IF dataLotType(g);
+
+lotType (Sku s) = lotType(skuGroup(s));

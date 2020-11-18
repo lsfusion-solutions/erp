@@ -692,22 +692,22 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
         price(d) <- currentPOSPrice(sku, receipt);
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
         focusQuantity(d);
-        IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d))== SkuType.skuTypeCharge THEN{
+        IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d)) = SkuType.skuTypeCharge THEN {
             IF countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
                 batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
                 price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
-                } ELSE {
-                    LOCAL created = BOOLEAN();
-                    created() <- NULL;
-                    DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
-                        batch(d) <- bt;
-                        price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
-                        calculatePromotions(receipt);
-                        created() <- TRUE;
-                    }
-                    IF NOT created() THEN
-                        DELETE d;
+            } ELSE {
+                LOCAL created = BOOLEAN();
+                created() <- NULL;
+                DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
+                    batch(d) <- bt;
+                    price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
+                    calculatePromotions(receipt);
+                    created() <- TRUE;
                 }
+                IF NOT created() THEN
+                    DELETE d;
+            }
         }
         overChangeBatch(d);    
     }
@@ -716,15 +716,18 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
 GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрихкоду
+initialBarcode = DATA LOCAL STRING[100] ();
+
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
-preProcessBarcode  ABSTRACT LIST ( STRING[30], Receipt);
-overChangeBarcodeSale  ABSTRACT LIST FIRST ( STRING[30], Receipt);
+preProcessBarcode  ABSTRACT LIST (STRING[100], Receipt);
+overChangeBarcodeSale  ABSTRACT LIST FIRST (STRING[100], Receipt);
 
 changeBarcodeSale(Receipt receipt)  { 
-    INPUT s = STRING[30] DO {
+    INPUT s = STRING[100] DO {
         consumedChangeBarcodeSaleReceipt() <- NULL;
         LOCAL barcode = STRING[30] ();
         barcode() <- processedBarcode(s);
+        initialBarcode() <- s;
         preProcessBarcode(barcode(), receipt);
         overChangeBarcodeSale(barcode(), receipt);
         IF NOT consumedChangeBarcodeSaleReceipt() THEN{

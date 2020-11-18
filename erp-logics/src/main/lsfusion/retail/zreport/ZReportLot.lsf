@@ -1,0 +1,22 @@
+MODULE ZReportLot;
+
+REQUIRE ZReport, Lot;
+
+NAMESPACE ZReport;
+
+lot 'Марка' = DATA Lot (ReceiptSaleDetail) INDEXED;
+
+CONSTRAINT lot(ReceiptSaleDetail d) AND NOT sku(lot(d)) = sku(d) CHECKED BY lot[ReceiptSaleDetail]
+    MESSAGE 'Товар марки не соответствует товару строки чека продажи';
+
+lot 'Марка' = DATA Lot (ReceiptReturnDetail) INDEXED;
+
+CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) CHECKED BY lot[ReceiptReturnDetail]
+    MESSAGE 'Товар марки не соответствует товару строки чека продажи';
+
+lot 'Марка' (ReceiptDetail d) = MULTI lot[ReceiptSaleDetail](d), lot[ReceiptReturnDetail](d) MATERIALIZED; 
+idLot 'Код марки' (ReceiptDetail d) = id(lot(d));
+    
+EXTEND FORM zReport PROPERTIES(d) idLot;
+EXTEND FORM zReports PROPERTIES(d) READONLY idLot;
+

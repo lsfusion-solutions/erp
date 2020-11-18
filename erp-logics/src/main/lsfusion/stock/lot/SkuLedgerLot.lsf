@@ -1,0 +1,41 @@
+MODULE SkuLedgerLot;
+
+REQUIRE SkuLedger, Lot;
+
+NAMESPACE Stock;
+
+quantity = ABSTRACT NUMERIC[16,5] (InSkuLedger, Lot);
+quantity = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger, Lot);
+
+signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) = 
+    MULTI quantity[InSkuLedger, Lot](ledger, lot),
+         -quantity[OutFIFOSkuLedger, Lot](ledger, lot) CHARWIDTH 7 MATERIALIZED;
+
+firstBatch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l);
+
+currentBalance 'Текущий остаток' =
+    GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY sku(ledger), stock(ledger), lot CHARWIDTH 7 MATERIALIZED;
+    
+EXTEND FORM currentBalanceSkuStock
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id
+    PROPERTIES(s, st, l) READONLY currentBalance
+    FILTERS currentBalance(s, st, l)
+;
+
+DESIGN currentBalanceSkuStock {
+    ledgerBox {
+        MOVE BOX(l);
+    }
+}
+
+EXTEND FORM lots
+    OBJECTS s = SkuLedger
+    PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock
+    PROPERTIES(s, l) READONLY signedQuantity
+    PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
+    
+    ORDERS date(s) DESC
+    FILTERS isPosted(s),
+            signedQuantity(s, l)
+;

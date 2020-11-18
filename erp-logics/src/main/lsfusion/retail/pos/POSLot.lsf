@@ -1,0 +1,44 @@
+MODULE POSLot;
+
+REQUIRE POS, ZReportLot, SkuLedgerLot;
+
+NAMESPACE POS;
+
+EXTEND FORM POS
+    PROPERTIES(d) READONLY idLot SHOWIF lotType(sku(d)) BACKGROUND RGB(255,224,224) IF NOT lot(d) PANEL
+;
+
+DESIGN POS {
+    PANEL(d) {
+        NEW batchContainer AFTER PROPERTY(nameSkuPanel) {
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(nameBatchPanel);
+            MOVE PROPERTY(idLot(d)) {
+                panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 24';
+            }        
+        }
+    }
+}
+
+overChangeBarcodeSale(STRING[100] b, Receipt r) + {
+    IF length(initialBarcode()) > 20 THEN {
+        FOR Lot l = lot(initialBarcode()) AND Sku s = sku(l) DO {
+            NEW d = ReceiptSaleDetail {
+                receipt(d) <- r;
+                idBarcode(d) <- b;
+                sku(d) <- s;
+                quantity(d) <- 1.0;
+                price(d) <- currentPOSPrice(s, r);
+                lot(d) <- l;
+                IF explicitBatchLedger(r) THEN
+                    batch(d) <- firstBatch(l);
+                consumedChangeBarcodeSaleReceipt() <- TRUE;
+            }
+        } 
+    }
+}
+
+WHEN LOCAL FORMS POS CHANGED(receiptSaleDetail(ReceiptReturnDetail d)) AND NOT CHANGED (lot(d)) DO {
+    lot(d) <- lot(receiptSaleDetail(d));
+}

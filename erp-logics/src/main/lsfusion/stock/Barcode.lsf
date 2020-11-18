@@ -191,8 +191,8 @@ FORM barcodeDialog 'Штрих-код'
 
 
 // ---------------------------------- Предобработка штрихкода --------------------------- //
-overPreprocessedBarcode = ABSTRACT CASE STRING[15] (STRING[15]);
-processedBarcode (STRING[15] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[15];
+overPreprocessedBarcode = ABSTRACT CASE STRING[100] (STRING[100]);
+processedBarcode (STRING[100] b) = OVERRIDE overPreprocessedBarcode(b), b AS STRING[100];
 
 weightPrefix 'Префикс весового штрихкода' = DATA STRING[2]();
 weightQuantity = DATA LOCAL NUMERIC[14,3]();
@@ -269,32 +269,36 @@ DESIGN options {
 META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuProp)
     idetail(object, sku) = GROUP MAX ###idetail detail BY object(detail), skuProp(detail);
 
-create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  { 
-    LOCAL dialogBarcodeDetail = idetailClass();
-    dialogBarcodeDetail() <- idetail(object, skuProp);
-    IF dialogBarcodeDetail() IS idetailClass THEN {
-        LOCAL requestedQuantity = NUMERIC[16,5]();
-        IF requestQuantitySku() THEN {
-            DIALOG dialogNumeric OBJECTS n = (OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)))) INPUT DO {
-                requestedQuantity() <-n;
-            }
-        } 
-        quantity(###idetail detail) <-
-            quantity(detail) (+) (OVERRIDE requestedQuantity(), weightQuantity(), amount(barcode(barcode, date(object))) IF detail IS idetailClass)
-            WHERE detail == dialogBarcodeDetail();
-        seek(dialogBarcodeDetail());
-    } ELSE {
-        NEW w = idetailClass {
-            object(w) <- object;
-            skuProp(w) <- skuProp;
-            quantity(w) <- OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)));
-            seek(w);
-        }
-    }
-    setAddedUser(skuProp);
-}
+    afterInputBarcode###idetail ABSTRACT LIST (idetailClass, STRING[100]);
 
-    addDetailBarcode###idetail(###object object, STRING[15] barcode)  { 
+    create###idetail##New (###object object, STRING[100] barcode, Sku skuProp)  { 
+        LOCAL dialogBarcodeDetail = idetailClass();
+        dialogBarcodeDetail() <- idetail(object, skuProp);
+        IF dialogBarcodeDetail() IS idetailClass THEN {
+            LOCAL requestedQuantity = NUMERIC[16,5]();
+            IF requestQuantitySku() THEN {
+                DIALOG dialogNumeric OBJECTS n = (OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)))) INPUT DO {
+                    requestedQuantity() <-n;
+                }
+            } 
+            quantity(###idetail detail) <-
+                quantity(detail) (+) (OVERRIDE requestedQuantity(), weightQuantity(), amount(barcode(barcode, date(object))) IF detail IS idetailClass)
+                WHERE detail == dialogBarcodeDetail();
+            seek(dialogBarcodeDetail());
+            afterInputBarcode###idetail(dialogBarcodeDetail(), barcode);
+        } ELSE {
+            NEW w = idetailClass {
+                object(w) <- object;
+                skuProp(w) <- skuProp;
+                quantity(w) <- OVERRIDE weightQuantity(), amount(barcode(barcode, date(object)));
+                seek(w);
+                afterInputBarcode###idetail(w, barcode);
+            }
+        }
+        setAddedUser(skuProp);
+    }
+
+    addDetailBarcode###idetail(###object object, STRING[100] barcode)  { 
         LOCAL dialogBarcode###skuProp = Sku ();
         dialogBarcode###skuProp() <- skuProp##Barcode(barcode, date(object));
 
@@ -333,16 +337,20 @@ create###idetail##New (###object object, STRING[15] barcode, Sku skuProp)  {
             addDetailBarcode###idetail(object, barcodeInput());
     } TOOLBAR CHANGEKEY 'F4';
 
+    consumedBarcode###idetail = DATA LOCAL BOOLEAN ();
+    beforeInputBarcode###idetail ABSTRACT LIST (###object, STRING[100]);
     changeAddDetailInputBarcode###idetail(###object object)  { 
-        INPUT s = STRING[15] DO {
+        INPUT s = STRING[100] DO {
             weightQuantity() <- NULL;
             IF length(s) > 11 AND left(s, 2) == weightPrefix() THEN {
                 weightQuantity() <- NUMERIC[7,0](substr(s, 8, 5)) / 1000.0;
             }
-            addDetailBarcode###idetail(object, processedBarcode(s));
+            beforeInputBarcode###idetail(object, s);
+            IF NOT consumedBarcode###idetail() THEN
+                addDetailBarcode###idetail(object, processedBarcode(s));
         }
     };
-    addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[15] (###object) TOOLBAR CHANGEKEY 'F4' EVENTID 'SCANNER'
+    addDetailInputBarcode###idetail 'Ввод штрихкода :' (object) = DATA LOCAL STRING[100] (###object) TOOLBAR CHARWIDTH 13 CHANGEKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE { changeAddDetailInputBarcode###idetail(object); }
 END
 

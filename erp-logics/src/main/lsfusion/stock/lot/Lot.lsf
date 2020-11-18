@@ -1,0 +1,140 @@
+MODULE Lot;
+
+REQUIRE Sku, LotType;
+
+NAMESPACE Stock;
+
+// lot
+CLASS Lot 'Марка';
+
+id 'Код' = DATA STRING[100] (Lot) INDEXED;
+lot = GROUP AGGR Lot l BY id(l); 
+
+sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
+idSku 'Код товара' (Lot l) = id(sku(l));
+nameSku 'Наименование товара' (Lot l) = name(sku(l));
+
+FORM lots 'Марки'
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, idSku, nameSku
+;
+
+NAVIGATOR {
+    stockMasterData {
+        NEW lots;
+    }
+}
+
+// dialogs
+
+quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Lot);
+
+FORM dialogInLots 'Список марок'
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, quantity
+    PROPERTIES(l) DELETE
+    FILTERS quantity(l)
+;
+
+removeLot 'Убрать' (Lot l) {
+    quantity(l) <- NULL;
+} TOOLBAR CHANGEKEY 'ctrl DELETE';
+
+FORM dialogOutLots 'Список марок'
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, quantity
+    PROPERTIES(l) removeLot
+    FILTERS quantity(l)
+;
+
+// meta
+META defineDocumentLot (doc)
+    quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
+    
+    CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
+        MESSAGE 'Товар марки не соответствует товару строки документа';
+    
+    quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l);
+    quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
+    
+    backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = shipmentQuantity(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
+                                                           IF lotType(sku(d));
+END
+
+lotBarcode() = DATA LOCAL STRING[100] ();
+
+META defineDocumentLotBarcodeIn (doc)
+    EXTEND FORM doc
+        OBJECTS cd = ###doc##Detail PANEL
+        FILTERS cd = d
+    ;
+    
+    beforeInputBarcode###doc##Detail(###doc i, STRING[100] s) + {
+        lotBarcode() <- NULL;
+        consumedBarcode###doc##Detail() <- NULL;
+        IF length(s) > 20 THEN {
+            lotBarcode() <- s;
+            FOR [FILTER doc.cd](###doc##Detail d) AND lotType(sku(d)) DO {
+                IF lot(s) THEN {
+                    IF quantity(i, lot(s)) = 1.0 THEN {
+                        MESSAGE 'Марка уже была отсканирована в текущем документе';
+                        consumedBarcode###doc##Detail() <- TRUE;
+                    } ELSE
+                        IF sku(lot(s)) = sku(d) THEN {
+                            quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
+                            IF NOT shipmentQuantity(d) >= quantityLot(d) THEN
+                                shipmentQuantity(d) <- quantityLot(d);
+                            consumedBarcode###doc##Detail() <- TRUE;
+                        }
+                } ELSE {
+                    NEW l = Lot {
+                        id(l) <- s;
+                        sku(l) <- sku(d);
+                        lotBarcode() <- s;
+                        quantity(d, l) <- 1.0;
+                        IF NOT shipmentQuantity(d) >= quantityLot(d) THEN
+                            shipmentQuantity(d) <- quantityLot(d);
+                        consumedBarcode###doc##Detail() <- TRUE;
+                    }
+                }
+            }
+        }
+    }
+    
+    overPreprocessedBarcode(STRING[100] s) += WHEN lotType(sku(lot(s))) THEN idBarcode(sku(lot(s)));
+    
+    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[100] barcode) + {
+        IF lotBarcode() THEN
+            quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
+    }
+END
+
+META defineDocumentLotBarcodeOut (doc)
+    
+    beforeInputBarcode###doc##Detail(###doc i, STRING[100] s) + {
+        lotBarcode() <- NULL;
+        consumedBarcode###doc##Detail() <- TRUE;
+        IF length(s) > 20 THEN {
+            lotBarcode() <- s;
+            IF quantity(i, lot(s)) = 1.0 THEN {
+                MESSAGE 'Марка уже была отсканирована в текущем документе';
+                consumedBarcode###doc##Detail() <- TRUE;
+            } ELSE {
+                FOR ###doc##Detail d = doc##Detail(i, sku(lot(s))) DO {
+                    quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
+                    IF NOT quantity(d) >= quantityLot(d) THEN
+                        quantity(d) <- quantityLot(d);
+                    seek(d);
+                    consumedBarcode###doc##Detail() <- TRUE;
+                }
+            }
+        }
+    }
+    
+    overPreprocessedBarcode(STRING[100] s) += WHEN lotType(sku(lot(s))) THEN idBarcode(sku(lot(s)));
+    
+    afterInputBarcode###doc##Detail(###doc##Detail d, STRING[100] barcode) + {
+        IF lotBarcode() THEN
+            quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
+    }
+END
