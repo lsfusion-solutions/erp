@@ -19,13 +19,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static equ.clt.handler.HandlerUtils.safeMultiply;
-import static equ.clt.handler.HandlerUtils.trim;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
 
     private static int pluFile = 0x0000;
-    private static int noteFile = 0x000c;
+    private static int note1File = 0x000c;
+    private static int note2File = 0x000d;
+    private static int note3File = 0x000e;
+    private static int note4File = 0x001c;
     private static int hotKeyFile = 0x0003;
 
     protected FileSystemXmlApplicationContext springContext;
@@ -72,7 +74,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile, sleep);
             if(result == 0) {
-                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), noteFile, sleep);
+                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), note1File, sleep);
+            }
+            if(result == 0) {
+                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), note2File, sleep);
+            }
+            if(result == 0) {
+                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), note3File, sleep);
+            }
+            if(result == 0) {
+                result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), note4File, sleep);
             }
             //не работает, возвращает ошибку 1. Если реально понадобится очищать PLU, будем засылать файл с нулевыми ButtonValue
             //if(result == 0) {
@@ -92,7 +103,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
         int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
         if(result == 0) {
-            result = loadNote(scales, transaction, logDir, pluNumberAsPluId, sleep);
+            result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
         }
         if(result == 0) {
             result = loadHotKey(scales, transaction, logDir, sleep);
@@ -139,17 +150,39 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadNote(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
+    private int loadNotes(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
+        List<List<List<Object>>> data = getDataNotes(transaction, pluNumberAsPluId);
+
+        int result = 0;
+        if(!data.get(0).isEmpty()) {
+            result = loadNote(scales, data.get(0), logDir, sleep, note1File);
+        }
+
+        if(result == 0 && !data.get(1).isEmpty()) {
+            result = loadNote(scales, data.get(1), logDir, sleep, note2File);
+        }
+
+        if(result == 0 && !data.get(2).isEmpty()) {
+            result = loadNote(scales, data.get(2), logDir, sleep, note3File);
+        }
+
+        if(result == 0 && !data.get(3).isEmpty()) {
+            result = loadNote(scales, data.get(3), logDir, sleep, note4File);
+        }
+
+        return result;
+    }
+
+    private int loadNote(ScalesInfo scales, List<List<Object>> noteData, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "cp1251"));
             bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
-            for (ScalesItemInfo item : transaction.itemsList) {
+            for (List<Object> noteEntry : noteData) {
                 bw.write(0x0d);
                 bw.write(0x0a);
-                Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                bw.write(StringUtils.join(Arrays.asList(id, escape(trim(item.description, "", 1000))).iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList(noteEntry.get(0), noteEntry.get(1)).iterator(), "\t"));
             }
 
             bw.close();
@@ -159,6 +192,34 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             logFile(logDir, file, "note");
             safeDelete(file);
         }
+    }
+
+    private List<List<List<Object>>> getDataNotes(TransactionScalesInfo transaction, boolean pluNumberAsPluId) {
+        List<List<Object>> dataNote1 = new ArrayList<>();
+        List<List<Object>> dataNote2 = new ArrayList<>();
+        List<List<Object>> dataNote3 = new ArrayList<>();
+        List<List<Object>> dataNote4 = new ArrayList<>();
+
+        for (ScalesItemInfo item : transaction.itemsList) {
+            Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
+            String description = escape(trimToEmpty(item.description));
+
+            dataNote1.add(Arrays.asList(id, description.substring(0, Math.min(description.length(), 1000))));
+
+            if (description.length() > 1000) {
+                dataNote2.add(Arrays.asList(id, description.substring(1000, Math.min(description.length(), 2000))));
+            }
+
+            if (description.length() > 2000) {
+                dataNote3.add(Arrays.asList(id, description.substring(2000, Math.min(description.length(), 3000))));
+            }
+
+            if (description.length() > 3000) {
+                dataNote4.add(Arrays.asList(id, description.substring(3000, Math.min(description.length(), 4000))));
+            }
+        }
+
+        return Arrays.asList(dataNote1, dataNote2, dataNote3, dataNote4);
     }
 
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
