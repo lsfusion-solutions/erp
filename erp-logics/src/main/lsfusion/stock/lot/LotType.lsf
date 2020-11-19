@@ -31,3 +31,14 @@ EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) nameLotType;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() nameLotType BACKGROUND RGB(190,190,190) IF dataLotType(g);
 
 lotType (Sku s) = lotType(skuGroup(s));
+
+// обязательность задания
+dataExplicitLot = DATA BOOLEAN (SkuGroup);
+nearestExplicitLot (SkuGroup child) = GROUP LAST dataExplicitLot(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataExplicitLot(parent);
+
+explicitLot 'Обязательное указание марки' (SkuGroup skuGroup) = OVERRIDE dataExplicitLot(skuGroup), nearestExplicitLot(skuGroup) MATERIALIZED IN paramsItemGroup;
+
+EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) explicitLot;
+EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() explicitLot BACKGROUND RGB(190,190,190) IF dataExplicitLot(g);
+
+explicitLot (Sku s) = explicitLot(skuGroup(s));
