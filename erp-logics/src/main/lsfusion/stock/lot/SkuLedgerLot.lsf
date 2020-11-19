@@ -11,14 +11,15 @@ signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) =
     MULTI quantity[InSkuLedger, Lot](ledger, lot),
          -quantity[OutFIFOSkuLedger, Lot](ledger, lot) CHARWIDTH 7 MATERIALIZED;
 
-firstBatch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l);
+batch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l) AND batch(sl) MATERIALIZED INDEXED;
+nameBatch 'Партия' (Lot l) = name(batch(l));
 
 currentBalance 'Текущий остаток' =
     GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY sku(ledger), stock(ledger), lot CHARWIDTH 7 MATERIALIZED;
     
 EXTEND FORM currentBalanceSkuStock
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id
+    PROPERTIES(l) READONLY id, nameBatch
     PROPERTIES(s, st, l) READONLY currentBalance
     FILTERS currentBalance(s, st, l)
 ;
@@ -30,8 +31,10 @@ DESIGN currentBalanceSkuStock {
 }
 
 EXTEND FORM lots
+    PROPERTIES(l) READONLY nameBatch
+
     OBJECTS s = SkuLedger
-    PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock
+    PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock, nameBatch
     PROPERTIES(s, l) READONLY signedQuantity
     PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
     

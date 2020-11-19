@@ -48,7 +48,7 @@ FORM dialogOutLots 'Список марок'
 ;
 
 // meta
-META defineDocumentLot (doc)
+META defineDocumentLot (doc, quantityProp)
     quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
     
     CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
@@ -57,7 +57,7 @@ META defineDocumentLot (doc)
     quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l);
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
-    backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = shipmentQuantity(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
+    backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = quantityProp(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
                                                            IF lotType(sku(d));
 END
 
@@ -109,24 +109,42 @@ META defineDocumentLotBarcodeIn (doc)
     }
 END
 
-META defineDocumentLotBarcodeOut (doc)
-    
+META defineDocumentLotBarcodeOut (doc, stock)
     beforeInputBarcode###doc##Detail(###doc i, STRING[100] s) + {
         lotBarcode() <- NULL;
-        consumedBarcode###doc##Detail() <- TRUE;
+        consumedBarcode###doc##Detail() <- NULL;
         IF length(s) > 20 THEN {
             lotBarcode() <- s;
             IF quantity(i, lot(s)) = 1.0 THEN {
                 MESSAGE 'Марка уже была отсканирована в текущем документе';
                 consumedBarcode###doc##Detail() <- TRUE;
             } ELSE {
-                FOR ###doc##Detail d = doc##Detail(i, sku(lot(s))) DO {
-                    quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
-                    IF NOT quantity(d) >= quantityLot(d) THEN
-                        quantity(d) <- quantityLot(d);
-                    seek(d);
-                    consumedBarcode###doc##Detail() <- TRUE;
-                }
+                IF explicitBatchLedger(stock(i)) AND batch(lot(s)) THEN {
+                    FOR ###doc##Detail d = doc##Detail(batch(lot(s)), i) DO {
+                        quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
+                        IF NOT quantity(d) >= quantityLot(d) THEN
+                            quantity(d) <- quantityLot(d);
+                        seek(d);
+                        consumedBarcode###doc##Detail() <- TRUE;
+                    } ELSE {
+                        NEW d = ###doc##Detail {
+                            doc(d) <- i;
+                            sku(d) <- sku(lot(s));
+                            batch(d) <- batch(lot(s));
+                            quantity(d) <- 1;
+                            quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
+                            seek(d);
+                            consumedBarcode###doc##Detail() <- TRUE;
+                        }
+                    }
+                } ELSE
+                    FOR ###doc##Detail d = doc##Detail(i, sku(lot(s))) DO {
+                        quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
+                        IF NOT quantity(d) >= quantityLot(d) THEN
+                            quantity(d) <- quantityLot(d);
+                        seek(d);
+                        consumedBarcode###doc##Detail() <- TRUE;
+                    }
             }
         }
     }
@@ -136,5 +154,28 @@ META defineDocumentLotBarcodeOut (doc)
     afterInputBarcode###doc##Detail(###doc##Detail d, STRING[100] barcode) + {
         IF lotBarcode() THEN
             quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
+            IF explicitBatchLedger(stock(d)) THEN {
+                batch(d) <- batch(lot(lotBarcode()));
+            }
     }
+END
+
+META defineDocumentLotOut(doc, stock, quantityProp, obj)
+    @defineDocumentLot(doc, quantityProp);
+
+    changeQuantityLot (###doc##Detail d) {
+        quantity(Lot l) <- quantity(d, l);
+        DIALOG dialogOutLots DO {
+            quantity(d, Lot l) <- quantity(l);
+        }    
+    }
+    
+    EXTEND FORM doc
+        PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) 
+                      BACKGROUND backgroundQuantityLot(d) 
+                      SHOWIF useLot(operation(obj))
+                      READONLYIF NOT lotType(sku(d))
+    ;
+    
+    @defineDocumentLotBarcodeOut(doc, stock);
 END
