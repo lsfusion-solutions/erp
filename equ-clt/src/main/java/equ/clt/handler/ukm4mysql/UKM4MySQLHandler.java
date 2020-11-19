@@ -1240,7 +1240,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
                 if (paymentEntry != null && totalQuantity != null) {
                     Integer receiptType = rs.getInt(14); //r.type
-                    boolean isSale = receiptType == 0 || receiptType == 8;
+                    boolean isSale = receiptType == 0 || receiptType == 5 || receiptType == 8;
                     boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                     String numberZReport = useShiftNumberAsNumberZReport ? String.valueOf(rs.getInt(25)) : rs.getString(15); //s.number or r.shift_open
                     Integer numberReceipt = rs.getInt(16); //r.local_number or r.global_number
