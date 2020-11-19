@@ -1119,7 +1119,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
-                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SALESTIME, " + getSalesNumField() + ", SALESTAG DESC";
+                    "WHERE (FUSION_PROCESSED IS NULL OR FUSION_PROCESSED = 0) AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC";
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
@@ -1128,7 +1128,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             Map<String, Integer> uniqueReceiptIdNumberReceiptMap = new HashMap<>();
             Set<String> uniqueReceiptDetailIdSet = new HashSet<>();
             BigDecimal prologSum = BigDecimal.ZERO;
-            String prologSumLog = ""; //todo: temp log
             String idDiscountCard = null;
 
             BigDecimal sumCash = null;
@@ -1148,132 +1147,128 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 Integer sessionId = rs.getInt("SESSID");
                 String numberZReport = String.valueOf(sessionId);
 
+                LocalDateTime salesTime = LocalDateTime.parse(rs.getString("SALESTIME"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                LocalDate dateReceipt = salesTime.toLocalDate();
+                LocalTime timeReceipt = salesTime.toLocalTime();
+
                 Integer numberReceipt = rs.getInt("FRECNUM");
 
-                String uniqueReceiptDetailId = getUniqueReceiptDetailId(sAreaId, nppCashRegister, sessionId, numberReceipt, salesNum);
-                //некоторые записи просто дублируются, такие игнорируем
-                if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
-                    uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
+                if (numberReceipt == 0) {
+                    sendSalesLogger.info(logPrefix + String.format("incorrect record with FRECNUM = 0: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId));
+                } else {
 
-                    LocalDateTime sessStart = LocalDateTime.parse(rs.getString("SESSSTART"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-                    LocalDate dateZReport = sessStart.toLocalDate();
-                    LocalTime timeZReport = sessStart.toLocalTime();
+                    String uniqueReceiptDetailId = getUniqueReceiptDetailId(sAreaId, nppCashRegister, sessionId, numberReceipt, salesNum);
+                    //некоторые записи просто дублируются, такие игнорируем
+                    if ((cashRegister != null || !ignoreSalesInfoWithoutCashRegister) && !uniqueReceiptDetailIdSet.contains(uniqueReceiptDetailId)) {
+                        uniqueReceiptDetailIdSet.add(uniqueReceiptDetailId);
 
-                    LocalDateTime salesTime = LocalDateTime.parse(rs.getString("SALESTIME"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-                    LocalDate dateReceipt = salesTime.toLocalDate();
-                    LocalTime timeReceipt = salesTime.toLocalTime();
+                        LocalDateTime sessStart = LocalDateTime.parse(rs.getString("SESSSTART"), DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                        LocalDate dateZReport = sessStart.toLocalDate();
+                        LocalTime timeZReport = sessStart.toLocalTime();
 
-                    String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
-                    String nameEmployee = rs.getString("CASHIERNAME");
+                        String idEmployee = String.valueOf(rs.getInt("CASHIERID"));
+                        String nameEmployee = rs.getString("CASHIERNAME");
 
-                    Map<String, Object> receiptDetailExtraFields = new HashMap<>();
-                    receiptDetailExtraFields.put("priceLevelId", rs.getInt("PRCLEVELID"));
-                    receiptDetailExtraFields.put("salesAttri", rs.getInt("SALESATTRI"));
+                        Map<String, Object> receiptDetailExtraFields = new HashMap<>();
+                        receiptDetailExtraFields.put("priceLevelId", rs.getInt("PRCLEVELID"));
+                        receiptDetailExtraFields.put("salesAttri", rs.getInt("SALESATTRI"));
 
-                    Integer type = rs.getInt("SALESTYPE");
-                    boolean customPaymentType = customPayments.contains(type);
-                    if(!customPaymentType) {
-                        if (cashPayments.contains(type))
-                            type = 0;
-                        else if (cardPayments.contains(type))
-                            type = 1;
-                        else if (giftCardPayments.contains(type))
-                            type = 2;
-                    }
-
-                    Integer recordType = rs.getInt("SALESTAG");
-                    boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
-
-                    switch (recordType) {
-                        case 0: {//товарная позиция
-                            numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
-                            String idBarcode = trimToNull(rs.getString("SALESBARC"));
-                            String idItem = String.valueOf(rs.getInt("SALESCODE"));
-                            boolean isWeight = !customPaymentType && (type == 0 || type == 2);
-                            BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
-                            BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
-                            BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
-                            totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
-                            sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
-                            curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport,
-                                    numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem,
-                                    null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard,
-                                    salesNum, null, null, receiptDetailExtraFields, cashRegister));
-                            curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                            prologSumLog += " - " + rs.getBigDecimal("SALESSUM");
-                            prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
-                            break;
+                        Integer type = rs.getInt("SALESTYPE");
+                        boolean customPaymentType = customPayments.contains(type);
+                        if (!customPaymentType) {
+                            if (cashPayments.contains(type)) type = 0;
+                            else if (cardPayments.contains(type)) type = 1;
+                            else if (giftCardPayments.contains(type)) type = 2;
                         }
-                        case 1: {//оплата
-                            BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
-                            if (isReturn)
-                                sum = safeNegate(sum);
-                            if(customPaymentType) {
-                                BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
-                                customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
-                            } else {
-                                switch (type) {
-                                    case 1:
-                                        sumCard = safeAdd(sumCard, sum);
-                                        break;
-                                    case 2:
-                                        sumGiftCard = safeAdd(sumGiftCard, sum);
-                                        break;
-                                    case 0:
-                                    default:
-                                        sumCash = safeAdd(sumCash, sum);
-                                        break;
+
+                        Integer recordType = rs.getInt("SALESTAG");
+                        boolean isReturn = rs.getInt(getSalesRefundField()) != 0; // 0 - продажа, 1 - возврат, 2 - аннулирование
+
+                        switch (recordType) {
+                            case 0: {//товарная позиция
+                                numberReceipt = uniqueReceiptIdNumberReceiptMap.get(currentUniqueReceiptId);
+                                String idBarcode = trimToNull(rs.getString("SALESBARC"));
+                                String idItem = String.valueOf(rs.getInt("SALESCODE"));
+                                boolean isWeight = !customPaymentType && (type == 0 || type == 2);
+                                BigDecimal totalQuantity = safeDivide(rs.getBigDecimal("SALESCOUNT"), isWeight ? 1000 : 1);
+                                BigDecimal price = safeDivide(rs.getBigDecimal("SALESPRICE"), 100);
+                                BigDecimal sumReceiptDetail = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                                BigDecimal discountSumReceiptDetail = safeDivide(rs.getBigDecimal("SALESDISC"), 100);
+                                totalQuantity = isReturn ? totalQuantity.negate() : totalQuantity;
+                                sumReceiptDetail = isReturn ? sumReceiptDetail.negate() : sumReceiptDetail;
+                                curSalesInfoList.add(getSalesInfo(nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee, nameEmployee, sumCard, sumCash, sumGiftCard, customPaymentsMap, idBarcode, idItem, null, idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, discountSumReceiptDetail, null, idDiscountCard, salesNum, null, null, receiptDetailExtraFields, cashRegister));
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                prologSum = safeSubtract(prologSum, rs.getBigDecimal("SALESSUM"));
+                                break;
+                            }
+                            case 1: {//оплата
+                                BigDecimal sum = safeDivide(rs.getBigDecimal("SALESSUM"), 100);
+                                if (isReturn) sum = safeNegate(sum);
+                                if (customPaymentType) {
+                                    BigDecimal customPaymentSum = customPaymentsMap.get(String.valueOf(type));
+                                    customPaymentsMap.put(String.valueOf(type), safeAdd(customPaymentSum, sum));
+                                } else {
+                                    switch (type) {
+                                        case 1:
+                                            sumCard = safeAdd(sumCard, sum);
+                                            break;
+                                        case 2:
+                                            sumGiftCard = safeAdd(sumGiftCard, sum);
+                                            break;
+                                        case 0:
+                                        default:
+                                            sumCash = safeAdd(sumCash, sum);
+                                            break;
+                                    }
                                 }
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                break;
                             }
-                            curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                            break;
-                        }
-                        case 2: {//пролог чека
-                            String uniqueReceiptId;
-                            //увеличиваем id, если номер чека совпадает
-                            while (uniqueReceiptIdNumberReceiptMap.containsKey(uniqueReceiptId = getUniqueReceiptId(sAreaId, nppCashRegister, sessionId, numberReceipt))) {
-                                numberReceipt += 100000000; //считаем, что касса никогда сама не достигнет стомиллионного чека. Может возникнуть переполнение, если таких чеков будет больше 21
-                                astronLogger.info(logPrefix + String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
-                            }
-                            currentUniqueReceiptId = uniqueReceiptId;
-                            uniqueReceiptIdNumberReceiptMap.put(uniqueReceiptId, numberReceipt);
+                            case 2: {//пролог чека
+                                String uniqueReceiptId;
+                                //увеличиваем id, если номер чека совпадает
+                                while (uniqueReceiptIdNumberReceiptMap.containsKey(uniqueReceiptId = getUniqueReceiptId(sAreaId, nppCashRegister, sessionId, numberReceipt))) {
+                                    numberReceipt += 100000000; //считаем, что касса никогда сама не достигнет стомиллионного чека. Может возникнуть переполнение, если таких чеков будет больше 21
+                                    astronLogger.info(logPrefix + String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
+                                }
+                                currentUniqueReceiptId = uniqueReceiptId;
+                                uniqueReceiptIdNumberReceiptMap.put(uniqueReceiptId, numberReceipt);
 
-                            sumCash = null;
-                            sumCard = null;
-                            sumGiftCard = null;
-                            customPaymentsMap = new HashMap<>();
-                            if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
-                                salesInfoList.addAll(curSalesInfoList);
-                                recordList.addAll(curRecordList);
-                            } else {
-                                sendSalesLogger.info(logPrefix + String.format("prolog sum differs: SAREAID %s, SYSTEMID %s, dateReceipt %s, timeReceipt %s, SALESNUM %s, SESSIONID %s, FRECNUM %s", sAreaId, nppCashRegister, dateReceipt, timeReceipt, salesNum, sessionId, numberReceipt));
-                                sendSalesLogger.info(logPrefix + prologSum + " = " + prologSumLog);
-                            }
-                            curSalesInfoList = new ArrayList<>();
-                            curRecordList = new ArrayList<>();
-                            prologSum = rs.getBigDecimal("SALESSUM");
-                            prologSumLog = String.valueOf(prologSum);
-                            idDiscountCard = trimToNull(rs.getString("SALESBARC"));
+                                sumCash = null;
+                                sumCard = null;
+                                sumGiftCard = null;
+                                customPaymentsMap = new HashMap<>();
+                                if (prologSum.compareTo(BigDecimal.ZERO) == 0) {
+                                    salesInfoList.addAll(curSalesInfoList);
+                                    recordList.addAll(curRecordList);
+                                } else {
+                                    for(AstronRecord record : curRecordList) {
+                                        sendSalesLogger.info(logPrefix + String.format("incorrect record: SAREAID %s, SYSTEMID %s, SALESNUM %s, SESSIONID %s", record.sAreaId, record.systemId, record.salesNum, record.sessId));
+                                    }
+                                }
+                                curSalesInfoList = new ArrayList<>();
+                                curRecordList = new ArrayList<>();
+                                prologSum = rs.getBigDecimal("SALESSUM");
+                                idDiscountCard = trimToNull(rs.getString("SALESBARC"));
 
-                            if (isReturn) { //чек возврата
-                                String salesAttrs = rs.getString("SALESATTRS");
-                                String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
-                                String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
-                                String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
-                                String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
-                                LocalDate dateReceiptOriginal = salesAttrsSplitted.length > 7 ? LocalDateTime.parse(salesAttrsSplitted[7], DateTimeFormatter.ofPattern("yyyyMMddHHmmss")).toLocalDate() : null;
-                                idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_" +
-                                        (dateReceiptOriginal != null ? dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) : "") + "_" + numberReceiptOriginal;
-                            } else {
-                                idSaleReceiptReceiptReturnDetail = null;
+                                if (isReturn) { //чек возврата
+                                    String salesAttrs = rs.getString("SALESATTRS");
+                                    String[] salesAttrsSplitted = salesAttrs != null ? salesAttrs.split(":") : new String[0];
+                                    String numberReceiptOriginal = salesAttrsSplitted.length > 3 ? salesAttrsSplitted[3] : null;
+                                    String numberZReportOriginal = salesAttrsSplitted.length > 4 ? salesAttrsSplitted[4] : null;
+                                    String numberCashRegisterOriginal = salesAttrsSplitted.length > 5 ? salesAttrsSplitted[5] : null;
+                                    LocalDate dateReceiptOriginal = salesAttrsSplitted.length > 7 ? LocalDateTime.parse(salesAttrsSplitted[7], DateTimeFormatter.ofPattern("yyyyMMddHHmmss")).toLocalDate() : null;
+                                    idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_" + (dateReceiptOriginal != null ? dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) : "") + "_" + numberReceiptOriginal;
+                                } else {
+                                    idSaleReceiptReceiptReturnDetail = null;
+                                }
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                break;
                             }
-                            curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                            break;
-                        }
-                        case 3: {//Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
-                            curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
-                            break;
+                            case 3: {//Возвращенная товарная позиция - игнорируем эту запись. В дополнение к ней создаётся новая, с SALESTAG = 0 и SALESREFUND = 1
+                                curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
+                                break;
+                            }
                         }
                     }
                 }
