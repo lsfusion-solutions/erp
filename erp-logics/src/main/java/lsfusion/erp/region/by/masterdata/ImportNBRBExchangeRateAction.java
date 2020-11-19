@@ -19,7 +19,6 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -41,7 +40,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
+    protected void importExchanges(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, SQLHandledException, JSONException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);
@@ -91,7 +90,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
         //session.apply(LM.getBL());
     }
 
-    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency) throws IOException, ParseException, JSONException {
+    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String shortNameCurrency) throws IOException, JSONException {
 
         List<Exchange> exchangesList = new ArrayList<>();
 

@@ -12,7 +12,6 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.Iterator;
 
@@ -42,7 +41,7 @@ public class ImportNBRBExchangeRateDateFromDateToAction extends ImportNBRBExchan
 
             }
 
-        } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException | JSONException e) {
             throw Throwables.propagate(e);
         }
 

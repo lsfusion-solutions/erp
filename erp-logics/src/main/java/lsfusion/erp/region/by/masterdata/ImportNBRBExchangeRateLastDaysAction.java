@@ -1,21 +1,18 @@
 package lsfusion.erp.region.by.masterdata;
 
 import com.google.common.base.Throwables;
-import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.json.JSONException;
 
 import java.io.IOException;
-import java.sql.Date;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.time.LocalDate;
-import java.util.Calendar;
 import java.util.Iterator;
 
 public class ImportNBRBExchangeRateLastDaysAction extends ImportNBRBExchangeRateAction {
@@ -48,7 +45,7 @@ public class ImportNBRBExchangeRateLastDaysAction extends ImportNBRBExchangeRate
                 throw new RuntimeException("Параметр 'Кол-во дней' должен быть задан и больше 0");
             }
 
-        } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException | JSONException e) {
             throw Throwables.propagate(e);
         }
 

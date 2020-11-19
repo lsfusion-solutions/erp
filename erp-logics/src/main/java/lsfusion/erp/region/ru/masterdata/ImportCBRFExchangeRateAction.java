@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -53,13 +52,13 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);
 
-        } catch (IOException | JDOMException | ParseException | ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | JDOMException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
 
     }
 
-    private void importExchanges(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
+    private void importExchanges(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, SQLHandledException {
 
 
         List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, extraSIDCurrency, context);
@@ -108,7 +107,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
         service.synchronize(true, false);
     }
 
-    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<Exchange> importExchangesFromXML(LocalDate dateFrom, LocalDate dateTo, String extraSIDCurrency, ExecutionContext<ClassPropertyInterface> context) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
         List<Exchange> exchangesList = new ArrayList<>();

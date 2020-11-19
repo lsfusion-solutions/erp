@@ -13,7 +13,6 @@ import org.springframework.util.FileCopyUtils;
 import java.io.*;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -360,7 +359,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public AtolSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
+    public AtolSalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 

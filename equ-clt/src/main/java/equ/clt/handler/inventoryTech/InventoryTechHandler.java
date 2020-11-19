@@ -18,7 +18,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -252,7 +251,7 @@ public class InventoryTechHandler extends TerminalHandler {
         }
     }
 
-    private Map<String, List<Object>> readDocFile(File file) throws IOException, xBaseJException, ParseException {
+    private Map<String, List<Object>> readDocFile(File file) throws IOException, xBaseJException {
 
         Map<String, List<Object>> data = new HashMap<>();
         DBF dbfFile = null;
