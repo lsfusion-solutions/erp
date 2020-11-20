@@ -462,7 +462,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         String result = "";
         int byteCount = 0;
         for(Character c : line.toCharArray()) {
-            int size = c <= 255 ? 1 : 2;
+            int size = c < 128 ? 1 : 2;
             if (byteCount + size <= descriptionLineLength) {
                 result += c;
                 byteCount += size;
