@@ -1,12 +1,13 @@
 package equ.clt.handler.bizerba;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import equ.api.ItemInfo;
 import equ.api.MachineryInfo;
-import equ.api.stoplist.StopListInfo;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.MultithreadScalesHandler;
 import equ.clt.handler.ScalesSettings;
@@ -26,6 +27,7 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static lsfusion.base.BaseUtils.nvl;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
 public abstract class BizerbaHandler extends MultithreadScalesHandler {
@@ -79,21 +81,24 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
         boolean capitalLetters = bizerbaSettings != null && bizerbaSettings.isCapitalLetters();
         boolean notInvertPrices = bizerbaSettings != null && bizerbaSettings.isNotInvertPrices();
-        Integer descriptionLineLength = (bizerbaSettings != null ? bizerbaSettings.getDescriptionLineLength() : null);
-        if (descriptionLineLength == null) descriptionLineLength = 750;
-        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength);
+        Integer descriptionLineLength = nvl(bizerbaSettings != null ? bizerbaSettings.getDescriptionLineLength() : null, 1500);
+        boolean useDescriptionOptimizer = bizerbaSettings != null && bizerbaSettings.isUseDescriptionOptimizer();
+        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength, useDescriptionOptimizer);
     }
 
     class BizerbaSendTransactionTask extends SendTransactionTask {
         boolean capitalLetters;
         boolean notInvertPrices;
         int descriptionLineLength;
+        boolean useDescriptionOptimizer;
 
-        public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters, boolean notInvertPrices, int descriptionLineLength) {
+        public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters,
+                                          boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer) {
             super(transaction, scales);
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
             this.descriptionLineLength = descriptionLineLength;
+            this.useDescriptionOptimizer = useDescriptionOptimizer;
         }
 
         @Override
@@ -125,7 +130,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices, descriptionLineLength);
+                                            result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices,
+                                                    descriptionLineLength, useDescriptionOptimizer);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {
@@ -413,39 +419,60 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return null;
     }
 
-    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, int descriptionLineLength) {
-        OrderedMap<Integer, String> messageMap = new OrderedMap<>();
-        Integer pluNumber = getPluNumber(item);
-        int count = 0;
-        String description = trimToEmpty(item.description).replace('@', 'a');
-        if(!description.isEmpty()) {
-            if(description.length() > descriptionLineLength * 4)
-                description = description.substring(0, descriptionLineLength * 4 - 1);
-            List<String> splittedMessage = new ArrayList<>();
-            for (String line : description.split("\\\\n")) {
-                while (line.length() > descriptionLineLength) {
-                    splittedMessage.add(line.substring(0, descriptionLineLength));
-                    line = line.substring(descriptionLineLength);
-                }
-                splittedMessage.add(line);
-            }
-
-            splittedMessage = splittedMessage.subList(0, Math.min(splittedMessage.size(), 4));
-
-            for (String line : splittedMessage) {
-                int messageNumber = pluNumber * 10 + count;
-                messageMap.put(messageNumber, line);
-                ++count;
+    private Map<Integer, String> getMessageMap(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, int descriptionLineLength, boolean useDescriptionOptimizer) {
+        List<String> messageLines = new ArrayList<>();
+        for (String line : replaceDescription(item.description, useDescriptionOptimizer).split("\\\\n")) {
+            while (!line.isEmpty()) {
+                String subLine = getSubLine(line, descriptionLineLength);
+                messageLines.add(subLine);
+                line = line.substring(subLine.length());
             }
         }
-        while (count < 4) {
-            clearMessage(errors, port, scales, pluNumber * 10 + count);
-            ++count;
+
+        OrderedMap<Integer, String> messageMap = new OrderedMap<>();
+        for (int i = 0; i < 4; i++) { //allowed 4 lines
+            int messageNumber = getPluNumber(item) * 10 + i;
+            if(i < messageLines.size()) {
+                messageMap.put(messageNumber, messageLines.get(i));
+            } else {
+                clearMessage(errors, port, scales, messageNumber);
+            }
         }
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters, boolean notInvertPrices, int descriptionLineLength) {
+    private static Map<Character, Character> replacementMap = ImmutableMap.<Character, Character>builder()
+            .put('А', 'A').put('В', 'B').put('Е', 'E').put('З', '3').put('К', 'K').put('М', 'M')
+            .put('Н', 'H').put('О', 'O').put('Р', 'P').put('С', 'C').put('Т', 'T').put('У', 'Y')
+            .put('Х', 'X').put('а', 'a').put('г', 'r').put('д', 'g').put('е', 'e').put('и', 'u')
+            .put('к', 'k').put('о', 'o').put('р', 'p').put('п', 'n').put('с', 'c').put('т', 'm')
+            .put('у', 'y').put('х', 'x').put('@', 'a').build();
+
+    private String replaceDescription(String description, boolean useDescriptionOptimizer) {
+        String result = trimToEmpty(description);
+        if(useDescriptionOptimizer) {
+            for (Map.Entry<Character, Character> replace : replacementMap.entrySet()) {
+                result = result.replace(replace.getKey(), replace.getValue());
+            }
+        }
+        return result;
+    }
+
+    private String getSubLine(String line, int descriptionLineLength) {
+        String result = "";
+        int byteCount = 0;
+        for(Character c : line.toCharArray()) {
+            int size = c <= 255 ? 1 : 2;
+            if (byteCount + size <= descriptionLineLength) {
+                result += c;
+                byteCount += size;
+            } else break;
+        }
+        return result;
+    }
+
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, boolean capitalLetters,
+                           boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer) {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -459,7 +486,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         int department = 1;
         boolean manualWeight = false;
 
-        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, descriptionLineLength);
+        Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, descriptionLineLength, useDescriptionOptimizer);
         String result = loadPLUMessages(errors, port, scales, messageMap, item, scales.port);
         if(result != null) {
             return result;

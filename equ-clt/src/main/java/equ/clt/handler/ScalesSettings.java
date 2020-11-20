@@ -11,7 +11,14 @@ public class ScalesSettings implements Serializable{
     private boolean capitalLetters;
     private Integer advancedClearMaxPLU;
     private boolean notInvertPrices; //временная опция для BizerbaBS
+
+    //количество байт в строке состава. По умолчанию 1500, максимально для всех Bizerba 1500.
     private Integer descriptionLineLength;
+
+    //если true, то "оптимизируем" текст состава - заменяем похожие кириллические символы на латинские
+    //латинские занимают 1 байт вместо 2
+    private boolean useDescriptionOptimizer;
+
     private Integer priceMultiplier;
 
     public ScalesSettings() {}
@@ -95,5 +102,13 @@ public class ScalesSettings implements Serializable{
 
     public void setPriceMultiplier(Integer priceMultiplier) {
         this.priceMultiplier = priceMultiplier;
+    }
+
+    public boolean isUseDescriptionOptimizer() {
+        return useDescriptionOptimizer;
+    }
+
+    public void setUseDescriptionOptimizer(boolean useDescriptionOptimizer) {
+        this.useDescriptionOptimizer = useDescriptionOptimizer;
     }
 }
