@@ -135,7 +135,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                     ps.setInt(7, (item.flags != null && ((item.flags & 16) == 0) ? 32 : 0) + (item.splitItem ? 1 : 0)); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, localDateToSqlDate(item.expiryDate)); //exp, Срок годности
-                    ps.setInt(10, item.splitItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
+                    ps.setInt(10, item.passScalesItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
                     ps.setInt(11, item.splitItem ? 0 : 1); //weight, Флаг штучного товара (1 – штучный, 0 – нет)
                     ps.setString(12, composition); //text, Текст состава
                     ps.setString(13, energValue); //energvalue, Энергетическая ценность
