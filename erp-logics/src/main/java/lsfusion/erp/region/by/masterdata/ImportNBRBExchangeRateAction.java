@@ -79,7 +79,7 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
 
         List<List<Object>> data = new ArrayList<>();
         for (Exchange e : exchangesList) {
-            data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
+            data.add(Arrays.asList("НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, BigDecimal.valueOf(1 / e.exchangeRate.doubleValue()), e.date));
         }
         ImportTable table = new ImportTable(Arrays.asList(typeExchangeBYRField, typeExchangeForeignField, currencyField,
                 homeCurrencyField, rateField, foreignRateField, dateField), data);

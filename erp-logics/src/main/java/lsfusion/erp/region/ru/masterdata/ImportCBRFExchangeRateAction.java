@@ -97,7 +97,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
         List<List<Object>> data = new ArrayList<>();
         for (Exchange e : exchangesList) {
-            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
+            data.add(Arrays.asList("ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, BigDecimal.valueOf(1 / e.exchangeRate.doubleValue()), e.date));
         }
         ImportTable table = new ImportTable(Arrays.asList(typeExchangeRUField, typeExchangeForeignField, currencyField,
                 homeCurrencyField, rateField, foreignRateField, dateField), data);
@@ -136,7 +136,7 @@ public class ImportCBRFExchangeRateAction extends InternalAction {
 
                     Element exchangeNode = (Element) anExchangeList;
 
-                    BigDecimal value = new BigDecimal(Double.valueOf(exchangeNode.getChildText("Value").replace(",", ".")) / Double.valueOf(exchangeNode.getChildText("Nominal")));
+                    BigDecimal value = BigDecimal.valueOf(Double.parseDouble(exchangeNode.getChildText("Value").replace(",", ".")) / Double.parseDouble(exchangeNode.getChildText("Nominal")));
 
                     exchangesList.add(new Exchange(shortNameCurrency, "RUB",
                             LocalDate.parse(exchangeNode.getAttributeValue("Date"), DateTimeFormatter.ofPattern("dd.MM.yyyy")), value));
