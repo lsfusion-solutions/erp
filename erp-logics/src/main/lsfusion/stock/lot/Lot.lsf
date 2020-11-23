@@ -20,8 +20,10 @@ FORM lots 'Марки'
 ;
 
 NAVIGATOR {
-    stockMasterData {
-        NEW lots;
+    stockNavigator {
+        NEW FOLDER lotNavigator 'Марки' {
+            NEW lots;
+        }
     }
 }
 
@@ -67,7 +69,7 @@ END
 
 lotBarcode() = DATA LOCAL STRING[100] ();
 
-META defineDocumentLotBarcodeIn (doc)
+META defineDocumentLotBarcodeIn (doc, quantityProp)
     EXTEND FORM doc
         OBJECTS cd = ###doc##Detail PANEL
         FILTERS cd = d
@@ -86,8 +88,8 @@ META defineDocumentLotBarcodeIn (doc)
                     } ELSE
                         IF sku(lot(s)) = sku(d) THEN {
                             quantity(d, Lot l) <- 1.0 WHERE l = lot(s);
-                            IF NOT shipmentQuantity(d) >= quantityLot(d) THEN
-                                shipmentQuantity(d) <- quantityLot(d);
+                            IF NOT quantityProp(d) >= quantityLot(d) THEN
+                                quantityProp(d) <- quantityLot(d);
                             consumedBarcode###doc##Detail() <- TRUE;
                         }
                 } ELSE {
@@ -96,8 +98,8 @@ META defineDocumentLotBarcodeIn (doc)
                         sku(l) <- sku(d);
                         lotBarcode() <- s;
                         quantity(d, l) <- 1.0;
-                        IF NOT shipmentQuantity(d) >= quantityLot(d) THEN
-                            shipmentQuantity(d) <- quantityLot(d);
+                        IF NOT quantityProp(d) >= quantityLot(d) THEN
+                            quantityProp(d) <- quantityLot(d);
                         consumedBarcode###doc##Detail() <- TRUE;
                     }
                 }
@@ -111,6 +113,24 @@ META defineDocumentLotBarcodeIn (doc)
         IF lotBarcode() THEN
             quantity(d, Lot l) <- 1.0 WHERE l = lot(lotBarcode());
     }
+END
+
+META defineDocumentLotIn(doc, quantityProp, obj)
+    @defineDocumentLot(doc, quantityProp);
+
+    changeQuantityLot (###doc##Detail d) {
+        quantity(Lot l) <- quantity(d, l);
+        SHOW dialogInLots;    
+    }
+    
+    EXTEND FORM doc
+        PROPERTIES(d) quantityLot AFTER quantityProp(d) ON CHANGE changeQuantityLot(d) 
+                      BACKGROUND backgroundQuantityLot(d) 
+                      SHOWIF useLot(obj)
+                      READONLYIF NOT lotType(sku(d))
+    ;
+    
+    @defineDocumentLotBarcodeIn(doc, quantityProp);
 END
 
 META defineDocumentLotBarcodeOut (doc, stock)

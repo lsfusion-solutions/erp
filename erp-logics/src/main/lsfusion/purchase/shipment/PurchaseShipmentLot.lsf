@@ -6,22 +6,9 @@ REQUIRE PurchaseShipment,
 NAMESPACE Purchase;
 
 @defineOperationProperty(useLot, 'Марки', showContainer);
+useLot (UserInvoice i) = useLot(operation(i));
 
-@defineDocumentLot(userInvoice, shipmentQuantity);
-
-changeQuantityLot (UserInvoiceDetail d) {
-    quantity(Lot l) <- quantity(d, l);
-    SHOW dialogInLots;    
-}
-
-EXTEND FORM userInvoice
-    PROPERTIES(d) quantityLot AFTER shipmentQuantity(d) ON CHANGE changeQuantityLot(d) 
-                  BACKGROUND backgroundQuantityLot(d) 
-                  SHOWIF useLot(operation(i))
-                  READONLYIF NOT lotType(sku(d))
-;
-
-@defineDocumentLotBarcodeIn(userInvoice);
+@defineDocumentLotIn(userInvoice, shipmentQuantity, i);
 
 // shipment detail
 // пока упрощенная схема без поддержки UserShipmentDetail
