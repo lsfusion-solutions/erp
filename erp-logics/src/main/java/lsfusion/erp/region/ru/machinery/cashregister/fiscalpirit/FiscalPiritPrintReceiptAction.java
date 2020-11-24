@@ -69,8 +69,9 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 Integer giftCardDepartment = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardDepartmentCurrentCashRegister[]").read(context): null;
                 Integer giftCardPaymentType = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardPaymentTypeCurrentCashRegister[]").read(context): null;
                 Integer saleGiftCardPaymentType = (Integer) findProperty("saleGiftCardPaymentTypeCurrentCashRegister[]").read(context);
+                boolean use1162Tag = findProperty("use1162TagCurrentCashRegister[]").read(context) != null;
 
-                ScriptingLogicsModule posChargeLM = context.getBL().getModule("POSCharge");
+                ScriptingLogicsModule zReportLotLM = context.getBL().getModule("ZReportLot");
 
                 BigDecimal sumDisc = null;
 
@@ -125,8 +126,9 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
-                if(posChargeLM != null) {
-                    receiptDetailQuery.addProperty("isCharge", posChargeLM.findProperty("isCharge[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                if(zReportLotLM != null && use1162Tag) {
+                    receiptDetailQuery.addProperty("gtinLot", zReportLotLM.findProperty("gtinLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                    receiptDetailQuery.addProperty("seriesLot", zReportLotLM.findProperty("seriesLot[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -148,12 +150,16 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                     BigDecimal discountSumReceiptDetail = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     if(discountSumReceiptDetail != null)
                         discountSumReceiptDetail = discountSumReceiptDetail.negate();
+
+                    String gtinLot = (String) receiptDetailValues.get("gtinLot");
+                    String seriesLot = (String) receiptDetailValues.get("seriesLot");
+
                     if (quantitySale != null && quantitySale.compareTo(BigDecimal.ZERO) > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail, gtinLot, seriesLot));
                     if (quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail, gtinLot, seriesLot));
                     if (quantityReturn != null && quantityReturn.compareTo(BigDecimal.ZERO) > 0)
-                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail));
+                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail, gtinLot, seriesLot));
                 }
 
                 if (context.checkApply()) {

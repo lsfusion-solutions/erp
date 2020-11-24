@@ -76,6 +76,7 @@ public class FiscalPirit {
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
+            setAdditionalPositionDetailsCommand(serialPort, item);
             registerItemCommand(serialPort, item, giftCardDepartment);
         }
 
@@ -221,6 +222,16 @@ public class FiscalPirit {
 
     private static void cancelDocumentCommand(SerialPort serialPort) {
         sendCommand(serialPort, "32", "Аннулировать документ", false);
+    }
+
+    private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item) {
+        if(item.gtinLot != null && item.seriesLot != null) {
+            String hexGTIN = "$44$4D"; //стандартный префикс системы ЧЗ
+            for (byte b : new BigInteger(item.gtinLot).toByteArray()) {
+                hexGTIN += String.format("$%02X", b); //$ + hex byte
+            }
+            sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(hexGTIN + item.seriesLot), true);
+        }
     }
 
     private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment) {
