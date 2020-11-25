@@ -25,6 +25,7 @@ import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.ConcreteClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -81,6 +82,10 @@ public class StopListEquipmentServer {
                 slQuery.and(stopListLM.findProperty("isPosted[StopList]").getExpr(stopListExpr).getWhere());
                 slQuery.and(stopListLM.findProperty("toExport[StopList]").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
+
+                //todo: temp log
+                ServerLoggers.importLogger.info(String.format("readStopListInfo: %s stopLists", slResult.size()));
+
                 for (int i = 0, size = slResult.size(); i < size; i++) {
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
                     ImMap<Object, ObjectValue> slEntry = slResult.getValue(i);
@@ -128,6 +133,9 @@ public class StopListEquipmentServer {
                             itemsInGroupMachineryMap.put(groupMachinery, itemsInGroupMachinerySet);
                         }
                     }
+
+                    //todo: temp log
+                    ServerLoggers.importLogger.info(String.format("readStopListInfo: stopList %s, stockResult %s, handlerMachineryMap %s", numberStopList, stockResult.size(), handlerMachineryMap.size()));
 
                     if (!handlerMachineryMap.isEmpty()) {
                         Map<String, StopListItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
