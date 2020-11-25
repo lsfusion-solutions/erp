@@ -20,6 +20,44 @@ userRepricingDetail = GROUP AGGR UserRepricingDetail d WHERE d IS UserRepricingD
 
 @settingIntegration(Repricing, RepricingDetail);
 
+EXTEND FORM Repricing.operation
+    PROPERTIES (o) opcodeSupermag
+;
+DESIGN Repricing.operation{
+    headContainer {        
+        NEW supermag {   
+            caption = 'Параметры Супермаг';
+            NEW supermag1 {
+                type = CONTAINERH;
+                MOVE PROPERTY(opcodeSupermag(o));
+            }    
+        }
+    }
+}
+
+EXTEND FORM Repricing.operations
+    PROPERTIES (o) READONLY opcodeSupermag
+;
+
+EXTEND FORM Pricing.operation
+    PROPERTIES (o) opcodeSupermag
+;
+DESIGN Pricing.operation{
+    headContainer {        
+        NEW supermag {   
+            caption = 'Параметры Супермаг';
+            NEW supermag1 {
+                type = CONTAINERH;
+                MOVE PROPERTY(opcodeSupermag(o));
+            }    
+        }
+    }
+}
+
+EXTEND FORM Pricing.operations
+    PROPERTIES (o) READONLY opcodeSupermag
+;
+
 
 exportRepricing 'Экспорт в Супермаг' ABSTRACT LIST (Repricing);
 
@@ -57,7 +95,7 @@ exportRepricingAC 'Экспорт в супермаг' (Repricing doc) {
                 execTime(expMain) <- dateTime(doc);  //postedTime(doc);                
                 priceType(expMain) <- idSupermagPriceType(departmentStore(doc));   //(replace( (OVERRIDE id(retailPriceListType(departmentStore(doc))),  id(baseBPriceListLedger(retailPriceListType(departmentStore(doc))))),'D',''));
                 priceRoundMode(expMain) <- 0 IF doc IS Repricing;                                                
-                reasonPricing(expMain) <- CASE WHEN id(operation(doc)) = 'repricing' THEN '1' ELSE id(operation(doc));     
+                reasonPricing(expMain) <- opcodeSupermag(operation(doc));     
                 location(expMain)  <- id(departmentStore(doc));                        
 //                priceType(expMain) <- STRING[10](replace(id(retailPriceListType(departmentStore(doc))),'D',''));
                 priceRoundMode(expMain) <- 0;
@@ -310,7 +348,7 @@ exportPricingAC 'Экспорт в супермаг' (Pricing doc) {
                 lastStatusSupermag(doc) <- OVERRIDE lastStatusSupermag(doc), docstate(expMain); 
                 bornin(expMain) <- OVERRIDE bornin(doc), baseIDSupermag();
                 location(expMain)  <- id(departmentStore(doc));
-                reasonPricing(expMain) <- id(operation(doc));;     
+                reasonPricing(expMain) <- opcodeSupermag(operation(doc));;     
                 priceRoundMode(expMain) <- 0;
                 FOR pricing(PricingDetail docd) = doc DO {
                     NEW expDet = DocDetail {

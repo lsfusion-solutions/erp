@@ -8,42 +8,42 @@ userPriceListDetail = GROUP AGGR UserPriceListDetail d WHERE d IS UserPriceListD
 @settingIntegration(UserPriceList, UserPriceListDetail);
 
 //---------------------------------------------------------------------------------------расчетные виды цен
-importCalcPriceListType 'Импорт видов цен' () {
+importCalcPriceListType 'Импорт расчетных видов цен' () {
     
     LOCAL id = INTEGER (INTEGER);
     LOCAL name = ISTRING[50] (INTEGER);
     LOCAL formatid = INTEGER (INTEGER); 
     
-    EXTERNAL SQL connectionString()
-        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO SupermagSettings.file;
-
-    IMPORT TABLE FROM SupermagSettings.file() TO id, name, formatid;
-    
-    FOR id(INTEGER i) AND NOT dataPriceListType('D' + TEXT (id(i))) DO NEW s = DataPriceListType {
-        id(s) <- 'D' + ISTRING[100] (id(i));
-    }
-    
-    FOR DataPriceListType t = dataPriceListType('D' + TEXT (id(INTEGER i))) DO {       
-        name(t) <- name(i);
-        includeVAT(t) <- TRUE;
-        currency(t) <- defaultCurrency();
-        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
-    }
-    
-    FOR StoreType t = storeType('T' + TEXT (formatid(INTEGER i))) DO {
-        retailPriceListType(t) <- priceListType('D' + TEXT (id(i)));
-    }   
+//    EXTERNAL SQL connectionString()
+//        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO SupermagSettings.file;
+//
+//    IMPORT TABLE FROM SupermagSettings.file() TO id, name, formatid;
+//    
+//    FOR id(INTEGER i) AND NOT dataPriceListType('D' + TEXT (id(i))) DO NEW s = DataPriceListType {
+//        id(s) <- 'D' + ISTRING[100] (id(i));
+//    }
+//    
+//    FOR DataPriceListType t = dataPriceListType('D' + TEXT (id(INTEGER i))) DO {       
+//        name(t) <- name(i);
+//        includeVAT(t) <- TRUE;
+//        currency(t) <- defaultCurrency();
+//        roundCondition(t) <- GROUP MAX RoundCondition c IF priceRound(c) == 2 AND currency(c) == defaultCurrency();
+//    }
+//    
+//    FOR StoreType t = storeType('T' + TEXT (formatid(INTEGER i))) DO {
+//        retailPriceListType(t) <- priceListType('D' + TEXT (id(i)));
+//    }   
        
     EXTERNAL SQL connectionString() 
         EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO SupermagSettings.file;
     
     IMPORT TABLE FROM SupermagSettings.file() TO id, name;
     
-    FOR id(INTEGER i) AND NOT calcPriceListType('C' + TEXT (id(i))) DO NEW s = CalcPriceListType {
-        id(s) <- 'C' + ISTRING[100] (id(i));
+    FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
+        id(s) <- ISTRING[100] (id(i));
     }
     
-    FOR CalcPriceListType t = calcPriceListType('C' +TEXT (id(INTEGER i))) DO {        
+    FOR CalcPriceListType t = calcPriceListType(TEXT (id(INTEGER i))) DO {        
         name(t) <- name(i);
         includeVAT(t) <- TRUE;
         currency(t) <- defaultCurrency();
@@ -78,7 +78,7 @@ importPriceRoundMode 'Импорт правил округления' () {
     IMPORT TABLE FROM SupermagSettings.file() TO idClass, priceType, ruleid;
     
     FOR ItemGroup g = itemGroup(TEXT (idClass(INTEGER i))) AND roundCondition(STRING(ruleid(i))) DO {
-        dataRoundCondition(priceListType('C'+STRING(priceType(i))),g) <- roundCondition(STRING(ruleid(i)));  ; 
+        dataRoundCondition(priceListType(STRING(priceType(i))),g) <- roundCondition(STRING(ruleid(i)));  ; 
     }
     APPLY;
 }
@@ -99,11 +99,11 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
     
     idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
     
-    FOR idType(INTEGER i) AND CalcPriceListType t = calcPriceListType('C' + TEXT (idType(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+    FOR idType(INTEGER i) AND CalcPriceListType t = calcPriceListType(TEXT (idType(i))) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
         dataMarkup(t, g) <- NUMERIC[8,2](markup(i));
     }
     
-    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
     
     LOCAL idItem = STRING[15] (INTEGER);
     
@@ -112,17 +112,57 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
     
     IMPORT TABLE FROM file() TO idType, idItem, markup;
     
-    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType('C' + TEXT (idType(i))) DO {
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
         dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
     }
     
-    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
+    dataMarkup(CalcPriceListType t, Item s) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), item(idItem(i))](t, s);
     
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importCalcPriceListType(), importCalcExrtaCharge();
 
+
+importCalcExrtaCharge 'Импорт из Сумермаг' (CalcPriceListType type) {
+    LOCAL file = FILE ();
+    
+    LOCAL idGroup = INTEGER (INTEGER);
+    LOCAL markup = NUMERIC[8,4] (INTEGER);
+    LOCAL idType = INTEGER (INTEGER);
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL AND PRICETYPE = ' +id(type)  TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idGroup, markup;
+    
+    LOCAL idItemGroup = STRING[100](INTEGER);
+    
+    idItemGroup (INTEGER i) <- OVERRIDE 'all' IF idGroup(i) == 0, STRING[100](idGroup(i));
+    
+    dataMarkup(type, ItemGroup g) <- NULL; 
+    
+    FOR markup(INTEGER i) AND ItemGroup g = itemGroup(idItemGroup(i)) DO {
+        dataMarkup(type, g) <- NUMERIC[8,2](markup(i));
+    }
+    
+ //   dataMarkup(type, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType('C' + TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    
+    LOCAL idItem = STRING[15] (INTEGER);
+    
+    EXTERNAL SQL connectionString() 
+        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL AND PRICETYPE = ' +id(type) TO file;
+    
+    IMPORT TABLE FROM file() TO idType, idItem, markup;
+    
+    dataMarkup(type, Item s) <- NULL;
+    
+    FOR Item s = item(idItem(INTEGER i))  DO {
+        dataMarkup(type, s) <- NUMERIC[8,2](markup(i));
+    }
+        
+    APPLY;
+}
 
 
 //---------------------------------------------------------------------------------------------------------------розничные прайсы (ведомости базовых цен)
