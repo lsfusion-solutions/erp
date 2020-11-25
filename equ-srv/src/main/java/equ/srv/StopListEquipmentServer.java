@@ -2,9 +2,9 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.MachineryInfo;
-import equ.api.stoplist.StopListInfo;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.scales.ScalesInfo;
+import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItemInfo;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -25,7 +25,6 @@ import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.ConcreteClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.physics.admin.log.ServerLoggers;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -84,7 +83,7 @@ public class StopListEquipmentServer {
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
 
                 //todo: temp log
-                ServerLoggers.importLogger.info(String.format("readStopListInfo: %s stopLists", slResult.size()));
+                EquipmentLoggers.equipmentLogger.info(String.format("readStopListInfo: %s stopLists", slResult.size()));
 
                 for (int i = 0, size = slResult.size(); i < size; i++) {
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
@@ -135,7 +134,7 @@ public class StopListEquipmentServer {
                     }
 
                     //todo: temp log
-                    ServerLoggers.importLogger.info(String.format("readStopListInfo: stopList %s, stockResult %s, handlerMachineryMap %s", numberStopList, stockResult.size(), handlerMachineryMap.size()));
+                    EquipmentLoggers.equipmentLogger.info(String.format("readStopListInfo: stopList %s, stockResult %s, handlerMachineryMap %s", numberStopList, stockResult.size(), handlerMachineryMap.size()));
 
                     if (!handlerMachineryMap.isEmpty()) {
                         Map<String, StopListItemInfo> stopListItemMap = getStopListItemMap(session, stopListObject, idStockSet);
