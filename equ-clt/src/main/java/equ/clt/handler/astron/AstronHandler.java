@@ -977,14 +977,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                              conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"))) {
 
                     processStopListLogger.info(logPrefix + "executing stopLists, table packprc");
+                    int count = 0;
                     for (StopListItemInfo item : stopListInfo.stopListItemMap.values()) {
                         for (Long barcodeObject : item.barcodeObjectList) {
+                            String log = "";
                             for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                                ps.setObject(1, getPackId(barcodeObject)); //PACKID
-                                ps.setObject(2, getPriceLevelId(nppGroupMachinery, exportExtraTables)); //PRCLEVELID
+                                Integer packId = getPackId(barcodeObject);
+                                Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables);
+                                ps.setObject(1, packId); //PACKID
+                                ps.setObject(2, priceLevelId); //PRCLEVELID
+                                log += nppGroupMachinery + ": " + packId + "=" + priceLevelId + ";";
+                                count++;
                                 ps.addBatch();
                             }
+                            //todo: temp log
+                            processStopListLogger.info(logPrefix + log);
                         }
+                        //todo: temp log
+                        processStopListLogger.info(logPrefix + "total records: " + count);
                     }
                     ps.executeBatch();
                     conn.commit();
