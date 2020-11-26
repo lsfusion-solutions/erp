@@ -1,6 +1,7 @@
 package equ.clt.handler.cas;
 
 import equ.api.scales.ScalesItemInfo;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -69,6 +70,9 @@ public class CL7000Handler extends CL5000JHandler {
             return speedKeys.error;
         } else {
 
+            //todo: temp log
+            processTransactionLogger.info(getLogPrefix() + "speedKeys read data: " + Hex.encodeHexString(speedKeys.data));
+
             ByteBuffer speedKeysByteBuffer = ByteBuffer.wrap(ArrayUtils.subarray(speedKeys.data, 0, 800));
             speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -77,6 +81,8 @@ public class CL7000Handler extends CL5000JHandler {
                 if(pluNumber <= 200) {
                     speedKeysByteBuffer.position((pluNumber - 1) * 4);
                     speedKeysByteBuffer.putInt(pluNumber);
+                    //todo: temp log
+                    processTransactionLogger.info(getLogPrefix() + "speedKeys write data: pluNumber " + pluNumber);
                 }
             }
 
