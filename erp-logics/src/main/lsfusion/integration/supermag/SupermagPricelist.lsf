@@ -83,15 +83,21 @@ importPriceRoundMode 'Импорт правил округления' () {
     APPLY;
 }
 
+priceTypes() = GROUP CONCAT [GROUP MIN id(retailCalcPriceListType(Store st)) BY id(retailCalcPriceListType(st))](ISTRING[200] str) , ',' CHARWIDTH 100;    
+
 importCalcExrtaCharge 'Импорт надбавок по расчетным видам цен' () {
+
+FOR  [GROUP MIN id(retailCalcPriceListType(Store st))  BY retailCalcPriceListType(st)](PriceList.PriceListType pr) DO {
+    MESSAGE name(pr);
+} 
     LOCAL file = FILE ();
-    
+      
     LOCAL idGroup = INTEGER (INTEGER);
     LOCAL markup = NUMERIC[8,4] (INTEGER);
     LOCAL idType = INTEGER (INTEGER);
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL' TO file;
+        EXEC 'SELECT PRICETYPE, IDCLASS, EXTRACHARGE FROM Supermag.SMMARKUPCLASS WHERE NOT EXTRACHARGE IS NULL AND PRICETYPE IN (' + priceTypes() +')' TO file;
     
     IMPORT TABLE FROM file() TO idType, idGroup, markup;
     
@@ -108,7 +114,7 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
     LOCAL idItem = STRING[15] (INTEGER);
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL' TO file;
+        EXEC 'SELECT PRICETYPE, ARTICLE, EXTRACHARGE FROM Supermag.SMExtraCharge WHERE NOT EXTRACHARGE IS NULL AND PRICETYPE IN (' + priceTypes() +')' TO file;
     
     IMPORT TABLE FROM file() TO idType, idItem, markup;
     
