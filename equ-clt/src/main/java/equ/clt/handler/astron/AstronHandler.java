@@ -981,7 +981,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     for (StopListItemInfo item : stopListInfo.stopListItemMap.values()) {
                         for (Long barcodeObject : item.barcodeObjectList) {
                             String log = "";
-                            for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+
+                            //берём groupMachinery только своего хэндлера
+                            Set<Integer> groupMachinerySet = new HashSet<>();
+                            for(Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
+                                String handler = entry.getKey();
+                                if(handler.endsWith(getClass().getName())) {
+                                    for(MachineryInfo machinery : entry.getValue()) {
+                                        if(stopListInfo.inGroupMachineryItemMap.containsKey(machinery.numberGroup)) {
+                                            groupMachinerySet.add(machinery.number);
+                                        }
+                                    }
+                                }
+                            }
+
+                            for (Integer nppGroupMachinery : groupMachinerySet) {
                                 Integer packId = getPackId(barcodeObject);
                                 Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables);
                                 ps.setObject(1, packId); //PACKID
