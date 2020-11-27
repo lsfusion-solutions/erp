@@ -35,9 +35,11 @@ import static lsfusion.base.BaseUtils.trim;
 class DeleteBarcodeEquipmentServer {
 
     static ScriptingLogicsModule deleteBarcodeLM;
+    static ScriptingLogicsModule equipmentDeleteBarcodeLM;
 
     public static void init(BusinessLogics BL) {
         deleteBarcodeLM = BL.getModule("DeleteBarcode");
+        equipmentDeleteBarcodeLM = BL.getModule("EquipmentDeleteBarcode");
     }
 
 
@@ -67,6 +69,10 @@ class DeleteBarcodeEquipmentServer {
                 query.and(deleteBarcodeLM.findProperty("activeGroupMachinery[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
                 query.and(deleteBarcodeLM.findProperty("barcode[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
                 query.and(deleteBarcodeLM.findProperty("succeeded[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere().not());
+                if(equipmentDeleteBarcodeLM != null) {
+                    //todo: необходимо передавать nameEquipmentServer в equ-clt, но это требует изменения equ-api
+                    query.and(equipmentDeleteBarcodeLM.findProperty("nameEquipmentServerGroupMachinery[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
+                }
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
                 for (ImMap<Object, Object> value : result.values()) {
                     Long barcodeObject = (Long) value.get("barcodeObject");
