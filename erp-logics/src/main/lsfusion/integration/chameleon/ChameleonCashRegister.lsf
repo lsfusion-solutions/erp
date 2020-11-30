@@ -197,6 +197,8 @@ EXTEND FORM paymentType PROPERTIES nameChameleonPaymentType(pt);
 
 paymentType(ISTRING s) = OVERRIDE paymentType(chameleonPaymentType(s)), typePaymentSID(BPISTRING[10](s));
 
+payment (Receipt r, PaymentType t) = GROUP LAST Payment p ORDER p BY receipt(p), paymentType(p);
+
 receiveFromChameleon(GroupCashRegister g) {
     returnExchange(g) <- NULL;
     LOCAL type = ISTRING (INTEGER);
@@ -209,6 +211,10 @@ receiveFromChameleon(GroupCashRegister g) {
     LOCAL dateTime = DATETIME (INTEGER);
     LOCAL idEmployee = INTEGER (INTEGER);
     
+    LOCAL cash = STRING (INTEGER);
+    LOCAL card = STRING (INTEGER);
+    LOCAL certificate = STRING (INTEGER);
+    
     LOCAL summ = INTEGER (INTEGER);
     LOCAL quantity = NUMERIC[10,3] (INTEGER);
     LOCAL discount = INTEGER (INTEGER);
@@ -220,7 +226,7 @@ receiveFromChameleon(GroupCashRegister g) {
         
     LOCAL receiptSql = ISTRING();
     LOCAL receiptSqlDetail = ISTRING();
-    receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee from sales.checks', conditionRecieve(g);
+    receiptSql() <- CONCAT ' ', 'select id_check,guid::text,id_workplace,id_session,id_fcheck,time_check,id_employee, attrs->\'cash\' as cash, attrs->\'card\' as card, attrs->\'certificate\' as certificate from sales.checks', conditionRecieve(g);
     receiptSqlDetail() <- CONCAT ' ',
         'select checks.guid::text,quantity,price,discount,summ,id_goods,id_series,attrs->\'barcode\' as barcode from sales.check_lines',
         'inner join (' + receiptSql() + ') checks on checks.guid=sales.check_lines.guid::text'
@@ -239,7 +245,7 @@ receiveFromChameleon(GroupCashRegister g) {
                 isPosted(z) <- TRUE; 
             }
             exchangeChameleon(g, receiptSql());
-            IMPORT FROM exportFile() TO id = id_check, guid = guid, idCashRegister = id_workplace, idSession = id_session, number = id_fcheck, dateTime = time_check, idEmployee = id_employee;
+            IMPORT FROM exportFile() TO id = id_check, guid = guid, idCashRegister = id_workplace, idSession = id_session, number = id_fcheck, dateTime = time_check, idEmployee = id_employee, cash, card, certificate;
             FOR guid(INTEGER i) AND ZReport z = zReport(cashRegister(idCashRegister(i)), STRING(idSession(i))) AND NOT receiptUid(guid(i)) DO NEW r = Receipt {
                 zReport(r) <- z;
                 uid(r) <- guid(i);
@@ -250,6 +256,27 @@ receiveFromChameleon(GroupCashRegister g) {
                 date(r) <- DATE(dateTime(i));
                 time(r) <- TIME(dateTime(i));
                 employee(r) <- employee(idEmployee(i));    
+            }
+            FOR cash(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('cash')) DO NEW p = Payment {
+                receipt(p) <- r;
+                paymentType(p) <- paymentType('cash');
+            }
+            FOR cash(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('cash')) DO {
+                sum(p) <- NUMERIC[18,4](cash(i)) / 100;
+            }
+            FOR card(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('card')) DO NEW p = Payment {
+                receipt(p) <- r;
+                paymentType(p) <- paymentType('card');               
+            }
+            FOR card(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('card')) DO {
+                sum(p) <- NUMERIC[18,4](card(i)) / 100;
+            }
+            FOR certificate(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND NOT payment(r, paymentType('certificate')) DO NEW p = Payment {
+                receipt(p) <- r;
+                paymentType(p) <- paymentType('certificate');
+            }
+            FOR certificate(INTEGER i) AND Receipt r = receiptUid(guid(i)) AND Payment p = payment(r, paymentType('certificate')) DO {
+                sum(p) <- NUMERIC[18,4](certificate(i)) / 100;
             }
             exchangeChameleon(g, receiptSqlDetail());
             IMPORT FROM exportFile() TO guid, summ, quantity, discount, price, idSku = id_goods, idBatch = id_series, idBarcode = barcode;
@@ -275,15 +302,6 @@ receiveFromChameleon(GroupCashRegister g) {
                 sum(d) <- NUMERIC[18,4](summ(i)) / 100;
                 discountSum(d) <-NUMERIC[18,4](discount(i)) / 100;
                 idBarcode(d) <- idBarcode(i);
-            }
-            exchangeChameleon(g,
-                'select guid::text,keys as type,abs(cast(val as integer)) as sum from (select guid,skeys(attrs) as keys,svals(attrs) as val from sales.checks) AS attrs where keys in (\'cash\',\'card\',\'certificate\')'
-            );
-            IMPORT FROM exportFile() TO guid, type, summ = sum;
-            FOR Receipt r = receiptUid(guid(INTEGER i)) DO NEW p = Payment {
-                receipt(p) <- r;
-                paymentType(p) <- paymentType(type(i));
-                sum(p) <- NUMERIC[18,4](summ(i)) / 100;
             }
             IF NOT returnExchange(g) THEN APPLY; ELSE CANCEL;
         }
