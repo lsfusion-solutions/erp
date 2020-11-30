@@ -1,0 +1,45 @@
+MODULE SaleCreditNoteStockDocument;
+
+REQUIRE PurchaseSaleCreditNote, SalePurchaseInvoice;
+
+NAMESPACE Sale;
+
+// ------------------------------- Проведение по товарному отчету ------------------------ //
+EXTEND CLASS UserCreditNote : IncStockDocumentLedger;
+
+series[StockDocumentLedger] (UserCreditNote ledger) += series[UserCreditNote](ledger);
+number[StockDocumentLedger] (UserCreditNote ledger) += number[UserCreditNote](ledger);
+dateTime[StockDocumentLedger] (UserCreditNote ledger) += dateTime(ledger);
+isPosted[StockDocumentLedger] (UserCreditNote ledger) += isPosted(ledger);
+isClosed[StockDocumentLedger] (UserCreditNote ledger) += isClosed(ledger);
+stock[StockDocumentLedger] (UserCreditNote ledger) += supplierStock(ledger);
+description[StockDocumentLedger] (UserCreditNote ledger) += STRING[200](description(ledger));
+
+type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
+
+retailSum(UserCreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
+            
+retailSumItemCreditNoteDetail 'Сумма, товар' (creditNote) =
+    GROUP
+        SUM retailSum(UserCreditNoteDetail idetail) IF isItem(sku(idetail)) BY creditNote(idetail) IN documentSum;
+retailSumContainerCreditNoteDetail 'Сумма, тара' (creditNote) =
+    GROUP 
+        SUM retailSum(UserCreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
+
+sumItem (UserCreditNote ledger) += retailSumItemCreditNoteDetail(ledger);
+sumContainer (UserCreditNote ledger) += retailSumContainerCreditNoteDetail(ledger);
+
+legalEntity(UserCreditNote ledger) += customer(ledger);
+legalEntityStock(UserCreditNote ledger) += customerStock(ledger); 
+
+operation[StockDocumentLedger](UserCreditNote ledger) += operation[UserCreditNote](ledger);
+isReturn(UserCreditNote ledger) += ledger IS UserCreditNote;
+close[StockDocumentLedger](UserCreditNote l) + {  close[Sale.CreditNote](l); }
+
+
+overFillCreditNote(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) + {
+    invoiceDetail(sd) <- invoiceDetail(invoiceDetail[Purchase.InvoiceCreditNoteDetail](pd));
+}
+overFillCreditNoteDetail(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) + {
+    invoiceDetail(sd) <- invoiceDetail(invoiceDetail[Purchase.InvoiceCreditNoteDetail](pd));
+}
