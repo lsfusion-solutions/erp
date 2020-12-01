@@ -61,6 +61,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return "astron";
     }
 
+    private Set<String> processingStopListSet = new HashSet<>();
+
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
 
@@ -143,85 +145,92 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         Exception exception = null;
         AstronConnectionString params = new AstronConnectionString(directory);
         if (params.connectionString == null) {
-            processTransactionLogger.error(logPrefix + "no connectionString found");
-            exception = new RuntimeException("no connectionString found");
+            String error = "no connectionString found";
+            processTransactionLogger.error(logPrefix + error);
+            exception = new RuntimeException(error);
         } else {
-            try (Connection conn = getConnection(params)) {
+            if(processingStopListSet.contains(params.connectionString)) {
+                String error = "Base is busy: stopList is sending now, will try export later";
+                processTransactionLogger.error(logPrefix + error);
+                exception = new RuntimeException(error);
+            } else {
+                try (Connection conn = getConnection(params)) {
 
-                String deleteBarcodeKey = getDeleteBarcodeKey(params.connectionString, transaction.nppGroupMachinery);
-                Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
+                    String deleteBarcodeKey = getDeleteBarcodeKey(params.connectionString, transaction.nppGroupMachinery);
+                    Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
 
-                Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
-                String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
+                    Integer extGrpId = groupMachineryMap.get(transaction.nppGroupMachinery);
+                    String tables = "'GRP', 'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'" + (extGrpId != null ? ", 'ARTEXTGRP'" : "") + (exportExtraTables ? ", 'PRCLEVEL', 'SAREA', 'SAREAPRC'" : "");
 
-                if(firstTransaction) {
-                    Exception waitFlagsResult = waitFlags(conn, params, tables, null, null, timeout, true);
-                    if (waitFlagsResult != null) {
-                        throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
-                    }
-                    truncateTables(conn, extGrpId);
-                }
-
-                List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
-                transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
-
-                if(!transaction.itemsList.isEmpty()) {
-
-                    checkItems(params, transaction);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
-                    exportGrp(conn, params, transaction);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
-                    exportArt(conn, params, transaction.itemsList, false, false);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
-                    exportUnit(conn, params, transaction.itemsList, false);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
-                    exportPack(conn, params, transaction.itemsList, false);
-                    exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
-                    exportExBarc(conn, params, transaction.itemsList, false);
-                    exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList);
-
-                    processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
-                    boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables);
-                    exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables);
-
-                    if (exportExtraTables) {
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table prclevel", transaction.id));
-                        exportPrcLevel(conn, params, transaction, hasSecondPrice);
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
-                        exportSArea(conn, params, transaction);
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
-                        exportSAreaPrc(conn, params, transaction, hasSecondPrice);
+                    if (firstTransaction) {
+                        Exception waitFlagsResult = waitFlags(conn, params, tables, null, null, timeout, true);
+                        if (waitFlagsResult != null) {
+                            throw new RuntimeException("data from previous transactions was not processed (flags not set to zero)");
+                        }
+                        truncateTables(conn, extGrpId);
                     }
 
-                    if (extGrpId != null) {
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
-                        exportArtExtgrp(conn, params, transaction, extGrpId);
-                    }
+                    List<CashRegisterItemInfo> usedDeleteBarcodeList = new ArrayList<>();
+                    transaction.itemsList = transaction.itemsList.stream().filter(item -> isValidItem(transaction, deleteBarcodeMap, usedDeleteBarcodeList, item)).collect(Collectors.toList());
 
-                    if (lastTransaction) {
-                        processTransactionLogger.info(logPrefix + "waiting for processing transactions");
-                        exportFlags(conn, params, tables);
-                        Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
-                        if(e == null) {
-                            for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
-                                deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
-                            }
-                        } else {
-                            throw e;
+                    if (!transaction.itemsList.isEmpty()) {
+
+                        checkItems(params, transaction);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
+                        exportGrp(conn, params, transaction);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
+                        exportArt(conn, params, transaction.itemsList, false, false);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
+                        exportUnit(conn, params, transaction.itemsList, false);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
+                        exportPack(conn, params, transaction.itemsList, false);
+                        exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
+                        exportExBarc(conn, params, transaction.itemsList, false);
+                        exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
+                        boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables);
+                        exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables);
+
+                        if (exportExtraTables) {
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table prclevel", transaction.id));
+                            exportPrcLevel(conn, params, transaction, hasSecondPrice);
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
+                            exportSArea(conn, params, transaction);
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
+                            exportSAreaPrc(conn, params, transaction, hasSecondPrice);
                         }
 
-                    }
-                }
+                        if (extGrpId != null) {
+                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
+                            exportArtExtgrp(conn, params, transaction, extGrpId);
+                        }
 
-            } catch (Exception e) {
-                processTransactionLogger.error(logPrefix, e);
-                exception = e;
+                        if (lastTransaction) {
+                            processTransactionLogger.info(logPrefix + "waiting for processing transactions");
+                            exportFlags(conn, params, tables);
+                            Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
+                            if (e == null) {
+                                for (CashRegisterItemInfo usedDeleteBarcode : usedDeleteBarcodeList) {
+                                    deleteBarcodeSet.add(usedDeleteBarcode.idBarcode);
+                                }
+                            } else {
+                                throw e;
+                            }
+
+                        }
+                    }
+
+                } catch (Exception e) {
+                    processTransactionLogger.error(logPrefix, e);
+                    exception = e;
+                }
             }
         }
         return exception;
@@ -1015,13 +1024,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : null;
-        boolean exportExtraTables = astronSettings != null && astronSettings.isExportExtraTables();
+        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        boolean exportExtraTables = astronSettings.isExportExtraTables();
 
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
                 try (Connection conn = getConnection(params)) {
+
+                    processingStopListSet.add(params.connectionString);
 
                     List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
@@ -1040,11 +1052,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     processTransactionLogger.info(logPrefix + String.format("stoplist %s, table packprc", stopListInfo.number));
                     exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude);
 
+                    String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
+
                     processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
-                    exportFlags(conn, params, "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'");
+                    exportFlags(conn, params, tables);
+
+                    Exception e = waitFlags(conn, params, tables, new ArrayList<>(), null, timeout, true);
+                    if(e != null) {
+                        throw e;
+                    }
 
                 } catch (Exception e) {
                     processStopListLogger.error(logPrefix, e);
+                } finally {
+                    processingStopListSet.remove(params.connectionString);
                 }
             }
         }
