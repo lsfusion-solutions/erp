@@ -31,8 +31,12 @@ overChangeBarcodeSale(STRING[100] b, Receipt r) + {
                 quantity(d) <- 1.0;
                 price(d) <- currentPOSPrice(s, r);
                 lot(d) <- l;
-                IF explicitBatchLedger(r) THEN
-                    batch(d) <- batch(l);
+                IF explicitBatchLedger(r) THEN {
+                    IF batch(l) THEN
+                        batch(d) <- batch(l);
+                    ELSE
+                        setSaleDetailBatch(d, r);
+                }
                 consumedChangeBarcodeSaleReceipt() <- TRUE;
             }
         } 

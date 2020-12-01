@@ -6,16 +6,40 @@ NAMESPACE Lot;
 
 countNotInitialized (LotOrder o) = GROUP SUM 1 IF quantity(LotOrderDetail d, Lot l) AND lotOrder(d) = o AND NOT lotInit(l) MATERIALIZED ;
 
+lotOrderDetail = DATA LotOrderDetail (LotInitDetail) INDEXED;
+
+fill (LotInit i, LotOrder o) {
+    FOR lotOrder(LotOrderDetail od) = o NEW id = LotInitDetail DO {
+        lotInit(id) <- i;
+        sku(id) <- sku(od);
+        quantity(id) <- quantity(od);
+        lotOrderDetail(id) <- od;
+        
+        quantity(id, Lot l) <- quantity(od, l);
+    } 
+}
+
 fillFromOrder 'Заполнить из заказа' (LotInit i) {
-    DIALOG lotOrders OBJECTS o INPUT FILTERS countNotInitialized(o) DO {
-        FOR lotOrder(LotOrderDetail od) = o NEW id = LotInitDetail DO {
-            lotInit(id) <- i;
-            sku(id) <- sku(od);
-            quantity(id) <- quantity(od);
-        } 
+    DIALOG lotOrders OBJECTS o INPUT FILTERS countNotInitialized(o) AND isPosted(o), type(o) = type(i), (stock(o) = stock(i) OR NOT stock(i)) DO {
+        fill(i, o);
     }
 }
 
 EXTEND FORM lotInit
     PROPERTIES(i) fillFromOrder DRAW d TOOLBAR
+;
+
+newLotInit 'Ввести в оборот' (LotOrder o) {
+    NEWSESSION { 
+        NEW i = LotInit {
+            type(i) <- type(o);
+            stock(i) <- stock(o);
+            fill(i, o);
+            SHOW lotInit OBJECTS i = i DOCKED;            
+        }
+    }
+}
+
+EXTEND FORM lotOrders
+    PROPERTIES(o) newLotInit TOOLBAR SHOWIF countNotInitialized(o) AND isPosted(o)
 ;

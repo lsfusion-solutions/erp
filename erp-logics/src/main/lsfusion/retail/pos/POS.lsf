@@ -683,6 +683,24 @@ defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt r
                                  BY batch(d), receipt(d)] (batch, receipt)) > 0
           BY sku(batch); 
 
+setSaleDetailBatch (ReceiptSaleDetail d, Receipt receipt) {
+    IF countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
+        batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
+        price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
+    } ELSE {
+        LOCAL created = BOOLEAN();
+        created() <- NULL;
+        DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
+            batch(d) <- bt;
+            price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
+            calculatePromotions(receipt);
+            created() <- TRUE;
+        }
+        IF NOT created() THEN
+            DELETE d;
+    }
+}
+
 createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[30] barcode)  { 
     NEW d = ReceiptSaleDetail {
         receipt(d) <- receipt;
@@ -693,21 +711,7 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
 //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
         focusQuantity(d);
         IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d)) = SkuType.skuTypeCharge THEN {
-            IF countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
-                batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
-                price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
-            } ELSE {
-                LOCAL created = BOOLEAN();
-                created() <- NULL;
-                DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
-                    batch(d) <- bt;
-                    price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
-                    calculatePromotions(receipt);
-                    created() <- TRUE;
-                }
-                IF NOT created() THEN
-                    DELETE d;
-            }
+            setSaleDetailBatch(d, receipt);
         }
         overChangeBatch(d);    
     }

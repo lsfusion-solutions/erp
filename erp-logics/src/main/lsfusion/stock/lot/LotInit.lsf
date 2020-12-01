@@ -1,6 +1,7 @@
 MODULE LotInit;
 
-REQUIRE Lot, StockSkuDocument;
+REQUIRE Lot, StockSkuDocument,
+        LotLedger;
 
 NAMESPACE Lot;
 
@@ -19,6 +20,13 @@ CONSTRAINT stock(LotInit i) AND NOT isCompany(stock(i))
     CHECKED BY stock[LotInit]
     MESSAGE 'Для ввода в оборот выбран склад, который не принадлежит компании';
 
+@defineDocumentPosted(lotInit);
+
+type 'Тип' = DATA LotType (LotInit) NONULL;
+nameType 'Тип' (LotInit i) = name(type(i));
+idType 'Код типа' (LotInit i) = id(type(i));
+
+@defineDocumentDetailNumber(lotInit, LotInitDetail);
 @defineDocumentDetailSku(lotInit, sku);
 
 @defineDocumentDetailQuantity(lotInit);
@@ -27,13 +35,17 @@ CONSTRAINT stock(LotInit i) AND NOT isCompany(stock(i))
 
 FORM lotInit 'Ввод в оборот'
     OBJECTS i = LotInit PANEL
-    PROPERTIES(i) nameNumerator, number, series, date, time, nameStock, note
+    PROPERTIES(i) isPosted, nameNumerator, number, series, date, time, 
+                  nameType, nameStock, note
     
     OBJECTS d = LotInitDetail
     PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
     FILTERS lotInit(d) = i
     
     EDIT LotInit OBJECT i
+
+    EVENTS
+        ON OK prePost(i)
 ;
 
 DESIGN lotInit {
@@ -46,13 +58,20 @@ DESIGN lotInit {
                 NEW header {
                     NEW headerRow1 {
                         type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(isPosted(i));
                         MOVE PROPERTY(nameNumerator(i));
                         MOVE PROPERTY(number(i));
                         MOVE PROPERTY(series(i));
                         MOVE PROPERTY(date(i));
                         MOVE PROPERTY(time(i));
                     }
-                    MOVE PROPERTY(nameStock(i));
+                    NEW headerRow2 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameType(i)) { notNull = TRUE; }
+                        MOVE PROPERTY(nameStock(i));
+                    }
                     MOVE PROPERTY(note(i));
                 }
                 MOVE BOX(d) {
@@ -60,6 +79,9 @@ DESIGN lotInit {
                 }
             }
         }
+    }
+    PROPERTY(formOk()) {
+        caption = 'Провести';
     }
 }
 
@@ -81,14 +103,14 @@ EXTEND FORM lotInit
 ;
 
 useLot (LotInit i) = i IS LotInit;
-isPosted (LotInitDetail i) = i IS LotInitDetail;
 @defineDocumentLotIn(lotInit, quantity, i);
 
 lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
 
 FORM lotInits 'Ввод в оборот'
     OBJECTS o = LotInit
-    PROPERTIES(o) READONLY number, series, date, time, nameStock, note, countLotInitDetail
+    PROPERTIES(o) READONLY isPosted, number, series, date, time, 
+                           nameType, nameStock, note, countLotInitDetail
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
     OBJECTS d = LotInitDetail
@@ -101,3 +123,15 @@ NAVIGATOR {
         NEW lotInits;
     }
 }
+
+// проводим по регистру
+EXTEND CLASS LotInitDetail : LotLedger;
+
+active(LotInitDetail l) += isPosted(l);
+
+dateTime(LotInitDetail l) += dateTime(l);
+description(LotInitDetail l) += ISTRING[200](CONCAT ' ', 'Ввод в оборот', '№ ' + seriesNumber(l), 'от ' + date(l));
+
+stock(LotInitDetail l) += stock(l);
+
+quantity(LotInitDetail li, Lot l) += quantity(li, l);

@@ -1,0 +1,20 @@
+MODULE LotLedger;
+
+REQUIRE Lot, Stock;
+
+NAMESPACE Lot;
+
+CLASS LotLedger 'Операции с марками';
+
+active 'Активная' = ABSTRACT BOOLEAN (LotLedger) MATERIALIZED;
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (LotLedger) MATERIALIZED;
+description 'Описание' = ABSTRACT ISTRING[200] (LotLedger) MATERIALIZED;
+
+stock 'Склад' = ABSTRACT Stock (LotLedger) MATERIALIZED;
+nameStock 'Склад' (LotLedger l) = name(stock(l));
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (LotLedger, Lot) MATERIALIZED;
+
+onHand 'Марок на складе' =
+    GROUP SUM quantity(LotLedger ledger, Lot lot) IF active(ledger) BY stock(ledger), lot CHARWIDTH 7 MATERIALIZED;

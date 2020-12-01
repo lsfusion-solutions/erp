@@ -1,6 +1,6 @@
 MODULE SkuLedgerLot;
 
-REQUIRE SkuLedger, Lot;
+REQUIRE LotLedger, SkuLedger, Lot;
 
 NAMESPACE Stock;
 
@@ -14,14 +14,16 @@ signedQuantity 'Кол-во' (SkuLedger ledger, Lot lot) =
 batch (Lot l) = GROUP LAST batch(SkuLedger sl) ORDER DESC dateTime(sl), sl WHERE signedQuantity(sl, l) AND batch(sl) MATERIALIZED INDEXED;
 nameBatch 'Партия' (Lot l) = name(batch(l));
 
-currentBalance 'Текущий остаток' =
-    GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY sku(ledger), stock(ledger), lot CHARWIDTH 7 MATERIALIZED;
+skuBalance = GROUP SUM signedQuantity(SkuLedger ledger, Lot lot) IF active(ledger) BY stock(ledger), lot CHARWIDTH 7 MATERIALIZED;
+
+currentBalance 'Текущий остаток' (Stock st, Lot l) =
+    onHand(st, l) (+) skuBalance(st, l) CHARWIDTH 7 MATERIALIZED;
     
 EXTEND FORM currentBalanceSkuStock
     OBJECTS l = Lot
     PROPERTIES(l) READONLY id, nameBatch
-    PROPERTIES(s, st, l) READONLY currentBalance
-    FILTERS currentBalance(s, st, l)
+    PROPERTIES(st, l) READONLY currentBalance
+    FILTERS currentBalance(st, l), sku(l) = s
 ;
 
 DESIGN currentBalanceSkuStock {
@@ -33,12 +35,28 @@ DESIGN currentBalanceSkuStock {
 EXTEND FORM lots
     PROPERTIES(l) READONLY nameBatch
 
-    OBJECTS s = SkuLedger
-    PROPERTIES(s) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock, nameBatch
-    PROPERTIES(s, l) READONLY signedQuantity
-    PROPERTIES(s) EDIT SHOWIF allowedEdit(s) NEWSESSION, show SHOWIF allowedShow(s)
+    OBJECTS sl = SkuLedger
+    PROPERTIES(sl) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock, nameBatch
+    PROPERTIES(sl, l) READONLY signedQuantity
+    PROPERTIES(sl) EDIT SHOWIF allowedEdit(sl) NEWSESSION, show SHOWIF allowedShow(sl)
     
-    ORDERS date(s) DESC
-    FILTERS isPosted(s),
-            signedQuantity(s, l)
+    ORDERS date(sl) DESC
+    FILTERS isPosted(sl),
+            signedQuantity(sl, l)
+
+    OBJECTS ll = LotLedger
+    PROPERTIES(ll) READONLY dateTime, description, nameStock
+    PROPERTIES(ll, l) READONLY quantity
+    PROPERTIES(ll) EDIT
+    
+    ORDERS dateTime(ll) DESC
+    FILTERS active(ll),
+            quantity(ll, l)
 ;
+
+DESIGN lots {
+    tabbedPane {
+        MOVE BOX(sl) { caption = 'Движения'; }
+        MOVE BOX(ll) { caption = 'Операции'; }
+    }
+}
