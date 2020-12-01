@@ -262,10 +262,11 @@ changeCustomer()  {
 
 supplierStock = DATA LOCAL NESTED Stock ();
 nameSupplierStock 'Склад'= name(supplierStock());
-
+useAccessCompany 'Использовать фильтр' = ABSTRACT BOOLEAN ();
 changeSupplierStock()  { 
-    DIALOG stocksCompany OBJECTS s = supplierStock() INPUT NULL DO
-        supplierStock() <- s;
+    DIALOG stocksCompany OBJECTS s = supplierStock() INPUT FILTERS (IF useAccessCompany() THEN accessCompany(currentUser(),s) ELSE s IS Stock) DO {
+        supplierStock() <- s;         
+    }
 }
 
 FORM skuGift 'Номиналы подарочных сертификатов'
@@ -427,6 +428,9 @@ DESIGN saleGiftCardDashboard {
                     type = CONTAINERV;
                     MOVE GROUP(print,i);
                 }
+            }            
+            NEW actionContainer {
+                caption = 'Действия';
             }
         }
     }
