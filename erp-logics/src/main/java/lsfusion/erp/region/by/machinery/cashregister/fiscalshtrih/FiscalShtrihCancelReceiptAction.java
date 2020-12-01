@@ -19,7 +19,7 @@ public class FiscalShtrihCancelReceiptAction extends InternalAction {
     public FiscalShtrihCancelReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         receiptInterface = i.next();
     }
 

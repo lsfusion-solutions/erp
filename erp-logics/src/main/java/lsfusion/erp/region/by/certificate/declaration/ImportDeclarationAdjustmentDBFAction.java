@@ -32,7 +32,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
     public ImportDeclarationAdjustmentDBFAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         declarationInterface = i.next();
     }
 

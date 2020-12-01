@@ -21,7 +21,7 @@ public class FiscalCasbiDisplayTextAction extends InternalAction {
     public FiscalCasbiDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         receiptDetailInterface = i.next();
     }
 

@@ -30,7 +30,7 @@ public class FiscalCasbiPrintReceiptAction extends InternalAction {
     public FiscalCasbiPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         receiptInterface = i.next();
     }
 

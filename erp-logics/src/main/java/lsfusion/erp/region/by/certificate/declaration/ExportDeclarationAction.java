@@ -34,7 +34,7 @@ public class ExportDeclarationAction extends DefaultExportAction {
     public ExportDeclarationAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         declarationInterface = i.next();
     }
 

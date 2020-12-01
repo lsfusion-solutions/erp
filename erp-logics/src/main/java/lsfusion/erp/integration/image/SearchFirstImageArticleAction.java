@@ -13,7 +13,7 @@ public class SearchFirstImageArticleAction extends DefaultImageArticleAction {
 
     public SearchFirstImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         articleInterface = i.next();
     }
 

@@ -34,7 +34,7 @@ public class ExportExcelGeneralLedgerAction extends ExportExcelAction {
     public ExportExcelGeneralLedgerAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         dateFromInterface = i.next();
         dateToInterface = i.next();
     }

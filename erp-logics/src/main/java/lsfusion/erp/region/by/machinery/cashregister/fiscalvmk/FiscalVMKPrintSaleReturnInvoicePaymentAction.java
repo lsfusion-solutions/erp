@@ -35,7 +35,7 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
     public FiscalVMKPrintSaleReturnInvoicePaymentAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         invoiceInterface = i.next();
         paymentInterface = i.next();
         detailInterface = i.next();

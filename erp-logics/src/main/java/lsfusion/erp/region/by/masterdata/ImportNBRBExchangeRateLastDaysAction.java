@@ -21,7 +21,7 @@ public class ImportNBRBExchangeRateLastDaysAction extends ImportNBRBExchangeRate
     public ImportNBRBExchangeRateLastDaysAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         currencyInterface = i.next();
     }
 

@@ -21,7 +21,7 @@ public class LoadImageArticleAction extends DefaultImageArticleAction {
     public LoadImageArticleAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         articleInterface = i.next();
         urlInterface = i.next();
     }

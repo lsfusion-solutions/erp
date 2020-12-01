@@ -27,7 +27,7 @@ public class TerminalJadeEKOPaymentTerminalReceiptAction extends InternalAction 
     public TerminalJadeEKOPaymentTerminalReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         receiptInterface = i.next();
     }
 

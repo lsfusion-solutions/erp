@@ -20,7 +20,7 @@ public class FiscalDatecsDisplayTextAction extends InternalAction {
     public FiscalDatecsDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         receiptDetailInterface = i.next();
     }
 

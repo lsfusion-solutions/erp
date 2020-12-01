@@ -22,7 +22,7 @@ public class FiscalSentoServiceInOutAction extends InternalAction {
     public FiscalSentoServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         cashOperationInterface = i.next();
     }
 

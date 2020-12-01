@@ -20,7 +20,7 @@ public class FiscalShtrihServiceInOutAction extends InternalAction {
     public FiscalShtrihServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         cashOperationInterface = i.next();
     }
 

@@ -49,7 +49,7 @@ public class ImportProductionOrderAction extends ImportDocumentAction {
     public ImportProductionOrderAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
-        Iterator<ClassPropertyInterface> i = interfaces.iterator();
+        Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         orderInterface = i.next();
     }
 
