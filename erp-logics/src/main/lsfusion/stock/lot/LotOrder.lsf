@@ -21,6 +21,8 @@ id 'Код' = DATA STRING[100] (LotOrder) CHARWIDTH 36;
 CONSTRAINT stock(LotOrder o) AND NOT isCompany(stock(o))
     CHECKED BY stock[LotOrder]
     MESSAGE 'Для заказа марок выбран склад, который не принадлежит компании';
+@defineDocumentStockAccess(LotOrder, stock, company);
+@defineDocumentDialogStocks(lotOrder, stock, company, , );
 
 @defineDocumentPosted(lotOrder);
 canceled 'Отменен' = DATA BOOLEAN (LotOrder); 
@@ -42,7 +44,7 @@ FORM lotOrder 'Заказ марок'
     OBJECTS o = LotOrder PANEL
     PROPERTIES(o) isPosted, canceled, nameNumerator, number, series, 
                   date, time, id, 
-                  nameType, nameStock, note
+                  nameType, nameStock ON CHANGE changeStockCompany(o), note
     
     OBJECTS d = LotOrderDetail
     PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
@@ -105,6 +107,9 @@ price 'Цена' (Sku s, LotOrder o) = prevAccountPriceB(s, stock(o), dateTime(o
 @extendFormDocumentSku(lotOrder, lotOrder, o);
 
 EXTEND FORM lotOrder
+    FILTERGROUP filterLot
+        FILTER 'Маркируется' lotType(ks) DEFAULT
+
     FILTERGROUP filterSku
         FILTER 'С остатком' prevCurrentBalance(ks, stock(o)) 'F10' DEFAULT
         FILTER 'В документе' quantityLotOrderDetail(ks, o) 'F9'
@@ -140,6 +145,8 @@ DESIGN lotOrders {
         }
     }
 }
+
+@extendFormFilterAccessStock(LotOrder, o, lotOrders, stock, company);
 
 NAVIGATOR {
     lotNavigator {

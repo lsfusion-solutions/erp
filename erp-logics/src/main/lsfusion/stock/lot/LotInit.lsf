@@ -19,6 +19,8 @@ CLASS LotInitDetail 'Строка ввода в оборот';
 CONSTRAINT stock(LotInit i) AND NOT isCompany(stock(i))
     CHECKED BY stock[LotInit]
     MESSAGE 'Для ввода в оборот выбран склад, который не принадлежит компании';
+@defineDocumentStockAccess(LotInit, stock, company);
+@defineDocumentDialogStocks(lotInit, stock, company, , );
 
 @defineDocumentPosted(lotInit);
 
@@ -36,7 +38,7 @@ idType 'Код типа' (LotInit i) = id(type(i));
 FORM lotInit 'Ввод в оборот'
     OBJECTS i = LotInit PANEL
     PROPERTIES(i) isPosted, nameNumerator, number, series, date, time, 
-                  nameType, nameStock, note
+                  nameType, nameStock ON CHANGE changeStockCompany(i), note
     
     OBJECTS d = LotInitDetail
     PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
@@ -92,6 +94,9 @@ price 'Цена' (Sku s, LotInit o) = prevAccountPriceB(s, stock(o), dateTime(o)
 @extendFormDocumentSku(lotInit, lotInit, i);
 
 EXTEND FORM lotInit
+    FILTERGROUP filterLot
+        FILTER 'Маркируется' lotType(ks) DEFAULT
+
     FILTERGROUP filterSku
         FILTER 'С остатком' prevCurrentBalance(ks, stock(i)) 'F10' DEFAULT
         FILTER 'В документе' quantityLotInitDetail(ks, i) 'F9'
@@ -108,15 +113,17 @@ useLot (LotInit i) = i IS LotInit;
 lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
 
 FORM lotInits 'Ввод в оборот'
-    OBJECTS o = LotInit
-    PROPERTIES(o) READONLY isPosted, number, series, date, time, 
+    OBJECTS i = LotInit
+    PROPERTIES(i) READONLY isPosted, number, series, date, time, 
                            nameType, nameStock, note, countLotInitDetail
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
 
     OBJECTS d = LotInitDetail
     PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
-    FILTERS lotInit(d) = o
+    FILTERS lotInit(d) = i
 ;
+
+@extendFormFilterAccessStock(LotInit, i, lotInits, stock, company);
 
 NAVIGATOR {
     lotNavigator {
