@@ -61,7 +61,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         return "astron";
     }
 
-    private Set<String> processingStopListSet = new HashSet<>();
+    private Set<String> connectionSemaphore = new HashSet<>();
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
@@ -142,19 +142,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private Exception exportTransaction(TransactionCashRegisterInfo transaction, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, Map<Integer, Integer> groupMachineryMap, Set<String> deleteBarcodeSet, Integer timeout) {
-        Exception exception = null;
+        Exception exception;
         AstronConnectionString params = new AstronConnectionString(directory);
         if (params.connectionString == null) {
             String error = "no connectionString found";
             processTransactionLogger.error(logPrefix + error);
             exception = new RuntimeException(error);
         } else {
-            if(processingStopListSet.contains(params.connectionString)) {
-                String error = "Base is busy: stopList is sending now, will try export later";
-                processTransactionLogger.error(logPrefix + error);
-                exception = new RuntimeException(error);
-            } else {
+            exception = waitConnectionSemaphore(params, timeout, false);
+            if(exception == null) {
                 try (Connection conn = getConnection(params)) {
+                    connectionSemaphore.add(params.connectionString);
 
                     String deleteBarcodeKey = getDeleteBarcodeKey(params.connectionString, transaction.nppGroupMachinery);
                     Map<String, CashRegisterItemInfo> deleteBarcodeMap = deleteBarcodeConnectionStringMap.get(deleteBarcodeKey);
@@ -230,6 +228,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 } catch (Exception e) {
                     processTransactionLogger.error(logPrefix, e);
                     exception = e;
+                } finally {
+                    connectionSemaphore.remove(params.connectionString);
                 }
             }
         }
@@ -968,6 +968,33 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
+    private Exception waitConnectionSemaphore(AstronConnectionString params, int timeout, boolean stopList) {
+        try {
+            int count = 0;
+            while (connectionSemaphore.contains(params.connectionString)) {
+                if (count > (timeout / 5)) {
+                    String message;
+                    if (stopList) {
+                        message = "Timeout exception. ProcessTransaction thread uses " + params.connectionString;
+                        processStopListLogger.error(logPrefix + message);
+                    } else {
+                        message = "Timeout exception. StopList thread uses " + params.connectionString;
+                        processTransactionLogger.error(logPrefix + message);
+                    }
+                    return new Exception(message);
+                } else {
+                    count++;
+                    processTransactionLogger.info(logPrefix + "Waiting connection semaphore");
+                    Thread.sleep(5000);
+                }
+            }
+        } catch (InterruptedException e) {
+            processTransactionLogger.error(logPrefix + e.getMessage());
+            return e;
+        }
+        return null;
+    }
+
     private void truncateTables(Connection conn, Integer extGrpId) throws SQLException {
         String[] tables = extGrpId != null ? new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", "ARTEXTGRP"} : new String[]{"GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC"};
         for (String table : tables) {
@@ -1031,41 +1058,46 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         for (String directory : directorySet) {
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
-                try (Connection conn = getConnection(params)) {
+                Exception exception = waitConnectionSemaphore(params, timeout, true);
+                if((exception != null)) {
+                    throw new RuntimeException(exception);
+                } else {
+                    try (Connection conn = getConnection(params)) {
 
-                    processingStopListSet.add(params.connectionString);
+                        connectionSemaphore.add(params.connectionString);
 
-                    List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
+                        List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
-                    processTransactionLogger.info(logPrefix + String.format("stoplist %s, table art", stopListInfo.number));
-                    exportArt(conn, params, itemsList, true, !stopListInfo.exclude);
+                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table art", stopListInfo.number));
+                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude);
 
-                    processTransactionLogger.info(logPrefix + String.format("stoplist %s, table unit", stopListInfo.number));
-                    exportUnit(conn, params, itemsList, !stopListInfo.exclude);
+                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table unit", stopListInfo.number));
+                        exportUnit(conn, params, itemsList, !stopListInfo.exclude);
 
-                    processTransactionLogger.info(logPrefix + String.format("stoplist %s, table pack", stopListInfo.number));
-                    exportPack(conn, params, itemsList, !stopListInfo.exclude);
+                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table pack", stopListInfo.number));
+                        exportPack(conn, params, itemsList, !stopListInfo.exclude);
 
-                    processTransactionLogger.info(logPrefix + String.format("stoplist %s, table exbarc", stopListInfo.number));
-                    exportExBarc(conn, params, itemsList, !stopListInfo.exclude);
+                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table exbarc", stopListInfo.number));
+                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude);
 
-                    processTransactionLogger.info(logPrefix + String.format("stoplist %s, table packprc", stopListInfo.number));
-                    exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude);
+                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table packprc", stopListInfo.number));
+                        exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude);
 
-                    String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
+                        String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
-                    processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
-                    exportFlags(conn, params, tables);
+                        processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
+                        exportFlags(conn, params, tables);
 
-                    Exception e = waitFlags(conn, params, tables, new ArrayList<>(), null, timeout, true);
-                    if(e != null) {
-                        throw e;
+                        Exception e = waitFlags(conn, params, tables, new ArrayList<>(), null, timeout, true);
+                        if (e != null) {
+                            throw e;
+                        }
+
+                    } catch (Exception e) {
+                        processStopListLogger.error(logPrefix, e);
+                    } finally {
+                        connectionSemaphore.remove(params.connectionString);
                     }
-
-                } catch (Exception e) {
-                    processStopListLogger.error(logPrefix, e);
-                } finally {
-                    processingStopListSet.remove(params.connectionString);
                 }
             }
         }
