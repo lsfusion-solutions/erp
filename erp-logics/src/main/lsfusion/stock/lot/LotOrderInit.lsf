@@ -1,0 +1,21 @@
+MODULE LotOrderInit;
+
+REQUIRE LotOrder, LotInit;
+
+NAMESPACE Lot;
+
+countNotInitialized (LotOrder o) = GROUP SUM 1 IF quantity(LotOrderDetail d, Lot l) AND lotOrder(d) = o AND NOT lotInit(l) MATERIALIZED ;
+
+fillFromOrder 'Заполнить из заказа' (LotInit i) {
+    DIALOG lotOrders OBJECTS o INPUT FILTERS countNotInitialized(o) DO {
+        FOR lotOrder(LotOrderDetail od) = o NEW id = LotInitDetail DO {
+            lotInit(id) <- i;
+            sku(id) <- sku(od);
+            quantity(id) <- quantity(od);
+        } 
+    }
+}
+
+EXTEND FORM lotInit
+    PROPERTIES(i) fillFromOrder DRAW d TOOLBAR
+;

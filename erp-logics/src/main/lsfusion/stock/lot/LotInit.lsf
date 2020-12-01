@@ -1,0 +1,103 @@
+MODULE LotInit;
+
+REQUIRE Lot, StockSkuDocument;
+
+NAMESPACE Lot;
+
+CLASS LotInit 'Ввод в оборот';
+CLASS LotInitDetail 'Строка ввода в оборот';
+
+@defineDocument(lotInit);
+
+@defineDocumentHeaderNumber(LotInit, STRING[10]);
+@defineNumeratedDefault(LotInit, 'Ввод в оборот', 'ВО');
+
+@deriveDocumentHeaderTime(LotInit);
+
+@defineDocumentStock(lotInit, stock, 'Склад');
+CONSTRAINT stock(LotInit i) AND NOT isCompany(stock(i))
+    CHECKED BY stock[LotInit]
+    MESSAGE 'Для ввода в оборот выбран склад, который не принадлежит компании';
+
+@defineDocumentDetailSku(lotInit, sku);
+
+@defineDocumentDetailQuantity(lotInit);
+
+@defineDocumentHeaderSkuQuantity(lotInit, sku);
+
+FORM lotInit 'Ввод в оборот'
+    OBJECTS i = LotInit PANEL
+    PROPERTIES(i) nameNumerator, number, series, date, time, nameStock, note
+    
+    OBJECTS d = LotInitDetail
+    PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
+    FILTERS lotInit(d) = i
+    
+    EDIT LotInit OBJECT i
+;
+
+DESIGN lotInit {
+    OBJECTS {
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox {
+                caption = 'Заказ';
+                NEW header {
+                    NEW headerRow1 {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameNumerator(i));
+                        MOVE PROPERTY(number(i));
+                        MOVE PROPERTY(series(i));
+                        MOVE PROPERTY(date(i));
+                        MOVE PROPERTY(time(i));
+                    }
+                    MOVE PROPERTY(nameStock(i));
+                    MOVE PROPERTY(note(i));
+                }
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+            }
+        }
+    }
+}
+
+// Подбор
+@defineDocumentSku(lotInit, sku, stock, );
+
+price 'Цена' (Sku s, LotInit o) = prevAccountPriceB(s, stock(o), dateTime(o));
+@extendFormDocumentSku(lotInit, lotInit, i);
+
+EXTEND FORM lotInit
+    FILTERGROUP filterSku
+        FILTER 'С остатком' prevCurrentBalance(ks, stock(i)) 'F10' DEFAULT
+        FILTER 'В документе' quantityLotInitDetail(ks, i) 'F9'
+;
+
+@defineAddDetailDialogBarcodeCustomInner(lotInit, lotInitDetail, LotInitDetail, sku);
+EXTEND FORM lotInit
+    PROPERTIES(i) DRAW d addDetailInputBarcodeLotInitDetail
+;
+
+useLot (LotInit i) = i IS LotInit;
+isPosted (LotInitDetail i) = i IS LotInitDetail;
+@defineDocumentLotIn(lotInit, quantity, i);
+
+lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
+
+FORM lotInits 'Ввод в оборот'
+    OBJECTS o = LotInit
+    PROPERTIES(o) READONLY number, series, date, time, nameStock, note, countLotInitDetail
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS d = LotInitDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    FILTERS lotInit(d) = o
+;
+
+NAVIGATOR {
+    lotNavigator {
+        NEW lotInits;
+    }
+}

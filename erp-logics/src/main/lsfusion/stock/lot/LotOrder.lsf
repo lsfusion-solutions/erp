@@ -4,9 +4,12 @@ REQUIRE Lot, StockSkuDocument;
 
 NAMESPACE Lot;
 
+gtin 'GTIN' (Sku s) = lpad(idBarcode(s), 14, '0');
+
 CLASS LotOrder 'Заказ марок';
 CLASS LotOrderDetail 'Строка заказа марок';
 
+id 'Код' = DATA STRING[100] (LotOrder) CHARWIDTH 36;
 @defineDocument(lotOrder);
 
 @defineDocumentHeaderNumber(LotOrder, STRING[10]);
@@ -19,7 +22,17 @@ CONSTRAINT stock(LotOrder o) AND NOT isCompany(stock(o))
     CHECKED BY stock[LotOrder]
     MESSAGE 'Для заказа марок выбран склад, который не принадлежит компании';
 
+@defineDocumentPosted(lotOrder);
+canceled 'Отменен' = DATA BOOLEAN (LotOrder); 
+
+type 'Тип' = DATA LotType (LotOrder) NONULL;
+nameType 'Тип' (LotOrder o) = name(type(o));
+idType 'Код типа' (LotOrder o) = id(type(o));
+
+// detail
+
 @defineDocumentDetailSku(lotOrder, sku);
+gtin 'GTIN' (LotOrderDetail d) = gtin(sku(d)); 
 
 @defineDocumentDetailQuantity(lotOrder);
 
@@ -27,13 +40,18 @@ CONSTRAINT stock(LotOrder o) AND NOT isCompany(stock(o))
 
 FORM lotOrder 'Заказ марок'
     OBJECTS o = LotOrder PANEL
-    PROPERTIES(o) nameNumerator, number, series, date, time, nameStock, note
+    PROPERTIES(o) isPosted, canceled, nameNumerator, number, series, 
+                  date, time, id, 
+                  nameType, nameStock, note
     
     OBJECTS d = LotOrderDetail
     PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
     FILTERS lotOrder(d) = o
     
     EDIT LotOrder OBJECT o
+
+    EVENTS
+        ON OK prePost(o)
 ;
 
 DESIGN lotOrder {
@@ -46,19 +64,37 @@ DESIGN lotOrder {
                 NEW header {
                     NEW headerRow1 {
                         type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(isPosted(o));
+                        MOVE PROPERTY(canceled(o));
                         MOVE PROPERTY(nameNumerator(o));
                         MOVE PROPERTY(number(o));
                         MOVE PROPERTY(series(o));
+                    }
+                    NEW headerRow2 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
                         MOVE PROPERTY(date(o));
                         MOVE PROPERTY(time(o));
+                        MOVE PROPERTY(id(o));
                     }
-                    MOVE PROPERTY(nameStock(o));
+                    NEW headerRow3 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameType(o)) { notNull = TRUE; };
+                        MOVE PROPERTY(nameStock(o));
+                    }
+                    MOVE PROPERTY(note(o));
                 }
                 MOVE BOX(d) {
                     caption = 'Спецификация';
                 }
             }
         }
+    }
+    
+    PROPERTY(formOk()) {
+        caption = 'Провести';
     }
 }
 
@@ -80,18 +116,29 @@ EXTEND FORM lotOrder
 ;
 
 useLot (LotOrder o) = o IS LotOrder;
-isPosted (LotOrderDetail o) = o IS LotOrderDetail;
 @defineDocumentLotIn(lotOrder, quantity, o);
+
+lotOrder (Lot l) = GROUP MAX lotOrder(LotOrderDetail d) IF quantity(d, l) MATERIALIZED INDEXED; 
 
 FORM lotOrders 'Заказы марок'
     OBJECTS o = LotOrder
-    PROPERTIES(o) READONLY number, series, date, time, nameStock, note, countLotOrderDetail
+    PROPERTIES(o) READONLY isPosted, canceled, id, number, series, date, time, nameStock, note, countLotOrderDetail
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
     OBJECTS d = LotOrderDetail
     PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
     FILTERS lotOrder(d) = o
 ;
+
+DESIGN lotOrders {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(d) { caption = 'Товары'; }
+        }
+    }
+}
 
 NAVIGATOR {
     lotNavigator {
