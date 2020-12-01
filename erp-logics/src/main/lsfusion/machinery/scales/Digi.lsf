@@ -1,5 +1,85 @@
 MODULE Digi;
 
+REQUIRE ScalesPriceTransaction, Image, Item;
+
 writeFileToSocketResult = DATA LOCAL BOOLEAN ();
 //Для Digi необходимо прогрузить 2 файла: 0x34 = 52, 0x38 = 56
 writeFileToSocket (file, type, ip)  INTERNAL  'lsfusion.erp.machinery.scales.WriteFileToSocketAction' (FILE, INTEGER, STRING[30]);
+
+
+//DigiSM5300
+overImage = ABSTRACT IMAGEFILE (Barcode);
+
+loadImages 'Загрузить картинки в весы' () {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'DigiSM5300' DO {
+                    TRY {
+                        mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/');
+                    }
+                    FOR select(sku(Barcode barcode), stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            convertImage((OVERRIDE overImage(barcode),image(sku(barcode))), 'bmp');
+                            WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + id(barcode) + '?binarytransfermode=false';
+                        } CATCH {
+                            logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE id(barcode),'NULL'));
+                        }
+                    }
+                }
+            }
+            IF NOT notResetMachinerySelectSku() THEN {
+                select(Sku sku, Stock stock) <- NULL;
+            }
+        }
+    }
+} TOOLBAR;
+
+deleteImages 'Удалить картинки из весов' () {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
+                FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'DigiSM5300' DO {
+                    FOR select(sku(Barcode barcode), stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                        TRY {
+                            delete('ftp://root:teraoka@' + port(scales) + '//opt/pcscale/files/img/plu/Plu' + id(barcode));
+                        }
+                    }
+                }
+            }
+            IF NOT notResetMachinerySelectSku() THEN {
+                select(Sku sku, Stock stock) <- NULL;
+            }
+        }
+    }
+} TOOLBAR;
+
+EXTEND  FORM currentBalanceSkuStock
+    PROPERTIES() SHOWIF (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'DigiSM5300' AND stock(grsk) == ss) loadImages DRAW sts, deleteImages DRAW sts
+;
+DESIGN currentBalanceSkuStock {
+    machineryContainer {
+        MOVE PROPERTY (loadImages());
+        MOVE PROPERTY (deleteImages());
+    }
+}
+
+customGroupType = ABSTRACT CustomGroupType(MachineryPriceTransaction);
+tareWeight = ABSTRACT NUMERIC[12,3] (Barcode) ;
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupScales(mpt)) == 'DigiSM5300' THEN {
+        LOCAL custGroup = CustomGroup (Barcode);
+        custGroup(Barcode b) <- customGroup(customGroupType(mpt), sku(b)) WHERE in(mpt, b);
+        LOCAL newPluNumber = INTEGER (Barcode);
+        newPluNumber(Barcode b) <- PARTITION SUM 1 IF id(b) AND active(b) ORDER b BY custGroup(b) WHERE in(mpt, b);
+        
+        info(mpt, Barcode b) <- ('\{"digism5300":\{'+
+                (CONCAT ',',
+                    (' "numberGroup": "' + (OVERRIDE getWord(id(custGroup(b)),'_',2),'') +
+                    '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'')+ 
+                    '", overPluNumber: "' + newPluNumber(b) + '"'),
+                    '"tareWeight":'+tareWeight(b))
+                +'\}\}') WHERE in(mpt, b);
+    }
+}
