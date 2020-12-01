@@ -1,0 +1,175 @@
+MODULE SUZLotOrder;
+
+REQUIRE SUZAuthentication, LotOrder;
+
+NAMESPACE SUZ;
+
+lotOrderUrl (LotOrder o) = url() + '/api/v2/' + idType(o);
+
+DESIGN lotOrders {
+    tabbedPane {
+        NEW suz {
+            caption = 'СУЗ';
+        }
+    }
+}
+
+FORM export
+    OBJECTS o = LotOrder PANEL
+    
+    PROPERTIES contactPerson = name(currentUser()), releaseMethodType = 'REMAINS', createMethodType = 'SELF_MADE'
+    
+    OBJECTS products = LotOrderDetail
+    PROPERTIES gtin = gtin(products), 
+               quantity = quantity(products), 
+               serialNumberType = 'OPERATOR' IF products IS LotOrderDetail, 
+               templateId = 10 IF products IS LotOrderDetail, 
+               cisType = 'UNIT' IF products IS LotOrderDetail
+    FILTERS lotOrder(products) = o
+;
+
+suzHeaders (TEXT name) = CASE
+    WHEN name = 'Host' THEN '' // СУЗ требует этот заголовок, но не проверяет содержимое
+    WHEN name = 'clientToken' THEN token();
+
+suzSignedHeaders (TEXT name) = CASE
+    WHEN name = 'X-Signature' AND signature() THEN encodedSignature()
+    ELSE suzHeaders(name);
+
+// export
+
+export 'Отослать в СУЗ' (LotOrder o) {
+    NEWSESSION {
+        EXPORT export OBJECTS o = o JSON;
+        
+        sign(exportFile());
+        
+        LOCAL result = FILE();
+        EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId() HEADERS suzSignedHeaders PARAMS exportFile() TO result;
+        
+        LOCAL orderId = STRING[100] ();
+        IMPORT JSON FROM result() TO() orderId;
+        id(o) <- orderId();
+        APPLY;
+    } 
+}
+
+EXTEND FORM lotOrders
+    PROPERTIES PANEL export(o) SHOWIF NOT id(o)
+;
+
+DESIGN lotOrders {
+    suz {
+        MOVE PROPERTY(export(o));
+    }
+}
+
+// status
+
+rejectionReason 'Причина отмены' = DATA STRING (LotOrder); 
+
+bufferStatus 'Статус' = DATA STRING (LotOrderDetail);
+availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
+
+checkStatus 'Проверить статус' (LotOrder o) {
+    NEWSESSION {
+        FOR lotOrder(LotOrderDetail d) = o DO {
+            LOCAL result = FILE();
+            EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId() + '&orderId=' + id(o) + '&gtin=' + gtin(d) HEADERS suzHeaders TO result;
+            
+            LOCAL bufferStatus = STRING ();
+            LOCAL rejectionReason = STRING ();
+            LOCAL availableCodes = INTEGER ();
+            IMPORT JSON FROM result() TO() bufferStatus, rejectionReason, availableCodes;
+            
+            IF bufferStatus() = 'REJECTED' THEN {
+                canceled(o) <- TRUE;
+                rejectionReason(o) <- rejectionReason();
+                APPLY;
+                RETURN;
+            }
+            
+            bufferStatus(d) <- bufferStatus();
+            availableCodes(d) <- availableCodes();
+        }
+        APPLY;
+    }
+}
+
+unavailable 'Не доступно марок' (LotOrder o) = GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) = availableCodes(d) MATERIALIZED;
+
+EXTEND FORM lotOrders
+    PROPERTIES(o) READONLY unavailable
+
+    PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND NOT canceled(o), 
+                     rejectionReason(o) READONLY SHOWIF canceled(o)
+
+    PROPERTIES(d) READONLY AFTER quantity(d) bufferStatus, availableCodes
+;
+
+DESIGN lotOrders {
+    suz {
+        MOVE PROPERTY(checkStatus(o));
+        MOVE PROPERTY(rejectionReason(o));
+    }
+}
+
+// get lots
+initialDemand 'Заказанное количество' = DATA NUMERIC[16,5] (LotOrderDetail);
+
+lastBlockId = DATA LOCAL STRING();
+idLot = DATA STRING[100] (INTEGER);
+
+FORM getLots
+    PROPERTIES lastBlockId = lastBlockId()
+    
+    OBJECTS codes = INTEGER
+    PROPERTIES(codes) value = idLot
+;
+
+getLots 'Получить марки' (LotOrder o) {
+    NEWSESSION {
+        FOR lotOrder(LotOrderDetail d) = o DO {
+        
+            initialDemand(d) <- quantity(d);
+            quantity(d) <- 0;
+            
+            lastBlockId() <- '0';
+           
+            WHILE initialDemand(d) > quantity(d) DO {
+            
+                LOCAL result = FILE();
+                EXTERNAL HTTP GET lotOrderUrl(o) + '/codes?omsId=' + omsId() + '&orderId=' + id(o) + '&gtin=' + gtin(d) +
+                                 '&quantity=' + INTEGER(initialDemand(d) - quantity(d)) + '&lastBlockId=' + lastBlockId() 
+                                 HEADERS suzHeaders TO result;
+                
+                IMPORT getLots JSON FROM result();
+                
+                FOR idLot(INTEGER i) INLINE DO NEW l = Lot {
+                    id(l) <- idLot(i);
+                    sku(l) <- sku(d);
+                    quantity(d, l) <- 1; 
+                }
+                
+                IF quantity(d) = (OVERRIDE quantityLot(d), 0) THEN BREAK;
+                quantity(d) <- quantityLot(d);
+            }
+        }
+        APPLY;
+    }
+    
+    NEWSESSION {
+        isPosted(o) <- TRUE;
+        APPLY;
+    }
+}
+
+EXTEND FORM lotOrders
+    PROPERTIES PANEL getLots(o) SHOWIF NOT unavailable(o) 
+;
+
+DESIGN lotOrders {
+    suz {
+        MOVE PROPERTY(getLots(o));
+    }
+}

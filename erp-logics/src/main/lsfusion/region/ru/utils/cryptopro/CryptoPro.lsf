@@ -1,0 +1,32 @@
+MODULE CryptoPro;
+
+REQUIRE Utils;
+
+signature = DATA LOCAL RAWFILE ();
+encodedSignature = replace(encode(signature(), 'base64'), '\n', '');
+
+sign INTERNAL 'lsfusion.erp.region.ru.utils.cryptopro.SignAction' (RAWFILE, BOOLEAN, STRING, STRING, STRING, STRING);
+
+keyAlias 'Имя ключа УКЭП' = DATA STRING();
+keyPassword 'Пароль ключа УКЭП' = DATA STRING() ECHO;
+
+sign (RAWFILE f) { 
+    sign(f, NULL, NULL, NULL, keyAlias(), keyPassword()); 
+}
+sign (FILE f) { 
+    sign(RAWFILE(f));
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() keyAlias, keyPassword
+;
+
+DESIGN integrationData {
+    pane {
+        NEW cryptopro {
+            caption = 'УКЭП';
+            MOVE PROPERTY(keyAlias());            
+            MOVE PROPERTY(keyPassword());            
+        }
+    }
+}

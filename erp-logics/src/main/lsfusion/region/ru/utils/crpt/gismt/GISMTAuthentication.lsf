@@ -1,0 +1,40 @@
+MODULE GISMTAuthentication;
+
+REQUIRE System, Utils,
+        CryptoPro;
+
+NAMESPACE GISMT;
+
+url 'Url к стенду ГИС МТ' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES() gismtUrl = url
+;
+
+DESIGN integrationData {
+    pane {
+        NEW GISMT {
+            caption = 'ГИС МТ';
+            MOVE PROPERTY(gismtUrl);
+        }
+    }
+}
+
+token = DATA LOCAL STRING ();
+getToken () {
+    LOCAL result = JSONFILE ();
+    EXTERNAL HTTP GET url() + '/auth/cert/key' TO result;
+    
+    LOCAL uuid = STRING();
+    LOCAL data = STRING();
+    IMPORT JSON FROM result() TO() uuid, data;
+    
+    stringToFile(data());
+    
+    sign(resultFile());
+
+    EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+    
+    EXTERNAL HTTP POST url() + '/auth/cert/' PARAMS exportFile() TO result;
+    IMPORT JSON FROM result() TO() token;
+}
