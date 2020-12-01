@@ -1,13 +1,11 @@
 package lsfusion.erp.region.by.finance.evat;
 
-import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
+import lsfusion.server.logics.action.controller.context.ExecutionContext;
+import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
-import java.sql.SQLException;
 import java.util.Iterator;
 
 public class GenerateAndSaveXMLEVATAction extends GenerateXMLEVATAction {

@@ -29,8 +29,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
-import static equ.srv.EquipmentServer.*;
-
 public class GenerateZReport extends DefaultIntegrationAction {
     private static final double deviationPercent = 0.25;
 
@@ -140,7 +138,7 @@ public class GenerateZReport extends DefaultIntegrationAction {
                         CashRegisterInfo cashRegister = cashRegisterInfoList.get(r.nextInt(cashRegisterInfoList.size()));
                         String numberZReport = null;
                         while (numberZReport == null || (numberZReportCashRegisterMap.containsKey(numberZReport) && numberZReportCashRegisterMap.containsValue(cashRegister.cashRegisterObject)))
-                            numberZReport = String.valueOf((cashRegister.maxNumberZReport == null ? 0 : cashRegister.maxNumberZReport) + (zReportCount < 1 ? 0 : r.nextInt(zReportCount)) + 1);
+                            numberZReport = String.valueOf((cashRegister.maxNumberZReport == null ? 0 : cashRegister.maxNumberZReport) + r.nextInt(zReportCount) + 1);
                         if (!numberZReportCashRegisterMap.containsKey(numberZReport))
                             numberZReportCashRegisterMap.put(numberZReport, cashRegister.cashRegisterObject);
                         Timestamp dateTime = dateFrom.getTime() <= dateTo.getTime() ? dateFrom : (new Timestamp(dateFrom.getTime() + Math.abs(r.nextLong() % (dateTo.getTime() - dateFrom.getTime()))));
