@@ -2,6 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
+import equ.srv.terminal.TerminalServer.*;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -46,7 +47,7 @@ public class TerminalEquipmentServer {
         terminalHandlerLM = BL.getModule("TerminalHandler");
     }
 
-    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, DataObject userObject) throws SQLException {
+    public static List<ServerTerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
         Map<String, ServerTerminalOrder> terminalOrderMap = new HashMap<>();
 
         if (terminalOrderLM != null) {
@@ -64,20 +65,20 @@ public class TerminalEquipmentServer {
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
-                        "minDeviationDate", "maxDeviationDate", "vop"};
+                        "minDeviationDate", "maxDeviationDate", "vop", "dateShipment"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "passScalesSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
-                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]");
+                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
 
                 orderQuery.and(terminalOrderLM.findProperty("filter[TerminalOrder, Stock]").getExpr(orderExpr, customerStockObject.getExpr()).getWhere());
-                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userObject.getExpr()).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("checkUser[TerminalOrder, Employee]").getExpr(orderExpr, userInfo.user.getExpr()).getWhere());
                 orderQuery.and((terminalOrderLM.findProperty("isOpened[TerminalOrder]")).getExpr(orderExpr).getWhere());
                 orderQuery.and(terminalOrderLM.findProperty("order[TerminalOrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
                 orderQuery.and(terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(orderExpr).getWhere());
@@ -86,6 +87,7 @@ public class TerminalEquipmentServer {
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
                     LocalDate dateOrder = (LocalDate) entry.get("dateOrder");
+                    LocalDate dateShipment = (LocalDate) entry.get("dateShipment");
                     String numberOrder = trim((String) entry.get("numberOrder"));
                     String idSupplier = trim((String) entry.get("idSupplierOrder"));
                     String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
@@ -115,7 +117,7 @@ public class TerminalEquipmentServer {
                     if (terminalOrder != null)
                         terminalOrder.quantity = safeAdd(terminalOrder.quantity, quantity);
                     else
-                        terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
+                        terminalOrderMap.put(key, new ServerTerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop));
                 }

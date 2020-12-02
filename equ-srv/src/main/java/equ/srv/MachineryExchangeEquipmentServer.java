@@ -413,7 +413,7 @@ public class MachineryExchangeEquipmentServer {
                     BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
                     BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
                     BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
-                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, null, name, price,
+                    terminalOrderList.add(new TerminalOrder(dateOrder, null, numberOrder, idSupplier, barcode, null, name, price,
                             quantity, minQuantity, maxQuantity, minPrice, maxPrice, null, null, null, null, null, null, null, null, null));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {

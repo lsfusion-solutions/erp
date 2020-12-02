@@ -63,6 +63,9 @@ public class TerminalServer extends MonitorServer {
 
     public static final byte GET_USER_INFO = 4;
 
+    public static String APPLICATION_TSD = "1";
+    public static String APPLICATION_ORDER = "2";
+
     @Override
     protected void onInit(LifecycleEvent event) {
         super.onInit(event);
@@ -309,8 +312,8 @@ public class TerminalServer extends MonitorServer {
         return terminalHandlerInterface.readItemHtml(createSession(), barcode, idStock);
     }
 
-    protected RawFileData readBase(DataObject userObject) throws SQLException {
-        return terminalHandlerInterface.readBase(createSession(), userObject);
+    protected RawFileData readBase(UserInfo userInfo) throws SQLException {
+        return terminalHandlerInterface.readBase(createSession(), userInfo);
     }
 
     protected String savePallet(DataObject user, String numberPallet, String nameBin) throws SQLException {
@@ -361,12 +364,14 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getUserInfo");
                             String[] params = readParams(inFromClient);
-                            if (params.length == 3) {
+                            if (params.length >= 3) {
                                 logger.info("logging user " + params[0]);
                                 if (terminalHandlerInterface.isActiveTerminal(createSession(), getStack(), params[2])) {
                                     Object loginResult = terminalHandlerInterface.login(createSession(), getStack(), params[0], params[1], params[2]);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2]);
+                                        if (params.length > 3)
+                                            userMap.get(result).idApplication = params[3];
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -526,14 +531,20 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info("requested getAllBase");
                             String[] params = readParams(inFromClient);
-                            if (params.length == 1) {
+                            if (params.length > 0) {
                                 sessionId = params[0];
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    fileData = readBase(userInfo.user);
+                                    boolean mobilePrint = false;
+                                    if (params.length > 1)
+                                        mobilePrint = true;
+
+                                    logger.info("GetAllBase mobilePrint: ");
+
+                                    fileData = readBase(userInfo);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
                                         errorText = GET_ALL_BASE_ERROR_TEXT;
@@ -787,9 +798,10 @@ public class TerminalServer extends MonitorServer {
         return errorText;
     }
 
-    private class UserInfo {
-        DataObject user;
+    public class UserInfo {
+        public DataObject user;
         String idTerminal;
+        public String idApplication = "1";
 
         public UserInfo(DataObject user, String idTerminal) {
             this.user = user;

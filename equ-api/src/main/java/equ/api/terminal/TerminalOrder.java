@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 public class TerminalOrder implements Serializable {
     public LocalDate date;
+    public LocalDate dateShipment;
     public String number;
     public String supplier;
     public String barcode;
@@ -27,11 +28,12 @@ public class TerminalOrder implements Serializable {
     public String posField2;
     public String posField3;
 
-    public TerminalOrder(LocalDate date, String number, String supplier, String barcode, String idItem, String name, BigDecimal price,
+    public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name, BigDecimal price,
                          BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity, BigDecimal minPrice,
                          BigDecimal maxPrice, String manufacturer, String weight, String color,
                          String headField1, String headField2, String headField3, String posField1, String posField2, String posField3) {
         this.date = date;
+        this.dateShipment = dateShipment;
         this.number = number;
         this.supplier = supplier;
         this.barcode = barcode;

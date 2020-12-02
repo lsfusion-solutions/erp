@@ -27,6 +27,7 @@ import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
+import equ.srv.terminal.TerminalServer.UserInfo;
 
 import java.awt.*;
 import java.io.File;
@@ -168,28 +169,29 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
-    public RawFileData readBase(DataSession session, DataObject userObject) throws SQLException {
+    public RawFileData readBase(DataSession session, UserInfo userInfo) throws SQLException {
         Connection connection = null;
         File file = null;
         File zipFile = null;
         try {
+
             BusinessLogics BL = getLogicsInstance().getBusinessLogics();
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if (terminalHandlerLM != null) {
 
-                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
+                ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userInfo.user);
                 ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<TerminalBarcode> barcodeList = readBarcodeList(session, stockObject);
 
-                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userObject);
+                List<ServerTerminalOrder> orderList = TerminalEquipmentServer.readTerminalOrderList(session, stockObject, userInfo);
                 Map<String, List<String>> extraBarcodeMap = readExtraBarcodeMap(session);
 
                 List<TerminalAssortment> assortmentList = TerminalEquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = TerminalEquipmentServer.readTerminalHandbookTypeList(session, BL);
-                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL, userObject);
-                List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL, userObject);
+                List<TerminalDocumentType> terminalDocumentTypeList = TerminalEquipmentServer.readTerminalDocumentTypeList(session, BL, userInfo.user);
+                List<TerminalLegalEntity> customANAList = TerminalEquipmentServer.readCustomANAList(session, BL, userInfo.user);
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
@@ -302,8 +304,11 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld5", terminalHandlerLM.findProperty("fld5[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.addProperty("needManufacturingDate", terminalHandlerLM.findProperty("needManufacturingDate[Barcode]").getExpr(barcodeExpr));
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(barcodeExpr));
+
                 if(stockObject instanceof DataObject && !allItems)
                     barcodeQuery.and(terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
                 if (currentQuantity)
@@ -343,10 +348,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     String extInfo = trim((String) entry.get("extInfo"));
                     String fld3 = trim((String) entry.get("fld3"));
                     String fld4 = trim((String) entry.get("fld4"));
+                    String fld5 = trim((String) entry.get("fld5"));
+                    String unit = trim((String) entry.get("unit"));
                     boolean needManufacturingDate = entry.get("needManufacturingDate") != null;
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
-                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, needManufacturingDate));
+                            nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, needManufacturingDate));
 
                 }
             }
@@ -388,6 +395,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE zayavki " +
                 "(dv     TEXT," +
+                " dateShipment   TEXT," +
                 " num   TEXT," +
                 " post  TEXT," +
                 " barcode   TEXT," +
@@ -418,31 +426,32 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (ServerTerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
                         String supplier = order.supplier == null ? "" : (prefix + formatValue(order.supplier));
                         statement.setObject(1, formatValue(order.date));
-                        statement.setObject(2, formatValue(order.number));
-                        statement.setObject(3,supplier);
-                        statement.setObject(4,formatValue(order.barcode));
-                        statement.setObject(5,formatValue(order.quantity));
-                        statement.setObject(6,formatValue(order.price));
-                        statement.setObject(7,formatValue(order.minQuantity));
-                        statement.setObject(8,formatValue(order.maxQuantity));
-                        statement.setObject(9,formatValue(order.minPrice));
-                        statement.setObject(10,formatValue(order.maxPrice));
-                        statement.setObject(11,formatValue(order.color));
-                        statement.setObject(12,formatValue(order.headField1));
-                        statement.setObject(13,formatValue(order.headField2));
-                        statement.setObject(14,formatValue(order.headField3));
-                        statement.setObject(15,formatValue(order.posField1));
-                        statement.setObject(16,formatValue(order.posField2));
-                        statement.setObject(17,formatValue(order.posField3));
-                        statement.setObject(18, formatValue(order.minDate1));
-                        statement.setObject(19, formatValue(order.maxDate1));
-                        statement.setObject(20, formatValue(order.vop));
+                        statement.setObject(2, formatValue(order.dateShipment));
+                        statement.setObject(3, formatValue(order.number));
+                        statement.setObject(4,supplier);
+                        statement.setObject(5,formatValue(order.barcode));
+                        statement.setObject(6,formatValue(order.quantity));
+                        statement.setObject(7,formatValue(order.price));
+                        statement.setObject(8,formatValue(order.minQuantity));
+                        statement.setObject(9,formatValue(order.maxQuantity));
+                        statement.setObject(10,formatValue(order.minPrice));
+                        statement.setObject(11,formatValue(order.maxPrice));
+                        statement.setObject(12,formatValue(order.color));
+                        statement.setObject(13,formatValue(order.headField1));
+                        statement.setObject(14,formatValue(order.headField2));
+                        statement.setObject(15,formatValue(order.headField3));
+                        statement.setObject(16,formatValue(order.posField1));
+                        statement.setObject(17,formatValue(order.posField2));
+                        statement.setObject(18,formatValue(order.posField3));
+                        statement.setObject(19, formatValue(order.minDate1));
+                        statement.setObject(20, formatValue(order.maxDate1));
+                        statement.setObject(21, formatValue(order.vop));
                         statement.addBatch();
                     }
                 }
@@ -473,6 +482,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 " main_barcode TEXT," +
                 " color TEXT," +
                 " ticket_data TEXT," +
+                " unit TEXT," +
                 " flags INTEGER)";
         statement.executeUpdate(sql);
         statement.close();
@@ -484,7 +494,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
                 for (TerminalBarcode barcode : barcodeList) {
@@ -497,11 +507,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(6, formatValue(barcode.nameManufacturer)); //manufacturer, fld2
                         statement.setObject(7, formatValue(barcode.fld3)); //fld3
                         statement.setObject(8, formatValue(barcode.fld4)); //fld4
-                        statement.setObject(9, formatValue(barcode.isWeight)); //weight
-                        statement.setObject(10, formatValue(barcode.mainBarcode)); //main_barcode
-                        statement.setObject(11, formatValue(barcode.color)); //color
-                        statement.setObject(12, formatValue(barcode.extInfo)); //ticket_data
-                        statement.setObject(13, barcode.needManufacturingDate ? 1 : 0); //flags
+                        statement.setObject(9, formatValue(barcode.fld5)); //fld5
+                        statement.setObject(10, formatValue(barcode.isWeight)); //weight
+                        statement.setObject(11, formatValue(barcode.mainBarcode)); //main_barcode
+                        statement.setObject(12, formatValue(barcode.color)); //color
+                        statement.setObject(13, formatValue(barcode.extInfo)); //ticket_data
+                        statement.setObject(14, formatValue(barcode.unit)); //unit
+                        statement.setObject(15, barcode.needManufacturingDate ? 1 : 0); //flags
                         statement.addBatch();
                         usedBarcodes.add(barcode.idBarcode);
                     }
@@ -947,11 +959,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         String extInfo;
         String fld3;
         String fld4;
+        String fld5;
+        String unit;
         boolean needManufacturingDate;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode, String color,
-                               String extInfo, String fld3, String fld4, boolean needManufacturingDate) {
+                               String extInfo, String fld3, String fld4, String fld5, String unit, boolean needManufacturingDate) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -964,6 +978,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             this.extInfo = extInfo;
             this.fld3 = fld3;
             this.fld4 = fld4;
+            this.fld5 = fld5;
+            this.unit = unit;
             this.needManufacturingDate = needManufacturingDate;
         }
     }

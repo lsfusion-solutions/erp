@@ -6,6 +6,7 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import equ.srv.terminal.TerminalServer.UserInfo;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -20,7 +21,7 @@ public interface TerminalHandlerInterface {
 
     String readItemHtml(DataSession session, String barcode, String idStock);
 
-    RawFileData readBase(DataSession session, DataObject userObject) throws SQLException;
+    RawFileData readBase(DataSession session, UserInfo userInfo) throws SQLException;
 
     String savePallet(DataSession session, ExecutionStack stack, DataObject user, String numberPallet, String nameBin);
 
