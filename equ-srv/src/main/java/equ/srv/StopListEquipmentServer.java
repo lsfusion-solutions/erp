@@ -219,7 +219,7 @@ public class StopListEquipmentServer {
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
                 "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail",
                 "barcodes"};
-        LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
+        LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "overIdSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
                 "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
                 "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]",
                 "barcodes[StopListDetail]");
