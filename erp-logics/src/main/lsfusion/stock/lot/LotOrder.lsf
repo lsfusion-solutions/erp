@@ -51,9 +51,6 @@ FORM lotOrder 'Заказ марок'
     FILTERS lotOrder(d) = o
     
     EDIT LotOrder OBJECT o
-
-    EVENTS
-        ON OK prePost(o)
 ;
 
 DESIGN lotOrder {
@@ -93,10 +90,6 @@ DESIGN lotOrder {
                 }
             }
         }
-    }
-    
-    PROPERTY(formOk()) {
-        caption = 'Провести';
     }
 }
 
@@ -153,3 +146,20 @@ NAVIGATOR {
         NEW lotOrders;
     }
 }
+
+// copy
+copy 'Копировать' (LotOrder o)  { 
+    NEWSESSION {
+        NEW no = LotOrder {
+            type(no) <- type(o);
+            stock(no) <- stock(o);
+            FOR lotOrder(LotOrderDetail d) = o INLINE NEW nd = LotOrderDetail DO {
+                lotOrder(nd) <- no;
+                sku(nd) <- sku(d);
+                quantity(nd) <- quantity(d);
+            }
+            SHOW lotOrder OBJECTS o = no DOCKED;
+        }
+    }
+}
+EXTEND FORM lotOrders PROPERTIES(o) TOOLBAR copy;

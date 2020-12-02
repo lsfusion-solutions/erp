@@ -42,7 +42,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
     NEWSESSION {
         EXPORT export OBJECTS o = o JSON;
         
-        sign(exportFile());
+        sign(exportFile(), TRUE);
         
         LOCAL result = FILE();
         EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId() HEADERS suzSignedHeaders PARAMS exportFile() TO result;
@@ -90,7 +90,8 @@ checkStatus 'Проверить статус' (LotOrder o) {
             }
             
             bufferStatus(d) <- bufferStatus();
-            availableCodes(d) <- availableCodes() IF availableCodes() > 0;
+            IF bufferStatus() = 'ACTIVE' THEN
+                availableCodes(d) <- availableCodes() IF availableCodes() > 0;
         }
         APPLY;
     }
@@ -101,7 +102,7 @@ unavailable 'Не доступно марок' (LotOrder o) = GROUP SUM 1 IF lot
 EXTEND FORM lotOrders
     PROPERTIES(o) READONLY unavailable
 
-    PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND NOT canceled(o), 
+    PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND NOT canceled(o) AND NOT isPosted(o), 
                      rejectionReason(o) READONLY SHOWIF canceled(o)
 
     PROPERTIES(d) READONLY AFTER quantity(d) bufferStatus, availableCodes
@@ -165,7 +166,7 @@ getLots 'Получить марки' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES PANEL getLots(o) SHOWIF NOT unavailable(o) 
+    PROPERTIES PANEL getLots(o) SHOWIF NOT unavailable(o) AND NOT isPosted(o) 
 ;
 
 DESIGN lotOrders {

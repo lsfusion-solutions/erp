@@ -8,6 +8,7 @@ NAMESPACE Lot;
 CLASS LotInit 'Ввод в оборот';
 CLASS LotInitDetail 'Строка ввода в оборот';
 
+id 'Код' = DATA STRING[100] (LotInit) CHARWIDTH 36;
 @defineDocument(lotInit);
 
 @defineDocumentHeaderNumber(LotInit, STRING[10]);
@@ -45,9 +46,6 @@ FORM lotInit 'Ввод в оборот'
     FILTERS lotInit(d) = i
     
     EDIT LotInit OBJECT i
-
-    EVENTS
-        ON OK prePost(i)
 ;
 
 DESIGN lotInit {
@@ -82,9 +80,6 @@ DESIGN lotInit {
             }
         }
     }
-    PROPERTY(formOk()) {
-        caption = 'Провести';
-    }
 }
 
 // Подбор
@@ -114,7 +109,7 @@ lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALI
 
 FORM lotInits 'Ввод в оборот'
     OBJECTS i = LotInit
-    PROPERTIES(i) READONLY isPosted, number, series, date, time, 
+    PROPERTIES(i) READONLY isPosted, id, number, series, date, time, 
                            nameType, nameStock, note, countLotInitDetail
     PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
 
@@ -130,6 +125,24 @@ NAVIGATOR {
         NEW lotInits;
     }
 }
+
+// copy
+copy 'Копировать' (LotInit i)  { 
+    NEWSESSION {
+        NEW ni = LotInit {
+            type(ni) <- type(i);
+            stock(ni) <- stock(i);
+            FOR lotInit(LotInitDetail d) = i INLINE NEW nd = LotInitDetail DO {
+                lotInit(nd) <- ni;
+                sku(nd) <- sku(d);
+                quantity(nd) <- quantity(d);
+                quantity(nd, Lot l) <- quantity(d, l);
+            }
+            SHOW lotInit OBJECTS i = ni DOCKED;
+        }
+    }
+}
+EXTEND FORM lotInits PROPERTIES(i) TOOLBAR copy;
 
 // проводим по регистру
 EXTEND CLASS LotInitDetail : LotLedger;

@@ -1,0 +1,44 @@
+MODULE GISMTDocument;
+
+REQUIRE GISMTAuthentication, LotType;
+
+NAMESPACE GISMT;
+
+CLASS ABSTRACT Document 'Документ ГИС МТ';
+
+id = ABSTRACT STRING[100] (Document);
+
+type = ABSTRACT LotType (Document);
+idType (Document d) = id(type(d));
+
+gismtType = ABSTRACT STRING (Document);
+
+docCreateUrl (Document o) = url() + '/lk/documents/create?pg=' + idType(o);
+
+docCreateHeaders (TEXT name) = CASE
+    WHEN name = 'Authorization' THEN 'Bearer ' + token();
+
+export ABSTRACT (Document);
+    
+create 'Отослать в ГИС МТ' (Document d) {
+    NEWSESSION {
+        export(d);
+        
+        sign(exportFile(), TRUE);
+        
+        LOCAL sendRequest = FILE();
+        EXPORT JSON FROM document_format = 'MANUAL', 
+                         product_document = replace(encode(RAWFILE(exportFile()), 'base64'), '\n', ''),
+                         type = gismtType(d),
+                         signature = encodedSignature()
+                    TO sendRequest;
+        
+        getToken();
+        
+        LOCAL id = STRING();
+        EXTERNAL HTTP POST docCreateUrl(d) HEADERS docCreateHeaders PARAMS sendRequest() TO id;
+        
+        id(d) <- STRING[100](id()); 
+        APPLY;
+    }
+}

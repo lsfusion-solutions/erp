@@ -1,0 +1,29 @@
+MODULE GISMTLotInit;
+
+REQUIRE GISMTDocument, LotInit;
+
+NAMESPACE GISMT;
+
+EXTEND CLASS LotInit : Document;
+
+id (LotInit i) += Lot.id(i);
+type (LotInit i) += Lot.type(i);
+gismtType (LotInit i) += 'LP_INTRODUCE_OST' IF i IS LotInit;
+
+FORM export
+    OBJECTS i = LotInit PANEL
+    
+    PROPERTIES trade_participant_inn = inn()
+    
+    OBJECTS products_list = (d = LotInitDetail, l = Lot)
+    PROPERTIES ki = code(l)
+    FILTERS lotInit(d) = i, quantity(d, l)
+;
+
+export (LotInit i) + {
+    EXPORT export OBJECTS i = i JSON;
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) create TOOLBAR SHOWIF NOT id(i)
+;
