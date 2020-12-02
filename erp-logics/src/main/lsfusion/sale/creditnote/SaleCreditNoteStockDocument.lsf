@@ -43,3 +43,20 @@ overFillCreditNote(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) +
 overFillCreditNoteDetail(Sale.UserCreditNoteDetail sd, Purchase.CreditNoteDetail pd) + {
     invoiceDetail(sd) <- invoiceDetail(invoiceDetail[Purchase.InvoiceCreditNoteDetail](pd));
 }
+
+// ------------------------------- Проведение по регистру остатков ------------------------ //
+EXTEND CLASS Sale.UserCreditNoteDetail : InLIFOSkuLedger;
+dateTime[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += dateTime(ledger);
+isPosted[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += isPosted(ledger);
+isClosed[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += isClosed(ledger);
+sku[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += sku(ledger);
+stock[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += supplierStock(ledger);
+description[DataSkuLedger] (Sale.UserCreditNoteDetail ledger) += description(userCreditNote(ledger));
+    
+quantity[InLIFOSkuLedger] (Sale.UserCreditNoteDetail ledger) += quantity(ledger);
+batch[SkuLedger](Sale.UserCreditNoteDetail ledger) += batch(ledger);
+changed(Sale.UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
+
+sum[InSkuLedger](Sale.UserCreditNoteDetail ledger) += retailSum(ledger);
+stockDocumentLedger[SkuLedger](Sale.UserCreditNoteDetail ledger) += userCreditNote(ledger);
+show[SkuLedger](Sale.UserCreditNoteDetail d) + {  show(d); }
