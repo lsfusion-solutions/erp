@@ -28,9 +28,9 @@ import java.util.*;
 public class CryptoPro {
 
     static {
-        Security.addProvider(new JCP()); // провайдер JCP
-        Security.addProvider(new RevCheck());
-        Security.addProvider(new CryptoProvider());// провайдер шифрования JCryptoP
+        Security.insertProviderAt(new JCP(), 0); // провайдер JCP
+        Security.insertProviderAt(new RevCheck(), 1);
+        Security.insertProviderAt(new CryptoProvider(), 2);// провайдер шифрования JCryptoP
 
         System.setProperty("com.sun.security.enableCRLDP", "true");
         System.setProperty("ocsp.enable", "true");
