@@ -157,15 +157,6 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         }
     }
 
-
-    private String parseGroup(String idItemGroup) {
-        try {
-            return idItemGroup == null || idItemGroup.equals("Все") ? "0" : idItemGroup;
-        } catch (Exception e) {
-            return "0";
-        }
-    }
-
     private void exportSignals(Connection conn, int version) throws SQLException {
         conn.setAutoCommit(true);
         try (Statement statement = conn.createStatement()) {
@@ -283,7 +274,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         }
     }
 
-    private int getVersion(Connection conn) throws SQLException {
+    private int getVersion(Connection conn) {
         int version;
         try (Statement statement = conn.createStatement()) {
             String query = "select max(version) from `signal`";

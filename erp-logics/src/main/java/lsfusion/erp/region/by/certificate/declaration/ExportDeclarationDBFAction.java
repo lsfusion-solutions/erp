@@ -638,7 +638,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         for (Map.Entry<Field, Object> entry : dbfFields.entrySet()) {
             dataFields.add(new OverJDBField(entry.getKey().getName(), entry.getKey().getType(), entry.getKey().getLength(), entry.getKey().getDecimalPositionCount()));
         }
-        return dataFields.toArray(new OverJDBField[dataFields.size()]);
+        return dataFields.toArray(new OverJDBField[0]);
     }
 
     private Map<String, Object> getNameValueFieldMap(Map<Field, Object> dbfFields) {
