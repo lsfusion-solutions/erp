@@ -45,6 +45,7 @@ fieldField1Alias 'Поле 1' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 
 fieldField2Alias 'Поле 2' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
 fieldField3Alias 'Поле 3' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 30;
 menuIk 'Проверка цен' = DATA BOOLEAN (TerminalPreferences);
+menuCheckOrderPicking 'Проверка комплектации заказа' = DATA BOOLEAN (TerminalPreferences);
 
 onlineEnable 'Включить On-line обмена с сервером' = DATA BOOLEAN (TerminalPreferences);
 onlineServer 'Имя/IP-адрес сервера' = DATA STRING[30] (TerminalPreferences) CHARWIDTH 15;
@@ -87,7 +88,7 @@ FORM terminalPreferences 'Конфигурация ТСД'
     PROPERTIES(t) fieldField1Alias
     PROPERTIES(t) fieldField2Alias
     PROPERTIES(t) fieldField3Alias
-    PROPERTIES(t) menuIk
+    PROPERTIES(t) menuIk, menuCheckOrderPicking
     
     PROPERTIES(t) mobCennikEnable, mobCennikVop
         
@@ -119,6 +120,7 @@ initDefaultValues (TerminalPreferences tp)  {
     postVan(tp) <- 'ПС'; 
     weightTemplate(tp) <- '20TTTTTWWWWW'; 
     menuIk(tp) <- TRUE;
+    //menuCheckOrderPicking(tp) <- FALSE;
     
     onlinePort(tp) <- 2004;
     
@@ -146,6 +148,7 @@ getTerminalPreferences(terminalID) {
         json() <- json() + '"AliasField2":"' + (OVERRIDE fieldField2Alias(t), '') + '",';
         json() <- json() + '"AliasField3":"' + (OVERRIDE fieldField3Alias(t), '') + '",';
         json() <- json() + '"ShowMenuIk":' + (IF menuIk(t) THEN 'true' ELSE 'false') + ',';
+        json() <- json() + '"ShowMenuCheckOrderPicking":' + (IF menuCheckOrderPicking(t) THEN 'true' ELSE 'false') + ',';
             
         json() <- json() + '"MobCennikEnable":' + (IF mobCennikEnable(t) THEN 'true' ELSE 'false') + ',';
         json() <- json() + '"MobCennikVop":"' + (OVERRIDE mobCennikVop(t), '') + '",';
@@ -231,6 +234,7 @@ DESIGN terminalPreferences {
                     fill = 1;
                     type = CONTAINERV;
                     MOVE PROPERTY(menuIk(t));
+                    MOVE PROPERTY(menuCheckOrderPicking(t));
                 }                                  
             }
             NEW cennik {
