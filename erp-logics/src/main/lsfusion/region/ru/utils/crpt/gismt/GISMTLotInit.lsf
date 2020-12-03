@@ -4,11 +4,21 @@ REQUIRE GISMTDocument, LotInit;
 
 NAMESPACE GISMT;
 
+DESIGN lotInits {
+    tabbedPane {
+        NEW gismt {
+            caption = 'ГИС МТ';
+        }
+    }
+}
+
 EXTEND CLASS LotInit : Document;
 
 id (LotInit i) += Lot.id(i);
+dateTime (LotInit i) += Lot.dateTime(i);
 type (LotInit i) += Lot.type(i);
 gismtType (LotInit i) += 'LP_INTRODUCE_OST' IF i IS LotInit;
+isPosted(LotInit i) += Lot.isPosted(i);
 
 FORM export
     OBJECTS i = LotInit PANEL
@@ -25,5 +35,13 @@ export (LotInit i) + {
 }
 
 EXTEND FORM lotInits
-    PROPERTIES(i) create TOOLBAR SHOWIF NOT id(i)
+    PROPERTIES(i) READONLY status, downloadDesc PANEL
+    PROPERTIES(i) create SHOWIF NOT id(i)
 ;
+
+DESIGN lotInits {
+    gismt {
+        MOVE PROPERTY(create(i));
+        MOVE PROPERTY(downloadDesc(i));
+    }
+}

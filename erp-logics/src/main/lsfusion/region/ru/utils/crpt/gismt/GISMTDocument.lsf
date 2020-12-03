@@ -1,12 +1,14 @@
 MODULE GISMTDocument;
 
-REQUIRE GISMTAuthentication, LotType;
+REQUIRE GISMTAuthentication, LotType, Time;
 
 NAMESPACE GISMT;
 
 CLASS ABSTRACT Document 'Документ ГИС МТ';
 
 id = ABSTRACT STRING[100] (Document);
+
+dateTime = ABSTRACT DATETIME (Document);
 
 type = ABSTRACT LotType (Document);
 idType (Document d) = id(type(d));
@@ -15,7 +17,7 @@ gismtType = ABSTRACT STRING (Document);
 
 docCreateUrl (Document o) = url() + '/lk/documents/create?pg=' + idType(o);
 
-docCreateHeaders (TEXT name) = CASE
+documentHeaders (TEXT name) = CASE
     WHEN name = 'Authorization' THEN 'Bearer ' + token();
 
 export ABSTRACT (Document);
@@ -36,9 +38,67 @@ create 'Отослать в ГИС МТ' (Document d) {
         getToken();
         
         LOCAL id = STRING();
-        EXTERNAL HTTP POST docCreateUrl(d) HEADERS docCreateHeaders PARAMS sendRequest() TO id;
+        EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
         
         id(d) <- STRING[100](id()); 
         APPLY;
+    }
+}
+
+// get status
+
+status 'Статус' = DATA STRING (Document);
+downloadDesc 'Описание' = DATA STRING (Document);
+
+number = DATA LOCAL STRING (INTEGER);
+status = DATA LOCAL STRING (INTEGER);
+downloadDesc = DATA LOCAL STRING (INTEGER);
+FORM getDocumentStatus
+    OBJECTS results = INTEGER
+    PROPERTIES(results) number = number, status = status, downloadDesc = downloadDesc 
+;
+
+getDocumentStatuses (DATETIME dFrom) {
+    NEWSESSION {
+        getToken();
+        
+        LOCAL result = JSONFILE();
+        EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
+        
+        IMPORT getDocumentStatus JSON FROM result();
+        FOR id(Document d) = number(INTEGER i) INLINE DO {
+            status(d) <- status(i);
+            downloadDesc(d) <- downloadDesc(i);
+        }
+        
+        APPLY;
+    }
+}
+
+isPosted = ABSTRACT BOOLEAN (Document);
+
+checkDocStatusInterval 'За сколько дней проверять статусы документов' = DATA INTEGER ();
+checkDocStatusDateTime () = subtractDay(currentDateTime(), OVERRIDE checkDocStatusInterval(), 1);
+getDocumentStatuses 'Импортировать статусы документов' () { 
+    getDocumentStatuses(checkDocStatusDateTime());
+}
+
+postDocuments () {
+    FOR dateTime(Document d) >= checkDocStatusDateTime() AND status(d) = 'CHECKED_OK' AND NOT isPosted(d) DO {
+        NEWSESSION {
+            isPosted(d) <- TRUE;
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES checkDocStatusInterval(), getDocumentStatuses();
+;
+
+DESIGN integrationData {
+    GISMT {
+        MOVE PROPERTY(checkDocStatusInterval());
+        MOVE PROPERTY(getDocumentStatuses());
     }
 }

@@ -4,6 +4,20 @@ REQUIRE SUZAuthentication, LotOrder;
 
 NAMESPACE SUZ;
 
+quantityLotLimit 'Лимит количества заказываемых марок по строке' = DATA INTEGER ();
+CONSTRAINT quantity(LotOrderDetail d) > quantityLotLimit()
+    MESSAGE 'Коливество заказываемых марок превышает лимит';
+    
+EXTEND FORM integrationData
+    PROPERTIES() quantityLotLimit
+;
+
+DESIGN integrationData {
+    SUZ {
+        MOVE PROPERTY(quantityLotLimit());
+    }
+}
+
 lotOrderUrl (LotOrder o) = url() + '/api/v2/' + idType(o);
 
 DESIGN lotOrders {
@@ -55,7 +69,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES PANEL export(o) SHOWIF NOT id(o)
+    PROPERTIES PANEL export(o) SHOWIF NOT id(o) AND NOT canceled(o) AND NOT isPosted(o)
 ;
 
 DESIGN lotOrders {
@@ -69,7 +83,9 @@ DESIGN lotOrders {
 rejectionReason 'Причина отмены' = DATA STRING (LotOrder); 
 
 bufferStatus 'Статус' = DATA STRING (LotOrderDetail);
+
 availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
+availableCodes 'Доступно марок' (LotOrder o) = GROUP SUM availableCodes(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED;
 
 checkStatus 'Проверить статус' (LotOrder o) {
     NEWSESSION {
@@ -97,10 +113,8 @@ checkStatus 'Проверить статус' (LotOrder o) {
     }
 }
 
-unavailable 'Не доступно марок' (LotOrder o) = GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) = availableCodes(d) MATERIALIZED;
-
 EXTEND FORM lotOrders
-    PROPERTIES(o) READONLY unavailable
+    PROPERTIES(o) READONLY availableCodes BACKGROUND RGB(224,255,224) IF quantityLotOrderDetail(o) = availableCodes(o)
 
     PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND NOT canceled(o) AND NOT isPosted(o), 
                      rejectionReason(o) READONLY SHOWIF canceled(o)
@@ -166,7 +180,7 @@ getLots 'Получить марки' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES PANEL getLots(o) SHOWIF NOT unavailable(o) AND NOT isPosted(o) 
+    PROPERTIES PANEL getLots(o) SHOWIF quantityLotOrderDetail(o) = availableCodes(o) AND NOT isPosted(o) 
 ;
 
 DESIGN lotOrders {
