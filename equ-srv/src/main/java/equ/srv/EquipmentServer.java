@@ -1731,20 +1731,20 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 BigDecimal sum = safeMultiply(quantity, price);
                 currentSum = safeAdd(currentSum, sum);
 
-                logger.info(String.format("BarcodePart: id %s, quantity %s, price %s, sum %s", id, quantity, price, sum));
+                logger.info(String.format("BarcodePart: npp %s, id %s, quantity %s, price %s, sum %s", sale.nppGroupMachinery, id, quantity, price, sum));
                 result.add(new BarcodePart(i++, id, quantity, price, sum));
             }
 
             //если сумма не совпала, докидываем разницу на первую часть
             BigDecimal diff = safeSubtract(safeAdd(sale.sumReceiptDetail, sale.discountSumReceiptDetail), currentSum);
-            if(!result.isEmpty() && diff != null && diff.compareTo(BigDecimal.ZERO) > 0) {
+            if(!result.isEmpty() && diff != null && diff.compareTo(BigDecimal.ZERO) != 0) {
                 result.get(0).sum = safeAdd(result.get(0).sum, diff);
             }
 
             //распределяем сумму скидки по частям
             BigDecimal currentDiscountSum = BigDecimal.ZERO;
             for(BarcodePart barcodePart : result) {
-                BigDecimal discountSum = safeDivide(safeMultiply(sale.discountSumReceiptDetail, barcodePart.sum), sale.sumReceiptDetail, 2);
+                BigDecimal discountSum = safeDivide(safeMultiply(sale.discountSumReceiptDetail, barcodePart.sum), safeAdd(sale.sumReceiptDetail, sale.discountSumReceiptDetail), 2);
                 currentDiscountSum = safeAdd(currentDiscountSum, discountSum);
                 barcodePart.discountSum = discountSum;
                 barcodePart.sum = safeSubtract(barcodePart.sum, barcodePart.discountSum);
@@ -1752,7 +1752,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             //если сумма скидки не совпала, докидываем разницу на первую часть
             BigDecimal discountDiff = safeSubtract(sale.discountSumReceiptDetail, currentDiscountSum);
-            if(!result.isEmpty() && discountDiff != null && discountDiff.compareTo(BigDecimal.ZERO) > 0) {
+            if(!result.isEmpty() && discountDiff != null && discountDiff.compareTo(BigDecimal.ZERO) != 0) {
                 result.get(0).discountSum = safeAdd(result.get(0).discountSum, discountDiff);
                 result.get(0).sum = safeSubtract(result.get(0).sum, result.get(0).discountSum);
             }
