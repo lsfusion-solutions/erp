@@ -41,9 +41,11 @@ overChangeBarcodeSale(STRING[100] b, Receipt r) + {
             }
         } 
     } ELSE {
-        IF explicitLot(skuBarcode(b, currentDate())) THEN {
-            MESSAGE 'Товар подлежит обязательной маркировке. Просканируйте контрольную марку вместо штрих-кода'; 
-            consumedChangeBarcodeSaleReceipt() <- TRUE;
+        FOR Sku sk = skuBarcode(b, currentDate()) AND DepartmentStore dt = departmentStore(r) DO {
+            IF explicitLot(sk) OR (prevCurrentBalance(sk, dt) = prevCurrentBalanceLot(sk, dt)) THEN {
+                MESSAGE 'Товар подлежит обязательной маркировке. Просканируйте контрольную марку вместо штрих-кода'; 
+                consumedChangeBarcodeSaleReceipt() <- TRUE;
+            }
         }
     }
 }
