@@ -8,6 +8,11 @@ countNotInitialized (LotOrder o) = GROUP SUM 1 IF quantity(LotOrderDetail d, Lot
 
 lotOrderDetail = DATA LotOrderDetail (LotInitDetail) INDEXED;
 
+initializedLot 'Введено в оборот' (LotOrderDetail od) = GROUP SUM quantity(LotInitDetail id) IF lotOrderDetail(id) = od AND NOT canceled(lotInit(id)) MATERIALIZED;
+initializedLot 'Введено в оборот' (LotOrder o) = GROUP SUM initializedLot(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED; 
+
+toInitialize (LotOrder o) = isPosted(o) AND quantityLot(o) AND NOT initializedLot(o) = quantityLot(o);
+
 fill (LotInit i, LotOrder o) {
     FOR lotOrder(LotOrderDetail od) = o NEW id = LotInitDetail DO {
         lotInit(id) <- i;
@@ -20,7 +25,7 @@ fill (LotInit i, LotOrder o) {
 }
 
 fillFromOrder 'Заполнить из заказа' (LotInit i) {
-    DIALOG lotOrders OBJECTS o INPUT FILTERS countNotInitialized(o) AND isPosted(o), type(o) = type(i), (stock(o) = stock(i) OR NOT stock(i)) DO {
+    DIALOG lotOrders OBJECTS o INPUT FILTERS isPosted(o) AND toInitialize(o), type(o) = type(i), (stock(o) = stock(i) OR NOT stock(i)) DO {
         fill(i, o);
     }
 }
@@ -41,5 +46,13 @@ newLotInit 'Ввести в оборот' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES(o) newLotInit TOOLBAR SHOWIF countNotInitialized(o) AND isPosted(o)
+    PROPERTIES(o) READONLY initializedLot BACKGROUND RGB(224,255,224) IF toInitialize(o)
+
+    PROPERTIES(o) newLotInit TOOLBAR SHOWIF toInitialize(o)
+
+    PROPERTIES(d) READONLY initializedLot
 ;
+
+copy (LotInitDetail nd, LotInitDetail d) + {
+    lotOrderDetail(nd) <- lotOrderDetail(d);
+}

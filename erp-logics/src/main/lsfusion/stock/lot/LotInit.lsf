@@ -24,6 +24,7 @@ CONSTRAINT stock(LotInit i) AND NOT isCompany(stock(i))
 @defineDocumentDialogStocks(lotInit, stock, company, , );
 
 @defineDocumentPosted(lotInit);
+canceled 'Отменен' = DATA BOOLEAN (LotInit); 
 
 type 'Тип' = DATA LotType (LotInit) NONULL;
 nameType 'Тип' (LotInit i) = name(type(i));
@@ -38,7 +39,7 @@ idType 'Код типа' (LotInit i) = id(type(i));
 
 FORM lotInit 'Ввод в оборот'
     OBJECTS i = LotInit PANEL
-    PROPERTIES(i) isPosted, nameNumerator, number, series, date, time, 
+    PROPERTIES(i) isPosted, canceled, nameNumerator, number, series, date, time, 
                   nameType, nameStock ON CHANGE changeStockCompany(i), note
     
     OBJECTS d = LotInitDetail
@@ -60,6 +61,7 @@ DESIGN lotInit {
                         type = CONTAINERH;
                         alignment = STRETCH;
                         MOVE PROPERTY(isPosted(i));
+                        MOVE PROPERTY(canceled(i));
                         MOVE PROPERTY(nameNumerator(i));
                         MOVE PROPERTY(number(i));
                         MOVE PROPERTY(series(i));
@@ -102,14 +104,11 @@ EXTEND FORM lotInit
     PROPERTIES(i) DRAW d addDetailInputBarcodeLotInitDetail
 ;
 
-useLot (LotInit i) = i IS LotInit;
-@defineDocumentLotIn(lotInit, quantity, i);
-
 lotInit (Lot l) = GROUP MAX lotInit(LotInitDetail d) IF quantity(d, l) MATERIALIZED INDEXED;
 
 FORM lotInits 'Ввод в оборот'
     OBJECTS i = LotInit
-    PROPERTIES(i) READONLY isPosted, id, number, series, date, time, 
+    PROPERTIES(i) READONLY isPosted, canceled, id, number, series, date, time, 
                            nameType, nameStock, note, countLotInitDetail
     PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
 
@@ -130,6 +129,9 @@ DESIGN lotInits {
 
 @extendFormFilterAccessStock(LotInit, i, lotInits, stock, company);
 
+useLot (LotInit i) = i IS LotInit;
+@defineDocumentLotIn(lotInit, quantity, i, lotInits);
+
 NAVIGATOR {
     lotNavigator {
         NEW lotInits;
@@ -137,17 +139,27 @@ NAVIGATOR {
 }
 
 // copy
+copy ABSTRACT LIST (LotInitDetail, LotInitDetail);
+copy (LotInitDetail nd, LotInitDetail d) + {
+    sku(nd) <- sku(d);
+    quantity(nd) <- quantity(d);
+    quantity(nd, Lot l) <- quantity(d, l);
+}
+
+copy ABSTRACT LIST (LotInit, LotInit);
+copy (LotInit ni, LotInit i) + {
+    type(ni) <- type(i);
+    stock(ni) <- stock(i);
+    FOR lotInit(LotInitDetail d) = i INLINE NEW nd = LotInitDetail DO {
+        lotInit(nd) <- ni;
+        copy(nd, d);
+    }
+}
+
 copy 'Копировать' (LotInit i)  { 
     NEWSESSION {
         NEW ni = LotInit {
-            type(ni) <- type(i);
-            stock(ni) <- stock(i);
-            FOR lotInit(LotInitDetail d) = i INLINE NEW nd = LotInitDetail DO {
-                lotInit(nd) <- ni;
-                sku(nd) <- sku(d);
-                quantity(nd) <- quantity(d);
-                quantity(nd, Lot l) <- quantity(d, l);
-            }
+            copy(ni, i);
             SHOW lotInit OBJECTS i = ni DOCKED;
         }
     }

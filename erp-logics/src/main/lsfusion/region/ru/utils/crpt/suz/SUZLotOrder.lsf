@@ -69,7 +69,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES PANEL export(o) SHOWIF NOT id(o) AND NOT canceled(o) AND NOT isPosted(o)
+    PROPERTIES PANEL export(o) SHOWIF NOT id(o) AND pending(o)
 ;
 
 DESIGN lotOrders {
@@ -114,9 +114,9 @@ checkStatus 'Проверить статус' (LotOrder o) {
 }
 
 EXTEND FORM lotOrders
-    PROPERTIES(o) READONLY availableCodes BACKGROUND RGB(224,255,224) IF quantityLotOrderDetail(o) = availableCodes(o)
+    PROPERTIES(o) READONLY availableCodes AFTER quantityLotOrderDetail(o) BACKGROUND RGB(224,255,224) IF quantityLotOrderDetail(o) = availableCodes(o) AND pending(o)
 
-    PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND NOT canceled(o) AND NOT isPosted(o), 
+    PROPERTIES PANEL checkStatus(o) SHOWIF id(o) AND pending(o), 
                      rejectionReason(o) READONLY SHOWIF canceled(o)
 
     PROPERTIES(d) READONLY AFTER quantity(d) bufferStatus, availableCodes
@@ -133,7 +133,7 @@ DESIGN lotOrders {
 initialDemand 'Заказанное количество' = DATA NUMERIC[16,5] (LotOrderDetail);
 
 lastBlockId = DATA LOCAL STRING();
-idLot = DATA STRING[100] (INTEGER);
+idLot = DATA LOCAL STRING[100] (INTEGER);
 
 FORM getLots
     PROPERTIES lastBlockId = lastBlockId()

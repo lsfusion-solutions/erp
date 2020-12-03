@@ -1,0 +1,62 @@
+MODULE GISMTWriteOff;
+
+REQUIRE GISMTDocument, WriteOffLot;
+
+NAMESPACE GISMT;
+
+DESIGN writeOffs {
+    documentDetail {
+        NEW gismt {
+            caption = 'ГИС МТ';
+        }
+    }
+}
+
+EXTEND CLASS UserWriteOff : Document;
+
+id (UserWriteOff i) += WriteOff.id(i);
+dateTime (UserWriteOff i) += WriteOff.dateTime(i);
+gismtType (UserWriteOff i) += 'LK_RECEIPT' IF i IS UserWriteOff;
+
+isPostedMT 'Проведена ГИС МТ' = DATA BOOLEAN (UserWriteOff);
+isPosted(UserWriteOff i) += isPostedMT(i);
+
+lotType = DATA LotType (UserWriteOff);
+nameLotType 'Тип марок' (UserWriteOff w) = name(lotType(w)) IN documentPrm;
+EXTEND FORM userWriteOff
+    PROPERTIES(w) nameLotType SHOWIF useLot(operation(w))
+;
+
+type (UserWriteOff i) += lotType(i);
+
+canceledMT 'Отменена ГИС МТ' = DATA BOOLEAN (UserWriteOff);
+canceled(UserWriteOff i) += canceledMT(i);
+
+FORM exportWriteOff
+    OBJECTS i = UserWriteOff PANEL
+    
+    PROPERTIES action = 'DAMAGE_LOSS', action_date = toDateISO(date(i)), 
+               document_date = toDateISO(date(i)), document_number = seriesNumber(i),
+               document_type = 'DESTRUCTION_ACT', inn = inn()
+    
+    OBJECTS products = (d = UserWriteOffDetail, l = Lot)
+    PROPERTIES cis = code(l)
+    FILTERS userWriteOff(d) = i, quantity(d, l)
+;
+
+export (UserWriteOff i) + {
+    EXPORT exportWriteOff OBJECTS i = i JSON;
+}
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) READONLY WriteOff.id GRID, status GRID, downloadDesc PANEL
+    PROPERTIES(w) create SHOWIF NOT id(w) OR canceledMT(w)
+;
+
+DESIGN writeOffs {
+    gismt {
+        showIf = useLot(operation(w));
+        MOVE PROPERTY(create(w));
+        MOVE PROPERTY(downloadDesc(w));
+    }
+}

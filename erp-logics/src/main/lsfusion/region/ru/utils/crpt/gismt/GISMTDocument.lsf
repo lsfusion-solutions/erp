@@ -6,6 +6,9 @@ NAMESPACE GISMT;
 
 CLASS ABSTRACT Document 'Документ ГИС МТ';
 
+isPosted = ABSTRACT BOOLEAN (Document);
+canceled = ABSTRACT BOOLEAN (Document);
+
 id = ABSTRACT STRING[100] (Document);
 
 dateTime = ABSTRACT DATETIME (Document);
@@ -19,6 +22,9 @@ docCreateUrl (Document o) = url() + '/lk/documents/create?pg=' + idType(o);
 
 documentHeaders (TEXT name) = CASE
     WHEN name = 'Authorization' THEN 'Bearer ' + token();
+
+status 'Статус ГИС МТ' = DATA STRING (Document);
+downloadDesc 'Описание ГИС МТ' = DATA STRING (Document);
 
 export ABSTRACT (Document);
     
@@ -40,15 +46,14 @@ create 'Отослать в ГИС МТ' (Document d) {
         LOCAL id = STRING();
         EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
         
-        id(d) <- STRING[100](id()); 
+        status(d) <- NULL;
+        canceled(d) <- NULL;
+        id(d) <- STRING[100](id());
         APPLY;
     }
 }
 
 // get status
-
-status 'Статус' = DATA STRING (Document);
-downloadDesc 'Описание' = DATA STRING (Document);
 
 number = DATA LOCAL STRING (INTEGER);
 status = DATA LOCAL STRING (INTEGER);
@@ -75,30 +80,35 @@ getDocumentStatuses (DATETIME dFrom) {
     }
 }
 
-isPosted = ABSTRACT BOOLEAN (Document);
-
 checkDocStatusInterval 'За сколько дней проверять статусы документов' = DATA INTEGER ();
 checkDocStatusDateTime () = subtractDay(currentDateTime(), OVERRIDE checkDocStatusInterval(), 1);
 getDocumentStatuses 'Импортировать статусы документов' () { 
     getDocumentStatuses(checkDocStatusDateTime());
 }
 
-postDocuments () {
+postDocuments 'Изменить статусы документов' () {
     FOR dateTime(Document d) >= checkDocStatusDateTime() AND status(d) = 'CHECKED_OK' AND NOT isPosted(d) DO {
         NEWSESSION {
             isPosted(d) <- TRUE;
             APPLY;
         }
     }
+    FOR dateTime(Document d) >= checkDocStatusDateTime() AND status(d) = 'CHECKED_NOT_OK' AND NOT canceled(d) DO {
+        NEWSESSION {
+            canceled(d) <- TRUE;
+            APPLY;
+        }
+    }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES checkDocStatusInterval(), getDocumentStatuses();
+    PROPERTIES checkDocStatusInterval(), getDocumentStatuses(), postDocuments();
 ;
 
 DESIGN integrationData {
     GISMT {
         MOVE PROPERTY(checkDocStatusInterval());
         MOVE PROPERTY(getDocumentStatuses());
+        MOVE PROPERTY(postDocuments());
     }
 }

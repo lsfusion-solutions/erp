@@ -130,7 +130,7 @@ META defineDocumentLotBarcodeIn (doc, quantityProp)
     }
 END
 
-META defineDocumentLotIn(doc, quantityProp, obj)
+META defineDocumentLotIn(doc, quantityProp, obj, formList)
     @defineDocumentLot(doc, quantityProp);
 
     changeQuantityLot (###doc##Detail d) {
@@ -140,6 +140,15 @@ META defineDocumentLotIn(doc, quantityProp, obj)
     
     EXTEND FORM doc
         PROPERTIES(d) quantityLot AFTER quantityProp(d) ON CHANGE changeQuantityLot(d) 
+                      BACKGROUND backgroundQuantityLot(d) 
+                      SHOWIF useLot(obj)
+                      READONLYIF NOT lotType(sku(d))
+    ;
+
+    EXTEND FORM formList
+        PROPERTIES(obj) READONLY quantityLot
+
+        PROPERTIES(d) READONLY quantityLot AFTER quantityProp(d) 
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(obj)
                       READONLYIF NOT lotType(sku(d))

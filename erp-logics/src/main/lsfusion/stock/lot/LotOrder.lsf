@@ -25,7 +25,9 @@ CONSTRAINT stock(LotOrder o) AND NOT isCompany(stock(o))
 @defineDocumentDialogStocks(lotOrder, stock, company, , );
 
 @defineDocumentPosted(lotOrder);
-canceled 'Отменен' = DATA BOOLEAN (LotOrder); 
+canceled 'Отменен' = DATA BOOLEAN (LotOrder);
+
+pending 'В ожидании' (LotOrder o) = o IS LotOrder AND NOT isPosted(o) AND NOT canceled(o);   
 
 type 'Тип' = DATA LotType (LotOrder) NONULL;
 nameType 'Тип' (LotOrder o) = name(type(o));
@@ -113,15 +115,10 @@ EXTEND FORM lotOrder
     PROPERTIES(o) DRAW d addDetailInputBarcodeLotOrderDetail
 ;
 
-useLot (LotOrder o) = o IS LotOrder;
-@defineDocumentLotIn(lotOrder, quantity, o);
-
-lotOrder (Lot l) = GROUP MAX lotOrder(LotOrderDetail d) IF quantity(d, l) MATERIALIZED INDEXED; 
-
 FORM lotOrders 'Заказы марок'
     OBJECTS o = LotOrder
     PROPERTIES(o) READONLY isPosted, canceled, id, number, series, date, time, 
-                           nameType, nameStock, note, countLotOrderDetail, quantityLotOrderDetail, quantityLot
+                           nameType, nameStock, note, countLotOrderDetail, quantityLotOrderDetail
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE SHOWIF NOT isPosted(o)
 
     OBJECTS d = LotOrderDetail
@@ -138,6 +135,11 @@ DESIGN lotOrders {
         }
     }
 }
+
+useLot (LotOrder o) = o IS LotOrder;
+@defineDocumentLotIn(lotOrder, quantity, o, lotOrders);
+
+lotOrder (Lot l) = GROUP MAX lotOrder(LotOrderDetail d) IF quantity(d, l) MATERIALIZED INDEXED; 
 
 @extendFormFilterAccessStock(LotOrder, o, lotOrders, stock, company);
 
