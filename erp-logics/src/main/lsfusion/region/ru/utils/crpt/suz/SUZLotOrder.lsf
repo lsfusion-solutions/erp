@@ -1,6 +1,6 @@
 MODULE SUZLotOrder;
 
-REQUIRE SUZAuthentication, LotOrder;
+REQUIRE SUZLegalEntity, LotOrder, CryptoProLegalEntity;
 
 NAMESPACE SUZ;
 
@@ -42,9 +42,10 @@ FORM export
     FILTERS lotOrder(products) = o
 ;
 
+suzToken = DATA LOCAL STRING ();
 suzHeaders (TEXT name) = CASE
     WHEN name = 'Host' THEN '' // СУЗ требует этот заголовок, но не проверяет содержимое
-    WHEN name = 'clientToken' THEN token();
+    WHEN name = 'clientToken' THEN suzToken();
 
 suzSignedHeaders (TEXT name) = CASE
     WHEN name = 'X-Signature' AND signature() THEN encodedSignature()
@@ -56,10 +57,11 @@ export 'Отослать в СУЗ' (LotOrder o) {
     NEWSESSION {
         EXPORT export OBJECTS o = o JSON;
         
-        sign(exportFile(), TRUE);
+        sign(exportFile(), TRUE, legalEntityStock(o));
         
         LOCAL result = FILE();
-        EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId() HEADERS suzSignedHeaders PARAMS exportFile() TO result;
+        suzToken() <- token(legalEntityStock(o));
+        EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId(legalEntityStock(o)) HEADERS suzSignedHeaders PARAMS exportFile() TO result;
         
         LOCAL orderId = STRING[100] ();
         IMPORT JSON FROM result() TO() orderId;
@@ -91,7 +93,8 @@ checkStatus 'Проверить статус' (LotOrder o) {
     NEWSESSION {
         FOR lotOrder(LotOrderDetail d) = o DO {
             LOCAL result = FILE();
-            EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId() + '&orderId=' + id(o) + '&gtin=' + gtin(d) HEADERS suzHeaders TO result;
+            suzToken() <- token(legalEntityStock(d));
+            EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId(legalEntityStock(d)) + '&orderId=' + id(o) + '&gtin=' + gtin(d) HEADERS suzHeaders TO result;
             
             LOCAL bufferStatus = STRING ();
             LOCAL rejectionReason = STRING ();
@@ -108,6 +111,7 @@ checkStatus 'Проверить статус' (LotOrder o) {
             bufferStatus(d) <- bufferStatus();
             IF bufferStatus() = 'ACTIVE' THEN
                 availableCodes(d) <- availableCodes() IF availableCodes() > 0;
+            MESSAGE CONCAT ' ', 'Товар', idBarcodeSku(d), ', статус :', bufferStatus();
         }
         APPLY;
     }
@@ -154,7 +158,8 @@ getLots 'Получить марки' (LotOrder o) {
             WHILE initialDemand(d) > quantity(d) DO {
             
                 LOCAL result = FILE();
-                EXTERNAL HTTP GET lotOrderUrl(o) + '/codes?omsId=' + omsId() + '&orderId=' + id(o) + '&gtin=' + gtin(d) +
+                suzToken() <- token(legalEntityStock(d));
+                EXTERNAL HTTP GET lotOrderUrl(o) + '/codes?omsId=' + omsId(legalEntityStock(o)) + '&orderId=' + id(o) + '&gtin=' + gtin(d) +
                                  '&quantity=' + INTEGER(initialDemand(d) - quantity(d)) + '&lastBlockId=' + lastBlockId() 
                                  HEADERS suzHeaders TO result;
                 

@@ -1,0 +1,24 @@
+MODULE SUZLegalEntity;
+
+REQUIRE SUZAuthentication, LegalEntity;
+
+NAMESPACE SUZ;
+
+dataOmsId 'OMS ID' = DATA STRING (LegalEntity);
+dataToken 'Токен' = DATA STRING(LegalEntity);
+
+EXTEND FORM integrationData
+    OBJECTS scp = LegalEntity
+    PROPERTIES(scp) READONLY id, name
+    PROPERTIES(scp) dataOmsId, dataToken
+    FILTERS isCompany(scp)
+;
+
+DESIGN integrationData {
+    SUZ {
+        MOVE BOX(scp);
+    }
+}
+
+omsId(LegalEntity l) = OVERRIDE dataOmsId(l), (omsId() IF l IS LegalEntity);
+token(LegalEntity l) = OVERRIDE dataToken(l), (token() IF l IS LegalEntity);

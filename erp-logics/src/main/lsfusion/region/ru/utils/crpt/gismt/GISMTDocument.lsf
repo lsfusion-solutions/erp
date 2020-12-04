@@ -1,6 +1,6 @@
 MODULE GISMTDocument;
 
-REQUIRE GISMTAuthentication, LotType, Time;
+REQUIRE GISMTLegalEntity, LotType, Time, CryptoProLegalEntity;
 
 NAMESPACE GISMT;
 
@@ -12,6 +12,8 @@ canceled = ABSTRACT BOOLEAN (Document);
 id = ABSTRACT STRING[100] (Document);
 
 dateTime = ABSTRACT DATETIME (Document);
+
+legalEntity = ABSTRACT LegalEntity (Document);
 
 type = ABSTRACT LotType (Document);
 idType (Document d) = id(type(d));
@@ -32,7 +34,7 @@ create 'Отослать в ГИС МТ' (Document d) {
     NEWSESSION {
         export(d);
         
-        sign(exportFile(), TRUE);
+        sign(exportFile(), TRUE, legalEntity(d));
         
         LOCAL sendRequest = FILE();
         EXPORT JSON FROM document_format = 'MANUAL', 
@@ -41,8 +43,8 @@ create 'Отослать в ГИС МТ' (Document d) {
                          signature = encodedSignature()
                     TO sendRequest;
         
-        getToken();
-        
+        getToken(legalEntity(d));
+
         LOCAL id = STRING();
         EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
         
@@ -64,19 +66,21 @@ FORM getDocumentStatus
 ;
 
 getDocumentStatuses (DATETIME dFrom) {
-    NEWSESSION {
-        getToken();
-        
-        LOCAL result = JSONFILE();
-        EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
-        
-        IMPORT getDocumentStatus JSON FROM result();
-        FOR id(Document d) = number(INTEGER i) INLINE DO {
-            status(d) <- status(i);
-            downloadDesc(d) <- downloadDesc(i);
+    FOR keyAlias(LegalEntity l) DO {
+        NEWSESSION {
+            getToken(l);
+            
+            LOCAL result = JSONFILE();
+            EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
+            
+            IMPORT getDocumentStatus JSON FROM result();
+            FOR id(Document d) = number(INTEGER i) INLINE DO {
+                status(d) <- status(i);
+                downloadDesc(d) <- downloadDesc(i);
+            }
+            
+            APPLY;
         }
-        
-        APPLY;
     }
 }
 

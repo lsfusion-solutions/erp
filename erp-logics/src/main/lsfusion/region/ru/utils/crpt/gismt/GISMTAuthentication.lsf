@@ -6,10 +6,9 @@ REQUIRE System, Utils, Time,
 NAMESPACE GISMT;
 
 url 'Url к стенду ГИС МТ' = DATA STRING ();
-inn 'ИНН участника' = DATA STRING ();
 
 EXTEND FORM integrationData
-    PROPERTIES() gismtUrl = url, gismtInn = inn
+    PROPERTIES() gismtUrl = url
 ;
 
 DESIGN integrationData {
@@ -17,36 +16,46 @@ DESIGN integrationData {
         NEW GISMT {
             caption = 'ГИС МТ';
             MOVE PROPERTY(gismtUrl);
-            MOVE PROPERTY(gismtInn);
         }
     }
 }
 
-token = DATA STRING ();
-tokenDateTime = DATA DATETIME();
+token = DATA LOCAL STRING();
+token = DATA STRING (STRING);
+tokenDateTime = DATA DATETIME(STRING);
 
-getToken () {
-    IF tokenDateTime() > sumMinutes(currentDateTime(), 480) THEN RETURN; 
+getToken (STRING keyAlias, STRING keyPassword) {
+    IF NOT tokenDateTime(keyAlias) > sumMinutes(currentDateTime(), -480) THEN { 
+        NEWSESSION {
+        
+            LOCAL result = JSONFILE ();
+            EXTERNAL HTTP GET url() + '/auth/cert/key' TO result;
+            
+            LOCAL uuid = STRING();
+            LOCAL data = STRING();
+            IMPORT JSON FROM result() TO() uuid, data;
+            
+            stringToFile(data());
+            
+            sign(RAWFILE(resultFile()), NULL, keyAlias, keyPassword);
+        
+            EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+            
+            EXTERNAL HTTP POST url() + '/auth/cert/' PARAMS exportFile() TO result;
     
-    NEWSESSION {
-    
-        LOCAL result = JSONFILE ();
-        EXTERNAL HTTP GET url() + '/auth/cert/key' TO result;
-        
-        LOCAL uuid = STRING();
-        LOCAL data = STRING();
-        IMPORT JSON FROM result() TO() uuid, data;
-        
-        stringToFile(data());
-        
-        sign(resultFile(), NULL);
-    
-        EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
-        
-        EXTERNAL HTTP POST url() + '/auth/cert/' PARAMS exportFile() TO result;
-        IMPORT JSON FROM result() TO() token;
-        tokenDateTime() <- currentDateTime();
-        
-        APPLY;
+            LOCAL token = STRING ();
+            IMPORT JSON FROM result() TO() token;
+            
+            token(keyAlias) <- token();
+            tokenDateTime(keyAlias) <- currentDateTime();
+            
+            APPLY;
+        }
     }
+    
+    token() <- token(keyAlias);
+}
+
+getToken() {
+    getToken(keyAlias(), keyPassword());
 }

@@ -1,0 +1,28 @@
+MODULE CryptoProLegalEntity;
+
+REQUIRE CryptoPro, LegalEntity;
+
+NAMESPACE CryptoPro;
+
+dataKeyAlias 'Имя ключа УКЭП' = DATA STRING(LegalEntity);
+dataKeyPassword 'Пароль ключа УКЭП' = DATA STRING(LegalEntity) ECHO;
+
+EXTEND FORM integrationData
+    OBJECTS lcp = LegalEntity
+    PROPERTIES(lcp) READONLY id, name
+    PROPERTIES(lcp) dataKeyAlias, dataKeyPassword
+    FILTERS isCompany(lcp)
+;
+
+DESIGN integrationData {
+    cryptopro {
+        MOVE BOX(lcp);
+    }
+}
+
+keyAlias(LegalEntity l) = OVERRIDE dataKeyAlias(l), (keyAlias() IF l IS LegalEntity);
+keyPassword(LegalEntity l) = OVERRIDE dataKeyPassword(l), (keyPassword() IF l IS LegalEntity);
+
+sign (FILE f, BOOLEAN detached, LegalEntity l) { 
+    sign(RAWFILE(f), detached, NULL, NULL, keyAlias(l), keyPassword(l)); 
+}
