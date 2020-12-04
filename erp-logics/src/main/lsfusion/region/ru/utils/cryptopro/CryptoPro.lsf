@@ -1,6 +1,6 @@
 MODULE CryptoPro;
 
-REQUIRE Utils;
+REQUIRE SystemEvents, Utils;
 
 signature = DATA LOCAL RAWFILE ();
 encodedSignature = replace(encode(signature(), 'base64'), '\n', '');
@@ -29,4 +29,10 @@ DESIGN integrationData {
             MOVE PROPERTY(keyPassword());            
         }
     }
+}
+
+// нужно сделать так, чтобы JCP добавился как провайдер раньше чем первый раз пошло обращение к BouncyCastle.
+initCryptoPro INTERNAL <{ new lsfusion.erp.region.ru.utils.cryptopro.CryptoPro(); }>;
+onStarted() + {
+    initCryptoPro();
 }
