@@ -76,7 +76,11 @@ public class CL7000Handler extends CL5000JHandler {
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
             speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
+            //парсим считанные клавиши (BIG_ENDIAN) и записываем в массив (LITTLE_ENDIAN)
+            ByteBuffer readByteBuffer = ByteBuffer.wrap(ArrayUtils.subarray(speedKeys.data, 0, 800));
+            while(readByteBuffer.remaining() > 0) {
+                speedKeysByteBuffer.putInt(readByteBuffer.getInt());
+            }
 
             for(ScalesItemInfo item : itemsList) {
                 int pluNumber = getPluNumber(item.pluNumber, getBarcode(item));
