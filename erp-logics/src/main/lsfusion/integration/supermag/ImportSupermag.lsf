@@ -469,7 +469,8 @@ importInit 'Импорт остатков' ()  {
         operation(i) <- Purchase.operation('initial');
         createShipment(i) <- createShipment(Purchase.operation('initial')); 
         createPricing(i) <- createPricing(Purchase.operation('initial'));
-        showManufacturingPrice(i) <- TRUE; 
+        showManufacturingPrice(i) <- TRUE;
+        id(i) <- CONCAT '', series(r), num(r);
         isClosed(i) <- TRUE;
     }
         
@@ -478,7 +479,7 @@ importInit 'Импорт остатков' ()  {
         id(d) <- idDetail(r);
     }
         
-    FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(INTEGER r)) INLINE DO {
+    FOR Purchase.UserInvoiceDetail d == Purchase.userInvoiceDetail(idDetail(INTEGER r)) INLINE DO {        
         userInvoice(d) <- Purchase.userInvoice(idBal(r));
         sku(d) <- sku(idSku(r));
         quantity(d) <- quantity(r);
@@ -493,6 +494,7 @@ importInit 'Импорт остатков' ()  {
         manufacturingPrice(d) <- price(r);
         incl(d) <- TRUE;
         dataIndex(d) <- spec(r);
+        id(d) <- CONCAT '~',(CONCAT '',series(r), num(r));
     }
         
     FOR [GROUP SUM 1 IF imported(INTEGER in) BY idCustomerStock(in)](id(Stock st)) DO {
