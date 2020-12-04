@@ -74,7 +74,7 @@ public class CL7000Handler extends CL5000JHandler {
             processTransactionLogger.info(getLogPrefix() + String.format("speedKeys read data (%s bytes): %s", speedKeys.data.length, Hex.encodeHexString(speedKeys.data)));
 
             ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
-            //speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
             speedKeysByteBuffer.put(ArrayUtils.subarray(speedKeys.data, 0, 800));
 
@@ -103,21 +103,20 @@ public class CL7000Handler extends CL5000JHandler {
         } catch (InterruptedException ignored) {
         }
 
-        //CL7000Reply speedKeys = readTouchSpeedKeys(socket);
+        CL7000Reply speedKeys = readTouchSpeedKeys(socket);
 
-        //if(speedKeys.error != null) {
-        //    return speedKeys.error;
-        //} else {
+        if(speedKeys.error != null) {
+            return speedKeys.error;
+        } else {
 
-            //ByteBuffer speedKeysByteBuffer = ByteBuffer.wrap(ArrayUtils.subarray(speedKeys.data, 0, 800));
-            ByteBuffer speedKeysByteBuffer = ByteBuffer.allocate(800);
-            //speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            ByteBuffer speedKeysByteBuffer = ByteBuffer.wrap(ArrayUtils.subarray(speedKeys.data, 0, 800));
+            speedKeysByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
-            //for(int i = 0; i < 200; i++) {
-            //    speedKeysByteBuffer.putInt(0);
-            //}
+            for(int i = 0; i < 200; i++) {
+                speedKeysByteBuffer.putInt(0);
+            }
             return sendSpeedKeys(socket, speedKeysByteBuffer.array());
-        //}
+        }
     }
 
     private String sendSpeedKeys(DataSocket socket, byte[] speedKeys) throws IOException {
