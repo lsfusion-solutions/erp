@@ -581,13 +581,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 setObject(ps, packId, 1); //EXBARCID
                                 setObject(ps, packId, 2); //PACKID
                                 setObject(ps, "", 3); //EXBARCTYPE
-                                setObject(ps, item.idBarcode, 4); //EXBARCBODY
+                                setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                                 setObject(ps, delFlag ? 1 : 0, 5); //DELFLAG
                             } else {
                                 setObject(ps, packId, 1, offset); //EXBARCID
                                 setObject(ps, packId, 2, offset); //PACKID
                                 setObject(ps, "", 3, offset); //EXBARCTYPE
-                                setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
+                                setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
                                 setObject(ps, delFlag ? "1" : "0", 5, offset); //DELFLAG
 
                                 setObject(ps, packId, 6); //EXBARCID
@@ -617,13 +617,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             setObject(ps, packId, 1); //EXBARCID
                             setObject(ps, packId, 2); //PACKID
                             setObject(ps, "", 3); //EXBARCTYPE
-                            setObject(ps, item.idBarcode, 4); //EXBARCBODY
+                            setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                             setObject(ps, 1, 5); //DELFLAG
                         } else {
                             setObject(ps, packId, 1, offset); //EXBARCID
                             setObject(ps, packId, 2, offset); //PACKID
                             setObject(ps, "", 3, offset); //EXBARCTYPE
-                            setObject(ps, item.idBarcode, 4, offset); //EXBARCBODY
+                            setObject(ps, getExBarcBody(item), 4, offset); //EXBARCBODY
                             setObject(ps, "1", 5, offset); //DELFLAG
 
                             setObject(ps, packId, 6); //EXBARCID
@@ -636,6 +636,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             ps.executeBatch();
             conn.commit();
         }
+    }
+
+    private String getExBarcBody(ItemInfo item) {
+        return item.idBarcode.replaceAll("[^0-9]", ""); //Должны быть только цифры, а откуда-то вдруг прилетает символ 0xe2 0x80 0x8e
     }
 
     private boolean exportPackPrc(Connection conn, AstronConnectionString params, TransactionCashRegisterInfo transaction, boolean exportExtraTables) throws SQLException {
