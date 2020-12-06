@@ -165,6 +165,113 @@ importWriteOff 'Списания' () {
 
 EXTEND FORM integrationData PROPERTIES importWriteOff();
 
+id '{integration.id}' = DATA STRING[100] (UserWriteOffDetail) IN id INDEXED CHARWIDTH 10;
+userWriteOffDetail (id) = GROUP AGGR UserWriteOffDetail userWriteOffDetail BY id (userWriteOffDetail);
+
+importWriteOffFull (STRING indexDoc) {
+
+    imported (WriteOff i) <- NULL;         
+    imported (WriteOff d) <- NULL;            
+
+    filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND b.DocType(+)= d.DocType AND b.id(+) = d.id AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
+    
+    sqlString() <- 'Select d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.createdat, d.docstate, d.clientindex, d.locationfrom, d.Commentary from Supermag.SMDocuments d, Supermag.SMWayBillsOut b where ' + filterSql();    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (закупка)', sqlString());
+    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+       
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, clientIndex, locationFrom, comment;
+    
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
+    codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
+           
+    IF NOT userWriteOff(idDoc(0)) AND NOT docState(0) = 1 THEN NEW o = UserWriteOff {  id(o) <- idDoc(0); }
+              
+    FOR UserWriteOff doc == userWriteOff(idDoc(INTEGER i)) DO {       
+        number[Document](doc) <- STRING[28](docNumber(i));
+        bornin(doc) <- bornIn(i);
+        operation(doc) <- operation1Supermag(codeOperation(i));
+        supplier(doc) <- legalEntity(stock(ISTRING[100] (locationFrom(i))));
+        supplierStock(doc) <- stock(ISTRING[100] (locationFrom(i)));
+        customer(doc) <- legalEntity(STRING(clientIndex(i)));
+        customerStock(doc) <- stock(ISTRING[100] (clientIndex(i)));
+        date(doc) <- DATE (docDate(i));  
+        time(doc) <- OVERRIDE time(doc), 09:00;
+        imported(doc) <- TRUE;
+    }  
+    
+    FOR UserWriteOff doc == userWriteOff(idDoc(INTEGER i)) DO {       
+        CASE WHEN docState(0) = 0 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- TRUE;                
+        }
+        WHEN docState(0) = 1 THEN {
+            isPosted(doc) <- NULL;
+            isClosed(doc) <- NULL;                        
+        } 
+        WHEN docState(0) = 2 THEN {
+            isPosted(doc) <- IF (docType(0) = 'FA' OR docType(0) = 'LA') THEN TRUE ELSE NULL;
+            isClosed(doc) <- NULL;;                
+        } 
+        WHEN docState(0) = 3 THEN {
+            isPosted(doc) <- TRUE;
+//            isClosed(doc) <- TRUE;        
+        } 
+    }      
+    
+  //  overImportSaleInvoice();
+
+    //импорт спецификаций
+    sqlString() <- 'SELECT d.ID, d.DOCTYPE, d.LOCATIONFROM, ds.SPECITEM, ds.ARTICLE, ds.QUANTITY, ds.ITEMPRICE, ds.ITEMPRICENOTAX, ds.TOTALPRICE, ds.TOTALPRICENOTAX, dt.TAXRATE, dt.TAXSUM, dby.MANUFACTURERSPRICE, dby.RETAILPRICE, dmis.QUANTBYDOC ' + 
+    'FROM Supermag.SMDocuments d, Supermag.SMWayBillsOut b, Supermag.SMSpec ds, Supermag.SMSPECTAX dt, Supermag.SMSPECBY dby, Supermag.SLSPECQMISMATCH dmis ' + 
+    'WHERE ds.DocType = d.DocType AND ds.DocId = d.id AND ' + 
+    'dt.DocType(+) = ds.DocType AND dt.DocId(+) = ds.docid AND dt.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dby.DocType(+) = ds.DocType AND dby.DocId(+) = ds.docid AND dby.SPECITEM(+) = ds.SPECITEM AND ' + 
+    'dmis.DocType(+) = ds.DocType AND dmis.DocId(+) = ds.docid AND dmis.SPECITEM(+) = ds.SPECITEM AND ' + 
+    filterSql()+' ORDER BY ds.doctype, ds.docid, ds.specitem';    
+
+    IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (продажа)', sqlString());
+
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationFrom, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, taxRate, taxSum, priceManufacturer, retailPrice, blankquantity;
+
+    idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
+
+    FOR userWriteOff(idDoc(INTEGER i)) AND NOT userWriteOffDetail(idDet(i)) DO NEW det = UserWriteOffDetail {
+        userWriteOff(det) <- userWriteOff(idDoc(i));
+        id(det) <- idDet(i);
+    }
+
+    FOR UserWriteOffDetail det = userWriteOffDetail(idDet(INTEGER i)) DO {
+        sku(det) <- item(idItem(i));
+        quantity(det) <- quantity(i);
+//        invoicePrice(det) <- NUMERIC[16,4](itemPrice(i));
+        price(det) <- NUMERIC[16,4](itemPriceNoTax(i));
+  //      invoiceSum(det) <- NUMERIC[16,4](totalPrice(i));
+        sum(det) <- NUMERIC[16,4](totalPriceNoTax(i));
+//        VATSum(det) <- taxSum(i);
+   //     VAT(det) <- OVERRIDE valueCurrentVAT(countrySupplierStock(det), taxRate(i)), VAT(sku(det));
+//        valueVAT(det) <- taxRate(i);
+        dataIndex(det) <- specItem(i);
+ //       retailVAT(det) <- VAT(sku(det));
+ //       valueRetailVAT(det) <- OVERRIDE valueRetailVAT(det), calcSetValueRetailVAT(det);         
+        retailPrice(det) <- OVERRIDE retailPrice(i), retailPrice(det), retailPricingPriceA(sku(det), stock(ISTRING[100] (locationFrom(i))), currentDateTime());
+ //       shipmentPrice(det) <- retailPrice(det);
+  //      manufacturingPrice(det) <- priceManufacturer(i); 
+        imported(det) <- TRUE;
+    }
+
+ //   DELETE Sale.UserInvoiceDetail det WHERE det IS UserInvoiceDetail AND imported(userInvoice(det)) AND NOT imported(det);
+
+ //   executeLocalEvents('UserWriteOff');
+
+    APPLY;               
+
+
+}
 importWriteOffStatus 'Изменение сортности' (STRING indexDoc, STRING idDoc) {
     filterSql() <- 'd.DocType = \'' + getWord(indexDoc,'~',1) + '\' AND d.id = \'' + getWord(indexDoc,'~',2) + '\''; 
     
