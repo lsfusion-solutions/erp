@@ -19,6 +19,8 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
 
     skipChangePrice = ABSTRACT CASE BOOLEAN (###idetail);
 
+    overSet###prefix###Price ABSTRACT LIST (PriceListType, ###idetail);
+
     WHEN LOCAL 
         (CHANGED(prefix###priceListType(###idetail detail)) OR
          CHANGED(prefixP###price(detail)) OR
@@ -36,6 +38,7 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                                     prefix###markup(detail),
                                                                     value###prefix##VAT(detail)), roundCondition)
                                                          WHERE prefix###priceListType(detail) == priceListType;
+            overSet###prefix###Price(priceListType, detail);
         }
         
     WHEN LOCAL
@@ -52,6 +55,8 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
             prefix###price(detail) <- IF batch(detail) THEN prevPriceA(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                       ELSE prevPriceA(priceListType, prefixSku###sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
+
+            overSet###prefix###Price(priceListType, detail);
                                                          
             prefix###markup(detail) <- [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                                prefix###price(detail),
