@@ -90,6 +90,8 @@ availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
 availableCodes 'Доступно марок' (LotOrder o) = GROUP SUM availableCodes(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED;
 
 checkStatus 'Проверить статус' (LotOrder o) {
+    LOCAL NESTED statusMessage = STRING();
+    statusMessage() <- '';
     NEWSESSION {
         FOR lotOrder(LotOrderDetail d) = o DO {
             LOCAL result = FILE();
@@ -111,10 +113,11 @@ checkStatus 'Проверить статус' (LotOrder o) {
             bufferStatus(d) <- bufferStatus();
             IF bufferStatus() = 'ACTIVE' THEN
                 availableCodes(d) <- availableCodes() IF availableCodes() > 0;
-            MESSAGE CONCAT ' ', 'Товар', idBarcodeSku(d), ', статус :', bufferStatus();
+            statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', idBarcodeSku(d), ', статус :', bufferStatus(), '\n');
         }
         APPLY;
     }
+    MESSAGE statusMessage();
 }
 
 EXTEND FORM lotOrders

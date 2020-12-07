@@ -12,30 +12,28 @@ DESIGN writeOffs {
     }
 }
 
-EXTEND CLASS UserWriteOff : Document;
+CLASS WriteOffDocument : Document;
+id 'Код' = DATA STRING[100] (WriteOffDocument);
 
-id (UserWriteOff i) += WriteOff.id(i);
-dateTime (UserWriteOff i) += WriteOff.dateTime(i);
-gismtType (UserWriteOff i) += 'LK_RECEIPT' IF i IS UserWriteOff;
+document = AGGR WriteOffDocument WHERE in(UserWriteOff userWriteOff, LotType lotType) MATERIALIZED INDEXED;
+nameLotType 'Тип' (WriteOffDocument d) = name(lotType(d));
 
-legalEntity (UserWriteOff i) += legalEntityStock(i);
+id (WriteOffDocument i) += id(i);
+dateTime (WriteOffDocument i) += dateTime(userWriteOff(i));
+gismtType (WriteOffDocument i) += 'LK_RECEIPT' IF i IS WriteOffDocument;
 
-isPostedMT 'Проведена ГИС МТ' = DATA BOOLEAN (UserWriteOff);
-isPosted(UserWriteOff i) += isPostedMT(i);
+legalEntity (WriteOffDocument i) += legalEntityStock(userWriteOff(i));
 
-lotType = DATA LotType (UserWriteOff);
-nameLotType 'Тип марок' (UserWriteOff w) = name(lotType(w)) IN documentPrm;
-EXTEND FORM userWriteOff
-    PROPERTIES(w) nameLotType SHOWIF useLot(operation(w))
-;
+isPosted 'Проведена' = DATA BOOLEAN (WriteOffDocument);
+isPosted(WriteOffDocument i) += isPosted(i);
 
-type (UserWriteOff i) += lotType(i);
+type (WriteOffDocument i) += lotType(i);
 
-canceledMT 'Отменена ГИС МТ' = DATA BOOLEAN (UserWriteOff);
-canceled(UserWriteOff i) += canceledMT(i);
+canceled 'Отменена' = DATA BOOLEAN (WriteOffDocument);
+canceled(WriteOffDocument i) += canceled(i);
 
 FORM exportWriteOff
-    OBJECTS i = UserWriteOff PANEL
+    OBJECTS i = UserWriteOff, t = LotType PANEL
     
     PROPERTIES action = 'DAMAGE_LOSS', action_date = toDateISO(date(i)), 
                document_date = toDateISO(date(i)), document_number = seriesNumber(i),
@@ -43,22 +41,25 @@ FORM exportWriteOff
     
     OBJECTS products = (d = UserWriteOffDetail, l = Lot)
     PROPERTIES cis = code(l)
-    FILTERS userWriteOff(d) = i, quantity(d, l)
+    FILTERS userWriteOff(d) = i, quantity(d, l), lotType(sku(l)) = t
 ;
 
-export (UserWriteOff i) + {
-    EXPORT exportWriteOff OBJECTS i = i JSON;
+export (WriteOffDocument i) + {
+    EXPORT exportWriteOff OBJECTS i = userWriteOff(i), t = lotType(i) JSON;
 }
 
 EXTEND FORM writeOffs
-    PROPERTIES(w) READONLY WriteOff.id GRID, status GRID, downloadDesc PANEL
-    PROPERTIES(w) create SHOWIF NOT id(w) OR canceledMT(w)
+    OBJECTS gd = WriteOffDocument
+    PROPERTIES(gd) READONLY nameLotType
+    PROPERTIES(gd)  id, isPosted, canceled 
+    PROPERTIES(gd) READONLY status, downloadDesc
+    PROPERTIES(gd) create TOOLBAR SHOWIF NOT id(gd) OR canceled(gd)
+    FILTERS userWriteOff(gd)
 ;
 
 DESIGN writeOffs {
     gismt {
         showIf = useLot(operation(w));
-        MOVE PROPERTY(create(w));
-        MOVE PROPERTY(downloadDesc(w));
+        MOVE BOX(gd) { caption = 'Документы'; }
     }
 }

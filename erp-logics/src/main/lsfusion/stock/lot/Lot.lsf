@@ -211,6 +211,13 @@ END
 META defineDocumentLotOut(doc, stock, quantityProp, obj)
     @defineDocumentLot(doc, quantityProp);
 
+    in 'Вкл' = DATA BOOLEAN (###doc, LotType);
+    
+    countSku (###doc w, LotType t) = GROUP SUM 1 IF doc(###doc##Detail d) = w AND lotType(sku(d)) = t;
+    WHEN useLot(operation(###doc w)) AND (GROUP SUM 1 IF CHANGED(sku(###doc##Detail d)) AND doc(d) = w) DO {
+        in(w, LotType t) <- TRUE IF countSku(w, t); 
+    }
+
     changeQuantityLot (###doc##Detail d) {
         quantity(Lot l) <- quantity(d, l);
         DIALOG dialogOutLots DO {

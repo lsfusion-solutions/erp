@@ -71,7 +71,14 @@ getDocumentStatuses (DATETIME dFrom) {
             getToken(l);
             
             LOCAL result = JSONFILE();
-            EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
+            TRY {
+                EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
+            } CATCH {
+                logToFile('gismt', messageCaughtException());
+                logToFile('gismt', FILE(result()));
+                MESSAGE CONCAT ' ', 'Ошибка при получении данных о статусах документов ГИС МТ', messageCaughtException();
+                RETURN;
+            }
             
             IMPORT getDocumentStatus JSON FROM result();
             FOR id(Document d) = number(INTEGER i) INLINE DO {
