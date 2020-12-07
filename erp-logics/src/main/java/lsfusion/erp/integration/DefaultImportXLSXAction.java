@@ -96,23 +96,23 @@ public class DefaultImportXLSXAction extends DefaultImportAction {
         }
     }
 
-    protected LocalDate getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell) throws ParseException {
-        return sqlDateToLocalDate(getXLSXDateFieldValue(sheet, row, cell, null));
-    }
-
-    protected Date getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
-        if (cell == null) return defaultValue;
-        XSSFRow xssfRow = sheet.getRow(row);
-        if (xssfRow == null) return defaultValue;
-        XSSFCell xssfCell = xssfRow.getCell(cell);
-        if (xssfCell == null) return defaultValue;
-        switch (xssfCell.getCellTypeEnum()) {
-            case ERROR:
-                return null;
-            case NUMERIC:
-                return new Date(xssfCell.getDateCellValue().getTime());
-            default:
-                return parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue)));
+    protected LocalDate getXLSXDateFieldValue(XSSFSheet sheet, Integer row, Integer cell, Date defaultValue) throws ParseException {
+        if (cell != null) {
+            XSSFRow xssfRow = sheet.getRow(row);
+            if (xssfRow != null) {
+                XSSFCell xssfCell = xssfRow.getCell(cell);
+                if (xssfCell != null) {
+                    switch (xssfCell.getCellTypeEnum()) {
+                        case ERROR:
+                            return null;
+                        case NUMERIC:
+                            return sqlDateToLocalDate(new Date(xssfCell.getDateCellValue().getTime()));
+                        default:
+                            return sqlDateToLocalDate(parseDate(getXLSXFieldValue(sheet, row, cell, String.valueOf(defaultValue))));
+                    }
+                }
+            }
         }
+        return null;
     }
 }

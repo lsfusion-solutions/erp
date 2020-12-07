@@ -212,7 +212,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         byte[] var4 = new byte[500];
 
         try {
-            long startTime = new Date().getTime();
+            long startTime = System.currentTimeMillis();
 
             long time;
             do {
@@ -230,7 +230,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                 }
 
                 Thread.sleep(10L);
-                time = (new Date()).getTime();
+                time = System.currentTimeMillis();
             } while(time - startTime <= (longAction ? 3600000L : 10000L)); //1 hour : 10 seconds
 
             if (longAction) {
