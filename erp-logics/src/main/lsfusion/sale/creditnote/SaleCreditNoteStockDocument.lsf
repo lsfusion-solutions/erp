@@ -17,14 +17,14 @@ description[StockDocumentLedger] (UserCreditNote ledger) += STRING[200](descript
 
 type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
 
-retailSum(UserCreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
+retailSum(CreditNoteDetail idetail) = NUMERIC[18,4](round(quantity(idetail) * shipmentPrice(invoiceDetail(idetail)), currency(idetail))); 
             
 retailSumItemCreditNoteDetail 'Сумма, товар' (creditNote) =
     GROUP
-        SUM retailSum(UserCreditNoteDetail idetail) IF isItem(sku(idetail)) BY creditNote(idetail) IN documentSum;
+        SUM retailSum(CreditNoteDetail idetail) IF isItem(sku(idetail)) BY creditNote(idetail) IN documentSum;
 retailSumContainerCreditNoteDetail 'Сумма, тара' (creditNote) =
     GROUP 
-        SUM retailSum(UserCreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
+        SUM retailSum(CreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
 
 sumItem (UserCreditNote ledger) += OVERRIDE retailSumItemCreditNoteDetail(ledger), sumItemCreditNoteDetail(ledger);
 sumContainer (UserCreditNote ledger) += OVERRIDE retailSumContainerCreditNoteDetail(ledger), sumContainerCreditNoteDetail(ledger);
