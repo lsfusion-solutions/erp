@@ -753,7 +753,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 if(handler.endsWith(getClass().getName())) {
                     for(MachineryInfo machinery : entry.getValue()) {
                         if(stopListInfo.inGroupMachineryItemMap.containsKey(machinery.numberGroup)) {
-                            groupMachinerySet.add(machinery.number);
+                            groupMachinerySet.add(machinery.numberGroup);
                         }
                     }
                 }
@@ -775,7 +775,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             }
             //todo: temp log
             processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
-                    recordCount, stopListInfo.stopListItemMap.values(), groupMachinerySet.size(), packIdCount));
+                    recordCount, stopListInfo.stopListItemMap.values().size(), groupMachinerySet.size(), packIdCount));
             ps.executeBatch();
             conn.commit();
         }
