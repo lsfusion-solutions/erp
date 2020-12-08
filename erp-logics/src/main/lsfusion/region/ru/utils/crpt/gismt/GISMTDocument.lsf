@@ -33,6 +33,7 @@ export ABSTRACT (Document);
 create 'Отослать в ГИС МТ' (Document d) {
     NEWSESSION {
         export(d);
+        logToFile('gismt', exportFile());
         
         sign(exportFile(), TRUE, legalEntity(d));
         
@@ -43,6 +44,8 @@ create 'Отослать в ГИС МТ' (Document d) {
                          signature = encodedSignature()
                     TO sendRequest;
         
+        logToFile('gismt', sendRequest());
+
         getToken(legalEntity(d));
 
         LOCAL id = STRING();
@@ -93,11 +96,11 @@ getDocumentStatuses (DATETIME dFrom) {
 
 checkDocStatusInterval 'За сколько дней проверять статусы документов' = DATA INTEGER ();
 checkDocStatusDateTime () = subtractDay(currentDateTime(), OVERRIDE checkDocStatusInterval(), 1);
-getDocumentStatuses 'Импортировать статусы документов' () { 
+getDocumentStatuses 'Импортировать статусы документов ГИС МТ' () { 
     getDocumentStatuses(checkDocStatusDateTime());
 }
 
-postDocuments 'Изменить статусы документов' () {
+postDocuments 'Изменить статусы документов ГИС МТ' () {
     FOR dateTime(Document d) >= checkDocStatusDateTime() AND status(d) = 'CHECKED_OK' AND NOT isPosted(d) DO {
         NEWSESSION {
             isPosted(d) <- TRUE;
@@ -123,3 +126,65 @@ DESIGN integrationData {
         MOVE PROPERTY(postDocuments());
     }
 }
+
+META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
+    DESIGN form {
+        documentDetail {
+            NEW gismt {
+                caption = 'ГИС МТ';
+            }
+        }
+    }
+    
+    CLASS ###doc##Document : Document;
+    id 'Код' = DATA STRING[100] (###doc##Document);
+    
+    document = AGGR ###doc##Document WHERE in(###doc doc, LotType lotType) AND property(doc) MATERIALIZED INDEXED;
+    nameLotType 'Тип' (###doc##Document d) = name(lotType(d));
+    
+    id (###doc##Document i) += id(i);
+    dateTime (###doc##Document i) += dateTime(doc(i));
+    gismtType (###doc##Document i) += gisType IF i IS ###doc##Document;
+    
+    legalEntity (###doc##Document i) += legalEntityProp(doc(i));
+    
+    isPosted 'Проведена' = DATA BOOLEAN (###doc##Document);
+    isPosted(###doc##Document i) += isPosted(i);
+    
+    type (###doc##Document i) += lotType(i);
+    
+    canceled 'Отменена' = DATA BOOLEAN (###doc##Document);
+    canceled(###doc##Document i) += canceled(i);
+    
+    toCreate (###doc##Document d) = d IS ###doc##Document AND NOT id(d) OR canceled(d);
+    
+    statusP 'Статус передачи в ГИС МТ' (###doc##Document d) = CASE WHEN isPosted(d) THEN 'Отправлен' 
+                                       WHEN toCreate(d) THEN 'Требуется загрузка'
+                                       ELSE 'Ожидание подтверждения';
+    status 'Статус передачи в ГИС МТ' (###doc d) = 
+        GROUP CONCAT statusP(###doc##Document dd) + '(' + name(lotType(dd)) + ')' IF doc(dd) = d, ',' ORDER dd MATERIALIZED;
+    
+    export (###doc##Document i) + {
+        EXPORT export###doc OBJECTS i = doc(i), t = lotType(i) JSON;
+    }
+    
+    EXTEND FORM form
+        PROPERTIES(obj) READONLY status
+    
+        OBJECTS gd = ###doc##Document
+        PROPERTIES(gd) READONLY nameLotType
+        PROPERTIES(gd) id, isPosted, canceled 
+        PROPERTIES(gd) READONLY statusP, status, downloadDesc
+        PROPERTIES(gd) create TOOLBAR SHOWIF toCreate(gd)
+        FILTERS doc(gd) = obj
+
+        PROPERTIES(obj) recalculateLotType TOOLBAR DRAW gd
+    ;
+    
+    DESIGN form {
+        gismt {
+            showIf = useLot(operation(obj));
+            MOVE BOX(gd) { caption = 'Документы'; }
+        }
+    }
+END

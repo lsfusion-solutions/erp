@@ -4,62 +4,16 @@ REQUIRE GISMTDocument, WriteOffLot;
 
 NAMESPACE GISMT;
 
-DESIGN writeOffs {
-    documentDetail {
-        NEW gismt {
-            caption = 'ГИС МТ';
-        }
-    }
-}
-
-CLASS WriteOffDocument : Document;
-id 'Код' = DATA STRING[100] (WriteOffDocument);
-
-document = AGGR WriteOffDocument WHERE in(UserWriteOff userWriteOff, LotType lotType) MATERIALIZED INDEXED;
-nameLotType 'Тип' (WriteOffDocument d) = name(lotType(d));
-
-id (WriteOffDocument i) += id(i);
-dateTime (WriteOffDocument i) += dateTime(userWriteOff(i));
-gismtType (WriteOffDocument i) += 'LK_RECEIPT' IF i IS WriteOffDocument;
-
-legalEntity (WriteOffDocument i) += legalEntityStock(userWriteOff(i));
-
-isPosted 'Проведена' = DATA BOOLEAN (WriteOffDocument);
-isPosted(WriteOffDocument i) += isPosted(i);
-
-type (WriteOffDocument i) += lotType(i);
-
-canceled 'Отменена' = DATA BOOLEAN (WriteOffDocument);
-canceled(WriteOffDocument i) += canceled(i);
-
 FORM exportWriteOff
-    OBJECTS i = UserWriteOff, t = LotType PANEL
+    OBJECTS i = WriteOff, t = LotType PANEL
     
     PROPERTIES action = 'DAMAGE_LOSS', action_date = toDateISO(date(i)), 
                document_date = toDateISO(date(i)), document_number = seriesNumber(i),
                document_type = 'DESTRUCTION_ACT', inn = inn(legalEntityStock(i))
     
-    OBJECTS products = (d = UserWriteOffDetail, l = Lot)
+    OBJECTS products = (d = WriteOffDetail, l = Lot)
     PROPERTIES cis = code(l)
-    FILTERS userWriteOff(d) = i, quantity(d, l), lotType(sku(l)) = t
+    FILTERS writeOff(d) = i, quantity(d, l), lotType(sku(l)) = t
 ;
 
-export (WriteOffDocument i) + {
-    EXPORT exportWriteOff OBJECTS i = userWriteOff(i), t = lotType(i) JSON;
-}
-
-EXTEND FORM writeOffs
-    OBJECTS gd = WriteOffDocument
-    PROPERTIES(gd) READONLY nameLotType
-    PROPERTIES(gd)  id, isPosted, canceled 
-    PROPERTIES(gd) READONLY status, downloadDesc
-    PROPERTIES(gd) create TOOLBAR SHOWIF NOT id(gd) OR canceled(gd)
-    FILTERS userWriteOff(gd)
-;
-
-DESIGN writeOffs {
-    gismt {
-        showIf = useLot(operation(w));
-        MOVE BOX(gd) { caption = 'Документы'; }
-    }
-}
+@defineDocumentGISMT(writeOff, isPosted, writeOffs, w, legalEntityStock, 'LK_RECEIPT');

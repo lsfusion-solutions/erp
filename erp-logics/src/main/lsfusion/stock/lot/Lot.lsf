@@ -4,6 +4,13 @@ REQUIRE Sku, LotType;
 
 NAMESPACE Stock;
 
+dataGtin 'GTIN' (Sku s) = DATA STRING[14] (Sku) IN itemBase;
+gtin 'GTIN' (Sku s) = OVERRIDE dataGtin(s), lpad(idBarcode(s), 14, '0');
+
+EXTEND FORM item
+    PROPERTIES(i) dataGtin
+;
+
 // lot
 CLASS Lot 'Марка';
 
@@ -70,8 +77,8 @@ META defineDocumentLot (doc, quantityProp)
     CONSTRAINT quantity(###doc##Detail d, Lot l) AND NOT sku(l) = sku(d)
         MESSAGE 'Товар марки не соответствует товару строки документа';
     
-    quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l);
-    quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantity(###doc##Detail d, Lot l) IF doc(d) = i MATERIALIZED;
+    quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l) MATERIALIZED;
+    quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantity(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
     CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND isPosted(d) AND NOT quantityProp(d) = quantityLot(d)) 
@@ -80,6 +87,19 @@ META defineDocumentLot (doc, quantityProp)
     
     backgroundQuantityLot (###doc##Detail d) = (IF quantityLot(d) = quantityProp(d) THEN RGB(224,255,224) ELSE RGB(255,224,224)) 
                                                            IF lotType(sku(d));
+END
+
+META defineDocumentLotType(doc)
+    in 'Вкл' = DATA BOOLEAN (###doc, LotType);
+    
+    countSku (###doc w, LotType t) = GROUP SUM 1 IF doc(###doc##Detail d) = w AND lotType(sku(d)) = t AND quantityLot(d);
+    WHEN useLot(operation(###doc w)) AND (GROUP SUM 1 IF (CHANGED(sku(###doc##Detail d) OR CHANGED(quantityLot(d)))) AND doc(d) = w) DO {
+        in(w, LotType t) <- TRUE IF countSku(w, t); 
+    }
+    
+    recalculateLotType 'Заполнить типы марок' (###doc w) {
+        in(w, LotType t) <- TRUE IF countSku(w, t); 
+    }
 END
 
 lotBarcode() = DATA LOCAL STRING[100] ();
@@ -210,13 +230,6 @@ END
 
 META defineDocumentLotOut(doc, stock, quantityProp, obj)
     @defineDocumentLot(doc, quantityProp);
-
-    in 'Вкл' = DATA BOOLEAN (###doc, LotType);
-    
-    countSku (###doc w, LotType t) = GROUP SUM 1 IF doc(###doc##Detail d) = w AND lotType(sku(d)) = t;
-    WHEN useLot(operation(###doc w)) AND (GROUP SUM 1 IF CHANGED(sku(###doc##Detail d)) AND doc(d) = w) DO {
-        in(w, LotType t) <- TRUE IF countSku(w, t); 
-    }
 
     changeQuantityLot (###doc##Detail d) {
         quantity(Lot l) <- quantity(d, l);
