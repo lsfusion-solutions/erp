@@ -761,7 +761,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             int recordCount = 0;
             int packIdCount = 0;
+            int itemCount = 0;
             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                itemCount++;
                 if (!Thread.currentThread().isInterrupted()) {
                     List<Integer> packIds = getPackIds(item);
                     for (Integer packId : packIds) {
@@ -769,13 +771,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
                             addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag);
+                            if(recordCount == 10000) {
+                                //todo: temp log
+                                processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
+                                        recordCount, itemCount, groupMachinerySet.size(), packIdCount));
+                                ps.executeBatch();
+                                conn.commit();
+                                recordCount = 0;
+                                packIdCount = 0;
+                                itemCount = 0;
+                            }
                         }
                     }
                 } else break;
             }
             //todo: temp log
             processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
-                    recordCount, stopListInfo.stopListItemMap.values().size(), groupMachinerySet.size(), packIdCount));
+                    recordCount, itemCount, groupMachinerySet.size(), packIdCount));
             ps.executeBatch();
             conn.commit();
         }
