@@ -702,8 +702,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 setObject(ps, 0, 3, offset); //PACKBONUSMINPRICE
                 setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
-                setObject(ps, packId, 5); //PACKID
-                setObject(ps, priceLevelId, 6); //PRCLEVELID
+                int keysOffset = 2;
+                setObject(ps, packId, 5, keysOffset); //PACKID
+                setObject(ps, priceLevelId, 6, keysOffset); //PRCLEVELID
             } else {
                 setObject(ps, packId, 1, offset); //PACKID
                 setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
@@ -758,7 +759,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
-        String[] columns = new String[]{/*"PACKID", "PRCLEVELID", */"PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
+        String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
         boolean newScheme = !params.pgsql; //пока пробуем только для packPrc в стоп-листах для mssql
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
