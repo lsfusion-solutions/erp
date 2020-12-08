@@ -759,20 +759,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 }
             }
 
-            int count = 0;
+            int recordCount = 0;
+            int packIdCount = 0;
             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                 if (!Thread.currentThread().isInterrupted()) {
                     List<Integer> packIds = getPackIds(item);
                     for (Integer packId : packIds) {
+                        packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
-                            count++;
+                            recordCount++;
                             addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag);
                         }
                     }
                 } else break;
             }
             //todo: temp log
-            processStopListLogger.info(logPrefix + "exportPackPrcStopList records = " + count);
+            processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
+                    recordCount, stopListInfo.stopListItemMap.values(), groupMachinerySet.size(), packIdCount));
             ps.executeBatch();
             conn.commit();
         }
