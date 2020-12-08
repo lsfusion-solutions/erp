@@ -676,6 +676,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
                                ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
                                BigDecimal price, boolean secondPrice, boolean delFlag) throws SQLException {
+        addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, price, secondPrice, delFlag, false);
+    }
+
+    private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
+                               ItemInfo item, Integer packId, int offset, boolean exportExtraTables,
+                               BigDecimal price, boolean secondPrice, boolean delFlag, boolean newScheme) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, secondPrice);
         BigDecimal packPrice = price == null || price.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : HandlerUtils.safeMultiply(price, 100);
@@ -690,15 +696,25 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             setObject(ps, 0, 5); //PACKBONUSMINPRICE
             setObject(ps, delFlag ? 1 : 0, 6); //DELFLAG
         } else {
-            setObject(ps, packId, 1, offset); //PACKID
-            setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
-            setObject(ps, packPrice, 3, offset); //PACKPRICE
-            setObject(ps, packMinPrice, 4, offset); //PACKMINPRICE
-            setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
-            setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
+            if(newScheme) {
+                setObject(ps, packPrice, 1, offset); //PACKPRICE
+                setObject(ps, packMinPrice, 2, offset); //PACKMINPRICE
+                setObject(ps, 0, 3, offset); //PACKBONUSMINPRICE
+                setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
-            setObject(ps, packId, 7); //PACKID
-            setObject(ps, priceLevelId, 8); //PRCLEVELID
+                setObject(ps, packId, 5); //PACKID
+                setObject(ps, priceLevelId, 6); //PRCLEVELID
+            } else {
+                setObject(ps, packId, 1, offset); //PACKID
+                setObject(ps, priceLevelId, 2, offset); //PRCLEVELID
+                setObject(ps, packPrice, 3, offset); //PACKPRICE
+                setObject(ps, packMinPrice, 4, offset); //PACKMINPRICE
+                setObject(ps, 0, 5, offset); //PACKBONUSMINPRICE
+                setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
+
+                setObject(ps, packId, 7); //PACKID
+                setObject(ps, priceLevelId, 8); //PRCLEVELID
+            }
         }
 
         ps.addBatch();
@@ -742,8 +758,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
     private void exportPackPrcStopList(Connection conn, AstronConnectionString params, StopListInfo stopListInfo, boolean exportExtraTables, boolean delFlag) throws SQLException {
         String[] keys = new String[]{"PACKID", "PRCLEVELID"};
-        String[] columns = new String[]{"PACKID", "PRCLEVELID", "PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
-        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys)) {
+        String[] columns = new String[]{/*"PACKID", "PRCLEVELID", */"PACKPRICE", "PACKMINPRICE", "PACKBONUSMINPRICE", "DELFLAG"};
+        boolean newScheme = !params.pgsql; //пока пробуем только для packPrc в стоп-листах для mssql
+        try (PreparedStatement ps = getPreparedStatement(conn, params, "PACKPRC", columns, keys, newScheme)) {
             int offset = columns.length + keys.length;
 
             //берём groupMachinery только своего хэндлера
@@ -770,7 +787,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         packIdCount++;
                         for (Integer nppGroupMachinery : groupMachinerySet) {
                             recordCount++;
-                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag);
+                            addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag, newScheme);
                             if(recordCount == 10000) {
                                 //todo: temp log
                                 processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
@@ -1047,13 +1064,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         else ps.setObject(index, value);
     }
 
-    private PreparedStatement getPreparedStatement(Connection conn, AstronConnectionString connectionParams, String table, String[] columnNames, /*List<String> integerColumnNames, */String[] keyNames) throws SQLException {
+    private PreparedStatement getPreparedStatement(Connection conn, AstronConnectionString connectionParams, String table, String[] columnNames, String[] keyNames) throws SQLException {
+        return getPreparedStatement(conn, connectionParams, table, columnNames, keyNames, false);
+    }
+
+    private PreparedStatement getPreparedStatement(Connection conn, AstronConnectionString connectionParams, String table, String[] columnNames, String[] keyNames, boolean newScheme) throws SQLException {
         String set = "";
         String columns = "";
         String params = "";
+        List<String> keyList = Arrays.asList(keyNames);
         for (String columnName : columnNames) {
             columns = concat(columns, columnName, ",");
-            set = concat(set, columnName + "=?", ",");
+            if(!newScheme || !keyList.contains(columnName)) {
+                set = concat(set, columnName + "=?", ",");
+            }
             params = concat(params, "?", ",");
         }
         if(connectionParams.pgsql) {
