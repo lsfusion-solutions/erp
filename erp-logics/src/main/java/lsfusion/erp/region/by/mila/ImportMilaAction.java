@@ -128,7 +128,8 @@ public class ImportMilaAction extends InternalAction {
         int i = 0;
         for (Element item : oRS.doc.getElementsByTag("li")) {
             c_class = getItemValue(item, "li", "class", null);
-            if (!c_class.equals("eChild")) continue;
+            if (c_class.length() < 6) continue;
+            if (!c_class.substring(0,6).equals("eChild")) continue;
             c_url = getItemValue(item, "a", "href", null);
             if (c_url.length() < 2) continue;  // так не должно быть, но на всякий случай
             c_url = baseUrl + c_url;
