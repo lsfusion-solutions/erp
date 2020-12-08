@@ -1,0 +1,25 @@
+MODULE GISMTSaleShipment;
+
+REQUIRE GISMTDocument, GISMTLegalEntity, SaleShipmentLot;
+
+PRIORITY GISMT, Sale;
+
+NAMESPACE GISMTSale;
+
+FORM exportInvoice
+    OBJECTS i = Invoice, t = LotType PANEL
+    
+    PROPERTIES transfer_date = toDateISO(date(i)), 
+               document_date = toDateISO(date(i)), document_num = seriesNumber(i),
+               turnover_type = 'SELLING',
+               sender_inn = inn(supplier(i)), 
+               receiver_inn = inn(customer(i))
+    
+    OBJECTS products = (d = InvoiceDetail, l = Lot)
+    PROPERTIES uit_code = code(l), product_description = nameSku(d)
+    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(l)) = t
+;
+
+createDocument (Invoice i) = isPosted(i) AND createShipment(i);
+@defineDocumentGISMT(invoice, createDocument, invoices, i, supplier, 'LP_SHIP_GOODS');
+

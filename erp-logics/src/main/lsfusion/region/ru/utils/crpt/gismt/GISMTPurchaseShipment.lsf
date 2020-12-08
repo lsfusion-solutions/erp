@@ -1,0 +1,55 @@
+MODULE GISMTPurchaseShipment;
+
+REQUIRE GISMTDocument, GISMTLegalEntity, PurchaseShipmentLot;
+
+PRIORITY GISMT, Purchase;
+
+NAMESPACE GISMTPurchase;
+
+releaseNumber = ABSTRACT STRING[100] (Invoice, LotType);
+
+FORM exportInvoice
+    OBJECTS i = Invoice, t = LotType PANEL
+    
+    PROPERTIES acceptance_date = replace(toChar(shipmentDateTime(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ',''), document_number = seriesNumber(i),
+               request_type = 'ACCEPTANCE', 
+               trade_sender_inn = inn(supplier(i)),
+               trade_recipient_inn = inn(customer(i)),
+               release_order_number = releaseNumber(i, t),
+               accept_all = TRUE IF i IS Invoice
+    
+    OBJECTS products = (d = InvoiceDetail, l = Lot)
+    PROPERTIES uit_code = code(l), product_description = nameSku(d)
+    FILTERS invoice(d) = i, quantity(d, l), lotType(sku(l)) = t
+;
+
+createDocument (Invoice i) = isPosted(i) AND createShipment(i);
+@defineDocumentGISMT(invoice, createDocument, invoices, i, customer, 'LP_ACCEPT_GOODS');
+
+// user invoice release number
+releaseNumber 'Документ на отгрузку товара' = DATA STRING[100] (UserInvoice, LotType);
+releaseNumber 'Документ на отгрузку товара' (UserInvoice d) = GROUP CONCAT releaseNumber(d, LotType t) + '(' + name(t) + ')', ',' ORDER t;
+FORM changeReleaseNumber 'Документ на отгрузку товара'
+    OBJECTS d = UserInvoice
+    
+    OBJECTS t = LotType
+    PROPERTIES name(t) READONLY, releaseNumber(d, t)
+;
+changeReleaseNumber (UserInvoice d) {
+    NEWSESSION {
+        DIALOG changeReleaseNumber OBJECTS d = d DO {
+            APPLY;
+        }
+    }
+}
+
+releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
+
+EXTEND FORM invoices
+    PROPERTIES(i) releaseNumber PANEL ON CHANGE changeReleaseNumber(i)
+;
+DESIGN invoices {
+    gismt {
+        MOVE PROPERTY(releaseNumber(i)) FIRST;
+    }
+}
