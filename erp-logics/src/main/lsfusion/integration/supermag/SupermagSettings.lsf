@@ -10,6 +10,7 @@ password 'Пароль' = DATA ISTRING[30]();
 connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base();
 exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[50] ();
 importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[50] ();
+directorySupermag 'Путь для обмена с супермаг' = DATA STRING[50] ();
 baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[50] ();
 idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
 enableLogImport 'Логирование импорта' = DATA BOOLEAN ();
@@ -18,7 +19,7 @@ pauseBetweenInvoiceFI 'Пауза перед выгрузкой фин.обяз�
 toSupermagDateTime = FORMULA TEXT 'to_char($1,\'YYYYMMDD HH24:MI:SS\')';
 fromSupermagDateTime = FORMULA DATETIME PG 'to_timestamp(CAST($1 as char(17)), \'YYYYMMDD HH24:MI:SS\')';
 
-EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
+EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), directorySupermag(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
 
 startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
 inImport 'Отм.' = DATA BOOLEAN (Stock);
@@ -358,7 +359,7 @@ importDocumentsSupermag 'Импорт документов из СМ'()
 {    
     LOCAL recid = NUMERIC[16,0] (INTEGER);
 
-    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE NOT log.actioncode = 11 AND (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
+    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
 
     EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
        
