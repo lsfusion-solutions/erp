@@ -34,11 +34,12 @@ idType 'Код типа' (LotOrder o) = id(type(o));
 // detail
 
 @defineDocumentDetailSku(lotOrder, sku);
-gtin 'GTIN' (LotOrderDetail d) = gtin(sku(d)); 
+gtin 'GTIN' (LotOrderDetail d) = gtin(sku(d));
 
 @defineDocumentDetailQuantity(lotOrder);
 @defineDocumentHeaderQuantity(lotOrder);
 @defineDocumentHeaderSkuQuantity(lotOrder, sku);
+quantity (LotOrder o, STRING[14] gtin) = GROUP SUM quantity(LotOrderDetail d) IF lotOrder(d) = o AND gtin = gtin(d); 
 
 FORM lotOrder 'Заказ марок'
     OBJECTS o = LotOrder PANEL
@@ -47,7 +48,7 @@ FORM lotOrder 'Заказ марок'
                   nameType, nameStock ON CHANGE changeStockCompany(o), note
     
     OBJECTS d = LotOrderDetail
-    PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, NEW, DELETE
+    PROPERTIES(d) index READONLY, idBarcodeSku, idSku, nameSku, shortNameUOMSku, gtin, quantity, NEW, DELETE
     FILTERS lotOrder(d) = o
     
     EDIT LotOrder OBJECT o
@@ -120,7 +121,7 @@ FORM lotOrders 'Заказы марок'
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE SHOWIF NOT isPosted(o)
 
     OBJECTS d = LotOrderDetail
-    PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity
+    PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, gtin, quantity
     FILTERS lotOrder(d) = o
 ;
 

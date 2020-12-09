@@ -1,0 +1,285 @@
+MODULE GISMTDescription;
+
+REQUIRE Lot, GISMTDocument;
+
+NAMESPACE GISMT;
+
+CLASS Description 'Описание остатков';
+CLASS DescriptionDetail 'Строка описания остатков';
+
+id 'Код' = DATA STRING[100] (Description) CHARWIDTH 36;
+@defineDocument(description);
+
+@defineDocumentHeaderNumber(Description, STRING[10]);
+@defineNumeratedDefault(Description, 'Описания остатков', 'ОО');
+
+@deriveDocumentHeaderTime(Description);
+
+@defineDocumentPosted(description);
+canceled 'Отменен' = DATA BOOLEAN (Description);
+
+pending 'В ожидании' (Description o) = o IS Description AND NOT isPosted(o) AND NOT canceled(o);   
+
+type 'Тип' = DATA LotType (Description) NONULL;
+nameType 'Тип' (Description o) = name(type(o));
+idType 'Код типа' (Description o) = id(type(o));
+
+@defineDocumentLegalEntity(description, company, 'Организация');
+CONSTRAINT company(Description d) AND NOT isCompany(legalEntity(d)) CHECKED BY company[Description]
+    MESSAGE 'Для документа описания остатков выбрана организация, не являющаяся компанией';
+
+// detail
+gtin 'GTIN' (DescriptionDetail d) = DATA STRING[14] (DescriptionDetail); 
+
+brand 'Торговый знак' (DescriptionDetail d) = DATA STRING[14] (DescriptionDetail); 
+
+@defineStaticObject(releaseMethod, 'Способ ввода в оборот');
+EXTEND CLASS ReleaseMethod {
+    PRODUCED_IN_RF 'произведён в РФ',
+    IMPORTED_INTO_RF 'ввезён в РФ'
+}
+id 'Код' (ReleaseMethod g) = getWord(staticName(g),'.',2) IF g IS ReleaseMethod;
+releaseMethod = DATA ReleaseMethod (DescriptionDetail);
+nameReleaseMethod 'Способ ввода в оборот' (DescriptionDetail d) = name(releaseMethod(d));
+
+tnvedCode2 'Код ТНВЭД' = DATA STRING[2] (DescriptionDetail);
+
+@defineStaticObject(productGender, 'Пол');
+EXTEND CLASS ProductGender {
+    MALE 'мужской',
+    FEMALE 'женский',
+    BABY 'детский',
+    UNISEX 'унисекс'
+}
+id 'Код' (ProductGender g) = getWord(staticName(g),'.',2) IF g IS ProductGender;
+productGender = DATA ProductGender (DescriptionDetail);
+nameProductGender 'Пол' (DescriptionDetail d) = name(productGender(d));
+
+@defineStaticObject(consumerAge, 'Возрастная категория');
+EXTEND CLASS ConsumerAge {
+    BABY 'детское',
+    ADULT 'взрослое',
+    NO_AGE 'без возрастной категории'
+}
+id 'Код' (ConsumerAge g) = getWord(staticName(g),'.',2) IF g IS ConsumerAge;
+consumerAge = DATA ConsumerAge (DescriptionDetail);
+nameConsumerAge 'Возрастная категория' (DescriptionDetail d) = name(consumerAge(d));
+
+FORM description 'Описание остатков'
+    OBJECTS o = Description PANEL
+    PROPERTIES(o) isPosted, canceled, nameNumerator, number, series, 
+                  date, time, id, 
+                  nameType, nameCompany, note
+    
+    OBJECTS d = DescriptionDetail
+    PROPERTIES(d) index READONLY, brand, nameReleaseMethod, tnvedCode2, nameProductGender, nameConsumerAge, gtin, NEW, DELETE
+    FILTERS description(d) = o
+    
+    EDIT Description OBJECT o
+;
+
+DESIGN description {
+    OBJECTS {
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW documentBox {
+                caption = 'Заказ';
+                NEW header {
+                    NEW headerRow1 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(isPosted(o));
+                        MOVE PROPERTY(canceled(o));
+                        MOVE PROPERTY(nameNumerator(o));
+                        MOVE PROPERTY(number(o));
+                        MOVE PROPERTY(series(o));
+                    }
+                    NEW headerRow2 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(date(o));
+                        MOVE PROPERTY(time(o));
+                        MOVE PROPERTY(id(o));
+                    }
+                    NEW headerRow3 {
+                        type = CONTAINERH;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameType(o)) { notNull = TRUE; };
+                        MOVE PROPERTY(nameCompany(o));
+                    }
+                    MOVE PROPERTY(note(o));
+                }
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+            }
+        }
+    }
+}
+
+FORM descriptions 'Описания остатков'
+    OBJECTS o = Description
+    PROPERTIES(o) READONLY isPosted, canceled, id, number, series, date, time, 
+                           nameType, nameCompany, note, countDescriptionDetail
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE SHOWIF NOT isPosted(o)
+
+    OBJECTS d = DescriptionDetail
+    PROPERTIES(d) READONLY index, brand, nameReleaseMethod, tnvedCode2, nameProductGender, nameConsumerAge, gtin
+    FILTERS description(d) = o
+;
+
+DESIGN descriptions {
+    OBJECTS {
+        NEW tabbedPane {
+            type = TABBED;
+            fill = 1;
+            MOVE BOX(d) { caption = 'Товары'; }
+        }
+    }
+}
+
+NAVIGATOR {
+    lotNavigator {
+        NEW descriptions;
+    }
+}
+
+// copy
+copy 'Копировать' (Description o)  { 
+    NEWSESSION {
+        NEW no = Description {
+            type(no) <- type(o);
+            legalEntity(no) <- legalEntity(o);
+            FOR description(DescriptionDetail d) = o INLINE NEW nd = DescriptionDetail DO {
+                description(nd) <- no;
+                brand(nd) <- brand(d);
+                releaseMethod(nd) <- releaseMethod(d);
+                tnvedCode2(nd) <- tnvedCode2(d);
+                productGender(nd) <- productGender(d);
+                consumerAge(nd) <- consumerAge(d);
+            }
+            SHOW description OBJECTS o = no DOCKED;
+        }
+    }
+}
+EXTEND FORM descriptions PROPERTIES(o) TOOLBAR copy;
+
+// export
+
+DESIGN descriptions {
+    tabbedPane {
+        NEW gismt {
+            caption = 'ГИС МТ';
+        }
+    }
+}
+
+EXTEND CLASS Description : Document;
+
+id (Description i) += id(i);
+dateTime (Description i) += dateTime(i);
+type (Description i) += type(i);
+gismtType (Description i) += 'OST_DESCRIPTION' IF i IS Description;
+
+legalEntity (Description i) += company(i);
+
+isPosted(Description i) += isPosted(i);
+canceled(Description i) += canceled(i);
+
+releaseMethod = ABSTRACT STRING (Sku);
+
+FORM exportDescription
+    OBJECTS i = Description PANEL
+    
+    PROPERTIES trade_participant_inn = inn(legalEntity(i))
+    
+    OBJECTS products_list = DescriptionDetail
+    PROPERTIES brand = (OVERRIDE brand(products_list), 'Отсутствует' IF products_list IS DescriptionDetail), 
+//               name = nameSku(products_list), 
+               release_method = id(releaseMethod(products_list)),
+               tnved_code_2 = tnvedCode2(products_list), 
+               consumer_age = (OVERRIDE id(consumerAge(products_list)), '' IF products_list IS DescriptionDetail),
+               product_gender = (OVERRIDE id(productGender(products_list)), '' IF products_list IS DescriptionDetail)
+    FILTERS description(products_list) = i
+;
+
+export (Description i) + {
+    EXPORT exportDescription OBJECTS i = i JSON;
+}
+
+EXTEND FORM descriptions
+    PROPERTIES(o) READONLY status, downloadDesc PANEL
+    PROPERTIES(o) create SHOWIF NOT id(o)
+;
+
+DESIGN descriptions {
+    gismt {
+        MOVE PROPERTY(create(o));
+        MOVE PROPERTY(downloadDesc(o));
+    }
+}
+
+// import
+GROUP body;
+
+gtin = DATA LOCAL STRING (INTEGER);
+FORM getGTINs
+    OBJECTS products_list = INTEGER IN body 
+    PROPERTIES(products_list) gtin = gtin
+;
+
+getGTINs 'Получить GTIN' (Description o) {
+    NEWSESSION {
+
+        getToken(legalEntity(o));
+        
+        LOCAL result = JSONFILE();
+        TRY {
+            EXTERNAL HTTP GET url() + '/facade/doc/' + id(o) + '/body' HEADERS documentHeaders TO result;
+        } CATCH {
+            logToFile('gismt', messageCaughtException());
+            logToFile('gismt', FILE(result()));
+            MESSAGE CONCAT ' ', 'Ошибка при получении GTIN из описания остатков ГИС МТ', messageCaughtException();
+            RETURN;
+        }
+        
+        IMPORT getGTINs JSON FROM result();
+        
+        FOR gtin(INTEGER i) AND index(DescriptionDetail d) = i AND description(d) = o DO {
+            gtin(d) <- STRING[14](gtin(i));
+        }  
+        
+        APPLY;
+    }
+    
+    MESSAGE 'GTIN успешно получены';
+    
+    NEWSESSION {
+        isPosted(o) <- TRUE;
+        APPLY;
+    }
+}
+
+EXTEND FORM descriptions
+    PROPERTIES(o) getGTINs SHOWIF id(o) AND isPosted(o)
+;
+
+DESIGN descriptions {
+    gismt {
+        MOVE PROPERTY(getGTINs(o));
+    }
+}
+
+// description detail sku
+matches = ABSTRACT BOOLEAN (DescriptionDetail, Sku);
+
+lastDescriptionDetail (Sku s) = GROUP LAST DescriptionDetail d ORDER d WHERE gtin(d) AND isPosted(d) AND matches(d, s);
+gtinDescriptionDetail (Sku s) = gtin(lastDescriptionDetail(s)) MATERIALIZED;
+
+useDescription 'Использовать упрощенную схему описания остатков ГИС МТ' = DATA BOOLEAN () COMPLEX;
+
+EXTEND FORM integrationData PROPERTIES() useDescription;
+DESIGN integrationData { GISMT { MOVE PROPERTY(useDescription()); } }
+
+overGtin(Sku s) += gtinDescriptionDetail(s);

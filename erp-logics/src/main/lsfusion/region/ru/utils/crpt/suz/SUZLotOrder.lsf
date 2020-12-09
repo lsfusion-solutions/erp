@@ -33,13 +33,13 @@ FORM export
     
     PROPERTIES contactPerson = name(currentUser()), releaseMethodType = 'REMAINS', createMethodType = 'SELF_MADE'
     
-    OBJECTS products = LotOrderDetail
-    PROPERTIES gtin = gtin(products), 
-               quantity = quantity(products), 
-               serialNumberType = 'OPERATOR' IF products IS LotOrderDetail, 
-               templateId = 10 IF products IS LotOrderDetail, 
-               cisType = 'UNIT' IF products IS LotOrderDetail
-    FILTERS lotOrder(products) = o
+    OBJECTS products = STRING[14]
+    PROPERTIES gtin = VALUE(products), 
+               quantity = quantity(o, products), 
+               serialNumberType = 'OPERATOR' IF products IS STRING[14], 
+               templateId = 10 IF products IS STRING[14], 
+               cisType = 'UNIT' IF products IS STRING[14]
+    FILTERS quantity(o, products)
 ;
 
 suzToken = DATA LOCAL STRING ();
@@ -74,6 +74,8 @@ export 'Отослать в СУЗ' (LotOrder o) {
         IMPORT JSON FROM result() TO() orderId;
         id(o) <- orderId();
         APPLY;
+
+        MESSAGE 'Документ успешно отослан. Присвоен код : ' + id(o);
     } 
 }
 
@@ -100,11 +102,11 @@ checkStatus 'Проверить статус' (LotOrder o) {
     LOCAL NESTED statusMessage = STRING();
     statusMessage() <- '';
     NEWSESSION {
-        FOR lotOrder(LotOrderDetail d) = o DO {
+        FOR quantity(o, STRING[14] gtin) DO {
             LOCAL result = FILE();
-            suzToken() <- token(legalEntityStock(d));
+            suzToken() <- token(legalEntityStock(o));
             TRY {
-                EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId(legalEntityStock(d)) + '&orderId=' + id(o) + '&gtin=' + gtin(d) HEADERS suzHeaders TO result;
+                EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId(legalEntityStock(o)) + '&orderId=' + id(o) + '&gtin=' + gtin HEADERS suzHeaders TO result;
             } CATCH {
                 logToFile('suz', messageCaughtException());
                 logToFile('suz', result());
@@ -125,10 +127,17 @@ checkStatus 'Проверить статус' (LotOrder o) {
                 RETURN;
             }
             
-            bufferStatus(d) <- bufferStatus();
-            IF bufferStatus() = 'ACTIVE' THEN
-                availableCodes(d) <- availableCodes() IF availableCodes() > 0;
-            statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', idBarcodeSku(d), ', статус :', bufferStatus(), '\n');
+            bufferStatus(LotOrderDetail d) <- bufferStatus() WHERE lotOrder(d) = o AND gtin(d) = gtin;
+            IF bufferStatus() = 'ACTIVE' THEN {
+                LOCAL lotOrder = LotOrder ();
+                LOCAL gtin = STRING[14] ();
+                lotOrder() <- o;
+                gtin() <- gtin;
+                availableCodes(LotOrderDetail d) <- (PARTITION UNGROUP availableCodes
+                                                              LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND gtin(d) = gtin()
+                                                              ORDER d) WHERE lotOrder(d) = o AND gtin(d) = gtin;
+            }
+            statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtin, ', статус :', bufferStatus(), '\n');
         }
         APPLY;
     }
@@ -153,6 +162,10 @@ DESIGN lotOrders {
 
 // get lots
 initialDemand 'Заказанное количество' = DATA NUMERIC[16,5] (LotOrderDetail);
+initialDemand (LotOrder o, STRING[14] gtin) = GROUP SUM initialDemand(LotOrderDetail d) IF lotOrder(d) = o AND gtin = gtin(d);
+
+left (LotOrderDetail d) = initialDemand(d) - (OVERRIDE quantity(d), 0);  
+left (LotOrder o, STRING[14] gtin) = initialDemand(o, gtin) - (OVERRIDE quantity(o, gtin), 0);
 
 lastBlockId = DATA LOCAL STRING();
 idLot = DATA LOCAL STRING[100] (INTEGER);
@@ -166,20 +179,20 @@ FORM getLots
 
 getLots 'Получить марки' (LotOrder o) {
     NEWSESSION {
-        FOR lotOrder(LotOrderDetail d) = o DO {
+        initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o;
+        quantity(LotOrderDetail d) <- 0 WHERE lotOrder(d) = o;
         
-            initialDemand(d) <- quantity(d);
-            quantity(d) <- 0;
-            
+        FOR initialDemand(o, STRING[14] gtin) DO {
+        
             lastBlockId() <- '0';
            
-            WHILE initialDemand(d) > quantity(d) DO {
+            WHILE left(o, gtin) > 0 DO {
             
                 LOCAL result = FILE();
-                suzToken() <- token(legalEntityStock(d));
+                suzToken() <- token(legalEntityStock(o));
                 TRY {
-                    EXTERNAL HTTP GET lotOrderUrl(o) + '/codes?omsId=' + omsId(legalEntityStock(o)) + '&orderId=' + id(o) + '&gtin=' + gtin(d) +
-                                     '&quantity=' + INTEGER(initialDemand(d) - quantity(d)) + '&lastBlockId=' + lastBlockId() 
+                    EXTERNAL HTTP GET lotOrderUrl(o) + '/codes?omsId=' + omsId(legalEntityStock(o)) + '&orderId=' + id(o) + '&gtin=' + gtin +
+                                     '&quantity=' + INTEGER(left(o, gtin)) + '&lastBlockId=' + lastBlockId() 
                                      HEADERS suzHeaders TO result;
                 } CATCH {
                     logToFile('suz', messageCaughtException());
@@ -190,19 +203,22 @@ getLots 'Получить марки' (LotOrder o) {
                 
                 IMPORT getLots JSON FROM result();
                 
-                FOR idLot(INTEGER i) INLINE DO NEW l = Lot {
-                    id(l) <- barcodeToId(idLot(i));
-                    tail(l) <- barcodeToTail(idLot(i));
-                    sku(l) <- sku(d);
-                    quantity(d, l) <- 1; 
+                FOR idLot(INTEGER i) NOINLINE DO NEW l = Lot {
+                    FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) ORDER DESC dd) DO { 
+                        id(l) <- barcodeToId(idLot(i));
+                        tail(l) <- barcodeToTail(idLot(i));
+                        sku(l) <- sku(d);
+                        quantity(d, l) <- 1;
+                        quantity(d) <- quantity(d) + 1;
+                    } 
                 }
-                
-                IF quantity(d) = (OVERRIDE quantityLot(d), 0) THEN BREAK;
-                quantity(d) <- quantityLot(d);
             }
         }
+        
         APPLY;
     }
+    
+    MESSAGE 'Марки успешно получены';
     
     NEWSESSION {
         isPosted(o) <- TRUE;
