@@ -250,9 +250,14 @@ META defineDocumentLotOut(doc, stock, quantityProp, obj)
             quantity(d, Lot l) <- quantity(l);
         }    
     }
+
+    fillLotBalance 'Заполнить марки из остатков' (###doc o) {
+        quantity(###doc##Detail d, Lot l) <- prevCurrentBalance(l, stock(o)) 
+            WHERE doc(d) = o AND NOT quantityLot(d) AND lotType(sku(d)) AND sku(l) = sku(d) AND [FILTER doc.d](d); 
+    }
     
     EXTEND FORM doc
-        PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) 
+        PROPERTIES(d) quantityLot AFTER quantity(d) ON CHANGE changeQuantityLot(d) ON CONTEXTMENU fillLotBalance(obj) 
                       BACKGROUND backgroundQuantityLot(d) 
                       SHOWIF useLot(operation(obj))
                       READONLYIF NOT lotType(sku(d))
