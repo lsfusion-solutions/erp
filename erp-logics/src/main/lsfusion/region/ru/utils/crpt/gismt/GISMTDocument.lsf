@@ -6,19 +6,21 @@ NAMESPACE GISMT;
 
 CLASS ABSTRACT Document 'Документ ГИС МТ';
 
-isPosted = ABSTRACT BOOLEAN (Document);
-canceled = ABSTRACT BOOLEAN (Document);
+isPosted 'Проведен' = ABSTRACT BOOLEAN (Document) MATERIALIZED;
+canceled 'Отменен' = ABSTRACT BOOLEAN (Document) MATERIALIZED;
 
-id = ABSTRACT STRING[100] (Document);
+id 'Код' = ABSTRACT STRING[100] (Document) MATERIALIZED;
 
-dateTime = ABSTRACT DATETIME (Document);
+dateTime 'Дата/время' = ABSTRACT DATETIME (Document) MATERIALIZED;
 
-legalEntity = ABSTRACT LegalEntity (Document);
+legalEntity = ABSTRACT LegalEntity (Document) MATERIALIZED;
+nameLegalEntity 'Организация' (Document d) = name(legalEntity(d));
 
-type = ABSTRACT LotType (Document);
+type = ABSTRACT LotType (Document) MATERIALIZED;
 idType (Document d) = id(type(d));
+nameType 'Тип' (Document d) = name(type(d));
 
-gismtType = ABSTRACT STRING (Document);
+gismtType 'Тип ГИС МТ' = ABSTRACT STRING (Document) MATERIALIZED;
 
 docCreateUrl (Document o) = url() + '/lk/documents/create?pg=' + idType(o);
 
@@ -29,6 +31,9 @@ status 'Статус ГИС МТ' = DATA STRING (Document);
 downloadDesc 'Описание ГИС МТ' = DATA STRING (Document);
 
 export ABSTRACT (Document);
+
+toCreate = ABSTRACT BOOLEAN (Document) MATERIALIZED;
+dateTimeCreated 'Отправлен' = DATA DATETIME (Document);
     
 create 'Отослать в ГИС МТ' (Document d) {
     NEWSESSION {
@@ -55,6 +60,7 @@ create 'Отослать в ГИС МТ' (Document d) {
         canceled(d) <- NULL;
         downloadDesc(d) <- NULL;
         id(d) <- STRING[100](id());
+        dateTimeCreated(d) <- currentDateTime();
         APPLY;
         
         MESSAGE 'Документ успешно отослан. Присвоен код : ' + id(d);
@@ -104,7 +110,7 @@ getDocumentStatuses 'Импортировать статусы документ�
 }
 
 postDocuments 'Изменить статусы документов ГИС МТ' () {
-    FOR dateTime(Document d) >= checkDocStatusDateTime() AND status(d) = 'CHECKED_OK' AND NOT isPosted(d) DO {
+    FOR dateTime(Document d) >= checkDocStatusDateTime() AND (status(d) = 'CHECKED_OK' OR status(d) = 'ACCEPTED') AND NOT isPosted(d) DO {
         NEWSESSION {
             isPosted(d) <- TRUE;
             APPLY;
@@ -119,14 +125,12 @@ postDocuments 'Изменить статусы документов ГИС МТ'
 }
 
 EXTEND FORM integrationData
-    PROPERTIES checkDocStatusInterval(), getDocumentStatuses(), postDocuments();
+    PROPERTIES checkDocStatusInterval()
 ;
 
 DESIGN integrationData {
     GISMT {
         MOVE PROPERTY(checkDocStatusInterval());
-        MOVE PROPERTY(getDocumentStatuses());
-        MOVE PROPERTY(postDocuments());
     }
 }
 
@@ -159,7 +163,7 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
     canceled 'Отменена' = DATA BOOLEAN (###doc##Document);
     canceled(###doc##Document i) += canceled(i);
     
-    toCreate (###doc##Document d) = d IS ###doc##Document AND NOT id(d) OR canceled(d);
+    toCreate (###doc##Document d) += d IS ###doc##Document AND (NOT id(d) OR canceled(d));
     
     statusP 'Статус передачи в ГИС МТ' (###doc##Document d) = CASE WHEN isPosted(d) THEN 'Отправлен' 
                                        WHEN toCreate(d) THEN 'Требуется загрузка'
@@ -191,3 +195,29 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
         }
     }
 END
+
+// form list
+
+FORM documents 'Документы ГИС МТ'
+    OBJECTS d = Document
+    PROPERTIES(d) isPosted, canceled, id, dateTimeCreated 
+    PROPERTIES(d) READONLY dateTime, nameLegalEntity, gismtType 
+    PROPERTIES(d) status, downloadDesc
+    
+    PROPERTIES(d) TOOLBAR create SHOWIF toCreate(d) AND NOT isPosted(d)
+    PROPERTIES(d) EDIT
+    PROPERTIES() DRAW d TOOLBAR getDocumentStatuses, postDocuments
+    
+    FILTERGROUP status
+        FILTER 'Требуется отсылка' NOT isPosted(d) AND toCreate(d)
+        FILTER 'Ожидается ответ' NOT isPosted(d) AND NOT canceled(d) AND NOT toCreate(d)
+        FILTER 'Не завершен' NOT isPosted(d) AND (toCreate(d) OR NOT canceled(d))
+;
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER gismtNavigator 'ГИС МТ' {
+            NEW documents;
+        }
+    }
+}
