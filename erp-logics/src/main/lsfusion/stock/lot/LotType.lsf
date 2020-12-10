@@ -31,7 +31,8 @@ nameLotType 'Тип маркировки' (SkuGroup skuGroup) = name(lotType(sku
 EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) nameLotType;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() nameLotType BACKGROUND RGB(190,190,190) IF dataLotType(g);
 
-lotType (Sku s) = lotType(skuGroup(s));
+skipLotType = ABSTRACT BOOLEAN (Sku); 
+lotType (Sku s) = lotType(skuGroup(s)) IF NOT skipLotType(s) MATERIALIZED;
 
 // обязательность задания
 dataExplicitLot = DATA BOOLEAN (SkuGroup);
@@ -42,4 +43,4 @@ explicitLot 'Обязательное указание марки' (SkuGroup sku
 EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) explicitLot;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() explicitLot BACKGROUND RGB(190,190,190) IF dataExplicitLot(g);
 
-explicitLot (Sku s) = explicitLot(skuGroup(s));
+explicitLot (Sku s) = explicitLot(skuGroup(s)) AND lotType(s) MATERIALIZED;
