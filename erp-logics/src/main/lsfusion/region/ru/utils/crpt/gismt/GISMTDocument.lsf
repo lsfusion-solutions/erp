@@ -165,6 +165,8 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
     
     toCreate (###doc##Document d) += d IS ###doc##Document AND (NOT id(d) OR canceled(d));
     
+    edit (###doc##Document d) + { edit(doc(d)); }
+    
     statusP 'Статус передачи в ГИС МТ' (###doc##Document d) = CASE WHEN isPosted(d) THEN 'Отправлен' 
                                        WHEN toCreate(d) THEN 'Требуется загрузка'
                                        ELSE 'Ожидание подтверждения';
@@ -200,8 +202,8 @@ END
 
 FORM documents 'Документы ГИС МТ'
     OBJECTS d = Document
-    PROPERTIES(d) isPosted, canceled, id, dateTimeCreated 
-    PROPERTIES(d) READONLY dateTime, nameLegalEntity, gismtType 
+    PROPERTIES(d) isPosted, canceled, id 
+    PROPERTIES(d) READONLY dateTimeCreated, dateTime, nameLegalEntity, gismtType 
     PROPERTIES(d) status, downloadDesc
     
     PROPERTIES(d) TOOLBAR create SHOWIF toCreate(d) AND NOT isPosted(d)
