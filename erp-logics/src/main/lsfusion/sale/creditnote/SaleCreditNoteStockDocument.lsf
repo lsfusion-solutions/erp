@@ -1,6 +1,6 @@
 MODULE SaleCreditNoteStockDocument;
 
-REQUIRE PurchaseSaleCreditNote, SalePurchaseInvoice;
+REQUIRE PurchaseSaleCreditNote, SalePurchaseInvoice, PricingSum;
 
 NAMESPACE Sale;
 
@@ -26,8 +26,10 @@ retailSumContainerCreditNoteDetail 'Сумма, тара' (creditNote) =
     GROUP 
         SUM retailSum(CreditNoteDetail idetail) IF isContainer(sku(idetail)) BY creditNote(idetail)IN documentSum;
 
-sumItem (UserCreditNote ledger) += OVERRIDE retailSumItemCreditNoteDetail(ledger), sumItemCreditNoteDetail(ledger);
-sumContainer (UserCreditNote ledger) += OVERRIDE retailSumContainerCreditNoteDetail(ledger), sumContainerCreditNoteDetail(ledger);
+sumItem (UserCreditNote ledger) += OVERRIDE retailSumItemCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger)), 
+                                            sumItemCreditNoteDetail(ledger);
+sumContainer (UserCreditNote ledger) += OVERRIDE retailSumContainerCreditNoteDetail(ledger) IF stock(ledger) IS DepartmentStore AND NOT costLedger(stock(ledger)), 
+                                                 sumContainerCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += customer(ledger);
 legalEntityStock(UserCreditNote ledger) += customerStock(ledger); 
