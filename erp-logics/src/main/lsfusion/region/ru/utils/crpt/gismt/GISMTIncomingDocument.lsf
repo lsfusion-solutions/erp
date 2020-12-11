@@ -1,0 +1,118 @@
+MODULE GISMTIncomingDocument;
+
+REQUIRE GISMTDocument, Time;
+
+NAMESPACE GISMT;
+
+//CLASS IncomingDocument 'Входящий документ ГИС МТ';
+//
+//id 'Код' = DATA STRING[100] (IncomingDocument) CHARWIDTH 36;
+//incomingDocument 'Входящий документ ГИС МТ' = GROUP AGGR IncomingDocument d BY id(d);
+//
+//dateTime 'Дата/время' = DATA DATETIME (IncomingDocument);
+//
+//sender = DATA LegalEntity (IncomingDocument);
+//nameSender 'Отправитель' (IncomingDocument d) = name(sender(d));
+//
+//status 'Статус' = DATA STRING (IncomingDocument);
+//downloadDesc 'Описание' = DATA STRING (IncomingDocument);
+//
+//FORM incomingDocuments 'Входящие документы'
+//    OBJECTS d = IncomingDocument
+//    PROPERTIES(d) READONLY id, dateTime, nameSender, status, downloadDesc
+//;
+//
+//NAVIGATOR {
+//    gismtNavigator {
+//        NEW incomingDocuments;
+//    }
+//}
+
+// get documents
+FORM getIncomingDocuments
+    OBJECTS results = INTEGER
+    PROPERTIES(results) number = number, docDate = docDate, inn = senderInn, status = status 
+;
+
+FORM dialogIncomingDocument 'Выбор документа'
+    OBJECTS di 'Документы' = INTEGER
+    PROPERTIES(di) READONLY number 'Номер' = number, docDate 'Дата' = docDate, status 'Статус' = status 
+    FILTERS number(di) 
+;
+ 
+documentIndex = DATA LOCAL INTEGER ();
+
+getIncomingDocuments 'Получить входящие документы ГИС МТ' (LegalEntity l, LegalEntity s, LotType lt, STRING status) {
+    getToken(l);
+    
+    LOCAL result = JSONFILE();
+    TRY {
+        EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true' + 
+                                  '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&status=' + status HEADERS documentHeaders TO result;
+    } CATCH {
+        logToFile('gismt', messageCaughtException());
+        logToFile('gismt', FILE(result()));
+        MESSAGE CONCAT ' ', 'Ошибка при получении входящих документов ГИС МТ', messageCaughtException();
+        RETURN;
+    }
+    
+    number(INTEGER i) <- NULL;
+    IMPORT getIncomingDocuments JSON FROM result();
+    
+    documentIndex() <- NULL;
+    DIALOG dialogIncomingDocument OBJECTS di INPUT DO {
+        documentIndex() <- di;
+    } 
+//            FOR number(INTEGER i) AND NOT incomingDocument(number(i)) AND NOT document(number(i)) NEW d = IncomingDocument DO {
+//                id(d) <- STRING[100](number(i));
+//            }
+//            
+//            FOR id(IncomingDocument d) = number(INTEGER i) INLINE DO {
+//                dateTime(d) <- toDateTimeFormat(docDate(i), 'yyyy-MM-dd T HH24:MI:SS.MI0Z');
+//                sender(d) <- legalEntityByInn(senderInn(i));
+//                status(d) <- status(i);
+//                downloadDesc(d) <- downloadDesc(i);
+//            }
+            
+}
+
+//EXTEND FORM incomingDocuments
+//    PROPERTIES getIncomingDocuments() DRAW d TOOLBAR
+//;
+
+META defineDocumentIncoming(doc, prop, container)
+    prop 'Документ на отгрузку товара' = DATA STRING[100] (###doc, LotType);
+    prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t;
+    
+    get###prop 'Запросить из ГИС МТ' (###doc i, LotType t) {
+        getIncomingDocuments(supplier(i), customer(i), t, 'WAIT_ACCEPTANCE');
+        IF documentIndex() THEN
+            prop(i, t) <- number(documentIndex());
+    }
+    
+    FORM change###prop 'Документ на отгрузку товара'
+        OBJECTS d = ###doc
+        
+        OBJECTS t = LotType
+        PROPERTIES name(t) READONLY, prop(d, t), get###prop(d, t) TOOLBAR
+    ;
+    change###prop (###doc d) {
+        NEWSESSION {
+            DIALOG change###prop OBJECTS d = d DO {
+                APPLY;
+            }
+        }
+    }
+    
+    EXTEND FORM doc
+        PROPERTIES(i) prop PANEL ON CHANGE change###prop(i)
+    ;
+    DESIGN doc {
+        container {
+            NEW gismt {
+                caption = 'ГИС МТ';
+                MOVE PROPERTY(prop(i));
+            }
+        }
+    }
+END

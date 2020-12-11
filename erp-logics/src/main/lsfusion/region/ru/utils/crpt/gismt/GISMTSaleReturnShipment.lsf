@@ -1,12 +1,22 @@
 MODULE GISMTSaleReturnShipment;
 
-REQUIRE GISMTDocument, GISMTLegalEntity, SaleReturnShipmentLot;
+REQUIRE GISMTDocument, GISMTLegalEntity, GISMTIncomingDocument, 
+        SaleReturnShipmentLot;
 
 PRIORITY GISMT, SaleReturn;
 
 NAMESPACE GISMTSaleReturn;
 
+createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND supplier(i) != customer(i);
+@defineDocumentGISMT(invoice, createDocument, invoices, i, supplier, 'LP_ACCEPT_GOODS');
+
+// release number
 releaseNumber = ABSTRACT STRING[100] (Invoice, LotType);
+
+@defineDocumentIncoming(userInvoice, releaseNumber, headerCreateDetail);
+releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
+
+// export
 
 FORM exportInvoice
     OBJECTS i = Invoice, t = LotType PANEL
@@ -22,33 +32,11 @@ FORM exportInvoice
     FILTERS invoice(d) = i, quantity(d, l), lotType(sku(l)) = t
 ;
 
-createDocument (Invoice i) = isPosted(i) AND createShipment(i) AND supplier(i) != customer(i);
-@defineDocumentGISMT(invoice, createDocument, invoices, i, supplier, 'LP_ACCEPT_GOODS');
-
-// user invoice release number
-releaseNumber 'Документ на отгрузку товара' = DATA STRING[100] (UserInvoice, LotType);
-releaseNumber 'Документ на отгрузку товара' (UserInvoice d) = GROUP CONCAT releaseNumber(d, LotType t) + '(' + name(t) + ')', ',' ORDER t;
-FORM changeReleaseNumber 'Документ на отгрузку товара'
-    OBJECTS d = UserInvoice
-    
-    OBJECTS t = LotType
-    PROPERTIES name(t) READONLY, releaseNumber(d, t)
-;
-changeReleaseNumber (UserInvoice d) {
-    NEWSESSION {
-        DIALOG changeReleaseNumber OBJECTS d = d DO {
-            APPLY;
-        }
+export (InvoiceDocument i) + {
+    IF NOT releaseNumber(invoice(i), lotType(i)) THEN {
+        MESSAGE 'Не задан документ на отгрузку товара. Отсылка в ГИС МТ не будет завершена.';
+        stopCreate() <- TRUE;
+        RETURN;
     }
-}
-
-releaseNumber (UserInvoice i, LotType t) += releaseNumber(i, t);
-
-EXTEND FORM invoices
-    PROPERTIES(i) releaseNumber PANEL ON CHANGE changeReleaseNumber(i)
-;
-DESIGN invoices {
-    gismt {
-        MOVE PROPERTY(releaseNumber(i)) FIRST;
-    }
+    EXPORT exportInvoice OBJECTS i = invoice(i), t = lotType(i) JSON;
 }

@@ -4,12 +4,13 @@ REQUIRE GISMTLegalEntity, LotType, Time, CryptoProLegalEntity;
 
 NAMESPACE GISMT;
 
-CLASS ABSTRACT Document 'Документ ГИС МТ';
+CLASS ABSTRACT Document 'Исходящий документ ГИС МТ';
 
 isPosted 'Проведен' = ABSTRACT BOOLEAN (Document) MATERIALIZED;
 canceled 'Отменен' = ABSTRACT BOOLEAN (Document) MATERIALIZED;
 
-id 'Код' = ABSTRACT STRING[100] (Document) MATERIALIZED;
+id 'Код' = ABSTRACT STRING[100] (Document) MATERIALIZED INDEXED;
+document 'Документ ГИС МТ' = GROUP AGGR Document d BY id(d);
 
 dateTime 'Дата/время' = ABSTRACT DATETIME (Document) MATERIALIZED;
 
@@ -30,6 +31,7 @@ documentHeaders (TEXT name) = CASE
 status 'Статус ГИС МТ' = DATA STRING (Document);
 downloadDesc 'Описание ГИС МТ' = DATA STRING (Document);
 
+stopCreate = DATA LOCAL BOOLEAN ();
 export ABSTRACT (Document);
 
 toCreate = ABSTRACT BOOLEAN (Document) MATERIALIZED;
@@ -38,6 +40,8 @@ dateTimeCreated 'Отправлен' = DATA DATETIME (Document);
 create 'Отослать в ГИС МТ' (Document d) {
     NEWSESSION {
         export(d);
+        IF stopCreate() THEN RETURN;
+        
         logToFile('gismt', exportFile());
         
         sign(exportFile(), TRUE, legalEntity(d));
@@ -68,14 +72,36 @@ create 'Отослать в ГИС МТ' (Document d) {
 }
 
 // get status
+GROUP body;
 
-number = DATA LOCAL STRING (INTEGER);
+gtin = DATA LOCAL STRING (INTEGER);
+
+number = DATA LOCAL STRING[100] (INTEGER);
+docDate = DATA LOCAL STRING (INTEGER);
+
+GROUP sender;
+senderInn = DATA LOCAL STRING (INTEGER) IN sender;
+
 status = DATA LOCAL STRING (INTEGER);
 downloadDesc = DATA LOCAL STRING (INTEGER);
+
 FORM getDocumentStatus
     OBJECTS results = INTEGER
     PROPERTIES(results) number = number, status = status, downloadDesc = downloadDesc 
 ;
+
+checkDocStatusInterval 'За сколько дней проверять статусы документов' = DATA INTEGER ();
+checkDocStatusDateTime () = subtractDay(currentDateTime(), OVERRIDE checkDocStatusInterval(), 1);
+
+EXTEND FORM integrationData
+    PROPERTIES checkDocStatusInterval()
+;
+
+DESIGN integrationData {
+    GISMT {
+        MOVE PROPERTY(checkDocStatusInterval());
+    }
+}
 
 getDocumentStatuses (DATETIME dFrom) {
     FOR keyAlias(LegalEntity l) DO {
@@ -84,7 +110,7 @@ getDocumentStatuses (DATETIME dFrom) {
             
             LOCAL result = JSONFILE();
             TRY {
-                EXTERNAL HTTP GET url() + '/facade/doc/listV2?dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
+                EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=false&limit=10000&dateFrom=' + replace(toChar(dFrom, 'yyyy-MM-dd T HH24:MI:SS.MI0Z'),' ','') HEADERS documentHeaders TO result;
             } CATCH {
                 logToFile('gismt', messageCaughtException());
                 logToFile('gismt', FILE(result()));
@@ -103,8 +129,6 @@ getDocumentStatuses (DATETIME dFrom) {
     }
 }
 
-checkDocStatusInterval 'За сколько дней проверять статусы документов' = DATA INTEGER ();
-checkDocStatusDateTime () = subtractDay(currentDateTime(), OVERRIDE checkDocStatusInterval(), 1);
 getDocumentStatuses 'Импортировать статусы документов ГИС МТ' () { 
     getDocumentStatuses(checkDocStatusDateTime());
 }
@@ -121,16 +145,6 @@ postDocuments 'Изменить статусы документов ГИС МТ'
             canceled(d) <- TRUE;
             APPLY;
         }
-    }
-}
-
-EXTEND FORM integrationData
-    PROPERTIES checkDocStatusInterval()
-;
-
-DESIGN integrationData {
-    GISMT {
-        MOVE PROPERTY(checkDocStatusInterval());
     }
 }
 
@@ -173,10 +187,6 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
     status 'Статус передачи в ГИС МТ' (###doc d) = 
         GROUP CONCAT statusP(###doc##Document dd) + '(' + name(lotType(dd)) + ')' IF doc(dd) = d, ',' ORDER dd MATERIALIZED;
     
-    export (###doc##Document i) + {
-        EXPORT export###doc OBJECTS i = doc(i), t = lotType(i) JSON;
-    }
-    
     EXTEND FORM form
         PROPERTIES(obj) READONLY status
     
@@ -200,11 +210,11 @@ END
 
 // form list
 
-FORM documents 'Документы ГИС МТ'
+FORM documents 'Исходящие документы'
     OBJECTS d = Document
-    PROPERTIES(d) isPosted, canceled, id 
+    PROPERTIES(d) READONLYIF isReadonly() isPosted, canceled, id 
     PROPERTIES(d) READONLY dateTimeCreated, dateTime, nameLegalEntity, gismtType 
-    PROPERTIES(d) status, downloadDesc
+    PROPERTIES(d) READONLYIF isReadonly() status, downloadDesc
     
     PROPERTIES(d) TOOLBAR create SHOWIF toCreate(d) AND NOT isPosted(d)
     PROPERTIES(d) EDIT
@@ -215,6 +225,8 @@ FORM documents 'Документы ГИС МТ'
         FILTER 'Ожидается ответ' NOT isPosted(d) AND NOT canceled(d) AND NOT toCreate(d)
         FILTER 'Не завершен' NOT isPosted(d) AND (toCreate(d) OR NOT canceled(d))
 ;
+
+@extendFormEditable(documents);
 
 NAVIGATOR {
     stockNavigator {
