@@ -36,6 +36,9 @@ public class AstronSettings implements Serializable {
     //иначе - по одной
     private Integer transactionsAtATime;
 
+    //если задано и больше 0, разбиваем выгрузку каждой таблицы на блоки по maxBatchSize
+    private Integer maxBatchSize;
+
     public AstronSettings() {
     }
 
@@ -130,5 +133,13 @@ public class AstronSettings implements Serializable {
 
     public void setTransactionsAtATime(Integer transactionsAtATime) {
         this.transactionsAtATime = transactionsAtATime;
+    }
+
+    public Integer getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
+    public void setMaxBatchSize(Integer maxBatchSize) {
+        this.maxBatchSize = maxBatchSize;
     }
 }
