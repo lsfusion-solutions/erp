@@ -186,14 +186,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
                         exportPack(conn, params, transaction.itemsList, false);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                         exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList);
 
                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
                         exportExBarc(conn, params, transaction.itemsList, false);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc delete", transaction.id));
                         exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList);
 
                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
                         boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables);
+
+                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc delete", transaction.id));
                         exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables);
 
                         if (exportExtraTables) {
