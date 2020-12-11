@@ -1,6 +1,6 @@
 MODULE LotOrder;
 
-REQUIRE Lot, StockSkuDocument;
+REQUIRE Lot, StockSkuDocument, SkuLedgerLot;
 
 NAMESPACE Lot;
 
@@ -101,6 +101,11 @@ price 'Цена' (Sku s, LotOrder o) = prevAccountPriceB(s, stock(o), dateTime(o
 @extendFormDocumentSku(lotOrder, lotOrder, o);
 
 EXTEND FORM lotOrder
+    PROPERTIES 'Марок' = prevCurrentBalanceLot(ks, stock(o)) AFTER prevCurrentBalance(ks, o)
+    
+    FILTERGROUP filterBalance
+        FILTER 'Без марок' prevCurrentBalance(ks, o) > OVERRIDE prevCurrentBalanceLot(ks, stock(o)), 0
+
     FILTERGROUP filterLot
         FILTER 'Маркируется' lotType(ks) DEFAULT
 
