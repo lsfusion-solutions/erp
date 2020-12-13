@@ -61,6 +61,16 @@ sumNegativeCashPayment 'Сумма возвратов (наличные)' = GROU
 sumNegativeCardPayment 'Сумма продаж (карты)' = GROUP SUM sumNegativeCardPayment(ZReport rep) IF isPosted(rep) 
     BY departmentStore(rep), closeDate(rep);
 
+quantityReceiptSaleDetailGift 'Кол-во' = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d) AND type(d) = 'Сертификат'
+    BY departmentStore(d), closeDate(zReport(d)), price(d);
+sumReceiptSaleDetailGift 'Сумма'  = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d) AND type(d) = 'Сертификат'
+    BY departmentStore(d), closeDate(zReport(d)), price(d);
+countReceiptSaleDetailGift = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d) AND type(d) = 'Сертификат'
+    BY departmentStore(d), closeDate(zReport(d)), price(d);
+gift(caption) = GROUP AGGR Sku sku BY caption(sku); 
+
+exportReceiptSaleDetailGift = DATA BOOLEAN ();
+
 exportZReports 'Экспорт в супермаг продажи' (DepartmentStore departmentStore, DATE date) {
     inc(DocMain d) <- NULL;
     LOCAL NESTED dt = DATETIME();
@@ -96,7 +106,24 @@ exportZReports 'Экспорт в супермаг продажи' (DepartmentSt
                         discSum(expDet) <- discountSumReceiptSaleDetail(departmentStore, sku, date, price);
                         moveType(expDet) <- 1;
                     }                                    
-                             
+
+                FOR countReceiptSaleDetailGift(departmentStore, date, NUMERIC[16,4] price) AND exportReceiptSaleDetailGift() DO
+                    NEW expDet = DocDetail {                        
+                        docMain(expDet) <- expMain;
+                        skuId(expDet) <- id(gift(CONCAT ' ','Подарочный сертификат',STRING(NUMERIC[16,0](price))));                                                                           
+                        quantity(expDet) <- OVERRIDE quantityReceiptSaleDetailGift(departmentStore, date, price), 0; 
+                        priceWithTax(expDet) <- price;
+                        valueTax(expDet) <- 0;//valueRate( VAT (sku, country(departmentStore)),date);
+                        sumWithTax(expDet) <- sumReceiptSaleDetailGift(departmentStore, date, price);
+                        sumTax(expDet) <- NUMERIC[18,4]([ X*Y/(100+Y)](sumWithTax(expDet), valueTax(expDet)));
+                        sumNoTax(expDet) <- sumWithTax(expDet) - sumTax(expDet);                       
+                        priceNoTax(expDet) <- NUMERIC[18,4] (sumNoTax(expDet)/quantity(expDet));
+                        priceCurr(expDet) <- round(priceWithTax(expDet)/curRate(expMain),4);                        
+                        sumCurr(expDet) <- round(sumWithTax(expDet)/curRate(expMain),4);
+                        discSum(expDet) <- 0;//discountSumReceiptSaleDetail(departmentStore, sku, date, price);
+                        moveType(expDet) <- 1;
+                    }                                    
+
                 indexPlus (DocDetail expDet) <- PARTITION SUM 1 IF moveType(expDet) = 1 ORDER expDet BY docMain(expDet);
                                             
                 sumWithTax(expMain) <- GROUP SUM abs(sumWithTax(DocDetail expDet)) IF docMain(expDet) = expMain AND moveType(expDet) = 1;                
