@@ -1,6 +1,6 @@
 MODULE GISMTIncomingDocument;
 
-REQUIRE GISMTDocument, Time;
+REQUIRE GISMTDocument, Lot, Time;
 
 NAMESPACE GISMT;
 
@@ -60,7 +60,7 @@ getIncomingDocuments 'Получить входящие документы ГИ�
     IMPORT getIncomingDocuments JSON FROM result();
     
     documentIndex() <- NULL;
-    DIALOG dialogIncomingDocument OBJECTS di INPUT DO {
+    DIALOG dialogIncomingDocument OBJECTS di INPUT FILTERS status(di) = status DO {
         documentIndex() <- di;
     } 
 //            FOR number(INTEGER i) AND NOT incomingDocument(number(i)) AND NOT document(number(i)) NEW d = IncomingDocument DO {
@@ -76,13 +76,38 @@ getIncomingDocuments 'Получить входящие документы ГИ�
             
 }
 
+// get incoming document
+FORM getIncomingDocument
+    OBJECTS products = INTEGER IN body 
+    PROPERTIES(products) uit_code = uit_code
+;
+
+getIncomingDocument (LegalEntity l, STRING[100] id) {
+    getToken(l);
+    
+    LOCAL result = JSONFILE();
+    TRY {
+        EXTERNAL HTTP GET url() + '/facade/doc/' + id + '/body' HEADERS documentHeaders TO result;
+    } CATCH {
+        logToFile('gismt', messageCaughtException());
+        logToFile('gismt', FILE(result()));
+        MESSAGE CONCAT ' ', 'Ошибка при получении GTIN из описания остатков ГИС МТ', messageCaughtException();
+        RETURN;
+    }
+    
+    IMPORT getIncomingDocument JSON FROM result();
+    
+    gtin (INTEGER i) <- idToGtin(uit_code(i));
+    sku (INTEGER i) <- skuFromGtin(gtin(i));
+}
+
 //EXTEND FORM incomingDocuments
 //    PROPERTIES getIncomingDocuments() DRAW d TOOLBAR
 //;
 
 META defineDocumentIncoming(doc, prop, container)
     prop 'Документ на отгрузку товара' = DATA STRING[100] (###doc, LotType);
-    prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t;
+    prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t CHARWIDTH 30;
     
     get###prop 'Запросить из ГИС МТ' (###doc i, LotType t) {
         getIncomingDocuments(supplier(i), customer(i), t, 'WAIT_ACCEPTANCE');
@@ -103,15 +128,37 @@ META defineDocumentIncoming(doc, prop, container)
             }
         }
     }
+
+    import 'Загрузить КМ' (###doc i) {
+        FOR releaseNumber(i, LotType t) DO {
+            getIncomingDocument(supplier(i), releaseNumber(i, t));
+            FOR [GROUP SUM 1 BY sku(INTEGER j)](Sku sku) AND NOT doc##Detail(sku, i) NEW d = ###doc##Detail DO {
+                doc(d) <- i;
+                sku(d) <- sku;
+            }
+            
+            FOR doc(###doc##Detail d) = i AND sku(INTEGER j) = sku(d) AND NOT lot(uit_code(j)) ORDER d, j DO NEW lot = Lot {
+                id(lot) <- uit_code(j);
+                sku(lot) <- sku(j);
+            }
     
+            FOR doc(###doc##Detail d) = i AND sku(INTEGER j) = sku(d) AND Lot l = lot(uit_code(j)) ORDER d, j DO {
+                quantity(d, l) <- 1;
+            }
+            
+            quantity(###doc##Detail d) <- quantityLot(d) WHERE doc(d) = i AND (GROUP SUM 1 IF sku(d) = sku(INTEGER j));
+        }
+    }
+
     EXTEND FORM doc
-        PROPERTIES(i) prop PANEL ON CHANGE change###prop(i)
+        PROPERTIES(i) prop ON CHANGE change###prop(i), import
     ;
     DESIGN doc {
         container {
             NEW gismt {
                 caption = 'ГИС МТ';
                 MOVE PROPERTY(prop(i));
+                MOVE PROPERTY(import(i));
             }
         }
     }

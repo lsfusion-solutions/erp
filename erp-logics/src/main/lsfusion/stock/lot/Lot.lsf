@@ -8,6 +8,8 @@ dataGtin 'GTIN' (Sku s) = DATA STRING[14] (Sku) IN itemBase;
 overGtin = ABSTRACT STRING[14] (Sku);
 gtin 'GTIN' (Sku s) = OVERRIDE dataGtin(s), overGtin(s), STRING[14](lpad(idBarcode(s), 14, '0')) MATERIALIZED INDEXED;
 
+skuFromGtin = GROUP MAX Sku s BY gtin(s);
+
 EXTEND FORM item
     PROPERTIES(i) dataGtin
 ;
@@ -28,8 +30,11 @@ barcodeToTail (STRING[100] s) += WHEN s IS STRING[100] THEN STRING[100](substrFr
 
 code 'КИ' (Lot l) = CONCAT '', id(l), tail(l);
 
-gtin 'GTIN' (Lot l) = substr(id(l), 3, 14);
-series 'Серия' (Lot l) = substr(id(l), 19, 13);
+idToGtin (STRING[100] s) = substr(s, 3, 14);
+idToSeries (STRING[100] s) = substr(s, 19, 13);
+ 
+gtin 'GTIN' (Lot l) = idToGtin(id(l));
+series 'Серия' (Lot l) = idToSeries(id(l));
 
 sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
 idSku 'Код товара' (Lot l) = id(sku(l));
