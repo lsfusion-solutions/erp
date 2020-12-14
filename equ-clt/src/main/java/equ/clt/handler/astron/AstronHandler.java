@@ -33,19 +33,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @SuppressWarnings("SqlDialectInspection")
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
 
-    static Logger astronLogger;
-    static {
-        try {
-            astronLogger = Logger.getLogger("astronLog");
-            astronLogger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/astron.log");
-            astronLogger.removeAllAppenders();
-            astronLogger.addAppender(fileAppender);
-
-        } catch (Exception ignored) {
-        }
-    }
+    protected final static Logger astronLogger = Logger.getLogger("astronLog");
 
     private static String logPrefix = "Astron: ";
 
@@ -150,7 +138,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         AstronConnectionString params = new AstronConnectionString(directory);
         if (params.connectionString == null) {
             String error = "no connectionString found";
-            processTransactionLogger.error(logPrefix + error);
+            astronLogger.error(error);
             exception = new RuntimeException(error);
         } else {
             exception = waitConnectionSemaphore(params, timeout, false);
@@ -179,49 +167,49 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         checkItems(params, transaction);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table grp", transaction.id));
+                        astronLogger.info(String.format("transaction %s, table grp", transaction.id));
                         exportGrp(conn, params, transaction, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table art", transaction.id));
-                        exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, false);
+                        astronLogger.info(String.format("transaction %s, table art", transaction.id));
+                        exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table unit", transaction.id));
-                        exportUnit(conn, params, transaction.itemsList, false, maxBatchSize, false);
+                        astronLogger.info(String.format("transaction %s, table unit", transaction.id));
+                        exportUnit(conn, params, transaction.itemsList, false, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack", transaction.id));
-                        exportPack(conn, params, transaction.itemsList, false, maxBatchSize, false);
+                        astronLogger.info(String.format("transaction %s, table pack", transaction.id));
+                        exportPack(conn, params, transaction.itemsList, false, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
+                        astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                         exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc", transaction.id));
-                        exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, false);
+                        astronLogger.info(String.format("transaction %s, table exbarc", transaction.id));
+                        exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table exbarc delete", transaction.id));
+                        astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
                         exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc", transaction.id));
+                        astronLogger.info(String.format("transaction %s, table packprc", transaction.id));
                         boolean hasSecondPrice = exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("transaction %s, table packprc delete", transaction.id));
+                        astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
                         exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize);
 
                         if (exportExtraTables) {
-                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table prclevel", transaction.id));
+                            astronLogger.info(String.format("transaction %s, table prclevel", transaction.id));
                             exportPrcLevel(conn, params, transaction, hasSecondPrice);
-                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table sarea", transaction.id));
+                            astronLogger.info(String.format("transaction %s, table sarea", transaction.id));
                             exportSArea(conn, params, transaction);
-                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table sareaprc", transaction.id));
+                            astronLogger.info(String.format("transaction %s, table sareaprc", transaction.id));
                             exportSAreaPrc(conn, params, transaction, hasSecondPrice);
                         }
 
                         if (extGrpId != null) {
-                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table ARTEXTGRP", transaction.id));
+                            astronLogger.info(String.format("transaction %s, table ARTEXTGRP", transaction.id));
                             exportArtExtgrp(conn, params, transaction, extGrpId, maxBatchSize);
                         }
 
                         if (lastTransaction) {
-                            processTransactionLogger.info(logPrefix + "waiting for processing transactions");
+                            astronLogger.info("waiting for processing transactions");
                             exportFlags(conn, params, tables);
                             Exception e = waitFlags(conn, params, tables, usedDeleteBarcodeList, deleteBarcodeKey, timeout, false);
                             if (e == null) {
@@ -236,7 +224,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     }
 
                 } catch (Exception e) {
-                    processTransactionLogger.error(logPrefix, e);
+                    astronLogger.error(logPrefix, e);
                     exception = e;
                 } finally {
                     connectionSemaphore.remove(params.connectionString);
@@ -296,7 +284,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     ps.executeBatch();
                                     conn.commit();
                                     batchCount = 0;
-                                    processTransactionLogger.info(logPrefix + "execute and commit batch");
+                                    astronLogger.info("execute and commit batch");
                                 }
                             }
                         } else break;
@@ -308,7 +296,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize, boolean isStopList) throws SQLException {
+    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize) throws SQLException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys)) {
@@ -347,7 +335,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.executeBatch();
                         conn.commit();
                         batchCount = 0;
-                        (isStopList ? processStopListLogger : processTransactionLogger).info(logPrefix + "execute and commit batch");
+                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
@@ -397,7 +385,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.executeBatch();
                         conn.commit();
                         batchCount = 0;
-                        processTransactionLogger.info(logPrefix + "execute and commit batch");
+                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
@@ -407,7 +395,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     }
 
 
-    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean isStopList) throws SQLException {
+    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
         String[] keys = new String[]{"UNITID"};
         String[] columns = new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys)) {
@@ -440,7 +428,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.executeBatch();
                             conn.commit();
                             batchCount = 0;
-                            (isStopList ? processStopListLogger : processTransactionLogger).info(logPrefix + "execute and commit batch");
+                            astronLogger.info("execute and commit batch");
                         }
                     }
 
@@ -455,12 +443,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         try {
             return Integer.parseInt(value);
         } catch (Exception e) {
-            processTransactionLogger.error(logPrefix + "Unable to parse UOM " + value, e);
+            astronLogger.error("Unable to parse UOM " + value, e);
             return null;
         }
     }
 
-    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean isStopList) throws SQLException {
+    private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
         String[] keys = new String[]{"PACKID"};
         String[] columns = new String[]{"PACKID", "ARTID", "PACKQUANT", "PACKSHELFLIFE", "ISDEFAULT", "UNITID", "QUANTMASK", "PACKDTYPE", "PACKNAME", "DELFLAG", "BARCID"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "PACK", columns, keys)) {
@@ -519,7 +507,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.executeBatch();
                             conn.commit();
                             batchCount = 0;
-                            (isStopList ? processStopListLogger : processTransactionLogger).info(logPrefix + "execute and commit batch");
+                            astronLogger.info("execute and commit batch");
                         }
                     }
                 } else break;
@@ -583,7 +571,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.executeBatch();
                         conn.commit();
                         batchCount = 0;
-                        processTransactionLogger.info(logPrefix + "execute and commit batch");
+                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
@@ -622,7 +610,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         }
     }
 
-    private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, boolean isStopList) throws SQLException {
+    private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize) throws SQLException {
         String[] keys = new String[]{"EXBARCID"};
         String[] columns = new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"};
         try (PreparedStatement ps = getPreparedStatement(conn, params, "EXBARC", columns, keys)) {
@@ -658,7 +646,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 ps.executeBatch();
                                 conn.commit();
                                 batchCount = 0;
-                                (isStopList ? processStopListLogger : processTransactionLogger).info(logPrefix + "execute and commit batch");
+                                astronLogger.info("execute and commit batch");
                             }
                         }
                     }
@@ -702,7 +690,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.executeBatch();
                             conn.commit();
                             batchCount = 0;
-                            processTransactionLogger.info(logPrefix + "execute and commit batch");
+                            astronLogger.info("execute and commit batch");
                         }
                     }
                 } else break;
@@ -735,7 +723,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.executeBatch();
                             conn.commit();
                             batchCount = 0;
-                            processTransactionLogger.info(logPrefix + "execute and commit batch");
+                            astronLogger.info("execute and commit batch");
                         }
                         //{"astron": {"secondPrice":"1.23"}}
                         BigDecimal secondPrice = getJSONBigDecimal(item.info, "astron", "secondPrice");
@@ -748,11 +736,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             ps.executeBatch();
                             conn.commit();
                             batchCount = 0;
-                            processTransactionLogger.info(logPrefix + "execute and commit batch");
+                            astronLogger.info("execute and commit batch");
                         }
 
                     } else {
-                        processTransactionLogger.error(logPrefix + String.format("transaction %s, table packprc, item %s without price", transaction.id, item.idItem));
+                        astronLogger.error(String.format("transaction %s, table packprc, item %s without price", transaction.id, item.idItem));
                     }
                 } else break;
             }
@@ -846,7 +834,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         ps.executeBatch();
                         conn.commit();
                         batchCount = 0;
-                        processTransactionLogger.info(logPrefix + "execute and commit batch");
+                        astronLogger.info("execute and commit batch");
                     }
                 } else break;
             }
@@ -889,21 +877,21 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                             addPackPrcRow(ps, params, nppGroupMachinery, item, packId, offset, exportExtraTables, item.price, false, delFlag, newScheme);
                             if(maxBatchSize != null && recordCount == maxBatchSize) {
                                 //todo: temp log
-                                processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
+                                astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                                         recordCount, itemCount, groupMachinerySet.size(), packIdCount));
                                 ps.executeBatch();
                                 conn.commit();
                                 recordCount = 0;
                                 packIdCount = 0;
                                 itemCount = 0;
-                                processStopListLogger.info(logPrefix + "execute and commit batch");
+                                astronLogger.info("execute and commit batch");
                             }
                         }
                     }
                 } else break;
             }
             //todo: temp log
-            processStopListLogger.info(logPrefix + String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
+            astronLogger.info(String.format("exportPackPrcStopList records: %s; items: %s; machineries: %s, packIds: %s",
                     recordCount, itemCount, groupMachinerySet.size(), packIdCount));
             ps.executeBatch();
             conn.commit();
@@ -1055,7 +1043,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                 usedDeleteBarcodeList.add(deleteBarcodeMap.get(item.idItem));
             }
         } else {
-            processTransactionLogger.info(logPrefix + String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
+            astronLogger.info(String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
         }
         return isValidItem;
     }
@@ -1078,11 +1066,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
         while ((flags = checkFlags(conn, params, tables)) != 0) {
             if (count > (timeout / 5)) {
                 String message = String.format("data was sent to db but %s flag records were not set to zero", flags);
-                processTransactionLogger.error(logPrefix + message);
+                astronLogger.error(message);
                 return new RuntimeException(message);
             } else {
                 count++;
-                processTransactionLogger.info(logPrefix + String.format("Waiting for setting to zero %s flag records", flags));
+                astronLogger.info(String.format("Waiting for setting to zero %s flag records", flags));
                 Thread.sleep(5000);
             }
         }
@@ -1116,20 +1104,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     String message;
                     if (stopList) {
                         message = "Timeout exception. ProcessTransaction thread uses " + params.connectionString;
-                        processStopListLogger.error(logPrefix + message);
+                        astronLogger.error(message);
                     } else {
                         message = "Timeout exception. StopList thread uses " + params.connectionString;
-                        processTransactionLogger.error(logPrefix + message);
+                        astronLogger.error(message);
                     }
                     return new Exception(message);
                 } else {
                     count++;
-                    processTransactionLogger.info(logPrefix + "Waiting connection semaphore");
+                    astronLogger.info("Waiting connection semaphore");
                     Thread.sleep(5000);
                 }
             }
         } catch (InterruptedException e) {
-            processTransactionLogger.error(logPrefix + e.getMessage());
+            astronLogger.error(e.getMessage());
             return e;
         }
         return null;
@@ -1216,24 +1204,24 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
                         List<StopListItemInfo> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
-                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table art", stopListInfo.number));
-                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, true);
+                        astronLogger.info(String.format("stoplist %s, table art", stopListInfo.number));
+                        exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table unit", stopListInfo.number));
-                        exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, true);
+                        astronLogger.info(String.format("stoplist %s, table unit", stopListInfo.number));
+                        exportUnit(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table pack", stopListInfo.number));
-                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, true);
+                        astronLogger.info(String.format("stoplist %s, table pack", stopListInfo.number));
+                        exportPack(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table exbarc", stopListInfo.number));
-                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, true);
+                        astronLogger.info(String.format("stoplist %s, table exbarc", stopListInfo.number));
+                        exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize);
 
-                        processTransactionLogger.info(logPrefix + String.format("stoplist %s, table packprc", stopListInfo.number));
+                        astronLogger.info(String.format("stoplist %s, table packprc", stopListInfo.number));
                         exportPackPrcStopList(conn, params, stopListInfo, exportExtraTables, !stopListInfo.exclude, maxBatchSize);
 
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
-                        processTransactionLogger.info(logPrefix + "waiting for processing stopLists");
+                        astronLogger.info("waiting for processing stopLists");
                         exportFlags(conn, params, tables);
 
                         Exception e = waitFlags(conn, params, tables, new ArrayList<>(), null, timeout, true);
@@ -1242,7 +1230,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                         }
 
                     } catch (Exception e) {
-                        processStopListLogger.error(logPrefix, e);
+                        astronLogger.error(logPrefix, e);
                     } finally {
                         connectionSemaphore.remove(params.connectionString);
                     }
@@ -1255,7 +1243,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
     public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) {
         AstronConnectionString params = new AstronConnectionString(deleteBarcodeInfo.directoryGroupMachinery);
         if (params.connectionString == null) {
-            processTransactionLogger.error(logPrefix + "no connectionString found");
+            astronLogger.error("no connectionString found");
         } else if (deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
 
             String key = getDeleteBarcodeKey(params.connectionString, deleteBarcodeInfo.nppGroupMachinery);
@@ -1286,7 +1274,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
 
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString == null) {
-                processTransactionLogger.error(logPrefix + "no connectionString found");
+                astronLogger.error("no connectionString found");
                 exception = new RuntimeException("no connectionString found");
             } else {
 
@@ -1299,15 +1287,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                     } else {
                         truncateTable(conn, "DCARD");
 
-                        processTransactionLogger.info(logPrefix + "export table dcard");
+                        astronLogger.info("export table dcard");
                         exportDCard(conn, params, discountCardList);
 
-                        processTransactionLogger.info(logPrefix + "waiting for processing transactions");
+                        astronLogger.info("waiting for processing transactions");
                         exportFlags(conn, params, table);
                         exception = waitFlags(conn, params, table, null, null, timeout, true);
                     }
                 } catch (Exception e) {
-                    processTransactionLogger.error(logPrefix, e);
+                    astronLogger.error(logPrefix, e);
                     exception = e;
                 }
             }
@@ -1481,7 +1469,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                 //увеличиваем id, если номер чека совпадает
                                 while (uniqueReceiptIdNumberReceiptMap.containsKey(uniqueReceiptId = getUniqueReceiptId(sAreaId, nppCashRegister, sessionId, numberReceipt))) {
                                     numberReceipt += 100000000; //считаем, что касса никогда сама не достигнет стомиллионного чека. Может возникнуть переполнение, если таких чеков будет больше 21
-                                    astronLogger.info(logPrefix + String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
+                                    astronLogger.info(String.format("Повтор номера чека: Касса %s, Z-отчёт %s, Чек %s", nppCashRegister, numberZReport, numberReceipt));
                                 }
                                 currentUniqueReceiptId = uniqueReceiptId;
                                 uniqueReceiptIdNumberReceiptMap.put(uniqueReceiptId, numberReceipt);
