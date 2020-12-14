@@ -52,6 +52,28 @@ suzSignedHeaders (TEXT name) = CASE
     ELSE suzHeaders(name);
 
 // export
+exception 'Сообщение' = DATA TEXT (LotOrder);
+EXTEND FORM lotOrders
+    PROPERTIES(o) READONLY exception PANEL SHOWIF exception(o)
+;
+DESIGN lotOrders {
+    suz {
+        MOVE PROPERTY(exception(o)) { panelCaptionVertical = TRUE; fill = 1; };
+    }
+}
+
+handleException (LotOrder o, FILE exception) {
+    logToFile('suz', messageCaughtException());
+    
+    logToFile('suz', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к СУЗ', messageCaughtException();
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
 
 export 'Отослать в СУЗ' (LotOrder o) {
     IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
@@ -69,9 +91,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
         TRY {
             EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId(legalEntityStock(o)) HEADERS suzSignedHeaders PARAMS exportFile() TO result;
         } CATCH {
-            logToFile('suz', messageCaughtException());
-            logToFile('suz', result());
-            MESSAGE CONCAT ' ', 'Ошибка при отсылке заказа в СУЗ', messageCaughtException();
+            handleException(o, result());
             RETURN;
         }
         
@@ -117,9 +137,7 @@ checkStatus 'Проверить статус' (LotOrder o) {
             TRY {
                 EXTERNAL HTTP GET lotOrderUrl(o) + '/buffer/status?omsId=' + omsId(legalEntityStock(o)) + '&orderId=' + id(o) + '&gtin=' + gtin HEADERS suzHeaders TO result;
             } CATCH {
-                logToFile('suz', messageCaughtException());
-                logToFile('suz', result());
-                MESSAGE CONCAT ' ', 'Ошибка при проверке статуса заказа в СУЗ', messageCaughtException();
+                handleException(o, result());
                 RETURN;
             }
              
@@ -204,9 +222,7 @@ getLots 'Получить марки' (LotOrder o) {
                                      '&quantity=' + INTEGER(left(o, gtin)) + '&lastBlockId=' + lastBlockId() 
                                      HEADERS suzHeaders TO result;
                 } CATCH {
-                    logToFile('suz', messageCaughtException());
-                    logToFile('suz', result());
-                    MESSAGE CONCAT ' ', 'Ошибка при получении марок из СУЗ', messageCaughtException();
+                    handleException(o, result());
                     RETURN;
                 }
                 

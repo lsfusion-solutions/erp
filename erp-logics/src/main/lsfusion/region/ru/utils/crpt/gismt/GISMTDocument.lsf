@@ -36,6 +36,22 @@ export ABSTRACT (Document);
 
 toCreate = ABSTRACT BOOLEAN (Document) MATERIALIZED;
 dateTimeCreated 'Отправлен' = DATA DATETIME (Document);
+
+// exception
+exception 'Сообщение' = DATA TEXT (Document);
+handleException (Document o, FILE exception) {
+    logToFile('gismt', messageCaughtException());
+    
+    logToFile('gismt', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ГИС МТ', messageCaughtException();
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
     
 create 'Отослать в ГИС МТ' (Document d) {
     NEWSESSION {
@@ -58,7 +74,13 @@ create 'Отослать в ГИС МТ' (Document d) {
         getToken(legalEntity(d));
 
         LOCAL id = STRING();
-        EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
+        TRY {
+            EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
+        } CATCH {
+            stringToFile(id());
+            handleException(d, resultFile());
+            RETURN;
+        }
         
         status(d) <- NULL;
         canceled(d) <- NULL;
@@ -225,6 +247,7 @@ FORM documents 'Исходящие документы'
     PROPERTIES(d) READONLYIF isReadonly() isPosted, canceled, id 
     PROPERTIES(d) READONLY dateTimeCreated, dateTime, nameLegalEntity, gismtType 
     PROPERTIES(d) READONLYIF isReadonly() status, downloadDesc
+    PROPERTIES exception = STRING(exception(d))
     
     PROPERTIES(d) TOOLBAR create SHOWIF toCreate(d) AND NOT isPosted(d)
     PROPERTIES(d) EDIT
