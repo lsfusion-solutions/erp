@@ -401,10 +401,16 @@ NAVIGATOR {
 
 CONSTRAINT DROPPED(InternetOrderDetail detail IS InternetOrderDetail) AND PREV(picking(detail))
     MESSAGE 'Нельзя удалять строки ИЗ включенные в комплектацию';
+discountSumPickingNew (InternetOrderDetail d) = IF full() THEN discountSum(d) ELSE discountSumPicking(d);
+diffDiscountSumPickingNew  (InternetOrderDetail d) = IF full() THEN diffDiscountSum(d) ELSE diffDiscountSumPicking(d);
+pickingSumNew  (InternetOrderDetail d) = IF full() THEN discountSum(d) ELSE discountSumPicking(d);
+pickingQuantityNew  (InternetOrderDetail d) = IF full() THEN quantity(d) ELSE pickingQuantity(d);
+pickingValueData = DATA LOCAL LONG (InternetOrderDetail);
+pickingValue (InternetOrderDetail d) = OVERRIDE pickingValueData(d), LONG(1);
 
 EXTEND FORM internetOrderPrint
     PROPERTIES (d) discountSumPicking, diffDiscountSumPicking, pickingSum, pickingQuantity
-    
+    PROPERTIES (d) discountSumPickingNew, diffDiscountSumPickingNew, pickingSumNew, pickingQuantityNew, pickingValue
 ;
 internetOrderPickingPrint 'Счет-заказ (собрано)' (InternetOrder o)  { 
     in(InternetOrder order) <- NULL;
