@@ -33,7 +33,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 @SuppressWarnings("SqlDialectInspection")
 public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> {
 
-    protected final static Logger astronLogger = Logger.getLogger("astronLog");
+    protected final static Logger astronLogger = Logger.getLogger("AstronLogger");
 
     private static String logPrefix = "Astron: ";
 
