@@ -178,7 +178,7 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static void registerItem(ReceiptItem item) throws RuntimeException {
+    public static void registerItem(ReceiptItem item, int modificationType) throws RuntimeException {
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
@@ -189,6 +189,23 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
         epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
+
+        switch (modificationType) {
+            case 1:
+                if(item.isGiftCard) {
+                    epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
+                    epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant("1" + item.barcode));
+                }
+                break;
+            case 2:
+                //на случай, если BarcodeOfGoogs - описка
+                if(item.isGiftCard) {
+                    epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
+                    epsonActiveXComponent.setProperty("BarcodeOfGoods", new Variant("1" + item.barcode));
+                }
+                break;
+        }
+
         Dispatch.call(epsonDispatch, "Sale");
         checkErrors(true);
 
@@ -269,14 +286,16 @@ public class FiscalEpson {
         } else return null;
     }
 
-    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, int modificationType) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
         printLine(receipt.comment);
         for (ReceiptItem item : receipt.receiptList) {
-            printLine(item.barcode);
-            registerItem(item);
+            if(modificationType == 0) {
+                printLine(item.barcode);
+            }
+            registerItem(item, modificationType);
             discountItem(item, !sale, formatter);
             printLine(item.vatString);
             printLine(item.comment);
