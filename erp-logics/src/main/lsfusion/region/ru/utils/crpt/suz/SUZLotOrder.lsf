@@ -54,6 +54,11 @@ suzSignedHeaders (TEXT name) = CASE
 // export
 
 export 'Отослать в СУЗ' (LotOrder o) {
+    IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
+        MESSAGE 'В документе есть строки с неправильным количеством'; 
+        RETURN;
+    }
+    
     NEWSESSION {
         EXPORT export OBJECTS o = o JSON;
         
@@ -88,6 +93,10 @@ DESIGN lotOrders {
         MOVE PROPERTY(export(o));
     }
 }
+
+// constraint
+CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(id(lotOrder(d))) OR id(lotOrder(d)))
+    MESSAGE 'Запрещено редактировать заказы марок после их отсылки в СУЗ';
 
 // status
 

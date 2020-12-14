@@ -209,6 +209,13 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
             MOVE BOX(gd) { caption = 'Документы'; }
         }
     }
+    
+    // constraint
+    CONSTRAINT (CHANGED(sku(###doc##Detail d)) OR GROUP SUM 1 IF CHANGED(quantity(d, Lot l))) AND
+               (PREV(id(document(doc(d),lotType(sku(d)))) AND NOT canceled(document(doc(d),lotType(sku(d))))) OR 
+                    (id(document(doc(d),lotType(sku(d)))) AND NOT canceled(document(doc(d),lotType(sku(d))))))
+        MESSAGE 'Запрещено редактировать документ после его отсылки в ГИС МТ';
+
 END
 
 // form list
