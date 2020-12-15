@@ -57,7 +57,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                 Integer cardType = (Integer) findProperty("cardTypeCurrentCashRegister[]").read(context);
                 Integer giftCardType = (Integer) findProperty("giftCardTypeCurrentCashRegister[]").read(context);
 
-                Integer modificationType = (Integer) findProperty("modificationTypeCurrentCashRegister[]").read(context);
+                boolean sendSKNO = findProperty("sendSKNOCurrentCashRegister[]").read(context) != null;
 
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
                 String comment = (String) findProperty("fiscalEpsonComment[Receipt]").read(context, receiptObject);
@@ -161,7 +161,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                                         new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
-                                                isReturn ? receiptReturnItemList : receiptSaleItemList, comment), cardType, giftCardType, modificationType));
+                                                isReturn ? receiptReturnItemList : receiptSaleItemList, comment), cardType, giftCardType, sendSKNO));
                         if (result.receiptNumber != null) {
                             findProperty("number[Receipt]").change(result.receiptNumber, context, receiptObject);
                             findProperty("documentNumber[Receipt]").change(result.documentNumber, context, receiptObject);

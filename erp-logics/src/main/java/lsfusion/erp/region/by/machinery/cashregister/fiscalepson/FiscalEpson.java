@@ -178,7 +178,9 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static void registerItem(ReceiptItem item, int modificationType) throws RuntimeException {
+    public static void registerItem(ReceiptItem item, boolean sendSKNO) throws RuntimeException {
+        printLine(sendSKNO ? ("1 " + item.barcode) : item.barcode);
+
         boolean useBlisters = item.useBlisters && item.blisterQuantity != null;
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
@@ -190,25 +192,21 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
         epsonActiveXComponent.setProperty("Department", new Variant(item.section != null ? item.section : (item.isGiftCard ? 3 : 0)));
 
-        switch (modificationType) {
-            case 1:
-                if(item.isGiftCard) {
-                    epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
-                    epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant("1" + item.barcode));
-                }
-                break;
-            case 2:
-                //на случай, если BarcodeOfGoogs - описка
-                if(item.isGiftCard) {
-                    epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
-                    epsonActiveXComponent.setProperty("BarcodeOfGoods", new Variant("1" + item.barcode));
-                }
-                break;
+        if(sendSKNO) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
+            epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
+            epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes(item.barcode)));
         }
 
         Dispatch.call(epsonDispatch, "Sale");
         checkErrors(true);
 
+    }
+
+    private static String appendZeroes(String barcode) {
+        String result = String.valueOf(barcode);
+        while(result.length() < 13)
+            result = "0" + result;
+        return result;
     }
 
     private static String getMultilineName(String name) {
@@ -286,16 +284,13 @@ public class FiscalEpson {
         } else return null;
     }
 
-    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, int modificationType) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean sendSKNO) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
         printLine(receipt.comment);
         for (ReceiptItem item : receipt.receiptList) {
-            if(modificationType == 0) {
-                printLine(item.barcode);
-            }
-            registerItem(item, modificationType);
+            registerItem(item, sendSKNO);
             discountItem(item, !sale, formatter);
             printLine(item.vatString);
             printLine(item.comment);
