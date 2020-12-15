@@ -4,6 +4,7 @@ REQUIRE CustomerEInvoiceEDI, EInvoiceEDITopBy;
 
 NAMESPACE EDI;
 
+blrwblUserID = DATA LOCAL NESTED STRING[35]();
 blrwblDocumentNumber = DATA LOCAL NESTED STRING[28]();
 blrwblDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blrwblDateTime = DATA LOCAL NESTED DATETIME();
@@ -65,6 +66,7 @@ blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrwblLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrwbl
+    PROPERTIES IN messageHeader blrwblUserID() EXTID 'UserID'
     PROPERTIES IN deliveryNote blrwblDocumentNumber() EXTID 'DocumentID',
                                blrwblDeliveryNoteNumber() EXTID 'DeliveryNoteID',
                                blrwblDeliveryNoteDate() EXTID 'DeliveryNoteDate',
@@ -124,214 +126,221 @@ FORM blrwbl
     FILTERS blrwblLineItemLineItemExtraField(f) == i
 ;
 
+overImportBlrwbl ABSTRACT ();
+skipBlrwbl = DATA LOCAL NESTED BOOLEAN();
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' AND invoices THEN {
         TRY {
             IMPORT blrwbl XML FROM data(i);
-            NEWSESSION NESTED LOCAL {
-                LOCAL isCancel = BOOLEAN();
-                isCancel() <- TRUE IF blrwblFunctionCode() == '1';
-                IF eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) THEN {
-                    importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
-                    IF isCancel() THEN {
-                        isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
-                        exportedCustomer(EInvoice ei) <- NULL WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
-                    }
-                } ELSE NEW ei = EInvoice {
-                    importedCustomer(ei) <- TRUE;
-                    id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
-                    number(ei) <- blrwblDocumentNumber();
-                    dateTime(ei) <- blrwblDateTime();
-                    deliveryNoteDateTime(ei) <- DATETIME (blrwblDeliveryNoteDate());
-                    deliveryNoteNumber(ei) <- blrwblDeliveryNoteNumber();
-                    contractName(ei) <- blrwblContractName();
-                    contractId(ei) <- blrwblContractID();
-                    contractDate(ei) <- blrwblContractDate();
-                    waybillId(ei) <- blrwblWaybillID();
-                    isCancel(ei) <- isCancel();
-                    supplier(ei) <- legalEntityGLN(blrwblSupplierGLN());
-                    contactSupplier(ei) <- blrwblContactSupplier();
-                    supplierStock(ei) <- stockGLN(blrwblSupplierStockGLN());
-                    contactSupplierStock(ei) <- blrwblContactSupplierStock();
-                    customer(ei) <- legalEntityGLN(blrwblCustomerGLN());
-                    customerStock(ei) <- companyStockGLN(blrwblCustomerStockGLN());
-                    freightPayer(ei) <- legalEntityGLN(blrwblFreightPayerGLN());
-                    transportContact(ei) <- blrwblTransportContact();
-                    deliveryContact(ei) <- blrwblDeliveryContact();
-                    proxyID(ei) <- blrwblProxyID();
-                    proxyDate(ei) <- blrwblProxyDate();
-                    partyIssuingProxyName(ei) <- blrwblPartyIssuingProxyName();
-                    quantityTrip(ei) <- blrwblQuantityTrip();
-                    transportOwnerName(ei) <- blrwblTransportOwnerName();
-                    transportID(ei) <- blrwblTransportID();
-                    trailerID(ei) <- blrwblTrailerID();
-                    sealIDReceiver(ei) <- blrwblSealIDReceiver();
-                    currency(ei) <- blrwblCurrency();
-                    isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'PW0013' AND blrwblFieldValue(e) == '1');
-                    XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                    FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
-                        eInvoice(ed) <- ei;
-                        id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);
-                        lineItemSign(ed) <- blrwblLineItemSign(l);
-                        lineItemID(ed) <- blrwblLineItemID(l);
-                        lineItemBuyerID(ed) <- blrwblLineItemBuyerID(l);
-                        lineItemSupplierID(ed) <- blrwblLineItemSupplierID(l);
-                        lineItemName(ed) <- blrwblLineItemName(l);
-                        grossWeightValue(ed) <- blrwblGrossWeightValue(l);
-                        quantityDespatched(ed) <- blrwblQuantityDespatched(l);
-                        lineItemQuantityUOM(ed) <- blrwblLineItemQuantityUOM(l);
-                        despatchUnitQuantityDespatched(ed) <- blrwblDespatchUnitQuantityDespatched(l);
-                        expiryDate(ed) <- blrwblExpiryDate(l);
-                        valueVAT(ed) <- NUMERIC[4,2](blrwblValueVAT(l));
-                        additionalInformation(ed) <- blrwblAdditionalInformation(l);
-                        lineItemPrice(ed) <- blrwblLineItemPrice(l);
-                        lineItemAmountWithoutCharges(ed) <- blrwblLineItemAmountWithoutCharges(l);
-                        lineItemAmount(ed) <- blrwblLineItemAmount(l);
-                        lineItemAmountCharges(ed) <- blrwblLineItemAmountCharges(l);
-                        lineItemAmountExcise(ed) <- blrwblLineItemAmountExcise(l);
-                        lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
-                    }
-                }
-                APPLY NESTED LOCAL;
-                IF canceled() THEN {
-                    IF NOT disableConfirmation AND sendReplies THEN {
-                        LOCAL contentSubXML = FILE();
-                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                        fileToString(contentSubXML());
-                        encodeBase64(resultString());
-                        LOCAL xml = XMLFILE();
-                        envelopeLogin() <- login;
-                        envelopePassword() <- password;
-                        envelopeDocumentDate() <- currentDateTime();
-                        envelopeDocumentNumber() <- id(i);
-                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                        envelopeContent() <- encodedBase64();
-                        EXPORT envelope XML TO xml;
-                        sendRequestEDI(host, port, login, password, url, xml());
-                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                        IF requestError() THEN {
-                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+            skipBlrwbl() <- NULL;
+            overImportBlrwbl();
+            IF NOT skipBlrwbl() THEN {
+                NEWSESSION NESTED LOCAL {
+                    LOCAL isCancel = BOOLEAN();
+                    isCancel() <- TRUE IF blrwblFunctionCode() == '1';
+                    IF eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) THEN {
+                        importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                        IF isCancel() THEN {
+                            isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                            exportedCustomer(EInvoice ei) <- NULL WHERE ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber());
+                        }
+                    } ELSE NEW ei = EInvoice {
+                        importedCustomer(ei) <- TRUE;
+                        id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
+                        number(ei) <- blrwblDocumentNumber();
+                        dateTime(ei) <- blrwblDateTime();
+                        deliveryNoteDateTime(ei) <- DATETIME (blrwblDeliveryNoteDate());
+                        deliveryNoteNumber(ei) <- blrwblDeliveryNoteNumber();
+                        contractName(ei) <- blrwblContractName();
+                        contractId(ei) <- blrwblContractID();
+                        contractDate(ei) <- blrwblContractDate();
+                        waybillId(ei) <- blrwblWaybillID();
+                        isCancel(ei) <- isCancel();
+                        supplier(ei) <- legalEntityGLN(blrwblSupplierGLN());
+                        contactSupplier(ei) <- blrwblContactSupplier();
+                        supplierStock(ei) <- stockGLN(blrwblSupplierStockGLN());
+                        contactSupplierStock(ei) <- blrwblContactSupplierStock();
+                        customer(ei) <- legalEntityGLN(blrwblCustomerGLN());
+                        customerStock(ei) <- companyStockGLN(blrwblCustomerStockGLN());
+                        freightPayer(ei) <- legalEntityGLN(blrwblFreightPayerGLN());
+                        transportContact(ei) <- blrwblTransportContact();
+                        deliveryContact(ei) <- blrwblDeliveryContact();
+                        proxyID(ei) <- blrwblProxyID();
+                        proxyDate(ei) <- blrwblProxyDate();
+                        partyIssuingProxyName(ei) <- blrwblPartyIssuingProxyName();
+                        quantityTrip(ei) <- blrwblQuantityTrip();
+                        transportOwnerName(ei) <- blrwblTransportOwnerName();
+                        transportID(ei) <- blrwblTransportID();
+                        trailerID(ei) <- blrwblTrailerID();
+                        sealIDReceiver(ei) <- blrwblSealIDReceiver();
+                        currency(ei) <- blrwblCurrency();
+                        isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrwblFieldCode(INTEGER e) == 'PW0013' AND blrwblFieldValue(e) == '1');
+                        XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        FOR blrwblLineItemID(INTEGER l) OR blrwblLineItemBuyerID(l) OR blrwblLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
+                            eInvoice(ed) <- ei;
+                            id(ed) <- id(ei) + '/' + blrwblLineItemNumber(l);
+                            lineItemSign(ed) <- blrwblLineItemSign(l);
+                            lineItemID(ed) <- blrwblLineItemID(l);
+                            lineItemBuyerID(ed) <- blrwblLineItemBuyerID(l);
+                            lineItemSupplierID(ed) <- blrwblLineItemSupplierID(l);
+                            lineItemName(ed) <- blrwblLineItemName(l);
+                            grossWeightValue(ed) <- blrwblGrossWeightValue(l);
+                            quantityDespatched(ed) <- blrwblQuantityDespatched(l);
+                            lineItemQuantityUOM(ed) <- blrwblLineItemQuantityUOM(l);
+                            despatchUnitQuantityDespatched(ed) <- blrwblDespatchUnitQuantityDespatched(l);
+                            expiryDate(ed) <- blrwblExpiryDate(l);
+                            valueVAT(ed) <- NUMERIC[4,2](blrwblValueVAT(l));
+                            additionalInformation(ed) <- blrwblAdditionalInformation(l);
+                            lineItemPrice(ed) <- blrwblLineItemPrice(l);
+                            lineItemAmountWithoutCharges(ed) <- blrwblLineItemAmountWithoutCharges(l);
+                            lineItemAmount(ed) <- blrwblLineItemAmount(l);
+                            lineItemAmountCharges(ed) <- blrwblLineItemAmountCharges(l);
+                            lineItemAmountExcise(ed) <- blrwblLineItemAmountExcise(l);
+                            lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrwblLineItemFieldName(INTEGER f), blrwblLineItemFieldValue(f)) IF blrwblLineItemLineItemExtraField(f) == l, ', ' ORDER blrwblLineItemFieldName(f);
                         }
                     }
-                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
-                    eInvoicesFailed() <- eInvoicesFailed() + 1;
-                } ELSE {
-                    FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) DO {
-                        IF NOT disableAutoBlrapn() THEN {
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        IF NOT disableConfirmation AND sendReplies THEN {
                             LOCAL contentSubXML = FILE();
-                            blrapnDateTime() <- currentDateTimeMillis();
-                            blrapnMsgSender() <- glnCustomer(ei);
-                            blrapnMsgReceiver() <- glnSupplier(ei);
-                            blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
-                            blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
-                            blrapnReferenceDocumentType() <- 'BLRWBL';
-                            blrapnReferenceDocumentId() <- blrwblDocumentNumber();
-                            blrapnReferenceDocumentDate() <- blrwblDateTime();
-                            blrapnShipper() <- glnSupplier(ei);
-                            blrapnReceiver() <- glnCustomer(ei);
-                            blrapnCode() <- '2650';
-                            blrapnDescription() <- NULL;
-                            toMilliseconds(blrapnDateTime());
-                            EXPORT exportBlrapn XML TO contentSubXML;
-                            IF archiveDir THEN {
-                                TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                                WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                            fileToString(contentSubXML());
+                            encodeBase64(resultString());
+                            LOCAL xml = XMLFILE();
+                            envelopeLogin() <- login;
+                            envelopePassword() <- password;
+                            envelopeDocumentDate() <- currentDateTime();
+                            envelopeDocumentNumber() <- id(i);
+                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                            envelopeContent() <- encodedBase64();
+                            EXPORT envelope XML TO xml;
+                            sendRequestEDI(host, port, login, password, url, xml());
+                            logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                            IF requestError() THEN {
+                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                                logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
                             }
-                            IF aliasEDSServiceCustomer(ei) AND passwordEDSServiceCustomer(ei) THEN {
-                                IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) THEN {
-                                    LOCAL xml = FILE();
-                                    fileToString(contentSubXML());
-                                    EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO xml;
-                                    LOCAL innerXML = TEXT();
-                                    innerXML() <- resultString();
-                                    fileToString(xml());
-                                    stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                    sendRequestEDI(hostEDSServiceCustomerTopBy(ei), portEDSServiceCustomerTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceCustomerTopBy(ei) + ':' + portEDSServiceCustomerTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
-                                    IMPORT getEDSResponse FROM sendRequestEDIResponse();
-                                    IF faultstring() THEN {
-                                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
-                                    }
-                                    ELSE IF waybill() THEN {
-                                        encodeBase64(waybill());
-                                        LOCAL ixml = XMLFILE();
-                                        envelopeLogin() <- login;
-                                        envelopePassword() <- password;
-                                        envelopeFilename() <- CONCAT '', 'invoice', number(ei);
-                                        envelopeDocumentDate() <- blrapnDateTime();
-                                        envelopeDocumentNumber() <- number(ei);
-                                        envelopeSender() <- glnCustomer(ei);
-                                        envelopeReceiver() <- glnCustomer(ei);
-                                        envelopeDeliveryPoint() <- glnCustomerStock(ei);
-                                        envelopeDocumentType() <- 'BLRAPN';                                        
-                                        envelopeContent() <- encodedBase64();
-                                        EXPORT envelope XML TO ixml;
-                                        sendRequestEDI(host, port, login, password, url, ixml());
-                                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) +' request sent');
-                                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                                        IF requestError() THEN {
-                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ': ' + requestError());
-                                            MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' не выгружено: ' + requestError() NOWAIT;
-                                        } ELSE {
-                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
-                                            IF NOT disableConfirmation THEN {
-                                                LOCAL cxml = XMLFILE();
-                                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                                sendRequestEDI(host, port, login, password, url, cxml());
-                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                                IF requestError() THEN {
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                                } ELSE {
-                                                    IF archiveDir THEN {
-                                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        }
+                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
+                        eInvoicesFailed() <- eInvoicesFailed() + 1;
+                    } ELSE {
+                        FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrwblDeliveryNoteNumber()) DO {
+                            IF NOT disableAutoBlrapn() THEN {
+                                LOCAL contentSubXML = FILE();
+                                blrapnDateTime() <- currentDateTimeMillis();
+                                blrapnMsgSender() <- glnCustomer(ei);
+                                blrapnMsgReceiver() <- glnSupplier(ei);
+                                blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                                blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                                blrapnReferenceDocumentType() <- 'BLRWBL';
+                                blrapnReferenceDocumentId() <- blrwblDocumentNumber();
+                                blrapnReferenceDocumentDate() <- blrwblDateTime();
+                                blrapnShipper() <- glnSupplier(ei);
+                                blrapnReceiver() <- glnCustomer(ei);
+                                blrapnCode() <- '2650';
+                                blrapnDescription() <- NULL;
+                                toMilliseconds(blrapnDateTime());
+                                EXPORT exportBlrapn XML TO contentSubXML;
+                                IF archiveDir THEN {
+                                    TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                                    WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
+                                IF aliasEDSServiceCustomer(ei) AND passwordEDSServiceCustomer(ei) THEN {
+                                    IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) THEN {
+                                        LOCAL xml = FILE();
+                                        fileToString(contentSubXML());
+                                        EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO xml;
+                                        LOCAL innerXML = TEXT();
+                                        innerXML() <- resultString();
+                                        fileToString(xml());
+                                        stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+                                        sendRequestEDI(hostEDSServiceCustomerTopBy(ei), portEDSServiceCustomerTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceCustomerTopBy(ei) + ':' + portEDSServiceCustomerTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                        IMPORT getEDSResponse FROM sendRequestEDIResponse();
+                                        IF faultstring() THEN {
+                                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
+                                        }
+                                        ELSE IF waybill() THEN {
+                                            encodeBase64(waybill());
+                                            LOCAL ixml = XMLFILE();
+                                            envelopeLogin() <- login;
+                                            envelopePassword() <- password;
+                                            envelopeFilename() <- CONCAT '', 'invoice', number(ei);
+                                            envelopeDocumentDate() <- blrapnDateTime();
+                                            envelopeDocumentNumber() <- number(ei);
+                                            envelopeSender() <- glnCustomer(ei);
+                                            envelopeReceiver() <- glnCustomer(ei);
+                                            envelopeDeliveryPoint() <- glnCustomerStock(ei);
+                                            envelopeDocumentType() <- 'BLRAPN';                                        
+                                            envelopeContent() <- encodedBase64();
+                                            EXPORT envelope XML TO ixml;
+                                            sendRequestEDI(host, port, login, password, url, ixml());
+                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) +' request sent');
+                                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                                            IF requestError() THEN {
+                                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ': ' + requestError());
+                                                MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                                            } ELSE {
+                                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
+                                                IF NOT disableConfirmation THEN {
+                                                    LOCAL cxml = XMLFILE();
+                                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                                                    sendRequestEDI(host, port, login, password, url, cxml());
+                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                                    IF requestError() THEN {
+                                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                                    } ELSE {
+                                                        IF archiveDir THEN {
+                                                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                                        }
+                                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                                     }
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                                }
+                                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
+                                                eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
+                                                NEWSESSION NESTED LOCAL {
+                                                    exportedBlrapnCustomer(ei) <- TRUE;
+                                                    APPLY NESTED LOCAL;
                                                 }
                                             }
-                                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
-                                            eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
-                                            NEWSESSION NESTED LOCAL {
-                                                exportedBlrapnCustomer(ei) <- TRUE;
-                                                APPLY NESTED LOCAL;
-                                            }
                                         }
+                                    } ELSE {
+                                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
                                     }
                                 } ELSE {
-                                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
+                                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: Alias or Password for EDSService not found');
                                 }
                             } ELSE {
-                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: Alias or Password for EDSService not found');
-                            }
-                        } ELSE {
-                            IF NOT disableConfirmation THEN {
-                                LOCAL cxml = XMLFILE();
-                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                sendRequestEDI(host, port, login, password, url, cxml());
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                IF requestError() THEN {
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                } ELSE {
-                                    IF archiveDir THEN {
-                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                IF NOT disableConfirmation THEN {
+                                    LOCAL cxml = XMLFILE();
+                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                                    sendRequestEDI(host, port, login, password, url, cxml());
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                    IF requestError() THEN {
+                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                    } ELSE {
+                                        IF archiveDir THEN {
+                                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                        }
+                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                     }
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                 }
+                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
+                                eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                             }
-                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
-                            eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                         }
-                    }
-                }  
+                    }  
+                }
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
@@ -365,6 +374,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     }
 }
 
+blrdlnUserID = DATA LOCAL NESTED STRING[35]();
 blrdlnDocumentNumber = DATA LOCAL NESTED STRING[28]();
 blrdlnDeliveryNoteNumber = DATA LOCAL NESTED STRING[28]();
 blrdlnDateTime = DATA LOCAL NESTED DATETIME();
@@ -415,6 +425,7 @@ blrdlnLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrdlnLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
 
 FORM blrdln
+    PROPERTIES IN messageHeader blrdlnUserID() EXTID 'UserID'
     PROPERTIES IN deliveryNote blrdlnDocumentNumber() EXTID 'DocumentID',
                                blrdlnDeliveryNoteNumber() EXTID 'DeliveryNoteID',
                                blrdlnDeliveryNoteDate() EXTID 'DeliveryNoteDate',
@@ -464,205 +475,212 @@ FORM blrdln
     FILTERS blrdlnLineItemLineItemExtraField(f) == i
 ;
 
+overImportBlrdln ABSTRACT ();
+skipBlrdln = DATA LOCAL NESTED BOOLEAN();
+
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[100] host, INTEGER port, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN receiveSupplierMessages, BOOLEAN sendReplies, BOOLEAN invoices, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' AND invoices THEN {
         TRY {
             IMPORT blrdln XML FROM data(i);
-            NEWSESSION NESTED LOCAL {
-                LOCAL isCancel = BOOLEAN();
-                isCancel() <- TRUE IF blrdlnFunctionCode() == '1';
-                IF eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) THEN {
-                    importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
-                    IF isCancel() THEN {
-                        isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
-                        exportedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
-                    }
-                } ELSE NEW ei = EInvoice {
-                    importedCustomer(ei) <- TRUE;
-                    isTN2(ei) <- TRUE;
-                    id(ei) <- blrdlnSupplierGLN() + '/' + blrdlnDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
-                    number(ei) <- blrdlnDocumentNumber();
-                    dateTime(ei) <- blrdlnDateTime();
-                    deliveryNoteDateTime(ei) <- DATETIME (blrdlnDeliveryNoteDate());
-                    deliveryNoteNumber(ei) <- blrdlnDeliveryNoteNumber();
-                    contractName(ei) <- blrdlnContractName();
-                    contractId(ei) <- blrdlnContractID();
-                    contractDate(ei) <- blrdlnContractDate();
-                    isCancel(ei) <- isCancel();
-                    supplier(ei) <- legalEntityGLN(blrdlnSupplierGLN());
-                    contactSupplier(ei) <- blrdlnContactSupplier();
-                    supplierStock(ei) <- stockGLN(blrdlnSupplierStockGLN());
-                    contactSupplierStock(ei) <- blrdlnContactSupplierStock();
-                    customer(ei) <- legalEntityGLN(blrdlnCustomerGLN());
-                    customerStock(ei) <- companyStockGLN(blrdlnCustomerStockGLN());
-                    deliveryContact(ei) <- blrdlnDeliveryContact();
-                    proxyID(ei) <- blrdlnProxyID();
-                    proxyDate(ei) <- blrdlnProxyDate();
-                    partyIssuingProxyName(ei) <- blrdlnPartyIssuingProxyName();
-                    currency(ei) <- blrdlnCurrency();
-                    isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
-                    XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                    FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
-                        eInvoice(ed) <- ei;
-                        id(ed) <- id(ei) + '/' + blrdlnLineItemNumber(l);
-                        lineItemSign(ed) <- blrdlnLineItemSign(l);
-                        lineItemID(ed) <- blrdlnLineItemID(l);
-                        lineItemBuyerID(ed) <- blrdlnLineItemBuyerID(l);
-                        lineItemSupplierID(ed) <- blrdlnLineItemSupplierID(l);
-                        lineItemName(ed) <- blrdlnLineItemName(l);
-                        quantityDespatched(ed) <- blrdlnQuantityDespatched(l);
-                        lineItemQuantityUOM(ed) <- blrdlnLineItemQuantityUOM(l);
-                        expiryDate(ed) <- blrdlnExpiryDate(l);
-                        valueVAT(ed) <- NUMERIC[4,2](blrdlnValueVAT(l));
-                        additionalInformation(ed) <- blrdlnAdditionalInformation(l);
-                        lineItemPrice(ed) <- blrdlnLineItemPrice(l);
-                        lineItemAmountWithoutCharges(ed) <- blrdlnLineItemAmountWithoutCharges(l);
-                        lineItemAmount(ed) <- blrdlnLineItemAmount(l);
-                        lineItemAmountCharges(ed) <- blrdlnLineItemAmountCharges(l);
-                        lineItemAmountExcise(ed) <- blrdlnLineItemAmountExcise(l);
-                        lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
-                    }
-                }
-                APPLY NESTED LOCAL;
-                IF canceled() THEN {
-                    IF NOT disableConfirmation AND sendReplies THEN {
-                        LOCAL contentSubXML = FILE();
-                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                        fileToString(contentSubXML());
-                        encodeBase64(resultString());
-                        LOCAL xml = XMLFILE();
-                        envelopeLogin() <- login;
-                        envelopePassword() <- password;
-                        envelopeDocumentDate() <- currentDateTime();
-                        envelopeDocumentNumber() <- id(i);
-                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                        envelopeContent() <- encodedBase64();
-                        EXPORT envelope XML TO xml;
-                        sendRequestEDI(host, port, login, password, url, xml());
-                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                        IF requestError() THEN {
-                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+            skipBlrdln() <- NULL;
+            overImportBlrdln();
+            IF NOT skipBlrdln() THEN {
+                NEWSESSION NESTED LOCAL {
+                    LOCAL isCancel = BOOLEAN();
+                    isCancel() <- TRUE IF blrdlnFunctionCode() == '1';
+                    IF eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) THEN {
+                        importedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                        IF isCancel() THEN {
+                            isCancel(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                            exportedCustomer(EInvoice ei) <- TRUE WHERE ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber());
+                        }
+                    } ELSE NEW ei = EInvoice {
+                        importedCustomer(ei) <- TRUE;
+                        isTN2(ei) <- TRUE;
+                        id(ei) <- blrdlnSupplierGLN() + '/' + blrdlnDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
+                        number(ei) <- blrdlnDocumentNumber();
+                        dateTime(ei) <- blrdlnDateTime();
+                        deliveryNoteDateTime(ei) <- DATETIME (blrdlnDeliveryNoteDate());
+                        deliveryNoteNumber(ei) <- blrdlnDeliveryNoteNumber();
+                        contractName(ei) <- blrdlnContractName();
+                        contractId(ei) <- blrdlnContractID();
+                        contractDate(ei) <- blrdlnContractDate();
+                        isCancel(ei) <- isCancel();
+                        supplier(ei) <- legalEntityGLN(blrdlnSupplierGLN());
+                        contactSupplier(ei) <- blrdlnContactSupplier();
+                        supplierStock(ei) <- stockGLN(blrdlnSupplierStockGLN());
+                        contactSupplierStock(ei) <- blrdlnContactSupplierStock();
+                        customer(ei) <- legalEntityGLN(blrdlnCustomerGLN());
+                        customerStock(ei) <- companyStockGLN(blrdlnCustomerStockGLN());
+                        deliveryContact(ei) <- blrdlnDeliveryContact();
+                        proxyID(ei) <- blrdlnProxyID();
+                        proxyDate(ei) <- blrdlnProxyDate();
+                        partyIssuingProxyName(ei) <- blrdlnPartyIssuingProxyName();
+                        currency(ei) <- blrdlnCurrency();
+                        isReturn(ei) <- TRUE IF (GROUP SUM 1 IF blrdlnFieldCode(INTEGER e) == 'PW0013' AND blrdlnFieldValue(e) == '1');
+                        XMLPath(ei) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        FOR blrdlnLineItemID(INTEGER l) OR blrdlnLineItemBuyerID(l) OR blrdlnLineItemSupplierID(l) DO NEW ed = EInvoiceDetail {
+                            eInvoice(ed) <- ei;
+                            id(ed) <- id(ei) + '/' + blrdlnLineItemNumber(l);
+                            lineItemSign(ed) <- blrdlnLineItemSign(l);
+                            lineItemID(ed) <- blrdlnLineItemID(l);
+                            lineItemBuyerID(ed) <- blrdlnLineItemBuyerID(l);
+                            lineItemSupplierID(ed) <- blrdlnLineItemSupplierID(l);
+                            lineItemName(ed) <- blrdlnLineItemName(l);
+                            quantityDespatched(ed) <- blrdlnQuantityDespatched(l);
+                            lineItemQuantityUOM(ed) <- blrdlnLineItemQuantityUOM(l);
+                            expiryDate(ed) <- blrdlnExpiryDate(l);
+                            valueVAT(ed) <- NUMERIC[4,2](blrdlnValueVAT(l));
+                            additionalInformation(ed) <- blrdlnAdditionalInformation(l);
+                            lineItemPrice(ed) <- blrdlnLineItemPrice(l);
+                            lineItemAmountWithoutCharges(ed) <- blrdlnLineItemAmountWithoutCharges(l);
+                            lineItemAmount(ed) <- blrdlnLineItemAmount(l);
+                            lineItemAmountCharges(ed) <- blrdlnLineItemAmountCharges(l);
+                            lineItemAmountExcise(ed) <- blrdlnLineItemAmountExcise(l);
+                            lineItemExtraFields(ed) <- GROUP CONCAT (CONCAT ': ', blrdlnLineItemFieldName(INTEGER f), blrdlnLineItemFieldValue(f)) IF blrdlnLineItemLineItemExtraField(f) == l, ', ' ORDER blrdlnLineItemFieldName(f);
                         }
                     }
-                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
-                    eInvoicesFailed() <- eInvoicesFailed() + 1;
-                } ELSE {
-                    FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) DO {
-                        IF NOT disableAutoBlrapn() THEN {
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        IF NOT disableConfirmation AND sendReplies THEN {
                             LOCAL contentSubXML = FILE();
-                            blrapnDateTime() <- currentDateTimeMillis();
-                            blrapnMsgSender() <- glnCustomer(ei);
-                            blrapnMsgReceiver() <- glnSupplier(ei);
-                            blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
-                            blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
-                            blrapnReferenceDocumentType() <- 'BLRDLN';
-                            blrapnReferenceDocumentId() <- blrdlnDocumentNumber();
-                            blrapnReferenceDocumentDate() <- blrdlnDateTime();
-                            blrapnShipper() <- glnSupplier(ei);
-                            blrapnReceiver() <- glnCustomer(ei);
-                            blrapnCode() <- '2650';
-                            blrapnDescription() <- NULL;
-                            toMilliseconds(blrapnDateTime());
-                            EXPORT exportBlrapn XML TO contentSubXML;
-                            IF archiveDir THEN {
-                                TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                                WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                            fileToString(contentSubXML());
+                            encodeBase64(resultString());
+                            LOCAL xml = XMLFILE();
+                            envelopeLogin() <- login;
+                            envelopePassword() <- password;
+                            envelopeDocumentDate() <- currentDateTime();
+                            envelopeDocumentNumber() <- id(i);
+                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                            envelopeContent() <- encodedBase64();
+                            EXPORT envelope XML TO xml;
+                            sendRequestEDI(host, port, login, password, url, xml());
+                            logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                            IF requestError() THEN {
+                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                                logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
                             }
-                            IF aliasEDSServiceCustomer(ei) AND passwordEDSServiceCustomer(ei) THEN {
-                                IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) THEN {
-                                    LOCAL xml = FILE();
-                                    fileToString(contentSubXML());
-                                    EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO xml;
-                                    LOCAL innerXML = TEXT();
-                                    innerXML() <- resultString();
-                                    fileToString(xml());
-                                    stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-                                    sendRequestEDI(hostEDSServiceCustomerTopBy(ei), portEDSServiceCustomerTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceCustomerTopBy(ei) + ':' + portEDSServiceCustomerTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
-                                    IMPORT getEDSResponse FROM sendRequestEDIResponse();
-                                    IF faultstring() THEN {
-                                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
-                                    }
-                                    ELSE IF waybill() THEN {
-                                        encodeBase64(waybill());
-                                        LOCAL ixml = XMLFILE();
-                                        envelopeLogin() <- login;
-                                        envelopePassword() <- password;
-                                        envelopeFilename() <- CONCAT '', 'invoice', number(ei);
-                                        envelopeDocumentDate() <- blrapnDateTime();
-                                        envelopeDocumentNumber() <- number(ei);
-                                        envelopeSender() <- glnCustomer(ei);
-                                        envelopeReceiver() <- glnCustomer(ei);
-                                        envelopeDeliveryPoint() <- glnCustomerStock(ei);
-                                        envelopeDocumentType() <- 'BLRAPN';                                        
-                                        envelopeContent() <- encodedBase64();
-                                        EXPORT envelope XML TO ixml;
-                                        sendRequestEDI(host, port, login, password, url, ixml());
-                                        logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) +' request sent');
-                                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                                        IF requestError() THEN {
-                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ': ' + requestError());
-                                            MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' не выгружено: ' + requestError() NOWAIT;
-                                        } ELSE {
-                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
-                                            IF NOT disableConfirmation THEN {
-                                                LOCAL cxml = XMLFILE();
-                                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                                sendRequestEDI(host, port, login, password, url, cxml());
-                                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                                IF requestError() THEN {
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                                } ELSE {
-                                                    IF archiveDir THEN {
-                                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        }
+                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
+                        eInvoicesFailed() <- eInvoicesFailed() + 1;
+                    } ELSE {
+                        FOR EInvoice ei == eInvoiceDeliveryNoteNumber(blrdlnDeliveryNoteNumber()) DO {
+                            IF NOT disableAutoBlrapn() THEN {
+                                LOCAL contentSubXML = FILE();
+                                blrapnDateTime() <- currentDateTimeMillis();
+                                blrapnMsgSender() <- glnCustomer(ei);
+                                blrapnMsgReceiver() <- glnSupplier(ei);
+                                blrapnDeliveryNoteId() <- deliveryNoteNumber(ei);
+                                blrapnDeliveryNoteDate() <- DATE(deliveryNoteDateTime(ei));
+                                blrapnReferenceDocumentType() <- 'BLRDLN';
+                                blrapnReferenceDocumentId() <- blrdlnDocumentNumber();
+                                blrapnReferenceDocumentDate() <- blrdlnDateTime();
+                                blrapnShipper() <- glnSupplier(ei);
+                                blrapnReceiver() <- glnCustomer(ei);
+                                blrapnCode() <- '2650';
+                                blrapnDescription() <- NULL;
+                                toMilliseconds(blrapnDateTime());
+                                EXPORT exportBlrapn XML TO contentSubXML;
+                                IF archiveDir THEN {
+                                    TRY{ mkdir(archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                                    WRITE contentSubXML() TO archiveDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
+                                IF aliasEDSServiceCustomer(ei) AND passwordEDSServiceCustomer(ei) THEN {
+                                    IF hostEDSServiceCustomerTopBy(ei) AND portEDSServiceCustomerTopBy(ei) THEN {
+                                        LOCAL xml = FILE();
+                                        fileToString(contentSubXML());
+                                        EXPORT getEDS OBJECTS alias = aliasEDSServiceCustomer(ei),password = passwordEDSServiceCustomer(ei) XML TO xml;
+                                        LOCAL innerXML = TEXT();
+                                        innerXML() <- resultString();
+                                        fileToString(xml());
+                                        stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
+                                        sendRequestEDI(hostEDSServiceCustomerTopBy(ei), portEDSServiceCustomerTopBy(ei), 'eds', 'eds', ('http://' + hostEDSServiceCustomerTopBy(ei) + ':' + portEDSServiceCustomerTopBy(ei) + '/eds/services/EDSService?wsdl'), XMLFILE(resultFile()), TRUE);
+                                        IMPORT getEDSResponse FROM sendRequestEDIResponse();
+                                        IF faultstring() THEN {
+                                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: BLRAPN ' + number(ei) + ' не подписан. Ошибка: ' + faultstring());
+                                        }
+                                        ELSE IF waybill() THEN {
+                                            encodeBase64(waybill());
+                                            LOCAL ixml = XMLFILE();
+                                            envelopeLogin() <- login;
+                                            envelopePassword() <- password;
+                                            envelopeFilename() <- CONCAT '', 'invoice', number(ei);
+                                            envelopeDocumentDate() <- blrapnDateTime();
+                                            envelopeDocumentNumber() <- number(ei);
+                                            envelopeSender() <- glnCustomer(ei);
+                                            envelopeReceiver() <- glnCustomer(ei);
+                                            envelopeDeliveryPoint() <- glnCustomerStock(ei);
+                                            envelopeDocumentType() <- 'BLRAPN';                                        
+                                            envelopeContent() <- encodedBase64();
+                                            EXPORT envelope XML TO ixml;
+                                            sendRequestEDI(host, port, login, password, url, ixml());
+                                            logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) +' request sent');
+                                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                                            IF requestError() THEN {
+                                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ': ' + requestError());
+                                                MESSAGE provider + ' Извещение о прочтении накладной ' + number(ei) + ' не выгружено: ' + requestError() NOWAIT;
+                                            } ELSE {
+                                                logToFile('edi', provider + ' SendBlrapnEInvoice ' + number(ei) + ' request succeeded');
+                                                IF NOT disableConfirmation THEN {
+                                                    LOCAL cxml = XMLFILE();
+                                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                                                    sendRequestEDI(host, port, login, password, url, cxml());
+                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                                    IF requestError() THEN {
+                                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                                    } ELSE {
+                                                        IF archiveDir THEN {
+                                                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                                        }
+                                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                                     }
-                                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                                }
+                                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
+                                                eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
+                                                NEWSESSION NESTED LOCAL {
+                                                    exportedBlrapnCustomer(ei) <- TRUE;
+                                                    APPLY NESTED LOCAL;
                                                 }
                                             }
-                                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
-                                            eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
-                                            NEWSESSION NESTED LOCAL {
-                                                exportedBlrapnCustomer(ei) <- TRUE;
-                                                APPLY NESTED LOCAL;
-                                            }
                                         }
+                                    } ELSE {
+                                        logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
                                     }
                                 } ELSE {
-                                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: не заданы параметры EDSService');
+                                    logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: Alias or Password for EDSService not found');
                                 }
                             } ELSE {
-                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' error: Alias or Password for EDSService not found');
-                            }
-                        } ELSE {
-                            IF NOT disableConfirmation THEN {
-                                LOCAL cxml = XMLFILE();
-                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
-                                sendRequestEDI(host, port, login, password, url, cxml());
-                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                                IF requestError() THEN {
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                    MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                                } ELSE {
-                                    IF archiveDir THEN {
-                                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
-                                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                IF NOT disableConfirmation THEN {
+                                    LOCAL cxml = XMLFILE();
+                                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                                    sendRequestEDI(host, port, login, password, url, cxml());
+                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                    IF requestError() THEN {
+                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                        MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                    } ELSE {
+                                        IF archiveDir THEN {
+                                            TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                            WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                                        }
+                                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                     }
-                                    logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
                                 }
+                                logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
+                                eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                             }
-                            logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' succeeded');
-                            eInvoicesSucceeded() <- eInvoicesSucceeded() + 1;
                         }
-                    }
-                }  
+                    }  
+                }
             }
         } CATCH {
             IF NOT disableConfirmation AND sendReplies THEN {
@@ -1334,7 +1352,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, STRING[1
     IF lower(documentType(i)) == 'blradf' AND invoices THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
-            IF blradfMsgReceiverID() == blradfCustomerGLN() THEN {
+            skipBlradf() <- NULL;
+            overImportBlradf();
+            IF blradfMsgReceiverID() == blradfCustomerGLN() AND NOT skipBlradf() THEN {
                 NEWSESSION NESTED LOCAL {
                     importedCustomer(ECreditNote ec) <- TRUE WHERE ec == eCreditNoteActDifNumber(blradfActDifNumber());
                     APPLY NESTED LOCAL;
