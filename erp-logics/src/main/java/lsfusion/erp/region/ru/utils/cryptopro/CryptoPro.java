@@ -97,14 +97,6 @@ public class CryptoPro {
             signature.close();
             return out.toByteArray();
 
-//            final Hashtable table = new Hashtable();
-//            Attribute attr = new Attribute(CMSAttributes.signingTime, new DERSet(new Time(new Date()))); // устанавливаем время подписи
-//            table.put(attr.getAttrType(), attr);
-//            AttributeTable attrTable = new AttributeTable(table);
-
-//                    JCP.GOST_DIGEST_2012_256_OID,
-//                    JCP.GOST_PARAMS_EXC_2012_256_KEY_OID,
-
         } catch (IOException | CertificateException | NoSuchAlgorithmException | UnrecoverableKeyException | CAdESException | KeyStoreException e) {
             throw Throwables.propagate(e);
         }

@@ -64,7 +64,7 @@ create 'Отослать в ГИС МТ' (Document d) {
         
         LOCAL sendRequest = FILE();
         EXPORT JSON FROM document_format = 'MANUAL', 
-                         product_document = replace(encode(RAWFILE(exportFile()), 'base64'), '\n', ''),
+                         product_document = encode(RAWFILE(exportFile()), 'base64'),
                          type = gismtType(d),
                          signature = encodedSignature()
                     TO sendRequest;
@@ -74,6 +74,7 @@ create 'Отослать в ГИС МТ' (Document d) {
         getToken(legalEntity(d));
 
         LOCAL id = STRING();
+        exception(d) <- NULL;
         TRY {
             EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
         } CATCH {
