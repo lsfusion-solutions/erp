@@ -129,14 +129,19 @@ public class DigiSM5300Handler extends DigiHandler {
                 bytes.order(ByteOrder.LITTLE_ENDIAN);
 
                 //CONTAINER  NO., 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(item.pluNumber, 8)));
+                String containerNumber = fillLeadingZeroes(item.pluNumber, 8);
+                bytes.put(getHexBytes(containerNumber));
 
                 //CONTAINER REC. SIZE
                 bytes.put((byte) (length >>> 8));
                 bytes.put((byte) length);
 
                 //PLU CODE, 4 bytes
-                bytes.put(getHexBytes(fillLeadingZeroes(getPluNumberForPluRecord(item)/*item.idBarcode*/, 8)));
+                String pluCode = fillLeadingZeroes(getPluNumberForPluRecord(item), 8);
+                bytes.put(getHexBytes(pluCode));
+
+                //todo: temp log
+                processTransactionLogger.info(getLogPrefix() + String.format("makeDFRecord item %s, container %s, pluCode %s", item.name, containerNumber, pluCode));
 
                 return bytes.array();
             }
