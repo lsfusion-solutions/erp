@@ -37,6 +37,10 @@ idType 'Код типа' (LotOrder o) = id(type(o));
 overGtin = ABSTRACT STRING[14] (LotOrderDetail);
 gtin 'GTIN' (LotOrderDetail d) = OVERRIDE overGtin(d), gtin(sku(d));
 
+CONSTRAINT (SETCHANGED(sku(LotOrderDetail d)) OR SETCHANGED(type(lotOrder(d)))) AND NOT lotType(sku(d)) = type(lotOrder(d))
+    CHECKED BY sku[LotOrderDetail] 
+    MESSAGE 'Тип маркировки товара не соответствует типу маркировки заказа';
+
 @defineDocumentDetailQuantity(lotOrder);
 @defineDocumentHeaderQuantity(lotOrder);
 @defineDocumentHeaderSkuQuantity(lotOrder, sku);
@@ -108,7 +112,7 @@ EXTEND FORM lotOrder
         FILTER 'Без марок' prevCurrentBalance(ks, o) > OVERRIDE prevCurrentBalanceLot(ks, stock(o)), 0
 
     FILTERGROUP filterLot
-        FILTER 'Маркируется' lotType(ks) DEFAULT
+        FILTER 'Маркируется' lotType(ks) = type(o) DEFAULT
 
     FILTERGROUP filterSku
         FILTER 'С остатком' prevCurrentBalance(ks, stock(o)) 'F10' DEFAULT
