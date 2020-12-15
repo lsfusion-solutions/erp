@@ -257,13 +257,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
             int offset = columns.length + keys.length;
 
             int batchCount = 0;
+            Set<String> usedGrp = new HashSet<>();
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 List<ItemGroup> itemGroupList = transaction.itemGroupMap.get(transaction.itemsList.get(i).extIdItemGroup);
                 if (itemGroupList != null) {
                     for (ItemGroup itemGroup : itemGroupList) {
                         if (!Thread.currentThread().isInterrupted()) {
                             String idGroup = parseGroup(itemGroup.extIdItemGroup);
-                            if (idGroup != null && !idGroup.isEmpty()) {
+                            if (idGroup != null && !idGroup.isEmpty() && !usedGrp.contains(idGroup)) {
                                 if(params.pgsql) {
                                     String parentId = parseGroup(itemGroup.idParentItemGroup, true);
                                     setObject(ps, Integer.parseInt(idGroup), 1); //GRPID
@@ -286,6 +287,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch> 
                                     batchCount = 0;
                                     astronLogger.info("execute and commit batch");
                                 }
+                                usedGrp.add(idGroup);
                             }
                         } else break;
                     }
