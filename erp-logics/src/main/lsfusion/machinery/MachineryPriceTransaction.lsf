@@ -938,15 +938,16 @@ META defineMachineryPriceTransactionAttribute(object, caption, type, nameProp)
     @defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp);
 END
 
-META defineMachineryPriceTransactionAttributeStockAction(object, caption, nameProp)
+META defineMachineryPriceTransactionAttributeStockAction(type, object, caption, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
-    createAttribute(MachineryPriceTransaction t, Stock stock) + {  object(t, Barcode barcode) <- object(barcode, stock)
+    over###object = ABSTRACT type (MachineryPriceTransaction, Barcode);
+    createAttribute(MachineryPriceTransaction t, Stock stock) + {  object(t, Barcode barcode) <- OVERRIDE over###object(t, barcode), object(barcode, stock)
                                                                       WHERE in(t, barcode); }
 END
 META defineMachineryPriceTransactionAttributeStock(object, caption, type)
     object caption = DATA type (MachineryPriceTransaction, Barcode);
     object(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
-    @defineMachineryPriceTransactionAttributeStockAction(object, caption, );
+    @defineMachineryPriceTransactionAttributeStockAction(type, object, caption, );
 END
 
 // Номер PLU
@@ -1298,7 +1299,7 @@ dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[16,4] (Barcode
 
 dataMinPrice 'Минимальная цена (предв.)' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 dataMinPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
-@defineMachineryPriceTransactionAttributeStockAction(dataMinPrice, 'Минимальная цена', );
+@defineMachineryPriceTransactionAttributeStockAction(NUMERIC[16,4], dataMinPrice, 'Минимальная цена', );
 minPrice 'Минимальная цена (рез.)' (MachineryPriceTransaction m, Barcode b) =  min(dataMinPrice(m, b), price(m, b));
 
 EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) minPrice;
@@ -1308,7 +1309,7 @@ EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY  minPrice;
 retailPrice 'Цена до' = ABSTRACT NUMERIC[16,4] (Barcode, Stock);
 retailPrice 'Цена до' = DATA NUMERIC[16,4] (MachineryPriceTransaction, Barcode);
 retailPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
-@defineMachineryPriceTransactionAttributeStockAction(retailPrice, 'Цена до', );
+@defineMachineryPriceTransactionAttributeStockAction(NUMERIC[16,4], retailPrice, 'Цена до', );
 
 info 'Дополнительное поле' = DATA TEXT (MachineryPriceTransaction);
 info 'Дополнительное поле' = DATA TEXT (MachineryPriceTransaction, Barcode);

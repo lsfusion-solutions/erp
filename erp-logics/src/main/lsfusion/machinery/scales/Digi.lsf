@@ -9,6 +9,10 @@ writeFileToSocket (file, type, ip)  INTERNAL  'lsfusion.erp.machinery.scales.Wri
 
 //DigiSM5300
 overImage = ABSTRACT IMAGEFILE (Barcode);
+image = OVERRIDE overImage(Barcode b), image(sku(b));
+
+overPluNumber = ABSTRACT INTEGER (Barcode, Stock);
+pluNumber = OVERRIDE overPluNumber(Barcode b, Stock s), plu(b, s);
 
 loadImages 'Загрузить картинки в весы' () {
     NEWSESSION NESTED (select[Sku,Stock]) {
@@ -18,12 +22,14 @@ loadImages 'Загрузить картинки в весы' () {
                     TRY {
                         mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/');
                     }
-                    FOR select(sku(Barcode barcode), stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(barcode, stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
                         TRY {
-                            convertImage((OVERRIDE overImage(barcode),image(sku(barcode))), 'bmp');
-                            WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + id(barcode) + '?binarytransfermode=false';
+                            convertImage(image(barcode), 'bmp');
+                            WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + pluNumber(barcode, stock) + '?binarytransfermode=false';
                         } CATCH {
-                            logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE id(barcode),'NULL'));
+                            //logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE STRING (pluNumber(barcode, stock)),'NULL'));
+                            MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
+                            BREAK;
                         }
                     }
                 }
@@ -40,9 +46,9 @@ deleteImages 'Удалить картинки из весов' () {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
                 FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'DigiSM5300' DO {
-                    FOR select(sku(Barcode barcode), stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
+                    FOR select(sku(Barcode barcode), stock) AND pluNumber(barcode, stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
                         TRY {
-                            delete('ftp://root:teraoka@' + port(scales) + '//opt/pcscale/files/img/plu/Plu' + id(barcode));
+                            delete('ftp://root:teraoka@' + port(scales) + '//opt/pcscale/files/img/plu/Plu' + pluNumber(barcode, stock));
                         }
                     }
                 }
