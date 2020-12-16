@@ -70,23 +70,56 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-customGroupType = ABSTRACT CustomGroupType(MachineryPriceTransaction);
+customGroupType = ABSTRACT CustomGroupType(GroupScales);
 tareWeight = ABSTRACT NUMERIC[12,3] (Barcode);
-idCustomGroupDigi =ABSTRACT STRING[100] (CustomGroup);
+
+overId = ABSTRACT STRING[100] (CustomGroup);
+idDigi(CustomGroup cg) = OVERRIDE overId(cg), id(cg);
 
 createAttribute(MachineryPriceTransaction mpt) + {
     IF sidModel(groupScales(mpt)) == 'DigiSM5300' THEN {
         LOCAL custGroup = CustomGroup (Barcode);
-        custGroup(Barcode b) <- customGroup(customGroupType(mpt), sku(b)) WHERE in(mpt, b);
+        custGroup(Barcode b) <- customGroup(customGroupType(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
         LOCAL newPluNumber = INTEGER (Barcode);
         newPluNumber(Barcode b) <- PARTITION SUM 1 IF id(b) AND active(b) ORDER b BY custGroup(b) WHERE in(mpt, b);
         
         info(mpt, Barcode b) <- ('\{"digism5300":\{'+
                 (CONCAT ',',
-                    (' "numberGroup": "' + (OVERRIDE idCustomGroupDigi(custGroup(b)), id(custGroup(b)), '') +
+                    (' "numberGroup": "' + (OVERRIDE idDigi(custGroup(b)), '') +
                     '", nameGroup: "' + (OVERRIDE name(custGroup(b)),'')+ 
                     '", overPluNumber: "' + newPluNumber(b) + '"'),
                     '"tareWeight":'+tareWeight(b))
                 +'\}\}') WHERE in(mpt, b);
     }
 }
+
+image 'Изображение для Digi' = DATA IMAGEFILE (CustomGroup);
+loadImagesGroup 'Загрузить картинки в весы' (GroupScales gm) {
+    NEWSESSION {
+        FOR gm == groupScales(Scales scales) AND active(scales) DO {
+            TRY {
+                mkdir('ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/');
+            }
+            FOR idDigi(CustomGroup cg) AND customGroupType(cg) == customGroupType(gm) DO {
+                TRY {
+                    convertImage(image(cg), 'bmp');
+                    WRITE convertedImage() TO 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/common/1' + idDigi(cg) + '?binarytransfermode=false';
+                } CATCH {
+                    //logToFile('scales','ERROR WRITE TO ' + 'ftp://root:teraoka@' + port(scales) + '/../opt/pcscale/files/img/plu/plu' + (OVERRIDE STRING (pluNumber(barcode, stock)),'NULL'));
+                    MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
+                    BREAK;
+                }
+            }
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM customGroups
+    PROPERTIES image(g) READONLY;
+    
+EXTEND FORM customGroup
+    PROPERTIES image(g) ;
+    
+EXTEND FORM groupScales 
+    PROPERTIES loadImagesGroup(grs) SHOWIF sidModel(grs) == 'DigiSM5300';
+    
