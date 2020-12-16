@@ -1,6 +1,6 @@
 MODULE GISMTLotInit;
 
-REQUIRE GISMTDocument, LotInit;
+REQUIRE GISMTDocument, LotInit, SkuLedgerLot;
 
 NAMESPACE GISMT;
 
@@ -36,7 +36,14 @@ FORM exportLotInit
     FILTERS lotInit(d) = i, quantity(d, l)
 ;
 
+excess (Sku sk, LotInit i) = (currentBalanceLot(sk, stock(i)) (+) quantityLotInitDetail(sk, i)) > OVERRIDE currentBalance(sk, stock(i)), 0;
 export (LotInit i) + {
+    IF ((GROUP SUM 1 IF excess(Sku sk, i)) > 0) AND checkCurrentBalanceLot() THEN {
+        MESSAGE 'Недостаточно остатка для ввода в оборот по следующим товарам : \n' +
+            GROUP CONCAT (CONCAT ' ', id(Sku sk), name(sk), idBarcode(sk)) IF excess(sk, i), '\n' ORDER sk;
+        stopCreate() <- TRUE;
+        RETURN;        
+    } 
     EXPORT exportLotInit OBJECTS i = i JSON;
 }
 
