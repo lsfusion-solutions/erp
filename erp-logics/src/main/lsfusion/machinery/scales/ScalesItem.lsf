@@ -4,8 +4,8 @@ REQUIRE ItemDescription, ScalesPriceTransaction;
 
 NAMESPACE Item;
 
-scalesIdSkuGroup = ABSTRACT STRING[100] (MachineryPriceTransaction, Barcode);
-idSkuGroup (MachineryPriceTransaction transaction, Barcode barcode) = OVERRIDE scalesIdSkuGroup(transaction, barcode), id[ItemGroup](skuGroup(transaction, barcode));
+scalesGroup = ABSTRACT Group (MachineryPriceTransaction, Barcode);
+idSkuGroup (MachineryPriceTransaction transaction, Barcode barcode) = OVERRIDE id(scalesGroup(transaction, barcode)), id(skuGroup(transaction, barcode));
 
 overTitleScales = ABSTRACT ISTRING[255] (MachineryPriceTransaction, Barcode);
 
@@ -13,6 +13,9 @@ createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachiner
     IF groupMachinery IS GroupScales THEN
         name(transaction, Barcode barcode) <- (OVERRIDE overTitleScales(transaction, barcode), titleScales(barcode) IF transaction IS MachineryPriceTransaction) WHERE in(transaction, barcode);
 }
+
+scalesImage 'Изображение' = ABSTRACT IMAGEFILE (Group);
+hasScalesImage(Group g) = TRUE IF scalesImage(g) MATERIALIZED;
 
 GROUP scales 'Весы' : public;
 
