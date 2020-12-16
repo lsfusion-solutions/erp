@@ -68,6 +68,8 @@ pricesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
 barcodesString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
+plusString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
+
 restsString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
 
 atcString = ABSTRACT CASE ISTRING (MachineryPriceTransaction);
@@ -90,6 +92,8 @@ exchangeChameleon (GroupCashRegister g, STRING q) {
         returnExchange(g) <- TRUE;
     }
 }
+
+sendPlus 'Передавать PLU' = ABSTRACT CASE BOOLEAN (MachineryPriceTransaction);
 
 overSendToChameleon ABSTRACT LIST (MachineryPriceTransaction);
 
@@ -115,8 +119,9 @@ sendToChameleon (MachineryPriceTransaction t){
                 pricesString(t),
                 restsString(t),
                 barcodesString(t),
+                plusString(t) IF sendPlus(t),
                 atcString(t)
-                //plusString(t)
+                //
             );
             IF returnExchange(groupMachinery(t)) THEN {
                 NEW e = MachineryPriceTransactionError {

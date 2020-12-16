@@ -58,6 +58,19 @@ pricesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(
 barcodeString (MachineryPriceTransaction m, Barcode b) = 'SELECT system.import_front_bar_codes(\'' + escape(id(b)) + '\',' + STRING(UOM(idUOM(m, b))) + ',' + STRING(sku(b)) + ', \'-\', \'\', true)';
 barcodesString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN GROUP CONCAT barcodeString(m, Barcode b), ';' IF in(m, b) ORDER m, b;
 
-pluString (Barcode b) = 'SELECT system.import_front_plu(' + escape(id(b)) + ',' + STRING(sku(b)) + ',true)' IF length(id(b)) <= 5 AND passScales(b);
-plusString (MachineryPriceTransaction m) = GROUP CONCAT pluString(Barcode b), ';' IF in(m, b) ORDER m, b;
+pluGroupPluString (MachineryPriceTransaction m) = 'SELECT system.import_front_group_plu(' + ISTRING(groupMachinery(m)) + ',\'' + name(groupMachinery(m)) + '\',true)';
+pluString (Barcode b, MachineryPriceTransaction m) = 'SELECT system.import_front_plu(' + ISTRING(groupMachinery(m)) + ',' + escape(id(b)) + ',' + STRING(sku(b)) + ',true)' IF length(id(b)) <= 5 AND passScales(b);
+plusString (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN pluGroupPluString(m) + GROUP CONCAT pluString(Barcode b, m), ';' IF in(m, b) ORDER m, b;
 
+sendPlus 'Передавать PLU' = DATA BOOLEAN (GroupCashRegister);
+sendPlus (MachineryPriceTransaction m) += WHEN isChameleon26(groupMachinery(m)) THEN sendPlus(groupMachinery(m));
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) sendPlus SHOWIF isChameleon26(grc)
+;
+
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY (sendPlus(grc));
+    }
+}
