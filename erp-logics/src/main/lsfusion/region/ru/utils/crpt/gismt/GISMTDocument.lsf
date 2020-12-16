@@ -174,6 +174,18 @@ postDocuments 'Изменить статусы документов ГИС МТ'
     }
 }
 
+allowEditSentDocument 'Разрешить исправлять отосланные в ГИС МТ документы' = DATA BOOLEAN (Employee);
+EXTEND FORM employee
+    PROPERTIES(e) allowEditSentDocument
+;
+
+DESIGN employee {
+    access {
+        MOVE PROPERTY(allowEditSentDocument(e));
+    }
+}
+
+
 META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
     DESIGN form {
         documentDetail {
@@ -235,6 +247,7 @@ META defineDocumentGISMT(doc, property, form, obj, legalEntityProp, gisType)
     
     // constraint
     CONSTRAINT (CHANGED(sku(###doc##Detail d)) OR GROUP SUM 1 IF CHANGED(quantity(d, Lot l))) AND
+               NOT allowEditSentDocument(currentUser()) AND
                (PREV(id(document(doc(d),lotType(sku(d)))) AND NOT canceled(document(doc(d),lotType(sku(d))))) OR 
                     (id(document(doc(d),lotType(sku(d)))) AND NOT canceled(document(doc(d),lotType(sku(d))))))
         MESSAGE 'Запрещено редактировать документ после его отсылки в ГИС МТ';
