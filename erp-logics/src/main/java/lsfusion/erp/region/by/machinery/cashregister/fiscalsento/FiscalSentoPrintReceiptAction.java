@@ -68,6 +68,9 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     return;
                 }
 
+                ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
+                Integer giftCardDepartment = posGiftCardLM != null ? (Integer) posGiftCardLM.findProperty("giftCardDepartmentCurrentCashRegister[]").read(context): null;
+
                 BigDecimal sumDisc = null;
 
                 BigDecimal sumCard = null;
@@ -158,18 +161,18 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
                     String numberSection = (String) receiptDetailValues.get("numberSection");
                     if (quantitySale > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem( price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                     if (quantity > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem( price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail, discountSumReceiptDetail, numberSection));
                     if (quantityReturn > 0)
-                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
                 }
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
                             new ReceiptInstance(sumDisc, sumCard, sumCash, sumCheck, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom));
+                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom, giftCardDepartment));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

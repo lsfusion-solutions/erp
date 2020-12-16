@@ -275,11 +275,12 @@ public class FiscalSento {
         return result.toString();
     }
 
-    public static void registerItem(ReceiptItem item, String comment) {
+    public static void registerItem(ReceiptItem item, String comment, Integer giftCardDepartment) {
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
-        logAction("sale", 6, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name, comment != null ? comment : "");
-        boolean result = sentoDLL.sento.sale((short) 6, 1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+        int department = item.isGiftCard && giftCardDepartment != null ? giftCardDepartment : 1;
+        logAction("sale", 6, department, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name, comment != null ? comment : "");
+        boolean result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
         if(!result)
             checkErrors();
     }
