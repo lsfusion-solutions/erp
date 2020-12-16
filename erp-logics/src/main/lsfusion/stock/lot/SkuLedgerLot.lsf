@@ -28,10 +28,22 @@ prevCurrentBalanceLot (Sku sk, Stock st) = PREV(currentBalanceLot(sk, st));
 
 // constraint
 @defineOption(checkCurrentBalanceLot, 'Проверять на превышение остатка по маркам', stock);
-CONSTRAINT checkCurrentBalanceLot() AND SET(currentBalanceLot(Sku sk, Stock st) > (OVERRIDE currentBalance(sk, st), 0))
+
+skipCheckCurrentBalanceLot 'Не проверять на превышение остатка КМ' = DATA BOOLEAN (Employee);
+EXTEND FORM employee
+    PROPERTIES(e) skipCheckCurrentBalanceLot
+;
+
+DESIGN employee {
+    access {
+        MOVE PROPERTY(skipCheckCurrentBalanceLot(e));
+    }
+}
+
+CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND SET(currentBalanceLot(Sku sk, Stock st) > (OVERRIDE currentBalance(sk, st), 0))
     MESSAGE 'Количество КМ на остатках превышает текущий остаток по товару';
 
-CONSTRAINT checkCurrentBalanceLot() AND SET(currentBalance(Lot l, Stock st) < 0)
+CONSTRAINT checkCurrentBalanceLot() AND NOT skipCheckCurrentBalanceLot(currentUser()) AND SET(currentBalance(Lot l, Stock st) < 0)
     MESSAGE 'Остаток по КМ на складе становится меньше 0';
     
 EXTEND FORM currentBalanceSkuStock
