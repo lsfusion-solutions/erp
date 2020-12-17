@@ -229,3 +229,25 @@ exportZReports () {
     FOR DepartmentStore st IF DATE(startDate(st)) <= sum(currentDate(), -1) NOINLINE DO {  exportZReports(st,sum(currentDate(), -1)); }
     FOR DepartmentStore st IF DATE(startDate(st)) <= currentDate() NOINLINE DO {  exportZReports(st,currentDate()); }
 }
+
+//сверка выгруженных данных
+salesFusion = DATA LOCAL NUMERIC[15,2](Sku);
+salesSupermag = DATA LOCAL NUMERIC[15,2] (Sku);
+
+FORM compasionZReports
+OBJECTS s = Sku
+PROPERTIES id(s), name(s), salesFusion(s), salesSupermag(s)
+FILTERS salesFusion(s) > 0 AND NOT salesFusion(s)=salesSupermag(s) ;
+
+compasionZReports (STRING idStock, DATE date) {
+    sqlString() <- 'SELECT ds.ARTICLE, ds.TOTALPRICE FROM Supermag.SMSpec ds WHERE ds.DocType IN (\'CS\',\'CR\') AND ds.DOCID IN (\'CS' + idStock + fromDateToFormat(date,'YYYYMMDD')+'@'+idStock+'\' ,\'CR'+idStock+fromDateToFormat(date,'YYYYMMDD')+'@'+idStock+'\') ';    
+   
+    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+
+    IMPORT TABLE FROM SupermagSettings.file() TO idItem, totalPrice;
+
+    FOR id(Sku sku) = idItem(INTEGER i) DO salesSupermag(sku) <- NUMERIC[15,2](totalPrice(i)) WHERE id(sku)=idItem(i);
+
+    salesFusion(Sku sku ) <- NUMERIC[15,2](  [GROUP SUM sum(ReceiptDetail det) BY sku(det) IF id(departmentStore(det)) = idStock AND closeDate(zReport(det)) = date](sku));
+    SHOW compasionZReports;
+}
