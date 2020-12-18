@@ -20,8 +20,10 @@ CLASS Lot 'Марка';
 id 'Код' = DATA STRING[100] (Lot) INDEXED;
 lot = GROUP AGGR Lot l BY id(l); 
 
+translateBarcode = FORMULA STRING[100] 'SELECT CASE WHEN ($1) ~* \'[а-яА-Я]\' THEN translate(left(($1), 31), \'ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭ/ЯЧСМИТЬБЮ,йцукенгшщзхъфывапролджэячсмитьбю.\', \'QWERTYUIOP{}ASDFGHJKL:"|ZXCVBNM<>?qwertyuiop[]asdfghjkl;\'\'zxcvbnm,./\') ELSE left(($1), 31) END';
+
 barcodeToId = ABSTRACT CASE STRING[100] (STRING[100]);
-barcodeToId (STRING[100] s) += WHEN s IS STRING[100] THEN STRING[100](left(s, 31)); 
+barcodeToId (STRING[100] s) += WHEN s IS STRING[100] THEN translateBarcode(s);
 
 tail 'Хвост' = DATA STRING[100] (Lot);
 
