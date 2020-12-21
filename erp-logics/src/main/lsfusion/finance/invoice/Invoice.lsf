@@ -1044,9 +1044,15 @@ META defineInvoiceBatchDialogStock(stockProp, dialog)
     EXTEND FORM invoices PROPERTIES (d) READONLY AFTER shortNameUOMSku(d) SHOWIF showBatch(i) nameBatch, documentNameBatch;
 END
 
+customChangeBatch = ABSTRACT BOOLEAN (InvoiceDetail);
+dialogCustomChangeBatch ABSTRACT (InvoiceDetail);
+
 // Партии на приходе
 META defineInvoiceBatchDialog(dumb)
     changeBatch(UserInvoiceDetail d)  { 
+        IF customChangeBatch(d) THEN    
+            dialogCustomChangeBatch(d);
+        ELSE    
         DIALOG dialogBatch OBJECTS sk = sku(d), bt = batch(d) INPUT NULL NEWSESSION DO {
             batch(d) <- bt;
         }
