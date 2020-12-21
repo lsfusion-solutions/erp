@@ -1023,6 +1023,9 @@ showBalanceReserveSku 'Показать резерв товара по скла�
 backgroundBalance  = ABSTRACT CASE COLOR (Sku, Stock);
 backgroundBalance  = ABSTRACT CASE COLOR (Sku, Stock, DATETIME);
 
+overFilterGroup = ABSTRACT BOOLEAN (Sku);
+overFilterStock = ABSTRACT BOOLEAN (Stock);
+
 FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES() multipleStores
     
@@ -1047,9 +1050,9 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES        select(s,st)
     PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), 
                       stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
-    FILTERS           isParent(sk, s),
+    FILTERS           isParent(sk, s) OR overFilterGroup(s),
                       IF multipleStores() THEN 
-                        st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
+                        st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts OR overFilterStock(st)
                       ELSE 
                         st == ss,
                       isCompany(st) OR NOT multipleStores()
