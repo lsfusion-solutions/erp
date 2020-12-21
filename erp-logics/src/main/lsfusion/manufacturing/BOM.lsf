@@ -462,7 +462,7 @@ in 'Вкл.' (BOM BOM, StockGroup stockGroup) = OVERRIDE
 
 in 'Вкл.' (BOM BOM, Stock stock) = OVERRIDE
     dataIn(stock, BOM),
-    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock) MATERIALIZED;
+    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock) AND active(stock) MATERIALIZED;
     
     
 countStocks (BOM BOM) = GROUP SUM 1 IF in(BOM, Stock stock) MATERIALIZED;
@@ -478,10 +478,10 @@ backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE
 editMaterial 'Редактировать компонент' (Component d)  { NEWSESSION { edit(material(d)); } }
 
 stocks 'Склады' (BOM BOM) = GROUP
-                                                 CONCAT name(Stock stock) IF in(BOM, stock) , ', '
+                                                 CONCAT STRING(name(Stock stock)) IF in(BOM, stock) , ', '
                                                  ORDER stock CHARWIDTH 30 MATERIALIZED;
 stocksIDBOM 'Склады' (BOM BOM) = GROUP
-                                                 CONCAT id(Stock stock) IF in(BOM, stock) , ', '
+                                                 CONCAT STRING(id(Stock stock)) IF in(BOM, stock) , ', '
                                                  ORDER stock CHARWIDTH 30 MATERIALIZED;          
                                                                                         
                                                                                         
@@ -712,15 +712,17 @@ copy 'Копировать'(BOM BOM)  {
 	    }
 	}
 } TOOLBAR;
-
+skipCopyStock = ABSTRACT BOOLEAN ();
 overCopy (BOM from, BOM to) + { 
     name(to) <- name(from);
     inactive(to) <- inactive(from);
     fromDate(to) <- fromDate(from);
     toDate(to) <- toDate(from);    
     note(to) <- note(from);
-    dataIn(Stock s, to) <- dataIn(s, from); 
-    dataIn(StockGroup g, to) <- dataIn(g, from);	 
+    IF NOT skipCopyStock()THEN {
+        dataIn(Stock s, to) <- dataIn(s, from); 
+        dataIn(StockGroup g, to) <- dataIn(g, from);	    
+    } 
     dataNettoNetWeightComponent(to) <- dataNettoNetWeightComponent(from);
 }
 overCopy (Product to, Product from) + { 
